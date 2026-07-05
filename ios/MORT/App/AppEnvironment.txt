@@ -1,0 +1,49 @@
+﻿//
+//  AppEnvironment.swift
+//  MORT
+//
+//  Dependency container exposing every service through its protocol so the app
+//  can swap the mock layer for a live Supabase layer in one place.
+//
+
+import SwiftUI
+
+/// Holds the concrete service instances. Inject via `.environment(\.services, ...)`.
+struct AppServices {
+    let auth: AuthServiceProtocol
+    let profile: ProfileServiceProtocol
+    let jobs: JobServiceProtocol
+    let messages: MessageServiceProtocol
+    let notifications: NotificationServiceProtocol
+    let reports: ReportServiceProtocol
+    let safety: SafetyServiceProtocol
+    let abuse: AbuseProtectionServiceProtocol
+    let admin: AdminServiceProtocol
+    let storage: StorageServiceProtocol
+
+    /// The mock/demo stack. Swap individual services for live Supabase ones here.
+    static let mock = AppServices(
+        auth: MockAuthService(),
+        profile: MockProfileService(),
+        jobs: MockJobService(),
+        messages: MockMessageService(),
+        notifications: MockNotificationService(),
+        reports: MockReportService(),
+        safety: MockSafetyService(),
+        abuse: MockAbuseProtectionService(),
+        admin: MockAdminService(),
+        storage: MockStorageService()
+    )
+}
+
+private struct ServicesKey: EnvironmentKey {
+    static let defaultValue: AppServices = .mock
+}
+
+extension EnvironmentValues {
+    var services: AppServices {
+        get { self[ServicesKey.self] }
+        set { self[ServicesKey.self] = newValue }
+    }
+}
+
