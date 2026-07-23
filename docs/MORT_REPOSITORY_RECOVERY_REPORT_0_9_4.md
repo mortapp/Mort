@@ -12,6 +12,8 @@ Date: 2026-07-22
 - Recovered history mirror: `C:\Users\micha\MortRepositoryRecovery\Mort.git`
 - Target completion branch: `mort-0.9.4-completion-security`
 - Recovery baseline commit: `33013561adf3f163616dcd9ab73d86509df3edcf`
+- 0.9.4 implementation commit: `b3be6c3`
+- 0.9.4 verification/runbook commit: `dd51c31`
 
 ## What was found
 
@@ -78,6 +80,12 @@ ownership has not been verified in this environment, and the configured Git
 author identity is a placeholder. No push will be attempted until credentials,
 ownership, destination, and author identity are verified by the repository
 owner. Local commits do not prove that remote publication occurred.
+
+No push was attempted during the completion sprint. `gh auth status` did not
+show an authenticated GitHub owner session, and the local author identity
+remains the explicit recovery placeholder. The branch is complete only in this
+local repository until the owner verifies GitHub authentication, repository
+ownership, author identity, and the non-force-push destination.
 
 ## Recovery limitations
 
