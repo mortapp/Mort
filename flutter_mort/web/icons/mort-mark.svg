@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="MORT">
+  <rect width="512" height="512" fill="#050607"/>
+  <path d="M86 390V122h72l98 126 98-126h72v268h-78V244l-92 116-92-116v146z" fill="#7CFF6B"/>
+  <rect x="371" y="80" width="55" height="14" rx="7" fill="#4DB8FF"/>
+</svg>

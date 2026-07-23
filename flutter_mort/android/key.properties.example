@@ -1,0 +1,7 @@
+# Copy to android/key.properties only for local use. The real file is ignored.
+# Prefer the MORT_UPLOAD_* environment variables or the protected credential
+# store created by scripts/generate-play-upload-key.ps1.
+storeFile=C:\\Users\\YOUR_NAME\\MortSecrets\\android\\mort-upload-key.jks
+storePassword=DO_NOT_COMMIT
+keyAlias=mort-upload
+keyPassword=DO_NOT_COMMIT

@@ -1,0 +1,1 @@
+MORT 0.9.1 (91) prepares a restricted 13+ closed pilot with approved-participant jobs, job-context messaging, contracts, mutual safety checks, reports, blocking, account deletion, and scoped partner workflows. Ads, billing, real identity-document collection, remote push, and unrestricted marketplace access remain disabled.

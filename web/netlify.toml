@@ -1,0 +1,3 @@
+[build]
+  publish = "public"
+  command = "node ../scripts/build-public-legal-site.mjs"

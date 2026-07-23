@@ -1,0 +1,92 @@
+[CmdletBinding()]
+param(
+  [string]$BundlePath = (Join-Path (Split-Path $PSScriptRoot -Parent) 'build\play\mort-closed-test.aab')
+)
+
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'android-signing-common.ps1')
+
+if (-not (Test-Path -LiteralPath $BundlePath -PathType Leaf)) {
+  throw "AAB not found: $BundlePath"
+}
+$signing = Get-MortUploadSigning
+$keytool = (Get-Command keytool -ErrorAction Stop).Source
+$jarsigner = (Get-Command jarsigner -ErrorAction Stop).Source
+$bundletool = Get-MortBundletoolPath
+
+$jarsignerOutput = & $jarsigner -verify $BundlePath 2>&1
+if ($LASTEXITCODE -ne 0 -or ($jarsignerOutput -join "`n") -notmatch 'jar verified\.') {
+  throw 'jarsigner rejected the AAB signature.'
+}
+
+$ErrorActionPreference = 'Continue'
+$expected = & $keytool -list -v -keystore $signing.StorePath `
+  -storepass $signing.StorePassword -alias $signing.Alias 2>&1
+$expectedExitCode = $LASTEXITCODE
+$actual = & $keytool -printcert -jarfile $BundlePath 2>&1
+$actualExitCode = $LASTEXITCODE
+$ErrorActionPreference = 'Stop'
+if ($expectedExitCode -ne 0 -or $actualExitCode -ne 0) {
+  throw 'keytool could not inspect the expected and actual signing certificates.'
+}
+$expectedSha256 = ($expected | Select-String '^\s*SHA256:' | Select-Object -First 1).Line.Trim()
+$actualSha256 = ($actual | Select-String '^\s*SHA256:' | Select-Object -First 1).Line.Trim()
+if ([string]::IsNullOrWhiteSpace($expectedSha256) -or $expectedSha256 -ne $actualSha256) {
+  throw 'The AAB signer does not match the protected MORT upload certificate.'
+}
+if (($actual -join "`n") -match 'Android Debug') {
+  throw 'The AAB is signed with an Android debug certificate.'
+}
+
+$manifest = & java -jar $bundletool dump manifest --bundle=$BundlePath --module=base
+if ($LASTEXITCODE -ne 0) { throw 'bundletool could not inspect the AAB manifest.' }
+$root = Split-Path $PSScriptRoot -Parent
+$versionJson = & node (Join-Path $PSScriptRoot 'read-mobile-version.mjs') --json
+if ($LASTEXITCODE -ne 0) { throw 'Could not read the authoritative mobile version.' }
+$version = $versionJson | ConvertFrom-Json
+foreach ($required in @(
+  'package="com.mortapp.mobile"',
+  'android:minSdkVersion="24"',
+  'android:targetSdkVersion="36"',
+  ('android:versionCode="{0}"' -f $version.versionCode),
+  ('android:versionName="{0}"' -f $version.versionName)
+)) {
+  if (($manifest -join "`n") -notmatch [regex]::Escape($required)) {
+    throw "AAB manifest assertion failed: $required"
+  }
+}
+
+$reportDirectory = Join-Path $root 'build\play\reports'
+New-Item -ItemType Directory -Force -Path $reportDirectory | Out-Null
+$manifest | Set-Content -LiteralPath (Join-Path $reportDirectory 'bundle-manifest.xml') -Encoding utf8
+
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$archive = [IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $BundlePath))
+try {
+  $entries = $archive.Entries | ForEach-Object FullName | Sort-Object
+  $entries | Set-Content -LiteralPath (Join-Path $reportDirectory 'bundle-contents.txt') -Encoding utf8
+  $entries | Where-Object { $_ -match '^base/lib/.+\.so$' } |
+    Set-Content -LiteralPath (Join-Path $reportDirectory 'native-libraries.txt') -Encoding utf8
+} finally {
+  $archive.Dispose()
+}
+
+$hash = (Get-FileHash -LiteralPath $BundlePath -Algorithm SHA256).Hash
+$size = (Get-Item -LiteralPath $BundlePath).Length
+@(
+  'AAB_SIGNATURE=PASS',
+  'DEBUG_CERTIFICATE=REJECTED',
+  'PACKAGE_ID=com.mortapp.mobile',
+  "VERSION_NAME=$($version.versionName)",
+  "VERSION_CODE=$($version.versionCode)",
+  'MIN_SDK=24',
+  'TARGET_SDK=36',
+  "SIZE_BYTES=$size",
+  "SHA256=$hash",
+  "CERTIFICATE_$actualSha256"
+) | Set-Content -LiteralPath (Join-Path $reportDirectory 'aab-verification.txt') -Encoding utf8
+
+"AAB signature verified against the MORT upload certificate."
+"AAB SHA-256: $hash"
+"AAB size: $size bytes"

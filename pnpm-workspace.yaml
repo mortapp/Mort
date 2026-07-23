@@ -1,0 +1,25 @@
+allowBuilds:
+  unrs-resolver: true
+minimumReleaseAgeExclude:
+  - '@expo/cli@57.0.6'
+  - '@expo/config-plugins@57.0.3'
+  - '@expo/config@57.0.3'
+  - '@expo/fingerprint@0.20.3'
+  - '@expo/inline-modules@0.1.2'
+  - '@expo/prebuild-config@57.0.5'
+  - '@expo/router-server@57.0.2'
+  - '@expo/ui@57.0.4'
+  - '@react-navigation/native@7.3.8'
+  - '@supabase/auth-js@2.110.1'
+  - '@supabase/functions-js@2.110.1'
+  - '@supabase/postgrest-js@2.110.1'
+  - '@supabase/realtime-js@2.110.1'
+  - '@supabase/storage-js@2.110.1'
+  - '@supabase/supabase-js@2.110.1'
+  - babel-preset-expo@57.0.2
+  - expo-linking@57.0.2
+  - expo-modules-autolinking@57.0.5
+  - expo-modules-core@57.0.3
+  - expo-modules-jsi@57.0.1
+  - expo-router@57.0.4
+  - expo@57.0.4

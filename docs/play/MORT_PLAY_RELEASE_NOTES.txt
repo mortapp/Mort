@@ -1,0 +1,7 @@
+MORT 0.9.0 closed-pilot candidate
+
+- Adds release-signed Android closed-test packaging.
+- Keeps public marketplace and real identity-document verification disabled.
+- Adds reauthenticated in-app account deletion requests and external deletion support.
+- Includes synthetic reviewer access, report/block controls, contextual location permissions, and closed-pilot safety disclosures.
+- Ads, purchases, payment processing, escrow, and background location remain disabled.

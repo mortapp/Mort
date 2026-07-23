@@ -1,0 +1,31 @@
+{
+  "generatedAt": "2026-07-22T02:43:13.471Z",
+  "projectRef": "rakjydmgwwgtdislanbt",
+  "packageStatus": "built",
+  "deploymentReady": false,
+  "missingConfiguration": [
+    "MORT_PUBLIC_PUBLISHER_NAME",
+    "MORT_PUBLIC_SUPPORT_EMAIL",
+    "MORT_PUBLIC_PRIVACY_EMAIL",
+    "MORT_PUBLIC_CHILD_SAFETY_EMAIL",
+    "MORT_PUBLIC_WEBSITE_URL",
+    "MORT_PUBLIC_EFFECTIVE_DATE"
+  ],
+  "requiredRoutes": [
+    "/",
+    "/privacy/",
+    "/terms/",
+    "/terms-of-use/",
+    "/community-guidelines/",
+    "/safety/",
+    "/child-safety-standards/",
+    "/prohibited-jobs/",
+    "/payment-disputes/",
+    "/account-deletion/",
+    "/support/",
+    "/contact/",
+    "/accessibility/"
+  ],
+  "legalApprovalClaimed": false,
+  "publicDeploymentClaimed": false
+}

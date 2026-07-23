@@ -1,0 +1,74 @@
+name: MORT
+options:
+  bundleIdPrefix: com.mortapp
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+configs:
+  Debug: debug
+  Release: release
+packages:
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    exactVersion: 2.51.0
+  RevenueCat:
+    url: https://github.com/RevenueCat/purchases-ios-spm.git
+    exactVersion: 5.80.3
+  GoogleMobileAds:
+    url: https://github.com/googleads/swift-package-manager-google-mobile-ads.git
+    exactVersion: 13.6.0
+targets:
+  MORT:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: MORT
+        excludes:
+          - Info.plist
+          - MORT.entitlements
+          - Assets.xcassets
+          - Resources/PrivacyInfo.xcprivacy
+    resources:
+      - MORT/Assets.xcassets
+      - MORT/Resources/PrivacyInfo.xcprivacy
+    info:
+      path: MORT/Info.plist
+    entitlements:
+      path: MORT/MORT.entitlements
+    configFiles:
+      Debug: Config/Debug.xcconfig
+      Release: Config/Release.xcconfig
+    settings:
+      base:
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+        ENABLE_PREVIEWS: YES
+        INFOPLIST_FILE: MORT/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.mortapp.mobile
+        SWIFT_VERSION: 5.9
+    dependencies:
+      - package: Supabase
+        product: Supabase
+      - package: RevenueCat
+        product: RevenueCat
+      - package: RevenueCat
+        product: RevenueCatUI
+      - package: GoogleMobileAds
+        product: GoogleMobileAds
+  MORTTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - MORTTests
+    dependencies:
+      - target: MORT
+  MORTUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - MORTUITests
+    dependencies:
+      - target: MORT

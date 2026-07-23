@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="MORT is a teen-safe local hustle marketplace. Earn nearby. Move smart.">
+  <meta name="theme-color" content="#050607">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MORT">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="apple-touch-icon" sizes="192x192" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="manifest" href="manifest.json">
+  <title>MORT</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      background: #050607;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #050607;
+    }
+
+    #mort-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: grid;
+      place-items: center;
+      padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
+      background: #050607;
+      color: #f3f7f2;
+    }
+
+    .mort-loader__content {
+      width: min(100%, 360px);
+      text-align: center;
+    }
+
+    .mort-loader__mark {
+      width: 88px;
+      height: 88px;
+      margin: 0 auto 22px;
+      border: 1px solid #273038;
+      border-radius: 18px;
+      background: #0d1012 url("icons/mort-mark.svg") center / cover no-repeat;
+      box-shadow: 0 16px 42px rgb(0 0 0 / 45%);
+    }
+
+    .mort-loader__title {
+      margin: 0;
+      font-size: 34px;
+      font-weight: 850;
+      line-height: 1;
+    }
+
+    .mort-loader__tagline {
+      margin: 10px 0 20px;
+      color: #c7d0ca;
+      font-size: 15px;
+    }
+
+    .mort-loader__bar {
+      height: 5px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #273038;
+    }
+
+    .mort-loader__bar::after {
+      display: block;
+      width: 42%;
+      height: 100%;
+      border-radius: inherit;
+      background: #7cff6b;
+      content: "";
+      animation: mort-load 1.15s ease-in-out infinite alternate;
+    }
+
+    .mort-loader__status {
+      min-height: 20px;
+      margin: 14px 0 0;
+      color: #9aa6a0;
+      font-size: 13px;
+    }
+
+    .mort-loader__retry {
+      min-height: 44px;
+      margin-top: 18px;
+      padding: 0 18px;
+      border: 0;
+      border-radius: 8px;
+      background: #7cff6b;
+      color: #050607;
+      font: inherit;
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    @keyframes mort-load {
+      from { transform: translateX(-15%); }
+      to { transform: translateX(145%); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .mort-loader__bar::after { animation: none; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div id="mort-loader" role="status" aria-live="polite">
+    <div class="mort-loader__content">
+      <div class="mort-loader__mark" aria-hidden="true"></div>
+      <h1 class="mort-loader__title">MORT</h1>
+      <p class="mort-loader__tagline">Earn nearby. Move smart.</p>
+      <div class="mort-loader__bar" aria-hidden="true"></div>
+      <p class="mort-loader__status" id="mort-loader-status">Loading the secure web preview...</p>
+      <button class="mort-loader__retry" id="mort-loader-retry" type="button" hidden>Retry</button>
+    </div>
+  </div>
+  <noscript>MORT needs JavaScript enabled to run this web preview.</noscript>
+  <script src="flutter_bootstrap.js" defer></script>
+</body>
+</html>

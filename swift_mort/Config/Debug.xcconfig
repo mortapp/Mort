@@ -1,0 +1,7 @@
+#include "Base.xcconfig"
+#include? "Secrets.xcconfig"
+
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG
+APS_ENVIRONMENT = development
+MORT_ADS_ENABLED = NO
+MORT_USE_TEST_ADS = YES
