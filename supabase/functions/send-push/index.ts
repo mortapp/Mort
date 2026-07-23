@@ -1,4 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.110.1";
+import {
+  constantTimeEqual,
+  correlatedJson,
+  correlationId,
+  safeErrorKind,
+  structuredLog,
+} from "../_shared/observability.ts";
 
 type PushRequest = {
   notificationId?: string;
@@ -36,47 +43,101 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
   }
 });
 
+const maximumBodyBytes = 32 * 1024;
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 Deno.serve(async (request) => {
+  const traceId = correlationId(request);
   if (request.method !== "POST") {
-    return json({ error: "POST required" }, 405);
+    return correlatedJson({ ok: false, code: "post_required" }, 405, traceId);
   }
 
-  if (request.headers.get("x-mort-push-secret") !== invokeSecret) {
-    return json({ error: "Unauthorized push invocation." }, 401);
+  const suppliedSecret = request.headers.get("x-mort-push-secret") ?? "";
+  if (!constantTimeEqual(invokeSecret, suppliedSecret)) {
+    structuredLog("warn", "push.authorization_rejected", traceId);
+    return correlatedJson(
+      { ok: false, code: "push_authorization_required" },
+      401,
+      traceId,
+    );
   }
-
-  const payload = await readPayload(request);
 
   try {
+    const payload = await readPayload(request);
+    validatePayload(payload);
     if (payload.notificationId || payload.userId) {
       const result = await processSingle(payload);
-      console.info("send-push processed single notification request.");
-      return json({ ok: true, processed: 1, result });
+      structuredLog("info", "push.single_processed", traceId, {
+        delivered: true,
+      });
+      return correlatedJson({ ok: true, processed: 1, result }, 200, traceId);
     }
 
     const results = await processPendingQueue(Math.min(Math.max(payload.batchSize ?? 25, 1), 100));
-    console.info(`send-push processed queue batch: ${results.length}`);
-    return json({
+    const sent = results.filter((result) => result.status === "sent").length;
+    const failed = results.filter((result) => result.status === "failed").length;
+    structuredLog("info", "push.batch_processed", traceId, {
+      processed: results.length,
+      sent,
+      failed,
+    });
+    return correlatedJson({
       ok: true,
       processed: results.length,
-      sent: results.filter((result) => result.status === "sent").length,
-      failed: results.filter((result) => result.status === "failed").length,
-      results
-    });
+      sent,
+      failed,
+      results,
+    }, 200, traceId);
   } catch (error) {
-    console.error("send-push failed", error);
-    return json({ error: error instanceof Error ? error.message : "Unable to send push." }, 400);
+    const kind = safeErrorKind(error);
+    structuredLog("error", "push.request_failed", traceId, { kind });
+    const code = error instanceof PushInputError
+      ? error.code
+      : "push_delivery_failed";
+    const status = error instanceof PushInputError ? error.status : 500;
+    return correlatedJson({ ok: false, code }, status, traceId);
   }
 });
 
 async function readPayload(request: Request): Promise<PushRequest> {
+  const declaredLength = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(declaredLength) && declaredLength > maximumBodyBytes) {
+    throw new PushInputError("payload_too_large", 413);
+  }
   const text = await request.text();
+  if (new TextEncoder().encode(text).byteLength > maximumBodyBytes) {
+    throw new PushInputError("payload_too_large", 413);
+  }
   if (!text.trim()) return {};
 
   try {
-    return JSON.parse(text) as PushRequest;
-  } catch {
-    throw new Error("Request body must be valid JSON.");
+    const parsed = JSON.parse(text);
+    if (parsed == null || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new PushInputError("invalid_json_object", 400);
+    }
+    return parsed as PushRequest;
+  } catch (error) {
+    if (error instanceof PushInputError) throw error;
+    throw new PushInputError("invalid_json", 400);
+  }
+}
+
+function validatePayload(payload: PushRequest) {
+  if (payload.notificationId && !uuidPattern.test(payload.notificationId)) {
+    throw new PushInputError("invalid_notification_id", 400);
+  }
+  if (payload.userId && !uuidPattern.test(payload.userId)) {
+    throw new PushInputError("invalid_user_id", 400);
+  }
+  if (payload.title != null && typeof payload.title !== "string") {
+    throw new PushInputError("invalid_title", 400);
+  }
+  if (payload.body != null && typeof payload.body !== "string") {
+    throw new PushInputError("invalid_body", 400);
+  }
+  if (payload.batchSize != null &&
+      (!Number.isInteger(payload.batchSize) || payload.batchSize < 1 || payload.batchSize > 100)) {
+    throw new PushInputError("invalid_batch_size", 400);
   }
 }
 
@@ -112,7 +173,7 @@ async function processSingle(payload: PushRequest) {
   }
 
   if (!payload.userId || !payload.title || !payload.body) {
-    throw new Error("Provide notificationId or userId/title/body.");
+    throw new PushInputError("notification_target_required", 400);
   }
 
   return sendToRecipient({
@@ -139,9 +200,11 @@ async function sendEvent(event: NotificationEvent) {
 
     return { id: event.id, status: "sent", result };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    await supabase.from("notification_events").update({ status: "failed", last_error: message }).eq("id", event.id);
-    return { id: event.id, status: "failed", error: message };
+    const code = error instanceof PushInputError
+      ? error.code
+      : "push_delivery_failed";
+    await supabase.from("notification_events").update({ status: "failed", last_error: code }).eq("id", event.id);
+    return { id: event.id, status: "failed", error: code };
   }
 }
 
@@ -163,7 +226,14 @@ async function sendToRecipient(input: { recipientId: string; title: string; body
   }
 
   if (activeTokens.length === 0) {
-    throw new Error("Recipient has no active Expo push token.");
+    throw new PushInputError("push_token_unavailable", 409);
+  }
+
+  const validTokens = activeTokens.filter((token) =>
+    /^(ExponentPushToken|ExpoPushToken)\[[A-Za-z0-9_-]{10,200}\]$/.test(token.expo_push_token)
+  );
+  if (validTokens.length === 0) {
+    throw new PushInputError("push_token_invalid", 409);
   }
 
   const expoResponse = await fetch("https://exp.host/--/api/v2/push/send", {
@@ -173,7 +243,7 @@ async function sendToRecipient(input: { recipientId: string; title: string; body
       Accept: "application/json"
     },
     body: JSON.stringify(
-      activeTokens.map((token) => ({
+      validTokens.map((token) => ({
         to: token.expo_push_token,
         title: input.title,
         body: input.body,
@@ -184,10 +254,10 @@ async function sendToRecipient(input: { recipientId: string; title: string; body
 
   const expoBody = (await expoResponse.json()) as ExpoPushResult;
   if (!expoResponse.ok) {
-    throw new Error(JSON.stringify(expoBody));
+    throw new PushInputError("expo_push_rejected", 502);
   }
 
-  await deactivateInvalidTokens(activeTokens, expoBody);
+  await deactivateInvalidTokens(validTokens, expoBody);
   return expoBody;
 }
 
@@ -219,19 +289,20 @@ async function deactivateInvalidTokens(tokens: Array<{ id: string | null; expo_p
         .update({ is_active: false, last_error: "DeviceNotRegistered" })
         .eq("id", token.id);
     } else if (result.status === "error") {
+      const providerCode = typeof result.details?.error === "string" &&
+          /^[A-Za-z][A-Za-z0-9]{0,63}$/.test(result.details.error)
+        ? result.details.error
+        : "expo_push_error";
       await supabase
         .from("push_tokens")
-        .update({ last_error: result.message ?? "Expo push error" })
+        .update({ last_error: providerCode })
         .eq("id", token.id);
     }
   }
 }
 
-function json(body: Record<string, unknown>, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "Content-Type": "application/json"
-    }
-  });
+class PushInputError extends Error {
+  constructor(readonly code: string, readonly status: number) {
+    super(code);
+  }
 }

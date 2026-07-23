@@ -82,7 +82,7 @@ void main() {
     );
   });
 
-  test('notification plugin requirements are enabled for release builds', () {
+  test('Firebase notification requirements are enabled for release builds', () {
     expect(gradle, contains('isCoreLibraryDesugaringEnabled = true'));
     expect(
       gradle,

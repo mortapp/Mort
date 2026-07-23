@@ -1,9 +1,59 @@
 import 'repository_base.dart';
 
 class AdminRepository extends RepositoryBase {
+  Future<Map<String, dynamic>> moderationRecord({
+    required String recordType,
+    required String recordId,
+  }) async {
+    requireUserId();
+    final result = await client.rpc(
+      'admin_get_moderation_record',
+      params: {'p_record_type': recordType, 'p_record_id': recordId},
+    );
+    final value = Map<String, dynamic>.from(result as Map);
+    _requireSuccess(value, 'The moderation record is unavailable.');
+    return value;
+  }
+
   Future<Map<String, dynamic>> monetizationOverview() async {
     final result = await client.rpc('admin_monetization_overview');
     return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> operationalAlerts({
+    String status = 'open',
+    int limit = 100,
+  }) async {
+    requireUserId();
+    final result = await client.rpc(
+      'get_admin_operational_alerts',
+      params: {'p_status': status, 'p_limit': limit},
+    );
+    final value = Map<String, dynamic>.from(result as Map);
+    _requireSuccess(value, 'The operational alert queue is unavailable.');
+    final items = value['items'];
+    if (items is! List) return const [];
+    return items
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
+  }
+
+  Future<void> acknowledgeOperationalAlert({
+    required String alertId,
+    required String status,
+    required String reason,
+  }) async {
+    requireUserId();
+    final result = await client.rpc(
+      'admin_acknowledge_operational_alert',
+      params: {
+        'p_alert_id': alertId,
+        'p_resolution_status': status,
+        'p_reason': reason.trim(),
+      },
+    );
+    _requireSuccess(result, 'The operational alert action was rejected.');
   }
 
   Future<List<Map<String, dynamic>>> queue(
@@ -44,41 +94,30 @@ class AdminRepository extends RepositoryBase {
     await client.from(table).update(values).eq('id', id);
   }
 
-  Future<void> restrictUser(String userId, String status) async {
-    requireUserId();
-    await client
-        .from('profiles')
-        .update({'account_status': status})
-        .eq('id', userId);
-  }
-
-  Future<void> reviewIdentity({
-    required String verificationId,
-    required String action,
-    String? decisionCode,
+  Future<void> setAccountStatus({
+    required String userId,
+    required String status,
+    required String reason,
   }) async {
     requireUserId();
-    final approving = action == 'approve';
     final result = await client.rpc(
-      'admin_review_identity_verification',
-      params: {
-        'p_verification_id': verificationId,
-        'p_action': action,
-        'p_decision_code': decisionCode,
-        'p_identity_match_result': approving ? 'manual_pass' : 'not_checked',
-        'p_liveness_result': approving ? 'manual_pass' : 'not_checked',
-        'p_email_result': approving ? 'manual_pass' : 'not_checked',
-        'p_phone_result': approving ? 'manual_pass' : 'not_checked',
-        'p_address_result': approving ? 'manual_pass' : 'not_checked',
-        'p_expires_at': approving
-            ? DateTime.now()
-                  .toUtc()
-                  .add(const Duration(days: 365))
-                  .toIso8601String()
-            : null,
-      },
+      'admin_set_account_status',
+      params: {'p_user_id': userId, 'p_status': status, 'p_reason': reason},
     );
-    _requireSuccess(result, 'The identity review action was rejected.');
+    _requireSuccess(result, 'The account status action was rejected.');
+  }
+
+  Future<void> updateReportStatus({
+    required String reportId,
+    required String status,
+    required String reason,
+  }) async {
+    requireUserId();
+    final result = await client.rpc(
+      'admin_update_report_status',
+      params: {'p_report_id': reportId, 'p_status': status, 'p_reason': reason},
+    );
+    _requireSuccess(result, 'The report action was rejected.');
   }
 
   Future<void> updateIncident({

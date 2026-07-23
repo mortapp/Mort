@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
+import '../../core/utils/safe_uri.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/repositories/mort_guide_repository.dart';
 import '../../data/repositories/providers.dart';
@@ -285,13 +286,17 @@ class MortGuideSourceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: () async {
-      if (source.route?.startsWith('/') == true) {
-        context.go(source.route!);
+      final route = safeInternalHelpRoute(source.route);
+      if (route != null) {
+        context.go(route);
       } else if (source.url.isNotEmpty) {
-        await launchUrl(
-          Uri.parse(source.url),
-          mode: LaunchMode.externalApplication,
-        );
+        final uri = safeExternalHttpsUri(source.url);
+        if (uri == null ||
+            !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+          if (context.mounted) {
+            MortToast.show(context, 'This source link could not be opened.');
+          }
+        }
       }
     },
     child: Row(

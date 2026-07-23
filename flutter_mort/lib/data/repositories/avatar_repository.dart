@@ -38,17 +38,25 @@ class AvatarRepository extends RepositoryBase {
     final processed = processAvatarBytes(source);
     final path = '$userId/${const Uuid().v4()}.jpg';
 
-    await client.storage
-        .from(bucket)
-        .uploadBinary(
-          path,
-          processed,
-          fileOptions: const FileOptions(
-            contentType: 'image/jpeg',
-            cacheControl: '3600',
-            upsert: false,
-          ),
-        );
+    try {
+      await client.storage
+          .from(bucket)
+          .uploadBinary(
+            path,
+            processed,
+            fileOptions: const FileOptions(
+              contentType: 'image/jpeg',
+              cacheControl: '3600',
+              upsert: false,
+            ),
+          );
+    } catch (_) {
+      await recordUploadFailure(
+        uploadKind: 'avatar',
+        safeCode: 'avatar_storage_upload_failed',
+      );
+      rethrow;
+    }
 
     try {
       final persisted = await _profiles.setAvatarPath(path);
@@ -56,6 +64,10 @@ class AvatarRepository extends RepositoryBase {
         throw StateError('The server did not confirm the new avatar path.');
       }
     } catch (_) {
+      await recordUploadFailure(
+        uploadKind: 'avatar',
+        safeCode: 'avatar_profile_update_failed',
+      );
       try {
         await client.storage.from(bucket).remove([path]);
       } catch (_) {

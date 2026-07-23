@@ -30,6 +30,8 @@ import '../../features/profile/activity_history_screen.dart';
 import '../../features/notifications/notification_center_screen.dart';
 import '../../features/payments/stripe_marketplace_screens.dart';
 import '../../features/payments/admin_payment_operations_screen.dart';
+import '../../features/admin/admin_moderation_detail_screen.dart';
+import '../../features/admin/admin_operational_alerts_screen.dart';
 import '../../features/safety/trust_safety_screens.dart';
 import '../../features/support/support_screens.dart';
 import '../../features/settings/account_management_screens.dart';
@@ -393,8 +395,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         const AdminQueueScreen(
           title: 'Reports',
           table: 'reports',
-          actionLabel: 'Resolve report',
-          actionValue: 'resolved',
+          detailRoutePrefix: '/admin/reports',
         ),
         role: UserRole.admin,
       ),
@@ -402,7 +403,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/admin/reports/:id',
         builder: (_, state) => GuardedRoute(
           requiredRole: UserRole.admin,
-          child: _adminDetail('Report detail', state.pathParameters['id']),
+          child: AdminModerationDetailScreen(
+            recordType: AdminModerationRecordType.report,
+            recordId: state.pathParameters['id'] ?? '',
+          ),
         ),
       ),
       _guarded(
@@ -414,7 +418,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               'Only verification reviewers and senior safety moderators can read this queue. Raw evidence requires a separate logged grant.',
           orFilter:
               'status.eq.verification_pending,status.eq.manual_review,status.eq.additional_information_required,status.eq.appeal_pending',
-          sensitiveAction: AdminSensitiveQueueAction.identity,
+          detailRoutePrefix: '/admin/verifications',
         ),
         role: UserRole.admin,
       ),
@@ -424,7 +428,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           title: 'Adult ID review',
           table: 'identity_verifications',
           equals: {'account_role': 'adult'},
-          sensitiveAction: AdminSensitiveQueueAction.identity,
+          detailRoutePrefix: '/admin/verifications',
         ),
         role: UserRole.admin,
       ),
@@ -434,7 +438,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           title: 'Teen school-ID review',
           table: 'identity_verifications',
           equals: {'account_role': 'teen', 'evidence_route': 'school_photo_id'},
-          sensitiveAction: AdminSensitiveQueueAction.identity,
+          detailRoutePrefix: '/admin/verifications',
         ),
         role: UserRole.admin,
       ),
@@ -445,7 +449,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           table: 'identity_verifications',
           equals: {'account_role': 'teen'},
           notEquals: {'evidence_route': 'school_photo_id'},
-          sensitiveAction: AdminSensitiveQueueAction.identity,
+          detailRoutePrefix: '/admin/verifications',
         ),
         role: UserRole.admin,
       ),
@@ -465,7 +469,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           title: 'Verification appeals',
           table: 'identity_verifications',
           equals: {'status': 'appeal_pending'},
-          sensitiveAction: AdminSensitiveQueueAction.identity,
+          detailRoutePrefix: '/admin/verifications',
         ),
         role: UserRole.admin,
       ),
@@ -577,9 +581,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/admin/verifications/:id',
         builder: (_, state) => GuardedRoute(
           requiredRole: UserRole.admin,
-          child: _adminDetail(
-            'Verification detail',
-            state.pathParameters['id'],
+          child: AdminModerationDetailScreen(
+            recordType: AdminModerationRecordType.identityVerification,
+            recordId: state.pathParameters['id'] ?? '',
           ),
         ),
       ),
@@ -628,6 +632,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       _guarded(
         '/admin/payment-operations',
         const SensitiveScreenProtection(child: AdminPaymentOperationsScreen()),
+        role: UserRole.admin,
+      ),
+      _guarded(
+        '/admin/operational-alerts',
+        const SensitiveScreenProtection(child: AdminOperationalAlertsScreen()),
         role: UserRole.admin,
       ),
       _guarded(
@@ -1066,6 +1075,7 @@ class GuardedRoute extends ConsumerWidget {
     if (user == null) return const AuthRequiredScreen();
 
     final profile = ref.watch(currentProfileProvider);
+    final runtimeStatus = ref.watch(releaseModeStatusProvider);
     return profile.when(
       loading: () => const MortLoading(),
       error: (error, _) => MortErrorStateScreen(
@@ -1073,6 +1083,18 @@ class GuardedRoute extends ConsumerWidget {
         message: userFacingError(error),
       ),
       data: (profile) {
+        final maintenance = runtimeStatus.asData?.value['maintenance_mode'];
+        if (maintenance == true) {
+          return const MaintenanceModeScreen();
+        }
+        if (runtimeStatus.hasError) {
+          return MortErrorStateScreen(
+            title: 'Safety controls unavailable',
+            message:
+                'MORT could not verify its server safety controls. Check your connection and retry.',
+          );
+        }
+        if (runtimeStatus.isLoading) return const MortLoading();
         final decision = evaluateRouteAccess(
           hasSession: true,
           profile: profile,
@@ -1151,27 +1173,6 @@ Widget _legalIndex() {
         label: 'Teen safety',
         icon: Icons.shield,
         route: '/legal/teen-safety',
-      ),
-    ],
-  );
-}
-
-Widget _adminDetail(String title, String? id) {
-  return FeatureScaffoldScreen(
-    eyebrow: 'Admin detail',
-    title: title,
-    description:
-        'Record ${id ?? 'selected'} is restricted to trained safety operations. Sensitive evidence and enforcement actions are not exposed in this pilot app.',
-    actions: const [
-      MortAction(
-        label: 'Admin resolve report',
-        icon: Icons.check,
-        enabled: false,
-      ),
-      MortAction(
-        label: 'Admin restrict/suspend user',
-        icon: Icons.block,
-        enabled: false,
       ),
     ],
   );

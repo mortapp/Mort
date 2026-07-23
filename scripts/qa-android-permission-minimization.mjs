@@ -4,6 +4,9 @@ import { assert, pass, read, root } from './play-release-qa-helpers.mjs';
 
 const scope = 'qa-android-permission-minimization';
 const source = read('flutter_mort/android/app/src/main/AndroidManifest.xml');
+const pubspec = read('flutter_mort/pubspec.yaml');
+const report = resolve(root, 'build/play/reports/bundle-manifest.xml');
+const merged = existsSync(report) ? read('build/play/reports/bundle-manifest.xml') : '';
 for (const forbidden of ['ACCESS_BACKGROUND_LOCATION','READ_MEDIA_IMAGES','READ_EXTERNAL_STORAGE','WRITE_EXTERNAL_STORAGE']) {
   assert(!source.includes(forbidden), `Forbidden permission remains: ${forbidden}`);
 }
@@ -20,14 +23,14 @@ for (const component of [
   'com.google.android.gms.ads.AdActivity',
   'com.google.android.gms.ads.AdService',
 ]) {
+  const explicitlyRemoved = new RegExp(`${component.replaceAll('.', '\\.')}[^>]+tools:node="remove"`).test(source);
   assert(
-    new RegExp(`${component.replaceAll('.', '\\.')}[^>]+tools:node="remove"`).test(source),
-    `Disabled AdMob component is not explicitly removed: ${component}`,
+    explicitlyRemoved ||
+      (!pubspec.includes('google_mobile_ads:') && merged !== '' && !merged.includes(component)),
+    `Disabled AdMob component is neither explicitly removed nor absent from dependencies and the final AAB: ${component}`,
   );
 }
-const report = resolve(root, 'build/play/reports/bundle-manifest.xml');
 if (existsSync(report)) {
-  const merged = read('build/play/reports/bundle-manifest.xml');
   for (const forbidden of ['ACCESS_BACKGROUND_LOCATION','com.google.android.gms.permission.AD_ID','WAKE_LOCK']) {
     assert(!merged.includes(forbidden), `Final AAB contains forbidden permission: ${forbidden}`);
   }

@@ -1,5 +1,11 @@
 import Stripe from "npm:stripe@22.1.1";
 import { createClient, SupabaseClient, User } from "https://esm.sh/@supabase/supabase-js@2.110.1";
+import {
+  constantTimeEqual,
+  correlatedJson,
+  safeErrorKind,
+  structuredLog,
+} from "./observability.ts";
 
 export type StripeEnvironment = "test" | "live";
 
@@ -27,11 +33,12 @@ export const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-export function json(body: Record<string, unknown>, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
-  });
+export function json(
+  body: Record<string, unknown>,
+  status = 200,
+  traceId = crypto.randomUUID(),
+) {
+  return correlatedJson(body, status, traceId, corsHeaders);
 }
 
 export function options(request: Request) {
@@ -100,6 +107,18 @@ export async function runtime(context: StripeContext, needsWebhookSecret = false
   if (!publishableKey.startsWith(environment === "test" ? "pk_test_" : "pk_live_")) throw new PublicError("stripe_key_mode_mismatch", 503);
   if (needsWebhookSecret && !webhookSecret?.startsWith("whsec_")) throw new PublicError("stripe_webhook_not_configured", 503);
 
+  const { data: featureStatus, error: featureError } = await context.serviceClient
+    .rpc("get_runtime_feature_status");
+  if (featureError || featureStatus?.ok !== true) {
+    throw new PublicError("runtime_controls_unavailable", 503);
+  }
+  if (featureStatus.maintenance_mode === true) {
+    throw new PublicError("maintenance_mode_active", 503);
+  }
+  if (featureStatus.payments_disabled === true) {
+    throw new PublicError("payments_disabled", 503);
+  }
+
   const { data, error } = await context.userClient.rpc("get_stripe_runtime_status");
   if (error || data?.environment !== environment || data?.mode !== mode) throw new PublicError("stripe_runtime_mode_mismatch", 503);
   if (mode === "live" && data?.live_mode_enabled !== true) throw new PublicError("stripe_live_disabled", 503);
@@ -167,14 +186,30 @@ export function providerStatus(status: string) {
   return allowed.has(status) ? status : "requires_payment_method";
 }
 
-export function safeError(error: unknown) {
-  if (error instanceof PublicError) return json({ ok: false, code: error.code }, error.status);
-  if (error instanceof Stripe.errors.StripeError) {
-    console.error("Stripe operation failed", { type: error.type, code: error.code });
-    return json({ ok: false, code: "stripe_operation_failed", provider_code: safeProviderCode(error.code) }, 400);
+export function safeError(error: unknown, traceId = crypto.randomUUID()) {
+  if (error instanceof PublicError) {
+    structuredLog("warn", "stripe.request_rejected", traceId, {
+      code: error.code,
+      status: error.status,
+    });
+    return json({ ok: false, code: error.code }, error.status, traceId);
   }
-  console.error("Stripe function failed", { kind: error instanceof Error ? error.name : "unknown" });
-  return json({ ok: false, code: "stripe_operation_failed" }, 500);
+  if (error instanceof Stripe.errors.StripeError) {
+    const providerCode = safeProviderCode(error.code);
+    structuredLog("error", "stripe.provider_failed", traceId, {
+      kind: safeErrorKind(error),
+      provider_code: providerCode,
+    });
+    return json({
+      ok: false,
+      code: "stripe_operation_failed",
+      provider_code: providerCode,
+    }, 400, traceId);
+  }
+  structuredLog("error", "stripe.function_failed", traceId, {
+    kind: safeErrorKind(error),
+  });
+  return json({ ok: false, code: "stripe_operation_failed" }, 500, traceId);
 }
 
 export class PublicError extends Error {
@@ -197,13 +232,4 @@ export async function sha256(value: string) {
 
 function safeProviderCode(code?: string) {
   return typeof code === "string" && /^[a-z0-9_]{2,80}$/.test(code) ? code : undefined;
-}
-
-function constantTimeEqual(left: string, right: string) {
-  const leftBytes = new TextEncoder().encode(left);
-  const rightBytes = new TextEncoder().encode(right);
-  let mismatch = leftBytes.length ^ rightBytes.length;
-  const length = Math.max(leftBytes.length, rightBytes.length);
-  for (let index = 0; index < length; index += 1) mismatch |= (leftBytes[index] ?? 0) ^ (rightBytes[index] ?? 0);
-  return mismatch === 0;
 }

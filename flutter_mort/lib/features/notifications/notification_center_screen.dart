@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/errors/user_facing_error.dart';
+import '../../core/routing/notification_destination.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/notification_item.dart';
-import '../../data/models/profile.dart';
 import '../../data/repositories/providers.dart';
 
 class NotificationCenterScreen extends ConsumerStatefulWidget {
@@ -61,33 +61,7 @@ class _NotificationCenterScreenState
     }
     if (!mounted) return;
     final profile = ref.read(currentProfileProvider).asData?.value;
-    context.go(_destination(item.data, profile?.role));
-  }
-
-  String _destination(Map<String, dynamic> data, UserRole? role) {
-    final threadId = data['threadId']?.toString();
-    if (threadId?.isNotEmpty == true) return '/messages/$threadId';
-    if (data['supportTicketId'] != null) return '/support';
-    if (data['reviewId'] != null) return '/settings/reviews';
-    if (data['guardianLinkId'] != null) return '/settings/guardian-mode';
-    if (data['applicationId'] != null) {
-      return switch (role) {
-        UserRole.adult => '/adult/applicants',
-        UserRole.guardian => '/guardian/approvals',
-        _ => '/teen/applications',
-      };
-    }
-    if (data['jobId'] != null) {
-      return role == UserRole.adult ? '/adult/jobs' : '/teen/jobs';
-    }
-    if (data['safetyPingId'] != null) {
-      return switch (role) {
-        UserRole.admin => '/admin/safety-pings',
-        UserRole.guardian => '/guardian/safety-pings',
-        _ => '/teen/safety',
-      };
-    }
-    return '/account-status';
+    context.go(notificationDestination(item.data, profile?.role));
   }
 
   @override

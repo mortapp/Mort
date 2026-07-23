@@ -238,6 +238,57 @@ export async function cleanupQaRestrictedData(userIds) {
         "delete from public.job_completion_assertions where contract_id in (select id from qa_legal_trust_contracts)",
       );
       await database.query(
+        "delete from public.job_execution_events where contract_id in (select id from qa_legal_trust_contracts)",
+      );
+      await database.query(
+        "delete from public.job_execution_cancellations where contract_id in (select id from qa_legal_trust_contracts)",
+      );
+      await database.query(
+        "delete from public.teen_abandonment_reports where contract_id in (select id from qa_legal_trust_contracts)",
+      );
+      await database.query(
+        `delete from public.job_arrival_handshakes
+         where application_id in (
+           select application_id from public.job_contracts
+           where id in (select id from qa_legal_trust_contracts)
+         )`,
+      );
+      await database.query(
+        `delete from private.stripe_payment_resolutions
+         where contract_id in (select id from qa_legal_trust_contracts)`,
+      );
+      await database.query(
+        `delete from private.stripe_saved_payment_consents
+         where contract_id in (select id from qa_legal_trust_contracts)
+            or adult_id = any($1::uuid[])`,
+        [userIds],
+      );
+      await database.query(
+        `delete from private.stripe_job_disputes
+         where payment_intent_id in (
+           select id from private.stripe_job_payment_intents
+           where contract_id in (select id from qa_legal_trust_contracts)
+         )`,
+      );
+      await database.query(
+        `delete from private.stripe_job_refunds
+         where payment_intent_id in (
+           select id from private.stripe_job_payment_intents
+           where contract_id in (select id from qa_legal_trust_contracts)
+         )`,
+      );
+      await database.query(
+        `delete from private.stripe_job_transfers
+         where payment_intent_id in (
+           select id from private.stripe_job_payment_intents
+           where contract_id in (select id from qa_legal_trust_contracts)
+         )`,
+      );
+      await database.query(
+        `delete from private.stripe_job_payment_intents
+         where contract_id in (select id from qa_legal_trust_contracts)`,
+      );
+      await database.query(
         `update public.job_payment_obligations
          set superseded_by_obligation_id = null
          where contract_id in (select id from qa_legal_trust_contracts)`,
@@ -276,6 +327,34 @@ export async function cleanupQaRestrictedData(userIds) {
       );
       await database.query(
         "delete from public.job_contracts where id in (select id from qa_legal_trust_contracts)",
+      );
+      await database.query(
+        `delete from private.stripe_payout_events
+         where connected_account_id in (
+           select id from private.stripe_connected_accounts
+           where user_id = any($1::uuid[])
+         )`,
+        [userIds],
+      );
+      await database.query(
+        `delete from private.stripe_job_transfers
+         where connected_account_id in (
+           select id from private.stripe_connected_accounts
+           where user_id = any($1::uuid[])
+         )`,
+        [userIds],
+      );
+      await database.query(
+        "delete from private.stripe_connected_accounts where user_id = any($1::uuid[])",
+        [userIds],
+      );
+      await database.query(
+        "delete from private.stripe_customers where user_id = any($1::uuid[])",
+        [userIds],
+      );
+      await database.query(
+        "delete from private.stripe_financial_role_assignments where user_id = any($1::uuid[])",
+        [userIds],
       );
       await database.query(
         `delete from public.legal_acceptance_audit_events
@@ -358,6 +437,40 @@ export async function cleanupQaRestrictedData(userIds) {
       );
       await database.query(
         "delete from public.safety_cancellations where actor_id = any($1::uuid[])",
+        [userIds],
+      );
+      await database.query(
+        `delete from public.message_safety_evidence
+         where sender_id = any($1::uuid[])
+            or thread_id in (
+              select thread.id
+              from public.message_threads thread
+              where thread.teen_id = any($1::uuid[])
+                 or thread.adult_id = any($1::uuid[])
+                 or thread.guardian_id = any($1::uuid[])
+            )`,
+        [userIds],
+      );
+      await database.query(
+        `delete from public.conversations
+         where legacy_thread_id in (
+           select thread.id
+           from public.message_threads thread
+           where thread.teen_id = any($1::uuid[])
+              or thread.adult_id = any($1::uuid[])
+              or thread.guardian_id = any($1::uuid[])
+         )`,
+        [userIds],
+      );
+      await database.query(
+        `delete from public.message_threads
+         where teen_id = any($1::uuid[])
+            or adult_id = any($1::uuid[])
+            or guardian_id = any($1::uuid[])`,
+        [userIds],
+      );
+      await database.query(
+        "delete from public.messages where sender_id = any($1::uuid[])",
         [userIds],
       );
       await database.query("commit");
@@ -546,7 +659,11 @@ export async function withQaUsers(scope, definitions, run) {
     });
     for (const user of cleanupOrder) {
       const { error } = await serviceClient.auth.admin.deleteUser(user.id, false);
-      if (error) {
+      if (
+        error &&
+        error.code !== "user_not_found" &&
+        error.message !== "User not found"
+      ) {
         console.error(`[${scope}] cleanup warning: ${error.message}`);
       }
     }

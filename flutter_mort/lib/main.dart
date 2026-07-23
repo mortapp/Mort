@@ -1,7 +1,10 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
+import 'core/observability/crash_reporting.dart';
 import 'core/theme/mort_theme.dart';
 import 'core/widgets/mort_widgets.dart';
 import 'data/services/supabase_service.dart';
@@ -9,7 +12,38 @@ import 'features/monetization/data/google_play_billing.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const ProviderScope(child: MortBootstrap()));
+  final reporter = MortCrashReporting.instance;
+  final priorFlutterHandler = FlutterError.onError;
+  FlutterError.onError = (details) {
+    unawaited(
+      reporter.record(
+        details.exception,
+        details.stack ?? StackTrace.current,
+        fatal: false,
+        context: 'flutter_framework',
+      ),
+    );
+    if (!kReleaseMode) {
+      (priorFlutterHandler ?? FlutterError.presentError)(details);
+    }
+  };
+  PlatformDispatcher.instance.onError = (error, stackTrace) {
+    unawaited(
+      reporter.record(
+        error,
+        stackTrace,
+        fatal: true,
+        context: 'platform_dispatcher',
+      ),
+    );
+    return true;
+  };
+  runZonedGuarded(
+    () => runApp(const ProviderScope(child: MortBootstrap())),
+    (error, stackTrace) => unawaited(
+      reporter.record(error, stackTrace, fatal: true, context: 'root_zone'),
+    ),
+  );
 }
 
 class MortBootstrap extends StatefulWidget {
@@ -45,6 +79,14 @@ class _MortBootstrapState extends State<MortBootstrap> {
       await PurchaseController.instance.initialize();
       return null;
     } catch (error) {
+      unawaited(
+        MortCrashReporting.instance.record(
+          error,
+          StackTrace.current,
+          fatal: false,
+          context: 'startup',
+        ),
+      );
       return error;
     }
   }

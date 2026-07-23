@@ -8,6 +8,7 @@ import '../../core/config/app_config.dart';
 import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
+import '../../core/utils/safe_uri.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/repositories/providers.dart';
 import '../../data/repositories/stripe_marketplace_repository.dart';
@@ -54,8 +55,10 @@ class _StripePayoutSetupScreenState
         returnUrl: '$origin/stripe/onboarding-return',
         refreshUrl: '$origin/stripe/onboarding-refresh',
       );
-      final uri = Uri.tryParse(link['onboarding_url']?.toString() ?? '');
-      if (uri == null || uri.scheme != 'https') {
+      final uri = safeStripeConnectUri(
+        link['onboarding_url']?.toString() ?? '',
+      );
+      if (uri == null) {
         throw StateError('Invalid Stripe onboarding URL.');
       }
       final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);

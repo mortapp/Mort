@@ -3,8 +3,11 @@ import 'repository_base.dart';
 
 class MissionPilotRepository extends RepositoryBase {
   Future<Map<String, dynamic>> releaseModeStatus() async {
-    final result = await client.rpc('get_release_mode_status');
-    return missionMap(result);
+    final results = await Future.wait([
+      client.rpc('get_release_mode_status'),
+      client.rpc('get_runtime_feature_status'),
+    ]);
+    return {...missionMap(results[0]), ...missionMap(results[1])};
   }
 
   Future<MissionPilotDashboard> dashboard() async {

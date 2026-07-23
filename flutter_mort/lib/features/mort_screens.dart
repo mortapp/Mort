@@ -164,6 +164,36 @@ class SetupRequiredScreen extends StatelessWidget {
   }
 }
 
+class MaintenanceModeScreen extends ConsumerWidget {
+  const MaintenanceModeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return MortScreen(
+      children: [
+        const MortHeader(
+          eyebrow: 'Temporary maintenance',
+          title: 'MORT is paused safely',
+          subtitle:
+              'Marketplace and account actions are temporarily unavailable while safety or reliability work is completed.',
+        ),
+        const MortSafetyBanner(
+          message:
+              'Do not retry job, payment, or upload actions repeatedly. Existing provider events can still reconcile on the server.',
+        ),
+        const SizedBox(height: MortSpacing.md),
+        MortButton(
+          label: 'Check again',
+          icon: Icons.refresh,
+          onPressed: () => ref.invalidate(releaseModeStatusProvider),
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        const Text('Support: mortapp.help@gmail.com'),
+      ],
+    );
+  }
+}
+
 class AuthRequiredScreen extends StatelessWidget {
   const AuthRequiredScreen({super.key});
 
@@ -289,6 +319,9 @@ class _ReleaseModeCard extends StatelessWidget {
             data['marketplace_mode']?.toString() ?? 'closed_pilot';
         final publicEnabled = data['public_marketplace_enabled'] == true;
         final documentsEnabled = data['real_document_collection'] == true;
+        final maintenance = data['maintenance_mode'] == true;
+        final paymentsDisabled = data['payments_disabled'] != false;
+        final publishingDisabled = data['new_job_publishing_disabled'] == true;
         return MortCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,6 +361,24 @@ class _ReleaseModeCard extends StatelessWidget {
                         ? MortColors.warning
                         : MortColors.safetyBlue,
                   ),
+                  if (maintenance)
+                    const MortBadge(
+                      label: 'Maintenance active',
+                      color: MortColors.warning,
+                    ),
+                  MortBadge(
+                    label: paymentsDisabled
+                        ? 'Payments disabled'
+                        : 'Payment controls available',
+                    color: paymentsDisabled
+                        ? MortColors.safetyBlue
+                        : MortColors.warning,
+                  ),
+                  if (publishingDisabled)
+                    const MortBadge(
+                      label: 'New publishing paused',
+                      color: MortColors.warning,
+                    ),
                 ],
               ),
             ],
@@ -1639,6 +1690,11 @@ class RoleHomeScreen extends ConsumerWidget {
           label: 'Payment operations',
           icon: Icons.account_balance_wallet_outlined,
           route: '/admin/payment-operations',
+        ),
+        MortAction(
+          label: 'Operational alerts',
+          icon: Icons.monitor_heart_outlined,
+          route: '/admin/operational-alerts',
         ),
         MortAction(
           label: 'Reviews',
@@ -3394,7 +3450,7 @@ class NotificationsScreen extends ConsumerWidget {
   }
 }
 
-enum AdminSensitiveQueueAction { none, identity, incident }
+enum AdminSensitiveQueueAction { none, incident }
 
 class AdminQueueScreen extends ConsumerStatefulWidget {
   const AdminQueueScreen({
@@ -3409,6 +3465,7 @@ class AdminQueueScreen extends ConsumerStatefulWidget {
     this.notEquals = const {},
     this.orFilter,
     this.sensitiveAction = AdminSensitiveQueueAction.none,
+    this.detailRoutePrefix,
   });
 
   final String title;
@@ -3421,6 +3478,7 @@ class AdminQueueScreen extends ConsumerStatefulWidget {
   final Map<String, String> notEquals;
   final String? orFilter;
   final AdminSensitiveQueueAction sensitiveAction;
+  final String? detailRoutePrefix;
 
   @override
   ConsumerState<AdminQueueScreen> createState() => _AdminQueueScreenState();
@@ -3498,6 +3556,7 @@ class _AdminQueueScreenState extends ConsumerState<AdminQueueScreen> {
                     actionLabel: widget.actionLabel,
                     actionValue: widget.actionValue,
                     sensitiveAction: widget.sensitiveAction,
+                    detailRoutePrefix: widget.detailRoutePrefix,
                     onUpdated: _reload,
                   ),
                   const SizedBox(height: MortSpacing.sm),
@@ -3519,6 +3578,7 @@ class _AdminRowCard extends ConsumerStatefulWidget {
     required this.actionLabel,
     required this.actionValue,
     required this.sensitiveAction,
+    required this.detailRoutePrefix,
     required this.onUpdated,
   });
 
@@ -3528,6 +3588,7 @@ class _AdminRowCard extends ConsumerStatefulWidget {
   final String? actionLabel;
   final String? actionValue;
   final AdminSensitiveQueueAction sensitiveAction;
+  final String? detailRoutePrefix;
   final VoidCallback onUpdated;
 
   @override
@@ -3536,45 +3597,6 @@ class _AdminRowCard extends ConsumerStatefulWidget {
 
 class _AdminRowCardState extends ConsumerState<_AdminRowCard> {
   bool _busy = false;
-
-  Future<String?> _reasonDialog(String title, String guidance) async {
-    final controller = TextEditingController();
-    final reason = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(guidance),
-            const SizedBox(height: MortSpacing.md),
-            TextField(
-              controller: controller,
-              minLines: 2,
-              maxLines: 4,
-              decoration: const InputDecoration(labelText: 'Decision reason'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final value = controller.text.trim();
-              if (value.length >= 3) Navigator.of(dialogContext).pop(value);
-            },
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-    return reason;
-  }
 
   Future<bool> _confirm(String title, String message) async {
     return await showDialog<bool>(
@@ -3606,44 +3628,6 @@ class _AdminRowCardState extends ConsumerState<_AdminRowCard> {
       });
       if (!mounted) return;
       MortToast.show(context, '${widget.actionLabel} completed.');
-      widget.onUpdated();
-    } catch (error) {
-      if (mounted) MortToast.show(context, userFacingError(error));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _reviewIdentity(String id, String action) async {
-    if (_busy) return;
-    String? decisionCode;
-    if (action == 'approve') {
-      final confirmed = await _confirm(
-        'Approve identity verification?',
-        'Approve only after reviewing restricted evidence through the logged access workflow and confirming every required check. Verification does not guarantee safety.',
-      );
-      if (!confirmed) return;
-      decisionCode = 'restricted_evidence_review_completed';
-    } else {
-      decisionCode = await _reasonDialog(
-        action == 'request_information'
-            ? 'Request more information'
-            : 'Reject identity verification',
-        'Use a factual reason. The user may see this code and may appeal the result.',
-      );
-      if (decisionCode == null) return;
-    }
-    setState(() => _busy = true);
-    try {
-      await ref
-          .read(adminRepositoryProvider)
-          .reviewIdentity(
-            verificationId: id,
-            action: action,
-            decisionCode: decisionCode,
-          );
-      if (!mounted) return;
-      MortToast.show(context, 'Identity review action completed.');
       widget.onUpdated();
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
@@ -3711,28 +3695,15 @@ class _AdminRowCardState extends ConsumerState<_AdminRowCard> {
           ),
           const SizedBox(height: MortSpacing.xs),
           MortBadge(label: '${widget.row[widget.statusField] ?? 'queued'}'),
-          if (id != null &&
-              widget.sensitiveAction == AdminSensitiveQueueAction.identity) ...[
+          if (id != null && widget.detailRoutePrefix != null) ...[
             const SizedBox(height: MortSpacing.md),
             MortActionRow(
               actions: [
                 MortAction(
-                  label: 'Approve after evidence review',
-                  icon: Icons.verified_user,
-                  busy: _busy,
-                  onPressed: () => _reviewIdentity(id, 'approve'),
-                ),
-                MortAction(
-                  label: 'Request information',
-                  icon: Icons.more_horiz,
-                  busy: _busy,
-                  onPressed: () => _reviewIdentity(id, 'request_information'),
-                ),
-                MortAction(
-                  label: 'Reject',
-                  icon: Icons.block,
-                  busy: _busy,
-                  onPressed: () => _reviewIdentity(id, 'reject'),
+                  label: 'Open authorized detail',
+                  icon: Icons.open_in_new,
+                  onPressed: () =>
+                      context.push('${widget.detailRoutePrefix}/$id'),
                 ),
               ],
             ),

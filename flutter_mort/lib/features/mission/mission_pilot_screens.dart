@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
+import '../../core/utils/safe_uri.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/mission_pilot.dart';
 import '../../data/repositories/providers.dart';
@@ -929,7 +930,9 @@ class ResourceDirectoryScreen extends ConsumerWidget {
                               style: MortButtonStyle.secondary,
                               icon: Icons.open_in_new,
                               onPressed: () async {
-                                final uri = Uri.tryParse(resource.sourceUrl);
+                                final uri = safeExternalHttpsUri(
+                                  resource.sourceUrl,
+                                );
                                 if (uri == null ||
                                     !await launchUrl(
                                       uri,

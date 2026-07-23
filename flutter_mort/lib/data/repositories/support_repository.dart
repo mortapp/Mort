@@ -444,17 +444,25 @@ class SupportRepository extends RepositoryBase {
       );
     }
     final path = '$userId/${_uuid.v4()}.jpg';
-    await client.storage
-        .from(evidenceBucket)
-        .uploadBinary(
-          path,
-          Uint8List.fromList(processed),
-          fileOptions: const FileOptions(
-            contentType: 'image/jpeg',
-            cacheControl: '300',
-            upsert: false,
-          ),
-        );
+    try {
+      await client.storage
+          .from(evidenceBucket)
+          .uploadBinary(
+            path,
+            Uint8List.fromList(processed),
+            fileOptions: const FileOptions(
+              contentType: 'image/jpeg',
+              cacheControl: '300',
+              upsert: false,
+            ),
+          );
+    } catch (_) {
+      await recordUploadFailure(
+        uploadKind: 'support_evidence',
+        safeCode: 'support_evidence_storage_upload_failed',
+      );
+      rethrow;
+    }
     try {
       final result = _result(
         await client.rpc(
@@ -480,6 +488,10 @@ class SupportRepository extends RepositoryBase {
       );
       return attachment;
     } catch (_) {
+      await recordUploadFailure(
+        uploadKind: 'support_evidence',
+        safeCode: 'support_evidence_manifest_failed',
+      );
       try {
         await client.storage.from(evidenceBucket).remove([path]);
       } catch (_) {

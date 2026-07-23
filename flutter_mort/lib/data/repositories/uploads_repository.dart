@@ -104,7 +104,13 @@ class UploadsRepository extends RepositoryBase {
         );
       }
       return path;
-    } on MortCodedError {
+    } catch (_) {
+      await recordUploadFailure(
+        uploadKind: 'proof',
+        safeCode: uploadedOrAlreadyPresent
+            ? 'proof_manifest_failed'
+            : 'proof_storage_upload_failed',
+      );
       if (uploadedOrAlreadyPresent) {
         try {
           await client.storage.from(proofBucket).remove([path]);
@@ -176,7 +182,13 @@ class UploadsRepository extends RepositoryBase {
         );
       }
       return path;
-    } on MortCodedError {
+    } catch (_) {
+      await recordUploadFailure(
+        uploadKind: 'verification',
+        safeCode: uploadedOrAlreadyPresent
+            ? 'verification_manifest_failed'
+            : 'verification_storage_upload_failed',
+      );
       if (uploadedOrAlreadyPresent) {
         try {
           await client.storage.from(verificationBucket).remove([path]);
