@@ -44,6 +44,7 @@ async function authorizedEvent(event) {
       api_version: "1.0",
       event: {
         id: `qa_${randomUUID()}`,
+        event_timestamp_ms: Date.now(),
         purchased_at_ms: Date.now(),
         ...event,
       },
@@ -87,19 +88,21 @@ if (qaProfile?.id) {
 }
 
 const usernameEventId = `qa_${randomUUID()}`;
+const usernamePayload = {
+  api_version: "1.0",
+  event: {
+    id: usernameEventId,
+    type: "non_renewing_purchase",
+    app_user_id: appUserId,
+    product_id: usernameProductId,
+    entitlement_ids: usernameProductId ? ["mort_username_change_token"] : [],
+    event_timestamp_ms: Date.now(),
+    purchased_at_ms: Date.now(),
+  },
+};
 const usernameEvent = await postWebhook(
   { Authorization: webhookAuthHeader },
-  {
-    api_version: "1.0",
-    event: {
-      id: usernameEventId,
-      type: "non_renewing_purchase",
-      app_user_id: appUserId,
-      product_id: usernameProductId,
-      entitlement_ids: usernameProductId ? ["mort_username_change_token"] : [],
-      purchased_at_ms: Date.now(),
-    },
-  },
+  usernamePayload,
 );
 
 if (usernameEvent.status !== 200 || usernameEvent.data?.ok !== true) {
@@ -187,17 +190,9 @@ if (qaProfile?.id) {
 
   const duplicate = await postWebhook(
     { Authorization: webhookAuthHeader },
-    {
-      event: {
-        id: usernameEventId,
-        type: "non_renewing_purchase",
-        app_user_id: appUserId,
-        product_id: usernameProductId,
-        entitlement_ids: ["mort_username_change_token"],
-      },
-    },
+    usernamePayload,
   );
-  if (duplicate.status !== 200 || duplicate.data?.reason !== "duplicate_event") {
+  if (duplicate.status !== 200 || duplicate.data?.code !== "duplicate_event") {
     fail(`Duplicate webhook expected duplicate_event, got ${duplicate.status}: ${JSON.stringify(duplicate.data)}`);
   }
   pass("Webhook duplicate event is idempotent.");

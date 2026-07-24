@@ -83,6 +83,10 @@ export async function cleanupQaRestrictedData(userIds) {
     try {
       await database.query("select set_config('mort.internal_update', 'true', true)");
       await database.query(
+        "delete from public.rate_limit_events where user_id = any($1::uuid[])",
+        [userIds],
+      );
+      await database.query(
         `
           create temporary table qa_restricted_incidents (
             id uuid primary key

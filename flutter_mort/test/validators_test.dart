@@ -10,8 +10,17 @@ void main() {
     });
 
     test('enforces password minimum length', () {
-      expect(MortValidators.password('1234567'), isNotNull);
-      expect(MortValidators.password('12345678'), isNull);
+      expect(MortValidators.password('Short1!'), isNotNull);
+      expect(MortValidators.password('longbutnocaps1!'), isNotNull);
+      expect(MortValidators.password('LongAndSecure1!'), isNull);
+      expect(
+        MortValidators.password(
+          'legacy',
+          minimumLength: 6,
+          requireComplexity: false,
+        ),
+        isNull,
+      );
     });
 
     test('accepts only two-letter state codes', () {

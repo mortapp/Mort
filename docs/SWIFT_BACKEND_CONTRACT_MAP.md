@@ -124,8 +124,8 @@ All four buckets must remain private. Storage upsert/replacement policy needs IN
 | `revenuecat-webhook` | Server-side entitlement source; native client never receives its secret |
 | `send-push` | Existing Expo push delivery; not an APNs provider |
 | `ai-safety` | Backend safety architecture; message send still goes through the database RPC |
-| `ai-risk-score` | Existing server moderation support; no secret enters Swift |
-| `ai-recommendations` | Existing server capability; not required by the current Swift navigation |
+| `ai-risk-score` | Not deployed; legacy fake-success scaffold removed |
+| `ai-recommendations` | Not deployed; legacy fake-success scaffold removed |
 | `ai-support` | Existing server capability; support ticket flow remains available without it |
 
 ## Known contract gaps

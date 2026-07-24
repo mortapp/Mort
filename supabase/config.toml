@@ -39,6 +39,9 @@ policy = "per_worker"
 [functions.identity-verification-webhook]
 verify_jwt = false
 
+[functions.revenuecat-webhook]
+verify_jwt = false
+
 [functions.stripe-webhook]
 verify_jwt = false
 

@@ -7,6 +7,8 @@ const dartRoot = path.join(flutterRoot, 'lib');
 const testRoot = path.join(flutterRoot, 'test');
 const routerPath = path.join(dartRoot, 'core', 'routing', 'app_router.dart');
 const outputRoot = path.join(root, 'docs', 'release');
+const releaseSlug = '0_9_5';
+const releaseLabel = '0.9.5';
 
 function walk(directory, predicate = () => true) {
   const output = [];
@@ -93,6 +95,7 @@ const flutterRows = calls.map(({ call, route }) => {
   ]);
   const screen = constructors.find((name) => classFiles.has(name) && !ignored.has(name)) ??
     (call.includes('_adminDetail') ? '_adminDetail' :
+      call.includes('_pilotUnavailable') ? '_pilotUnavailable' :
       call.includes('_academy') ? '_academy' :
         call.includes('_legalIndex') ? '_legalIndex' : 'unresolved_builder');
   const sourceFile = classFiles.get(screen) ?? routerPath;
@@ -112,7 +115,7 @@ const flutterRows = calls.map(({ call, route }) => {
     [...source.matchAll(/\.from\(\s*'([^']+)'/g)].map((match) => `table:${match[1]}`),
   ).slice(0, 12);
   const labels = unique(
-    [...source.matchAll(/(?:label|title):\s*(?:const\s+)?'([^']+)'/g)].map((match) => match[1]),
+    [...(screen.startsWith('_') ? call : source).matchAll(/(?:label|title):\s*(?:const\s+)?'([^']+)'/g)].map((match) => match[1]),
   ).slice(0, 12);
   const coverage = [...tests]
     .filter(([, testSource]) => testSource.includes(route) || testSource.includes(screen))
@@ -122,9 +125,13 @@ const flutterRows = calls.map(({ call, route }) => {
     client: 'flutter_android_authoritative',
     route,
     role,
+    purpose: labels[0] ?? `Open the ${screen} product surface`,
     screen,
     source: sourceRelative(sourceFile),
     backend_dependency: unique([...repositories, ...rpcNames, ...tables]),
+    authorization_requirement: call.includes('GuardedRoute') || call.startsWith('_guarded')
+      ? `${role}_route_guard_plus_server_authorization`
+      : 'public_route_with_server_authorization_for_mutations',
     loading_state: evidence(source, [/MortLoading/, /MortSkeleton/, /ConnectionState\.waiting/]),
     populated_state: evidence(source, [/ListView/, /GridView/, /for \(final /, /snapshot\.data/]),
     empty_state: evidence(source, [/MortEmptyState/, /\.isEmpty/]),
@@ -132,9 +139,20 @@ const flutterRows = calls.map(({ call, route }) => {
     validation_state: evidence(source, [/validate\(/, /validator:/, /MortCodedError/, /\.trim\(\)\.length/]),
     unauthorized_state: call.includes('GuardedRoute') || call.startsWith('_guarded') ? 'route_guard_detected' : 'public_route',
     recoverable_error_state: evidence(source, [/MortErrorState/, /onRetry/, /Retry/, /catch \(/]),
+    nonrecoverable_error_state: evidence(source, [/MortErrorStateScreen/, /account.*restricted/i, /not available/i]),
     success_state: evidence(source, [/MortToast\.show/, /success/i, /completed/i]),
+    accessibility: evidence(source, [/Semantics\(/, /tooltip:/, /MortButton/, /MortTextField/]),
+    deep_link_support: route.includes(':') || ['/auth-callback', '/auth/confirm', '/auth/recovery'].includes(route)
+      ? 'registered_parameterized_or_callback_route'
+      : 'registered_internal_route',
+    analytics_event: 'not_collected_by_design',
     primary_actions: labels,
     current_test_coverage: coverage.length ? coverage : ['no_direct_static_reference'],
+    remaining_defect: screen === 'unresolved_builder'
+      ? 'builder_not_mechanically_resolved'
+      : coverage.length === 0
+        ? 'no_direct_static_test_reference'
+        : 'requires_physical_android_accessibility_offline_and_process_death_validation',
   };
 });
 
@@ -148,12 +166,14 @@ const expoRows = walk(expoRoot, (file) => /\.(tsx|ts)$/.test(file) && !file.ends
     client: 'expo_reference',
     route: route === '/' ? '/' : route,
     role: ['teen', 'adult', 'guardian', 'admin'].includes(role) ? role : 'mixed',
+    purpose: `Reference route ${route}`,
     screen: path.basename(file),
     source: sourceRelative(file),
     backend_dependency: unique([
       ...[...source.matchAll(/\b([a-z][A-Za-z0-9]+Repository)\b/g)].map((match) => match[1]),
       ...(source.includes('supabase') ? ['supabase_client'] : []),
     ]),
+    authorization_requirement: 'reference_client_not_credited',
     loading_state: evidence(source, [/loading/i, /ActivityIndicator/]),
     populated_state: evidence(source, [/FlatList/, /\.map\(/, /data/]),
     empty_state: evidence(source, [/EmptyState/, /empty/i]),
@@ -161,12 +181,17 @@ const expoRows = walk(expoRoot, (file) => /\.(tsx|ts)$/.test(file) && !file.ends
     validation_state: evidence(source, [/valid/i, /schema/i, /trim\(\)/]),
     unauthorized_state: evidence(source, [/GuardedRoute/, /session/, /role/]),
     recoverable_error_state: evidence(source, [/ErrorBanner/, /retry/i, /catch \(/]),
+    nonrecoverable_error_state: evidence(source, [/ErrorState/, /blocked/i, /unavailable/i]),
     success_state: evidence(source, [/success/i, /completed/i]),
+    accessibility: evidence(source, [/accessibility/i, /aria-/i]),
+    deep_link_support: 'reference_client_not_credited',
+    analytics_event: 'reference_client_not_credited',
     primary_actions: unique(
       [...source.matchAll(/(?:title|label)\s*(?:=|:)\s*(?:const\s+)?(?:\{\s*)?['"]([^'"\r\n<{]+)['"]/g)]
         .map((match) => match[1]),
     ).slice(0, 12),
     current_test_coverage: ['reference_client_not_credited_for_android_completion'],
+    remaining_defect: 'reference_client_not_credited_for_flutter_completion',
   };
 });
 
@@ -175,19 +200,19 @@ const rows = [...flutterRows, ...expoRows].sort((left, right) =>
 );
 fs.mkdirSync(outputRoot, { recursive: true });
 fs.writeFileSync(
-  path.join(outputRoot, 'MORT_ROUTE_ACTION_INVENTORY_0_9_4.json'),
+  path.join(outputRoot, `MORT_ROUTE_ACTION_INVENTORY_${releaseSlug}.json`),
   `${JSON.stringify({ generated_at: new Date().toISOString(), rows }, null, 2)}\n`,
 );
 
 const columns = Object.keys(rows[0]);
 const csv = [columns.map(csvCell).join(','), ...rows.map((row) => columns.map((column) => csvCell(row[column])).join(','))];
-fs.writeFileSync(path.join(outputRoot, 'MORT_ROUTE_ACTION_INVENTORY_0_9_4.csv'), `${csv.join('\n')}\n`);
+fs.writeFileSync(path.join(outputRoot, `MORT_ROUTE_ACTION_INVENTORY_${releaseSlug}.csv`), `${csv.join('\n')}\n`);
 
 const flutterCount = flutterRows.length;
 const expoCount = expoRows.length;
 const unresolved = flutterRows.filter((row) => row.screen === 'unresolved_builder').length;
 const noDirectTests = flutterRows.filter((row) => row.current_test_coverage[0] === 'no_direct_static_reference').length;
-const markdown = `# MORT Route and Action Inventory 0.9.4
+const markdown = `# MORT Route and Action Inventory ${releaseLabel}
 
 Generated from application source by \`scripts/build-route-action-inventory.mjs\`.
 
@@ -205,9 +230,9 @@ no duplicate Android completion credit.
 
 The complete row-level inventory is in:
 
-- \`docs/release/MORT_ROUTE_ACTION_INVENTORY_0_9_4.csv\`
-- \`docs/release/MORT_ROUTE_ACTION_INVENTORY_0_9_4.json\`
+- \`docs/release/MORT_ROUTE_ACTION_INVENTORY_${releaseSlug}.csv\`
+- \`docs/release/MORT_ROUTE_ACTION_INVENTORY_${releaseSlug}.json\`
 `;
-fs.writeFileSync(path.join(outputRoot, 'MORT_ROUTE_ACTION_INVENTORY_0_9_4.md'), markdown);
+fs.writeFileSync(path.join(outputRoot, `MORT_ROUTE_ACTION_INVENTORY_${releaseSlug}.md`), markdown);
 
 console.log(JSON.stringify({ flutter_routes: flutterCount, expo_routes: expoCount, unresolved_builders: unresolved, no_direct_tests: noDirectTests }));

@@ -32,6 +32,7 @@ import '../../features/payments/stripe_marketplace_screens.dart';
 import '../../features/payments/admin_payment_operations_screen.dart';
 import '../../features/admin/admin_moderation_detail_screen.dart';
 import '../../features/admin/admin_operational_alerts_screen.dart';
+import '../../features/auth/google_auth_screens.dart';
 import '../../features/safety/trust_safety_screens.dart';
 import '../../features/support/support_screens.dart';
 import '../../features/settings/account_management_screens.dart';
@@ -51,7 +52,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/welcome', builder: (_, _) => const WelcomeScreen()),
       GoRoute(path: '/auth/sign-in', builder: (_, _) => const SignInScreen()),
       GoRoute(path: '/auth/sign-up', builder: (_, _) => const SignUpScreen()),
-      GoRoute(path: '/auth-callback', builder: (_, _) => const SplashScreen()),
+      GoRoute(
+        path: '/auth-callback',
+        builder: (_, state) => OAuthCallbackScreen(callbackUri: state.uri),
+      ),
+      GoRoute(
+        path: '/auth/confirm',
+        builder: (_, _) => const EmailConfirmationCallbackScreen(),
+      ),
+      GoRoute(
+        path: '/auth/recovery',
+        builder: (_, _) => const PasswordRecoveryCallbackScreen(),
+      ),
       GoRoute(
         path: '/auth/forgot-password',
         builder: (_, _) => const ForgotPasswordScreen(),
@@ -842,6 +854,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       _guarded('/settings', const SettingsScreen()),
       _guarded('/settings/profile', const ProfileSetupScreen()),
+      _guarded('/settings/connected-accounts', const ConnectedAccountsScreen()),
       _guarded('/settings/guardian-mode', const GuardianModeScreen()),
       _guarded('/settings/username', const UsernameSettingsScreen()),
       _guarded('/settings/subscription', const MortPlusView()),

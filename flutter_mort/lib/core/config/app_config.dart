@@ -42,15 +42,36 @@ class AppConfig {
   static const androidPackage = 'com.mortapp.mobile';
   static const authRedirectUrl = String.fromEnvironment(
     'MORT_AUTH_REDIRECT_URL',
-    defaultValue: 'mort://app/auth-callback',
+    defaultValue: 'com.mortapp.mobile://app/auth-callback',
+  );
+  static const authConfirmationRedirectUrl = String.fromEnvironment(
+    'MORT_AUTH_CONFIRM_REDIRECT_URL',
+    defaultValue: 'com.mortapp.mobile://app/auth-confirm',
+  );
+  static const passwordRecoveryRedirectUrl = String.fromEnvironment(
+    'MORT_PASSWORD_RECOVERY_REDIRECT_URL',
+    defaultValue: 'com.mortapp.mobile://app/auth-recovery',
+  );
+  static const googleAuthEnabled = bool.fromEnvironment(
+    'GOOGLE_AUTH_ENABLED',
+    defaultValue: false,
   );
   static const publicWebOrigin = String.fromEnvironment(
     'MORT_PUBLIC_WEB_ORIGIN',
     defaultValue: 'https://mort-web.vercel.app',
   );
 
-  static String get resolvedAuthRedirectUrl =>
-      kIsWeb ? Uri.base.resolve('/auth-callback').toString() : authRedirectUrl;
+  static String get resolvedAuthRedirectUrl => kIsWeb
+      ? Uri.base.resolve('/auth-callback').replace(query: null).toString()
+      : authRedirectUrl;
+
+  static String get resolvedAuthConfirmationRedirectUrl => kIsWeb
+      ? Uri.base.resolve('/auth/confirm').replace(query: null).toString()
+      : authConfirmationRedirectUrl;
+
+  static String get resolvedPasswordRecoveryRedirectUrl => kIsWeb
+      ? Uri.base.resolve('/auth/recovery').replace(query: null).toString()
+      : passwordRecoveryRedirectUrl;
 
   static const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
   static const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');

@@ -14,6 +14,7 @@ assert(existsSync(apk), 'Closed-test QA APK does not exist.');
 const secretNames = [
   'SUPABASE_SERVICE_ROLE_KEY','SUPABASE_ACCESS_TOKEN','SUPABASE_DB_PASSWORD',
   'MORT_UPLOAD_STORE_PASSWORD','MORT_UPLOAD_KEY_PASSWORD','REVENUECAT_V1_SECRET_API_KEY',
+  'REVENUECAT_V2_SECRET_API_KEY',
   'REVENUECAT_WEBHOOK_AUTH_HEADER','SEND_PUSH_INVOKE_SECRET',
 ];
 const secrets = secretNames.map((name) => process.env[name]).filter((value) => value && value.length >= 8).map((value) => Buffer.from(value));

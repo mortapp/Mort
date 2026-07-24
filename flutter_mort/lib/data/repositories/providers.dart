@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/auth/oauth_flow.dart';
 import '../models/profile.dart';
 import '../models/account_trust.dart';
 import '../services/supabase_service.dart';
@@ -30,9 +31,11 @@ import 'uploads_repository.dart';
 final supabaseConfiguredProvider = Provider<bool>(
   (ref) => SupabaseService.isConfigured,
 );
-final authRepositoryProvider = Provider<AuthRepository>(
-  (ref) => AuthRepository(),
-);
+final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  final repository = AuthRepository();
+  ref.onDispose(repository.dispose);
+  return repository;
+});
 final avatarRepositoryProvider = Provider<AvatarRepository>(
   (ref) => AvatarRepository(),
 );
@@ -100,6 +103,12 @@ final stripeMarketplaceRepositoryProvider =
 
 final authStateProvider = StreamProvider<AuthState>((ref) {
   return ref.watch(authRepositoryProvider).authStateChanges;
+});
+
+final oauthFlowStateProvider = StreamProvider<OAuthFlowSnapshot>((ref) async* {
+  final repository = ref.watch(authRepositoryProvider);
+  yield repository.oauthState;
+  yield* repository.oauthStates;
 });
 
 final currentProfileProvider = FutureProvider<Profile?>((ref) async {

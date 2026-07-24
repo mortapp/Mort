@@ -6,7 +6,7 @@ Deno.serve(async (request: Request) => {
   if (request.method !== "POST") return json({ ok: false, code: "post_required" }, 405);
   try {
     const context = await authenticate(request);
-    await requireRateLimit(context, "stripe_onboarding_link", 5, 3600);
+    await requireRateLimit(context, "stripe_onboarding_link");
     const payload = await readJson<{ return_url?: unknown; refresh_url?: unknown }>(request);
     const returnUrl = validatedRedirectUrl(payload.return_url, "return");
     const refreshUrl = validatedRedirectUrl(payload.refresh_url, "refresh");

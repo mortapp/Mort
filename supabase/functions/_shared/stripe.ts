@@ -83,11 +83,9 @@ export async function readJson<T extends Record<string, unknown>>(request: Reque
   }
 }
 
-export async function requireRateLimit(context: StripeContext, action: string, limit: number, windowSeconds: number) {
-  const { data, error } = await context.userClient.rpc("check_rate_limit", {
+export async function requireRateLimit(context: StripeContext, action: string) {
+  const { data, error } = await context.userClient.rpc("consume_my_edge_action_limit", {
     p_action: action,
-    p_limit: limit,
-    p_window_seconds: windowSeconds,
   });
   if (error) throw new PublicError("rate_limit_check_failed", 503);
   if (data !== true) throw new PublicError("rate_limit_exceeded", 429);

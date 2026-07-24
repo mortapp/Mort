@@ -27,9 +27,13 @@ $scripts = @(
   'qa-mutual-reporting.mjs',
   'qa-address-privacy.mjs',
   'qa-location-release-stages.mjs',
-  'qa-rate-limits.mjs'
-  'qa-ai-cost-prompt-boundary.mjs'
-  'qa-signed-media-rate-limits.mjs'
+  'qa-rate-limits.mjs',
+  'qa-edge-rate-limits.mjs',
+  'qa-ai-cost-prompt-boundary.mjs',
+  'qa-ai-safety-edge.mjs',
+  'qa-google-auth-controls.mjs',
+  'qa-revenuecat-atomic.mjs',
+  'qa-signed-media-rate-limits.mjs',
   'qa-payment-operations-queue-boundary.mjs'
 )
 

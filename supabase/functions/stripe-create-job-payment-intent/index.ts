@@ -14,7 +14,7 @@ Deno.serve(async (request: Request) => {
   if (request.method !== "POST") return json({ ok: false, code: "post_required" }, 405);
   try {
     const context = await authenticate(request);
-    await requireRateLimit(context, "stripe_job_payment_intent", 10, 3600);
+    await requireRateLimit(context, "stripe_job_payment_intent");
     const payload = await readJson<PaymentRequest>(request);
     const contractId = assertUuid(payload.contract_id, "contract_id");
     const requestId = assertUuid(payload.request_id, "request_id");

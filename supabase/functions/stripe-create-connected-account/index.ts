@@ -6,7 +6,7 @@ Deno.serve(async (request: Request) => {
   if (request.method !== "POST") return json({ ok: false, code: "post_required" }, 405);
   try {
     const context = await authenticate(request);
-    await requireRateLimit(context, "stripe_connected_account_create", 3, 3600);
+    await requireRateLimit(context, "stripe_connected_account_create");
     const stripeRuntime = await runtime(context);
     const { data: prepared, error: prepareError } = await context.serviceClient.rpc("stripe_server_prepare_connected_account", {
       p_user_id: context.user.id,

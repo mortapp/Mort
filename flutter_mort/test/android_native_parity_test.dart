@@ -97,8 +97,10 @@ void main() {
     expect(infoPlist, contains('NSFaceIDUsageDescription'));
     expect(infoPlist, contains('NSLocationWhenInUseUsageDescription'));
     expect(infoPlist, isNot(contains('NSLocationAlwaysUsageDescription')));
-    expect(infoPlist, contains('<string>mort</string>'));
-    expect(manifest, contains('android:scheme="mort"'));
+    expect(infoPlist, contains('<string>com.mortapp.mobile</string>'));
+    expect(manifest, contains('android:scheme="com.mortapp.mobile"'));
+    expect(infoPlist, isNot(contains('<string>mort</string>')));
+    expect(manifest, isNot(contains('android:scheme="mort"')));
   });
 
   test('manual area search remains available when location is denied', () {

@@ -7,10 +7,21 @@ class MortValidators {
     return valid ? null : 'Enter a valid email.';
   }
 
-  static String? password(String? value, {int minimumLength = 8}) {
+  static String? password(
+    String? value, {
+    int minimumLength = 12,
+    bool requireComplexity = true,
+  }) {
     final password = value ?? '';
     if (password.length < minimumLength) {
       return 'Use at least $minimumLength characters.';
+    }
+    if (requireComplexity &&
+        (!RegExp('[a-z]').hasMatch(password) ||
+            !RegExp('[A-Z]').hasMatch(password) ||
+            !RegExp('[0-9]').hasMatch(password) ||
+            !RegExp(r'[^A-Za-z0-9]').hasMatch(password))) {
+      return 'Use uppercase, lowercase, a number, and a symbol.';
     }
     return null;
   }

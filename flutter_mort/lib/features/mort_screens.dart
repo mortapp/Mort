@@ -21,6 +21,7 @@ import '../data/repositories/providers.dart';
 import '../data/repositories/uploads_repository.dart';
 import '../data/services/supabase_service.dart';
 import 'ads/widgets/mort_banner_ad.dart';
+import 'auth/google_auth_screens.dart';
 import 'mission/partner_staff_screens.dart';
 import 'profile/profile_avatar_widgets.dart';
 
@@ -30,6 +31,19 @@ final releaseModeStatusProvider = FutureProvider<Map<String, dynamic>>((
   ref,
 ) async {
   return ref.read(missionPilotRepositoryProvider).releaseModeStatus();
+});
+
+final backendConnectionStatusProvider = FutureProvider<bool>((ref) async {
+  if (!SupabaseService.isInitialized) return false;
+  try {
+    await ref
+        .read(missionPilotRepositoryProvider)
+        .releaseModeStatus()
+        .timeout(const Duration(seconds: 8));
+    return true;
+  } catch (_) {
+    return false;
+  }
 });
 
 class SplashScreen extends ConsumerWidget {
@@ -518,8 +532,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 autocorrect: false,
                 enableSuggestions: false,
                 onFieldSubmitted: (_) => _busy ? null : _submit(),
-                validator: (value) =>
-                    MortValidators.password(value, minimumLength: 6),
+                validator: (value) => MortValidators.password(
+                  value,
+                  minimumLength: 6,
+                  requireComplexity: false,
+                ),
                 suffixIcon: IconButton(
                   tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                   onPressed: () =>
@@ -540,6 +557,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             ],
           ),
         ),
+        const SizedBox(height: MortSpacing.md),
+        const GoogleAuthSection(),
         const SizedBox(height: MortSpacing.sm),
         MortActionRow(
           actions: const [
@@ -552,6 +571,19 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               label: 'Forgot password',
               icon: Icons.lock_reset,
               route: '/auth/forgot-password',
+            ),
+          ],
+        ),
+        Wrap(
+          alignment: WrapAlignment.center,
+          children: [
+            TextButton(
+              onPressed: () => context.push('/legal/terms'),
+              child: const Text('Terms'),
+            ),
+            TextButton(
+              onPressed: () => context.push('/legal/privacy'),
+              child: const Text('Privacy Policy'),
             ),
           ],
         ),
@@ -665,6 +697,30 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               ),
             ],
           ),
+        ),
+        const SizedBox(height: MortSpacing.md),
+        const GoogleAuthSection(),
+        const SizedBox(height: MortSpacing.sm),
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            const Text('By continuing, you agree to MORT\'s '),
+            TextButton(
+              onPressed: () => context.push('/legal/terms'),
+              child: const Text('Terms'),
+            ),
+            const Text('and'),
+            TextButton(
+              onPressed: () => context.push('/legal/privacy'),
+              child: const Text('Privacy Policy'),
+            ),
+          ],
+        ),
+        TextButton.icon(
+          onPressed: () => context.go('/auth/sign-in'),
+          icon: const Icon(Icons.login),
+          label: const Text('Already have an account? Sign in'),
         ),
       ],
     );
@@ -4001,6 +4057,11 @@ class SettingsScreen extends StatelessWidget {
           route: '/settings/username',
         ),
         MortAction(
+          label: 'Connected accounts',
+          icon: Icons.link,
+          route: '/settings/connected-accounts',
+        ),
+        MortAction(
           label: 'Guardian Mode',
           icon: Icons.family_restroom,
           route: '/settings/guardian-mode',
@@ -4447,31 +4508,53 @@ class MortErrorStateScreen extends StatelessWidget {
   }
 }
 
-class _BackendStatusCard extends StatelessWidget {
+class _BackendStatusCard extends ConsumerWidget {
   const _BackendStatusCard();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(backendConnectionStatusProvider);
+    final connected = switch (status) {
+      AsyncData(value: final value) => value,
+      _ => false,
+    };
+    final checking = status.isLoading;
     return MortCard(
-      color: AppConfig.isSupabaseConfigured
-          ? MortColors.neonDeep
-          : MortColors.cardAlt,
+      color: connected ? MortColors.neonDeep : MortColors.cardAlt,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            AppConfig.isSupabaseConfigured ? Icons.cloud_done : Icons.cloud_off,
-            color: AppConfig.isSupabaseConfigured
-                ? MortColors.neon
-                : MortColors.warning,
+            connected
+                ? Icons.cloud_done
+                : checking
+                ? Icons.cloud_sync
+                : Icons.cloud_off,
+            color: connected ? MortColors.neon : MortColors.warning,
           ),
           const SizedBox(width: MortSpacing.sm),
           Expanded(
-            child: Text(
-              AppConfig.isSupabaseConfigured
-                  ? 'Connected securely. Marketplace access remains limited to approved closed-pilot participants.'
-                  : 'MORT cannot connect right now. Account features remain unavailable until service returns.',
-              style: Theme.of(context).textTheme.bodyMedium,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  connected
+                      ? 'Connected securely. Marketplace access remains limited to approved closed-pilot participants.'
+                      : checking
+                      ? 'Checking the secure service connection...'
+                      : 'MORT cannot connect right now. Account features remain unavailable until service returns.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                if (!connected && !checking) ...[
+                  const SizedBox(height: MortSpacing.sm),
+                  TextButton.icon(
+                    onPressed: () =>
+                        ref.invalidate(backendConnectionStatusProvider),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry connection'),
+                  ),
+                ],
+              ],
             ),
           ),
         ],

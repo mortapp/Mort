@@ -37,7 +37,7 @@
 			<string>com.mortapp.mobile</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>mort</string>
+				<string>com.mortapp.mobile</string>
 			</array>
 		</dict>
 	</array>
