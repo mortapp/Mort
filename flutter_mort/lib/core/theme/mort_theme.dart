@@ -4,6 +4,7 @@ import 'mort_colors.dart';
 import 'mort_spacing.dart';
 import 'mort_tokens.dart';
 import 'mort_typography.dart';
+import '../routing/mort_page_transitions.dart';
 
 class MortTheme {
   const MortTheme._();
@@ -35,6 +36,7 @@ class MortTheme {
       splashFactory: InkSparkle.splashFactory,
       visualDensity: VisualDensity.standard,
       materialTapTargetSize: MaterialTapTargetSize.padded,
+      pageTransitionsTheme: MortPageTransitions.theme,
       iconTheme: const IconThemeData(
         color: MortColors.textSoft,
         size: MortIconSizes.standard,
