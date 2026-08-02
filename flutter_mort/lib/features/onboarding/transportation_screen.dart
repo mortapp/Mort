@@ -203,7 +203,16 @@ class _TransportationScreenState extends ConsumerState<TransportationScreen> {
         const SizedBox(height: MortSpacing.md),
         LayoutBuilder(
           builder: (context, constraints) {
-            final itemWidth = (constraints.maxWidth - MortSpacing.sm) / 2;
+            final maxWidth =
+                constraints.maxWidth.isFinite && constraints.maxWidth > 0
+                ? constraints.maxWidth
+                : MortSpacing.maxContentWidth;
+            final columns = maxWidth >= 320 ? 2 : 1;
+            final totalSpacing = (columns - 1) * MortSpacing.sm;
+            final rawItemWidth = (maxWidth - totalSpacing) / columns;
+            final itemWidth = rawItemWidth.isFinite && rawItemWidth > 0
+                ? rawItemWidth.clamp(120.0, maxWidth).toDouble()
+                : maxWidth;
             return Wrap(
               spacing: MortSpacing.sm,
               runSpacing: MortSpacing.sm,

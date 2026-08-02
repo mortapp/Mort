@@ -63,6 +63,7 @@ void main() {
   test('Android blocks cleartext and protects selected sensitive screens', () {
     expect(manifest, contains('android:usesCleartextTraffic="false"'));
     expect(manifest, contains('@xml/network_security_config'));
+    expect(manifest, contains('android:enableOnBackInvokedCallback="true"'));
     expect(activity, contains('WindowManager.LayoutParams.FLAG_SECURE'));
   });
 
