@@ -1,8 +1,11 @@
+import { randomUUID } from "node:crypto";
+
 import {
   assertQa,
   confirmSafetyAgreement,
   qaLog,
   saveJob,
+  updateApplicationStatus,
   withQaUsers,
 } from "./feature-qa-helpers.mjs";
 
@@ -49,9 +52,9 @@ await withQaUsers(
       [teen.client, "in_progress"],
       [adult.client, "completed"],
     ]) {
-      const transition = await client.rpc("update_application_status_v2", {
-        p_application_id: applicationId,
-        p_action: action,
+      const transition = await updateApplicationStatus(client, {
+        applicationId,
+        action,
       });
       assertQa(transition.data?.ok === true, `${action} transition failed for review fixture`);
       if (action === "accepted") {
@@ -151,12 +154,21 @@ await withQaUsers(
       .select("id");
     assertQa(unrelatedInsert.error || unrelatedInsert.data.length === 0, "unrelated user reviewed the job");
 
-    const report = await adult.client.rpc("submit_safety_report", {
+    const report = await adult.client.rpc("submit_safety_report_v2", {
+      p_target_user_id: null,
+      p_target_job_id: null,
+      p_target_message_id: null,
       p_target_review_id: teenReview.data.id,
+      p_application_id: null,
       p_category: "other_urgent_concern",
       p_severity: "moderate",
+      p_immediate_danger: false,
       p_details: "QA verifies that review reports enter the private incident and moderation workflow.",
+      p_occurred_at: null,
+      p_location_type: null,
       p_desired_outcome: "Review the submitted review for policy compliance.",
+      p_confidential_safety_feedback: false,
+      p_client_request_id: randomUUID(),
     });
     assertQa(
       !report.error && report.data?.ok === true && report.data?.incident_id,

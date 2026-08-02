@@ -10,6 +10,9 @@
 /node_modules/
 /backups/
 /artifacts/
+/qa/recordings/
+/temp_old_zip/
+/temp_zip/
 *.log
 .env
 .env.local

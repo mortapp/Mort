@@ -1,5 +1,15 @@
-# Stripe PaymentSheet
+# Stripe PaymentSheet Boundary
 
-Flutter's native PaymentSheet is optional and unavailable on web preview. `stripe-create-job-payment-intent` authenticates the adult, loads the accepted immutable contract, computes cents/currency/fee server-side, and returns short-lived PaymentSheet configuration. The client cannot submit an amount, teen payout destination, fee, environment, or provider customer ID as authority.
+The distributed Flutter app does not include the Stripe SDK or PaymentSheet.
+The retained future server contract is fail-closed. If separately approved and
+implemented later, `stripe-create-job-payment-intent` authenticates the adult,
+loads the accepted immutable contract, computes cents, currency, and the
+currently zero service fee server-side, and returns short-lived configuration.
+The client cannot submit an amount, teen payout destination, fee, environment,
+or provider customer ID as authority.
 
-The app must show server-returned amount and currency, explain that payment funds the job obligation, handle cancellation/pending/authentication/failure, and avoid claiming success from PaymentSheet alone. Final funded state comes from a signed webhook and server refresh. No card data passes through MORT servers or Supabase tables.
+Any future approved client must show provider-returned amount/currency, explain
+the physical-service obligation, handle cancellation, pending, authentication,
+and failure, and never claim success from PaymentSheet alone. Final funded
+state must come from a signed webhook and server refresh. MORT must never store
+complete card data.

@@ -21,7 +21,7 @@ void main() {
     expect(AppConfig.identityVerificationEnabled, isFalse);
   });
 
-  test('ads stay excluded while Play Billing and Stripe remain isolated', () {
+  test('native ads, billing, and Stripe SDKs stay excluded', () {
     final pubspec = _read('pubspec.yaml');
     final pluginRegistry = _read(
       'android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java',
@@ -31,17 +31,18 @@ void main() {
       'google_mobile_ads',
       'purchases_flutter',
       'purchases_ui_flutter',
+      'flutter_stripe',
     ]) {
       expect(pubspec, isNot(contains(dependency)));
       expect(pluginRegistry, isNot(contains(dependency)));
     }
     expect(AppConfig.nativeAdsCompiledIn, isFalse);
-    expect(AppConfig.nativeBillingCompiledIn, isTrue);
+    expect(AppConfig.nativeBillingCompiledIn, isFalse);
     expect(AppConfig.supportsNativeAds, isFalse);
     expect(AppConfig.supportsNativePurchases, isFalse);
-    expect(pubspec, contains('flutter_stripe: 13.1.0'));
-    expect(pubspec, contains('in_app_purchase: 3.3.0'));
-    expect(AppConfig.nativeStripePaymentSheetCompiledIn, isTrue);
+    expect(pubspec, isNot(contains('in_app_purchase:')));
+    expect(AppConfig.nativeStripePaymentSheetCompiledIn, isFalse);
+    expect(AppConfig.supportsStripePaymentSheet, isFalse);
   });
 
   test('version source is valid and greater than the previous Play build', () {
@@ -50,7 +51,7 @@ void main() {
       multiLine: true,
     ).firstMatch(_read('pubspec.yaml'));
     expect(match, isNotNull);
-    expect(int.parse(match!.group(2)!), greaterThan(90));
+    expect(int.parse(match!.group(2)!), greaterThanOrEqualTo(98));
   });
 
   test(
@@ -65,22 +66,9 @@ void main() {
     },
   );
 
-  test('Android manifest keeps Billing but explicitly strips ad IDs', () {
+  test('Android manifest removes Billing and explicitly strips ad IDs', () {
     final manifest = _read('android/app/src/main/AndroidManifest.xml');
-    expect(
-      manifest,
-      contains(
-        '<uses-permission android:name="com.android.vending.BILLING" />',
-      ),
-    );
-    expect(
-      manifest,
-      isNot(
-        contains(
-          'android:name="com.android.vending.BILLING" tools:node="remove"',
-        ),
-      ),
-    );
+    expect(manifest, isNot(contains('com.android.vending.BILLING')));
     for (final permission in [
       'com.google.android.gms.permission.AD_ID',
       'android.permission.ACCESS_ADSERVICES_AD_ID',
@@ -97,8 +85,8 @@ void main() {
     final repository = _read('lib/data/repositories/jobs_repository.dart');
     final feed = _read('lib/features/jobs/teen_job_screens.dart');
 
-    expect(repository, contains("rpc('current_profile_is_test')"));
-    expect(repository, contains(".eq('is_test', isTestAccount)"));
+    expect(repository, contains("'list_open_jobs_page'"));
+    expect(repository, isNot(contains(".from('jobs').select(_jobSelect)")));
     expect(feed, isNot(contains('Test and QA jobs')));
   });
 

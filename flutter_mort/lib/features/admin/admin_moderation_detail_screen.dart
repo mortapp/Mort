@@ -265,7 +265,7 @@ class _AdminModerationDetailScreenState
                 onPressed: () => _setAccountStatus(targetUserId, 'suspended'),
               ),
               MortAction(
-                label: 'Restore target account',
+                label: 'Restore suspended account',
                 icon: Icons.person_outline,
                 busy: _busy,
                 onPressed: () => _setAccountStatus(targetUserId, 'active'),

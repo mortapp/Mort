@@ -3,10 +3,12 @@ import { randomUUID } from "node:crypto";
 import {
   assertQa,
   confirmSafetyAgreement,
+  manageJob,
   qaLog,
   removeQaModerationEvent,
   saveJob,
   serviceClient,
+  updateApplicationStatus,
   withQaUsers,
 } from "./feature-qa-helpers.mjs";
 
@@ -59,9 +61,9 @@ await withQaUsers(
     assertQa(!duplicate.error && duplicate.data?.ok === false, "duplicate application unexpectedly succeeded");
     assertQa(duplicate.data.code === "application_already_exists", `duplicate returned ${duplicate.data.code}`);
 
-    const unrelatedAccept = await otherAdult.client.rpc("update_application_status_v2", {
-      p_application_id: submitted.data.application.id,
-      p_action: "accepted",
+    const unrelatedAccept = await updateApplicationStatus(otherAdult.client, {
+      applicationId: submitted.data.application.id,
+      action: "accepted",
     });
     assertQa(!unrelatedAccept.error && unrelatedAccept.data?.ok === false, "unrelated adult accepted application");
 
@@ -69,9 +71,9 @@ await withQaUsers(
       ["viewed", "viewed"],
       ["accepted", "accepted"],
     ]) {
-      const result = await adult.client.rpc("update_application_status_v2", {
-        p_application_id: submitted.data.application.id,
-        p_action: action,
+      const result = await updateApplicationStatus(adult.client, {
+        applicationId: submitted.data.application.id,
+        action,
       });
       assertQa(!result.error && result.data?.ok === true, `${action} failed`);
       assertQa(result.data.application.status === expected, `${action} produced ${result.data.application.status}`);
@@ -89,15 +91,15 @@ await withQaUsers(
       `assigned job returned ${assignedEligibility.data?.code}`,
     );
 
-    const started = await teen.client.rpc("update_application_status_v2", {
-      p_application_id: submitted.data.application.id,
-      p_action: "in_progress",
+    const started = await updateApplicationStatus(teen.client, {
+      applicationId: submitted.data.application.id,
+      action: "in_progress",
     });
     assertQa(started.data?.ok === true && started.data.application.status === "in_progress", "teen could not start accepted job");
 
-    const bypassedProof = await teen.client.rpc("update_application_status_v2", {
-      p_application_id: submitted.data.application.id,
-      p_action: "proof_submitted",
+    const bypassedProof = await updateApplicationStatus(teen.client, {
+      applicationId: submitted.data.application.id,
+      action: "proof_submitted",
     });
     assertQa(
       !bypassedProof.error &&
@@ -162,9 +164,9 @@ await withQaUsers(
       await serviceClient.storage.from("proof-uploads").remove([proofPath]);
     }
 
-    const completed = await adult.client.rpc("update_application_status_v2", {
-      p_application_id: submitted.data.application.id,
-      p_action: "completed",
+    const completed = await updateApplicationStatus(adult.client, {
+      applicationId: submitted.data.application.id,
+      action: "completed",
     });
     assertQa(completed.data?.ok === true && completed.data.application.status === "completed", "adult completion failed");
     assertQa(completed.data.job.status === "completed", "job did not complete with application");
@@ -184,9 +186,9 @@ await withQaUsers(
       title: "QA Feature Closed Applications",
       summary: "A QA job that closes before a teen can apply.",
     });
-    const closed = await adult.client.rpc("manage_job", {
-      p_job_id: closedJob.result.job.id,
-      p_action: "close_applications",
+    const closed = await manageJob(adult.client, {
+      jobId: closedJob.result.job.id,
+      action: "close_applications",
     });
     assertQa(closed.data?.ok === true, "could not close applications");
     const closedEligibility = await otherTeen.client.rpc("get_job_application_eligibility", {
@@ -222,20 +224,20 @@ await withQaUsers(
     });
     assertQa(proofRequiredApplication.data?.ok === true, "proof-required fixture application failed");
     const proofRequiredApplicationId = proofRequiredApplication.data.application.id;
-    const proofRequiredAccept = await otherAdult.client.rpc("update_application_status_v2", {
-      p_application_id: proofRequiredApplicationId,
-      p_action: "accepted",
+    const proofRequiredAccept = await updateApplicationStatus(otherAdult.client, {
+      applicationId: proofRequiredApplicationId,
+      action: "accepted",
     });
     assertQa(proofRequiredAccept.data?.ok === true, "proof-required fixture acceptance failed");
     await confirmSafetyAgreement(otherTeen.client, otherAdult.client, proofRequiredApplicationId);
-    const proofRequiredStart = await otherTeen.client.rpc("update_application_status_v2", {
-      p_application_id: proofRequiredApplicationId,
-      p_action: "in_progress",
+    const proofRequiredStart = await updateApplicationStatus(otherTeen.client, {
+      applicationId: proofRequiredApplicationId,
+      action: "in_progress",
     });
     assertQa(proofRequiredStart.data?.ok === true, "proof-required fixture could not start");
-    const prematureCompletion = await otherAdult.client.rpc("update_application_status_v2", {
-      p_application_id: proofRequiredApplicationId,
-      p_action: "completed",
+    const prematureCompletion = await updateApplicationStatus(otherAdult.client, {
+      applicationId: proofRequiredApplicationId,
+      action: "completed",
     });
     assertQa(
       !prematureCompletion.error &&

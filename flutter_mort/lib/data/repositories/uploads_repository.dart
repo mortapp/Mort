@@ -129,75 +129,11 @@ class UploadsRepository extends RepositoryBase {
     required PreparedVerificationImage document,
     String? notes,
   }) async {
-    final userId = requireUserId();
-    if (!Uuid.isValidUUID(fromString: submissionId)) {
-      throw const MortCodedError(
-        'invalid_verification_submission',
-        'Start a new verification request and try again.',
-      );
-    }
-    final path = '$userId/$submissionId.jpg';
-    var uploadedOrAlreadyPresent = false;
-    try {
-      try {
-        await client.storage
-            .from(verificationBucket)
-            .uploadBinary(
-              path,
-              document.bytes,
-              fileOptions: const FileOptions(
-                contentType: 'image/jpeg',
-                cacheControl: '3600',
-                upsert: false,
-              ),
-            );
-        uploadedOrAlreadyPresent = true;
-      } on StorageException catch (error) {
-        if (error.statusCode != '409') rethrow;
-        uploadedOrAlreadyPresent = true;
-      }
-
-      final value = await client.rpc(
-        'submit_business_verification',
-        params: {
-          'p_verification_id': submissionId,
-          'p_storage_path': path,
-          'p_business_name': businessName,
-          'p_business_type': businessType,
-          'p_notes': notes,
-        },
-      );
-      if (value is! Map) {
-        throw const MortCodedError(
-          'unknown_permission_failure',
-          'The backend returned an unexpected verification response.',
-        );
-      }
-      final result = Map<String, dynamic>.from(value);
-      if (result['ok'] != true) {
-        throw MortCodedError(
-          (result['code'] as String?) ?? 'unknown_permission_failure',
-          (result['message'] as String?) ??
-              'We could not submit this verification request.',
-        );
-      }
-      return path;
-    } catch (_) {
-      await recordUploadFailure(
-        uploadKind: 'verification',
-        safeCode: uploadedOrAlreadyPresent
-            ? 'verification_manifest_failed'
-            : 'verification_storage_upload_failed',
-      );
-      if (uploadedOrAlreadyPresent) {
-        try {
-          await client.storage.from(verificationBucket).remove([path]);
-        } catch (_) {
-          // Attached documents are retained; orphan cleanup is best effort.
-        }
-      }
-      rethrow;
-    }
+    requireUserId();
+    throw const MortCodedError(
+      'business_verification_provider_required',
+      'Business verification is unavailable until an approved provider and legal workflow are connected. Do not upload a document.',
+    );
   }
 
   Future<List<Map<String, dynamic>>> listMyVerificationRequests() async {

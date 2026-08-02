@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_colors.dart';
@@ -29,6 +30,10 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen> {
   final _pin = TextEditingController();
   late Future<JobExecutionStatus> _status;
   GeneratedJobPin? _generatedPin;
+  String? _startConfirmationRequestId;
+  String? _startConfirmationPin;
+  String? _finishConfirmationRequestId;
+  String? _finishConfirmationPin;
   bool _busy = false;
 
   @override
@@ -93,22 +98,48 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen> {
       return;
     }
     final repository = ref.read(jobExecutionRepositoryProvider);
+    final previousPin = start ? _startConfirmationPin : _finishConfirmationPin;
+    if (previousPin != value) {
+      if (start) {
+        _startConfirmationPin = value;
+        _startConfirmationRequestId = const Uuid().v4();
+      } else {
+        _finishConfirmationPin = value;
+        _finishConfirmationRequestId = const Uuid().v4();
+      }
+    }
     final result = await _perform(
       () => start
           ? repository.confirmStartPin(
               applicationId: widget.applicationId,
               pin: value,
               personMatchesProfile: true,
+              clientRequestId: _startConfirmationRequestId,
             )
           : repository.confirmFinishPin(
               applicationId: widget.applicationId,
               pin: value,
+              clientRequestId: _finishConfirmationRequestId,
             ),
       success: start
           ? 'Start confirmed. The job is now in progress.'
           : 'Completion recorded. Funds remain pending during review.',
     );
-    if (result != null) _pin.clear();
+    if (result != null && mounted) {
+      setState(() {
+        _pin.clear();
+        if (start) {
+          _startConfirmationPin = null;
+          _startConfirmationRequestId = null;
+        } else {
+          _finishConfirmationPin = null;
+          _finishConfirmationRequestId = null;
+        }
+      });
+      HapticFeedback.mediumImpact();
+    } else {
+      HapticFeedback.vibrate();
+    }
   }
 
   Future<void> _reportMismatch() async {
@@ -303,6 +334,13 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen> {
           const SizedBox(height: MortSpacing.md),
           _ProgressTimeline(state: status.state),
           const SizedBox(height: MortSpacing.md),
+          if ({
+            'completion_pending_release',
+            'completed',
+          }.contains(status.state)) ...[
+            _CompletionCard(status: status),
+            const SizedBox(height: MortSpacing.md),
+          ],
           if (_generatedPin != null) ...[
             _GeneratedPinCard(pin: _generatedPin!),
             const SizedBox(height: MortSpacing.md),
@@ -415,17 +453,37 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen> {
       children: [
         const MortSectionTitle(title: 'Teen actions'),
         if (canEnter) ...[
-          TextField(
-            controller: _pin,
-            maxLength: 6,
-            keyboardType: TextInputType.number,
-            autofillHints: const [AutofillHints.oneTimeCode],
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: InputDecoration(
-              labelText: '${start ? 'Start' : 'Finish'} PIN',
-              hintText: 'Six digits shared in person',
+          MortGlassCard(
+            infoAccent: true,
+            child: Column(
+              children: [
+                Icon(
+                  start
+                      ? Icons.lock_open_outlined
+                      : Icons.verified_user_outlined,
+                  size: 42,
+                  color: MortColors.lightBlue,
+                ),
+                const SizedBox(height: MortSpacing.xs),
+                Text(
+                  start ? 'Start job' : 'End job',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: MortSpacing.xs),
+                Text(
+                  'Enter the separate six-digit ${start ? 'start' : 'finish'} PIN shared by the adult in person.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: MortSpacing.md),
+                MortPinPad(
+                  value: _pin.text,
+                  enabled: !_busy,
+                  onChanged: (value) => setState(() => _pin.text = value),
+                ),
+              ],
             ),
           ),
+          const SizedBox(height: MortSpacing.sm),
           MortButton(
             label: start ? 'Confirm job start' : 'Confirm job finish',
             icon: start ? Icons.play_arrow : Icons.check_circle_outline,
@@ -466,6 +524,75 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen> {
       ],
     );
   }
+}
+
+class _CompletionCard extends StatelessWidget {
+  const _CompletionCard({required this.status});
+
+  final JobExecutionStatus status;
+
+  @override
+  Widget build(BuildContext context) => MortGlassCard(
+    child: Column(
+      children: [
+        Container(
+          width: 84,
+          height: 84,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: MortColors.roseGoldLight),
+            boxShadow: const [
+              BoxShadow(color: Color(0x55F4A78F), blurRadius: 24),
+            ],
+          ),
+          child: const Icon(
+            Icons.check_rounded,
+            color: MortColors.roseGoldLight,
+            size: 48,
+          ),
+        ),
+        const SizedBox(height: MortSpacing.md),
+        Text(
+          status.state == 'completed' ? 'Job complete' : 'Completion recorded',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: MortSpacing.xs),
+        Text(
+          status.completionPendingAt == null
+              ? 'The server recorded the finish confirmation.'
+              : 'Recorded ${DateFormat.yMMMd().add_jm().format(status.completionPendingAt!.toLocal())}.',
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        const MortStatusChip(
+          label: 'Payment under review',
+          icon: Icons.schedule_rounded,
+          color: MortColors.lightBlue,
+        ),
+        const SizedBox(height: MortSpacing.md),
+        MortActionRow(
+          actions: [
+            MortAction(
+              label: 'Leave a rating',
+              icon: Icons.star_outline_rounded,
+              route: '/reviews/${status.applicationId}',
+            ),
+            MortAction(
+              label: 'Report issue',
+              icon: Icons.report_outlined,
+              route: '/report/job/${status.jobId}',
+              style: MortButtonStyle.danger,
+            ),
+            MortAction(
+              label: 'Return home',
+              icon: Icons.home_outlined,
+              route: status.isAdult ? '/adult/home' : '/teen/home',
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
 }
 
 class _FundingCard extends StatelessWidget {
@@ -526,30 +653,29 @@ class _ProgressTimeline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final current = ordered.indexOf(state);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const MortSectionTitle(title: 'Status timeline'),
-        for (var index = 0; index < ordered.length; index++)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(
-              index < current
-                  ? Icons.check_circle
-                  : index == current
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked,
-              color: index <= current ? MortColors.neon : MortColors.textMuted,
+    return MortGlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const MortSectionTitle(title: 'Status timeline'),
+          MortTimeline(
+            steps: [
+              for (var index = 0; index < ordered.length; index++)
+                MortTimelineStep(
+                  title: _label(ordered[index]),
+                  detail: index == current ? 'Current server status' : null,
+                  complete: index <= current,
+                ),
+            ],
+          ),
+          if (!ordered.contains(state))
+            MortStatusChip(
+              label: _label(state),
+              icon: Icons.info_outline_rounded,
+              color: MortColors.warning,
             ),
-            title: Text(_label(ordered[index])),
-          ),
-        if (!ordered.contains(state))
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.info_outline, color: MortColors.warning),
-            title: Text(_label(state)),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

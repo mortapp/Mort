@@ -2,6 +2,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/errors/mort_error.dart';
 import '../../core/utils/date_of_birth.dart';
+import '../models/onboarding_progress.dart';
 import '../models/profile.dart';
 import 'repository_base.dart';
 
@@ -68,27 +69,79 @@ class ProfileRepository extends RepositoryBase {
     return _profileFromRpc(result);
   }
 
-  Future<void> savePaymentPreference({
-    required String preference,
-    String? cashAppTag,
-    String? squareUrl,
-    String? note,
-  }) async {
-    final id = requireUserId();
-    await client.from('payment_preferences').upsert({
-      'user_id': id,
-      'preference': preference,
-      'cash_app_tag': cashAppTag,
-      'square_url': squareUrl,
-      'note': note,
-    });
-    await updateMyProfile({'payment_preference': preference});
-  }
-
   Future<Profile> completeOnboarding() async {
     requireUserId();
     final result = await client.rpc('complete_my_onboarding');
     return _profileFromRpc(result);
+  }
+
+  Future<OnboardingProgress> getOnboardingProgress() async {
+    requireUserId();
+    final result = await client.rpc('get_my_onboarding_progress');
+    return _onboardingProgressFromRpc(result);
+  }
+
+  Future<OnboardingProgress> saveOnboardingAge(DateTime dob) async {
+    requireUserId();
+    final result = await client.rpc(
+      'save_my_onboarding_age',
+      params: {
+        'p_dob': DateOfBirthParser.toIsoDate(dob),
+        'p_client_request_id': _uuid.v4(),
+      },
+    );
+    return _onboardingProgressFromRpc(result);
+  }
+
+  Future<OnboardingProgress> saveOnboardingRole(UserRole role) async {
+    requireUserId();
+    final result = await client.rpc(
+      'save_my_onboarding_role',
+      params: {
+        'p_role': userRoleToString(role),
+        'p_client_request_id': _uuid.v4(),
+      },
+    );
+    return _onboardingProgressFromRpc(result);
+  }
+
+  Future<OnboardingProgress> saveOnboardingProgress({
+    required String completedStep,
+    Map<String, dynamic> preferences = const {},
+  }) async {
+    requireUserId();
+    final result = await client.rpc(
+      'save_my_onboarding_progress',
+      params: {
+        'p_step': completedStep,
+        'p_preferences': preferences,
+        'p_client_request_id': _uuid.v4(),
+      },
+    );
+    return _onboardingProgressFromRpc(result);
+  }
+
+  Future<OnboardingProgress> recordOnboardingAcknowledgement({
+    required String version,
+    required String platform,
+    required String appVersion,
+  }) async {
+    requireUserId();
+    final result = await client.rpc(
+      'record_my_onboarding_acknowledgement',
+      params: {
+        'p_acknowledgement_version': version,
+        'p_pilot_terms_notice_acknowledged': true,
+        'p_privacy_notice_acknowledged': true,
+        'p_community_rules_acknowledged': true,
+        'p_prohibited_work_acknowledged': true,
+        'p_safety_rules_acknowledged': true,
+        'p_platform': platform,
+        'p_app_version': appVersion,
+        'p_client_request_id': _uuid.v4(),
+      },
+    );
+    return _onboardingProgressFromRpc(result);
   }
 
   Future<Profile> saveProfileDetails({
@@ -107,6 +160,28 @@ class ProfileRepository extends RepositoryBase {
       'approximate_area': approximateArea,
       'goals': goals,
     });
+  }
+
+  Future<Profile> saveTransportationPreferences({
+    required List<String> methods,
+    int? maxDistanceMiles,
+    int? maxTravelMinutes,
+    bool walkingDistanceOnly = false,
+    bool guardianTransportationPossible = false,
+  }) async {
+    requireUserId();
+    final result = await client.rpc(
+      'save_my_transportation_preferences',
+      params: {
+        'p_methods': methods,
+        'p_max_distance_miles': maxDistanceMiles,
+        'p_max_travel_minutes': maxTravelMinutes,
+        'p_walking_distance_only': walkingDistanceOnly,
+        'p_guardian_transportation_possible': guardianTransportationPossible,
+        'p_client_request_id': _uuid.v4(),
+      },
+    );
+    return _profileFromRpc(result);
   }
 
   Future<Profile> setAvatarPath(String? path) {
@@ -152,6 +227,21 @@ class ProfileRepository extends RepositoryBase {
     return Profile.fromMap(Map<String, dynamic>.from(profile));
   }
 
+  OnboardingProgress _onboardingProgressFromRpc(Object? response) {
+    if (response is! Map) {
+      throw const MortCodedError(
+        'onboarding_response_invalid',
+        'The onboarding server returned an invalid response.',
+      );
+    }
+    final result = Map<String, dynamic>.from(response);
+    if (result['ok'] != true) {
+      final code = result['code']?.toString() ?? 'onboarding_update_failed';
+      throw MortCodedError(code, _profileErrorMessage(code));
+    }
+    return OnboardingProgress.fromMap(result);
+  }
+
   String _profileErrorMessage(String code) {
     return switch (code) {
       'profile_conflict_detected' =>
@@ -166,6 +256,24 @@ class ProfileRepository extends RepositoryBase {
         'Enter a display name between 2 and 80 characters.',
       'profile_not_found' =>
         'Finish account setup before editing your profile.',
+      'transportation_methods_invalid' =>
+        'Choose at least one valid transportation method.',
+      'max_travel_distance_invalid' =>
+        'Choose a travel distance between 1 and 50 miles.',
+      'max_travel_minutes_invalid' =>
+        'Choose a travel time between 5 and 180 minutes.',
+      'walking_method_required' =>
+        'Select Walking before choosing walking-distance-only jobs.',
+      'teen_profile_required' =>
+        'Transportation matching preferences are available for teen profiles.',
+      'onboarding_steps_incomplete' =>
+        'Finish every required setup step before completing onboarding.',
+      'onboarding_acknowledgement_required' =>
+        'Review and acknowledge the closed-pilot safety notices first.',
+      'profile_identity_fields_required' =>
+        'Add a display name and username before completing setup.',
+      'published_legal_acceptance_required' =>
+        'Review and accept the current published legal documents first.',
       _ => 'Your profile was not saved. Review the fields and try again.',
     };
   }

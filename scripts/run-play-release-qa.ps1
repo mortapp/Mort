@@ -34,9 +34,19 @@ try {
     & node (Join-Path $PSScriptRoot $script)
     if ($LASTEXITCODE -ne 0) { throw "$script failed." }
   }
-  if (Test-Path (Join-Path (Split-Path $PSScriptRoot -Parent) 'build\play\mort-closed-test.aab')) {
+  $versionJson = & node (Join-Path $PSScriptRoot 'read-mobile-version.mjs') --json
+  if ($LASTEXITCODE -ne 0) { throw 'Could not read the authoritative mobile version.' }
+  $version = $versionJson | ConvertFrom-Json
+  $playRoot = Join-Path (Split-Path $PSScriptRoot -Parent) 'build\play'
+  $aab = Join-Path $playRoot "mort-closed-test-$($version.versionName).aab"
+  $apk = Join-Path $playRoot "mort-closed-test-$($version.versionName).apk"
+  if ((Test-Path -LiteralPath $aab) -and (Test-Path -LiteralPath $apk)) {
     foreach ($script in @('qa-aab-secret-scan.mjs', 'qa-aab-signing.mjs')) {
-      & node (Join-Path $PSScriptRoot $script)
+      if ($script -eq 'qa-aab-secret-scan.mjs') {
+        & node (Join-Path $PSScriptRoot $script) $aab $apk
+      } else {
+        & node (Join-Path $PSScriptRoot $script) $aab
+      }
       if ($LASTEXITCODE -ne 0) { throw "$script failed." }
     }
   }

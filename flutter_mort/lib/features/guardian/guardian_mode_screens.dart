@@ -36,8 +36,15 @@ class _GuardianOptionalOnboardingScreenState
       final result = await ref
           .read(guardianRepositoryProvider)
           .createInvite(email: includeEmail ? _email.text.trim() : null);
+      await ref
+          .read(profileRepositoryProvider)
+          .saveOnboardingProgress(
+            completedStep: 'guardian',
+            preferences: const {'safety_setup_choice': 'configured'},
+          );
       setState(() => _inviteCode = result['invite_code'] as String?);
       ref.invalidate(currentProfileProvider);
+      ref.invalidate(onboardingProgressProvider);
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
     } finally {
@@ -50,8 +57,34 @@ class _GuardianOptionalOnboardingScreenState
     setState(() => _busy = true);
     try {
       await ref.read(guardianRepositoryProvider).skipSetup();
+      await ref
+          .read(profileRepositoryProvider)
+          .saveOnboardingProgress(
+            completedStep: 'guardian',
+            preferences: const {'safety_setup_choice': 'declined_optional'},
+          );
       ref.invalidate(currentProfileProvider);
-      if (mounted) context.go('/onboarding/safety');
+      ref.invalidate(onboardingProgressProvider);
+      if (mounted) context.go('/onboarding/preferences');
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _continueForNonTeen() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(profileRepositoryProvider)
+          .saveOnboardingProgress(
+            completedStep: 'guardian',
+            preferences: const {'safety_setup_choice': 'review_later'},
+          );
+      ref.invalidate(onboardingProgressProvider);
+      if (mounted) context.go('/onboarding/preferences');
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
     } finally {
@@ -63,20 +96,21 @@ class _GuardianOptionalOnboardingScreenState
   Widget build(BuildContext context) {
     final profile = ref.watch(currentProfileProvider).asData?.value;
     if (profile != null && !profile.isTeen) {
-      return const MortScreen(
+      return MortScreen(
         children: [
-          MortHeader(
+          const MortHeader(
             eyebrow: 'Guardian Mode',
             title: 'Guardian setup is optional',
             subtitle:
                 'Guardian linking is designed for teen accounts. You can manage your own Guardian Mode connections later in Settings.',
           ),
-          SizedBox(height: MortSpacing.md),
+          const SizedBox(height: MortSpacing.md),
           MortActionRow(
             actions: [
               MortAction(
-                label: 'Continue to safety',
-                route: '/onboarding/safety',
+                label: 'Continue to preferences',
+                busy: _busy,
+                onPressed: _continueForNonTeen,
               ),
             ],
           ),
@@ -92,7 +126,7 @@ class _GuardianOptionalOnboardingScreenState
           subtitle:
               'Guardian Mode can share selected safety alerts and check-ins with someone you trust. You can skip this and set it up later.',
         ),
-        const MortStepper(current: 7, total: 9),
+        const MortStepper(current: 8, total: 12),
         const SizedBox(height: MortSpacing.md),
         const MortSafetyBanner(
           message:
@@ -158,7 +192,7 @@ class _GuardianOptionalOnboardingScreenState
               const MortAction(
                 label: 'Continue',
                 icon: Icons.arrow_forward,
-                route: '/onboarding/safety',
+                route: '/onboarding/preferences',
               ),
             MortAction(
               label: 'Skip for now',

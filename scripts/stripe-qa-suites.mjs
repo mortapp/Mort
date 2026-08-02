@@ -118,10 +118,14 @@ async function checkPaymentIdempotency(scope) {
 async function checkPaymentSheetContract(scope) {
   const edge = await text("supabase/functions/stripe-create-job-payment-intent/index.ts");
   const client = await text("flutter_mort/lib/features/payments/stripe_payment_sheet_service.dart");
+  const config = await text("flutter_mort/lib/core/config/app_config.dart");
+  const pubspec = await text("flutter_mort/pubspec.yaml");
   assertQa(edge.includes("payment_intent_client_secret") && edge.includes("customer_ephemeral_key_secret"), "server Payment Sheet contract is incomplete");
-  assertQa(client.includes("initPaymentSheet") && client.includes("presentPaymentSheet"), "native Payment Sheet is not initialized and presented");
-  assertQa(client.includes("keyMatchesMode"), "client does not reject publishable-key mode mismatch");
-  qaLog(scope, "Payment Sheet receives only server-created initialization values and validates environment consistency");
+  assertQa(client.includes("marketplace_payments_disabled"), "closed-test Payment Sheet stub does not fail closed");
+  assertQa(config.includes("nativeStripePaymentSheetCompiledIn = false"), "native Stripe compilation boundary is not explicit");
+  assertQa(!pubspec.includes("flutter_stripe:"), "Stripe SDK is compiled into a payment-disabled release");
+  assertQa(!client.includes("initPaymentSheet") && !client.includes("presentPaymentSheet"), "payment execution remained in the signed client");
+  qaLog(scope, "server Payment Sheet contract is retained for future review while the distributed client has no payment SDK and fails closed");
 }
 
 async function checkWebhookSignature(scope) {
@@ -235,10 +239,14 @@ async function checkPublicProfilePrivacy(scope) {
 async function checkGooglePlayBoundary(scope) {
   const migration = await text("supabase/migrations/20260722032907_stripe_connect_sandbox_foundation.sql");
   const pubspec = await text("flutter_mort/pubspec.yaml");
+  const manifest = await text("flutter_mort/android/app/src/main/AndroidManifest.xml");
+  const config = await text("flutter_mort/lib/core/config/app_config.dart");
   assertQa(migration.includes("google_play_billing"), "server does not declare the digital purchase boundary");
-  assertQa(pubspec.includes("flutter_stripe: 13.1.0"), "real-world payment SDK is absent");
   assertQa(!pubspec.includes("purchases_flutter"), "legacy RevenueCat SDK returned to the signed client");
-  qaLog(scope, "Stripe is scoped to real-world jobs and Android digital products remain assigned to Google Play Billing");
+  assertQa(!pubspec.includes("in_app_purchase:"), "Google Play Billing SDK is compiled into an IAP-disabled release");
+  assertQa(!manifest.includes("com.android.vending.BILLING"), "Android billing permission is present in an IAP-disabled release");
+  assertQa(config.includes("nativeBillingCompiledIn = false") && config.includes("nativeStripePaymentSheetCompiledIn = false"), "native financial compilation gates are not explicit");
+  qaLog(scope, "physical-service payments remain a disabled server architecture and the signed Android client contains no digital or marketplace billing capability");
 }
 
 async function checkSavedPaymentConsent(scope) {

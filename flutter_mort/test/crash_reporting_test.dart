@@ -2,15 +2,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_mort/core/observability/crash_reporting.dart';
 
 void main() {
-  tearDown(() => MortCrashReporting.instance.configure(null));
+  tearDown(() => MortCrashReporting.instance.configure());
 
   test(
     'crash envelopes contain categories but never exception messages',
     () async {
       CrashEnvelope? captured;
-      MortCrashReporting.instance.configure((event) async {
-        captured = event;
-      });
+      MortCrashReporting.instance.configure(
+        sink: (event, _) async {
+          captured = event;
+        },
+        providerName: 'sentry',
+      );
 
       await MortCrashReporting.instance.record(
         StateError('private token and exact address'),
@@ -22,6 +25,7 @@ void main() {
       expect(captured, isNotNull);
       expect(captured!.category, 'stateerror');
       expect(captured!.context, 'platform_dispatcher');
+      expect(captured!.correlationId, isNotEmpty);
       expect(
         captured!.toSafeMap().toString(),
         isNot(contains('private token')),

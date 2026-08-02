@@ -16,7 +16,7 @@ void main() {
 
     expect(repository, contains("'admin_get_moderation_record'"));
     expect(repository, contains("'admin_update_report_status'"));
-    expect(repository, contains("'admin_set_account_status'"));
+    expect(repository, contains("'admin_set_account_status_v2'"));
     expect(screen, contains('Required decision reason'));
     expect(screen, contains('Raw identity files'));
     expect(migration, contains('private.can_manage_incident(auth.uid())'));
@@ -26,6 +26,13 @@ void main() {
     expect(migration, contains('peer_admin_action_blocked'));
     expect(migration, contains('reasoned_report_status_update'));
     expect(migration, contains('reasoned_account_status_update'));
+    final completionMigration = _read(
+      '../supabase/migrations/20260801233508_moderation_legal_activation_completion.sql',
+    );
+    expect(
+      completionMigration,
+      contains('ban_reversal_independent_review_required'),
+    );
   });
 
   test('dead admin detail controls are removed from the router', () {

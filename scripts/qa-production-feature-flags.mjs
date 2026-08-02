@@ -7,4 +7,6 @@ assert(/identityVerificationEnabled[\s\S]+defaultValue: false/.test(config), 'Id
 assert(/adsEnabled[\s\S]+defaultValue: false/.test(config), 'Ads do not default off.');
 assert(/iapEnabled[\s\S]+defaultValue: false/.test(config), 'IAP does not default off.');
 assert(config.includes("defaultValue: 'development'"), 'Release stage default must not claim production.');
-pass(scope, 'marketplace, real identity verification, ads, and IAP default off and cannot be changed by ordinary UI');
+assert(/configuredReleaseProfile[\s\S]+defaultValue: ''/.test(config), 'Release profile must require an explicit non-development build define.');
+assert(config.includes('releaseConfiguration.validationErrors'), 'Release profiles are not validated at startup.');
+pass(scope, 'profile, marketplace, real identity verification, ads, and IAP default off and cannot be changed by ordinary UI');

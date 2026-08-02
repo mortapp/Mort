@@ -1,0 +1,49 @@
+{
+  "version": "5",
+  "remote": {
+    "https://esm.sh/@supabase/supabase-js@2.110.1": "3e6ac10368fe97f2b18aab157383635843c15e029846ad33a56bd754d09c2fe0"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@expo/metro-runtime@~57.0.7",
+        "npm:@expo/vector-icons@^15.1.1",
+        "npm:@react-native-async-storage/async-storage@^2.2.0",
+        "npm:@react-navigation/native@^7.3.8",
+        "npm:@supabase/supabase-js@^2.110.1",
+        "npm:@types/react@^19.2.17",
+        "npm:eslint-config-expo@57.0",
+        "npm:eslint@^9.39.4",
+        "npm:expo-constants@^57.0.7",
+        "npm:expo-dev-client@~57.0.9",
+        "npm:expo-device@^57.0.1",
+        "npm:expo-font@~57.0.1",
+        "npm:expo-image-picker@^57.0.6",
+        "npm:expo-linking@^57.0.4",
+        "npm:expo-notifications@^57.0.7",
+        "npm:expo-router@^57.0.8",
+        "npm:expo-secure-store@^57.0.1",
+        "npm:expo-status-bar@^57.0.1",
+        "npm:expo@^57.0.8",
+        "npm:pg@^8.22.0",
+        "npm:react-dom@^19.2.3",
+        "npm:react-native-gesture-handler@^2.32.0",
+        "npm:react-native-get-random-values@^1.11.0",
+        "npm:react-native-google-mobile-ads@^16.4.0",
+        "npm:react-native-purchases-ui@^10.4.1",
+        "npm:react-native-purchases@^10.4.1",
+        "npm:react-native-reanimated@^4.5.0",
+        "npm:react-native-safe-area-context@^5.7.0",
+        "npm:react-native-screens@^4.26.2",
+        "npm:react-native-url-polyfill@3",
+        "npm:react-native-web@~0.21.2",
+        "npm:react-native-worklets@0.10.0",
+        "npm:react-native@0.86",
+        "npm:react@^19.2.3",
+        "npm:supabase@^2.109.0",
+        "npm:typescript@^6.0.3",
+        "npm:zod@^4.2.1"
+      ]
+    }
+  }
+}

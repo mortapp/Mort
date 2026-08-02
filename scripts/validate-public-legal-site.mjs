@@ -55,11 +55,15 @@ if (existsSync(publicConfigPath) && /service_role|SUPABASE_SERVICE_ROLE_KEY/i.te
 }
 
 const deletionScriptPath = resolve(output, 'assets', 'account-deletion.js');
+const supabaseBundlePath = resolve(output, 'assets', 'supabase.js');
+if (!existsSync(supabaseBundlePath)) failures.push('self-hosted Supabase browser bundle is missing');
 if (!existsSync(deletionScriptPath)) {
   failures.push('account-deletion.js is missing');
 } else {
   const deletionScript = readFileSync(deletionScriptPath, 'utf8');
   if (!deletionScript.includes('shouldCreateUser: false')) failures.push('account deletion could create an account');
+  if (!deletionScript.includes("flowType: 'pkce'")) failures.push('account deletion auth is not PKCE');
+  if (/https:\/\/esm\.sh/.test(deletionScript)) failures.push('account deletion imports executable code from a third-party CDN');
   if (!/finally\s*\{[\s\S]*result\.textContent\s*=\s*['"][^'"]*This page never confirms whether an account exists\./.test(deletionScript)) {
     failures.push('account deletion does not use one generic finally response');
   }

@@ -31,6 +31,14 @@ export function qaLog(scope, message) {
   console.log(`[${scope}] PASS: ${message}`);
 }
 
+export async function sendSafeMessage(client, threadId, body, requestId = randomUUID()) {
+  return client.rpc("send_safe_message_v2", {
+    p_thread_id: threadId,
+    p_body: body,
+    p_client_request_id: requestId,
+  });
+}
+
 export async function withDatabase(run) {
   const database = new pg.Client({
     host: `db.${projectRef}.supabase.co`,
@@ -40,6 +48,9 @@ export async function withDatabase(run) {
     password: dbPassword,
     ssl: { rejectUnauthorized: false },
   });
+  // Active queries still reject; this prevents a later socket close from
+  // bypassing the caller's cleanup/finally path as an unhandled EventEmitter.
+  database.on("error", () => {});
   await database.connect();
   try {
     return await run(database);
@@ -57,6 +68,7 @@ export async function removeQaModerationEvent(resourceId, userId) {
     password: dbPassword,
     ssl: { rejectUnauthorized: false },
   });
+  database.on("error", () => {});
   await database.connect();
   try {
     const result = await database.query(
@@ -82,6 +94,26 @@ export async function cleanupQaRestrictedData(userIds) {
     await database.query("begin");
     try {
       await database.query("select set_config('mort.internal_update', 'true', true)");
+      await database.query(
+        `delete from public.job_management_requests
+         where actor_id = any($1::uuid[])
+            or job_id in (
+              select id from public.jobs where poster_id = any($1::uuid[])
+            )`,
+        [userIds],
+      );
+      await database.query(
+        `delete from public.job_execution_events event
+         where event.actor_id = any($1::uuid[])
+            or event.application_id in (
+              select application.id
+              from public.applications application
+              join public.jobs job on job.id = application.job_id
+              where application.teen_id = any($1::uuid[])
+                 or job.poster_id = any($1::uuid[])
+            )`,
+        [userIds],
+      );
       await database.query(
         "delete from public.rate_limit_events where user_id = any($1::uuid[])",
         [userIds],
@@ -202,7 +234,90 @@ export async function cleanupQaRestrictedData(userIds) {
         [userIds],
       );
       await database.query(
+        `delete from public.support_ai_feedback
+         where owner_id = any($1::uuid[])
+            or conversation_id in (
+              select id from public.support_conversations
+              where owner_id = any($1::uuid[])
+            )`,
+        [userIds],
+      );
+      await database.query(
+        `delete from public.support_ai_incidents
+         where owner_id = any($1::uuid[])
+            or conversation_id in (
+              select id from public.support_conversations
+              where owner_id = any($1::uuid[])
+            )`,
+        [userIds],
+      );
+      await database.query(
+        `delete from public.support_action_audit
+         where actor_id = any($1::uuid[])
+            or conversation_id in (
+              select id from public.support_conversations
+              where owner_id = any($1::uuid[])
+            )
+            or ticket_id in (select id from qa_support_tickets)`,
+        [userIds],
+      );
+      await database.query(
+        `delete from public.support_ticket_events
+         where ticket_id in (select id from qa_support_tickets)
+            or conversation_id in (
+              select id from public.support_conversations
+              where owner_id = any($1::uuid[])
+            )`,
+        [userIds],
+      );
+      await database.query(
+        `delete from public.support_attachments
+         where owner_id = any($1::uuid[])
+            or conversation_id in (
+              select id from public.support_conversations
+              where owner_id = any($1::uuid[])
+            )
+            or ticket_id in (select id from qa_support_tickets)`,
+        [userIds],
+      );
+      await database.query(
+        `delete from public.support_messages
+         where conversation_id in (
+           select id from public.support_conversations
+           where owner_id = any($1::uuid[])
+         )`,
+        [userIds],
+      );
+      await database.query(
+        "delete from public.support_conversations where owner_id = any($1::uuid[])",
+        [userIds],
+      );
+      await database.query(
+        "delete from public.support_rate_limits where user_id = any($1::uuid[])",
+        [userIds],
+      );
+      await database.query(
+        "delete from public.support_user_preferences where user_id = any($1::uuid[])",
+        [userIds],
+      );
+      await database.query(
         "delete from public.support_ticket_audit_events where ticket_id in (select id from qa_support_tickets)",
+      );
+      await database.query(
+        "delete from public.support_backlog_alerts where ticket_id in (select id from qa_support_tickets)",
+      );
+      await database.query(
+        `delete from public.support_internal_notes
+         where ticket_id in (select id from qa_support_tickets)
+            or author_id = any($1::uuid[])`,
+        [userIds],
+      );
+      await database.query(
+        `delete from public.support_ticket_appeals
+         where original_ticket_id in (select id from qa_support_tickets)
+            or appeal_ticket_id in (select id from qa_support_tickets)
+            or requester_id = any($1::uuid[])`,
+        [userIds],
       );
       await database.query(
         "delete from public.support_ticket_messages where ticket_id in (select id from qa_support_tickets)",
@@ -214,6 +329,9 @@ export async function cleanupQaRestrictedData(userIds) {
         "delete from public.poster_payment_restrictions where dispute_id in (select id from qa_legal_trust_disputes)",
       );
       await database.query(
+        "delete from public.payment_dispute_appeals where dispute_id in (select id from qa_legal_trust_disputes)",
+      );
+      await database.query(
         "delete from public.payment_dispute_decisions where dispute_id in (select id from qa_legal_trust_disputes)",
       );
       await database.query(
@@ -221,6 +339,9 @@ export async function cleanupQaRestrictedData(userIds) {
       );
       await database.query(
         "delete from public.payment_dispute_evidence where dispute_id in (select id from qa_legal_trust_disputes)",
+      );
+      await database.query(
+        "delete from public.payment_dispute_statements where dispute_id in (select id from qa_legal_trust_disputes)",
       );
       await database.query(
         "delete from public.payment_dispute_assignments where dispute_id in (select id from qa_legal_trust_disputes)",
@@ -521,10 +642,14 @@ export async function withQaUsers(scope, definitions, run) {
       password: dbPassword,
       ssl: { rejectUnauthorized: false },
     });
+    database.on("error", () => {});
     await database.connect();
     try {
       await database.query("begin");
       await database.query("select set_config('mort.internal_update', 'true', true)");
+      await database.query(
+        "select set_config('mort.onboarding_completion', 'true', true)",
+      );
       for (const definition of definitions) {
         const user = users[definition.key];
         const teen = definition.role === "teen";
@@ -637,10 +762,20 @@ export async function withQaUsers(scope, definitions, run) {
       const client = createClient(supabaseUrl, anonKey, {
         auth: { persistSession: false, autoRefreshToken: false },
       });
-      const { data, error } = await client.auth.signInWithPassword({
-        email: users[definition.key].email,
-        password,
-      });
+      let data;
+      let error;
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        const response = await client.auth.signInWithPassword({
+          email: users[definition.key].email,
+          password,
+        });
+        data = response.data;
+        error = response.error;
+        if (!error && data.user?.id === users[definition.key].id) break;
+        if (attempt < 3) {
+          await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+        }
+      }
       if (error || data.user?.id !== users[definition.key].id) {
         throw new Error(`Could not sign in ${definition.key} QA user: ${error?.message}`);
       }
@@ -710,7 +845,7 @@ export async function saveJob(client, overrides = {}, publish = true) {
     travel_radius_miles: 5,
     work_environment: "indoor",
     location_type: "public",
-    pay_amount_cents: 1800,
+    adult_job_amount_cents: 1800,
     payment_type: "fixed",
     payment_method: "cash",
     payment_timing: "after_completion",
@@ -734,6 +869,42 @@ export async function saveJob(client, overrides = {}, publish = true) {
   });
   if (error) throw new Error(`save_job_draft_or_publish failed: ${error.message}`);
   return { result: data, clientRequestId, payload };
+}
+
+export async function manageJob(
+  client,
+  {
+    jobId,
+    action,
+    reason = null,
+    clientRequestId = randomUUID(),
+    expectedUpdatedAt = null,
+  },
+) {
+  return client.rpc("manage_job_v2", {
+    p_job_id: jobId,
+    p_action: action,
+    p_reason: reason,
+    p_client_request_id: clientRequestId,
+    p_expected_updated_at: expectedUpdatedAt,
+  });
+}
+
+export async function updateApplicationStatus(
+  client,
+  {
+    applicationId,
+    action,
+    clientRequestId = randomUUID(),
+    expectedUpdatedAt = null,
+  },
+) {
+  return client.rpc("update_application_status_v3", {
+    p_application_id: applicationId,
+    p_action: action,
+    p_client_request_id: clientRequestId,
+    p_expected_updated_at: expectedUpdatedAt,
+  });
 }
 
 export async function confirmSafetyAgreement(teenClient, adultClient, applicationId) {

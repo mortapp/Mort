@@ -10,6 +10,7 @@ import '../../core/utils/validators.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/application.dart';
 import '../../data/models/job.dart';
+import '../../data/models/profile.dart';
 import '../../data/repositories/providers.dart';
 import '../../services/native_permissions_service.dart';
 import '../profile/profile_avatar_widgets.dart';
@@ -64,7 +65,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
     super.dispose();
   }
 
-  JobSearchFilters get _filters => JobSearchFilters(
+  JobSearchFilters _filtersFor(Profile? profile) => JobSearchFilters(
     keyword: _keyword.text.trim(),
     category: _category == 'All' ? null : _category,
     minimumPayCents: _minimumPay.text.trim().isEmpty
@@ -81,6 +82,12 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
     workEnvironment: _environment == 'any' ? null : _environment,
     city: _city.text.trim().isEmpty ? null : _city.text.trim(),
     state: _state.text.trim().isEmpty ? null : _state.text.trim().toUpperCase(),
+    transportationMethods: profile?.walkingDistanceOnly == true
+        ? const ['walking']
+        : profile?.transportationMethods.isEmpty == false
+        ? profile!.transportationMethods
+        : null,
+    limit: 20,
     sort: _sort,
   );
 
@@ -123,16 +130,16 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final future = ref
-        .watch(jobsRepositoryProvider)
-        .listOpenJobs(filters: _filters);
+    final profile = ref.watch(currentProfileProvider).asData?.value;
+    final filters = _filtersFor(profile);
+    final jobs = ref.watch(openJobsProvider(filters));
     return MortScreen(
       children: [
         const MortHeader(
           eyebrow: 'Teen-safe feed',
-          title: 'Nearby jobs',
+          title: 'Jobs in your selected area',
           subtitle:
-              'Search open jobs by general area details. Exact addresses are never shown in the public feed.',
+              'Search open jobs by city, state, and travel method. MORT does not calculate your distance to a job, and exact addresses are never shown in the feed.',
         ),
         MortTextField(
           label: 'Search jobs',
@@ -296,48 +303,114 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
           ],
         ),
         const SizedBox(height: MortSpacing.sm),
-        FutureBuilder<List<Job>>(
-          future: future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Column(
-                children: [
-                  MortSkeletonCard(),
-                  SizedBox(height: MortSpacing.sm),
-                  MortSkeletonCard(),
-                ],
-              );
-            }
-            if (snapshot.hasError) {
-              return MortErrorState(
-                title: 'Job feed unavailable',
-                message: userFacingError(snapshot.error),
-                action: MortButton(
-                  label: 'Retry',
-                  icon: Icons.refresh,
-                  onPressed: () => setState(() {}),
-                ),
-              );
-            }
-            final jobs = snapshot.data ?? const [];
-            if (jobs.isEmpty) {
+        jobs.when(
+          loading: () => const Column(
+            children: [
+              MortSkeletonCard(),
+              SizedBox(height: MortSpacing.sm),
+              MortSkeletonCard(),
+            ],
+          ),
+          error: (error, _) => MortErrorState(
+            title: 'Job feed unavailable',
+            message: userFacingError(error),
+            action: MortButton(
+              label: 'Retry',
+              icon: Icons.refresh,
+              onPressed: () => ref.invalidate(openJobsProvider(filters)),
+            ),
+          ),
+          data: (feed) {
+            final items = feed.items;
+            if (items.isEmpty) {
               return MortEmptyState(
-                title: 'No matching jobs',
+                title: 'No jobs in this area yet',
                 message:
-                    'Try clearing a filter. Jobs will appear when they match your approved pilot access and search area.',
-                action: MortButton(
-                  label: 'Clear filters',
-                  icon: Icons.filter_alt_off,
-                  onPressed: _clearFilters,
+                    'When approved pilot adults post matching jobs for this city, state, and travel method, they will appear here.',
+                action: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    MortButton(
+                      label: 'Refresh',
+                      icon: Icons.refresh_rounded,
+                      onPressed: () =>
+                          ref.invalidate(openJobsProvider(filters)),
+                    ),
+                    const SizedBox(height: MortSpacing.xs),
+                    MortButton(
+                      label: 'Review travel preferences',
+                      icon: Icons.route_outlined,
+                      style: MortButtonStyle.secondary,
+                      onPressed: () => context.go('/onboarding/transportation'),
+                    ),
+                    const SizedBox(height: MortSpacing.xs),
+                    MortButton(
+                      label: 'Edit interests',
+                      icon: Icons.interests_outlined,
+                      style: MortButtonStyle.ghost,
+                      onPressed: () => context.go('/teen/skills'),
+                    ),
+                    const SizedBox(height: MortSpacing.xs),
+                    MortButton(
+                      label: 'Enable notifications',
+                      icon: Icons.notifications_active_outlined,
+                      style: MortButtonStyle.ghost,
+                      onPressed: () =>
+                          context.go('/settings/native-permissions'),
+                    ),
+                    if (_keyword.text.isNotEmpty ||
+                        _category != 'All' ||
+                        _city.text.isNotEmpty ||
+                        _state.text.isNotEmpty) ...[
+                      const SizedBox(height: MortSpacing.xs),
+                      MortButton(
+                        label: 'Clear filters',
+                        icon: Icons.filter_alt_off_rounded,
+                        style: MortButtonStyle.ghost,
+                        onPressed: _clearFilters,
+                      ),
+                    ],
+                  ],
                 ),
               );
             }
             return Column(
               children: [
-                for (final job in jobs) ...[
+                if (feed.servedFromSessionCache) ...[
+                  const MortSafetyBanner(
+                    message:
+                        'Showing job results loaded earlier in this session. Refresh when your connection returns.',
+                  ),
+                  const SizedBox(height: MortSpacing.sm),
+                ],
+                for (final job in items) ...[
                   _TeenJobCard(job: job),
                   const SizedBox(height: MortSpacing.sm),
                 ],
+                if (feed.paginationError != null) ...[
+                  MortErrorState(
+                    title: 'More jobs could not be loaded',
+                    message: userFacingError(feed.paginationError),
+                    action: MortButton(
+                      label: 'Retry load more',
+                      icon: Icons.refresh,
+                      onPressed: () => ref
+                          .read(openJobsProvider(filters).notifier)
+                          .loadNext(),
+                    ),
+                  ),
+                  const SizedBox(height: MortSpacing.sm),
+                ],
+                if (feed.hasMore)
+                  MortButton(
+                    label: 'Load more jobs',
+                    icon: Icons.expand_more,
+                    style: MortButtonStyle.secondary,
+                    busy: feed.loadingMore,
+                    busyLabel: 'Loading more jobs...',
+                    onPressed: () =>
+                        ref.read(openJobsProvider(filters).notifier).loadNext(),
+                  ),
               ],
             );
           },
@@ -374,6 +447,20 @@ class _TeenJobCard extends StatelessWidget {
           Text('${job.payDisplay} | ${job.locationText}'),
           const SizedBox(height: MortSpacing.xs),
           Text(job.scheduleDisplay),
+          if (job.acceptableTransportationMethods.isNotEmpty) ...[
+            const SizedBox(height: MortSpacing.xs),
+            Text(
+              'Travel: ${job.acceptableTransportationMethods.map((method) => method.replaceAll('_', ' ')).join(', ')}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+          if (job.matchExplanation?.isNotEmpty == true) ...[
+            const SizedBox(height: MortSpacing.xs),
+            Text(
+              job.matchExplanation!,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
           if (job.summary?.isNotEmpty == true) ...[
             const SizedBox(height: MortSpacing.sm),
             Text(job.summary!, maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -621,6 +708,25 @@ class _TeenJobDetailScreenState extends ConsumerState<TeenJobDetailScreen> {
               ],
             ),
             const SizedBox(height: MortSpacing.md),
+            if (job.payAmountCents != null) ...[
+              const MortSectionTitle(title: 'Offered compensation'),
+              MortGlassCard(
+                child: Column(
+                  children: [
+                    MortPriceDisplay(
+                      label: 'Amount listed by the poster',
+                      formattedAmount: job.payDisplay,
+                      emphasized: true,
+                    ),
+                    const SizedBox(height: MortSpacing.xs),
+                    const Text(
+                      'MORT does not process, hold, guarantee, or mark this amount paid.',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: MortSpacing.md),
+            ],
             MortCard(
               child: Row(
                 children: [
@@ -682,6 +788,16 @@ class _TeenJobDetailScreenState extends ConsumerState<TeenJobDetailScreen> {
                     label:
                         '${job.payDisplay} ${job.paymentType == 'hourly' ? 'per hour' : 'fixed'} | ${job.paymentTiming.replaceAll('_', ' ')}',
                   ),
+                  _DetailLine(
+                    icon: Icons.route_outlined,
+                    label:
+                        'Travel options: ${job.acceptableTransportationMethods.map((method) => method.replaceAll('_', ' ')).join(', ')}',
+                  ),
+                  if (job.transportationConsiderations?.isNotEmpty == true)
+                    _DetailLine(
+                      icon: Icons.info_outline_rounded,
+                      label: job.transportationConsiderations!,
+                    ),
                 ],
               ),
             ),

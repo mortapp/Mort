@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../data/models/profile.dart';
 import '../../data/repositories/providers.dart';
 import '../../data/services/supabase_service.dart';
+import '../config/app_config.dart';
 import '../errors/user_facing_error.dart';
 import '../../features/monetization/screens/ad_free_screen.dart';
 import '../../features/monetization/screens/job_boost_paywall_screen.dart';
@@ -26,8 +27,11 @@ import '../../features/mort_screens.dart';
 import '../../features/mission/mission_pilot_screens.dart';
 import '../../features/mission/partner_staff_screens.dart';
 import '../../features/profile/review_screens.dart';
+import '../../features/reviewer/reviewer_screens.dart';
 import '../../features/profile/activity_history_screen.dart';
 import '../../features/notifications/notification_center_screen.dart';
+import '../../features/onboarding/transportation_screen.dart';
+import '../../features/onboarding/onboarding_preferences_screens.dart';
 import '../../features/payments/stripe_marketplace_screens.dart';
 import '../../features/payments/admin_payment_operations_screen.dart';
 import '../../features/admin/admin_moderation_detail_screen.dart';
@@ -35,12 +39,15 @@ import '../../features/admin/admin_operational_alerts_screen.dart';
 import '../../features/auth/google_auth_screens.dart';
 import '../../features/safety/trust_safety_screens.dart';
 import '../../features/support/support_screens.dart';
+import '../../features/support/support_assistant_screen.dart';
 import '../../features/settings/account_management_screens.dart';
 import '../../features/settings/native_permissions_screen.dart';
+import '../../features/settings/release_diagnostics_screen.dart';
 import '../../features/trust/account_trust_screens.dart';
 import '../../features/trust/teen_verification_screens.dart';
 import '../../services/screen_security_service.dart';
 import '../widgets/mort_widgets.dart';
+import '../reviewer/reviewer_session.dart';
 import 'route_access.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -52,6 +59,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/welcome', builder: (_, _) => const WelcomeScreen()),
       GoRoute(path: '/auth/sign-in', builder: (_, _) => const SignInScreen()),
       GoRoute(path: '/auth/sign-up', builder: (_, _) => const SignUpScreen()),
+      if (AppConfig.playReviewModeEnabled) ...[
+        _reviewer('/review', const ReviewerRoleSelectorScreen()),
+        _reviewer('/review/teen', const ReviewerTeenScreen()),
+        _reviewer('/review/adult', const ReviewerAdultScreen()),
+        _reviewer('/review/guardian', const ReviewerGuardianScreen()),
+        _reviewer('/review/support', const ReviewerSupportScreen()),
+        _reviewer('/review/admin', const ReviewerAdminScreen()),
+      ],
       GoRoute(
         path: '/auth-callback',
         builder: (_, state) => OAuthCallbackScreen(callbackUri: state.uri),
@@ -105,6 +120,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         allowIncompleteOnboarding: true,
       ),
       _guarded(
+        '/onboarding/transportation',
+        const TransportationScreen(),
+        allowIncompleteOnboarding: true,
+      ),
+      _guarded(
         '/onboarding/payment',
         const PaymentPreferenceScreen(),
         allowIncompleteOnboarding: true,
@@ -117,6 +137,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       _guarded(
         '/onboarding/safety',
         const SafetyRulesScreen(),
+        allowIncompleteOnboarding: true,
+      ),
+      _guarded(
+        '/onboarding/preferences',
+        const OnboardingPreferencesScreen(),
+        allowIncompleteOnboarding: true,
+      ),
+      _guarded(
+        '/onboarding/review',
+        const OnboardingReviewScreen(),
         allowIncompleteOnboarding: true,
       ),
       _guarded('/account-status', const AccountStatusScreen()),
@@ -349,6 +379,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               route: '/admin/verification-appeals',
             ),
             MortAction(
+              label: 'Account ban appeals',
+              icon: Icons.restore_outlined,
+              route: '/admin/ban-appeals',
+            ),
+            MortAction(
               label: 'All incident cases',
               icon: Icons.folder_shared_outlined,
               route: '/admin/incidents',
@@ -470,8 +505,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         const AdminQueueScreen(
           title: 'Business verification',
           table: 'business_verifications',
-          actionLabel: 'Approve business verification',
-          actionValue: 'approved',
         ),
         role: UserRole.admin,
       ),
@@ -483,6 +516,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           equals: {'status': 'appeal_pending'},
           detailRoutePrefix: '/admin/verifications',
         ),
+        role: UserRole.admin,
+      ),
+      _guarded(
+        '/admin/ban-appeals',
+        const AdminBanAppealsScreen(),
         role: UserRole.admin,
       ),
       _guarded(
@@ -604,8 +642,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         const AdminQueueScreen(
           title: 'Jobs moderation',
           table: 'jobs',
-          actionLabel: 'Reject job',
-          actionValue: 'rejected',
+          moderationAction: AdminModerationQueueAction.rejectJob,
         ),
         role: UserRole.admin,
       ),
@@ -671,8 +708,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           title: 'Review moderation',
           table: 'reviews',
           statusField: 'moderation_status',
-          actionLabel: 'Approve review',
-          actionValue: 'approved',
+          moderationAction: AdminModerationQueueAction.approveReview,
         ),
         role: UserRole.admin,
       ),
@@ -774,6 +810,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         const DeviceSecuritySettingsScreen(),
       ),
       _guarded('/settings/native-permissions', const NativePermissionsScreen()),
+      _guarded(
+        '/settings/release-diagnostics',
+        const ReleaseDiagnosticsScreen(),
+      ),
       _guarded('/settings/passkeys', const PasskeySettingsScreen()),
       _guarded(
         '/settings/school-affiliation',
@@ -795,6 +835,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       _guarded(
         '/settings/safety-cases',
         const SensitiveScreenProtection(child: SafetyCasesScreen()),
+      ),
+      _guarded(
+        '/settings/security-sessions',
+        const SensitiveScreenProtection(child: SecuritySessionsScreen()),
       ),
       _guarded(
         '/settings/active-sessions',
@@ -853,6 +897,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       _guarded('/settings', const SettingsScreen()),
+      _guarded('/settings/blocked-users', const BlockedUsersScreen()),
       _guarded('/settings/profile', const ProfileSetupScreen()),
       _guarded('/settings/connected-accounts', const ConnectedAccountsScreen()),
       _guarded('/settings/guardian-mode', const GuardianModeScreen()),
@@ -901,20 +946,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
         ),
       ),
-      GoRoute(
-        path: '/contracts/:contractId/fund',
-        builder: (_, state) => GuardedRoute(
-          requiredRole: UserRole.adult,
-          child: StripeJobFundingScreen(
-            contractId: state.pathParameters['contractId'] ?? '',
+      if (AppConfig.marketplacePaymentsEnabled) ...[
+        GoRoute(
+          path: '/contracts/:contractId/fund',
+          builder: (_, state) => GuardedRoute(
+            requiredRole: UserRole.adult,
+            child: StripeJobFundingScreen(
+              contractId: state.pathParameters['contractId'] ?? '',
+            ),
           ),
         ),
-      ),
-      _guarded(
-        '/payments/stripe/payout-setup',
-        const StripePayoutSetupScreen(),
-        role: UserRole.teen,
-      ),
+        _guarded(
+          '/payments/stripe/payout-setup',
+          const StripePayoutSetupScreen(),
+          role: UserRole.teen,
+        ),
+      ],
       GoRoute(
         path: '/payments/:obligationId/nonpayment',
         builder: (_, state) => GuardedRoute(
@@ -957,6 +1004,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       _guarded('/trust/device-auth', const DeviceAuthExplanationScreen()),
       GoRoute(path: '/support', builder: (_, _) => const SupportHomeScreen()),
+      _guarded('/support/chat', const SupportAssistantScreen()),
+      _guarded('/support/chat/history', const SupportAssistantHistoryScreen()),
+      GoRoute(
+        path: '/support/chat/:conversationId',
+        builder: (_, state) => GuardedRoute(
+          child: SupportAssistantScreen(
+            initialConversationId: state.pathParameters['conversationId'] ?? '',
+          ),
+        ),
+      ),
       GoRoute(
         path: '/support/new',
         builder: (_, state) => GuardedRoute(
@@ -1066,6 +1123,36 @@ GoRoute _guarded(
       child: child,
     ),
   );
+}
+
+GoRoute _reviewer(String path, Widget child) {
+  return GoRoute(
+    path: path,
+    builder: (_, _) => ReviewerRouteGuard(child: child),
+  );
+}
+
+class ReviewerRouteGuard extends ConsumerWidget {
+  const ReviewerRouteGuard({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reviewer = ref.watch(reviewerSessionProvider);
+    final productionSessionPresent =
+        ref.watch(authRepositoryProvider).currentUser != null;
+    if (productionSessionPresent) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (reviewer.isActive) reviewer.exit();
+      });
+      return const ReviewerSessionRequiredScreen();
+    }
+    if (!reviewer.isActive) {
+      return const ReviewerSessionRequiredScreen();
+    }
+    return child;
+  }
 }
 
 class GuardedRoute extends ConsumerWidget {

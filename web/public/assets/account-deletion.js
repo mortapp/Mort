@@ -1,4 +1,3 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0';
 const config = window.MORT_PUBLIC_CONFIG || {};
 const form = document.querySelector('#deletion-link-form');
 const result = document.querySelector('#link-result');
@@ -11,7 +10,7 @@ if (!config.supabaseUrl || !config.supabaseAnonKey) {
   form.querySelector('button').disabled = true;
   result.textContent = 'Web account deletion is not configured in this preview. Use the in-app account deletion control.';
 } else {
-  const client = createClient(config.supabaseUrl, config.supabaseAnonKey, { auth: { persistSession: true, detectSessionInUrl: true, flowType: 'implicit' } });
+  const client = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey, { auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' } });
   async function showSession() {
     const { data } = await client.auth.getSession();
     const signedIn = Boolean(data.session);

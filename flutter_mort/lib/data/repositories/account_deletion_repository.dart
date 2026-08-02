@@ -67,14 +67,22 @@ class AccountDeletionRepository extends RepositoryBase {
 
   Future<AccountDeletionRequest> requestDeletion() async {
     requireUserId();
-    final raw = await client.rpc(
-      'request_account_deletion',
-      params: {'p_source': 'in_app'},
-    );
-    return _requestFromResult(
-      raw,
-      'The deletion request could not be created.',
-    );
+    try {
+      final raw = await client.rpc(
+        'request_account_deletion',
+        params: {'p_source': 'in_app'},
+      );
+      return _requestFromResult(
+        raw,
+        'The deletion request could not be created.',
+      );
+    } catch (_) {
+      await recordOperationalFailure(
+        eventType: 'deletion_failure',
+        safeCode: 'deletion.request_failed',
+      );
+      rethrow;
+    }
   }
 
   Future<AccountDeletionRequest> cancelDeletion() async {

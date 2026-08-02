@@ -21,12 +21,23 @@ $excludedSegments = @(
 $mediaExtensions = @('.png', '.jpg', '.jpeg', '.heic', '.tif', '.tiff', '.webp', '.pdf')
 $identityNamePattern = '(?i)(passport|driver.?licen[cs]e|government.?id|school.?id|student.?id|selfie|liveness|identity.?evidence|identity.?document|address.?evidence|residential.?document)'
 $forbiddenExtensions = @('.pem', '.p12', '.pfx', '.key', '.mobileprovision', '.sqlite', '.sqlite3', '.db', '.dump', '.bak')
+$reviewedMediaHashes = @{
+  'flutter_mort/assets/branding/mort_arrow_adaptive_foreground.png' = 'BCAE9EDFD57B676D97EA0A41500937F67704A87370F03D20A1755EBB551A34D5'
+  'flutter_mort/assets/branding/mort_arrow_adaptive_monochrome.png' = '78C72C2B49698ED36351E51324D8EFF89276F7D65873CE9931615B7C78C93D24'
+  'artifacts/native-qa/mort-api36-launch.png' = '35A9DFC922AD29D82E79CEB58A7F6CD5FECEDDD0D99A086CA5345B9664C34466'
+  'artifacts/native-qa/mort-api36-launch-0.9.10.png' = 'E24AE97D7C3503526AC94FBB4A73B99FF630ACE4750217CA8E41217BE9A07702'
+  'artifacts/native-qa/mort-api36-launch-0.9.11.png' = '25A8A730BCAC2C59F319E61F823FF92153786A3E5DD3D634B77DB1071A4180AC'
+  'artifacts/release-0.9.12+102/reports/emulator-final-release-launch.png' = '00FD249CEB63C8F2CB8C03C65E5F31F1E2905F090E6B584BBCF7C4138B6FD73E'
+  'artifacts/release-0.9.12+102/reports/emulator-release-launch.png' = 'ACB000B71ACC3AFE9474311E3665E7D76F0F8F2BD70664F2A0B30295F3D6FDC4'
+}
 $allowedMediaPatterns = @(
+  '(?i)(^|/)flutter_mort/assets/branding/mort_arrow_rose_gold\.png$',
   '(?i)(^|/)(assets/notification-icon\.png)$',
   '(?i)(^|/)(web/)?favicon\.png$',
   '(?i)(^|/)(web/)?icons/Icon(?:-maskable)?-(192|512)\.png$',
   '(?i)(^|/)Assets\.xcassets/AppIcon\.appiconset/.+\.png$',
   '(?i)(^|/)Assets\.xcassets/LaunchImage\.imageset/.+\.png$',
+  '(?i)(^|/)android/app/src/main/res/drawable-[^/]+/ic_launcher_(foreground|monochrome)\.png$',
   '(?i)(^|/)android/app/src/main/res/mipmap-[^/]+/ic_launcher\.png$'
 )
 if ($AllowPlayStoreMedia) {
@@ -34,7 +45,8 @@ if ($AllowPlayStoreMedia) {
     '(?i)(^|/)app-icon/mort-play-icon-512\.png$',
     '(?i)(^|/)feature-graphic/mort-feature-graphic-1024x500\.png$',
     '(?i)(^|/)phone-large/[0-9]{2}-[a-z0-9-]+-1080x1920\.png$',
-    '(?i)(^|/)phone-small/[0-9]{2}-[a-z0-9-]+-720x1280\.png$'
+    '(?i)(^|/)phone-small/[0-9]{2}-[a-z0-9-]+-720x1280\.png$',
+    '(?i)(^|/)signed-apk-emulator/[a-z0-9-]+\.png$'
   )
 }
 
@@ -47,9 +59,35 @@ function Test-ExcludedPath {
   return $false
 }
 
+function Get-IncludedSourceFiles {
+  $pending = [System.Collections.Generic.Stack[System.IO.DirectoryInfo]]::new()
+  $pending.Push((Get-Item -LiteralPath $RootPath))
+
+  while ($pending.Count -gt 0) {
+    $directory = $pending.Pop()
+    foreach ($entry in Get-ChildItem -LiteralPath $directory.FullName -Force) {
+      $relative = $entry.FullName.Substring($RootPath.Length).TrimStart('\', '/')
+      if (Test-ExcludedPath -RelativePath $relative) { continue }
+
+      if ($entry.PSIsContainer) {
+        if (($entry.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq 0) {
+          $pending.Push($entry)
+        }
+        continue
+      }
+
+      Write-Output $entry
+    }
+  }
+}
+
 function Test-AllowedMedia {
   param([string]$RelativePath)
   $normalized = $RelativePath.Replace('\', '/')
+  if ($reviewedMediaHashes.ContainsKey($normalized)) {
+    $actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $RootPath $RelativePath)).Hash
+    return $actualHash -eq $reviewedMediaHashes[$normalized]
+  }
   foreach ($pattern in $allowedMediaPatterns) {
     if ($normalized -match $pattern) { return $true }
   }
@@ -146,7 +184,7 @@ $secretValues = @(Get-SecretValues)
 $filesScanned = 0
 $mediaScanned = 0
 
-foreach ($file in Get-ChildItem -LiteralPath $RootPath -Recurse -File -Force) {
+foreach ($file in Get-IncludedSourceFiles) {
   $relative = $file.FullName.Substring($RootPath.Length).TrimStart('\', '/')
   if (Test-ExcludedPath -RelativePath $relative) { continue }
   if ($file.Extension -eq '.zip') { continue }

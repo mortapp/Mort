@@ -156,6 +156,7 @@ class _AdminPaymentOperationsScreenState
           }
           final disputes = _maps(data['disputes']);
           final resolutions = _maps(data['resolutions']);
+          final incidents = _maps(data['incidents']);
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -202,11 +203,62 @@ class _AdminPaymentOperationsScreenState
                   ),
                   const SizedBox(height: MortSpacing.sm),
                 ],
+              const SizedBox(height: MortSpacing.md),
+              const MortSectionTitle(title: 'Financial incidents'),
+              if (incidents.isEmpty)
+                const MortEmptyState(
+                  title: 'No open financial incidents',
+                  message:
+                      'Provider outages, negative balances, payout failures, chargeback exposure, and reconciliation mismatches appear here only for assigned financial roles.',
+                )
+              else
+                for (final incident in incidents) ...[
+                  _FinancialIncidentCard(incident: incident),
+                  const SizedBox(height: MortSpacing.sm),
+                ],
             ],
           );
         },
       ),
     ],
+  );
+}
+
+class _FinancialIncidentCard extends StatelessWidget {
+  const _FinancialIncidentCard({required this.incident});
+
+  final Map<String, dynamic> incident;
+
+  @override
+  Widget build(BuildContext context) => MortCard(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: MortSpacing.sm,
+          runSpacing: MortSpacing.xs,
+          children: [
+            MortBadge(
+              label: _label(incident['severity']),
+              color: {'high', 'critical'}.contains(incident['severity'])
+                  ? MortColors.danger
+                  : MortColors.warning,
+            ),
+            MortBadge(label: _label(incident['status'])),
+          ],
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        Text('Incident ${incident['incident_id']}'),
+        Text('Category: ${_label(incident['category'])}'),
+        Text('Safe code: ${_label(incident['safe_code'])}'),
+        if (incident['amount_cents'] != null)
+          Text(
+            'Affected amount: ${_money(incident['amount_cents'], incident['currency_code'])}',
+          ),
+        if (incident['requires_two_person_review'] == true)
+          const Text('Resolution requires independent financial review.'),
+      ],
+    ),
   );
 }
 

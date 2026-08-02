@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
+import '../../core/utils/formatters.dart';
 import '../../core/utils/validators.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/repositories/providers.dart';
@@ -29,6 +30,59 @@ const supportCategories = <String, String>{
   'other': 'Other',
 };
 
+const _supportTopics = <_SupportTopic>[
+  _SupportTopic(
+    'Account access',
+    Icons.lock_person_outlined,
+    '/support/new?category=account_sign_in',
+  ),
+  _SupportTopic(
+    'Jobs and applications',
+    Icons.work_outline,
+    '/support/new?category=job_application',
+  ),
+  _SupportTopic(
+    'Start and finish PINs',
+    Icons.pin_outlined,
+    '/support/new?category=start_finish_pin',
+  ),
+  _SupportTopic(
+    'Safety and reports',
+    Icons.health_and_safety_outlined,
+    '/safety',
+    safety: true,
+  ),
+  _SupportTopic(
+    'Verification',
+    Icons.verified_user_outlined,
+    '/support/new?category=verification',
+  ),
+  _SupportTopic(
+    'Guardian Mode',
+    Icons.supervised_user_circle_outlined,
+    '/settings/guardian-mode',
+  ),
+  _SupportTopic(
+    'Payment questions',
+    Icons.payments_outlined,
+    '/support/new?category=payment_compensation',
+  ),
+  _SupportTopic(
+    'App problem',
+    Icons.mobile_friendly_outlined,
+    '/support/new?category=other',
+  ),
+];
+
+class _SupportTopic {
+  const _SupportTopic(this.label, this.icon, this.route, {this.safety = false});
+
+  final String label;
+  final IconData icon;
+  final String route;
+  final bool safety;
+}
+
 class SupportHomeScreen extends ConsumerStatefulWidget {
   const SupportHomeScreen({super.key});
 
@@ -38,6 +92,9 @@ class SupportHomeScreen extends ConsumerStatefulWidget {
 
 class _SupportHomeScreenState extends ConsumerState<SupportHomeScreen> {
   Future<List<SupportTicket>>? _tickets;
+  Future<SupportServiceStatus>? _serviceStatus;
+  final _search = TextEditingController();
+  String _query = '';
 
   @override
   void initState() {
@@ -48,7 +105,14 @@ class _SupportHomeScreenState extends ConsumerState<SupportHomeScreen> {
   void _reload() {
     setState(() {
       _tickets = ref.read(supportRepositoryProvider).listTickets();
+      _serviceStatus = ref.read(supportRepositoryProvider).getServiceStatus();
     });
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
   }
 
   @override
@@ -56,6 +120,11 @@ class _SupportHomeScreenState extends ConsumerState<SupportHomeScreen> {
     final user = ref.watch(authRepositoryProvider).currentUser;
     return MortScreen(
       children: [
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: MortBrandMark(size: 46),
+        ),
+        const SizedBox(height: MortSpacing.xs),
         MortHeader(
           eyebrow: 'Private support',
           title: 'MORT Support',
@@ -73,13 +142,42 @@ class _SupportHomeScreenState extends ConsumerState<SupportHomeScreen> {
           message:
               'MORT Support is not emergency, medical, or legal assistance. If anyone may be in immediate danger, contact local emergency services. MORT has not dispatched help.',
         ),
+        if (_serviceStatus != null) ...[
+          const SizedBox(height: MortSpacing.sm),
+          FutureBuilder<SupportServiceStatus>(
+            future: _serviceStatus,
+            builder: (context, snapshot) {
+              final status = snapshot.data;
+              if (status == null) return const SizedBox.shrink();
+              return MortCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      status.targetsAreCommitments
+                          ? 'Published Support availability'
+                          : 'Support staffing status',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: MortSpacing.xs),
+                    Text('${status.hoursDisplay} (${status.timezone})'),
+                    Text(
+                      status.responseMessage,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
         const SizedBox(height: MortSpacing.md),
         MortActionRow(
           actions: [
             const MortAction(
-              label: 'Ask MORT Guide',
+              label: 'Chat with MORT Support',
               icon: Icons.assistant_outlined,
-              route: '/guide',
+              route: '/support/chat',
             ),
             MortAction(
               label: 'Safety Center',
@@ -93,6 +191,48 @@ class _SupportHomeScreenState extends ConsumerState<SupportHomeScreen> {
               onPressed: () => _openSupportEmail(context, email: user?.email),
             ),
           ],
+        ),
+        const SizedBox(height: MortSpacing.md),
+        MortTextField(
+          label: 'Search support topics',
+          controller: _search,
+          onChanged: (value) =>
+              setState(() => _query = value.trim().toLowerCase()),
+        ),
+        const SizedBox(height: MortSpacing.md),
+        const MortSectionTitle(title: 'Help by topic'),
+        for (final topic in _supportTopics.where(
+          (topic) =>
+              _query.isEmpty || topic.label.toLowerCase().contains(_query),
+        )) ...[
+          MortCard(
+            onTap: () => context.go(topic.route),
+            child: Row(
+              children: [
+                Icon(
+                  topic.icon,
+                  color: topic.safety
+                      ? MortColors.danger
+                      : MortColors.lightBlue,
+                ),
+                const SizedBox(width: MortSpacing.sm),
+                Expanded(child: Text(topic.label)),
+                const Icon(Icons.chevron_right),
+              ],
+            ),
+          ),
+          const SizedBox(height: MortSpacing.xs),
+        ],
+        MortCard(
+          onTap: () => context.go('/jobs'),
+          child: const Row(
+            children: [
+              Icon(Icons.history_outlined, color: MortColors.lightBlue),
+              SizedBox(width: MortSpacing.sm),
+              Expanded(child: Text('Recent job help')),
+              Icon(Icons.chevron_right),
+            ],
+          ),
         ),
         const SizedBox(height: MortSpacing.md),
         if (user == null) ...[
@@ -109,9 +249,16 @@ class _SupportHomeScreenState extends ConsumerState<SupportHomeScreen> {
           ),
         ] else ...[
           MortButton(
-            label: 'Start a support conversation',
-            icon: Icons.add_comment_outlined,
+            label: 'Contact a support person',
+            icon: Icons.support_agent,
             onPressed: () => context.go('/support/new'),
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          MortButton(
+            label: 'Open Support Assistant',
+            icon: Icons.auto_awesome_outlined,
+            style: MortButtonStyle.secondary,
+            onPressed: () => context.go('/support/chat'),
           ),
           const SizedBox(height: MortSpacing.lg),
           const MortSectionTitle(title: 'Your support history'),
@@ -258,6 +405,8 @@ class _NewSupportConversationScreenState
   @override
   Widget build(BuildContext context) => MortScreen(
     children: [
+      const Center(child: MortBrandMark(size: 64, showWordmark: true)),
+      const SizedBox(height: MortSpacing.md),
       const MortHeader(
         eyebrow: 'New private case',
         title: 'How can MORT help?',
@@ -396,6 +545,54 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
           .read(supportRepositoryProvider)
           .requestHumanReview(widget.ticketId);
       setState(_reload);
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _reopen() async {
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (_) => const _SupportReasonDialog(
+        title: 'Reopen this support case',
+        actionLabel: 'Reopen case',
+        minimumLength: 10,
+      ),
+    );
+    if (reason == null || !mounted) return;
+    setState(() => _sending = true);
+    try {
+      await ref.read(supportRepositoryProvider).reopen(widget.ticketId, reason);
+      if (mounted) {
+        MortToast.show(context, 'Support case reopened for review.');
+        setState(_reload);
+      }
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _appeal() async {
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (_) => const _SupportReasonDialog(
+        title: 'Appeal this support outcome',
+        actionLabel: 'Create appeal',
+        minimumLength: 10,
+        maxLength: 1000,
+      ),
+    );
+    if (reason == null || !mounted) return;
+    setState(() => _sending = true);
+    try {
+      final appeal = await ref
+          .read(supportRepositoryProvider)
+          .appeal(widget.ticketId, reason);
+      if (mounted) context.go('/support/ticket/${appeal.id}');
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
     } finally {
@@ -574,6 +771,20 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
                 busy: _sending,
                 onPressed: _requestHuman,
               ),
+              if (ticket.status == 'closed')
+                MortAction(
+                  label: 'Reopen case',
+                  icon: Icons.lock_open_outlined,
+                  busy: _sending,
+                  onPressed: _reopen,
+                ),
+              if (ticket.isTerminal && !ticket.isAppeal)
+                MortAction(
+                  label: 'Appeal outcome',
+                  icon: Icons.gavel_outlined,
+                  busy: _sending,
+                  onPressed: _appeal,
+                ),
               if (ticket.canUploadEvidence)
                 MortAction(
                   label: 'Choose evidence photo',
@@ -676,6 +887,7 @@ class AdminSupportQueueScreen extends ConsumerStatefulWidget {
 class _AdminSupportQueueScreenState
     extends ConsumerState<AdminSupportQueueScreen> {
   String? _status;
+  String _queuePreset = 'new';
   bool _unassignedOnly = false;
   late Future<List<SupportTicket>> _queue;
 
@@ -691,6 +903,30 @@ class _AdminSupportQueueScreenState
         .listStaffQueue(status: _status, unassignedOnly: _unassignedOnly);
   }
 
+  bool _matchesPreset(SupportTicket ticket) => switch (_queuePreset) {
+    'new' => ticket.status == 'open',
+    'waiting_support' => ticket.status == 'waiting_on_staff',
+    'waiting_user' => ticket.status == 'waiting_on_user',
+    'safety_urgent' => ticket.priority == 'urgent_safety',
+    'verification' => ticket.category == 'verification',
+    'dispute' => const {
+      'payment_compensation',
+      'adult_refused_completion',
+      'teen_abandonment',
+    }.contains(ticket.category),
+    'evidence' => ticket.category == 'evidence_submission',
+    'account_access' => ticket.category == 'account_sign_in',
+    'technical' => const {
+      'profile_avatar',
+      'start_finish_pin',
+      'other',
+    }.contains(ticket.category),
+    'ai_reported' => ticket.aiAssisted && ticket.priority != 'urgent_safety',
+    'escalated' => ticket.aiAssisted && ticket.status == 'under_review',
+    'resolved' => const {'resolved', 'closed'}.contains(ticket.status),
+    _ => true,
+  };
+
   void _applyFilter() => setState(_reload);
 
   @override
@@ -702,6 +938,36 @@ class _AdminSupportQueueScreenState
         subtitle:
             'Private cases are ordered by priority and waiting time. Financial execution remains a separate permission.',
       ),
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (final queue in const {
+              'new': 'New',
+              'waiting_support': 'Waiting for support',
+              'waiting_user': 'Waiting for user',
+              'safety_urgent': 'Safety urgent',
+              'verification': 'Verification',
+              'dispute': 'Dispute',
+              'evidence': 'Evidence',
+              'account_access': 'Account access',
+              'technical': 'Technical',
+              'ai_reported': 'AI-reported',
+              'escalated': 'Escalated',
+              'resolved': 'Resolved',
+            }.entries)
+              Padding(
+                padding: const EdgeInsets.only(right: MortSpacing.xs),
+                child: FilterChip(
+                  label: Text(queue.value),
+                  selected: _queuePreset == queue.key,
+                  onSelected: (_) => setState(() => _queuePreset = queue.key),
+                ),
+              ),
+          ],
+        ),
+      ),
+      const SizedBox(height: MortSpacing.sm),
       Row(
         children: [
           Expanded(
@@ -764,7 +1030,9 @@ class _AdminSupportQueueScreenState
               ),
             );
           }
-          final tickets = snapshot.data ?? const [];
+          final tickets = (snapshot.data ?? const [])
+              .where(_matchesPreset)
+              .toList(growable: false);
           if (tickets.isEmpty) {
             return const MortEmptyState(
               title: 'No matching cases',
@@ -793,6 +1061,12 @@ class _AdminSupportQueueScreenState
                             ),
                             Text(
                               'Priority: ${_label(ticket.priority)} - Waiting on: ${_label(ticket.waitingOnParty)}',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            Text(
+                              ticket.assignedSupportUserId == null
+                                  ? 'Unassigned - response goal ${formatDateTime(ticket.firstResponseDueAt)}'
+                                  : 'Owned - response goal ${formatDateTime(ticket.firstResponseDueAt)}',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],
@@ -825,6 +1099,7 @@ class AdminSupportTicketScreen extends ConsumerStatefulWidget {
 class _AdminSupportTicketScreenState
     extends ConsumerState<AdminSupportTicketScreen> {
   final _reply = TextEditingController();
+  final _internalNote = TextEditingController();
   late Future<SupportThread> _thread;
   bool _busy = false;
 
@@ -837,6 +1112,7 @@ class _AdminSupportTicketScreenState
   @override
   void dispose() {
     _reply.dispose();
+    _internalNote.dispose();
     super.dispose();
   }
 
@@ -857,6 +1133,69 @@ class _AdminSupportTicketScreenState
       _reply.clear();
       if (mounted) {
         MortToast.show(context, 'Human-reviewed support reply posted.');
+        setState(_reload);
+      }
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _claim() async {
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(supportRepositoryProvider)
+          .claimStaffTicket(widget.ticketId);
+      if (mounted) {
+        MortToast.show(context, 'Support case assigned to you.');
+        setState(_reload);
+      }
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _release() async {
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (_) => const _SupportReasonDialog(
+        title: 'Release this case',
+        actionLabel: 'Release case',
+        minimumLength: 8,
+      ),
+    );
+    if (reason == null || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(supportRepositoryProvider)
+          .releaseStaffTicket(widget.ticketId, reason);
+      if (mounted) {
+        MortToast.show(context, 'Support case returned to the queue.');
+        setState(_reload);
+      }
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _addInternalNote() async {
+    final body = _internalNote.text.trim();
+    if (_busy || body.length < 3) return;
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(supportRepositoryProvider)
+          .addInternalNote(ticketId: widget.ticketId, body: body);
+      _internalNote.clear();
+      if (mounted) {
+        MortToast.show(context, 'Private internal note added.');
         setState(_reload);
       }
     } catch (error) {
@@ -953,6 +1292,9 @@ class _AdminSupportTicketScreenState
         );
       }
       final thread = snapshot.data!;
+      final currentUserId = ref.read(authRepositoryProvider).currentUser?.id;
+      final ownedByCurrentUser =
+          thread.ticket.assignedSupportUserId == currentUserId;
       return MortScreen(
         children: [
           MortHeader(
@@ -965,6 +1307,47 @@ class _AdminSupportTicketScreenState
           const MortSafetyBanner(
             message:
                 'Reply only within assigned support scope. This screen cannot authorize a transfer, refund, identity finding, legal conclusion, or punitive action.',
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          MortCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  thread.ticket.assignedSupportUserId == null
+                      ? 'Queue ownership: unassigned'
+                      : ownedByCurrentUser
+                      ? 'Queue ownership: assigned to you'
+                      : 'Queue ownership: assigned to authorized staff',
+                ),
+                Text(
+                  'Response goal: ${formatDateTime(thread.ticket.firstResponseDueAt)}. This is not a user-facing guarantee unless staffing policy is activated.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: MortSpacing.xs),
+                Wrap(
+                  spacing: MortSpacing.sm,
+                  runSpacing: MortSpacing.sm,
+                  children: [
+                    if (thread.ticket.assignedSupportUserId == null)
+                      MortButton(
+                        label: 'Claim case',
+                        icon: Icons.assignment_ind_outlined,
+                        busy: _busy,
+                        onPressed: _claim,
+                      ),
+                    if (ownedByCurrentUser)
+                      MortButton(
+                        label: 'Release case',
+                        icon: Icons.assignment_return_outlined,
+                        busy: _busy,
+                        style: MortButtonStyle.secondary,
+                        onPressed: _release,
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: MortSpacing.md),
           for (final message in thread.messages) ...[
@@ -983,6 +1366,40 @@ class _AdminSupportTicketScreenState
             icon: Icons.send_outlined,
             busy: _busy,
             onPressed: _postReply,
+          ),
+          const SizedBox(height: MortSpacing.md),
+          const MortSectionTitle(title: 'Private staff notes'),
+          const Text(
+            'Internal notes are never shown to the requester. Record factual handoff context only; do not paste credentials, exact addresses, or unnecessary evidence.',
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          for (final note in thread.internalNotes) ...[
+            MortCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${_label(note.noteKind)} - ${formatDateTime(note.createdAt)}',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                  Text(note.body),
+                ],
+              ),
+            ),
+            const SizedBox(height: MortSpacing.xs),
+          ],
+          MortTextArea(
+            label: 'Internal note',
+            controller: _internalNote,
+            maxLines: 4,
+            maxLength: 2000,
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          MortButton(
+            label: 'Add private note',
+            icon: Icons.note_add_outlined,
+            busy: _busy,
+            onPressed: ownedByCurrentUser ? _addInternalNote : null,
           ),
           const SizedBox(height: MortSpacing.md),
           const MortSectionTitle(title: 'Controlled status'),
@@ -1041,6 +1458,19 @@ class _AdminSupportTicketScreenState
               const SizedBox(height: MortSpacing.sm),
             ],
           ],
+          if (thread.auditHistory.isNotEmpty) ...[
+            const SizedBox(height: MortSpacing.md),
+            const MortSectionTitle(title: 'Case audit history'),
+            for (final event in thread.auditHistory.reversed.take(30))
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.history_outlined),
+                title: Text(_label(event.eventType)),
+                subtitle: Text(
+                  '${formatDateTime(event.createdAt)}${event.toStatus == null ? '' : ' - ${_label(event.toStatus!)}'}',
+                ),
+              ),
+          ],
         ],
       );
     },
@@ -1088,6 +1518,60 @@ class _SupportStatusReasonDialogState
           if (reason.length >= 3) Navigator.pop(context, reason);
         },
         child: Text(_label(widget.status)),
+      ),
+    ],
+  );
+}
+
+class _SupportReasonDialog extends StatefulWidget {
+  const _SupportReasonDialog({
+    required this.title,
+    required this.actionLabel,
+    required this.minimumLength,
+    this.maxLength = 500,
+  });
+
+  final String title;
+  final String actionLabel;
+  final int minimumLength;
+  final int maxLength;
+
+  @override
+  State<_SupportReasonDialog> createState() => _SupportReasonDialogState();
+}
+
+class _SupportReasonDialogState extends State<_SupportReasonDialog> {
+  final controller = TextEditingController();
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.title),
+    content: TextField(
+      controller: controller,
+      minLines: 3,
+      maxLines: 8,
+      maxLength: widget.maxLength,
+      decoration: const InputDecoration(labelText: 'Factual reason'),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: () {
+          final reason = controller.text.trim();
+          if (reason.length >= widget.minimumLength) {
+            Navigator.pop(context, reason);
+          }
+        },
+        child: Text(widget.actionLabel),
       ),
     ],
   );

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/errors/user_facing_error.dart';
+import '../../core/money/mort_service_fee.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/utils/formatters.dart';
@@ -58,6 +59,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
   final _neighborhood = TextEditingController();
   final _zip = TextEditingController();
   final _radius = TextEditingController();
+  final _transportationNotes = TextEditingController();
   final _pay = TextEditingController();
   final _safetyNotes = TextEditingController();
   int _step = 0;
@@ -82,6 +84,14 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
   bool _guardianApproval = false;
   int _teenMinAge = 13;
   final Set<String> _physicalRequirements = {};
+  final Set<String> _transportationMethods = {
+    'walking',
+    'bicycle',
+    'car',
+    'public_transit',
+    'rideshare',
+    'other',
+  };
   DateTime? _startsAt;
   DateTime? _endsAt;
   DateTime? _deadlineAt;
@@ -137,11 +147,15 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
     _neighborhood.text = job.neighborhood ?? '';
     _zip.text = job.zipCode ?? '';
     _radius.text = job.travelRadiusMiles?.toString() ?? '';
+    _transportationMethods
+      ..clear()
+      ..addAll(job.acceptableTransportationMethods);
+    _transportationNotes.text = job.transportationConsiderations ?? '';
     _environment = job.workEnvironment;
     _locationType = job.locationType;
-    _pay.text = job.payAmountCents == null
+    _pay.text = job.adultJobAmountCents == null
         ? ''
-        : (job.payAmountCents! / 100).toStringAsFixed(2);
+        : (job.adultJobAmountCents! / 100).toStringAsFixed(2);
     _paymentType = job.paymentType;
     _paymentMethod = job.paymentMethod;
     _paymentTiming = job.paymentTiming;
@@ -176,6 +190,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
       _neighborhood,
       _zip,
       _radius,
+      _transportationNotes,
       _pay,
       _safetyNotes,
     ]) {
@@ -213,9 +228,11 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
       ..neighborhood = _neighborhood.text.trim()
       ..zipCode = _zip.text.trim()
       ..travelRadiusMiles = int.tryParse(_radius.text)
+      ..acceptableTransportationMethods = _transportationMethods.toList()
+      ..transportationConsiderations = _transportationNotes.text.trim()
       ..workEnvironment = _environment
       ..locationType = _locationType
-      ..payAmountCents = MortValidators.dollarsToCents(_pay.text)
+      ..adultJobAmountCents = MortServiceFee.tryParseAdultAmount(_pay.text)
       ..paymentType = _paymentType
       ..paymentMethod = _paymentMethod
       ..paymentTiming = _paymentTiming
@@ -279,9 +296,15 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
       if (!RegExp(r'^[A-Za-z]{2}$').hasMatch(_state.text.trim())) {
         return 'Use a two-letter state code.';
       }
+      if (_transportationMethods.isEmpty) {
+        return 'Choose at least one transportation method that can work for this job.';
+      }
+      if (_transportationNotes.text.trim().length > 500) {
+        return 'Keep transportation considerations under 500 characters.';
+      }
     }
-    if (_step == 4 && (MortValidators.dollarsToCents(_pay.text) ?? 0) <= 0) {
-      return 'Enter a positive payment amount.';
+    if (_step == 4) {
+      return MortServiceFee.validateAdultAmount(_pay.text);
     }
     if (_step == 5 && !_prohibitedConfirmed) {
       return 'Confirm that the job does not include prohibited work or upfront fees.';
@@ -661,6 +684,48 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         keyboardType: TextInputType.number,
       ),
       const SizedBox(height: MortSpacing.sm),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          'Transportation that can work',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+      ),
+      const SizedBox(height: MortSpacing.xs),
+      Wrap(
+        spacing: MortSpacing.xs,
+        runSpacing: MortSpacing.xs,
+        children: [
+          for (final option in const {
+            'walking': 'Walking',
+            'bicycle': 'Bicycle',
+            'car': 'Car',
+            'public_transit': 'Public transit',
+            'rideshare': 'Rideshare',
+            'other': 'Other',
+          }.entries)
+            MortFilterChip(
+              label: option.value,
+              selected: _transportationMethods.contains(option.key),
+              onSelected: (selected) => setState(() {
+                if (selected) {
+                  _transportationMethods.add(option.key);
+                } else {
+                  _transportationMethods.remove(option.key);
+                }
+              }),
+            ),
+        ],
+      ),
+      const SizedBox(height: MortSpacing.sm),
+      MortTextArea(
+        label: 'Transportation considerations (optional)',
+        controller: _transportationNotes,
+        maxLength: 500,
+        hint:
+            'General access guidance only, such as near a bus stop. Do not enter a street address.',
+      ),
+      const SizedBox(height: MortSpacing.sm),
       MortDropdown<String>(
         label: 'Work environment',
         value: _environment,
@@ -697,11 +762,27 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
   Widget _payment() => Column(
     children: [
       MortTextField(
-        label: 'Payment amount dollars',
+        label: 'Offered job amount',
         controller: _pay,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        onChanged: (_) => setState(() {}),
+        validator: MortServiceFee.validateAdultAmount,
       ),
       const SizedBox(height: MortSpacing.sm),
+      if (MortServiceFee.breakdown(_pay.text) case final breakdown?) ...[
+        MortGlassCard(
+          child: Column(
+            children: [
+              MortPriceDisplay(
+                label: 'Offered amount',
+                formattedAmount: formatCents(breakdown.teenPayoutCents),
+                emphasized: true,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: MortSpacing.sm),
+      ],
       MortDropdown<String>(
         label: 'Payment type',
         value: _paymentType,
@@ -709,35 +790,10 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         onChanged: (value) => setState(() => _paymentType = value ?? 'fixed'),
       ),
       const SizedBox(height: MortSpacing.sm),
-      MortDropdown<String>(
-        label: 'Payment method preference',
-        value: _paymentMethod,
-        items: const {
-          'cash': 'Cash',
-          'cash_app': 'Cash App',
-          'square': 'Square invoice or link',
-          'flexible': 'Flexible / agree later',
-        },
-        onChanged: (value) =>
-            setState(() => _paymentMethod = value ?? 'flexible'),
-      ),
-      const SizedBox(height: MortSpacing.sm),
-      MortDropdown<String>(
-        label: 'When payment is expected',
-        value: _paymentTiming,
-        items: const {
-          'after_completion': 'After completion',
-          'same_day': 'Same day',
-          'agreed_later': 'Agree later',
-        },
-        onChanged: (value) =>
-            setState(() => _paymentTiming = value ?? 'after_completion'),
-      ),
-      SwitchListTile.adaptive(
-        contentPadding: EdgeInsets.zero,
-        value: _tipAllowed,
-        title: const Text('Optional tip allowed'),
-        onChanged: (value) => setState(() => _tipAllowed = value),
+      const MortCard(
+        child: Text(
+          'The amount is an offer recorded with the job. MORT does not collect it, deduct a fee, choose a payment method, guarantee payment, or mark it paid.',
+        ),
       ),
       const MortPaymentDisclaimer(),
     ],
@@ -796,6 +852,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
 
   Widget _preview() {
     _syncDraft();
+    final breakdown = MortServiceFee.breakdown(_pay.text);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -810,7 +867,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               Text(
-                '${formatCents(_draft.payAmountCents)} · ${_draft.locationText}',
+                '${formatCents(breakdown?.teenPayoutCents)} offered amount | ${_draft.locationText}',
               ),
               const SizedBox(height: MortSpacing.sm),
               Text(_draft.summary),
@@ -834,6 +891,20 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         const SizedBox(height: MortSpacing.md),
         MortCard(child: Text(_draft.description)),
         const SizedBox(height: MortSpacing.md),
+        if (breakdown != null) ...[
+          MortGlassCard(
+            child: Column(
+              children: [
+                MortPriceDisplay(
+                  label: 'Offered amount',
+                  formattedAmount: formatCents(breakdown.teenPayoutCents),
+                  emphasized: true,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: MortSpacing.md),
+        ],
         const MortPaymentDisclaimer(),
       ],
     );
@@ -854,7 +925,8 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
           'Schedule: ${_scheduleType == 'flexible' ? 'Flexible schedule' : formatDateTime(_startsAt)}',
           'Approximate location: ${_area.text.trim()}, ${_city.text.trim()}, ${_state.text.trim().toUpperCase()}',
           'Guardian approval: ${_guardianApproval ? 'Requested for this job' : 'Not required'}',
-          'Payment: ${formatCents(MortValidators.dollarsToCents(_pay.text))}',
+          'Offered amount: ${formatCents(MortServiceFee.tryParseAdultAmount(_pay.text))}',
+          'MORT payment processing: Disabled',
         ],
       ),
     ],
@@ -960,7 +1032,7 @@ class AdultJobsScreen extends ConsumerWidget {
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: MortSpacing.xs),
-                        Text('${job.payDisplay} · ${job.scheduleDisplay}'),
+                        Text('${job.payDisplay} | ${job.scheduleDisplay}'),
                         const SizedBox(height: MortSpacing.sm),
                         MortJobStatusBadge(status: job.status),
                       ],
@@ -990,16 +1062,35 @@ class AdultJobManagementScreen extends ConsumerStatefulWidget {
 class _AdultJobManagementScreenState
     extends ConsumerState<AdultJobManagementScreen> {
   bool _busy = false;
+  late Future<Job?> _jobFuture;
 
-  Future<void> _action(String action) async {
+  @override
+  void initState() {
+    super.initState();
+    _jobFuture = ref.read(jobsRepositoryProvider).getJob(widget.jobId);
+  }
+
+  void _reload() {
+    setState(() {
+      _jobFuture = ref.read(jobsRepositoryProvider).getJob(widget.jobId);
+    });
+  }
+
+  Future<void> _action(String action, Job job) async {
     if (_busy) return;
-    if (action == 'cancel' || action == 'delete_draft') {
+    String? reason;
+    if (action == 'cancel') {
+      reason = await showDialog<String>(
+        context: context,
+        builder: (_) => const _JobCancellationReasonDialog(),
+      );
+      if (reason == null) return;
+    } else if (action == 'delete_draft') {
       final confirmed = await MortConfirmSheet.show(
         context,
-        title: action == 'cancel' ? 'Cancel this job?' : 'Delete this draft?',
-        message: action == 'cancel'
-            ? 'Applications will close and the job will remain in your history.'
-            : 'This draft has no applicants and will be permanently deleted.',
+        title: 'Delete this draft?',
+        message:
+            'This draft has no applicants and will be permanently deleted.',
       );
       if (!confirmed) return;
     }
@@ -1007,7 +1098,12 @@ class _AdultJobManagementScreenState
     try {
       final result = await ref
           .read(jobsRepositoryProvider)
-          .manageJob(widget.jobId, action);
+          .manageJob(
+            widget.jobId,
+            action,
+            reason: reason,
+            expectedUpdatedAt: job.updatedAt,
+          );
       if (!mounted) return;
       if (action == 'delete_draft') {
         context.go('/adult/jobs');
@@ -1015,7 +1111,7 @@ class _AdultJobManagementScreenState
         context.go('/adult/jobs/${result.id}/edit');
       } else {
         MortToast.show(context, 'Job updated.');
-        setState(() {});
+        _reload();
       }
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
@@ -1027,7 +1123,7 @@ class _AdultJobManagementScreenState
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Job?>(
-      future: ref.watch(jobsRepositoryProvider).getJob(widget.jobId),
+      future: _jobFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const MortLoading();
@@ -1048,7 +1144,7 @@ class _AdultJobManagementScreenState
             MortHeader(
               eyebrow: job.category,
               title: job.title,
-              subtitle: '${job.payDisplay} · ${job.scheduleDisplay}',
+              subtitle: '${job.payDisplay} | ${job.scheduleDisplay}',
             ),
             MortJobStatusBadge(status: job.status),
             const SizedBox(height: MortSpacing.md),
@@ -1067,48 +1163,56 @@ class _AdultJobManagementScreenState
                     label: 'Pause',
                     icon: Icons.pause,
                     busy: _busy,
-                    onPressed: () => _action('pause'),
+                    onPressed: () => _action('pause', job),
                   ),
                 if (job.status == 'paused')
                   MortAction(
                     label: 'Resume',
                     icon: Icons.play_arrow,
                     busy: _busy,
-                    onPressed: () => _action('resume'),
+                    onPressed: () => _action('resume', job),
                   ),
                 if (job.status == 'open')
                   MortAction(
                     label: 'Close applications',
                     icon: Icons.lock,
                     busy: _busy,
-                    onPressed: () => _action('close_applications'),
+                    onPressed: () => _action('close_applications', job),
+                  ),
+                if (job.status == 'open' && !job.applicationsOpen)
+                  MortAction(
+                    label: 'Reopen applications',
+                    icon: Icons.lock_open,
+                    busy: _busy,
+                    onPressed: () => _action('reopen_applications', job),
                   ),
                 MortAction(
                   label: 'Duplicate',
                   icon: Icons.copy,
                   busy: _busy,
-                  onPressed: () => _action('duplicate'),
+                  onPressed: () => _action('duplicate', job),
                 ),
                 if (job.status == 'draft')
                   MortAction(
                     label: 'Delete draft',
                     icon: Icons.delete,
                     busy: _busy,
-                    onPressed: () => _action('delete_draft'),
+                    onPressed: () => _action('delete_draft', job),
                     style: MortButtonStyle.danger,
                   ),
-                if ([
-                  'open',
-                  'paused',
-                  'assigned',
-                  'in_progress',
-                ].contains(job.status))
+                if (['open', 'paused', 'assigned'].contains(job.status))
                   MortAction(
                     label: 'Cancel job',
                     icon: Icons.cancel,
                     busy: _busy,
-                    onPressed: () => _action('cancel'),
+                    onPressed: () => _action('cancel', job),
                     style: MortButtonStyle.danger,
+                  ),
+                if (job.status == 'in_progress')
+                  const MortAction(
+                    label: 'Get cancellation or dispute help',
+                    icon: Icons.support_agent,
+                    route: '/support/new',
                   ),
                 const MortAction(
                   label: 'Applicants',
@@ -1124,6 +1228,75 @@ class _AdultJobManagementScreenState
           ],
         );
       },
+    );
+  }
+}
+
+class _JobCancellationReasonDialog extends StatefulWidget {
+  const _JobCancellationReasonDialog();
+
+  @override
+  State<_JobCancellationReasonDialog> createState() =>
+      _JobCancellationReasonDialogState();
+}
+
+class _JobCancellationReasonDialogState
+    extends State<_JobCancellationReasonDialog> {
+  final _reason = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final value = _reason.text.trim();
+    if (value.length < 10) {
+      setState(() => _error = 'Add at least 10 characters.');
+      return;
+    }
+    Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Cancel this job?'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Applications will close. The reason is saved in job history and shared with assigned participants.',
+            ),
+            const SizedBox(height: MortSpacing.md),
+            MortTextArea(
+              label: 'Cancellation reason',
+              controller: _reason,
+              maxLines: 4,
+              maxLength: 500,
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: MortSpacing.xs),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Keep job'),
+        ),
+        FilledButton(onPressed: _submit, child: const Text('Cancel job')),
+      ],
     );
   }
 }
@@ -1197,7 +1370,7 @@ class SavedJobsScreen extends ConsumerWidget {
                           job.title,
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
-                        Text('${job.payDisplay} · ${job.scheduleDisplay}'),
+                        Text('${job.payDisplay} | ${job.scheduleDisplay}'),
                         const SizedBox(height: MortSpacing.sm),
                         MortJobStatusBadge(status: job.status),
                       ],

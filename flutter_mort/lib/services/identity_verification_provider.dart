@@ -31,6 +31,9 @@ class VerificationSession {
     required this.providerReference,
     required this.testMode,
     required this.documentsAllowed,
+    this.handoffUrl,
+    this.handoffExpiresAt,
+    this.status = 'pending',
   });
 
   final String id;
@@ -39,6 +42,9 @@ class VerificationSession {
   final String providerReference;
   final bool testMode;
   final bool documentsAllowed;
+  final Uri? handoffUrl;
+  final DateTime? handoffExpiresAt;
+  final String status;
 }
 
 class VerificationResult {
@@ -94,6 +100,7 @@ class SandboxVerificationProvider implements IdentityVerificationProvider {
       providerReference: response['provider_reference'] as String,
       testMode: true,
       documentsAllowed: response['documents_allowed'] == true,
+      status: response['status'] as String? ?? 'pending',
     );
   }
 }
@@ -114,16 +121,59 @@ class UnavailableProductionVerificationProvider
   }
 }
 
+class HostedProductionVerificationProvider
+    implements ProductionVerificationProvider {
+  const HostedProductionVerificationProvider(this._createSession);
+
+  final Future<Map<String, dynamic>> Function() _createSession;
+
+  @override
+  Future<VerificationSession> createSession() async {
+    final response = await _createSession();
+    final uri = Uri.tryParse(response['handoff_url'] as String? ?? '');
+    final expiresAt = DateTime.tryParse(
+      response['handoff_expires_at'] as String? ?? '',
+    )?.toUtc();
+    final now = DateTime.now().toUtc();
+    if (response['environment'] != 'production' ||
+        response['documents_collected_by_mort'] != false ||
+        uri == null ||
+        uri.scheme != 'https' ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty ||
+        expiresAt == null ||
+        !expiresAt.isAfter(now) ||
+        expiresAt.isAfter(now.add(const Duration(minutes: 31)))) {
+      throw const MortCodedError(
+        'provider_handoff_invalid',
+        'The secure verification handoff could not be validated.',
+      );
+    }
+    return VerificationSession(
+      id: response['session_request_id'] as String? ?? '',
+      environment: VerificationEnvironment.production,
+      provider: response['provider'] as String? ?? 'approved_provider',
+      providerReference: '',
+      testMode: false,
+      documentsAllowed: true,
+      handoffUrl: uri,
+      handoffExpiresAt: expiresAt,
+      status: response['status'] as String? ?? 'pending',
+    );
+  }
+}
+
 IdentityVerificationProvider providerForStatus(
   IdentityVerificationStatus status, {
   required Future<Map<String, dynamic>> Function() createSandboxSession,
+  required Future<Map<String, dynamic>> Function() createProductionSession,
 }) {
   if (status.verificationMode == 'sandbox' && status.sandboxEligible) {
     return SandboxVerificationProvider(createSandboxSession);
   }
   if (status.verificationMode == 'production' &&
       status.productionProviderAvailable) {
-    return const UnavailableProductionVerificationProvider();
+    return HostedProductionVerificationProvider(createProductionSession);
   }
   return const DisabledVerificationProvider();
 }

@@ -5,10 +5,13 @@ import { createClient } from "@supabase/supabase-js";
 import {
   assertQa,
   confirmSafetyAgreement,
+  manageJob,
   qaLog,
   saveJob,
+  sendSafeMessage,
   serviceClient,
   supabaseUrl,
+  updateApplicationStatus,
   withQaUsers,
 } from "./feature-qa-helpers.mjs";
 
@@ -118,9 +121,9 @@ await withQaUsers(
         .select("id,note,status")
         .eq("id", applicationId);
       assertHidden(adultBApplication, "Adult B read Adult A's application");
-      const adultBManage = await adultB.client.rpc("update_application_status_v2", {
-        p_application_id: applicationId,
-        p_action: "accepted",
+      const adultBManage = await updateApplicationStatus(adultB.client, {
+        applicationId,
+        action: "accepted",
       });
       assertQa(
         !adultBManage.error && adultBManage.data?.ok === false,
@@ -135,9 +138,9 @@ await withQaUsers(
       assertHidden(teenBProposal, "Teen B read Teen A's proposal");
       qaLog(scope, "7/30 unrelated teen cannot read another teen's proposal");
 
-      const accepted = await adultA.client.rpc("update_application_status_v2", {
-        p_application_id: applicationId,
-        p_action: "accepted",
+      const accepted = await updateApplicationStatus(adultA.client, {
+        applicationId,
+        action: "accepted",
       });
       assertQa(
         !accepted.error && accepted.data?.ok === true && accepted.data.application.status === "accepted",
@@ -152,14 +155,16 @@ await withQaUsers(
         .eq("application_id", applicationId)
         .single();
       assertQa(!thread.error && thread.data?.id, `application thread missing: ${thread.error?.message}`);
-      const teenMessage = await teenA.client.rpc("send_safe_message", {
-        p_thread_id: thread.data.id,
-        p_body: "I can arrive at the public work site at the agreed time.",
-      });
-      const adultMessage = await adultA.client.rpc("send_safe_message", {
-        p_thread_id: thread.data.id,
-        p_body: "Confirmed. Please check in at the staffed front desk.",
-      });
+      const teenMessage = await sendSafeMessage(
+        teenA.client,
+        thread.data.id,
+        "I can arrive at the public work site at the agreed time.",
+      );
+      const adultMessage = await sendSafeMessage(
+        adultA.client,
+        thread.data.id,
+        "Confirmed. Please check in at the staffed front desk.",
+      );
       assertQa(!teenMessage.error && teenMessage.data?.id, "Teen A could not send a safe message");
       assertQa(!adultMessage.error && adultMessage.data?.id, "Adult A could not send a safe message");
       for (const participant of [teenA, adultA]) {
@@ -213,12 +218,18 @@ await withQaUsers(
       );
       qaLog(scope, "11/30 Guardian A linked through the hashed invite flow");
 
-      const safetyPing = await teenA.client
-        .from("safety_pings")
-        .insert({ teen_id: teenA.id, status: "ok", note: "Complete isolation QA ping" })
-        .select("id")
-        .single();
-      assertQa(!safetyPing.error && safetyPing.data?.id, "Teen A could not create a Safety Ping");
+      const safetyPing = await teenA.client.rpc("create_safety_ping_v2", {
+        p_status: "ok",
+        p_note: "Complete isolation QA ping",
+        p_job_id: null,
+        p_immediate_danger: false,
+        p_client_request_id: randomUUID(),
+      });
+      assertQa(
+        !safetyPing.error && safetyPing.data?.ok === true,
+        "Teen A could not create a Safety Ping",
+      );
+      const safetyPingId = safetyPing.data.safety_ping_id;
       const guardianATeen = await guardianA.client
         .from("teen_profiles")
         .select("user_id")
@@ -226,7 +237,7 @@ await withQaUsers(
       const guardianAPing = await guardianA.client
         .from("safety_pings")
         .select("id,status")
-        .eq("id", safetyPing.data.id);
+        .eq("id", safetyPingId);
       assertQa(!guardianATeen.error && guardianATeen.data.length === 1, "Guardian A cannot read linked teen safety profile");
       assertQa(!guardianAPing.error && guardianAPing.data.length === 1, "Guardian A cannot read an enabled Safety Ping");
       qaLog(scope, "12/30 linked guardian sees only permitted teen safety information");
@@ -238,7 +249,7 @@ await withQaUsers(
       const guardianBPing = await guardianB.client
         .from("safety_pings")
         .select("id")
-        .eq("id", safetyPing.data.id);
+        .eq("id", safetyPingId);
       const guardianBLinkProbe = await guardianB.client.rpc(
         "guardian_is_connected_to_teen",
         { p_teen_id: teenA.id, p_guardian_id: guardianA.id },
@@ -290,7 +301,7 @@ await withQaUsers(
       const guardianAPingAfterUnlink = await guardianA.client
         .from("safety_pings")
         .select("id")
-        .eq("id", safetyPing.data.id);
+        .eq("id", safetyPingId);
       assertHidden(guardianAAfterUnlink, "Guardian A retained teen profile access after unlink");
       assertHidden(guardianAPingAfterUnlink, "Guardian A retained Safety Ping access after unlink");
       qaLog(scope, "15/30 unlink immediately removes guardian access to linked teen data");
@@ -307,7 +318,7 @@ await withQaUsers(
         .single();
       assertQa(
         !attachedAvatar.error && attachedAvatar.data.avatar_path === avatarPath,
-        "Teen A avatar path did not persist",
+        `Teen A avatar path did not persist: ${attachedAvatar.error?.message ?? attachedAvatar.data?.avatar_path ?? "missing"}`,
       );
       qaLog(scope, "16/30 Teen A uploads and attaches an owner-prefixed avatar");
 
@@ -334,9 +345,9 @@ await withQaUsers(
         .eq("id", jobB.result.job.id)
         .select("id");
       assertRejectedOrHidden(adultAJobBUpdate, "Adult A modified Adult B's job");
-      const adultAJobBManage = await adultA.client.rpc("manage_job", {
-        p_job_id: jobB.result.job.id,
-        p_action: "pause",
+      const adultAJobBManage = await manageJob(adultA.client, {
+        jobId: jobB.result.job.id,
+        action: "pause",
       });
       assertQa(
         !adultAJobBManage.error && adultAJobBManage.data?.ok === false,
@@ -444,14 +455,14 @@ await withQaUsers(
       assertRejectedOrHidden(earlyReview, "Teen A reviewed an unfinished job");
       qaLog(scope, "24/30 review creation is blocked before completed work");
 
-      const started = await teenA.client.rpc("update_application_status_v2", {
-        p_application_id: applicationId,
-        p_action: "in_progress",
+      const started = await updateApplicationStatus(teenA.client, {
+        applicationId,
+        action: "in_progress",
       });
       assertQa(!started.error && started.data?.ok === true, "Teen A could not start accepted work");
-      const completed = await adultA.client.rpc("update_application_status_v2", {
-        p_application_id: applicationId,
-        p_action: "completed",
+      const completed = await updateApplicationStatus(adultA.client, {
+        applicationId,
+        action: "completed",
       });
       assertQa(!completed.error && completed.data?.ok === true, "Adult A could not complete in-progress work");
       const firstReview = await teenA.client
@@ -524,13 +535,12 @@ await withQaUsers(
         .eq("ticket_id", supportTicketId);
       assertHidden(teenBSupport, "Teen B read Teen A's support ticket");
       assertHidden(teenBSupportMessages, "Teen B read Teen A's support messages");
-      const block = await teenA.client
-        .from("blocks")
-        .insert({ blocker_id: teenA.id, blocked_id: guardianB.id })
-        .select("id")
-        .single();
-      assertQa(!block.error && block.data?.id, "Teen A could not create an owner-bound block");
-      const teenBBlock = await teenB.client.from("blocks").select("id").eq("id", block.data.id);
+      const block = await teenA.client.rpc("block_user_v2", {
+        p_blocked_id: guardianB.id,
+        p_client_request_id: randomUUID(),
+      });
+      assertQa(!block.error && block.data?.ok === true, "Teen A could not create an owner-bound block");
+      const teenBBlock = await teenB.client.from("blocks").select("id").eq("id", block.data.block_id);
       const teenBBlockProbe = await teenB.client.rpc("users_are_blocked", {
         p_user_one: teenA.id,
         p_user_two: guardianB.id,

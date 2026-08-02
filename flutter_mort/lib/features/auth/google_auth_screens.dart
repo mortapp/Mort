@@ -55,6 +55,7 @@ class _GoogleAuthSectionState extends ConsumerState<GoogleAuthSection> {
 
   @override
   Widget build(BuildContext context) {
+    if (!AppConfig.googleAuthEnabled) return const SizedBox.shrink();
     final repository = ref.watch(authRepositoryProvider);
     final state = ref
         .watch(oauthFlowStateProvider)
@@ -66,7 +67,7 @@ class _GoogleAuthSectionState extends ConsumerState<GoogleAuthSection> {
             'Google sign-in status is unavailable. Use email and password.',
           ),
         );
-    final enabled = AppConfig.googleAuthEnabled && !state.isBusy;
+    final enabled = !state.isBusy;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -127,15 +128,6 @@ class _GoogleAuthSectionState extends ConsumerState<GoogleAuthSection> {
             ),
           ),
         ),
-        if (!AppConfig.googleAuthEnabled)
-          const Padding(
-            padding: EdgeInsets.only(top: MortSpacing.xs),
-            child: Text(
-              'Google sign-in is awaiting owner configuration. Email and password remain available.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: MortColors.textMuted),
-            ),
-          ),
         if (state.message.isNotEmpty)
           Semantics(
             liveRegion: true,
@@ -173,16 +165,36 @@ class OAuthCallbackScreen extends ConsumerStatefulWidget {
 }
 
 class _OAuthCallbackScreenState extends ConsumerState<OAuthCallbackScreen> {
+  StreamSubscription<OAuthFlowSnapshot>? _subscription;
+  bool _navigated = false;
+
   @override
   void initState() {
     super.initState();
+    _subscription = ref
+        .read(authRepositoryProvider)
+        .oauthStates
+        .listen(_handleOAuthState);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final state = await ref
           .read(authRepositoryProvider)
           .handleOAuthCallback(widget.callbackUri);
-      if (!mounted) return;
-      if (state.stage == OAuthFlowStage.success) context.go('/account-status');
+      _handleOAuthState(state);
     });
+  }
+
+  void _handleOAuthState(OAuthFlowSnapshot state) {
+    if (!mounted || _navigated || state.stage != OAuthFlowStage.success) {
+      return;
+    }
+    _navigated = true;
+    context.go('/account-status');
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
   }
 
   @override
@@ -205,7 +217,7 @@ class _OAuthCallbackScreenState extends ConsumerState<OAuthCallbackScreen> {
         MortHeader(
           eyebrow: 'Secure sign-in',
           title: state.isError
-              ? 'Google sign-in needs attention'
+              ? 'Sign-in needs attention'
               : 'Finishing sign-in',
           subtitle: state.message,
         ),
@@ -216,7 +228,16 @@ class _OAuthCallbackScreenState extends ConsumerState<OAuthCallbackScreen> {
           )
         else if (state.isError)
           MortErrorState(
-            title: 'Sign-in not completed',
+            title: switch (state.stage) {
+              OAuthFlowStage.profileBootstrapFailed =>
+                'Account setup needs attention',
+              OAuthFlowStage.sessionExchangeFailed =>
+                'Session setup needs attention',
+              OAuthFlowStage.accountSuspended ||
+              OAuthFlowStage.accountDeletionPending =>
+                'Account access is restricted',
+              _ => 'MORT could not finish sign-in',
+            },
             message: state.message,
           ),
         const SizedBox(height: MortSpacing.md),

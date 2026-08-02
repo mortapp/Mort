@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:uuid/uuid.dart';
 
 import 'repository_base.dart';
 
@@ -208,6 +209,28 @@ class LegalContractRepository extends RepositoryBase {
     );
   }
 
+  Future<List<Map<String, dynamic>>> disputeStatements(String disputeId) async {
+    requireUserId();
+    return _rows(
+      await client
+          .from('payment_dispute_statements')
+          .select('id,author_role,statement,created_at')
+          .eq('dispute_id', disputeId)
+          .order('created_at'),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> disputeAppeals(String disputeId) async {
+    requireUserId();
+    return _rows(
+      await client
+          .from('payment_dispute_appeals')
+          .select('id,status,reason,review_rationale,created_at,reviewed_at')
+          .eq('dispute_id', disputeId)
+          .order('created_at', ascending: false),
+    );
+  }
+
   Future<Map<String, dynamic>> reportNonpayment({
     required String obligationId,
     required String statement,
@@ -230,16 +253,42 @@ class LegalContractRepository extends RepositoryBase {
   Future<Map<String, dynamic>> submitDisputeStatement({
     required String disputeId,
     required String statement,
+    String? clientRequestId,
   }) async {
     requireUserId();
     return _requireOk(
       _map(
         await client.rpc(
-          'submit_payment_dispute_statement',
-          params: {'p_dispute_id': disputeId, 'p_statement': statement.trim()},
+          'submit_payment_dispute_statement_v2',
+          params: {
+            'p_dispute_id': disputeId,
+            'p_statement': statement.trim(),
+            'p_client_request_id': clientRequestId ?? const Uuid().v4(),
+          },
         ),
       ),
       'The private dispute statement could not be saved.',
+    );
+  }
+
+  Future<Map<String, dynamic>> submitDisputeAppeal({
+    required String disputeId,
+    required String reason,
+    String? clientRequestId,
+  }) async {
+    requireUserId();
+    return _requireOk(
+      _map(
+        await client.rpc(
+          'submit_payment_dispute_appeal',
+          params: {
+            'p_dispute_id': disputeId,
+            'p_reason': reason.trim(),
+            'p_client_request_id': clientRequestId ?? const Uuid().v4(),
+          },
+        ),
+      ),
+      'The private dispute appeal could not be submitted.',
     );
   }
 

@@ -10,6 +10,9 @@ class IdentityVerificationStatus {
     required this.testMode,
     required this.submissionsEnabled,
     required this.productionProviderAvailable,
+    required this.canRetry,
+    required this.supportEscalationAvailable,
+    required this.documentsCollectedByMort,
     this.id,
     this.role,
     this.evidenceRoute,
@@ -20,6 +23,8 @@ class IdentityVerificationStatus {
     this.expiresAt,
     this.rejectionCode,
     this.publicMessage,
+    this.failureCode,
+    this.privacyNoticeVersion,
     this.evidenceTypes = const [],
   });
 
@@ -38,6 +43,9 @@ class IdentityVerificationStatus {
       testMode: map['test_mode'] == true,
       submissionsEnabled: map['submissions_enabled'] == true,
       productionProviderAvailable: map['production_provider_available'] == true,
+      canRetry: map['can_retry'] == true,
+      supportEscalationAvailable: map['support_escalation_available'] != false,
+      documentsCollectedByMort: map['documents_collected_by_mort'] == true,
       environment: map['environment'] as String?,
       provider: map['provider'] as String?,
       providerReference: map['provider_reference'] as String?,
@@ -45,6 +53,8 @@ class IdentityVerificationStatus {
       expiresAt: map['expires_at'] as String?,
       rejectionCode: map['rejection_code'] as String?,
       publicMessage: map['public_message'] as String?,
+      failureCode: map['failure_code'] as String?,
+      privacyNoticeVersion: map['privacy_notice_version'] as String?,
       evidenceTypes: List<Map<String, dynamic>>.from(
         map['evidence_types'] as List? ?? const [],
       ),
@@ -64,6 +74,9 @@ class IdentityVerificationStatus {
   final bool testMode;
   final bool submissionsEnabled;
   final bool productionProviderAvailable;
+  final bool canRetry;
+  final bool supportEscalationAvailable;
+  final bool documentsCollectedByMort;
   final String? environment;
   final String? provider;
   final String? providerReference;
@@ -71,6 +84,8 @@ class IdentityVerificationStatus {
   final String? expiresAt;
   final String? rejectionCode;
   final String? publicMessage;
+  final String? failureCode;
+  final String? privacyNoticeVersion;
   final List<Map<String, dynamic>> evidenceTypes;
 }
 

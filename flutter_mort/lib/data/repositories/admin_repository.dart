@@ -85,26 +85,105 @@ class AdminRepository extends RepositoryBase {
     return List<Map<String, dynamic>>.from(rows as List);
   }
 
-  Future<void> updateById(
-    String table,
-    String id,
-    Map<String, dynamic> values,
-  ) async {
+  Future<void> moderateJob({
+    required String jobId,
+    required String action,
+    required String reasonCode,
+    required String note,
+  }) async {
     requireUserId();
-    await client.from(table).update(values).eq('id', id);
+    final result = await client.rpc(
+      'admin_moderate_job',
+      params: {
+        'p_job_id': jobId,
+        'p_action': action,
+        'p_reason_code': reasonCode,
+        'p_note': note.trim(),
+      },
+    );
+    _requireSuccess(result, 'The job moderation action was rejected.');
+  }
+
+  Future<void> moderateReview({
+    required String reviewId,
+    required String action,
+    required String reasonCode,
+    required String note,
+  }) async {
+    requireUserId();
+    final result = await client.rpc(
+      'admin_moderate_review',
+      params: {
+        'p_review_id': reviewId,
+        'p_action': action,
+        'p_reason_code': reasonCode,
+        'p_note': note.trim(),
+      },
+    );
+    _requireSuccess(result, 'The review moderation action was rejected.');
   }
 
   Future<void> setAccountStatus({
     required String userId,
     required String status,
     required String reason,
+    String reasonCode = 'safety_report_related',
+    DateTime? expiresAt,
+  }) async {
+    requireUserId();
+    final effectiveExpiry = status == 'suspended'
+        ? (expiresAt ?? DateTime.now().toUtc().add(const Duration(hours: 24)))
+        : null;
+    final result = await client.rpc(
+      'admin_set_account_status_v2',
+      params: {
+        'p_user_id': userId,
+        'p_status': status,
+        'p_reason_code': reasonCode,
+        'p_reason': reason.trim(),
+        'p_expires_at': effectiveExpiry?.toIso8601String(),
+      },
+    );
+    _requireSuccess(result, 'The account status action was rejected.');
+  }
+
+  Future<List<Map<String, dynamic>>> banAppeals() async {
+    requireUserId();
+    final rows = await client
+        .from('account_ban_appeals')
+        .select()
+        .or('status.eq.submitted,status.eq.assigned')
+        .order('created_at');
+    return List<Map<String, dynamic>>.from(rows as List);
+  }
+
+  Future<void> claimBanAppeal({
+    required String appealId,
+    required String reason,
   }) async {
     requireUserId();
     final result = await client.rpc(
-      'admin_set_account_status',
-      params: {'p_user_id': userId, 'p_status': status, 'p_reason': reason},
+      'admin_claim_account_ban_appeal',
+      params: {'p_appeal_id': appealId, 'p_reason': reason.trim()},
     );
-    _requireSuccess(result, 'The account status action was rejected.');
+    _requireSuccess(result, 'The appeal assignment was rejected.');
+  }
+
+  Future<void> reviewBanAppeal({
+    required String appealId,
+    required String decision,
+    required String reason,
+  }) async {
+    requireUserId();
+    final result = await client.rpc(
+      'admin_review_account_ban_appeal',
+      params: {
+        'p_appeal_id': appealId,
+        'p_decision': decision,
+        'p_reason': reason.trim(),
+      },
+    );
+    _requireSuccess(result, 'The ban appeal decision was rejected.');
   }
 
   Future<void> updateReportStatus({

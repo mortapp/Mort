@@ -3,22 +3,24 @@ Set-StrictMode -Version Latest
 
 $root = Split-Path $PSScriptRoot -Parent
 $play = Join-Path $root 'build\play'
-$finalApk = Join-Path $root 'mort-play-production-pilot-final-qa.apk'
-$finalAab = Join-Path $root 'mort-play-production-pilot-final.aab'
+$versionJson = & node (Join-Path $PSScriptRoot 'read-mobile-version.mjs') --json
+if ($LASTEXITCODE -ne 0) { throw 'Could not read the authoritative mobile version.' }
+$version = $versionJson | ConvertFrom-Json
+$builtApk = Join-Path $play "mort-closed-test-$($version.versionName).apk"
+$builtAab = Join-Path $play "mort-closed-test-$($version.versionName).aab"
 
 & (Join-Path $PSScriptRoot 'build-closed-test-apk.ps1')
 if ($LASTEXITCODE -ne 0) { throw 'Signed QA APK build failed.' }
-$builtApk = Join-Path $play 'mort-play-closed-test-qa.apk'
 & (Join-Path $PSScriptRoot 'qa-android-apk.ps1') -ApkPath $builtApk -RequireSigned
 if ($LASTEXITCODE -ne 0) { throw 'Signed QA APK verification failed.' }
-Copy-Item -LiteralPath $builtApk -Destination $finalApk -Force
 
 & (Join-Path $PSScriptRoot 'build-play-aab.ps1')
 if ($LASTEXITCODE -ne 0) { throw 'Signed Play AAB build failed.' }
-$builtAab = Join-Path $play 'mort-closed-test.aab'
-& (Join-Path $PSScriptRoot 'verify-play-aab.ps1') -BundlePath $builtAab
+& (Join-Path $PSScriptRoot 'verify-play-aab.ps1') `
+  -BundlePath $builtAab `
+  -ReleaseStage closed_test `
+  -PlayReviewModeEnabled
 if ($LASTEXITCODE -ne 0) { throw 'Signed Play AAB verification failed.' }
-Copy-Item -LiteralPath $builtAab -Destination $finalAab -Force
 
-Write-Output "Created final QA APK: $finalApk"
-Write-Output "Created final Play AAB: $finalAab"
+Write-Output "Created final closed-test APK: $builtApk"
+Write-Output "Created final closed-test AAB: $builtAab"

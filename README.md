@@ -1,133 +1,88 @@
 # MORT
 
-MORT is an iOS-first Expo React Native app for a teen-safe local hustle marketplace. Teens aged 13-17 find jobs, adults/businesses post jobs, guardians can supervise, and admins moderate safety, verification, jobs, users, reports, support, and proof uploads.
+MORT is a safety-sensitive local job marketplace for teens ages 13-17, adults and businesses, optional guardians, community partners, and authorized moderators.
 
-Slogan: Earn nearby. Move smart.
+## Authoritative client
 
-## Stack
+The production-track mobile client is the Flutter application in `flutter_mort`.
 
-- Expo React Native with TypeScript and Expo Router
-- Supabase Auth, Postgres, Realtime-ready tables, Storage, RLS, and Edge Functions
-- Direct Supabase queries from the app using the anon key only
-- Expo Notifications for device push-token registration and in-app notification rows
-- Expo Image Picker for proof, report, and verification uploads
-- RevenueCat SDK wrappers for premium/ad-free entitlements
-- AdMob SDK wrappers with teen-safe placement guards
-- EAS Build/TestFlight-ready iOS configuration
+- Android package: `com.mortapp.mobile`
+- Current version: `0.9.7+97`
+- Hosted backend: Supabase project `rakjydmgwwgtdislanbt`
+- Android target SDK: 36
+- Android minimum SDK: 24
 
-## Local Setup
+The root Expo project and `swift_mort` are retained as legacy/reference clients. They are not the Play release source and must not be used to generate store artifacts.
 
-1. Install dependencies:
+## Current release boundary
 
-   ```bash
-   pnpm install
-   ```
+The verified profile is a free, isolated closed-test build. It keeps all of the following disabled:
 
-2. Copy `.env.example` to `.env.local` and fill in your local or fresh staging Supabase project URL and anon key. No real secret belongs in source control or the zip.
+- public marketplace activation
+- marketplace payment processing and platform fees
+- Google Play Billing and RevenueCat purchases
+- AdMob
+- production identity-document collection
+- Google sign-in
+- production remote push and crash reporting
 
-3. Apply the Supabase schema to local Docker Supabase, a fresh staging project, or a reviewed branch:
+MORT does not process, hold, guarantee, or escrow job compensation in this release. Personal Cash App and Square handles are not collected. Public adult-to-teen marketplace access remains closed until identity, legal, moderation, provider, and native-device gates have objective evidence.
 
-   ```bash
-   supabase link --project-ref <fresh-staging-project-ref>
-   supabase db push
-   supabase functions deploy send-push
-   ```
-
-   The old Supabase project ref `rakjydmgwwgtdislanbt` was intentionally rebuilt on 2026-07-08 after backup and destructive-risk confirmation. See `docs/OLD_PROJECT_REBUILD_REPORT.md` before using or modifying it again.
-
-4. Run locally:
-
-   ```bash
-   pnpm start
-   ```
-
-## Required Supabase Setup
-
-- Enable email/password auth in Supabase Auth.
-- Add deep-link redirect URLs for local/dev and production builds:
-  - `mort://`
-  - `exp://127.0.0.1:8081`
-  - your Expo development URLs
-- Apply `supabase/migrations/202607070001_initial_mort.sql` with `supabase db push` only on a fresh project, Supabase branch, or reviewed staging project. Do not run `supabase db reset` against production or a data-bearing project.
-- Deploy `supabase/functions/send-push`.
-- Set Edge Function secrets:
-  - `SEND_PUSH_INVOKE_SECRET`
-
-Hosted Supabase Edge Functions provide runtime-managed `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`; do not place service-role keys in Expo/mobile files. The Expo app never uses a service-role key. Admin privileges are represented by `profiles.role = 'admin'` and are protected by Supabase RLS policies. Promote admins only from a trusted server, SQL console, or Supabase dashboard.
-
-## iOS Build
-
-The app is configured with bundle identifier `com.mortapp.mobile` and iOS permission strings for notifications, camera, and photo library. Before TestFlight:
-
-```bash
-eas build:configure
-eas build --platform ios --profile preview
-eas submit --platform ios --profile production
-```
-
-Run `eas init` to attach the project to EAS, set `EXPO_PUBLIC_PROJECT_ID`, then fill `ascAppId` / `appleTeamId` in `eas.json` before submission. The app configuration lives in `app.config.ts`.
-
-Windows can run Expo, typechecks, web export, and EAS cloud builds. Expo CLI 57 does not generate the local `ios/` native project on Windows; run `npx expo prebuild --platform ios` on macOS or a Linux/WSL distro with Node, or use EAS Build for iPhone/TestFlight.
-
-## Safety Model
-
-- Date-of-birth onboarding blocks users under 13.
-- Teen accounts are limited to users aged 13-17.
-- Adult/business accounts require internal verification before job posting.
-- Guardian connections require invite and approval.
-- Teen applications can require guardian approval and move to adult review after guardian approval.
-- Guardian Mode can pause a linked teen's apply/message activity.
-- Message sends go through the `send_safe_message` Postgres RPC, which blocks contact-sharing, off-platform/social/payment handles, secrecy pressure, and other unsafe terms.
-- Reports and blocks are first-class tables with RLS.
-- Proof/verification/report buckets stay private. Proof previews use signed URLs for application participants.
-- Push tokens, payment preferences, support tickets, admin action logs, notification rows, and conversation participants are first-class tables with RLS.
-- Notification events are queued in Postgres and processed by the `send-push` Edge Function.
-- Admin dashboard screens read moderation queues protected by RLS.
-- Payment preferences are preference-only metadata: cash, Cash App tag, Square link, or flexible. MORT does not process payments, hold funds, provide escrow, or store payment credentials.
-
-## Checks
-
-```bash
-pnpm check
-pnpm lint
-pnpm build
-npx expo export --platform web
-npx expo-doctor
-```
-
-Before pushing to GitHub, run:
+## Flutter setup
 
 ```powershell
-.\scripts\secret-scan.ps1
+cd C:\Users\micha\Mort\flutter_mort
+flutter pub get
+flutter analyze
+flutter test
+flutter run
 ```
 
-## Monetization
+Runtime public configuration is supplied with Dart defines. Never place a service-role key, database password, access token, signing password, Stripe secret, or webhook secret in Flutter source or a release archive.
 
-MORT now includes guarded RevenueCat and AdMob integration code:
+## Supabase
 
-- `react-native-purchases`
-- `react-native-purchases-ui`
-- `react-native-google-mobile-ads`
-- RevenueCat paywall/restore/manage screens
-- AdMob app ID config for iOS
-- `public/app-ads.txt`
-- additive Supabase monetization tables and RLS
+The linked project is `rakjydmgwwgtdislanbt`. The mobile app uses only the hosted URL and public anon key. Privileged credentials remain in the Supabase server environment or protected operator environment.
 
-Ads and IAP are disabled by default until dashboard setup, consent, EAS builds, iPhone testing, and legal/App Store review are complete.
+Before any future migration:
 
-See:
+1. Confirm the linked project ref.
+2. Create timestamped schema and data backups outside release artifacts.
+3. Run `npx supabase db push --linked --dry-run`.
+4. Apply only reviewed additive migrations.
+5. Re-run migration alignment, database lint, smoke tests, and the full RLS regression.
 
-- `docs/REVENUECAT_SETUP.md`
-- `docs/ADMOB_SETUP.md`
-- `docs/MONETIZATION_PLAN.md`
-- `docs/ADS_AND_IAP_SAFETY.md`
-- `docs/MONETIZATION_BACKEND_REPORT.md`
+Do not run `supabase db reset`, drop, truncate, or destructive repair commands against this project.
 
-## Old Project Rebuild
+## Android release profiles
 
-The old Supabase project `rakjydmgwwgtdislanbt` has been rebuilt into the current MORT backend baseline and remote QA passed:
+```powershell
+cd C:\Users\micha\Mort
+.\scripts\build-closed-test-aab.ps1
+.\scripts\build-closed-test-apk.ps1
+```
 
-- `pnpm run qa:old-project-smoke`
-- `pnpm run qa:old-project-rls`
+The closed-test scripts validate version, target project, upload certificate, release flags, signing, package ID, SDK levels, merged permissions, exported components, reviewer boundary, and artifact hash. Obfuscation symbols are written outside the repository under `%USERPROFILE%\MortSymbols`.
 
-This is backend verification only. iPhone real-device testing, TestFlight, App Store review, legal/privacy review, and teen-safety launch review are still required before real users.
+The production pilot and public scripts intentionally fail closed until their external gates are met:
+
+```powershell
+.\scripts\build-production-pilot-aab.ps1
+.\scripts\build-production-public-aab.ps1
+```
+
+## Verification
+
+```powershell
+cd C:\Users\micha\Mort\flutter_mort
+dart format --output=none --set-exit-if-changed lib test
+flutter analyze
+flutter test
+
+cd C:\Users\micha\Mort
+.\scripts\run-final-supabase-regression.ps1
+.\scripts\secret-scan.ps1
+.\scripts\sensitive-file-scan.ps1
+```
+
+See `docs/MORT_PRODUCTION_READINESS_REPORT.md` for the current evidence and blockers. See `docs/MORT_RELEASE_RUNBOOK.md` before creating or uploading any artifact.

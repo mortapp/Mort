@@ -1,0 +1,42 @@
+﻿=== DART UI FILES ===
+
+=== CLASSES AND RELEVANT SYMBOLS ===
+C:\Users\micha\Mort\lib\models\mock_job.dart:4: class MockJob {
+C:\Users\micha\Mort\lib\screens\ads\safe_ads_preview_screen.dart:5: import '../../widgets/safe_sponsored_card.dart';
+C:\Users\micha\Mort\lib\screens\ads\safe_ads_preview_screen.dart:7: class SafeAdsPreviewScreen extends StatelessWidget {
+C:\Users\micha\Mort\lib\screens\ads\safe_ads_preview_screen.dart:15: appBar: AppBar(
+C:\Users\micha\Mort\lib\screens\ads\safe_ads_preview_screen.dart:23: 'Mock-only, labeled, non-personalized sponsored cards',
+C:\Users\micha\Mort\lib\screens\ads\safe_ads_preview_screen.dart:39: child: SafeSponsoredCard(campaign: campaign),
+C:\Users\micha\Mort\lib\screens\ads\safe_ads_preview_screen.dart:43: Card(
+C:\Users\micha\Mort\lib\screens\messages\chat_preview_screen.dart:5: import '../../widgets/mort_button.dart';
+C:\Users\micha\Mort\lib\screens\messages\chat_preview_screen.dart:7: class ChatPreviewScreen extends StatefulWidget {
+C:\Users\micha\Mort\lib\screens\messages\chat_preview_screen.dart:16: class _ChatPreviewScreenState extends State<ChatPreviewScreen> {
+C:\Users\micha\Mort\lib\screens\messages\chat_preview_screen.dart:91: appBar: AppBar(
+C:\Users\micha\Mort\lib\screens\messages\chat_preview_screen.dart:102: const Card(
+C:\Users\micha\Mort\lib\screens\messages\chat_preview_screen.dart:139: TextField(
+C:\Users\micha\Mort\lib\screens\messages\chat_preview_screen.dart:161: MortButton(
+C:\Users\micha\Mort\lib\screens\settings\notification_settings_screen.dart:4: class NotificationSettingsScreen extends StatefulWidget {
+C:\Users\micha\Mort\lib\screens\settings\notification_settings_screen.dart:12: class _NotificationSettingsScreenState
+C:\Users\micha\Mort\lib\screens\settings\notification_settings_screen.dart:23: appBar: AppBar(
+C:\Users\micha\Mort\lib\screens\teen\job_detail_screen.dart:10: class JobDetailScreen extends StatefulWidget {
+C:\Users\micha\Mort\lib\screens\teen\job_detail_screen.dart:19: class _JobDetailScreenState extends State<JobDetailScreen> {
+C:\Users\micha\Mort\lib\screens\teen\job_detail_screen.dart:23: Future<void> _showReportDialog(BuildContext context) async {
+C:\Users\micha\Mort\lib\screens\teen\job_detail_screen.dart:25: final shouldSubmit = await showDialog<bool>(
+C:\Users\micha\Mort\lib\screens\teen\job_detail_screen.dart:28: return AlertDialog(
+C:\Users\micha\Mort\lib\screens\teen\job_detail_screen.dart:42: TextField(
+C:\Users\micha\Mort\lib\screens\teen\job_detail_screen.dart:59: TextButton(
+C:\Users\micha\Mort\lib\screens\teen\job_detail_screen.dart:63: ElevatedButton(
+C:\Users\micha\Mort\lib\screens\teen\job_detail_screen.dart:64: style: ElevatedButton.styleFrom(
+C:\Users\micha\Mort\lib\screens\teen\job_detail_screen.dart:190: appBar: AppBar(
+C:\Users\micha\Mort\lib\screens\teen\job_detail_screen.dart:283: ElevatedButton(
+C:\Users\micha\Mort\lib\screens\teen\job_detail_screen.dart:285: style: ElevatedButton.styleFrom(
+C:\Users\micha\Mort\lib\screens\teen\job_detail_screen.dart:291: OutlinedButton(
+C:\Users\micha\Mort\lib\screens\teen\job_detail_screen.dart:292: onPressed: () => _showReportDialog(context),
+C:\Users\micha\Mort\lib\screens\teen\job_detail_screen.dart:293: style: OutlinedButton.styleFrom(
+C:\Users\micha\Mort\lib\services\active_job_backend_service.dart:3: class ActiveJobBackendService {
+C:\Users\micha\Mort\lib\services\job_backend_service.dart:4: class JobBackendService {
+C:\Users\micha\Mort\lib\services\messages_backend_service.dart:4: class MessagesBackendService {
+C:\Users\micha\Mort\lib\services\messages_backend_service.dart:205: class SafeMessage {
+C:\Users\micha\Mort\lib\services\notification_backend_service.dart:4: class NotificationBackendService {
+C:\Users\micha\Mort\lib\services\profile_backend_service.dart:7: class ProfileBackendService {
+C:\Users\micha\Mort\lib\services\profile_safety_service.dart:1: class ProfileSafetyService {

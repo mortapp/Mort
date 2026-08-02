@@ -1,3 +1,5 @@
+import 'package:uuid/uuid.dart';
+
 import '../../core/errors/mort_error.dart';
 import '../models/application.dart';
 import '../models/proof.dart';
@@ -73,11 +75,18 @@ class ApplicationsRepository extends RepositoryBase {
 
   Future<MortApplication> updateStatus(
     String applicationId,
-    String action,
-  ) async {
+    String action, {
+    String? clientRequestId,
+    DateTime? expectedUpdatedAt,
+  }) async {
     final result = await client.rpc(
-      'update_application_status_v2',
-      params: {'p_application_id': applicationId, 'p_action': action},
+      'update_application_status_v3',
+      params: {
+        'p_application_id': applicationId,
+        'p_action': action,
+        'p_client_request_id': clientRequestId ?? const Uuid().v4(),
+        'p_expected_updated_at': expectedUpdatedAt?.toUtc().toIso8601String(),
+      },
     );
     final map = _rpcMap(result);
     _throwIfFailed(map);

@@ -12,6 +12,35 @@ export const verificationDecisions = Object.freeze([
   "approved",
   "rejected",
   "needs_review",
+  "pending",
+  "needs_input",
+  "under_review",
+  "verified",
+  "failed",
+  "expired",
+  "suspended",
+]);
+export const normalizedVerificationStatuses = Object.freeze([
+  "pending",
+  "needs_input",
+  "under_review",
+  "verified",
+  "failed",
+  "expired",
+  "suspended",
+]);
+export const safeVerificationFailureCodes = Object.freeze([
+  "document_unreadable",
+  "document_expired",
+  "document_unsupported",
+  "selfie_mismatch",
+  "liveness_failed",
+  "age_not_confirmed",
+  "provider_unavailable",
+  "maximum_attempts_reached",
+  "manual_review_required",
+  "account_binding_mismatch",
+  "unknown_failure",
 ]);
 export const verificationFailureReasons = Object.freeze([
   "disabled",
@@ -113,6 +142,14 @@ export async function validateWebhookEnvelope({
   if (!verificationDecisions.includes(payload.result_status)) {
     return failure("unknown_result");
   }
+  const normalizedStatus = normalizeVerificationStatus(payload.result_status);
+  if (payload.failure_code != null && !safeVerificationFailureCodes.includes(payload.failure_code)) {
+    return failure("payload_invalid");
+  }
+  const deliveryAttempt = payload.delivery_attempt ?? 1;
+  if (!Number.isInteger(deliveryAttempt) || deliveryAttempt < 1 || deliveryAttempt > 100) {
+    return failure("payload_invalid");
+  }
   if (!["teen_13_17", "adult_18_plus"].includes(payload.age_band)) {
     return failure("payload_invalid");
   }
@@ -129,7 +166,21 @@ export async function validateWebhookEnvelope({
     eventTimestamp: new Date(timestampMs).toISOString(),
     payload,
     payloadSha256: await sha256Hex(rawBody),
+    normalizedStatus,
+    failureCode: payload.failure_code ?? null,
+    deliveryAttempt,
+    payloadVersion: validString(payload.payload_version, 2, 40)
+      ? payload.payload_version.trim()
+      : "normalized-v1",
   };
+}
+
+export function normalizeVerificationStatus(value) {
+  return ({
+    approved: "verified",
+    rejected: "failed",
+    needs_review: "under_review",
+  })[value] ?? value;
 }
 
 function headerValue(headers, name) {

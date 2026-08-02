@@ -28,6 +28,13 @@ class SupportTicket {
     this.relatedApplicationId,
     this.relatedContractId,
     this.relatedDisputeId,
+    this.assignedSupportUserId,
+    this.assignedAt,
+    this.firstResponseDueAt,
+    this.firstHumanResponseAt,
+    this.appealOfTicketId,
+    this.queueKey = 'support',
+    this.caseKind = 'standard',
   });
 
   final String id;
@@ -47,9 +54,18 @@ class SupportTicket {
   final String? relatedApplicationId;
   final String? relatedContractId;
   final String? relatedDisputeId;
+  final String? assignedSupportUserId;
+  final DateTime? assignedAt;
+  final DateTime? firstResponseDueAt;
+  final DateTime? firstHumanResponseAt;
+  final String? appealOfTicketId;
+  final String queueKey;
+  final String caseKind;
 
   bool get canUploadEvidence => relatedDisputeId != null;
   bool get isClosed => status == 'closed';
+  bool get isTerminal => const {'resolved', 'closed'}.contains(status);
+  bool get isAppeal => caseKind == 'appeal';
 
   factory SupportTicket.fromJson(Map<String, dynamic> json) => SupportTicket(
     id: json['id'].toString(),
@@ -73,6 +89,17 @@ class SupportTicket {
     relatedApplicationId: json['related_application_id']?.toString(),
     relatedContractId: json['related_contract_id']?.toString(),
     relatedDisputeId: json['related_dispute_id']?.toString(),
+    assignedSupportUserId: json['assigned_support_user_id']?.toString(),
+    assignedAt: DateTime.tryParse(json['assigned_at']?.toString() ?? ''),
+    firstResponseDueAt: DateTime.tryParse(
+      json['first_response_due_at']?.toString() ?? '',
+    ),
+    firstHumanResponseAt: DateTime.tryParse(
+      json['first_human_response_at']?.toString() ?? '',
+    ),
+    appealOfTicketId: json['appeal_of_ticket_id']?.toString(),
+    queueKey: json['queue_key']?.toString() ?? 'support',
+    caseKind: json['case_kind']?.toString() ?? 'standard',
   );
 
   static int _integer(Object? value) =>
@@ -119,11 +146,101 @@ class SupportThread {
     required this.ticket,
     required this.messages,
     this.evidence = const [],
+    this.internalNotes = const [],
+    this.auditHistory = const [],
   });
 
   final SupportTicket ticket;
   final List<SupportTicketMessage> messages;
   final List<SupportEvidenceRecord> evidence;
+  final List<SupportInternalNote> internalNotes;
+  final List<SupportAuditEvent> auditHistory;
+}
+
+class SupportInternalNote {
+  const SupportInternalNote({
+    required this.id,
+    required this.authorId,
+    required this.noteKind,
+    required this.body,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String authorId;
+  final String noteKind;
+  final String body;
+  final DateTime createdAt;
+
+  factory SupportInternalNote.fromJson(Map<String, dynamic> json) =>
+      SupportInternalNote(
+        id: json['id'].toString(),
+        authorId: json['author_id']?.toString() ?? '',
+        noteKind: json['note_kind']?.toString() ?? 'case_note',
+        body: json['body']?.toString() ?? '',
+        createdAt:
+            DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+            DateTime.now(),
+      );
+}
+
+class SupportAuditEvent {
+  const SupportAuditEvent({
+    required this.id,
+    required this.eventType,
+    required this.createdAt,
+    this.fromStatus,
+    this.toStatus,
+  });
+
+  final String id;
+  final String eventType;
+  final DateTime createdAt;
+  final String? fromStatus;
+  final String? toStatus;
+
+  factory SupportAuditEvent.fromJson(Map<String, dynamic> json) =>
+      SupportAuditEvent(
+        id: json['id'].toString(),
+        eventType: json['event_type']?.toString() ?? 'support_event',
+        createdAt:
+            DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+            DateTime.now(),
+        fromStatus: json['from_status']?.toString(),
+        toStatus: json['to_status']?.toString(),
+      );
+}
+
+class SupportServiceStatus {
+  const SupportServiceStatus({
+    required this.staffingStatus,
+    required this.timezone,
+    required this.responseMessage,
+    required this.targetsAreCommitments,
+    required this.hoursDisplay,
+  });
+
+  final String staffingStatus;
+  final String timezone;
+  final String responseMessage;
+  final bool targetsAreCommitments;
+  final String hoursDisplay;
+
+  factory SupportServiceStatus.fromJson(Map<String, dynamic> json) {
+    final hours = json['support_hours'];
+    return SupportServiceStatus(
+      staffingStatus:
+          json['staffing_status']?.toString() ?? 'external_gate_unstaffed',
+      timezone: json['timezone']?.toString() ?? 'Local time',
+      responseMessage:
+          json['response_message']?.toString() ??
+          'Human staffing and response times are not guaranteed.',
+      targetsAreCommitments: json['targets_are_commitments'] == true,
+      hoursDisplay: hours is Map
+          ? hours['display']?.toString() ?? 'Not staffed yet'
+          : 'Not staffed yet',
+    );
+  }
 }
 
 class SupportEvidenceRecord {
@@ -237,6 +354,15 @@ class SupportRepository extends RepositoryBase {
         .toList(growable: false);
   }
 
+  Future<SupportServiceStatus> getServiceStatus() async {
+    requireUserId();
+    final result = _result(
+      await client.rpc('support_get_service_status'),
+      'Support availability could not be loaded.',
+    );
+    return SupportServiceStatus.fromJson(result);
+  }
+
   Future<List<Map<String, dynamic>>> listMyTickets() async =>
       (await listTickets())
           .map(
@@ -322,6 +448,63 @@ class SupportRepository extends RepositoryBase {
             ),
           )
           .toList(growable: false),
+      internalNotes: (result['internal_notes'] as List<dynamic>? ?? const [])
+          .map(
+            (item) => SupportInternalNote.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ),
+          )
+          .toList(growable: false),
+      auditHistory: (result['audit_history'] as List<dynamic>? ?? const [])
+          .map(
+            (item) => SupportAuditEvent.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+
+  Future<void> claimStaffTicket(String ticketId) async {
+    _result(
+      await client.rpc(
+        'support_staff_claim_ticket',
+        params: {'p_ticket_id': ticketId, 'p_client_request_id': _uuid.v4()},
+      ),
+      'The support case could not be claimed.',
+    );
+  }
+
+  Future<void> releaseStaffTicket(String ticketId, String reason) async {
+    _result(
+      await client.rpc(
+        'support_staff_release_ticket',
+        params: {
+          'p_ticket_id': ticketId,
+          'p_reason': reason.trim(),
+          'p_client_request_id': _uuid.v4(),
+        },
+      ),
+      'The support case could not be released.',
+    );
+  }
+
+  Future<void> addInternalNote({
+    required String ticketId,
+    required String body,
+    String noteKind = 'case_note',
+  }) async {
+    _result(
+      await client.rpc(
+        'support_staff_add_internal_note',
+        params: {
+          'p_ticket_id': ticketId,
+          'p_note_kind': noteKind,
+          'p_body': body.trim(),
+          'p_client_request_id': _uuid.v4(),
+        },
+      ),
+      'The private internal note could not be added.',
     );
   }
 
@@ -411,6 +594,23 @@ class SupportRepository extends RepositoryBase {
         params: {'p_ticket_id': ticketId, 'p_reason': reason.trim()},
       ),
       'The support case could not be reopened.',
+    );
+  }
+
+  Future<SupportTicket> appeal(String ticketId, String reason) async {
+    final result = _result(
+      await client.rpc(
+        'appeal_my_support_ticket',
+        params: {
+          'p_ticket_id': ticketId,
+          'p_reason': reason.trim(),
+          'p_client_request_id': _uuid.v4(),
+        },
+      ),
+      'The support appeal could not be created.',
+    );
+    return SupportTicket.fromJson(
+      Map<String, dynamic>.from(result['ticket'] as Map),
     );
   }
 

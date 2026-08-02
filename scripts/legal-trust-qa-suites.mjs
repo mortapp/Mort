@@ -1,10 +1,12 @@
 import { readFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
 import { join } from "node:path";
 
 import {
   assertQa,
   qaLog,
   serviceClient,
+  updateApplicationStatus,
   withDatabase,
   withQaUsers,
 } from "./feature-qa-helpers.mjs";
@@ -52,7 +54,7 @@ async function insertSyntheticPublishedLegalVersion(database, suffix, materialRe
   return { documentId: document.rows[0].id, ...version.rows[0] };
 }
 
-async function createContractFixture(users, { activate = true, paymentDueRule = "at_completion" } = {}) {
+export async function createContractFixture(users, { activate = true, paymentDueRule = "at_completion" } = {}) {
   const fixture = await withDatabase(async (database) => {
     const job = await database.query(
       `
@@ -91,9 +93,9 @@ async function createContractFixture(users, { activate = true, paymentDueRule = 
     return { jobId: job.rows[0].id, applicationId: application.rows[0].id };
   });
 
-  const accepted = await users.adult.client.rpc("update_application_status_v2", {
-    p_application_id: fixture.applicationId,
-    p_action: "accepted",
+  const accepted = await updateApplicationStatus(users.adult.client, {
+    applicationId: fixture.applicationId,
+    action: "accepted",
   });
   assertQa(!accepted.error && accepted.data?.ok === true, `Could not accept QA application: ${accepted.error?.message ?? accepted.data?.code}`);
 
@@ -162,7 +164,7 @@ async function makePaymentDue(users, contractId) {
   return obligation.data;
 }
 
-async function openNonpaymentDispute(users, contractId) {
+export async function openNonpaymentDispute(users, contractId) {
   const obligation = await makePaymentDue(users, contractId);
   const report = await users.teen.client.rpc("report_nonpayment", {
     p_obligation_id: obligation.id,
@@ -450,6 +452,217 @@ const suites = {
     const outsider = await users.outsider.client.rpc("request_payment_evidence_export", { p_dispute_id: opened.disputeId });
     assertQa(!outsider.error && outsider.data?.ok === false && outsider.data?.code === "authorized_dispute_party_required", "Outsider received a private payment evidence export");
     qaLog(scope, "preserved evidence resisted deletion and export stayed party-authorized with sensitive categories excluded");
+  }),
+
+  "qa-payment-dispute-appeal": async (scope) => withQaUsers(scope, [
+    { key: "teen", role: "teen" },
+    { key: "adult", role: "adult" },
+    { key: "outsider", role: "adult" },
+    { key: "reviewerOne", role: "adult" },
+    { key: "reviewerTwo", role: "adult" },
+    { key: "admin", role: "admin" },
+  ], async (users) => {
+    const fixture = await createContractFixture(users);
+    const opened = await openNonpaymentDispute(users, fixture.contract.id);
+    const statementRequestId = randomUUID();
+    const posterStatement = "The poster provides this factual synthetic response for separate human review.";
+    const statement = await users.adult.client.rpc("submit_payment_dispute_statement_v2", {
+      p_dispute_id: opened.disputeId,
+      p_statement: posterStatement,
+      p_client_request_id: statementRequestId,
+    });
+    assertQa(!statement.error && statement.data?.ok === true && statement.data?.replayed === false, "Poster statement was not appended");
+    const replay = await users.adult.client.rpc("submit_payment_dispute_statement_v2", {
+      p_dispute_id: opened.disputeId,
+      p_statement: posterStatement,
+      p_client_request_id: statementRequestId,
+    });
+    assertQa(replay.data?.ok === true && replay.data?.replayed === true && replay.data?.statement_id === statement.data.statement_id, "Statement retry was not idempotent");
+    const mismatch = await users.adult.client.rpc("submit_payment_dispute_statement_v2", {
+      p_dispute_id: opened.disputeId,
+      p_statement: "A substituted statement must not replace the original request payload.",
+      p_client_request_id: statementRequestId,
+    });
+    assertQa(mismatch.data?.code === "dispute_statement_request_mismatch", "Statement request accepted payload substitution");
+    const history = await users.teen.client.from("payment_dispute_statements").select("id,author_role,statement").eq("dispute_id", opened.disputeId);
+    assertQa(!history.error && history.data.length === 2 && history.data.some((row) => row.author_role === "worker") && history.data.some((row) => row.author_role === "poster"), "Append-only party statement history is incomplete");
+    const immutable = await serviceClient.from("payment_dispute_statements").update({ statement: "Mutation must fail." }).eq("id", statement.data.statement_id);
+    assertQa(Boolean(immutable.error), "Service path rewrote immutable dispute statement history");
+    const oldStatement = await users.adult.client.rpc("submit_payment_dispute_statement", {
+      p_dispute_id: opened.disputeId,
+      p_statement: "Legacy overwrite RPC must be denied to mobile callers.",
+    });
+    assertQa(Boolean(oldStatement.error), "Legacy overwrite-style statement RPC remained callable");
+    qaLog(scope, "party statements are append-only, replay-safe, and immutable");
+
+    await withDatabase(async (database) => {
+      await database.query("begin");
+      try {
+        await seedReadyTeamMember(database, users.reviewerOne.id, users.admin.id, "safety_moderator");
+        await seedReadyTeamMember(database, users.reviewerTwo.id, users.admin.id, "safety_moderator");
+        await database.query("commit");
+      } catch (error) {
+        await database.query("rollback");
+        throw error;
+      }
+    });
+    const firstAssignment = await users.admin.client.rpc("admin_assign_payment_dispute_reviewer", {
+      p_dispute_id: opened.disputeId,
+      p_reviewer_id: users.reviewerOne.id,
+      p_purpose: "Synthetic first-level dispute review.",
+      p_expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    });
+    assertQa(!firstAssignment.error && firstAssignment.data?.ok === true, "First reviewer assignment failed");
+    const decision = await users.reviewerOne.client.rpc("review_payment_dispute", {
+      p_dispute_id: opened.disputeId,
+      p_decision_type: "recommend_payment",
+      p_rationale: "Synthetic evidence supports a private payment recommendation for QA only.",
+      p_recommended_amount_cents: 1800,
+      p_restrict_poster: false,
+      p_restriction_type: "block_new_job_publication",
+      p_restriction_expires_at: null,
+    });
+    assertQa(!decision.error && decision.data?.ok === true && decision.data?.appeal_available === true, "Human dispute recommendation failed");
+    const obligationBeforeAppeal = await serviceClient.from("job_payment_obligations").select("status").eq("id", opened.obligation.id).single();
+
+    const outsiderAppeal = await users.outsider.client.rpc("submit_payment_dispute_appeal", {
+      p_dispute_id: opened.disputeId,
+      p_reason: "An outsider must never be allowed to appeal someone else's private case.",
+      p_client_request_id: randomUUID(),
+    });
+    assertQa(outsiderAppeal.data?.code === "dispute_party_required", "Outsider submitted a private dispute appeal");
+    const appealRequestId = randomUUID();
+    const appeal = await users.teen.client.rpc("submit_payment_dispute_appeal", {
+      p_dispute_id: opened.disputeId,
+      p_reason: "Please have a different trained reviewer reconsider the factual record and recommendation.",
+      p_client_request_id: appealRequestId,
+    });
+    assertQa(!appeal.error && appeal.data?.ok === true && appeal.data?.money_moved === false, "Participant appeal submission failed");
+    const appealReplay = await users.teen.client.rpc("submit_payment_dispute_appeal", {
+      p_dispute_id: opened.disputeId,
+      p_reason: "Please have a different trained reviewer reconsider the factual record and recommendation.",
+      p_client_request_id: appealRequestId,
+    });
+    assertQa(appealReplay.data?.replayed === true && appealReplay.data?.appeal_id === appeal.data.appeal_id, "Appeal retry was not idempotent");
+    const conflicted = await users.reviewerOne.client.rpc("review_payment_dispute_appeal", {
+      p_appeal_id: appeal.data.appeal_id,
+      p_outcome: "upheld",
+      p_rationale: "The original reviewer must not be allowed to decide this separate appeal review.",
+    });
+    assertQa(conflicted.data?.code === "independent_appeal_reviewer_required", "Original reviewer decided their own appeal");
+
+    const secondAssignment = await users.admin.client.rpc("admin_assign_payment_dispute_reviewer", {
+      p_dispute_id: opened.disputeId,
+      p_reviewer_id: users.reviewerTwo.id,
+      p_purpose: "Synthetic independent appeal review.",
+      p_expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    });
+    assertQa(!secondAssignment.error && secondAssignment.data?.ok === true, "Independent appeal reviewer assignment failed");
+    const reviewed = await users.reviewerTwo.client.rpc("review_payment_dispute_appeal", {
+      p_appeal_id: appeal.data.appeal_id,
+      p_outcome: "modified",
+      p_rationale: "A separate synthetic review requests more factual evidence without making a legal or payment decision.",
+    });
+    assertQa(!reviewed.error && reviewed.data?.ok === true && reviewed.data?.money_moved === false && reviewed.data?.court_judgment === false && reviewed.data?.criminal_finding === false, "Independent appeal outcome failed its decision boundary");
+    const obligationAfterAppeal = await serviceClient.from("job_payment_obligations").select("status").eq("id", opened.obligation.id).single();
+    assertQa(obligationAfterAppeal.data?.status === obligationBeforeAppeal.data?.status, "Appeal review changed payment state");
+    const timeline = await users.teen.client.from("payment_dispute_timeline").select("event_type,event_summary").eq("dispute_id", opened.disputeId);
+    assertQa(timeline.data.some((event) => event.event_type === "appeal_submitted") && timeline.data.some((event) => event.event_type === "appeal_reviewed"), "Appeal timeline is incomplete");
+    const outsiderRows = await users.outsider.client.from("payment_dispute_appeals").select("id").eq("id", appeal.data.appeal_id);
+    assertQa(!outsiderRows.error && outsiderRows.data.length === 0, "Outsider read a private dispute appeal");
+    qaLog(scope, "appeal required an independent assigned human reviewer and moved no money");
+  }),
+
+  "qa-support-evidence-lifecycle": async (scope) => withQaUsers(scope, [
+    { key: "teen", role: "teen" },
+    { key: "adult", role: "adult" },
+    { key: "outsider", role: "adult" },
+  ], async (users) => {
+    const fixture = await createContractFixture(users);
+    const opened = await openNonpaymentDispute(users, fixture.contract.id);
+    const conversation = await users.teen.client.rpc("create_support_conversation", {
+      p_category: "evidence_submission",
+      p_subject: "Synthetic private evidence lifecycle QA",
+      p_message: "This private synthetic ticket verifies evidence isolation and signing only.",
+      p_source: "payment_dispute",
+      p_related_job_id: fixture.jobId,
+      p_related_application_id: fixture.applicationId,
+      p_related_contract_id: fixture.contract.id,
+      p_related_dispute_id: opened.disputeId,
+      p_client_request_id: randomUUID(),
+    });
+    assertQa(!conversation.error && conversation.data?.ok === true, `Evidence support ticket failed: ${conversation.error?.message ?? conversation.data?.code}`);
+    const ticketId = conversation.data.ticket.id;
+    const evidenceId = randomUUID();
+    const objectPath = `${users.teen.id}/${evidenceId}.jpg`;
+    const jpegBytes = Buffer.from(
+      "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAEf/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABBQJ//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPwF//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAgEBPwF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQAGPwJ//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPyF//9oADAMBAAIAAwAAABD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAEDAQE/EB//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/EB//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAE/EB//2Q==",
+      "base64",
+    );
+    const digest = createHash("sha256").update(jpegBytes).digest("hex");
+    try {
+      const uploaded = await users.teen.client.storage.from("support-evidence").upload(objectPath, jpegBytes, {
+        contentType: "image/jpeg",
+        cacheControl: "300",
+        upsert: false,
+      });
+      assertQa(!uploaded.error, `Private evidence upload failed: ${uploaded.error?.message}`);
+      const badManifest = await users.teen.client.rpc("register_support_evidence", {
+        p_ticket_id: ticketId,
+        p_dispute_id: opened.disputeId,
+        p_evidence_category: "work_result",
+        p_object_path: objectPath,
+        p_sha256: digest,
+        p_processed_byte_size: jpegBytes.length + 1,
+        p_statement: "Synthetic work-result evidence for checksum and size validation.",
+        p_client_request_id: randomUUID(),
+      });
+      assertQa(badManifest.data?.code === "storage_manifest_mismatch", "Storage byte-size mismatch was accepted");
+      const registrationRequestId = randomUUID();
+      const registrationPayload = {
+        p_ticket_id: ticketId,
+        p_dispute_id: opened.disputeId,
+        p_evidence_category: "work_result",
+        p_object_path: objectPath,
+        p_sha256: digest,
+        p_processed_byte_size: jpegBytes.length,
+        p_statement: "Synthetic work-result evidence for checksum and size validation.",
+        p_client_request_id: registrationRequestId,
+      };
+      const registered = await users.teen.client.rpc("register_support_evidence", registrationPayload);
+      assertQa(!registered.error && registered.data?.ok === true, `Evidence registration failed: ${registered.error?.message ?? registered.data?.code}`);
+      const registrationReplay = await users.teen.client.rpc("register_support_evidence", registrationPayload);
+      assertQa(registrationReplay.data?.replayed === true && registrationReplay.data?.evidence?.id === registered.data.evidence.id, "Evidence registration retry was not idempotent");
+      const registrationMismatch = await users.teen.client.rpc("register_support_evidence", {
+        ...registrationPayload,
+        p_statement: "A changed statement must not be accepted under the same request identifier.",
+      });
+      assertQa(registrationMismatch.data?.code === "evidence_request_payload_mismatch", "Evidence request ID accepted a changed payload");
+      const recordId = registered.data.evidence.id;
+      const submitted = await users.teen.client.rpc("submit_support_evidence", { p_evidence_id: recordId });
+      assertQa(!submitted.error && submitted.data?.ok === true && submitted.data?.evidence?.status === "submitted" && submitted.data?.evidence?.review_status === "queued", "Evidence did not enter the human review queue");
+      const stored = await serviceClient.from("support_evidence_attachments").select("sha256,processed_byte_size,status,review_status,preservation_hold,retention_delete_at").eq("id", recordId).single();
+      assertQa(stored.data?.sha256 === digest && stored.data?.processed_byte_size === jpegBytes.length && stored.data?.preservation_hold === true && new Date(stored.data.retention_delete_at) > new Date(), "Evidence checksum, preservation, or retention manifest is invalid");
+
+      const outsiderMetadata = await users.outsider.client.from("support_evidence_attachments").select("id,object_path").eq("id", recordId);
+      assertQa(!outsiderMetadata.error && outsiderMetadata.data.length === 0, "Outsider read private evidence metadata");
+      const outsiderAuthorization = await users.outsider.client.rpc("authorize_support_evidence_url", { p_evidence_id: recordId });
+      assertQa(outsiderAuthorization.data?.code === "evidence_not_authorized", "Outsider received evidence URL authorization");
+      const outsiderPreview = await users.outsider.client.functions.invoke("support-evidence-url", { body: { evidenceId: recordId } });
+      assertQa(Boolean(outsiderPreview.error), "Outsider received a signed evidence preview");
+
+      const adultPreview = await users.adult.client.functions.invoke("support-evidence-url", { body: { evidenceId: recordId } });
+      assertQa(!adultPreview.error && adultPreview.data?.ok === true && /^https:\/\//.test(adultPreview.data.signedUrl) && new Date(adultPreview.data.expiresAt) > new Date(), `Authorized participant preview failed: ${adultPreview.error?.message}`);
+      const downloaded = await fetch(adultPreview.data.signedUrl, { cache: "no-store" });
+      assertQa(downloaded.ok && Buffer.from(await downloaded.arrayBuffer()).equals(jpegBytes), "Signed evidence URL did not return the registered private object");
+      const accessEvents = await serviceClient.from("support_evidence_access_events").select("access_type,authorization_basis").eq("evidence_id", recordId).eq("actor_id", users.adult.id);
+      assertQa(accessEvents.data?.some((event) => event.access_type === "signed_url_created" && event.authorization_basis === "authorized_case_participant"), "Authorized preview was not audit logged");
+      const ownerMutation = await users.teen.client.from("support_evidence_attachments").update({ sha256: "0".repeat(64) }).eq("id", recordId);
+      assertQa(Boolean(ownerMutation.error), "Owner rewrote submitted evidence metadata");
+      qaLog(scope, "private evidence upload, manifest, retention, signing, audit, and outsider isolation passed");
+    } finally {
+      await serviceClient.storage.from("support-evidence").remove([objectPath]);
+    }
   }),
 
   "qa-no-automatic-legal-advice": async (scope) => {

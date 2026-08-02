@@ -43,19 +43,22 @@ Deno.serve(async (request: Request) => {
   const supabase = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data, error } = await supabase.rpc("process_identity_verification_provider_result", {
+  const { data, error } = await supabase.rpc("process_identity_verification_provider_event_v2", {
     p_event_id: envelope.eventId,
     p_provider: payload.provider,
     p_environment: payload.environment,
     p_provider_reference: payload.provider_reference,
     p_user_id: payload.account_id,
-    p_result_status: payload.result_status,
+    p_normalized_status: envelope.normalizedStatus,
+    p_failure_code: envelope.failureCode,
     p_age_band: payload.age_band,
     p_verification_level: payload.verification_level,
     p_expires_at: payload.expires_at ?? null,
     p_event_timestamp: envelope.eventTimestamp,
     p_payload_sha256: envelope.payloadSha256,
     p_signature_verified: true,
+    p_delivery_attempt: envelope.deliveryAttempt,
+    p_payload_version: envelope.payloadVersion,
   });
 
   if (error) {
@@ -67,7 +70,7 @@ Deno.serve(async (request: Request) => {
     return json({ ok: false, code: "provider_result_processing_failed" }, 500);
   }
   if (data?.ok !== true) {
-    const status = data?.code === "provider_webhook_replay" ? 409
+    const status = data?.code === "provider_webhook_replay_conflict" ? 409
       : data?.code === "production_verification_not_ready" ? 503
       : 400;
     return json({ ok: false, code: data?.code ?? "provider_result_rejected" }, status);
@@ -78,7 +81,7 @@ Deno.serve(async (request: Request) => {
     provider,
     verificationId: data.verification_id,
   });
-  return json({ ok: true, event_id: envelope.eventId }, 200);
+  return json({ ok: true, event_id: envelope.eventId, idempotent: data?.idempotent === true }, 200);
 });
 
 function json(body: Record<string, unknown>, status: number) {

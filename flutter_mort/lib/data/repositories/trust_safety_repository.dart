@@ -16,8 +16,31 @@ class TrustSafetyRepository extends RepositoryBase {
 
   Future<IdentityVerificationStatus> getIdentityStatus() async {
     requireUserId();
-    final value = await client.rpc('get_my_identity_verification');
+    final value = await client.rpc('get_my_identity_verification_v2');
     return IdentityVerificationStatus.fromMap(_map(value));
+  }
+
+  Future<Map<String, dynamic>> createProductionVerificationSession() async {
+    requireUserId();
+    try {
+      final response = await client.functions.invoke(
+        'identity-verification-session',
+        body: {'client_request_id': _uuid.v4()},
+      );
+      return _success(
+        response.data,
+        'The secure provider session could not be created.',
+      );
+    } on FunctionException catch (error) {
+      final details = error.details;
+      final code = details is Map && details['code'] is String
+          ? details['code'] as String
+          : 'production_provider_session_unavailable';
+      throw MortCodedError(
+        code,
+        'Production identity verification is unavailable until an approved provider is connected.',
+      );
+    }
   }
 
   Future<Map<String, dynamic>> startIdentityVerification({
@@ -84,6 +107,15 @@ class TrustSafetyRepository extends RepositoryBase {
       params: {'p_incident_id': incidentId, 'p_reason': reason.trim()},
     );
     _success(value, 'The safety-case appeal could not be submitted.');
+  }
+
+  Future<void> submitAccountBanAppeal({required String reason}) async {
+    requireUserId();
+    final value = await client.rpc(
+      'submit_account_ban_appeal',
+      params: {'p_reason': reason.trim()},
+    );
+    _success(value, 'The account appeal could not be submitted.');
   }
 
   Future<String> createSafetyCircleInvite({
@@ -233,8 +265,11 @@ class TrustSafetyRepository extends RepositoryBase {
   Future<Map<String, dynamic>> generateArrivalCode(String applicationId) async {
     return _success(
       await client.rpc(
-        'generate_job_arrival_code',
-        params: {'p_application_id': applicationId},
+        'generate_job_start_pin',
+        params: {
+          'p_application_id': applicationId,
+          'p_client_request_id': _uuid.v4(),
+        },
       ),
       'An arrival code could not be generated.',
     );
@@ -247,11 +282,12 @@ class TrustSafetyRepository extends RepositoryBase {
   }) async {
     return _success(
       await client.rpc(
-        'confirm_job_arrival_code',
+        'confirm_job_start_pin_v2',
         params: {
           'p_application_id': applicationId,
-          'p_code': code.trim(),
+          'p_pin': code.trim(),
           'p_person_matches_profile': personMatches,
+          'p_client_request_id': _uuid.v4(),
         },
       ),
       'Arrival could not be confirmed.',

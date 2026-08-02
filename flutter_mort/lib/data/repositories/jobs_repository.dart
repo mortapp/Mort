@@ -8,79 +8,80 @@ const _jobSelect =
     '*, profiles:poster_id(display_name,verification_status,avatar_path)';
 
 class JobsRepository extends RepositoryBase {
+  final Map<String, JobPage> _sessionFeedCache = {};
+
   Future<List<Job>> listOpenJobs({
     JobSearchFilters filters = const JobSearchFilters(),
     String? category,
-    int limit = 40,
   }) async {
-    requireUserId();
-    final isTestAccount = await client.rpc('current_profile_is_test') == true;
-    var query = client
-        .from('jobs')
-        .select(_jobSelect)
-        .eq('status', 'open')
-        .eq('applications_open', true)
-        .eq('is_test', isTestAccount);
+    final selectedCategory = category == 'All' ? null : category;
+    final effectiveFilters = selectedCategory == null
+        ? filters
+        : JobSearchFilters(
+            keyword: filters.keyword,
+            category: selectedCategory,
+            minimumPayCents: filters.minimumPayCents,
+            paymentType: filters.paymentType,
+            scheduleType: filters.scheduleType,
+            verificationRequirement: filters.verificationRequirement,
+            requiresGuardianApproval: filters.requiresGuardianApproval,
+            workEnvironment: filters.workEnvironment,
+            city: filters.city,
+            state: filters.state,
+            transportationMethods: filters.transportationMethods,
+            limit: filters.limit,
+            sort: filters.sort,
+          );
+    return (await listOpenJobsPage(filters: effectiveFilters)).items;
+  }
 
-    final selectedCategory = category ?? filters.category;
-    if (selectedCategory != null &&
-        selectedCategory.isNotEmpty &&
-        selectedCategory != 'All') {
-      query = query.eq('category', selectedCategory);
-    }
-    if (filters.minimumPayCents != null) {
-      query = query.gte('pay_amount_cents', filters.minimumPayCents!);
-    }
-    if (filters.paymentType != null) {
-      query = query.eq('payment_type', filters.paymentType!);
-    }
-    if (filters.scheduleType != null) {
-      query = query.eq('schedule_type', filters.scheduleType!);
-    }
-    if (filters.verificationRequirement != null) {
-      query = query.eq(
-        'verification_requirement',
-        filters.verificationRequirement!,
+  Future<JobPage> listOpenJobsPage({
+    JobSearchFilters filters = const JobSearchFilters(),
+    JobPageCursor? cursor,
+  }) async {
+    final userId = requireUserId();
+    final cacheKey = _feedCacheKey(userId, filters, cursor);
+    try {
+      final result = await client.rpc(
+        'list_open_jobs_page',
+        params: {
+          'p_keyword': filters.keyword.trim(),
+          'p_category': filters.category,
+          'p_minimum_pay_cents': filters.minimumPayCents,
+          'p_payment_type': filters.paymentType,
+          'p_schedule_type': filters.scheduleType,
+          'p_verification_requirement': filters.verificationRequirement,
+          'p_requires_guardian_approval': filters.requiresGuardianApproval,
+          'p_work_environment': filters.workEnvironment,
+          'p_city': filters.city,
+          'p_state': filters.state,
+          'p_transportation_methods': filters.transportationMethods,
+          'p_sort': filters.sort.apiValue,
+          'p_cursor_value': cursor?.value,
+          'p_cursor_id': cursor?.id,
+          'p_limit': filters.limit.clamp(1, 50),
+        },
       );
+      final map = _rpcMap(result);
+      _throwIfFailed(map);
+      final page = JobPage.fromMap(map);
+      _sessionFeedCache[cacheKey] = page;
+      return page;
+    } on MortCodedError {
+      rethrow;
+    } catch (error) {
+      final message = error.toString().toLowerCase();
+      final connectivityFailure =
+          message.contains('network') ||
+          message.contains('socket') ||
+          message.contains('failed host lookup') ||
+          message.contains('clientexception') ||
+          message.contains('connection');
+      if (!connectivityFailure) rethrow;
+      final cached = _sessionFeedCache[cacheKey];
+      if (cached != null) return cached.asSessionCacheFallback();
+      rethrow;
     }
-    if (filters.requiresGuardianApproval != null) {
-      query = query.eq(
-        'requires_guardian_approval',
-        filters.requiresGuardianApproval!,
-      );
-    }
-    if (filters.workEnvironment != null) {
-      query = query.eq('work_environment', filters.workEnvironment!);
-    }
-    final city = filters.city?.trim();
-    if (city != null && city.isNotEmpty) {
-      query = query.ilike('city', city.replaceAll(RegExp(r'[%_,]'), ''));
-    }
-    final state = filters.state?.trim().toUpperCase();
-    if (state != null && state.isNotEmpty) {
-      query = query.eq('state', state.replaceAll(RegExp(r'[^A-Z]'), ''));
-    }
-
-    final keyword = filters.keyword
-        .replaceAll(RegExp(r'[^a-zA-Z0-9 ]'), ' ')
-        .trim();
-    if (keyword.isNotEmpty) {
-      query = query.or(
-        'title.ilike.%$keyword%,summary.ilike.%$keyword%,description.ilike.%$keyword%',
-      );
-    }
-
-    final rows = switch (filters.sort) {
-      JobSort.highestPay =>
-        await query.order('pay_amount_cents', ascending: false).limit(limit),
-      JobSort.soonestStart =>
-        await query
-            .order('starts_at', ascending: true, nullsFirst: false)
-            .limit(limit),
-      JobSort.newest =>
-        await query.order('created_at', ascending: false).limit(limit),
-    };
-    return _jobs(rows);
   }
 
   Future<List<Job>> listMyJobs() async {
@@ -144,7 +145,7 @@ class JobsRepository extends RepositoryBase {
     required String locationText,
     required String city,
     required String state,
-    int? payAmountCents,
+    int? adultJobAmountCents,
     bool requiresGuardianApproval = false,
   }) {
     final cleanDescription = description.trim();
@@ -159,7 +160,7 @@ class JobsRepository extends RepositoryBase {
       ..locationText = locationText.trim()
       ..city = city.trim()
       ..state = state.trim().toUpperCase()
-      ..payAmountCents = payAmountCents
+      ..adultJobAmountCents = adultJobAmountCents
       ..requiresGuardianApproval = requiresGuardianApproval;
     return publish(draft);
   }
@@ -182,10 +183,22 @@ class JobsRepository extends RepositoryBase {
     return job;
   }
 
-  Future<Job?> manageJob(String jobId, String action) async {
+  Future<Job?> manageJob(
+    String jobId,
+    String action, {
+    String? reason,
+    String? clientRequestId,
+    DateTime? expectedUpdatedAt,
+  }) async {
     final result = await client.rpc(
-      'manage_job',
-      params: {'p_job_id': jobId, 'p_action': action},
+      'manage_job_v2',
+      params: {
+        'p_job_id': jobId,
+        'p_action': action,
+        'p_reason': reason,
+        'p_client_request_id': clientRequestId ?? const Uuid().v4(),
+        'p_expected_updated_at': expectedUpdatedAt?.toUtc().toIso8601String(),
+      },
     );
     final map = _rpcMap(result);
     _throwIfFailed(map);
@@ -202,11 +215,44 @@ class JobsRepository extends RepositoryBase {
     return List<Map<String, dynamic>>.from(rows as List);
   }
 
+  Future<List<Map<String, dynamic>>> listManagementEvents(String jobId) async {
+    final rows = await client
+        .from('job_management_requests')
+        .select('action,reason,from_status,to_status,succeeded,created_at')
+        .eq('job_id', jobId)
+        .not('completed_at', 'is', null)
+        .order('created_at');
+    return List<Map<String, dynamic>>.from(rows as List);
+  }
+
   static List<Job> _jobs(Object? rows) {
     return List<Map<String, dynamic>>.from(
       rows as List,
     ).map(Job.fromMap).toList(growable: false);
   }
+
+  static String _feedCacheKey(
+    String userId,
+    JobSearchFilters filters,
+    JobPageCursor? cursor,
+  ) => [
+    userId,
+    filters.keyword,
+    filters.category,
+    filters.minimumPayCents,
+    filters.paymentType,
+    filters.scheduleType,
+    filters.verificationRequirement,
+    filters.requiresGuardianApproval,
+    filters.workEnvironment,
+    filters.city,
+    filters.state,
+    (filters.transportationMethods ?? const <String>[]).join(','),
+    filters.limit,
+    filters.sort.apiValue,
+    cursor?.value,
+    cursor?.id,
+  ].join('|');
 
   static Map<String, dynamic> _rpcMap(Object? result) {
     if (result is! Map) {

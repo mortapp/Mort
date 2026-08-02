@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_colors.dart';
@@ -130,6 +131,11 @@ class _IdentityVerificationScreenState
               'Recheck by ${status.expiresAt}',
               style: Theme.of(context).textTheme.bodySmall,
             ),
+          if (status.failureCode != null)
+            Text(
+              'Next step: ${status.failureCode!.replaceAll('_', ' ')}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
         ],
       ),
     );
@@ -182,11 +188,25 @@ class _IdentityVerificationScreenState
         color: MortColors.warning,
       );
     }
-    return const _SafetyNotice(
-      title: 'Provider session required',
-      message:
-          'Verification is available only through an approved provider session confirmed by MORT.',
-      color: MortColors.safetyBlue,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _SafetyNotice(
+          title: 'Secure provider handoff',
+          message:
+              'An approved provider collects identity information on its own secure page. MORT stores only references, status, and a limited audit trail.',
+          color: MortColors.safetyBlue,
+        ),
+        const SizedBox(height: MortSpacing.md),
+        MortButton(
+          label: status.canRetry
+              ? 'Try secure verification again'
+              : 'Continue to provider',
+          icon: Icons.open_in_new,
+          busy: _busy,
+          onPressed: _busy ? null : _startProductionSession,
+        ),
+      ],
     );
   }
 
@@ -250,6 +270,7 @@ class _IdentityVerificationScreenState
     final provider = providerForStatus(
       status,
       createSandboxSession: repository.createSandboxVerificationSession,
+      createProductionSession: repository.createProductionVerificationSession,
     );
     await _work(() async {
       final session = await provider.createSession();
@@ -257,6 +278,30 @@ class _IdentityVerificationScreenState
         throw StateError('Sandbox sessions must never allow documents.');
       }
     }, 'Sandbox session created. No documents were collected.');
+  }
+
+  Future<void> _startProductionSession() async {
+    final status = _status;
+    if (status == null) return;
+    setState(() => _busy = true);
+    try {
+      final repository = ref.read(trustSafetyRepositoryProvider);
+      final provider = providerForStatus(
+        status,
+        createSandboxSession: repository.createSandboxVerificationSession,
+        createProductionSession: repository.createProductionVerificationSession,
+      );
+      final session = await provider.createSession();
+      final uri = session.handoffUrl;
+      if (uri == null ||
+          !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        throw StateError('The secure provider page could not be opened.');
+      }
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _appeal() async {
@@ -1121,7 +1166,7 @@ class _JobSafetyWorkspaceScreenState
           .read(trustSafetyRepositoryProvider)
           .generateArrivalCode(widget.applicationId);
       if (mounted) {
-        setState(() => _codeController.text = value['arrival_code'] as String);
+        setState(() => _codeController.text = value['start_pin'] as String);
       }
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));

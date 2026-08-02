@@ -68,10 +68,44 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Teen actions'), findsOneWidget);
-      expect(find.text('Finish PIN'), findsOneWidget);
+      expect(find.text('End job'), findsOneWidget);
+      expect(
+        find.textContaining('separate six-digit finish PIN'),
+        findsOneWidget,
+      );
       expect(find.text('Confirm job finish'), findsOneWidget);
       expect(find.text('Finish PIN refused'), findsOneWidget);
       expect(find.text('Person mismatch - Unavailable'), findsOneWidget);
     },
   );
+
+  testWidgets('completed job avoids an unconfirmed paid claim', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: JobProgressScreen(
+            applicationId: 'synthetic-complete-widget-qa',
+            syntheticStatusForTesting: JobExecutionStatus(
+              applicationId: 'synthetic-complete-widget-qa',
+              jobId: 'job-complete-widget-qa',
+              contractId: 'contract-complete-widget-qa',
+              role: 'teen',
+              state: 'completed',
+              fundingStatus: 'funded',
+              startPinActive: false,
+              finishPinActive: false,
+              livePaymentEnabled: false,
+              completionPendingAt: DateTime.utc(2026, 7, 28, 18),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Job complete'), findsOneWidget);
+    expect(find.text('Payment under review'), findsOneWidget);
+    expect(find.text('Leave a rating'), findsOneWidget);
+    expect(find.textContaining('You were paid'), findsNothing);
+  });
 }

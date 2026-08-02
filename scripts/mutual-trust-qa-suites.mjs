@@ -4,7 +4,9 @@ import {
   assertQa,
   qaLog,
   saveJob,
+  sendSafeMessage,
   serviceClient,
+  updateApplicationStatus,
   withDatabase,
   withQaUsers,
 } from "./feature-qa-helpers.mjs";
@@ -188,9 +190,9 @@ async function createAcceptedApplication(teen, adult, overrides = {}) {
     p_portfolio_ids: [],
   });
   const application = expectRpc(submitted, "submit job application").application;
-  const accepted = await adult.client.rpc("update_application_status_v2", {
-    p_application_id: application.id,
-    p_action: "accepted",
+  const accepted = await updateApplicationStatus(adult.client, {
+    applicationId: application.id,
+    action: "accepted",
   });
   expectRpc(accepted, "accept application");
   return { job: created.result.job, application };
@@ -333,17 +335,18 @@ async function runMutualVerification(scope) {
         "verified teen application",
       );
       expectRpc(
-        await verifiedAdult.client.rpc("update_application_status_v2", {
-          p_application_id: submitted.application.id,
-          p_action: "accepted",
+        await updateApplicationStatus(verifiedAdult.client, {
+          applicationId: submitted.application.id,
+          action: "accepted",
         }),
         "application acceptance",
       );
       const threadId = await getApplicationThread(verifiedTeen, submitted.application.id);
-      const message = await verifiedTeen.client.rpc("send_safe_message", {
-        p_thread_id: threadId,
-        p_body: "I will meet at the public check-in desk at the agreed time.",
-      });
+      const message = await sendSafeMessage(
+        verifiedTeen.client,
+        threadId,
+        "I will meet at the public check-in desk at the agreed time.",
+      );
       assertQa(!message.error && message.data?.scanner_status === "clean", "verified teen could not message after acceptance");
       qaLog(scope, "verified accepted participants can use safety-scanned messaging");
     },
@@ -744,31 +747,38 @@ async function runArrivalHandshake(scope) {
       await confirmAgreement(teen, adult, application.id);
       await activateAndFundJobExecution(teen, adult, application.id);
       const generated = expectRpc(
-        await adult.client.rpc("generate_job_arrival_code", { p_application_id: application.id }),
-        "generate arrival code",
+        await adult.client.rpc("generate_job_start_pin", {
+          p_application_id: application.id,
+          p_client_request_id: randomUUID(),
+        }),
+        "generate start PIN",
       );
-      const wrong = await teen.client.rpc("confirm_job_arrival_code", {
+      const wrong = await teen.client.rpc("confirm_job_start_pin_v2", {
         p_application_id: application.id,
-        p_code: "ABCDEF",
+        p_pin: "ABCDEF",
         p_person_matches_profile: true,
+        p_client_request_id: randomUUID(),
       });
       assertQa(
         ["six_digit_pin_required", "pin_format_invalid", "arrival_code_invalid"].includes(wrong.data?.code),
         "wrong arrival code was accepted",
       );
+      const confirmationRequestId = randomUUID();
       const confirmed = expectRpc(
-        await teen.client.rpc("confirm_job_arrival_code", {
+        await teen.client.rpc("confirm_job_start_pin_v2", {
           p_application_id: application.id,
-          p_code: generated.arrival_code,
+          p_pin: generated.start_pin,
           p_person_matches_profile: true,
+          p_client_request_id: confirmationRequestId,
         }),
-        "confirm arrival code",
+        "confirm start PIN",
       );
       assertQa(confirmed.identity_documents_exchanged !== true, "arrival handshake claimed documents were exchanged");
-      const replay = await teen.client.rpc("confirm_job_arrival_code", {
+      const replay = await teen.client.rpc("confirm_job_start_pin_v2", {
         p_application_id: application.id,
-        p_code: generated.arrival_code,
+        p_pin: generated.start_pin,
         p_person_matches_profile: true,
+        p_client_request_id: confirmationRequestId,
       });
       assertQa(
         !replay.error && replay.data?.ok === true && replay.data?.replayed === true,
@@ -793,15 +803,19 @@ async function runPersonMismatch(scope) {
       });
       await confirmAgreement(teen, adult, application.id);
       await activateAndFundJobExecution(teen, adult, application.id);
-      const code = expectRpc(
-        await adult.client.rpc("generate_job_arrival_code", { p_application_id: application.id }),
-        "generate mismatch arrival code",
+      expectRpc(
+        await adult.client.rpc("generate_job_start_pin", {
+          p_application_id: application.id,
+          p_client_request_id: randomUUID(),
+        }),
+        "generate mismatch start PIN",
       );
       const mismatch = expectRpc(
-        await teen.client.rpc("confirm_job_arrival_code", {
+        await teen.client.rpc("confirm_job_start_pin_v2", {
           p_application_id: application.id,
-          p_code: code.arrival_code,
+          p_pin: "000000",
           p_person_matches_profile: false,
+          p_client_request_id: randomUUID(),
         }),
         "person mismatch report",
       );
@@ -823,13 +837,20 @@ async function runMutualReporting(scope) {
     [
       { key: "teen", role: "teen" },
       { key: "adult", role: "adult" },
+      { key: "incidentManager", role: "admin" },
     ],
-    async ({ teen, adult }) => {
+    async ({ teen, adult, incidentManager }) => {
+      const assignment = await serviceClient.from("admin_role_assignments").insert({
+        user_id: incidentManager.id,
+        role: "incident_manager",
+        grant_reason: "Isolated QA authorization for urgent safety alert verification.",
+      });
+      assertQa(!assignment.error, `incident manager assignment failed: ${assignment.error?.message}`);
       const { job, application } = await createAcceptedApplication(teen, adult, {
         title: "QA Two-Way Reporting Test",
       });
       const teenReport = expectRpc(
-        await teen.client.rpc("submit_safety_report", {
+        await teen.client.rpc("submit_safety_report_v2", {
           p_target_user_id: adult.id,
           p_target_job_id: job.id,
           p_target_message_id: null,
@@ -843,11 +864,12 @@ async function runMutualReporting(scope) {
           p_location_type: "public",
           p_desired_outcome: "Review the changed job conditions.",
           p_confidential_safety_feedback: true,
+          p_client_request_id: randomUUID(),
         }),
         "teen reports adult",
       );
       const adultReport = expectRpc(
-        await adult.client.rpc("submit_safety_report", {
+        await adult.client.rpc("submit_safety_report_v2", {
           p_target_user_id: teen.id,
           p_target_job_id: job.id,
           p_target_message_id: null,
@@ -861,10 +883,53 @@ async function runMutualReporting(scope) {
           p_location_type: "public",
           p_desired_outcome: "Document facts and review both accounts.",
           p_confidential_safety_feedback: false,
+          p_client_request_id: randomUUID(),
         }),
         "adult reports teen",
       );
       assertQa(teenReport.incident_id !== adultReport.incident_id, "two independent reports were collapsed incorrectly");
+
+      const urgentReport = expectRpc(
+        await teen.client.rpc("submit_safety_report_v2", {
+          p_target_user_id: adult.id,
+          p_target_job_id: job.id,
+          p_target_message_id: null,
+          p_target_review_id: null,
+          p_application_id: application.id,
+          p_category: "threats",
+          p_severity: "critical",
+          p_immediate_danger: true,
+          p_details: "Synthetic urgent QA concern requiring immediate trained human review.",
+          p_occurred_at: new Date().toISOString(),
+          p_location_type: "public",
+          p_desired_outcome: "Queue urgent human review without promising physical intervention.",
+          p_confidential_safety_feedback: true,
+          p_client_request_id: randomUUID(),
+        }),
+        "urgent safety report",
+      );
+      assertQa(
+        urgentReport.immediate_danger_guidance === true,
+        "urgent report did not return emergency-guidance state",
+      );
+      const staffAlert = await incidentManager.client
+        .from("notifications")
+        .select("title,body,data")
+        .eq("recipient_id", incidentManager.id)
+        .contains("data", { incidentId: urgentReport.incident_id });
+      const serviceAlert = await serviceClient
+        .from("notifications")
+        .select("recipient_id,title,body,data")
+        .eq("recipient_id", incidentManager.id)
+        .contains("data", { incidentId: urgentReport.incident_id });
+      assertQa(
+        !serviceAlert.error &&
+          serviceAlert.data.length === 1 &&
+        !staffAlert.error &&
+          staffAlert.data.length === 1 &&
+          /has not promised or dispatched physical intervention/i.test(staffAlert.data[0].body),
+        `authorized safety staff alert mismatch: service=${serviceAlert.error?.message ?? serviceAlert.data.length}, user=${staffAlert.error?.message ?? staffAlert.data.length}`,
+      );
       const teenCases = await teen.client.rpc("get_my_incident_cases");
       const adultCases = await adult.client.rpc("get_my_incident_cases");
       assertQa(teenCases.data.some((item) => item.incident_id === teenReport.incident_id), "teen cannot see own report case status");
@@ -886,15 +951,17 @@ async function runHarassmentControls(scope) {
         title: "QA Harassment Scanner Test",
       });
       const threadId = await getApplicationThread(teen, application.id);
-      const flagged = await adult.client.rpc("send_safe_message", {
-        p_thread_id: threadId,
-        p_body: "You are a stupid kid and this is humiliating.",
-      });
+      const flagged = await sendSafeMessage(
+        adult.client,
+        threadId,
+        "You are a stupid kid and this is humiliating.",
+      );
       assertQa(!flagged.error && flagged.data?.scanner_status === "flagged" && flagged.data?.safer_rewrite_available === true, "harassing message was not flagged with safer rewrite");
-      const threat = await adult.client.rpc("send_safe_message", {
-        p_thread_id: threadId,
-        p_body: "I will hurt you and I know where you live.",
-      });
+      const threat = await sendSafeMessage(
+        adult.client,
+        threadId,
+        "I will hurt you and I know where you live.",
+      );
       assertQa(!threat.error && threat.data?.scanner_status === "blocked" && threat.data?.body === "[Blocked by MORT safety controls]", "threat was not blocked with placeholder body");
       const preserved = await serviceClient
         .from("message_safety_evidence")
@@ -903,12 +970,16 @@ async function runHarassmentControls(scope) {
         .single();
       assertQa(preserved.data?.severity === "critical" && preserved.data?.preserved_until, "threat evidence was not restricted and preserved");
 
-      const blocked = await teen.client.from("blocks").insert({ blocker_id: teen.id, blocked_id: adult.id });
-      assertQa(!blocked.error, `block failed: ${blocked.error?.message}`);
-      const afterBlock = await adult.client.rpc("send_safe_message", {
-        p_thread_id: threadId,
-        p_body: "This ordinary message should not be delivered after blocking.",
+      const blocked = await teen.client.rpc("block_user_v2", {
+        p_blocked_id: adult.id,
+        p_client_request_id: randomUUID(),
       });
+      assertQa(!blocked.error && blocked.data?.ok === true, `block failed: ${blocked.error?.message ?? blocked.data?.code}`);
+      const afterBlock = await sendSafeMessage(
+        adult.client,
+        threadId,
+        "This ordinary message should not be delivered after blocking.",
+      );
       assertQa(afterBlock.error, "blocking did not stop ordinary contact");
       qaLog(scope, "harassment is flagged, threats are blocked and preserved, and blocking closes ordinary contact");
     },
@@ -927,10 +998,11 @@ async function runSexualSafety(scope) {
         title: "QA Sexual Safety Scanner Test",
       });
       const threadId = await getApplicationThread(teen, application.id);
-      const blocked = await adult.client.rpc("send_safe_message", {
-        p_thread_id: threadId,
-        p_body: "Send me a nude photo and keep this secret from your guardian.",
-      });
+      const blocked = await sendSafeMessage(
+        adult.client,
+        threadId,
+        "Send me a nude photo and keep this secret from your guardian.",
+      );
       assertQa(!blocked.error && blocked.data?.scanner_status === "blocked", "sexual adult-minor message was not blocked");
       assertQa(blocked.data.body === "[Blocked by MORT safety controls]" && blocked.data.safety_severity === "critical", "blocked sexual content leaked to the ordinary thread or had wrong severity");
       const teenEvidenceRead = await teen.client
@@ -962,7 +1034,7 @@ async function runIncidentIsolation(scope) {
     ],
     async ({ reporter, subject, outsider, unprivilegedAdmin }) => {
       const report = expectRpc(
-        await reporter.client.rpc("submit_safety_report", {
+        await reporter.client.rpc("submit_safety_report_v2", {
           p_target_user_id: subject.id,
           p_target_job_id: null,
           p_target_message_id: null,
@@ -976,6 +1048,7 @@ async function runIncidentIsolation(scope) {
           p_location_type: "online",
           p_desired_outcome: "Stop contact and review account restrictions.",
           p_confidential_safety_feedback: true,
+          p_client_request_id: randomUUID(),
         }),
         "isolated incident report",
       );
@@ -1007,7 +1080,7 @@ async function runEvidencePreservation(scope) {
         grant_reason: "Isolated QA incident manager for preservation testing.",
       });
       const report = expectRpc(
-        await reporter.client.rpc("submit_safety_report", {
+        await reporter.client.rpc("submit_safety_report_v2", {
           p_target_user_id: subject.id,
           p_target_job_id: null,
           p_target_message_id: null,
@@ -1021,6 +1094,7 @@ async function runEvidencePreservation(scope) {
           p_location_type: "online",
           p_desired_outcome: "Preserve evidence and triage immediately.",
           p_confidential_safety_feedback: true,
+          p_client_request_id: randomUUID(),
         }),
         "critical preservation report",
       );

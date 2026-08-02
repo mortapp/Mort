@@ -147,7 +147,7 @@ write(
 |---|---|---|
 | Closed-pilot status | Welcome and Account Status | \`get_release_mode_status\` |
 | Teen job/application | Jobs and Applications | \`jobs\`, \`applications\` RLS |
-| Job-context messaging | Messages | \`message_threads\`, \`send_safe_message\` |
+| Job-context messaging | Messages | \`message_threads\`, \`send_safe_message_v2\` |
 | Contract | Contracts | \`job_contracts\`, version/acceptance rows |
 | Start/completion | Safety workspace | arrival handshake and completion assertions |
 | Payment disagreement | Payment status/dispute | obligations and disputes; no guilt finding |

@@ -3,11 +3,17 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } fr
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { assert, pass, root } from './play-release-qa-helpers.mjs';
+import { assert, pass, read, root } from './play-release-qa-helpers.mjs';
 
 const scope = 'qa-aab-secret-scan';
-const bundle = resolve(root, 'build/play/mort-closed-test.aab');
-const apk = resolve(root, 'build/play/mort-play-closed-test-qa.apk');
+const version = read('flutter_mort/pubspec.yaml').match(/^version:\s*(\d+\.\d+\.\d+)\+\d+\s*$/m)?.[1];
+assert(version, 'Flutter version could not be read.');
+const bundle = process.argv[2]
+  ? resolve(process.argv[2])
+  : resolve(root, `build/play/mort-closed-test-${version}.aab`);
+const apk = process.argv[3]
+  ? resolve(process.argv[3])
+  : resolve(root, `build/play/mort-closed-test-${version}.apk`);
 assert(existsSync(bundle), 'Closed-test AAB does not exist.');
 assert(existsSync(apk), 'Closed-test QA APK does not exist.');
 
@@ -18,6 +24,7 @@ const secretNames = [
   'REVENUECAT_WEBHOOK_AUTH_HEADER','SEND_PUSH_INVOKE_SECRET',
 ];
 const secrets = secretNames.map((name) => process.env[name]).filter((value) => value && value.length >= 8).map((value) => Buffer.from(value));
+const forbiddenCredentialMarkers = [Buffer.from('GOCSPX-')];
 
 function files(directory) {
   return readdirSync(directory).flatMap((name) => {
@@ -51,6 +58,12 @@ for (const artifact of [
           `Sensitive environment value detected in ${artifact.label} entry ${path.slice(work.length + 1)}.`,
         );
       }
+      for (const marker of forbiddenCredentialMarkers) {
+        assert(
+          data.indexOf(marker) === -1,
+          `Google OAuth client-secret marker detected in ${artifact.label} entry ${path.slice(work.length + 1)}.`,
+        );
+      }
     }
   } finally {
     rmSync(work, { recursive: true, force: true });
@@ -59,5 +72,5 @@ for (const artifact of [
 
 pass(
   scope,
-  `scanned ${scannedEntries} extracted AAB/APK entries against ${secrets.length} available sensitive values`,
+  `scanned ${scannedEntries} extracted AAB/APK entries against ${secrets.length} available sensitive values and Google client-secret markers`,
 );

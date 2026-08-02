@@ -16,8 +16,9 @@ void main() {
     expect(push, contains('constantTimeEqual(invokeSecret, suppliedSecret)'));
     expect(push, contains('correlationId(request)'));
     expect(push, contains('structuredLog("error", "push.request_failed"'));
-    expect(push, contains('last_error: code'));
-    expect(push, isNot(contains('last_error: message')));
+    expect(push, contains('service_complete_push_event'));
+    expect(push, contains('error_code: providerCode'));
+    expect(push, isNot(contains('error_code: body.error.message')));
     expect(push, isNot(contains('console.error("send-push failed", error)')));
     expect(observability, contains('"x-correlation-id": traceId'));
     expect(observability, contains('constantTimeEqual'));

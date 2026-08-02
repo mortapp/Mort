@@ -34,14 +34,55 @@ void main() {
     final disabled = providerForStatus(
       status(mode: 'disabled'),
       createSandboxSession: () async => <String, dynamic>{},
+      createProductionSession: () async => <String, dynamic>{},
     );
     final sandbox = providerForStatus(
       status(mode: 'sandbox', sandboxEligible: true),
       createSandboxSession: () async => <String, dynamic>{},
+      createProductionSession: () async => <String, dynamic>{},
     );
 
     expect(disabled, isA<DisabledVerificationProvider>());
     expect(sandbox, isA<SandboxVerificationProvider>());
+  });
+
+  test('production provider accepts only an expiring HTTPS handoff', () async {
+    final provider = HostedProductionVerificationProvider(
+      () async => {
+        'environment': 'production',
+        'provider': 'approved_provider',
+        'status': 'pending',
+        'handoff_url': 'https://verify.example.test/session/opaque',
+        'handoff_expires_at': DateTime.now()
+            .toUtc()
+            .add(const Duration(minutes: 10))
+            .toIso8601String(),
+        'documents_collected_by_mort': false,
+      },
+    );
+
+    final session = await provider.createSession();
+    expect(session.environment, VerificationEnvironment.production);
+    expect(session.handoffUrl?.scheme, 'https');
+    expect(session.documentsAllowed, isTrue);
+  });
+
+  test('production provider rejects an insecure handoff', () {
+    final provider = HostedProductionVerificationProvider(
+      () async => {
+        'environment': 'production',
+        'provider': 'approved_provider',
+        'status': 'pending',
+        'handoff_url': 'http://verify.example.test/session/opaque',
+        'handoff_expires_at': DateTime.now()
+            .toUtc()
+            .add(const Duration(minutes: 10))
+            .toIso8601String(),
+        'documents_collected_by_mort': false,
+      },
+    );
+
+    expect(provider.createSession, throwsA(isA<MortCodedError>()));
   });
 }
 

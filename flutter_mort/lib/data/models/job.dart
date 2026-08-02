@@ -13,6 +13,8 @@ class Job {
     required this.status,
     required this.requiresGuardianApproval,
     this.summary,
+    this.adultJobAmountCents,
+    this.mortServiceFeeCents,
     this.payAmountCents,
     this.payLabel,
     this.startsAt,
@@ -44,6 +46,7 @@ class Job {
     this.applicationsOpen = true,
     this.isTest = false,
     this.publishedAt,
+    this.updatedAt,
     this.recurring = false,
     this.recurrenceRule,
     this.timezone = 'America/Indianapolis',
@@ -51,8 +54,20 @@ class Job {
     this.neighborhood,
     this.zipCode,
     this.travelRadiusMiles,
+    this.acceptableTransportationMethods = const [
+      'walking',
+      'bicycle',
+      'car',
+      'public_transit',
+      'rideshare',
+      'other',
+    ],
+    this.transportationConsiderations,
     this.teenMinAge = 13,
     this.teenMaxAge = 17,
+    this.distanceStatus = 'unavailable',
+    this.transportationMatch,
+    this.matchExplanation,
   });
 
   final String id;
@@ -66,6 +81,8 @@ class Job {
   final String state;
   final String status;
   final bool requiresGuardianApproval;
+  final int? adultJobAmountCents;
+  final int? mortServiceFeeCents;
   final int? payAmountCents;
   final String? payLabel;
   final DateTime? startsAt;
@@ -73,6 +90,7 @@ class Job {
   final DateTime? deadlineAt;
   final DateTime? expiresAt;
   final DateTime? publishedAt;
+  final DateTime? updatedAt;
   final String? posterName;
   final String? posterVerificationStatus;
   final String? posterAvatarPath;
@@ -104,10 +122,17 @@ class Job {
   final String? neighborhood;
   final String? zipCode;
   final int? travelRadiusMiles;
+  final List<String> acceptableTransportationMethods;
+  final String? transportationConsiderations;
   final int teenMinAge;
   final int teenMaxAge;
+  final String distanceStatus;
+  final bool? transportationMatch;
+  final String? matchExplanation;
 
   String get payDisplay => formatCents(payAmountCents, fallback: payLabel);
+  String get adultAmountDisplay => formatCents(adultJobAmountCents);
+  String get serviceFeeDisplay => formatCents(mortServiceFeeCents);
   bool get posterVerified => !isTest && posterVerificationStatus == 'approved';
   bool get isFlexible => scheduleType == 'flexible' || startsAt == null;
   bool get isOpen => status == 'open' && applicationsOpen;
@@ -138,6 +163,8 @@ class Job {
       state: (json['state'] as String?) ?? '',
       status: (json['status'] as String?) ?? 'draft',
       requiresGuardianApproval: json['requires_guardian_approval'] == true,
+      adultJobAmountCents: json['adult_job_amount_cents'] as int?,
+      mortServiceFeeCents: json['mort_service_fee_cents'] as int?,
       payAmountCents: json['pay_amount_cents'] as int?,
       payLabel: json['pay_label'] as String?,
       startsAt: DateTime.tryParse((json['starts_at'] ?? '').toString()),
@@ -145,6 +172,7 @@ class Job {
       deadlineAt: DateTime.tryParse((json['deadline_at'] ?? '').toString()),
       expiresAt: DateTime.tryParse((json['expires_at'] ?? '').toString()),
       publishedAt: DateTime.tryParse((json['published_at'] ?? '').toString()),
+      updatedAt: DateTime.tryParse((json['updated_at'] ?? '').toString()),
       posterName: posterMap?['display_name'] as String?,
       posterVerificationStatus: posterMap?['verification_status'] as String?,
       posterAvatarPath: posterMap?['avatar_path'] as String?,
@@ -177,8 +205,16 @@ class Job {
       neighborhood: json['neighborhood'] as String?,
       zipCode: json['zip_code'] as String?,
       travelRadiusMiles: json['travel_radius_miles'] as int?,
+      acceptableTransportationMethods: _stringList(
+        json['acceptable_transportation_methods'],
+      ),
+      transportationConsiderations:
+          json['transportation_considerations'] as String?,
       teenMinAge: (json['teen_min_age'] as int?) ?? 13,
       teenMaxAge: (json['teen_max_age'] as int?) ?? 17,
+      distanceStatus: (json['distance_status'] as String?) ?? 'unavailable',
+      transportationMatch: json['transportation_match'] as bool?,
+      matchExplanation: json['match_explanation'] as String?,
     );
   }
 
@@ -200,6 +236,8 @@ class JobSearchFilters {
     this.workEnvironment,
     this.city,
     this.state,
+    this.transportationMethods,
+    this.limit = 20,
     this.sort = JobSort.newest,
   });
 
@@ -213,10 +251,115 @@ class JobSearchFilters {
   final String? workEnvironment;
   final String? city;
   final String? state;
+  final List<String>? transportationMethods;
+  final int limit;
   final JobSort sort;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is JobSearchFilters &&
+            other.keyword == keyword &&
+            other.category == category &&
+            other.minimumPayCents == minimumPayCents &&
+            other.paymentType == paymentType &&
+            other.scheduleType == scheduleType &&
+            other.verificationRequirement == verificationRequirement &&
+            other.requiresGuardianApproval == requiresGuardianApproval &&
+            other.workEnvironment == workEnvironment &&
+            other.city == city &&
+            other.state == state &&
+            _sameStrings(other.transportationMethods, transportationMethods) &&
+            other.limit == limit &&
+            other.sort == sort;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    keyword,
+    category,
+    minimumPayCents,
+    paymentType,
+    scheduleType,
+    verificationRequirement,
+    requiresGuardianApproval,
+    workEnvironment,
+    city,
+    state,
+    Object.hashAll(transportationMethods ?? const <String>[]),
+    limit,
+    sort,
+  );
+
+  static bool _sameStrings(List<String>? left, List<String>? right) {
+    if (identical(left, right)) return true;
+    if (left == null || right == null || left.length != right.length) {
+      return false;
+    }
+    for (var index = 0; index < left.length; index += 1) {
+      if (left[index] != right[index]) return false;
+    }
+    return true;
+  }
 }
 
 enum JobSort { newest, highestPay, soonestStart }
+
+extension JobSortApiValue on JobSort {
+  String get apiValue => switch (this) {
+    JobSort.newest => 'newest',
+    JobSort.highestPay => 'highest_pay',
+    JobSort.soonestStart => 'soonest_start',
+  };
+}
+
+class JobPageCursor {
+  const JobPageCursor({required this.value, required this.id});
+
+  final String value;
+  final String id;
+
+  factory JobPageCursor.fromMap(Map<String, dynamic> json) =>
+      JobPageCursor(value: json['value'].toString(), id: json['id'].toString());
+}
+
+class JobPage {
+  const JobPage({
+    required this.items,
+    required this.hasMore,
+    this.nextCursor,
+    this.servedFromSessionCache = false,
+  });
+
+  final List<Job> items;
+  final bool hasMore;
+  final JobPageCursor? nextCursor;
+  final bool servedFromSessionCache;
+
+  JobPage asSessionCacheFallback() => JobPage(
+    items: items,
+    hasMore: hasMore,
+    nextCursor: nextCursor,
+    servedFromSessionCache: true,
+  );
+
+  factory JobPage.fromMap(Map<String, dynamic> json) {
+    final rawItems = json['items'];
+    final rawCursor = json['next_cursor'];
+    return JobPage(
+      items: rawItems is List
+          ? rawItems
+                .whereType<Map>()
+                .map((item) => Job.fromMap(Map<String, dynamic>.from(item)))
+                .toList(growable: false)
+          : const [],
+      hasMore: json['has_more'] == true,
+      nextCursor: rawCursor is Map
+          ? JobPageCursor.fromMap(Map<String, dynamic>.from(rawCursor))
+          : null,
+    );
+  }
+}
 
 class JobDraft {
   JobDraft({required this.clientRequestId});
@@ -250,9 +393,18 @@ class JobDraft {
   String neighborhood = '';
   String zipCode = '';
   int? travelRadiusMiles;
+  List<String> acceptableTransportationMethods = [
+    'walking',
+    'bicycle',
+    'car',
+    'public_transit',
+    'rideshare',
+    'other',
+  ];
+  String transportationConsiderations = '';
   String workEnvironment = 'unspecified';
   String locationType = 'unspecified';
-  int? payAmountCents;
+  int? adultJobAmountCents;
   String paymentType = 'fixed';
   String paymentMethod = 'flexible';
   String paymentTiming = 'after_completion';
@@ -292,9 +444,11 @@ class JobDraft {
     'neighborhood': neighborhood,
     'zip_code': zipCode,
     'travel_radius_miles': travelRadiusMiles,
+    'acceptable_transportation_methods': acceptableTransportationMethods,
+    'transportation_considerations': transportationConsiderations,
     'work_environment': workEnvironment,
     'location_type': locationType,
-    'pay_amount_cents': payAmountCents,
+    'adult_job_amount_cents': adultJobAmountCents,
     'payment_type': paymentType,
     'payment_method': paymentMethod,
     'payment_timing': paymentTiming,

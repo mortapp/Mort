@@ -9,25 +9,32 @@ class SupabaseService {
   const SupabaseService._();
 
   static bool _initialized = false;
+  static LocalStorage? _sessionStorage;
 
   static bool get isConfigured => AppConfig.isSupabaseConfigured;
   static bool get isInitialized => _initialized && isConfigured;
 
   static Future<void> initializeIfConfigured() async {
     if (!isConfigured || _initialized) return;
+    final sessionStorage = kIsWeb
+        ? SharedPreferencesLocalStorage(persistSessionKey: mortSecureSessionKey)
+        : MortSecureSessionStorage();
+    _sessionStorage = sessionStorage;
     await Supabase.initialize(
       url: AppConfig.supabaseUrl,
       publishableKey: AppConfig.supabaseAnonKey,
       authOptions: FlutterAuthClientOptions(
         authFlowType: AuthFlowType.pkce,
-        localStorage: kIsWeb
-            ? SharedPreferencesLocalStorage(
-                persistSessionKey: 'mort.supabase.session',
-              )
-            : MortSecureSessionStorage(),
+        autoRefreshToken: true,
+        detectSessionInUri: true,
+        localStorage: sessionStorage,
       ),
     );
     _initialized = true;
+  }
+
+  static Future<void> clearPersistedSession() async {
+    await _sessionStorage?.removePersistedSession();
   }
 
   static SupabaseClient get client {

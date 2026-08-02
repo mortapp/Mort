@@ -64,6 +64,23 @@ void main() {
       },
     );
 
+    for (final status in [
+      'suspended',
+      'deletion_pending',
+      'deleted',
+      'banned',
+    ]) {
+      test('$status account remains blocked after Google session restore', () {
+        expect(
+          evaluateRouteAccess(
+            hasSession: true,
+            profile: profile(accountStatus: status),
+          ),
+          RouteAccessDecision.accountRestricted,
+        );
+      });
+    }
+
     test('role guard rejects a different active role', () {
       expect(
         evaluateRouteAccess(

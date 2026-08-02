@@ -110,7 +110,7 @@ const definitions = [
     behavior: "Lets a worker report unpaid completed work, gives the poster a response path, preserves both statements, and keeps the allegation private without an automatic guilt finding.",
     status: "shared_implemented",
     tables: "payment_disputes, payment_dispute_evidence, payment_dispute_timeline, payment_dispute_decisions",
-    rpc: "report_nonpayment, submit_payment_dispute_statement, review_payment_dispute",
+    rpc: "report_nonpayment, submit_payment_dispute_statement_v2, submit_payment_dispute_appeal, review_payment_dispute_appeal",
     checks: [evidence(legalRpcMigration, "create or replace function public.report_nonpayment"), qa("qa-nonpayment-dispute-isolation"), evidence(swiftContracts, "struct PaymentDisputeView"), evidence(flutterContracts, "class PaymentDisputeScreen")],
   },
   {

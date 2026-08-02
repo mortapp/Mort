@@ -22,13 +22,13 @@ $required = @(
   'android.permission.POST_NOTIFICATIONS',
   'android.permission.USE_BIOMETRIC',
   'android.permission.ACCESS_COARSE_LOCATION',
-  'android.permission.ACCESS_FINE_LOCATION',
-  'com.android.vending.BILLING'
+  'android.permission.ACCESS_FINE_LOCATION'
 )
 $forbidden = @(
   'android.permission.ACCESS_BACKGROUND_LOCATION',
   'android.permission.FOREGROUND_SERVICE_LOCATION',
   'android.permission.FOREGROUND_SERVICE',
+  'com.android.vending.BILLING',
   'com.google.android.gms.permission.AD_ID',
   'android.permission.ACCESS_ADSERVICES_AD_ID',
   'android.permission.ACCESS_ADSERVICES_ATTRIBUTION',

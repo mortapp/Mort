@@ -7,14 +7,8 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: MortApp()));
     await tester.pumpAndSettle();
 
-    expect(find.text('MORT'), findsWidgets);
-    expect(find.text('Earn nearby. Move smart.'), findsOneWidget);
-    expect(
-      find.text(
-        'MORT cannot connect right now. Account features remain unavailable until service returns.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('Retry connection'), findsOneWidget);
+    expect(find.text('MORT cannot start securely'), findsOneWidget);
+    expect(find.text('Secure startup stopped'), findsOneWidget);
+    expect(find.text('Sign in'), findsNothing);
   });
 }

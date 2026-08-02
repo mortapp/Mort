@@ -5,13 +5,39 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
 import 'core/observability/crash_reporting.dart';
+import 'core/observability/sentry_crash_provider.dart';
+import 'core/observability/structured_log.dart';
+import 'core/observability/product_analytics.dart';
 import 'core/theme/mort_theme.dart';
 import 'core/widgets/mort_widgets.dart';
 import 'data/services/supabase_service.dart';
-import 'features/monetization/data/google_play_billing.dart';
+import 'core/config/app_config.dart';
+import 'services/push/push_notification_coordinator.dart';
+import 'services/push/remote_push_provider.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  configureRemotePushBackgroundHandler();
+  if (MortSentryCrashProvider.canInitialize) {
+    try {
+      await MortSentryCrashProvider.run(_runApp);
+      return;
+    } catch (_) {
+      MortStructuredLog.instance.record(
+        'mort.crash_provider_initialization_failed',
+        level: MortLogLevel.error,
+        attributes: const {'provider': 'sentry', 'outcome': 'failed'},
+      );
+    }
+  }
+  _runAppWithFallbackHandlers();
+}
+
+void _runApp() {
+  runApp(const ProviderScope(child: MortBootstrap()));
+}
+
+void _runAppWithFallbackHandlers() {
   final reporter = MortCrashReporting.instance;
   final priorFlutterHandler = FlutterError.onError;
   FlutterError.onError = (details) {
@@ -23,9 +49,7 @@ void main() {
         context: 'flutter_framework',
       ),
     );
-    if (!kReleaseMode) {
-      (priorFlutterHandler ?? FlutterError.presentError)(details);
-    }
+    (priorFlutterHandler ?? FlutterError.presentError)(details);
   };
   PlatformDispatcher.instance.onError = (error, stackTrace) {
     unawaited(
@@ -36,14 +60,18 @@ void main() {
         context: 'platform_dispatcher',
       ),
     );
-    return true;
+    return reporter.providerConfigured;
   };
-  runZonedGuarded(
-    () => runApp(const ProviderScope(child: MortBootstrap())),
-    (error, stackTrace) => unawaited(
+  runZonedGuarded(_runApp, (error, stackTrace) {
+    unawaited(
       reporter.record(error, stackTrace, fatal: true, context: 'root_zone'),
-    ),
-  );
+    );
+    if (!reporter.providerConfigured) {
+      FlutterError.presentError(
+        FlutterErrorDetails(exception: error, stack: stackTrace),
+      );
+    }
+  });
 }
 
 class MortBootstrap extends StatefulWidget {
@@ -75,8 +103,14 @@ class _MortBootstrapState extends State<MortBootstrap> {
 
   Future<Object?> _initializeSafely() async {
     try {
+      AppConfig.assertValidReleaseConfiguration();
+      if (AppConfig.crashReportingEnabled &&
+          !MortCrashReporting.instance.providerConfigured) {
+        throw StateError('The configured crash provider is unavailable.');
+      }
       await (widget.initialize ?? SupabaseService.initializeIfConfigured)();
-      await PurchaseController.instance.initialize();
+      await MortProductAnalytics.instance.initialize();
+      await PushNotificationCoordinator.instance.initialize();
       return null;
     } catch (error) {
       unawaited(

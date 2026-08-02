@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../services/supabase_service.dart';
+import '../../core/observability/operational_telemetry.dart';
 
 abstract class RepositoryBase {
   static const _uuid = Uuid();
@@ -31,5 +32,17 @@ abstract class RepositoryBase {
     } catch (_) {
       // Reliability telemetry is best effort and must not mask the real error.
     }
+    await MortOperationalTelemetry.recordFailure(
+      eventType: 'storage_failure',
+      safeCode: 'upload.$uploadKind.failed',
+    );
   }
+
+  Future<void> recordOperationalFailure({
+    required String eventType,
+    required String safeCode,
+  }) => MortOperationalTelemetry.recordFailure(
+    eventType: eventType,
+    safeCode: safeCode,
+  );
 }

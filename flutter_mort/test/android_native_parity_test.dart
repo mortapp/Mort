@@ -45,19 +45,13 @@ void main() {
       ),
     );
     expect(manifest, contains('android:required="false"'));
-    expect(
-      manifest,
-      contains(
-        '<uses-permission android:name="com.android.vending.BILLING" />',
-      ),
-    );
+    expect(manifest, isNot(contains('com.android.vending.BILLING')));
     for (final removedPermission in [
       'com.google.android.gms.permission.AD_ID',
       'android.permission.ACCESS_ADSERVICES_AD_ID',
       'android.permission.ACCESS_ADSERVICES_ATTRIBUTION',
       'android.permission.ACCESS_ADSERVICES_TOPICS',
       'android.permission.FOREGROUND_SERVICE',
-      'android.permission.WAKE_LOCK',
     ]) {
       expect(
         manifest,
@@ -91,6 +85,10 @@ void main() {
       ),
     );
     expect(gradle, contains('multiDexEnabled = true'));
+    expect(
+      manifest,
+      isNot(contains('android.permission.WAKE_LOCK" tools:node="remove"')),
+    );
   });
 
   test('Android and iOS declare equivalent foreground capabilities', () {

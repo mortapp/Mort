@@ -329,7 +329,7 @@ class _StripeJobFundingScreenState
                   const Padding(
                     padding: EdgeInsets.only(top: MortSpacing.sm),
                     child: Text(
-                      'Native Android or iPhone is required for Stripe Payment Sheet. Web preview cannot fund a job.',
+                      'This build does not include Stripe Payment Sheet. No job funding can start from this app.',
                     ),
                   ),
                 if (!fundingEnabled)

@@ -1,10 +1,17 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
+export 'mort_brand.dart';
+export 'mort_design_components.dart';
 
 import '../config/app_config.dart';
 import '../constants/app_constants.dart';
 import '../theme/mort_colors.dart';
 import '../theme/mort_spacing.dart';
+import '../theme/mort_tokens.dart';
+import 'mort_brand.dart';
 
 class MortScreen extends StatelessWidget {
   const MortScreen({
@@ -52,9 +59,12 @@ class MortScreen extends StatelessWidget {
     );
 
     return Scaffold(
-      backgroundColor: MortColors.bg,
+      backgroundColor: Colors.transparent,
       bottomNavigationBar: bottom,
-      body: scroll ? SingleChildScrollView(child: content) : content,
+      body: DecoratedBox(
+        decoration: const BoxDecoration(gradient: MortGradients.background),
+        child: scroll ? SingleChildScrollView(child: content) : content,
+      ),
     );
   }
 }
@@ -121,30 +131,118 @@ class MortCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final card = Container(
+    return MortGlassCard(
+      padding: padding,
+      color: color,
+      onTap: onTap,
+      child: child,
+    );
+  }
+}
+
+class MortGlassCard extends StatelessWidget {
+  const MortGlassCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(MortSpacing.md),
+    this.color = MortColors.card,
+    this.onTap,
+    this.blur = false,
+    this.infoAccent = false,
+    this.semanticLabel,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final Color color;
+  final VoidCallback? onTap;
+  final bool blur;
+  final bool infoAccent;
+  final String? semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(MortRadii.card);
+    final surfaceGradient = infoAccent
+        ? MortGradients.infoGlass
+        : color == MortColors.card
+        ? MortGradients.glass
+        : LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [color, Color.lerp(color, MortColors.bgElevated, 0.38)!],
+          );
+    Widget surface = Container(
       padding: padding,
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: MortColors.line),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.22),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        gradient: surfaceGradient,
+        borderRadius: radius,
       ),
       child: child,
     );
 
-    if (onTap == null) return card;
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: onTap,
-      child: card,
+    if (blur) {
+      surface = ClipRRect(
+        borderRadius: radius,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(
+            sigmaX: MortGlassTokens.blurSigma,
+            sigmaY: MortGlassTokens.blurSigma,
+          ),
+          child: surface,
+        ),
+      );
+    }
+
+    surface = Container(
+      padding: const EdgeInsets.all(MortGlassTokens.borderWidth),
+      decoration: BoxDecoration(
+        gradient: infoAccent
+            ? const LinearGradient(
+                colors: [MortColors.lightBlue, MortColors.line],
+              )
+            : MortGradients.metallic,
+        borderRadius: radius,
+        boxShadow: MortShadows.card,
+      ),
+      child: ClipRRect(borderRadius: radius, child: surface),
+    );
+
+    if (onTap != null) {
+      surface = Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: radius,
+          onTap: onTap,
+          splashColor: MortColors.roseGold.withValues(alpha: 0.12),
+          highlightColor: MortColors.roseGold.withValues(alpha: 0.06),
+          child: surface,
+        ),
+      );
+    }
+
+    return Semantics(
+      label: semanticLabel,
+      button: onTap != null,
+      container: true,
+      child: surface,
     );
   }
+}
+
+class MortGlassSheet extends StatelessWidget {
+  const MortGlassSheet({super.key, required this.child, this.padding});
+
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+
+  @override
+  Widget build(BuildContext context) => MortGlassCard(
+    blur: true,
+    padding: padding ?? const EdgeInsets.all(MortSpacing.lg),
+    child: child,
+  );
 }
 
 enum MortButtonStyle { primary, secondary, danger, ghost, disabled }
@@ -174,7 +272,7 @@ class MortButton extends StatelessWidget {
     final enabled =
         onPressed != null && style != MortButtonStyle.disabled && !busy;
     final bg = switch (style) {
-      MortButtonStyle.primary => MortColors.neon,
+      MortButtonStyle.primary => MortColors.roseGold,
       MortButtonStyle.secondary => MortColors.cardAlt,
       MortButtonStyle.danger => MortColors.danger,
       MortButtonStyle.ghost => Colors.transparent,
@@ -184,11 +282,11 @@ class MortButton extends StatelessWidget {
       MortButtonStyle.primary => Colors.black,
       MortButtonStyle.secondary => MortColors.text,
       MortButtonStyle.danger => Colors.white,
-      MortButtonStyle.ghost => MortColors.neon,
+      MortButtonStyle.ghost => MortColors.roseGold,
       MortButtonStyle.disabled => MortColors.textMuted,
     };
 
-    final child = ElevatedButton.icon(
+    final button = ElevatedButton.icon(
       onPressed: enabled ? onPressed : null,
       icon: busy
           ? const SizedBox.square(
@@ -198,19 +296,85 @@ class MortButton extends StatelessWidget {
           : Icon(icon ?? Icons.arrow_forward_rounded, size: 18),
       label: Text(busy ? busyLabel ?? label : label),
       style: ElevatedButton.styleFrom(
-        backgroundColor: bg,
+        backgroundColor: style == MortButtonStyle.primary
+            ? Colors.transparent
+            : bg,
         foregroundColor: fg,
         disabledBackgroundColor: MortColors.line,
         disabledForegroundColor: MortColors.textMuted,
         minimumSize: const Size(48, 52),
-        elevation: style == MortButtonStyle.primary ? 8 : 0,
-        shadowColor: MortColors.neon.withValues(alpha: 0.2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        side: style == MortButtonStyle.secondary
+            ? const BorderSide(color: MortColors.lineStrong)
+            : BorderSide.none,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(MortRadii.medium),
+        ),
       ),
     );
 
-    return fullWidth ? SizedBox(width: double.infinity, child: child) : child;
+    final decorated = AnimatedOpacity(
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : MortMotion.quick,
+      opacity: enabled ? 1 : 0.58,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: style == MortButtonStyle.primary
+              ? MortGradients.metallic
+              : null,
+          color: style == MortButtonStyle.primary ? null : bg,
+          borderRadius: BorderRadius.circular(MortRadii.medium),
+          boxShadow: style == MortButtonStyle.primary ? MortShadows.glow : null,
+        ),
+        child: button,
+      ),
+    );
+    return fullWidth
+        ? SizedBox(width: double.infinity, child: decorated)
+        : decorated;
   }
+}
+
+class MortPrimaryButton extends StatelessWidget {
+  const MortPrimaryButton({
+    super.key,
+    required this.label,
+    this.icon,
+    this.onPressed,
+    this.busy = false,
+  });
+
+  final String label;
+  final IconData? icon;
+  final VoidCallback? onPressed;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) =>
+      MortButton(label: label, icon: icon, onPressed: onPressed, busy: busy);
+}
+
+class MortSecondaryButton extends StatelessWidget {
+  const MortSecondaryButton({
+    super.key,
+    required this.label,
+    this.icon,
+    this.onPressed,
+  });
+
+  final String label;
+  final IconData? icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => MortButton(
+    label: label,
+    icon: icon,
+    onPressed: onPressed,
+    style: MortButtonStyle.secondary,
+  );
 }
 
 class MortIconButton extends StatelessWidget {
@@ -232,8 +396,10 @@ class MortIconButton extends StatelessWidget {
       onPressed: onPressed,
       icon: Icon(icon),
       style: IconButton.styleFrom(
-        backgroundColor: MortColors.cardAlt,
-        foregroundColor: MortColors.text,
+        backgroundColor: MortColors.glass,
+        foregroundColor: MortColors.roseGoldLight,
+        side: const BorderSide(color: MortColors.lineStrong),
+        minimumSize: const Size.square(MortSpacing.minTouchTarget),
       ),
     );
   }
@@ -311,6 +477,7 @@ class MortTextArea extends StatelessWidget {
     this.maxLines = 4,
     this.maxLength,
     this.validator,
+    this.enabled = true,
   });
 
   final String label;
@@ -319,6 +486,7 @@ class MortTextArea extends StatelessWidget {
   final int maxLines;
   final int? maxLength;
   final String? Function(String?)? validator;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -327,6 +495,7 @@ class MortTextArea extends StatelessWidget {
       maxLines: maxLines,
       maxLength: maxLength,
       validator: validator,
+      enabled: enabled,
       decoration: InputDecoration(labelText: label, hintText: hint),
     );
   }
@@ -391,11 +560,15 @@ class MortBadge extends StatelessWidget {
             Icon(icon, size: 13, color: color),
             const SizedBox(width: 5),
           ],
-          Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.labelMedium?.copyWith(color: color),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.labelMedium?.copyWith(color: color),
+            ),
           ),
         ],
       ),
@@ -435,6 +608,10 @@ class MortAvatar extends StatelessWidget {
   }
 }
 
+class MortProfileAvatar extends MortAvatar {
+  const MortProfileAvatar({super.key, super.label, super.radius});
+}
+
 class MortToast {
   const MortToast._();
 
@@ -466,7 +643,7 @@ class MortLoading extends StatelessWidget {
             const SizedBox.square(
               dimension: 22,
               child: CircularProgressIndicator(
-                color: MortColors.neon,
+                color: MortColors.roseGold,
                 strokeWidth: 2.5,
               ),
             ),
@@ -482,7 +659,7 @@ class MortLoading extends StatelessWidget {
       scroll: false,
       children: [
         const Spacer(),
-        const Center(child: CircularProgressIndicator(color: MortColors.neon)),
+        const Center(child: MortAnimatedBrandMark(size: 104)),
         const SizedBox(height: MortSpacing.md),
         Center(
           child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
@@ -499,19 +676,25 @@ class MortEmptyState extends StatelessWidget {
     required this.title,
     required this.message,
     this.action,
+    this.icon,
   });
 
   final String title;
   final String message;
   final Widget? action;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
-    return MortCard(
+    return MortGlassCard(
+      infoAccent: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.inbox_outlined, color: MortColors.textMuted),
+          if (icon == null)
+            const MortBrandMark(size: 64)
+          else
+            Icon(icon, color: MortColors.lightBlue, size: 34),
           const SizedBox(height: MortSpacing.sm),
           Text(title, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: MortSpacing.xs),
@@ -595,8 +778,9 @@ class MortSafetyBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MortCard(
-      color: MortColors.safetyBlue.withValues(alpha: 0.1),
+    return MortGlassCard(
+      color: MortColors.lightBlueDeep.withValues(alpha: 0.28),
+      infoAccent: true,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -609,6 +793,10 @@ class MortSafetyBanner extends StatelessWidget {
       ),
     );
   }
+}
+
+class MortSafetyCard extends MortSafetyBanner {
+  const MortSafetyCard({super.key, super.message});
 }
 
 class MortPaymentDisclaimer extends StatelessWidget {

@@ -11,6 +11,7 @@ class MortApplication {
     this.job,
     this.availabilityConfirmed = false,
     this.createdAt,
+    this.updatedAt,
     this.viewedAt,
     this.withdrawnAt,
     this.teenName,
@@ -26,6 +27,7 @@ class MortApplication {
   final Job? job;
   final bool availabilityConfirmed;
   final DateTime? createdAt;
+  final DateTime? updatedAt;
   final DateTime? viewedAt;
   final DateTime? withdrawnAt;
   final String? teenName;
@@ -45,6 +47,7 @@ class MortApplication {
       job: jobData is Map<String, dynamic> ? Job.fromMap(jobData) : null,
       availabilityConfirmed: json['availability_confirmed'] == true,
       createdAt: DateTime.tryParse((json['created_at'] ?? '').toString()),
+      updatedAt: DateTime.tryParse((json['updated_at'] ?? '').toString()),
       viewedAt: DateTime.tryParse((json['viewed_at'] ?? '').toString()),
       withdrawnAt: DateTime.tryParse((json['withdrawn_at'] ?? '').toString()),
       teenName: teen?['display_name'] as String?,

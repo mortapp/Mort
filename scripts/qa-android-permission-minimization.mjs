@@ -10,13 +10,14 @@ const merged = existsSync(report) ? read('build/play/reports/bundle-manifest.xml
 for (const forbidden of ['ACCESS_BACKGROUND_LOCATION','READ_MEDIA_IMAGES','READ_EXTERNAL_STORAGE','WRITE_EXTERNAL_STORAGE']) {
   assert(!source.includes(forbidden), `Forbidden permission remains: ${forbidden}`);
 }
-assert(
-  /com\.android\.vending\.BILLING[^>]+\/>/.test(source) &&
-    !/com\.android\.vending\.BILLING[^>]+tools:node="remove"/.test(source),
-  'Google Play Billing must be declared for the compiled, runtime-gated purchase flow.',
-);
+assert(!source.includes('com.android.vending.BILLING'), 'Google Play Billing must be absent from the free pilot.');
+assert(!pubspec.includes('in_app_purchase:'), 'in_app_purchase remains in the free pilot dependency graph.');
 for (const removed of ['com.google.android.gms.permission.AD_ID','ACCESS_ADSERVICES_AD_ID','WAKE_LOCK']) {
-  assert(new RegExp(`${removed.replaceAll('.', '\\.')}[^>]+tools:node="remove"`).test(source), `${removed} is not explicitly removed.`);
+  const explicitlyRemoved = new RegExp(`${removed.replaceAll('.', '\\.')}[^>]+tools:node="remove"`).test(source);
+  assert(
+    explicitlyRemoved || (merged !== '' && !merged.includes(removed)),
+    `${removed} is neither explicitly removed nor absent from the final AAB.`,
+  );
 }
 for (const component of [
   'com.google.android.gms.ads.MobileAdsInitProvider',
@@ -34,10 +35,10 @@ if (existsSync(report)) {
   for (const forbidden of ['ACCESS_BACKGROUND_LOCATION','com.google.android.gms.permission.AD_ID','WAKE_LOCK']) {
     assert(!merged.includes(forbidden), `Final AAB contains forbidden permission: ${forbidden}`);
   }
-  assert(merged.includes('com.android.vending.BILLING'), 'Final AAB is missing Google Play Billing permission.');
+  assert(!merged.includes('com.android.vending.BILLING'), 'Final AAB unexpectedly contains Google Play Billing.');
   assert(
     !merged.includes('com.google.android.gms.ads.MobileAdsInitProvider'),
     'Final AAB still contains the disabled AdMob auto-init provider.',
   );
 }
-pass(scope, 'Billing is present while background/media/ad/wake-lock permissions and AdMob auto-start remain absent');
+pass(scope, 'Billing, background/media/ad/wake-lock permissions, and AdMob auto-start remain absent');

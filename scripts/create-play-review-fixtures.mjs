@@ -82,6 +82,7 @@ await database.connect();
 try {
   await database.query('begin');
   await database.query("select set_config('mort.internal_update', 'true', true)");
+  await database.query("select set_config('mort.onboarding_completion', 'true', true)");
 
   for (const definition of definitions) {
     await database.query(

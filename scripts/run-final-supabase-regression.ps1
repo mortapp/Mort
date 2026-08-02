@@ -2,10 +2,12 @@ param([string]$StartAt = '')
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'play-review-secrets-common.ps1')
+$stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
 Set-MortPlayReviewEnvironment
 $scripts = @(
   'qa-old-project-smoke.mjs',
+  'qa-resumable-onboarding.mjs',
   'qa-complete-multi-user-isolation.mjs',
   'audit-remote-storage.mjs',
   'qa-avatar-storage.mjs',
@@ -17,13 +19,20 @@ $scripts = @(
   'qa-public-data-boundaries.mjs',
   'qa-marketplace-trust-gating.mjs',
   'qa-job-lifecycle.mjs',
+  'qa-marketplace-state-machine.mjs',
   'qa-job-applications.mjs',
   'qa-saved-jobs.mjs',
+  'qa-messaging-safety-state-machine.mjs',
   'qa-arrival-handshake.mjs',
+  'qa-job-pin-concurrency.mjs',
+  'qa-safety-action-rate-limits.mjs',
+  'qa-guardian-optional.mjs',
   'qa-job-contract-immutability.mjs',
   'qa-contract-change-consent.mjs',
   'qa-payment-obligation.mjs',
   'qa-nonpayment-dispute-isolation.mjs',
+  'qa-payment-dispute-appeal.mjs',
+  'qa-support-evidence-lifecycle.mjs',
   'qa-mutual-reporting.mjs',
   'qa-address-privacy.mjs',
   'qa-location-release-stages.mjs',
@@ -31,7 +40,14 @@ $scripts = @(
   'qa-edge-rate-limits.mjs',
   'qa-ai-cost-prompt-boundary.mjs',
   'qa-ai-safety-edge.mjs',
+  'qa-support-chatbot.mjs',
+  'qa-support-human-operations.mjs',
+  'qa-remote-push-foundation.mjs',
+  'qa-privacy-observability.mjs',
+  'qa-identity-provider-neutral.mjs',
+  'qa-financial-operations-completion.mjs',
   'qa-google-auth-controls.mjs',
+  'qa-play-reviewer-isolation.mjs',
   'qa-revenuecat-atomic.mjs',
   'qa-signed-media-rate-limits.mjs',
   'qa-payment-operations-queue-boundary.mjs'
@@ -46,11 +62,13 @@ if ($StartAt) {
 $completed = @()
 try {
   foreach ($script in $scripts) {
-    & node (Join-Path $PSScriptRoot $script)
+    Write-Output "Running Supabase regression: $script"
+    & node (Join-Path $PSScriptRoot 'run-node-qa-with-transport-retry.mjs') (Join-Path $PSScriptRoot $script)
     if ($LASTEXITCODE -ne 0) { throw "$script failed." }
     $completed += $script
   }
-  Write-Output "Final Supabase regression PASS: $($completed.Count) scripts."
+  $stopwatch.Stop()
+  Write-Output "Final Supabase regression PASS: $($completed.Count) scripts in $([math]::Round($stopwatch.Elapsed.TotalSeconds, 1)) seconds."
 } finally {
   foreach ($name in @(
     'PLAY_REVIEW_TEEN_EMAIL', 'PLAY_REVIEW_TEEN_PASSWORD',

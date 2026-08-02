@@ -43,6 +43,11 @@ class Profile {
     this.bio,
     this.availability,
     this.preferredJobCategories = const [],
+    this.transportationMethods = const [],
+    this.maxTravelDistanceMiles,
+    this.maxTravelMinutes,
+    this.walkingDistanceOnly = false,
+    this.guardianTransportationPossible = false,
     this.approximateArea,
     this.goals,
     this.createdAt,
@@ -68,6 +73,11 @@ class Profile {
   final String? bio;
   final String? availability;
   final List<String> preferredJobCategories;
+  final List<String> transportationMethods;
+  final int? maxTravelDistanceMiles;
+  final int? maxTravelMinutes;
+  final bool walkingDistanceOnly;
+  final bool guardianTransportationPossible;
   final String? approximateArea;
   final String? goals;
   final DateTime? createdAt;
@@ -90,7 +100,6 @@ class Profile {
       preferredJobCategories.isNotEmpty,
       locationSetupMode != 'city_state' ||
           (city?.trim().isNotEmpty == true && state?.trim().isNotEmpty == true),
-      paymentPreference != 'none',
       onboardingCompleted,
     ];
     return items.where((complete) => complete).length / items.length;
@@ -123,6 +132,12 @@ class Profile {
       bio: json['bio'] as String?,
       availability: json['availability'] as String?,
       preferredJobCategories: _stringList(json['preferred_job_categories']),
+      transportationMethods: _stringList(json['transportation_methods']),
+      maxTravelDistanceMiles: json['max_travel_distance_miles'] as int?,
+      maxTravelMinutes: json['max_travel_minutes'] as int?,
+      walkingDistanceOnly: json['walking_distance_only'] == true,
+      guardianTransportationPossible:
+          json['guardian_transportation_possible'] == true,
       approximateArea: json['approximate_area'] as String?,
       goals: json['goals'] as String?,
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),

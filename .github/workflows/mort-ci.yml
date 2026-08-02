@@ -1,0 +1,82 @@
+name: MORT CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, mort-supreme-production-readiness]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mort-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  expo-reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm lint
+      - run: pnpm build
+      - shell: pwsh
+        run: ./scripts/secret-scan.ps1
+
+  flutter-authoritative:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: flutter_mort
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed lib test integration_test
+      - run: flutter analyze --no-pub
+      - run: flutter test --no-pub
+      - name: Build provider-disabled web client
+        run: >-
+          flutter build web --release
+          --dart-define=MORT_RELEASE_STAGE=internal_test
+          --dart-define=MORT_RELEASE_PROFILE=automated_test
+          --dart-define=MORT_OPERATIONAL_MODE=automated_test
+          --dart-define=MORT_PUBLIC_MARKETPLACE_ENABLED=false
+          --dart-define=MORT_IDENTITY_VERIFICATION_ENABLED=false
+          --dart-define=MORT_MARKETPLACE_PAYMENTS_ENABLED=false
+          --dart-define=MORT_REMOTE_PUSH_ENABLED=false
+          --dart-define=MORT_CRASH_REPORTING_ENABLED=false
+          --dart-define=MORT_SUPPORT_AI_ENABLED=false
+          --dart-define=MORT_DETERMINISTIC_SUPPORT_ENABLED=true
+          --dart-define=ADS_ENABLED=false
+          --dart-define=IAP_ENABLED=false
+
+  public-site:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/build-public-legal-site.mjs
+      - run: node scripts/validate-public-legal-site.mjs
+

@@ -1,11 +1,10 @@
-# MORT Review Account Maintenance
+# MORT Review Access Maintenance 0.9.6
 
-Credentials live only in protected User-scope environment variables. Never commit, print, package, screenshot, or email passwords.
+`play-review@mortapp.test` is a reserved identifier, not an account. Do not create a Supabase user, password, magic link, OTP, invitation, Google identity, role, or entitlement for it.
 
-- Create/reset fixture: `node scripts/create-play-review-tenant.mjs` or `node scripts/reset-play-review-tenant.mjs` after loading protected environment values.
-- Validate: `node scripts/validate-play-review-tenant.mjs`.
-- Remove only when review is over: `node scripts/remove-play-review-tenant.mjs`.
-- Rotate a credential immediately if exposed, then reset and revalidate.
-- Keep email/password login enabled without OTP, phone, ID, location, or invitation dependencies.
-- Revalidate after migrations, RLS edits, release-mode changes, or account restrictions.
-- Do not use real names, schools, addresses, income, incidents, or messages.
+- The mobile app accepts only the exact ASCII lowercase identifier after trimming ordinary outer ASCII whitespace.
+- The local reviewer session is nonpersistent and contains no access token or user JWT.
+- Migration `20260726024327_reserve_play_reviewer_identifier.sql` blocks Auth creation before insert and email changes before update.
+- Run `node scripts/qa-play-reviewer-isolation.mjs` after Auth, RLS, PIN, or admin-control changes.
+- Keep legacy synthetic QA account credentials in protected environment variables only. They are for backend regression, not Play Console reviewer access.
+- Never commit, print, package, screenshot, or email a service-role key, database password, Supabase access token, signing secret, or provider secret.

@@ -7,6 +7,8 @@ import 'package:uuid/uuid.dart';
 import '../../core/auth/oauth_flow.dart';
 import '../../core/config/app_config.dart';
 import '../../core/errors/mort_error.dart';
+import '../../core/observability/operational_telemetry.dart';
+import '../../services/push/push_notification_coordinator.dart';
 import '../services/secure_device_storage.dart';
 import '../services/supabase_service.dart';
 
@@ -43,6 +45,7 @@ class AuthRepository {
     sync: true,
   );
   final _launchGate = OAuthLaunchGate();
+  final _completionGate = OAuthCompletionGate();
   OAuthFlowSnapshot _oauthState = const OAuthFlowSnapshot.idle();
   OAuthPurpose? _oauthPurpose;
   StreamSubscription<AuthState>? _authSubscription;
@@ -170,6 +173,12 @@ class AuthRepository {
         ),
       );
     } catch (error) {
+      unawaited(
+        MortOperationalTelemetry.recordFailure(
+          eventType: 'auth_failure',
+          safeCode: 'auth.oauth_launch_failed',
+        ),
+      );
       _finishOAuth();
       return _setOAuth(_safeLaunchFailure(error));
     }
@@ -206,8 +215,8 @@ class AuthRepository {
         'Verifying the sign-in response...',
       ),
     );
-    if (SupabaseService.client.auth.currentSession != null) {
-      await _completeOAuth();
+    if (_hasAuthenticatedSession) {
+      await _completeOAuthOnce();
     } else {
       _oauthTimeout?.cancel();
       _oauthTimeout = Timer(const Duration(seconds: 30), () {
@@ -215,8 +224,8 @@ class AuthRepository {
         _finishOAuth();
         _setOAuth(
           const OAuthFlowSnapshot(
-            OAuthFlowStage.retryAvailable,
-            'The secure sign-in session did not arrive. Start again from MORT.',
+            OAuthFlowStage.sessionExchangeFailed,
+            'Google finished, but MORT could not establish a secure session. Start again from MORT.',
           ),
         );
       });
@@ -282,7 +291,12 @@ class AuthRepository {
     }
 
     await SupabaseService.client.auth.unlinkIdentity(google.single);
-    await _recordAuthIdentityEvent('google_unlinked');
+    if (!await _recordAuthIdentityEvent('google_unlinked')) {
+      throw const MortCodedError(
+        'identity_audit_failed',
+        'Google was disconnected, but MORT could not record the account security change. Contact Support.',
+      );
+    }
   }
 
   Future<void> reauthenticateWithPassword(String password) async {
@@ -316,7 +330,7 @@ class AuthRepository {
       UserAttributes(password: password),
     );
     _passwordRecoveryAuthorizedUntil = null;
-    await SupabaseService.client.auth.signOut(scope: SignOutScope.global);
+    await signOutGlobal();
   }
 
   bool get canCompletePasswordRecovery {
@@ -324,9 +338,34 @@ class AuthRepository {
     return expiresAt != null && DateTime.now().toUtc().isBefore(expiresAt);
   }
 
-  Future<void> signOut() async {
+  Future<void> signOutLocal() => _signOut(SignOutScope.local);
+
+  Future<void> signOutGlobal() => _signOut(SignOutScope.global);
+
+  Future<void> signOut() => signOutLocal();
+
+  Future<void> _signOut(SignOutScope scope) async {
     _finishOAuth();
-    await SupabaseService.client.auth.signOut();
+    _passwordRecoveryAuthorizedUntil = null;
+    Object? pushFailure;
+    try {
+      try {
+        await PushNotificationCoordinator.instance.prepareForSignOut(
+          allDevices: scope == SignOutScope.global,
+        );
+      } catch (error) {
+        pushFailure = error;
+      }
+      await SupabaseService.client.auth.signOut(scope: scope);
+    } finally {
+      await SupabaseService.clearPersistedSession();
+    }
+    if (pushFailure != null) {
+      throw const MortCodedError(
+        'push_revocation_unconfirmed',
+        'This device signed out, but notification revocation could not be confirmed.',
+      );
+    }
   }
 
   static bool isRecentlyAuthenticated(
@@ -343,91 +382,177 @@ class AuthRepository {
 
   void _ensureAuthListener() {
     if (_authSubscription != null || !SupabaseService.isInitialized) return;
-    _authSubscription = SupabaseService.client.auth.onAuthStateChange.listen((
-      state,
-    ) {
-      if (state.event == AuthChangeEvent.passwordRecovery) {
-        _passwordRecoveryAuthorizedUntil = DateTime.now().toUtc().add(
-          const Duration(minutes: 10),
-        );
-      }
-      if (!_launchGate.isActive) return;
-      if (state.event == AuthChangeEvent.signedIn ||
-          state.event == AuthChangeEvent.userUpdated) {
-        unawaited(_completeOAuth());
-      } else if (state.event == AuthChangeEvent.signedOut) {
+    _authSubscription = SupabaseService.client.auth.onAuthStateChange.listen(
+      (state) {
+        if (state.event == AuthChangeEvent.passwordRecovery) {
+          _passwordRecoveryAuthorizedUntil = DateTime.now().toUtc().add(
+            const Duration(minutes: 10),
+          );
+        }
+        if (!_launchGate.isActive) return;
+        if (state.event == AuthChangeEvent.initialSession ||
+            state.event == AuthChangeEvent.signedIn ||
+            state.event == AuthChangeEvent.userUpdated) {
+          if (state.session != null && _hasAuthenticatedSession) {
+            unawaited(_completeOAuthOnce());
+          }
+        } else if (state.event == AuthChangeEvent.signedOut) {
+          _finishOAuth();
+        }
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        if (!_launchGate.isActive || !_oauthState.isBusy) return;
         _finishOAuth();
-      }
-    });
+        _setOAuth(_safeLaunchFailure(error));
+      },
+    );
   }
+
+  bool get _hasAuthenticatedSession {
+    final auth = SupabaseService.client.auth;
+    final session = auth.currentSession;
+    final user = auth.currentUser;
+    return OAuthSessionReadinessPolicy.isReady(
+      hasSession: session != null,
+      hasUser: user != null,
+      userIdsMatch:
+          session != null && user != null && session.user.id == user.id,
+    );
+  }
+
+  Future<void> _completeOAuthOnce() => _completionGate.run(_completeOAuth);
 
   Future<void> _completeOAuth() async {
     if (!_launchGate.isActive || _oauthState.stage == OAuthFlowStage.success) {
       return;
     }
+    final auth = SupabaseService.client.auth;
+    final session = auth.currentSession;
+    final user = auth.currentUser;
+    if (!OAuthSessionReadinessPolicy.isReady(
+      hasSession: session != null,
+      hasUser: user != null,
+      userIdsMatch:
+          session != null && user != null && session.user.id == user.id,
+    )) {
+      _finishOAuth();
+      _setOAuth(
+        const OAuthFlowSnapshot(
+          OAuthFlowStage.sessionExchangeFailed,
+          'Google finished, but MORT could not establish a secure session. Start again from MORT.',
+        ),
+      );
+      return;
+    }
+
+    _oauthTimeout?.cancel();
+    _oauthTimeout = null;
     _setOAuth(
       const OAuthFlowSnapshot(
         OAuthFlowStage.completingProfile,
         'Checking your MORT account...',
       ),
     );
-    try {
-      final rows = await SupabaseService.client.rpc('get_my_profile');
-      final profile = rows is List && rows.isNotEmpty && rows.first is Map
-          ? Map<String, dynamic>.from(rows.first as Map)
-          : const <String, dynamic>{};
-      final accountStatus = profile['account_status']?.toString() ?? 'active';
-      if (accountStatus.contains('deletion')) {
-        _finishOAuth();
-        _setOAuth(
-          const OAuthFlowSnapshot(
-            OAuthFlowStage.accountDeletionPending,
-            'This account has a deletion request in progress. Contact support.',
-          ),
-        );
-        return;
-      }
-      if (accountStatus != 'active') {
-        _finishOAuth();
-        _setOAuth(
-          const OAuthFlowSnapshot(
-            OAuthFlowStage.accountSuspended,
-            'This MORT account is restricted. Use Support for next steps.',
-          ),
-        );
-        return;
-      }
 
-      await _recordAuthIdentityEvent(
-        _oauthPurpose == OAuthPurpose.link ? 'google_linked' : 'google_sign_in',
+    late final Map<String, dynamic> profile;
+    try {
+      final result = await SupabaseService.client.rpc('ensure_my_profile');
+      profile = _profileFromRpc(result);
+      if (profile.isEmpty || profile['id']?.toString() != user!.id) {
+        throw const MortCodedError(
+          'profile_bootstrap_failed',
+          'The signed-in account profile was not available.',
+        );
+      }
+    } catch (error) {
+      unawaited(
+        MortOperationalTelemetry.recordFailure(
+          eventType: 'auth_failure',
+          safeCode: 'auth.profile_bootstrap_failed',
+        ),
       );
+      _finishOAuth();
+      final safeFailure = _safeLaunchFailure(error);
+      _setOAuth(
+        safeFailure.stage == OAuthFlowStage.networkUnavailable
+            ? safeFailure
+            : const OAuthFlowSnapshot(
+                OAuthFlowStage.profileBootstrapFailed,
+                'You are signed in, but MORT could not prepare your account. Retry, then contact Support if this continues.',
+              ),
+      );
+      return;
+    }
+
+    final accountStatus = profile['account_status']?.toString() ?? 'active';
+    if (accountStatus.contains('deletion')) {
       _finishOAuth();
       _setOAuth(
         const OAuthFlowSnapshot(
-          OAuthFlowStage.success,
-          'Google authentication completed securely.',
+          OAuthFlowStage.accountDeletionPending,
+          'This account has a deletion request in progress. Contact Support.',
         ),
       );
-    } catch (error) {
-      _finishOAuth();
-      _setOAuth(_safeLaunchFailure(error));
+      return;
     }
+    if (accountStatus != 'active') {
+      _finishOAuth();
+      _setOAuth(
+        const OAuthFlowSnapshot(
+          OAuthFlowStage.accountSuspended,
+          'This MORT account is restricted. Use Support for next steps.',
+        ),
+      );
+      return;
+    }
+
+    final purpose = _oauthPurpose ?? OAuthPurpose.signIn;
+    final auditRecorded = await _recordAuthIdentityEvent(
+      purpose == OAuthPurpose.link ? 'google_linked' : 'google_sign_in',
+    );
+    if (!auditRecorded && purpose == OAuthPurpose.link) {
+      _finishOAuth();
+      _setOAuth(
+        const OAuthFlowSnapshot(
+          OAuthFlowStage.identityAuditFailed,
+          'Google is connected, but MORT could not verify the account security record. Contact Support before retrying.',
+        ),
+      );
+      return;
+    }
+
+    _finishOAuth();
+    _setOAuth(
+      OAuthFlowSnapshot(
+        OAuthFlowStage.success,
+        purpose == OAuthPurpose.link
+            ? 'Google is connected to your MORT account.'
+            : 'You are signed in to MORT.',
+      ),
+    );
   }
 
-  Future<void> _recordAuthIdentityEvent(String eventType) async {
-    final result = await SupabaseService.client.rpc(
-      'record_my_auth_identity_event',
-      params: {
-        'p_event_type': eventType,
-        'p_provider': 'google',
-        'p_client_request_id': _uuid.v4(),
-      },
-    );
-    if (result is! Map || result['ok'] != true) {
-      throw const MortCodedError(
-        'identity_audit_failed',
-        'The account changed, but MORT could not verify its security history. Contact Support before trying again.',
+  Map<String, dynamic> _profileFromRpc(Object? result) {
+    if (result is Map) return Map<String, dynamic>.from(result);
+    if (result is List && result.isNotEmpty && result.first is Map) {
+      return Map<String, dynamic>.from(result.first as Map);
+    }
+    return const <String, dynamic>{};
+  }
+
+  Future<bool> _recordAuthIdentityEvent(String eventType) async {
+    try {
+      final result = await SupabaseService.client.rpc(
+        'record_my_auth_identity_event',
+        params: {
+          'p_event_type': eventType,
+          'p_provider': 'google',
+          'p_client_request_id': _uuid.v4(),
+        },
       );
+      return result is Map && result['ok'] == true;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -483,7 +608,7 @@ class AuthRepository {
     }
     return const OAuthFlowSnapshot(
       OAuthFlowStage.internalFailure,
-      'Google authentication could not finish. No private token was stored.',
+      'MORT could not start Google sign-in. Try again.',
     );
   }
 

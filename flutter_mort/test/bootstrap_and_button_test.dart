@@ -38,7 +38,7 @@ void main() {
     expect(completer.isCompleted, isFalse);
     completer.complete();
     await tester.pumpAndSettle();
-    expect(find.text('Earn nearby. Move smart.'), findsOneWidget);
+    expect(find.text('MORT cannot start securely'), findsOneWidget);
   });
 
   testWidgets('busy button prevents repeat taps and shows progress', (

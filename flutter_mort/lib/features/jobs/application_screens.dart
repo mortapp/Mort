@@ -46,7 +46,11 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
     try {
       await ref
           .read(applicationsRepositoryProvider)
-          .updateStatus(application.id, action);
+          .updateStatus(
+            application.id,
+            action,
+            expectedUpdatedAt: application.updatedAt,
+          );
       if (!mounted) return;
       MortToast.show(context, _successMessage(action));
       _reload();
@@ -223,6 +227,33 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
           if (application.note?.isNotEmpty == true) ...[
             const SizedBox(height: MortSpacing.sm),
             Text(application.note!),
+          ],
+          if (application.status == 'canceled' && job != null) ...[
+            const SizedBox(height: MortSpacing.sm),
+            FutureBuilder<List<Map<String, dynamic>>>(
+              future: ref
+                  .watch(jobsRepositoryProvider)
+                  .listManagementEvents(job.id),
+              builder: (context, snapshot) {
+                final events = snapshot.data ?? const [];
+                final cancellations = events.where(
+                  (event) =>
+                      event['action'] == 'cancel' && event['succeeded'] == true,
+                );
+                final reason = cancellations.isEmpty
+                    ? null
+                    : cancellations.last['reason']?.toString();
+                if (reason == null || reason.isEmpty) {
+                  return const MortSafetyBanner(
+                    message:
+                        'This job was canceled. Contact support if you need help with an assigned job.',
+                  );
+                }
+                return MortSafetyBanner(
+                  message: 'Cancellation reason: $reason',
+                );
+              },
+            ),
           ],
           const SizedBox(height: MortSpacing.md),
           MortActionRow(actions: _actions(context)),
@@ -456,7 +487,10 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
 
   static Color _statusColor(String status) => switch (status) {
     'accepted' || 'completed' => MortColors.neon,
-    'rejected' || 'guardian_rejected' || 'withdrawn' => MortColors.danger,
+    'rejected' ||
+    'guardian_rejected' ||
+    'withdrawn' ||
+    'canceled' => MortColors.danger,
     'in_progress' || 'proof_submitted' => MortColors.warning,
     _ => MortColors.safetyBlue,
   };

@@ -1,5 +1,6 @@
 import {
   assertQa,
+  manageJob,
   qaLog,
   saveJob,
   withQaUsers,
@@ -62,9 +63,10 @@ await withQaUsers(
     assertQa(otherDelete.error || otherDelete.data.length === 0, "another teen removed a saved job");
     qaLog(scope, "saved job rows are isolated by user RLS");
 
-    const canceled = await adult.client.rpc("manage_job", {
-      p_job_id: job.result.job.id,
-      p_action: "cancel",
+    const canceled = await manageJob(adult.client, {
+      jobId: job.result.job.id,
+      action: "cancel",
+      reason: "The poster no longer needs this job completed.",
     });
     assertQa(canceled.data?.ok === true && canceled.data.job.status === "canceled", "fixture job did not cancel");
     const unavailableSaved = await teen.client.rpc("list_my_saved_jobs");

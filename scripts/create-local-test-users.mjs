@@ -147,6 +147,7 @@ await client.connect();
 try {
   await client.query("begin");
   await client.query("select set_config('mort.internal_update', 'true', true)");
+  await client.query("select set_config('mort.onboarding_completion', 'true', true)");
 
   for (const user of users) {
     await client.query(

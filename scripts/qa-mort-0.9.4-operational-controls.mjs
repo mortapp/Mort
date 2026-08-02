@@ -96,12 +96,21 @@ await withQaUsers(
     assertQa(alert.correlation_id, "Upload alert lacks a correlation ID.");
     qaLog(scope, "redacted upload alerts deduplicate and retain correlation IDs");
 
-    const report = await teen.client.rpc("submit_safety_report", {
+    const report = await teen.client.rpc("submit_safety_report_v2", {
       p_target_user_id: adult.id,
+      p_target_job_id: null,
+      p_target_message_id: null,
+      p_target_review_id: null,
+      p_application_id: null,
       p_category: "other_urgent_concern",
       p_severity: "moderate",
       p_immediate_danger: false,
       p_details: "Synthetic QA report for restricted moderation authorization.",
+      p_occurred_at: null,
+      p_location_type: null,
+      p_desired_outcome: "Verify restricted moderation authorization.",
+      p_confidential_safety_feedback: false,
+      p_client_request_id: randomUUID(),
     });
     assertQa(!report.error && report.data?.ok === true, "Synthetic QA report creation failed.");
     const reportId = report.data.report_id;

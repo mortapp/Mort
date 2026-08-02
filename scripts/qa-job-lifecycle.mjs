@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   assertQa,
+  manageJob,
   qaLog,
   saveJob,
   serviceClient,
@@ -76,9 +77,9 @@ await withQaUsers(
     assertQa(!qaVisibility.error && qaVisibility.data.length === 1, "QA teen could not see isolated QA job");
     qaLog(scope, "production account cannot see QA job while QA account can");
 
-    const otherManage = await otherAdult.client.rpc("manage_job", {
-      p_job_id: published.result.job.id,
-      p_action: "pause",
+    const otherManage = await manageJob(otherAdult.client, {
+      jobId: published.result.job.id,
+      action: "pause",
     });
     assertQa(!otherManage.error && otherManage.data?.ok === false, "unrelated adult managed another poster's job");
     const directUpdate = await otherAdult.client
@@ -93,26 +94,26 @@ await withQaUsers(
       ["pause", "paused"],
       ["resume", "open"],
     ]) {
-      const transition = await adult.client.rpc("manage_job", {
-        p_job_id: published.result.job.id,
-        p_action: action,
+      const transition = await manageJob(adult.client, {
+        jobId: published.result.job.id,
+        action,
       });
       assertQa(!transition.error && transition.data?.ok === true, `${action} failed`);
       assertQa(transition.data.job.status === expectedStatus, `${action} produced ${transition.data.job.status}`);
     }
 
-    const close = await adult.client.rpc("manage_job", {
-      p_job_id: published.result.job.id,
-      p_action: "close_applications",
+    const close = await manageJob(adult.client, {
+      jobId: published.result.job.id,
+      action: "close_applications",
     });
     assertQa(
       !close.error && close.data?.ok === true && close.data.job.applications_open === false,
       `close applications failed: ${close.error?.message ?? JSON.stringify(close.data)}`,
     );
 
-    const duplicate = await adult.client.rpc("manage_job", {
-      p_job_id: published.result.job.id,
-      p_action: "duplicate",
+    const duplicate = await manageJob(adult.client, {
+      jobId: published.result.job.id,
+      action: "duplicate",
     });
     assertQa(!duplicate.error && duplicate.data?.ok === true, "duplicate job failed");
     assertQa(duplicate.data.job.status === "draft", "duplicate was not a draft");
@@ -120,9 +121,9 @@ await withQaUsers(
     assertQa(duplicate.data.job.requires_guardian_approval === false, "duplicate retained guardian approval");
     qaLog(scope, "duplicate creates a safe draft without schedule, applicants, or guardian carryover");
 
-    const deleted = await adult.client.rpc("manage_job", {
-      p_job_id: duplicate.data.job.id,
-      p_action: "delete_draft",
+    const deleted = await manageJob(adult.client, {
+      jobId: duplicate.data.job.id,
+      action: "delete_draft",
     });
     assertQa(deleted.data?.ok === true && deleted.data.deleted === true, "delete draft failed");
 

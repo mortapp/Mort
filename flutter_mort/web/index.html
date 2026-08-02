@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="MORT is a teen-safe local hustle marketplace. Earn nearby. Move smart.">
-  <meta name="theme-color" content="#050607">
+  <meta name="theme-color" content="#050505">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -19,7 +19,7 @@
   <style>
     :root {
       color-scheme: dark;
-      background: #050607;
+      background: #050505;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
@@ -29,7 +29,7 @@
       height: 100%;
       margin: 0;
       overflow: hidden;
-      background: #050607;
+      background: #050505;
     }
 
     #mort-loader {
@@ -39,8 +39,8 @@
       display: grid;
       place-items: center;
       padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
-      background: #050607;
-      color: #f3f7f2;
+      background: #050505;
+      color: #fff8f5;
     }
 
     .mort-loader__content {
@@ -49,13 +49,11 @@
     }
 
     .mort-loader__mark {
-      width: 88px;
-      height: 88px;
+      width: 112px;
+      height: 112px;
       margin: 0 auto 22px;
-      border: 1px solid #273038;
-      border-radius: 18px;
-      background: #0d1012 url("icons/mort-mark.svg") center / cover no-repeat;
-      box-shadow: 0 16px 42px rgb(0 0 0 / 45%);
+      background: #050505 url("icons/Icon-192.png") center / cover no-repeat;
+      filter: drop-shadow(0 0 18px rgb(244 167 143 / 28%));
     }
 
     .mort-loader__title {
@@ -67,7 +65,7 @@
 
     .mort-loader__tagline {
       margin: 10px 0 20px;
-      color: #c7d0ca;
+      color: #cbbab5;
       font-size: 15px;
     }
 
@@ -75,7 +73,7 @@
       height: 5px;
       overflow: hidden;
       border-radius: 999px;
-      background: #273038;
+      background: #261c1a;
     }
 
     .mort-loader__bar::after {
@@ -83,7 +81,7 @@
       width: 42%;
       height: 100%;
       border-radius: inherit;
-      background: #7cff6b;
+      background: linear-gradient(90deg, #9b5145, #f4a78f, #ffd1c3);
       content: "";
       animation: mort-load 1.15s ease-in-out infinite alternate;
     }
@@ -91,7 +89,7 @@
     .mort-loader__status {
       min-height: 20px;
       margin: 14px 0 0;
-      color: #9aa6a0;
+      color: #cbbab5;
       font-size: 13px;
     }
 
@@ -101,8 +99,8 @@
       padding: 0 18px;
       border: 0;
       border-radius: 8px;
-      background: #7cff6b;
-      color: #050607;
+      background: linear-gradient(90deg, #c97865, #ffd1c3);
+      color: #050505;
       font: inherit;
       font-weight: 750;
       cursor: pointer;

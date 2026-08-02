@@ -1,19 +1,19 @@
-# MORT Reviewer Walkthrough
+# MORT Reviewer Walkthrough 0.9.6
 
-## Teen Journey
+## Enter Review Mode
 
-Sign in with the synthetic teen account. Open Jobs, select **Play Review Yard Organizing**, inspect the eligible low-risk job and application, open job-context Messages, inspect the contract and Mutual Safety Agreement, review arrival/completion history, inspect payment disagreement status, then open Safety Center. Exercise Report and Block against the isolated demonstration account. Open Settings, Privacy and Settings, Account deletion; do not finalize removal of the main review account.
+Tap **Sign in**, enter `play-review@mortapp.test`, then tap **Continue as Play Reviewer**. The password, Google, account creation, and recovery controls disappear only for that exact ASCII lowercase identifier. Similar addresses continue through normal password authentication.
 
-## Adult and Partner Journey
+The banner must always say **Google Play Review Mode**, **Synthetic demonstration data**, and **No real financial or administrative actions**.
 
-Sign out and use the synthetic adult account. Open My Jobs and Applicants, inspect the same contract and completion state, then open Partner workspace. The organization-bound roster excludes messages, earnings, housing status, raw ID, and unrelated users. Scoped invitation codes are shown once and stored only as hashes. Limited attestations explicitly do not verify government identity or grant marketplace access.
+## Role Journeys
 
-## Expected Limits
+- **Teen:** complete the synthetic profile, browse/filter jobs, apply, open the accepted job, enter START PIN `123456`, complete the checklist, attach the generated local proof card, request completion, enter COMPLETION PIN `654321`, advance the synthetic payment status, then review messages, dispute, support, Safety Ping, Guardian Mode, notifications, settings, and deletion explanation.
+- **Adult:** review the synthetic business/verification/payment-method states, post the local job, review and accept Jordan, schedule work, display both demo PINs, review scope/completion, and inspect cancellation, partial compensation, receipts, messages, disputes, support, notifications, and settings.
+- **Guardian:** review optional onboarding, teen-link request, linked summary, safety notifications, payout/dispute assistance, support, preferences, and unlinking.
+- **Support:** review the synthetic queue and safety-critical case, messages, generated attachments, escalation, status changes, resolution, and reopening.
+- **Admin:** review simulated support/dispute queues, generated evidence, payment timeline, adjudication, appeals, account restriction, audit log, operational alerts, and marketplace/AI/payment shutdown previews.
 
-- Closed pilot: ordinary accounts cannot enter jobs, messages, private locations, contracts, or active-job workflows.
-- Identity: real IDs and provider verification are disabled; sandbox records are synthetic QA only.
-- Location: denial leads to approximate/manual-area options.
-- Guardian Mode: optional, not required for base pilot eligibility.
-- Payment: preference and obligation records only; no processing, escrow, collection, or guarantee.
-- Emergency: MORT is not an emergency service.
-- Purchases and ads: not bundled or enabled in this release.
+## Exit And Limits
+
+Tap **Exit review**. The local session and all checkmarks, proof, PIN, and payment state are erased. Process restart also expires review mode. Reviewer mode never creates or receives a Supabase JWT, never reads Storage, never calls Stripe, and never reaches production administration.

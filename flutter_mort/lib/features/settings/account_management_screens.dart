@@ -1,11 +1,152 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../core/auth/auth_startup.dart';
 import '../../core/errors/user_facing_error.dart';
+import '../../core/reviewer/reviewer_session.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/repositories/providers.dart';
 import '../../data/repositories/account_deletion_repository.dart';
+import '../monetization/providers/revenuecat_providers.dart';
+
+class SecuritySessionsScreen extends ConsumerStatefulWidget {
+  const SecuritySessionsScreen({super.key});
+
+  @override
+  ConsumerState<SecuritySessionsScreen> createState() =>
+      _SecuritySessionsScreenState();
+}
+
+class _SecuritySessionsScreenState
+    extends ConsumerState<SecuritySessionsScreen> {
+  bool _busy = false;
+
+  Future<bool> _confirm({required bool global}) async {
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: !_busy,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(
+              global ? 'Sign out on every device?' : 'Sign out on this device?',
+            ),
+            content: Text(
+              global
+                  ? 'This revokes MORT refresh sessions on your other phones and browsers too. You will need to sign in again everywhere.'
+                  : 'This removes the MORT session and user-specific cached state from this device. Other devices stay signed in.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: Text(global ? 'Sign out everywhere' : 'Sign out'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  Future<void> _signOut({required bool global}) async {
+    if (_busy || !await _confirm(global: global)) return;
+    setState(() => _busy = true);
+    Object? remoteFailure;
+    final auth = ref.read(authRepositoryProvider);
+    try {
+      if (global) {
+        await auth.signOutGlobal();
+      } else {
+        await auth.signOutLocal();
+      }
+    } catch (error) {
+      remoteFailure = error;
+    } finally {
+      await ref.read(revenueCatServiceProvider).logOut();
+      ref.read(reviewerSessionProvider).exit();
+      invalidateUserScopedProviders(ref);
+      ref.read(authStartupProvider).markSignedOut();
+    }
+
+    if (!mounted) return;
+    if (remoteFailure != null && global) {
+      MortToast.show(
+        context,
+        'This device signed out, but MORT could not confirm every-device revocation. Reconnect, sign in, and retry global sign-out.',
+      );
+    }
+    context.go('/auth/sign-in');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: !_busy,
+      child: MortScreen(
+        children: [
+          const MortHeader(
+            eyebrow: 'Account security',
+            title: 'Security and sessions',
+            subtitle:
+                'Control this device separately from every other MORT session.',
+          ),
+          const MortCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('This device'),
+                SizedBox(height: MortSpacing.xs),
+                Text(
+                  'Session tokens use encrypted device storage. Theme, accessibility, and optional device-lock preferences remain after sign-out.',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: MortSpacing.md),
+          MortButton(
+            label: 'Sign out on this device',
+            busyLabel: 'Signing out...',
+            icon: Icons.logout,
+            busy: _busy,
+            onPressed: () => _signOut(global: false),
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          MortButton(
+            label: 'Sign out on all devices',
+            busyLabel: 'Revoking sessions...',
+            icon: Icons.phonelink_erase,
+            style: MortButtonStyle.danger,
+            busy: _busy,
+            onPressed: () => _signOut(global: true),
+          ),
+          const SizedBox(height: MortSpacing.lg),
+          const MortActionRow(
+            actions: [
+              MortAction(
+                label: 'Review active sessions',
+                icon: Icons.devices,
+                route: '/settings/active-sessions',
+              ),
+              MortAction(
+                label: 'Optional device lock',
+                icon: Icons.fingerprint,
+                route: '/settings/device-security',
+              ),
+              MortAction(
+                label: 'Account deletion',
+                icon: Icons.delete_outline,
+                route: '/settings/account-deletion',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class AccountDeletionRequestScreen extends ConsumerStatefulWidget {
   const AccountDeletionRequestScreen({super.key});

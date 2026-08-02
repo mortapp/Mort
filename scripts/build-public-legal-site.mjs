@@ -1,8 +1,17 @@
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
 const output = resolve(root, 'web', 'public');
+const supabaseBrowserBundle = resolve(
+  root,
+  'node_modules',
+  '@supabase',
+  'supabase-js',
+  'dist',
+  'umd',
+  'supabase.js',
+);
 const requiredConfigNames = [
   'MORT_PUBLIC_PUBLISHER_NAME',
   'MORT_PUBLIC_SUPPORT_EMAIL',
@@ -18,6 +27,9 @@ const missingConfig = requiredConfigNames.filter((name) => !publicConfig[name]);
 const deploymentReady = missingConfig.length === 0;
 
 rmSync(output, { recursive: true, force: true });
+if (!existsSync(supabaseBrowserBundle)) {
+  throw new Error('The pinned local Supabase browser bundle is missing. Run pnpm install first.');
+}
 
 function write(relative, content) {
   const path = resolve(output, relative);
@@ -225,10 +237,11 @@ pages['account-deletion/index.html'] = page({
   title: 'Delete your MORT account',
   description: 'Request account deletion without reinstalling the app.',
   body: deletionBody,
-  scripts: '<script src="/assets/public-config.js"></script><script type="module" src="/assets/account-deletion.js"></script>',
+  scripts: '<script src="/assets/supabase.js"></script><script src="/assets/public-config.js"></script><script src="/assets/account-deletion.js"></script>',
 });
 
 for (const [relative, content] of Object.entries(pages)) write(relative, content);
+write('assets/supabase.js', readFileSync(supabaseBrowserBundle, 'utf8'));
 
 const supabase = readSupabasePublicConfig();
 write(
@@ -239,7 +252,6 @@ write(
   })});`,
 );
 write('assets/account-deletion.js', `
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0';
 const config = window.MORT_PUBLIC_CONFIG || {};
 const form = document.querySelector('#deletion-link-form');
 const result = document.querySelector('#link-result');
@@ -252,7 +264,7 @@ if (!config.supabaseUrl || !config.supabaseAnonKey) {
   form.querySelector('button').disabled = true;
   result.textContent = 'Web account deletion is not configured in this preview. Use the in-app account deletion control.';
 } else {
-  const client = createClient(config.supabaseUrl, config.supabaseAnonKey, { auth: { persistSession: true, detectSessionInUrl: true, flowType: 'implicit' } });
+  const client = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey, { auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' } });
   async function showSession() {
     const { data } = await client.auth.getSession();
     const signedIn = Boolean(data.session);
@@ -316,7 +328,7 @@ write('_headers', `
   X-Frame-Options: DENY
   Referrer-Policy: no-referrer
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://esm.sh; connect-src 'self' https://rakjydmgwwgtdislanbt.supabase.co; style-src 'self'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; connect-src 'self' https://rakjydmgwwgtdislanbt.supabase.co; style-src 'self'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; worker-src 'none'; upgrade-insecure-requests
 `);
 write('_redirects', '/* /index.html 404');
 write(

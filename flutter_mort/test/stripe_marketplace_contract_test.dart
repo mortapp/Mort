@@ -6,16 +6,16 @@ import 'package:flutter_test/flutter_test.dart';
 String _read(String path) => File(path).readAsStringSync();
 
 void main() {
-  test('Stripe SDK is native-only and server configured', () {
-    expect(AppConfig.nativeStripePaymentSheetCompiledIn, isTrue);
-    expect(AppConfig.supportsStripePaymentSheet, isTrue);
+  test('Stripe SDK is absent and payment sheet fails closed', () {
+    expect(AppConfig.nativeStripePaymentSheetCompiledIn, isFalse);
+    expect(AppConfig.marketplacePaymentsEnabled, isFalse);
+    expect(AppConfig.supportsStripePaymentSheet, isFalse);
 
     final service = _read(
       'lib/features/payments/stripe_payment_sheet_service.dart',
     );
-    expect(service, contains("initialization['publishable_key']"));
-    expect(service, contains("startsWith('pk_test_')"));
-    expect(service, contains("startsWith('pk_live_')"));
+    expect(service, contains("'marketplace_payments_disabled'"));
+    expect(service, isNot(contains('package:flutter_stripe')));
     expect(service, isNot(matches(RegExp(r'pk_(test|live)_[A-Za-z0-9]'))));
     expect(service, isNot(matches(RegExp(r'sk_(test|live)_[A-Za-z0-9]'))));
   });
@@ -46,7 +46,7 @@ void main() {
       migration,
       contains("'digital_purchases_provider', 'google_play_billing'"),
     );
-    expect(pubspec, contains('flutter_stripe: 13.1.0'));
+    expect(pubspec, isNot(contains('flutter_stripe')));
     expect(pubspec, isNot(contains('google_mobile_ads')));
     expect(pubspec, isNot(contains('purchases_flutter')));
   });

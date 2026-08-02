@@ -11,4 +11,9 @@ The audited implementation is in:
 
 Verified properties: no provider secret in Flutter; user identity comes from a validated Supabase JWT; amounts come from the accepted contract version; private financial tables expose only caller-safe RPC projections; provider writes require service role; webhook bodies are size-limited and signature-verified; event IDs and payload hashes are replay protected; test/live object references cannot mix; and Google Play entitlements are separate.
 
-Provider-backed behavior is not verified because Stripe test keys and webhook secret are absent. The Edge Functions are intentionally not deployed in this state. This audit does not certify tax, employment, money-transmission, minor-account, payout, or consumer-credit compliance.
+Provider-backed behavior is not verified because Stripe test keys and webhook
+secret are absent. Nine Stripe Edge Functions are ACTIVE in Supabase, but their
+database execution gates are false and their provider credentials are absent,
+so they fail closed. The Flutter client intentionally has no Stripe SDK. This
+audit does not certify tax, employment, money-transmission, minor-account,
+payout, negative-balance, or consumer-credit compliance.

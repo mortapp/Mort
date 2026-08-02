@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_mort/core/auth/oauth_flow.dart';
 
@@ -126,4 +128,54 @@ void main() {
       expect(gate.tryAcquire(start.add(const Duration(seconds: 2))), isTrue);
     });
   });
+
+  group('OAuthSessionReadinessPolicy', () {
+    test('requires a Supabase session and the matching authenticated user', () {
+      expect(
+        OAuthSessionReadinessPolicy.isReady(
+          hasSession: true,
+          hasUser: true,
+          userIdsMatch: true,
+        ),
+        isTrue,
+      );
+      for (final state in [
+        (hasSession: false, hasUser: true, userIdsMatch: false),
+        (hasSession: true, hasUser: false, userIdsMatch: false),
+        (hasSession: true, hasUser: true, userIdsMatch: false),
+      ]) {
+        expect(
+          OAuthSessionReadinessPolicy.isReady(
+            hasSession: state.hasSession,
+            hasUser: state.hasUser,
+            userIdsMatch: state.userIdsMatch,
+          ),
+          isFalse,
+        );
+      }
+    });
+  });
+
+  test(
+    'OAuth completion is single-flight across concurrent auth events',
+    () async {
+      final gate = OAuthCompletionGate();
+      final blocker = Completer<void>();
+      var completions = 0;
+
+      Future<void> complete() async {
+        completions += 1;
+        await blocker.future;
+      }
+
+      final warmCallback = gate.run(complete);
+      final delayedAuthEvent = gate.run(complete);
+      expect(completions, 1);
+      blocker.complete();
+      await Future.wait([warmCallback, delayedAuthEvent]);
+
+      await gate.run(() async => completions += 1);
+      expect(completions, 2);
+    },
+  );
 }

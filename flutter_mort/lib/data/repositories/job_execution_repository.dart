@@ -93,12 +93,13 @@ class JobExecutionRepository extends RepositoryBase {
     required String applicationId,
     required String pin,
     required bool personMatchesProfile,
+    String? clientRequestId,
   }) async {
-    return _rpc('confirm_job_start_pin', {
+    return _rpc('confirm_job_start_pin_v2', {
       'p_application_id': applicationId,
       'p_pin': pin,
       'p_person_matches_profile': personMatchesProfile,
-      'p_client_request_id': _uuid.v4(),
+      'p_client_request_id': clientRequestId ?? _uuid.v4(),
     });
   }
 
@@ -123,11 +124,12 @@ class JobExecutionRepository extends RepositoryBase {
   Future<Map<String, dynamic>> confirmFinishPin({
     required String applicationId,
     required String pin,
+    String? clientRequestId,
   }) async {
-    return _rpc('confirm_job_finish_pin', {
+    return _rpc('confirm_job_finish_pin_v2', {
       'p_application_id': applicationId,
       'p_pin': pin,
-      'p_client_request_id': _uuid.v4(),
+      'p_client_request_id': clientRequestId ?? _uuid.v4(),
     });
   }
 
@@ -182,6 +184,12 @@ class JobExecutionRepository extends RepositoryBase {
     requireUserId();
     final raw = await client.rpc(function, params: parameters);
     if (raw is! Map) {
+      await recordOperationalFailure(
+        eventType: function.contains('pin')
+            ? 'pin_failure'
+            : 'job_transition_failure',
+        safeCode: 'job.invalid_execution_response',
+      );
       throw const MortCodedError(
         'invalid_job_execution_response',
         'The job status service returned an invalid response.',
@@ -190,6 +198,12 @@ class JobExecutionRepository extends RepositoryBase {
     final result = Map<String, dynamic>.from(raw);
     if (result['ok'] != true) {
       final code = result['code']?.toString() ?? 'job_execution_failed';
+      await recordOperationalFailure(
+        eventType: function.contains('pin')
+            ? 'pin_failure'
+            : 'job_transition_failure',
+        safeCode: code,
+      );
       throw MortCodedError(code, _message(code));
     }
     return result;
@@ -213,6 +227,10 @@ class JobExecutionRepository extends RepositoryBase {
       'PIN entry is temporarily locked after repeated attempts.',
     'start_pin_invalid' || 'finish_pin_invalid' =>
       'That PIN was not accepted. Check the six digits and try again.',
+    'start_pin_already_used' || 'finish_pin_already_used' =>
+      'That PIN was already used. Refresh the job status before continuing.',
+    'pin_request_payload_mismatch' =>
+      'The PIN entry changed during a retry. Check the six digits and submit again.',
     'adult_report_required' =>
       'There is no open abandonment report requiring your response.',
     'job_participant_required' =>

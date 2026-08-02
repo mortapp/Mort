@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 
+import '../../core/config/app_config.dart';
 import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
@@ -595,7 +597,9 @@ class PaymentStatusScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: MortSpacing.sm),
                 ],
-                if (role == UserRole.adult && obligations.isNotEmpty) ...[
+                if (AppConfig.marketplacePaymentsEnabled &&
+                    role == UserRole.adult &&
+                    obligations.isNotEmpty) ...[
                   MortButton(
                     label: 'Review Stripe job funding',
                     icon: Icons.lock_outline,
@@ -604,7 +608,8 @@ class PaymentStatusScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: MortSpacing.sm),
                 ],
-                if (role == UserRole.teen) ...[
+                if (AppConfig.marketplacePaymentsEnabled &&
+                    role == UserRole.teen) ...[
                   MortButton(
                     label: 'Stripe payout setup',
                     icon: Icons.account_balance_outlined,
@@ -758,6 +763,10 @@ class PaymentDisputeScreen extends ConsumerStatefulWidget {
 
 class _PaymentDisputeScreenState extends ConsumerState<PaymentDisputeScreen> {
   final _statement = TextEditingController();
+  String? _statementRequestId;
+  String? _statementRequestBody;
+  String? _appealRequestId;
+  String? _appealRequestBody;
   late Future<Map<String, dynamic>> _future = _load();
 
   Future<Map<String, dynamic>> _load() async {
@@ -765,8 +774,15 @@ class _PaymentDisputeScreenState extends ConsumerState<PaymentDisputeScreen> {
     final values = await Future.wait([
       repository.paymentDispute(widget.disputeId),
       repository.disputeTimeline(widget.disputeId),
+      repository.disputeStatements(widget.disputeId),
+      repository.disputeAppeals(widget.disputeId),
     ]);
-    return {'dispute': values[0], 'timeline': values[1]};
+    return {
+      'dispute': values[0],
+      'timeline': values[1],
+      'statements': values[2],
+      'appeals': values[3],
+    };
   }
 
   @override
@@ -776,18 +792,86 @@ class _PaymentDisputeScreenState extends ConsumerState<PaymentDisputeScreen> {
   }
 
   Future<void> _submit() async {
-    if (_statement.text.trim().length < 10) return;
+    final body = _statement.text.trim();
+    if (body.length < 10) return;
+    if (_statementRequestBody != body || _statementRequestId == null) {
+      _statementRequestBody = body;
+      _statementRequestId = const Uuid().v4();
+    }
     try {
       await ref
           .read(legalContractRepositoryProvider)
           .submitDisputeStatement(
             disputeId: widget.disputeId,
-            statement: _statement.text,
+            statement: body,
+            clientRequestId: _statementRequestId,
           );
       if (!mounted) return;
       _statement.clear();
+      _statementRequestBody = null;
+      _statementRequestId = null;
       setState(() => _future = _load());
       MortToast.show(context, 'Private dispute statement saved.');
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    }
+  }
+
+  Future<void> _appeal() async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Request separate appeal review'),
+        content: TextField(
+          controller: controller,
+          minLines: 3,
+          maxLines: 6,
+          maxLength: 4000,
+          decoration: const InputDecoration(
+            labelText: 'What should a different reviewer reconsider?',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text),
+            child: const Text('Submit appeal'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    final body = reason?.trim() ?? '';
+    if (!mounted || body.length < 20) {
+      if (mounted && body.isNotEmpty) {
+        MortToast.show(
+          context,
+          'Add at least 20 characters for appeal review.',
+        );
+      }
+      return;
+    }
+    if (_appealRequestBody != body || _appealRequestId == null) {
+      _appealRequestBody = body;
+      _appealRequestId = const Uuid().v4();
+    }
+    try {
+      await ref
+          .read(legalContractRepositoryProvider)
+          .submitDisputeAppeal(
+            disputeId: widget.disputeId,
+            reason: body,
+            clientRequestId: _appealRequestId,
+          );
+      if (!mounted) return;
+      _appealRequestBody = null;
+      _appealRequestId = null;
+      setState(() => _future = _load());
+      MortToast.show(context, 'Appeal queued for a separate human review.');
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
     }
@@ -821,6 +905,13 @@ class _PaymentDisputeScreenState extends ConsumerState<PaymentDisputeScreen> {
             final timeline =
                 snapshot.data?['timeline'] as List<Map<String, dynamic>>? ??
                 const [];
+            final statements =
+                snapshot.data?['statements'] as List<Map<String, dynamic>>? ??
+                const [];
+            final appeals =
+                snapshot.data?['appeals'] as List<Map<String, dynamic>>? ??
+                const [];
+            final status = dispute['status']?.toString() ?? '';
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -847,6 +938,19 @@ class _PaymentDisputeScreenState extends ConsumerState<PaymentDisputeScreen> {
                     'Poster': dispute['poster_statement'] ?? 'Not submitted',
                   },
                 ),
+                if (statements.isNotEmpty) ...[
+                  Text(
+                    'Statement history',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  for (final statement in statements)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.history_rounded),
+                      title: Text(_label(statement['author_role'])),
+                      subtitle: Text(statement['statement']?.toString() ?? ''),
+                    ),
+                ],
                 MortTextArea(
                   label: 'Your factual statement',
                   controller: _statement,
@@ -865,6 +969,38 @@ class _PaymentDisputeScreenState extends ConsumerState<PaymentDisputeScreen> {
                   onPressed: () =>
                       context.push('/disputes/${widget.disputeId}/export'),
                 ),
+                if (status.startsWith('resolved_') ||
+                    status == 'closed_confirmed_paid') ...[
+                  const SizedBox(height: MortSpacing.sm),
+                  MortButton(
+                    label: 'Request appeal review',
+                    icon: Icons.balance_outlined,
+                    style: MortButtonStyle.secondary,
+                    onPressed: _appeal,
+                  ),
+                ],
+                if (appeals.isNotEmpty) ...[
+                  const SizedBox(height: MortSpacing.lg),
+                  Text(
+                    'Appeals',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  for (final appeal in appeals)
+                    MortCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          MortBadge(label: _label(appeal['status'])),
+                          const SizedBox(height: MortSpacing.xs),
+                          Text(appeal['reason']?.toString() ?? ''),
+                          if (appeal['review_rationale'] != null) ...[
+                            const SizedBox(height: MortSpacing.xs),
+                            Text(appeal['review_rationale'].toString()),
+                          ],
+                        ],
+                      ),
+                    ),
+                ],
                 const SizedBox(height: MortSpacing.lg),
                 Text('Timeline', style: Theme.of(context).textTheme.titleLarge),
                 for (final event in timeline)

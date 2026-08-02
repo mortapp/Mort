@@ -42,6 +42,33 @@ void main() {
     expect(evidenceEdge, contains('createSignedUrl'));
     expect(evidenceEdge, contains('"Cache-Control": "private, no-store"'));
     expect(evidenceEdge, isNot(contains('getPublicUrl')));
+
+    final pathFix = _read(
+      '../supabase/migrations/20260730062000_fix_support_evidence_path_validation.sql',
+    );
+    expect(pathFix, contains("[0-9a-f-]{36}[.]jpg\$"));
+    expect(pathFix, contains('storage_support_evidence_insert_own'));
+    final registration = _read(
+      '../supabase/migrations/20260730063000_evidence_registration_idempotency_and_lint.sql',
+    );
+    expect(registration, contains('registration_request_id'));
+    expect(registration, contains('evidence_request_payload_mismatch'));
+  });
+
+  test('messaging is lifecycle-bound, paginated, and retry safe', () {
+    final migration = _read(
+      '../supabase/migrations/20260730043000_messaging_lifecycle_privacy_and_reliability.sql',
+    );
+    final repository = _read('lib/data/repositories/messaging_repository.dart');
+
+    expect(migration, contains('message_send_requests'));
+    expect(migration, contains('send_safe_message_v2'));
+    expect(migration, contains('list_thread_messages_page'));
+    expect(migration, contains('message_request_payload_mismatch'));
+    expect(migration, contains("'read_only'"));
+    expect(repository, contains('send_safe_message_v2'));
+    expect(repository, contains('list_thread_messages_page'));
+    expect(repository, contains('onPostgresChanges'));
   });
 
   test('start and finish PINs are hashed, expiring, locked, and single use', () {
@@ -62,6 +89,40 @@ void main() {
     expect(migration, contains('start_pin_used_at is not null'));
     expect(migration, contains('finish_pin_used_at is not null'));
     expect(migration, contains("'money_moved', false"));
+
+    final idempotency = _read(
+      '../supabase/migrations/20260730050000_job_pin_confirmation_idempotency.sql',
+    );
+    expect(idempotency, contains('job_pin_confirmation_requests'));
+    expect(idempotency, contains('confirm_job_start_pin_v2'));
+    expect(idempotency, contains('confirm_job_finish_pin_v2'));
+    expect(idempotency, contains('pin_request_payload_mismatch'));
+    expect(idempotency, isNot(contains('raw_pin')));
+
+    final trustRepository = _read(
+      'lib/data/repositories/trust_safety_repository.dart',
+    );
+    expect(trustRepository, contains('generate_job_start_pin'));
+    expect(trustRepository, contains('confirm_job_start_pin_v2'));
+    expect(trustRepository, isNot(contains('generate_job_arrival_code')));
+    expect(trustRepository, isNot(contains('confirm_job_arrival_code')));
+  });
+
+  test('dispute statements are append only and appeals stay human reviewed', () {
+    final migration = _read(
+      '../supabase/migrations/20260730060000_dispute_statements_and_appeals.sql',
+    );
+    final repository = _read(
+      'lib/data/repositories/legal_contract_repository.dart',
+    );
+
+    expect(migration, contains('payment_dispute_statements'));
+    expect(migration, contains('payment_dispute_appeals'));
+    expect(migration, contains('immutable_dispute_history'));
+    expect(migration, contains('independent_appeal_reviewer_required'));
+    expect(migration, contains("'money_moved', false"));
+    expect(repository, contains('submit_payment_dispute_statement_v2'));
+    expect(repository, contains('submit_payment_dispute_appeal'));
   });
 
   test('abandonment report cannot itself apply a cooldown', () {

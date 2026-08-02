@@ -17,6 +17,33 @@ String userFacingError(Object? error) {
       message.contains('user already exists')) {
     return 'That email is already connected to an account.';
   }
+  if (message.contains('exact_address_not_allowed')) {
+    return 'Use only a general area. Share an exact address only through the protected job workflow when it is needed.';
+  }
+  if (message.contains('exact_location_not_allowed_in_ping')) {
+    return 'Do not put an exact address or live location in a Safety Ping note. Attach the active job instead.';
+  }
+  if (message.contains('urgent_safety_rate_limited')) {
+    return 'MORT could not record another urgent action right now. Contact local emergency services for immediate danger.';
+  }
+  if (message.contains('safety_report_rate_limited') ||
+      message.contains('safety_ping_rate_limited')) {
+    return 'That safety action was sent too many times. Wait and try again, or contact emergency services for immediate danger.';
+  }
+  if (message.contains('safety_request_payload_mismatch') ||
+      message.contains('checkin_request_payload_mismatch')) {
+    return 'This request changed while retrying. Close the screen, reopen it, and try again.';
+  }
+  if (message.contains('active_job_required')) {
+    return 'That job is no longer active. Refresh Safety Center and try again.';
+  }
+  if (message.contains('checkin_not_active') ||
+      message.contains('checkin_not_authorized')) {
+    return 'That check-in is no longer available. Refresh Safety Center.';
+  }
+  if (message.contains('pending_checkin_limit_reached')) {
+    return 'This job already has enough scheduled check-ins.';
+  }
   if (message.contains('rate limit') ||
       message.contains('too many requests') ||
       message.contains('429')) {
@@ -77,6 +104,10 @@ String applicationErrorMessage(String code, {String? fallback}) {
       'You have reached the application limit. Finish or withdraw an application before adding another.',
     'invalid_application_transition' =>
       'That application action is no longer available. Refresh and try again.',
+    'stale_application_state' =>
+      'This application changed on another screen. Refresh before trying that action again.',
+    'invalid_application_transition_request' =>
+      'That application action is not supported. Refresh and try again.',
     'proof_required' =>
       'This job requires proof before it can be marked complete.',
     'proof_approval_required' =>
@@ -89,6 +120,14 @@ String applicationErrorMessage(String code, {String? fallback}) {
       'That proof action is no longer available. Refresh and try again.',
     'invalid_job_transition' =>
       'That job action is not available in its current state.',
+    'stale_job_state' =>
+      'This job changed on another screen. Refresh before trying that action again.',
+    'job_cancellation_reason_required' =>
+      'Add a clear cancellation reason between 10 and 500 characters without contact details.',
+    'job_in_progress_requires_dispute' =>
+      'An in-progress job cannot be canceled from this screen. Use support or the dispute workflow.',
+    'invalid_job_feed_filters' || 'invalid_job_feed_cursor' =>
+      'Those job filters are no longer valid. Clear the filters and refresh.',
     'unsafe_job_content' =>
       'This job includes contact details or work MORT cannot publish. Review the safety fields and try again.',
     'invalid_job_title' => 'Use a clear job title between 5 and 80 characters.',
@@ -97,7 +136,11 @@ String applicationErrorMessage(String code, {String? fallback}) {
     'invalid_job_description' =>
       'Add at least 20 characters of clear job detail.',
     'invalid_job_location' => 'Add a general area, city, and two-letter state.',
-    'invalid_job_payment' => 'Enter a positive payment amount.',
+    'invalid_job_payment' => 'Enter an offered job amount greater than zero.',
+    'invalid_job_response' =>
+      'The job server returned an incomplete response. Try again safely.',
+    'job_transportation_invalid' =>
+      'Choose valid general transportation options without contact details or an exact address.',
     'invalid_job_schedule' =>
       'Check the job schedule. End time must be after the start time.',
     'poster_verification_pending' =>

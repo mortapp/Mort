@@ -9,4 +9,7 @@ class MortSpacing {
   static const xl = 28.0;
   static const xxl = 36.0;
   static const maxContentWidth = 760.0;
+  static const minTouchTarget = 48.0;
+  static const fieldHeight = 56.0;
+  static const navigationHeight = 72.0;
 }

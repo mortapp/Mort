@@ -41,7 +41,7 @@ class MortTypography {
         height: 1.42,
       ),
       bodyMedium: TextStyle(
-        color: MortColors.textMuted,
+        color: MortColors.textSoft,
         fontSize: 14,
         height: 1.38,
       ),

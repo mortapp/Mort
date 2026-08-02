@@ -56,4 +56,25 @@ void main() {
       '/account-status',
     );
   });
+
+  test('verification, dispute, and security alerts use guarded routes', () {
+    expect(
+      notificationDestination({'verificationId': id}, UserRole.admin),
+      '/admin/verifications/$id',
+    );
+    expect(
+      notificationDestination({'verificationId': id}, UserRole.teen),
+      '/settings/identity-verification',
+    );
+    expect(
+      notificationDestination({'disputeId': id}, UserRole.adult),
+      '/disputes/$id',
+    );
+    expect(
+      notificationDestination({
+        'type': 'account_security_alert',
+      }, UserRole.teen),
+      '/settings/security-sessions',
+    );
+  });
 }

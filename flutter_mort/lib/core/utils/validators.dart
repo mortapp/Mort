@@ -50,21 +50,30 @@ class MortValidators {
   static String? dollarAmount(String? value, {bool optional = true}) {
     final text = value?.trim() ?? '';
     if (text.isEmpty && optional) return null;
-    final amount = num.tryParse(text);
-    if (amount == null || amount <= 0 || amount > 100000) {
-      return 'Enter a valid positive dollar amount.';
-    }
-    if (amount * 100 != (amount * 100).roundToDouble()) {
+    if (!RegExp(r'^\d+(?:\.\d{1,2})?$').hasMatch(text)) {
       return 'Use no more than 2 decimal places.';
+    }
+    final amount = dollarsToCents(text);
+    if (amount == null || amount > 10000000) {
+      return 'Enter a valid positive dollar amount.';
     }
     return null;
   }
 
   static int? dollarsToCents(String? value) {
     final text = value?.trim() ?? '';
-    final amount = num.tryParse(text);
-    if (amount == null || amount <= 0) return null;
-    return (amount * 100).round();
+    final match = RegExp(r'^(\d+)(?:\.(\d{1,2}))?$').firstMatch(text);
+    if (match == null) return null;
+    final dollars = int.tryParse(match.group(1)!);
+    if (dollars == null) return null;
+    final decimal = match.group(2) ?? '';
+    final cents = switch (decimal.length) {
+      0 => 0,
+      1 => int.parse(decimal) * 10,
+      _ => int.parse(decimal),
+    };
+    final result = dollars * 100 + cents;
+    return result > 0 ? result : null;
   }
 
   static const _unsafeJobTerms = <String>{

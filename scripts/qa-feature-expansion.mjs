@@ -5,7 +5,9 @@ import {
   confirmSafetyAgreement,
   qaLog,
   saveJob,
+  sendSafeMessage,
   serviceClient,
+  updateApplicationStatus,
   withQaUsers,
 } from "./feature-qa-helpers.mjs";
 
@@ -49,9 +51,9 @@ await withQaUsers(
       assertQa(!application.error && application.data?.ok === true, "Teen could not apply");
       const applicationId = application.data.application.id;
 
-      const accepted = await adult.client.rpc("update_application_status_v2", {
-        p_application_id: applicationId,
-        p_action: "accepted",
+      const accepted = await updateApplicationStatus(adult.client, {
+        applicationId,
+        action: "accepted",
       });
       assertQa(!accepted.error && accepted.data?.ok === true, "Adult could not accept application");
       await confirmSafetyAgreement(teen.client, adult.client, applicationId);
@@ -65,10 +67,11 @@ await withQaUsers(
       const threadId = thread.data.id;
       qaLog(scope, "1/15 proof-required job, application, and protected thread created");
 
-      const sent = await teen.client.rpc("send_safe_message", {
-        p_thread_id: threadId,
-        p_body: "I will check in at the staffed public work area.",
-      });
+      const sent = await sendSafeMessage(
+        teen.client,
+        threadId,
+        "I will check in at the staffed public work area.",
+      );
       assertQa(!sent.error && sent.data?.id, "Teen could not send the unread-state fixture");
 
       const adultThreads = await adult.client.rpc("get_my_message_threads");
@@ -111,9 +114,9 @@ await withQaUsers(
       );
       qaLog(scope, "4/15 mark-read is idempotent and concurrency-safe");
 
-      const started = await teen.client.rpc("update_application_status_v2", {
-        p_application_id: applicationId,
-        p_action: "in_progress",
+      const started = await updateApplicationStatus(teen.client, {
+        applicationId,
+        action: "in_progress",
       });
       assertQa(!started.error && started.data?.ok === true, "Teen could not start accepted job");
 
@@ -184,9 +187,9 @@ await withQaUsers(
       );
       qaLog(scope, "7/15 proof actions enforce ownership and meaningful resubmission notes");
 
-      const prematureComplete = await adult.client.rpc("update_application_status_v2", {
-        p_application_id: applicationId,
-        p_action: "completed",
+      const prematureComplete = await updateApplicationStatus(adult.client, {
+        applicationId,
+        action: "completed",
       });
       assertQa(
         prematureComplete.error?.message?.includes("proof_approval_required"),
@@ -258,9 +261,9 @@ await withQaUsers(
       );
       qaLog(scope, "11/15 current proof approval succeeds and repeated approval is idempotent");
 
-      const completed = await adult.client.rpc("update_application_status_v2", {
-        p_application_id: applicationId,
-        p_action: "completed",
+      const completed = await updateApplicationStatus(adult.client, {
+        applicationId,
+        action: "completed",
       });
       assertQa(
         !completed.error && completed.data?.ok === true && completed.data?.application?.status === "completed",

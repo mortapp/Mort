@@ -7,8 +7,9 @@ const dartRoot = path.join(flutterRoot, 'lib');
 const testRoot = path.join(flutterRoot, 'test');
 const routerPath = path.join(dartRoot, 'core', 'routing', 'app_router.dart');
 const outputRoot = path.join(root, 'docs', 'release');
-const releaseSlug = '0_9_5';
-const releaseLabel = '0.9.5';
+const pubspec = fs.readFileSync(path.join(flutterRoot, 'pubspec.yaml'), 'utf8');
+const releaseLabel = pubspec.match(/^version:\s*([^\s]+)$/m)?.[1] ?? 'unknown';
+const releaseSlug = releaseLabel.replaceAll(/[^A-Za-z0-9]+/g, '_');
 
 function walk(directory, predicate = () => true) {
   const output = [];

@@ -1,11 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:uuid/uuid.dart';
 
 import '../core/config/app_config.dart';
 import '../core/errors/user_facing_error.dart';
+import '../core/money/mort_service_fee.dart';
+import '../core/reviewer/reviewer_session.dart';
 import '../core/theme/mort_colors.dart';
 import '../core/theme/mort_spacing.dart';
 import '../core/utils/formatters.dart';
@@ -16,6 +24,7 @@ import '../core/widgets/mort_widgets.dart';
 import '../data/models/application.dart';
 import '../data/models/job.dart';
 import '../data/models/message.dart';
+import '../data/models/onboarding_progress.dart';
 import '../data/models/profile.dart';
 import '../data/repositories/providers.dart';
 import '../data/repositories/uploads_repository.dart';
@@ -53,51 +62,80 @@ class SplashScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return MortScreen(
       children: [
-        const SizedBox(height: MortSpacing.xxl),
-        MortHeader(
-          eyebrow: 'Local work. Safer connections.',
-          title: AppConfig.appName,
-          subtitle: AppConfig.slogan,
-          trailing: const MortAvatar(radius: 28),
+        const SizedBox(height: MortSpacing.xl),
+        const Center(
+          child: MortAnimatedBrandMark(size: 176, showWordmark: true),
         ),
-        const MortSafetyBanner(),
-        const SizedBox(height: MortSpacing.md),
-        MortCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Local jobs for eligible teens',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: MortSpacing.sm),
-              Text(
-                'Browse approved opportunities, build experience, and use safety tools throughout each job.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: MortSpacing.md),
-              MortActionRow(
-                actions: const [
-                  MortAction(
-                    label: 'Enter MORT',
-                    icon: Icons.login,
-                    route: '/welcome',
-                  ),
-                  MortAction(
-                    label: 'Sign in',
-                    icon: Icons.person,
-                    route: '/auth/sign-in',
-                  ),
-                ],
-              ),
-            ],
-          ),
+        const SizedBox(height: MortSpacing.lg),
+        Text(
+          AppConfig.slogan,
+          textAlign: TextAlign.center,
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: MortColors.roseGoldLight),
+        ),
+        const SizedBox(height: MortSpacing.xl),
+        const MortSafetyBanner(
+          message:
+              'Real local work, protected messages, PIN check-in, and free safety tools.',
+        ),
+        const SizedBox(height: MortSpacing.xl),
+        MortButton(
+          label: 'Enter MORT',
+          icon: Icons.arrow_forward_rounded,
+          onPressed: () => context.go('/welcome'),
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        MortButton(
+          label: 'Sign in',
+          icon: Icons.person_outline_rounded,
+          style: MortButtonStyle.ghost,
+          onPressed: () => context.go('/auth/sign-in'),
         ),
         const SizedBox(height: MortSpacing.md),
-        _BackendStatusCard(),
+        Semantics(liveRegion: true, child: _BackendStatusCard()),
       ],
     );
   }
+}
+
+class _WelcomeFeature extends StatelessWidget {
+  const _WelcomeFeature({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) => MortGlassCard(
+    infoAccent: title == 'Safety stays free',
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          color: title == 'Safety stays free'
+              ? MortColors.lightBlue
+              : MortColors.roseGold,
+        ),
+        const SizedBox(width: MortSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: MortSpacing.xxs),
+              Text(body, style: Theme.of(context).textTheme.bodyMedium),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class WelcomeScreen extends StatelessWidget {
@@ -106,49 +144,51 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MortScreen(
-      children: const [
-        MortHeader(
+      children: [
+        const Center(child: MortBrandMark(size: 96, showWordmark: true)),
+        const SizedBox(height: MortSpacing.xl),
+        const MortHeader(
           eyebrow: 'Earn nearby. Move smart.',
-          title: 'MORT',
+          title: 'Welcome to MORT',
           subtitle:
-              'A darker, cleaner local hustle app for teens, adults, guardians, and safety moderation.',
+              'Safe neighborhood jobs for teens, supported by adults, guardians, and accountable moderation.',
         ),
-        MortSafetyBanner(),
-        SizedBox(height: MortSpacing.md),
-        MortCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              MortBadge(
-                label: 'Free safety tools stay free',
-                color: MortColors.neon,
-              ),
-              SizedBox(height: MortSpacing.sm),
-              Text(
-                'Jobs, approvals, messages, reports, proof, and safety review stay together in MORT.',
-              ),
-              SizedBox(height: MortSpacing.md),
-              MortActionRow(
-                actions: [
-                  MortAction(
-                    label: 'Create account',
-                    icon: Icons.person_add,
-                    route: '/auth/sign-up',
-                  ),
-                  MortAction(
-                    label: 'Sign in',
-                    icon: Icons.login,
-                    route: '/auth/sign-in',
-                  ),
-                  MortAction(
-                    label: 'Read teen safety',
-                    icon: Icons.shield,
-                    route: '/legal/teen-safety',
-                  ),
-                ],
-              ),
-            ],
-          ),
+        const _WelcomeFeature(
+          icon: Icons.schedule_rounded,
+          title: 'Flexible local work',
+          body: 'Find age-appropriate jobs that fit your schedule and area.',
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        const _WelcomeFeature(
+          icon: Icons.shield_outlined,
+          title: 'Safety stays free',
+          body:
+              'Report, block, Safety Ping, and core Guardian Mode are never paywalled.',
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        const _WelcomeFeature(
+          icon: Icons.pin_outlined,
+          title: 'Verified job handoff',
+          body:
+              'Separate secure start and finish PINs protect the work timeline.',
+        ),
+        const SizedBox(height: MortSpacing.lg),
+        MortButton(
+          label: 'Create account',
+          icon: Icons.person_add_alt_1_rounded,
+          onPressed: () => context.go('/auth/sign-up'),
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        MortButton(
+          label: 'I already have an account',
+          icon: Icons.login_rounded,
+          style: MortButtonStyle.secondary,
+          onPressed: () => context.go('/auth/sign-in'),
+        ),
+        TextButton.icon(
+          onPressed: () => context.push('/legal/teen-safety'),
+          icon: const Icon(Icons.shield_outlined, color: MortColors.lightBlue),
+          label: const Text('Read teen safety'),
         ),
       ],
     );
@@ -271,6 +311,10 @@ class AccountStatusScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+              if (profile.accountStatus == 'banned') ...[
+                const SizedBox(height: MortSpacing.md),
+                const _AccountBanAppealCard(),
+              ],
             ],
           );
         }
@@ -310,6 +354,89 @@ class AccountStatusScreen extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _AccountBanAppealCard extends ConsumerStatefulWidget {
+  const _AccountBanAppealCard();
+
+  @override
+  ConsumerState<_AccountBanAppealCard> createState() =>
+      _AccountBanAppealCardState();
+}
+
+class _AccountBanAppealCardState extends ConsumerState<_AccountBanAppealCard> {
+  final _reason = TextEditingController();
+  bool _busy = false;
+  bool _submitted = false;
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final reason = _reason.text.trim();
+    if (_busy) return;
+    if (reason.length < 20) {
+      MortToast.show(context, 'Enter at least 20 characters.');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(trustSafetyRepositoryProvider)
+          .submitAccountBanAppeal(reason: reason);
+      if (!mounted) return;
+      setState(() => _submitted = true);
+      MortToast.show(context, 'Appeal submitted for independent review.');
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MortCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Appeal this ban',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: MortSpacing.xs),
+          const Text(
+            'An appeal does not restore access automatically. A different authorized reviewer must claim and decide it.',
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          if (_submitted)
+            const MortSafetyBanner(
+              message:
+                  'Your appeal is queued. MORT does not promise 24/7 review coverage.',
+            )
+          else ...[
+            MortTextArea(
+              label: 'Why should this decision be reviewed?',
+              controller: _reason,
+              maxLines: 5,
+              maxLength: 2000,
+              enabled: !_busy,
+            ),
+            const SizedBox(height: MortSpacing.sm),
+            MortButton(
+              label: 'Submit appeal',
+              icon: Icons.gavel_outlined,
+              busy: _busy,
+              onPressed: _busy ? null : _submit,
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -469,6 +596,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   final _password = TextEditingController();
   bool _busy = false;
   bool _obscurePassword = true;
+  bool _reviewerIdentifierEntered = false;
 
   @override
   void dispose() {
@@ -499,10 +627,44 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     }
   }
 
+  void _onEmailChanged(String value) {
+    final isReviewer = isExactPlayReviewerIdentifier(
+      value,
+      reviewerModeEnabled: ref.read(reviewerModeEnabledProvider),
+    );
+    if (isReviewer == _reviewerIdentifierEntered) return;
+    if (isReviewer) _password.clear();
+    setState(() => _reviewerIdentifierEntered = isReviewer);
+  }
+
+  void _startReviewer() {
+    if (_busy) return;
+    final productionSessionPresent =
+        ref.read(authRepositoryProvider).currentUser != null;
+    final started = ref
+        .read(reviewerSessionProvider)
+        .start(
+          identifier: _email.text,
+          productionSessionPresent: productionSessionPresent,
+        );
+    if (!started) {
+      MortToast.show(
+        context,
+        productionSessionPresent
+            ? 'Sign out of the current MORT account before starting review mode.'
+            : 'Enter the exact Google Play reviewer identifier.',
+      );
+      return;
+    }
+    context.go('/review');
+  }
+
   @override
   Widget build(BuildContext context) {
     return MortScreen(
       children: [
+        const Center(child: MortBrandMark(size: 72, showWordmark: true)),
+        const SizedBox(height: MortSpacing.md),
         const MortHeader(
           eyebrow: 'Welcome back',
           title: 'Sign in',
@@ -521,59 +683,93 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 autofillHints: const [AutofillHints.email],
                 autocorrect: false,
                 validator: MortValidators.email,
+                onChanged: _onEmailChanged,
               ),
-              const SizedBox(height: MortSpacing.sm),
-              MortTextField(
-                label: 'Password',
-                controller: _password,
-                obscureText: _obscurePassword,
-                textInputAction: TextInputAction.done,
-                autofillHints: const [AutofillHints.password],
-                autocorrect: false,
-                enableSuggestions: false,
-                onFieldSubmitted: (_) => _busy ? null : _submit(),
-                validator: (value) => MortValidators.password(
-                  value,
-                  minimumLength: 6,
-                  requireComplexity: false,
-                ),
-                suffixIcon: IconButton(
-                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
-                  onPressed: () =>
-                      setState(() => _obscurePassword = !_obscurePassword),
-                  icon: Icon(
-                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
+              if (_reviewerIdentifierEntered) ...[
+                const SizedBox(height: MortSpacing.md),
+                const MortCard(
+                  color: MortColors.cardAlt,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      MortBadge(
+                        label: 'Google Play Review Mode',
+                        color: MortColors.warning,
+                        icon: Icons.verified_user,
+                      ),
+                      SizedBox(height: MortSpacing.sm),
+                      Text(
+                        'Synthetic demonstration data. No production account or password is created.',
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: MortSpacing.md),
-              MortButton(
-                label: 'Sign in',
-                busyLabel: 'Signing in...',
-                busy: _busy,
-                icon: Icons.login,
-                onPressed: _submit,
-              ),
+                const SizedBox(height: MortSpacing.md),
+                MortButton(
+                  label: 'Continue as Play Reviewer',
+                  icon: Icons.verified_user,
+                  onPressed: _startReviewer,
+                ),
+              ] else ...[
+                const SizedBox(height: MortSpacing.sm),
+                MortTextField(
+                  label: 'Password',
+                  controller: _password,
+                  obscureText: _obscurePassword,
+                  textInputAction: TextInputAction.done,
+                  autofillHints: const [AutofillHints.password],
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  onFieldSubmitted: (_) => _busy ? null : _submit(),
+                  validator: (value) => MortValidators.password(
+                    value,
+                    minimumLength: 6,
+                    requireComplexity: false,
+                  ),
+                  suffixIcon: IconButton(
+                    tooltip: _obscurePassword
+                        ? 'Show password'
+                        : 'Hide password',
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: MortSpacing.md),
+                MortButton(
+                  label: 'Sign in',
+                  busyLabel: 'Signing in...',
+                  busy: _busy,
+                  icon: Icons.login,
+                  onPressed: _submit,
+                ),
+              ],
             ],
           ),
         ),
-        const SizedBox(height: MortSpacing.md),
-        const GoogleAuthSection(),
-        const SizedBox(height: MortSpacing.sm),
-        MortActionRow(
-          actions: const [
-            MortAction(
-              label: 'Create account',
-              icon: Icons.person_add,
-              route: '/auth/sign-up',
-            ),
-            MortAction(
-              label: 'Forgot password',
-              icon: Icons.lock_reset,
-              route: '/auth/forgot-password',
-            ),
-          ],
-        ),
+        if (!_reviewerIdentifierEntered) ...[
+          const SizedBox(height: MortSpacing.md),
+          const GoogleAuthSection(),
+          const SizedBox(height: MortSpacing.sm),
+          MortActionRow(
+            actions: const [
+              MortAction(
+                label: 'Create account',
+                icon: Icons.person_add,
+                route: '/auth/sign-up',
+              ),
+              MortAction(
+                label: 'Forgot password',
+                icon: Icons.lock_reset,
+                route: '/auth/forgot-password',
+              ),
+            ],
+          ),
+        ],
         Wrap(
           alignment: WrapAlignment.center,
           children: [
@@ -622,6 +818,16 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       return;
     }
     if (!_form.currentState!.validate()) return;
+    if (isExactPlayReviewerIdentifier(
+      _email.text,
+      reviewerModeEnabled: ref.read(reviewerModeEnabledProvider),
+    )) {
+      MortToast.show(
+        context,
+        'This identifier is reserved for Google Play review.',
+      );
+      return;
+    }
     setState(() => _busy = true);
     try {
       final response = await ref
@@ -648,6 +854,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   Widget build(BuildContext context) {
     return MortScreen(
       children: [
+        const Center(child: MortBrandMark(size: 72, showWordmark: true)),
+        const SizedBox(height: MortSpacing.md),
         const MortHeader(
           eyebrow: 'Age-gated',
           title: 'Create account',
@@ -665,7 +873,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.newUsername],
                 autocorrect: false,
-                validator: MortValidators.email,
+                validator: (value) =>
+                    rejectReservedPlayReviewerIdentifier(
+                      value,
+                      reviewerModeEnabled: ref.watch(
+                        reviewerModeEnabledProvider,
+                      ),
+                    ) ??
+                    MortValidators.email(value),
               ),
               const SizedBox(height: MortSpacing.sm),
               MortTextField(
@@ -775,6 +990,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     return MortScreen(
       children: [
+        const Center(child: MortBrandMark(size: 64)),
+        const SizedBox(height: MortSpacing.md),
         const MortHeader(
           title: 'Reset password',
           subtitle: 'Request a secure reset link for your MORT account.',
@@ -805,30 +1022,46 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 }
 
-class OnboardingHubScreen extends StatelessWidget {
+class OnboardingHubScreen extends ConsumerWidget {
   const OnboardingHubScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final progress = ref.watch(onboardingProgressProvider);
     return MortScreen(
-      children: const [
-        MortHeader(
+      children: [
+        const MortHeader(
           eyebrow: 'Setup',
           title: 'Build your MORT account',
           subtitle:
               'Finish age, role, profile, preferences, and the safety agreement. Marketplace access stays limited to approved closed-pilot participants.',
         ),
-        MortStepper(current: 0, total: 9),
-        SizedBox(height: MortSpacing.md),
-        _OnboardingMomentumCard(),
-        SizedBox(height: MortSpacing.md),
-        MortActionRow(
+        const MortStepper(current: 0, total: 12),
+        const SizedBox(height: MortSpacing.md),
+        progress.when(
+          loading: () => const MortLoading(label: 'Loading saved setup'),
+          error: (error, _) => MortErrorState(
+            title: 'Saved setup unavailable',
+            message: userFacingError(error),
+          ),
+          data: (saved) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _OnboardingMomentumCard(progress: saved),
+              const SizedBox(height: MortSpacing.md),
+              MortButton(
+                label: saved.isComplete
+                    ? 'View account status'
+                    : 'Continue saved setup',
+                icon: Icons.arrow_forward_rounded,
+                onPressed: () => context.go(saved.resumePath),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: MortSpacing.md),
+        const MortActionRow(
           actions: [
-            MortAction(
-              label: 'Start age gate',
-              icon: Icons.cake,
-              route: '/onboarding/age',
-            ),
             MortAction(
               label: 'Safety rules',
               icon: Icons.shield,
@@ -846,17 +1079,18 @@ class OnboardingHubScreen extends StatelessWidget {
   }
 }
 
-class AgeGateScreen extends StatefulWidget {
+class AgeGateScreen extends ConsumerStatefulWidget {
   const AgeGateScreen({super.key});
 
   @override
-  State<AgeGateScreen> createState() => _AgeGateScreenState();
+  ConsumerState<AgeGateScreen> createState() => _AgeGateScreenState();
 }
 
-class _AgeGateScreenState extends State<AgeGateScreen> {
+class _AgeGateScreenState extends ConsumerState<AgeGateScreen> {
   final _form = GlobalKey<FormState>();
   final _dob = TextEditingController();
   String? _message;
+  bool _busy = false;
 
   @override
   void dispose() {
@@ -864,7 +1098,8 @@ class _AgeGateScreenState extends State<AgeGateScreen> {
     super.dispose();
   }
 
-  void _checkAge() {
+  Future<void> _checkAge() async {
+    if (_busy) return;
     FocusScope.of(context).unfocus();
     if (!_form.currentState!.validate()) return;
     final now = DateTime.now();
@@ -872,10 +1107,20 @@ class _AgeGateScreenState extends State<AgeGateScreen> {
     final age = DateOfBirthParser.ageOn(dob, now);
     if (age < 13) {
       setState(() => _message = 'MORT is blocked for users under 13.');
-    } else if (age < 18) {
-      context.go('/onboarding/role?age=teen');
-    } else {
-      context.go('/onboarding/role?age=adult');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await ref.read(profileRepositoryProvider).saveOnboardingAge(dob);
+      ref.invalidate(currentProfileProvider);
+      ref.invalidate(onboardingProgressProvider);
+      if (mounted) {
+        context.go('/onboarding/role?age=${age < 18 ? 'teen' : 'adult'}');
+      }
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -888,7 +1133,7 @@ class _AgeGateScreenState extends State<AgeGateScreen> {
           title: 'How old are you?',
           subtitle: 'Teens must be 13-17. Adults and guardians must be 18+.',
         ),
-        const MortStepper(current: 1, total: 9),
+        const MortStepper(current: 1, total: 12),
         const SizedBox(height: MortSpacing.md),
         const MortCard(
           child: Text(
@@ -913,6 +1158,8 @@ class _AgeGateScreenState extends State<AgeGateScreen> {
         const SizedBox(height: MortSpacing.md),
         MortButton(
           label: 'Continue',
+          busyLabel: 'Saving age eligibility...',
+          busy: _busy,
           icon: Icons.arrow_forward,
           onPressed: _checkAge,
         ),
@@ -921,14 +1168,45 @@ class _AgeGateScreenState extends State<AgeGateScreen> {
   }
 }
 
-class RoleSelectionScreen extends StatelessWidget {
+class RoleSelectionScreen extends ConsumerStatefulWidget {
   const RoleSelectionScreen({super.key, this.ageBand});
 
   final String? ageBand;
 
   @override
+  ConsumerState<RoleSelectionScreen> createState() =>
+      _RoleSelectionScreenState();
+}
+
+class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
+  UserRole? _busyRole;
+
+  Future<void> _select(UserRole role) async {
+    if (_busyRole != null) return;
+    setState(() => _busyRole = role);
+    try {
+      await ref.read(profileRepositoryProvider).saveOnboardingRole(role);
+      ref.invalidate(currentProfileProvider);
+      ref.invalidate(onboardingProgressProvider);
+      if (mounted) {
+        context.go('/onboarding/profile?role=${userRoleToString(role)}');
+      }
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busyRole = null);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final teenAllowed = ageBand != 'adult';
+    final profile = ref.watch(currentProfileProvider).asData?.value;
+    final age = profile?.dob == null
+        ? null
+        : DateOfBirthParser.ageOn(profile!.dob!, DateTime.now());
+    final ageBand = widget.ageBand;
+    final teenAllowed = age != null ? age < 18 : ageBand != 'adult';
+    final adultAllowed = age != null ? age >= 18 : ageBand != 'teen';
     return MortScreen(
       children: [
         const MortHeader(
@@ -937,7 +1215,7 @@ class RoleSelectionScreen extends StatelessWidget {
           subtitle:
               'Admins cannot self-select. Admin access must already exist on the backend.',
         ),
-        const MortStepper(current: 2, total: 9),
+        const MortStepper(current: 2, total: 12),
         const SizedBox(height: MortSpacing.md),
         const FeatureChecklist(
           items: [
@@ -952,20 +1230,23 @@ class RoleSelectionScreen extends StatelessWidget {
             MortAction(
               label: 'Teen',
               icon: Icons.bolt,
-              route: '/onboarding/profile?role=teen',
+              onPressed: () => _select(UserRole.teen),
+              busy: _busyRole == UserRole.teen,
               enabled: teenAllowed,
             ),
             MortAction(
               label: 'Adult / job poster',
               icon: Icons.work_outline,
-              route: '/onboarding/profile?role=adult',
-              enabled: ageBand != 'teen',
+              onPressed: () => _select(UserRole.adult),
+              busy: _busyRole == UserRole.adult,
+              enabled: adultAllowed,
             ),
             MortAction(
               label: 'Guardian',
               icon: Icons.family_restroom,
-              route: '/onboarding/profile?role=guardian',
-              enabled: ageBand != 'teen',
+              onPressed: () => _select(UserRole.guardian),
+              busy: _busyRole == UserRole.guardian,
+              enabled: adultAllowed,
             ),
           ],
         ),
@@ -986,6 +1267,7 @@ class ProfileSetupScreen extends ConsumerStatefulWidget {
 class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   final _form = GlobalKey<FormState>();
   final _name = TextEditingController();
+  final _username = TextEditingController();
   final _dob = TextEditingController();
   final _city = TextEditingController();
   final _state = TextEditingController();
@@ -996,6 +1278,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   final _preferredCategories = TextEditingController();
   UserRole? _role;
   String _locationSetupMode = 'city_state';
+  String _adultAccountType = 'individual';
+  final _businessName = TextEditingController();
   Profile? _existingProfile;
   bool _busy = false;
 
@@ -1013,10 +1297,15 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
           .read(profileRepositoryProvider)
           .getCurrentProfile();
       if (!mounted || profile == null) return;
+      final progress = await ref
+          .read(profileRepositoryProvider)
+          .getOnboardingProgress();
+      if (!mounted) return;
       setState(() {
         _existingProfile = profile;
         _role = profile.role ?? _role;
         if (_name.text.isEmpty) _name.text = profile.displayName ?? '';
+        if (_username.text.isEmpty) _username.text = profile.username ?? '';
         if (_dob.text.isEmpty && profile.dob != null) {
           _dob.text = DateOfBirthParser.display(profile.dob!);
         }
@@ -1034,6 +1323,10 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
         if (_preferredCategories.text.isEmpty) {
           _preferredCategories.text = profile.preferredJobCategories.join(', ');
         }
+        _adultAccountType = progress.adultAccountType ?? 'individual';
+        if (_businessName.text.isEmpty) {
+          _businessName.text = progress.businessName ?? '';
+        }
       });
     } catch (_) {
       if (mounted) {
@@ -1048,6 +1341,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   @override
   void dispose() {
     _name.dispose();
+    _username.dispose();
     _dob.dispose();
     _city.dispose();
     _state.dispose();
@@ -1056,6 +1350,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     _approximateArea.dispose();
     _goals.dispose();
     _preferredCategories.dispose();
+    _businessName.dispose();
     super.dispose();
   }
 
@@ -1095,6 +1390,12 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 : 'city_state',
             completeOnboarding: false,
           );
+      final username = _username.text.trim().toLowerCase();
+      if (_existingProfile?.username != username) {
+        await ref
+            .read(profileRepositoryProvider)
+            .requestUsernameChange(username);
+      }
       await ref
           .read(profileRepositoryProvider)
           .saveProfileDetails(
@@ -1110,7 +1411,21 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             approximateArea: _approximateArea.text,
             goals: _goals.text,
           );
+      await ref
+          .read(profileRepositoryProvider)
+          .saveOnboardingProgress(
+            completedStep: 'profile',
+            preferences: _role == UserRole.adult
+                ? {
+                    'adult_account_type': _adultAccountType,
+                    'business_name': _adultAccountType == 'business'
+                        ? _businessName.text.trim()
+                        : null,
+                  }
+                : const {},
+          );
       ref.invalidate(currentProfileProvider);
+      ref.invalidate(onboardingProgressProvider);
       if (mounted) context.go('/onboarding/skills');
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
@@ -1123,6 +1438,11 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   Widget build(BuildContext context) {
     return MortScreen(
       children: [
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: MortBrandMark(size: 46),
+        ),
+        const SizedBox(height: MortSpacing.xs),
         MortHeader(
           eyebrow: 'Profile',
           title: 'Set your basics',
@@ -1130,7 +1450,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
               ? 'A permanent address is not required. MORT never asks why you choose a partner-supported or deferred setup.'
               : 'Only safe, general location fields are used here. Exact addresses do not belong in chat.',
         ),
-        const MortStepper(current: 3, total: 9),
+        const MortStepper(current: 3, total: 12),
         const SizedBox(height: MortSpacing.md),
         MortCard(
           child: Text(
@@ -1148,21 +1468,23 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
           key: _form,
           child: Column(
             children: [
-              MortDropdown<UserRole>(
-                label: 'Role',
-                value: _role,
-                items: const {
-                  UserRole.teen: 'Teen 13-17',
-                  UserRole.adult: 'Adult / business',
-                  UserRole.guardian: 'Guardian',
-                },
-                onChanged: (value) => setState(() {
-                  _role = value;
-                  if (value != UserRole.teen) {
-                    _locationSetupMode = 'city_state';
-                  }
-                }),
-              ),
+              if (_existingProfile?.role != null)
+                MortCard(
+                  child: Text(
+                    'Role: ${userRoleToString(_existingProfile!.role!)}. Role changes require an authorized support review.',
+                  ),
+                )
+              else
+                MortDropdown<UserRole>(
+                  label: 'Role',
+                  value: _role,
+                  items: const {
+                    UserRole.teen: 'Teen 13-17',
+                    UserRole.adult: 'Adult / business',
+                    UserRole.guardian: 'Guardian',
+                  },
+                  onChanged: (value) => setState(() => _role = value),
+                ),
               const SizedBox(height: MortSpacing.sm),
               MortTextField(
                 label: 'Display name',
@@ -1171,6 +1493,22 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 textInputAction: TextInputAction.next,
                 validator: (value) =>
                     MortValidators.requiredText(value, maximumLength: 80),
+              ),
+              const SizedBox(height: MortSpacing.sm),
+              MortTextField(
+                label: 'Username',
+                controller: _username,
+                hint: 'alex_jobs',
+                maxLength: 24,
+                autocorrect: false,
+                enableSuggestions: false,
+                validator: (value) {
+                  final username = value?.trim().toLowerCase() ?? '';
+                  if (!RegExp(r'^[a-z0-9_]{3,24}$').hasMatch(username)) {
+                    return 'Use 3-24 lowercase letters, numbers, or underscores.';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: MortSpacing.sm),
               DateOfBirthField(controller: _dob),
@@ -1197,6 +1535,31 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                   ),
                   const SizedBox(height: MortSpacing.sm),
                 ],
+              ],
+              if (_role == UserRole.adult) ...[
+                MortDropdown<String>(
+                  label: 'Posting as',
+                  value: _adultAccountType,
+                  items: const {
+                    'individual': 'Individual adult',
+                    'business': 'Business',
+                  },
+                  onChanged: (value) =>
+                      setState(() => _adultAccountType = value ?? 'individual'),
+                ),
+                const SizedBox(height: MortSpacing.sm),
+                if (_adultAccountType == 'business') ...[
+                  MortTextField(
+                    label: 'Business name',
+                    controller: _businessName,
+                    maxLength: 120,
+                    validator: (value) =>
+                        MortValidators.requiredText(value, maximumLength: 120),
+                  ),
+                  const SizedBox(height: MortSpacing.sm),
+                ],
+                const MortVerificationDisclaimer(),
+                const SizedBox(height: MortSpacing.sm),
               ],
               if (_locationSetupMode == 'city_state' ||
                   _role != UserRole.teen) ...[
@@ -1275,18 +1638,41 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   }
 }
 
-class SkillsScreen extends StatelessWidget {
+class SkillsScreen extends ConsumerStatefulWidget {
   const SkillsScreen({super.key});
 
   @override
+  ConsumerState<SkillsScreen> createState() => _SkillsScreenState();
+}
+
+class _SkillsScreenState extends ConsumerState<SkillsScreen> {
+  bool _busy = false;
+
+  Future<void> _continue() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(profileRepositoryProvider)
+          .saveOnboardingProgress(completedStep: 'skills');
+      ref.invalidate(onboardingProgressProvider);
+      if (mounted) context.go('/onboarding/availability');
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const FeatureScaffoldScreen(
+    return FeatureScaffoldScreen(
       eyebrow: 'Skills',
       title: 'Show what you can do safely',
       description:
           'Start with common, safe local categories. You can continue now; richer saved skill editing can be added later without blocking onboarding.',
-      children: [
-        MortStepper(current: 4, total: 9),
+      children: const [
+        MortStepper(current: 4, total: 12),
         SizedBox(height: MortSpacing.md),
         FeatureChecklist(
           items: [
@@ -1297,52 +1683,52 @@ class SkillsScreen extends StatelessWidget {
         ),
       ],
       actions: [
-        MortAction(
+        const MortAction(
           label: 'Closed-pilot access',
           icon: Icons.verified_user_outlined,
           route: '/mission/pilot-eligibility',
         ),
-        MortAction(
+        const MortAction(
           label: 'Partner affiliation',
           icon: Icons.account_balance_outlined,
           route: '/mission/partner-affiliation',
         ),
-        MortAction(
+        const MortAction(
           label: 'Discreet Mode',
           icon: Icons.visibility_off_outlined,
           route: '/mission/discreet-mode',
         ),
-        MortAction(
+        const MortAction(
           label: 'Optional Support Circle',
           icon: Icons.groups_outlined,
           route: '/mission/support-circle',
         ),
-        MortAction(
+        const MortAction(
           label: 'Earnings and goals',
           icon: Icons.savings_outlined,
           route: '/mission/earnings-goals',
         ),
-        MortAction(
+        const MortAction(
           label: 'Future Independence Plan',
           icon: Icons.route_outlined,
           route: '/mission/future-independence',
         ),
-        MortAction(
+        const MortAction(
           label: 'Private resource directory',
           icon: Icons.menu_book_outlined,
           route: '/mission/resources',
         ),
-        MortAction(
+        const MortAction(
           label: 'Pilot job safety',
           icon: Icons.work_outline,
           route: '/mission/pilot-job-safety',
         ),
-        MortAction(
+        const MortAction(
           label: 'What verification means',
           icon: Icons.fact_check_outlined,
           route: '/mission/verification-wording',
         ),
-        MortAction(
+        const MortAction(
           label: 'Document review status',
           icon: Icons.document_scanner_outlined,
           route: '/mission/document-review',
@@ -1350,25 +1736,49 @@ class SkillsScreen extends StatelessWidget {
         MortAction(
           label: 'Continue',
           icon: Icons.arrow_forward,
-          route: '/onboarding/availability',
+          busy: _busy,
+          onPressed: _continue,
         ),
       ],
     );
   }
 }
 
-class AvailabilityScreen extends StatelessWidget {
+class AvailabilityScreen extends ConsumerStatefulWidget {
   const AvailabilityScreen({super.key});
 
   @override
+  ConsumerState<AvailabilityScreen> createState() => _AvailabilityScreenState();
+}
+
+class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
+  bool _busy = false;
+
+  Future<void> _continue() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(profileRepositoryProvider)
+          .saveOnboardingProgress(completedStep: 'availability');
+      ref.invalidate(onboardingProgressProvider);
+      if (mounted) context.go('/onboarding/transportation');
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const FeatureScaffoldScreen(
+    return FeatureScaffoldScreen(
       eyebrow: 'Availability',
       title: 'Pick safe time windows',
       description:
           'MORT should recommend safe, general windows instead of making users invent a schedule from a blank page.',
-      children: [
-        MortStepper(current: 5, total: 9),
+      children: const [
+        MortStepper(current: 5, total: 12),
         SizedBox(height: MortSpacing.md),
         FeatureChecklist(
           items: [
@@ -1382,7 +1792,8 @@ class AvailabilityScreen extends StatelessWidget {
         MortAction(
           label: 'Continue',
           icon: Icons.arrow_forward,
-          route: '/onboarding/payment',
+          busy: _busy,
+          onPressed: _continue,
         ),
       ],
     );
@@ -1399,54 +1810,37 @@ class PaymentPreferenceScreen extends ConsumerStatefulWidget {
 
 class _PaymentPreferenceScreenState
     extends ConsumerState<PaymentPreferenceScreen> {
-  String _preference = 'none';
-  final _cashApp = TextEditingController();
-  final _squareUrl = TextEditingController();
-  final _note = TextEditingController();
+  String _choice = 'none';
   bool _busy = false;
 
   @override
-  void dispose() {
-    _cashApp.dispose();
-    _squareUrl.dispose();
-    _note.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final saved = ref.read(currentProfileProvider).asData?.value;
+      if (mounted && saved != null) {
+        const allowed = {'none', 'cash', 'flexible'};
+        setState(
+          () => _choice = allowed.contains(saved.paymentPreference)
+              ? saved.paymentPreference
+              : 'none',
+        );
+      }
+    });
   }
 
-  Future<void> _save() async {
-    if (!_backendReady) {
-      MortToast.show(
-        context,
-        'MORT cannot connect right now. Try again later.',
-      );
-      return;
-    }
+  Future<void> _continue() async {
     if (_busy) return;
-    if (_preference == 'cash_app' && _cashApp.text.trim().isEmpty) {
-      MortToast.show(context, 'Enter a Cash App tag or choose another option.');
-      return;
-    }
-    if (_preference == 'square_link') {
-      final uri = Uri.tryParse(_squareUrl.text.trim());
-      if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
-        MortToast.show(context, 'Enter a secure https Square link.');
-        return;
-      }
-    }
     setState(() => _busy = true);
     try {
+      await ref.read(profileRepositoryProvider).updateMyProfile({
+        'payment_preference': _choice,
+      });
       await ref
           .read(profileRepositoryProvider)
-          .savePaymentPreference(
-            preference: _preference,
-            cashAppTag: _cashApp.text.trim().isEmpty
-                ? null
-                : _cashApp.text.trim(),
-            squareUrl: _squareUrl.text.trim().isEmpty
-                ? null
-                : _squareUrl.text.trim(),
-            note: _note.text.trim().isEmpty ? null : _note.text.trim(),
-          );
+          .saveOnboardingProgress(completedStep: 'payment');
+      ref.invalidate(currentProfileProvider);
+      ref.invalidate(onboardingProgressProvider);
       if (mounted) context.go('/onboarding/guardian');
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
@@ -1460,61 +1854,38 @@ class _PaymentPreferenceScreenState
     return MortScreen(
       children: [
         const MortHeader(
-          eyebrow: 'Payment preference only',
-          title: 'How do you prefer to arrange payment?',
+          eyebrow: 'Free pilot',
+          title: 'Payments are not handled by MORT',
           subtitle:
-              'MORT does not process job payments, cards, payouts, escrow, splits, or guarantees.',
+              'This build does not collect payment handles, process money, hold escrow, guarantee payment, or charge a service fee.',
         ),
-        const MortStepper(current: 6, total: 9),
+        const MortStepper(current: 7, total: 12),
         const SizedBox(height: MortSpacing.md),
         const MortCard(
           child: Text(
-            'Smart default: Not set. You can keep using MORT without adding a payment handle, and payment must still be arranged safely outside MORT.',
+            'Do not enter a Cash App tag, Square link, card, bank account, or other payment credential in your profile, messages, proof, or support requests.',
           ),
         ),
-        const SizedBox(height: MortSpacing.md),
-        MortDropdown<String>(
-          label: 'Preference',
-          value: _preference,
-          items: const {
-            'none': 'Not set',
-            'cash': 'Cash',
-            'cash_app': 'Cash App tag',
-            'square_link': 'Square invoice/payment link',
-            'flexible': 'Flexible',
-          },
-          onChanged: (value) => setState(() => _preference = value ?? 'none'),
-        ),
-        const SizedBox(height: MortSpacing.sm),
-        if (_preference == 'cash_app') ...[
-          MortTextField(
-            label: 'Cash App tag',
-            controller: _cashApp,
-            maxLength: 40,
-            autocorrect: false,
-          ),
-          const SizedBox(height: MortSpacing.sm),
-        ],
-        if (_preference == 'square_link') ...[
-          MortTextField(
-            label: 'Square URL',
-            controller: _squareUrl,
-            keyboardType: TextInputType.url,
-            autocorrect: false,
-          ),
-          const SizedBox(height: MortSpacing.sm),
-        ],
-        const SizedBox(height: MortSpacing.sm),
-        MortTextArea(label: 'Notes', controller: _note, maxLines: 3),
         const SizedBox(height: MortSpacing.md),
         const MortPaymentDisclaimer(),
         const SizedBox(height: MortSpacing.md),
+        MortDropdown<String>(
+          label: 'Off-platform payment preference',
+          value: _choice,
+          items: const {
+            'none': 'Decide with the other person later',
+            'cash': 'Cash after completed work',
+            'flexible': 'Flexible - no payment details stored',
+          },
+          onChanged: (value) => setState(() => _choice = value ?? 'none'),
+        ),
+        const SizedBox(height: MortSpacing.md),
         MortButton(
-          label: 'Save payment preference',
-          busyLabel: 'Saving...',
+          label: 'Save preference and continue',
+          busyLabel: 'Saving preference...',
           busy: _busy,
-          icon: Icons.save,
-          onPressed: _save,
+          icon: Icons.arrow_forward,
+          onPressed: _continue,
         ),
       ],
     );
@@ -1530,9 +1901,25 @@ class SafetyRulesScreen extends ConsumerStatefulWidget {
 
 class _SafetyRulesScreenState extends ConsumerState<SafetyRulesScreen> {
   bool _busy = false;
+  bool _pilotTermsNotice = false;
+  bool _privacyNotice = false;
+  bool _communityRules = false;
+  bool _prohibitedWork = false;
+  bool _safetyRules = false;
+
+  bool get _allAcknowledged =>
+      _pilotTermsNotice &&
+      _privacyNotice &&
+      _communityRules &&
+      _prohibitedWork &&
+      _safetyRules;
 
   Future<void> _finish() async {
     if (_busy) return;
+    if (!_allAcknowledged) {
+      MortToast.show(context, 'Review and check every safety notice first.');
+      return;
+    }
     if (!_backendReady) {
       MortToast.show(
         context,
@@ -1542,9 +1929,22 @@ class _SafetyRulesScreenState extends ConsumerState<SafetyRulesScreen> {
     }
     setState(() => _busy = true);
     try {
-      await ref.read(profileRepositoryProvider).completeOnboarding();
-      ref.invalidate(currentProfileProvider);
-      if (mounted) context.go('/account-status');
+      final package = await PackageInfo.fromPlatform();
+      final platform = kIsWeb
+          ? 'flutter_web'
+          : 'flutter_${defaultTargetPlatform.name}';
+      await ref
+          .read(profileRepositoryProvider)
+          .recordOnboardingAcknowledgement(
+            version: mortOnboardingAcknowledgementVersion,
+            platform: platform,
+            appVersion: '${package.version}+${package.buildNumber}',
+          );
+      await ref
+          .read(profileRepositoryProvider)
+          .saveOnboardingProgress(completedStep: 'safety');
+      ref.invalidate(onboardingProgressProvider);
+      if (mounted) context.go('/onboarding/review');
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
     } finally {
@@ -1558,11 +1958,11 @@ class _SafetyRulesScreenState extends ConsumerState<SafetyRulesScreen> {
       children: [
         const MortHeader(
           eyebrow: 'Safety',
-          title: 'Rules before earning',
+          title: 'Review the closed-pilot rules',
           subtitle:
-              'No exact addresses in chat, no unsafe tools, no off-platform pressure, and report anything weird.',
+              'These product and safety notices are required for this closed pilot. They are not a substitute for attorney-approved public legal terms.',
         ),
-        const MortStepper(current: 8, total: 9),
+        const MortStepper(current: 10, total: 12),
         const SizedBox(height: MortSpacing.md),
         const MortSafetyBanner(),
         const SizedBox(height: MortSpacing.md),
@@ -1576,12 +1976,99 @@ class _SafetyRulesScreenState extends ConsumerState<SafetyRulesScreen> {
           ],
         ),
         const SizedBox(height: MortSpacing.md),
+        MortGlassCard(
+          infoAccent: true,
+          child: Column(
+            children: [
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _pilotTermsNotice,
+                title: const Text('Closed-pilot participation notice'),
+                subtitle: const Text(
+                  'I understand public marketplace access is closed and participation may be restricted or removed for safety.',
+                ),
+                onChanged: (value) =>
+                    setState(() => _pilotTermsNotice = value ?? false),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _privacyNotice,
+                title: const Text('Privacy notice'),
+                subtitle: const Text(
+                  'I will not share exact addresses, payment credentials, government IDs, or private contact details in profiles, chat, proof, or support.',
+                ),
+                onChanged: (value) =>
+                    setState(() => _privacyNotice = value ?? false),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _communityRules,
+                title: const Text('Community rules'),
+                subtitle: const Text(
+                  'I will communicate respectfully and use report, block, and Safety Ping when something is unsafe.',
+                ),
+                onChanged: (value) =>
+                    setState(() => _communityRules = value ?? false),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _prohibitedWork,
+                title: const Text('Prohibited work'),
+                subtitle: const Text(
+                  'I understand unsafe tools, sexual services, controlled substances, weapons, overnight teen work, and unlawful work are prohibited.',
+                ),
+                onChanged: (value) =>
+                    setState(() => _prohibitedWork = value ?? false),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _safetyRules,
+                title: const Text('Core safety rules'),
+                subtitle: const Text(
+                  'I will stop work, leave, and seek emergency help when necessary instead of relying on MORT as an emergency service.',
+                ),
+                onChanged: (value) =>
+                    setState(() => _safetyRules = value ?? false),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        MortActionRow(
+          actions: const [
+            MortAction(
+              label: 'Terms notice',
+              icon: Icons.article_outlined,
+              route: '/legal/terms',
+              style: MortButtonStyle.ghost,
+            ),
+            MortAction(
+              label: 'Privacy notice',
+              icon: Icons.privacy_tip_outlined,
+              route: '/legal/privacy',
+              style: MortButtonStyle.ghost,
+            ),
+            MortAction(
+              label: 'Community rules',
+              icon: Icons.groups_outlined,
+              route: '/legal/community-rules',
+              style: MortButtonStyle.ghost,
+            ),
+            MortAction(
+              label: 'Teen safety',
+              icon: Icons.health_and_safety_outlined,
+              route: '/legal/teen-safety',
+              style: MortButtonStyle.ghost,
+            ),
+          ],
+        ),
+        const SizedBox(height: MortSpacing.md),
         MortButton(
-          label: 'I understand - finish setup',
-          busyLabel: 'Finishing...',
+          label: 'Save acknowledgments and review',
+          busyLabel: 'Saving acknowledgments...',
           busy: _busy,
           icon: Icons.check_circle,
-          onPressed: _finish,
+          onPressed: _allAcknowledged ? _finish : null,
         ),
       ],
     );
@@ -1589,18 +2076,31 @@ class _SafetyRulesScreenState extends ConsumerState<SafetyRulesScreen> {
 }
 
 class _OnboardingMomentumCard extends StatelessWidget {
-  const _OnboardingMomentumCard();
+  const _OnboardingMomentumCard({required this.progress});
+
+  final OnboardingProgress progress;
 
   @override
   Widget build(BuildContext context) {
-    return const MortCard(
+    final completed = progress.completedSteps
+        .where((step) => step != 'complete')
+        .length
+        .clamp(0, 11);
+    return MortCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MortBadge(label: '1 of 8 started', color: MortColors.neon),
-          SizedBox(height: MortSpacing.sm),
+          MortBadge(
+            label: progress.isComplete
+                ? 'Setup complete'
+                : '$completed of 11 steps saved',
+            color: MortColors.neon,
+          ),
+          const SizedBox(height: MortSpacing.sm),
           Text(
-            'Your account is ready. Complete the remaining safety-first setup steps.',
+            progress.isComplete
+                ? 'Your saved setup passed the server checks. Marketplace access still depends on account and release restrictions.'
+                : 'Your next saved step is ${progress.currentStep.replaceAll('_', ' ')}. You can safely resume after signing out or closing the app.',
           ),
         ],
       ),
@@ -1766,6 +2266,11 @@ class RoleHomeScreen extends ConsumerWidget {
     };
     return MortScreen(
       children: [
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: MortBrandMark(size: 46),
+        ),
+        const SizedBox(height: MortSpacing.xs),
         MortHeader(
           eyebrow: profile?.displayName ?? userRoleToString(role) ?? 'MORT',
           title: title,
@@ -2297,7 +2802,7 @@ class _PostJobScreenState extends ConsumerState<PostJobScreen> {
     }
     setState(() => _busy = true);
     try {
-      final cents = MortValidators.dollarsToCents(_pay.text);
+      final cents = MortServiceFee.tryParseAdultAmount(_pay.text);
       await ref
           .read(jobsRepositoryProvider)
           .createJob(
@@ -2307,7 +2812,7 @@ class _PostJobScreenState extends ConsumerState<PostJobScreen> {
             locationText: _area.text,
             city: _city.text,
             state: _state.text,
-            payAmountCents: cents,
+            adultJobAmountCents: cents,
             requiresGuardianApproval: _guardianApproval,
           );
       if (mounted) context.go('/adult/jobs');
@@ -2399,7 +2904,7 @@ class _PostJobScreenState extends ConsumerState<PostJobScreen> {
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-                validator: MortValidators.dollarAmount,
+                validator: MortServiceFee.validateAdultAmount,
               ),
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
@@ -2616,101 +3121,19 @@ class _ProofUploadScreenState extends ConsumerState<ProofUploadScreen> {
   }
 }
 
-class VerificationScreen extends ConsumerStatefulWidget {
+class VerificationScreen extends ConsumerWidget {
   const VerificationScreen({super.key});
 
   @override
-  ConsumerState<VerificationScreen> createState() => _VerificationScreenState();
-}
-
-class _VerificationScreenState extends ConsumerState<VerificationScreen> {
-  final _name = TextEditingController();
-  final _notes = TextEditingController();
-  final _picker = ImagePicker();
-  PreparedVerificationImage? _document;
-  String? _fileName;
-  String? _submissionId;
-  String _businessType = 'individual';
-  bool _busy = false;
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _notes.dispose();
-    super.dispose();
-  }
-
-  Future<void> _choose(ImageSource source) async {
-    if (_busy) return;
-    try {
-      final file = await _picker.pickImage(
-        source: source,
-        maxWidth: 2800,
-        maxHeight: 2800,
-        imageQuality: 94,
-        requestFullMetadata: false,
-      );
-      if (file == null || !mounted) return;
-      final repository = ref.read(uploadsRepositoryProvider);
-      final prepared = UploadsRepository.prepareVerification(
-        await file.readAsBytes(),
-      );
-      setState(() {
-        _document = prepared;
-        _fileName = file.name;
-        _submissionId = repository.newVerificationSubmissionId();
-      });
-    } catch (error) {
-      if (mounted) MortToast.show(context, userFacingError(error));
-    }
-  }
-
-  Future<void> _submit() async {
-    final document = _document;
-    final submissionId = _submissionId;
-    if (_busy || document == null || submissionId == null) return;
-    if (_name.text.trim().length < 2) {
-      MortToast.show(context, 'Add your account or business name.');
-      return;
-    }
-    setState(() => _busy = true);
-    try {
-      await ref
-          .read(uploadsRepositoryProvider)
-          .uploadVerificationDocument(
-            submissionId: submissionId,
-            businessName: _name.text.trim(),
-            businessType: _businessType,
-            document: document,
-            notes: _notes.text.trim(),
-          );
-      ref.invalidate(currentProfileProvider);
-      if (!mounted) return;
-      MortToast.show(context, 'Verification submitted for review.');
-      setState(() {
-        _document = null;
-        _fileName = null;
-        _submissionId = null;
-        _notes.clear();
-      });
-    } catch (error) {
-      if (mounted) MortToast.show(context, userFacingError(error));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(currentProfileProvider).asData?.value;
-    final document = _document;
     return MortScreen(
       children: [
         MortHeader(
           eyebrow: 'Adult/business trust',
           title: 'Verification',
           subtitle:
-              'Submit an internal review request before publishing jobs. Verification does not guarantee another user or job.',
+              'Business checks will use an approved provider workflow. Verification does not guarantee another user or job.',
           trailing: MortBadge(
             label: (profile?.verificationStatus ?? 'not_started').replaceAll(
               '_',
@@ -2721,111 +3144,20 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                 : MortColors.warning,
           ),
         ),
-        const MortVerificationDisclaimer(),
-        const SizedBox(height: MortSpacing.md),
         const MortSafetyBanner(
           message:
-              'Upload only the minimum document needed for internal review. Cover Social Security numbers, bank details, full license numbers, and unrelated personal information.',
+              'Do not upload an ID, tax document, bank record, or business document to MORT. New submissions are closed until provider, privacy, legal, and reviewer controls are approved.',
         ),
         const SizedBox(height: MortSpacing.md),
-        MortCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              MortTextField(
-                label: 'Account or business name',
-                controller: _name,
-                maxLength: 120,
-                textCapitalization: TextCapitalization.words,
-              ),
-              const SizedBox(height: MortSpacing.sm),
-              MortDropdown<String>(
-                label: 'Account type',
-                value: _businessType,
-                items: const {
-                  'individual': 'Individual adult',
-                  'sole_proprietor': 'Sole proprietor',
-                  'business': 'Business',
-                  'nonprofit': 'Nonprofit',
-                  'community_organization': 'Community organization',
-                },
-                onChanged: (value) {
-                  if (value != null) setState(() => _businessType = value);
-                },
-              ),
-              const SizedBox(height: MortSpacing.sm),
-              MortTextArea(
-                label: 'Optional reviewer note',
-                controller: _notes,
-                maxLength: 1000,
-                hint: 'Explain what this document verifies.',
-              ),
-            ],
+        const MortCard(
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.lock_outline),
+            title: Text('Provider workflow not connected'),
+            subtitle: Text(
+              'Existing request history remains visible, but MORT is not accepting or approving new business evidence.',
+            ),
           ),
-        ),
-        const SizedBox(height: MortSpacing.md),
-        MortCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                document == null ? 'Verification image' : 'Private preview',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: MortSpacing.sm),
-              if (document == null)
-                const Text('Choose a JPEG, PNG, or WebP image under 10 MB.')
-              else ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: AspectRatio(
-                    aspectRatio: 4 / 3,
-                    child: Image.memory(document.bytes, fit: BoxFit.contain),
-                  ),
-                ),
-                const SizedBox(height: MortSpacing.xs),
-                Text(
-                  '${_fileName ?? 'Selected image'} - re-encoded without original metadata',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-              const SizedBox(height: MortSpacing.md),
-              MortActionRow(
-                actions: [
-                  MortAction(
-                    label: document == null ? 'Choose image' : 'Replace image',
-                    icon: Icons.photo_library_outlined,
-                    busy: _busy,
-                    onPressed: () => _choose(ImageSource.gallery),
-                  ),
-                  if (!kIsWeb)
-                    MortAction(
-                      label: 'Take photo',
-                      icon: Icons.photo_camera_outlined,
-                      busy: _busy,
-                      onPressed: () => _choose(ImageSource.camera),
-                    ),
-                ],
-              ),
-              if (kIsWeb) ...[
-                const SizedBox(height: MortSpacing.sm),
-                Text(
-                  'Browser file selection works in web preview. Native camera and permission behavior require Android or iPhone device testing.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: MortSpacing.md),
-        MortButton(
-          label: profile?.verificationStatus == 'rejected'
-              ? 'Resubmit verification'
-              : 'Submit verification',
-          busyLabel: 'Submitting...',
-          busy: _busy,
-          icon: Icons.upload_file,
-          onPressed: document == null ? null : _submit,
         ),
         const MortSectionTitle(title: 'Request history'),
         FutureBuilder<List<Map<String, dynamic>>>(
@@ -2985,44 +3317,136 @@ class MessageThreadScreen extends ConsumerStatefulWidget {
 
 class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
   final _body = TextEditingController();
-  late Future<List<MortMessage>> _future;
+  final List<MortMessage> _messages = [];
+  MessagePageCursor? _nextCursor;
+  RealtimeChannel? _channel;
+  Object? _loadError;
+  String _lifecycleStatus = 'active';
+  String? _pendingSendId;
+  String? _pendingBody;
+  bool _initialLoading = true;
+  bool _loadingMore = false;
   bool _busy = false;
 
   @override
   void initState() {
     super.initState();
-    _future = _load();
+    _subscribe();
+    unawaited(_loadInitial());
   }
 
   @override
   void dispose() {
+    final channel = _channel;
+    if (channel != null) {
+      unawaited(ref.read(messagingRepositoryProvider).unsubscribe(channel));
+    }
     _body.dispose();
     super.dispose();
   }
 
-  Future<List<MortMessage>> _load() async {
+  void _subscribe() {
     final repository = ref.read(messagingRepositoryProvider);
-    final messages = await repository.listMessages(widget.threadId);
-    await repository.markThreadRead(widget.threadId);
-    return messages;
+    _channel = repository.subscribeToMessages(widget.threadId, (message) {
+      if (!mounted) return;
+      _mergeMessages([message]);
+      unawaited(repository.markThreadRead(widget.threadId));
+    });
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _mergeMessages(Iterable<MortMessage> incoming) {
+    final byId = <String, MortMessage>{
+      for (final message in _messages) message.id: message,
+      for (final message in incoming) message.id: message,
+    };
+    final merged = byId.values.toList()
+      ..sort((left, right) {
+        final time = (left.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+            .compareTo(
+              right.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+            );
+        return time != 0 ? time : left.id.compareTo(right.id);
+      });
+    setState(() {
+      _messages
+        ..clear()
+        ..addAll(merged);
+    });
+  }
+
+  Future<void> _loadInitial() async {
+    if (mounted) {
+      setState(() {
+        _initialLoading = true;
+        _loadError = null;
+      });
+    }
+    try {
+      final repository = ref.read(messagingRepositoryProvider);
+      final page = await repository.listMessagesPage(widget.threadId);
+      if (!mounted) return;
+      setState(() {
+        _messages.clear();
+        _nextCursor = page.nextCursor;
+        _lifecycleStatus = page.lifecycleStatus;
+      });
+      _mergeMessages(page.items);
+      await repository.markThreadRead(widget.threadId);
+    } catch (error) {
+      if (mounted) setState(() => _loadError = error);
+    } finally {
+      if (mounted) setState(() => _initialLoading = false);
+    }
+  }
+
+  Future<void> _loadMore() async {
+    final cursor = _nextCursor;
+    if (cursor == null || _loadingMore) return;
+    setState(() => _loadingMore = true);
+    try {
+      final page = await ref
+          .read(messagingRepositoryProvider)
+          .listMessagesPage(widget.threadId, cursor: cursor);
+      if (!mounted) return;
+      setState(() {
+        _nextCursor = page.nextCursor;
+        _lifecycleStatus = page.lifecycleStatus;
+      });
+      _mergeMessages(page.items);
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
+  void _reload() => unawaited(_loadInitial());
 
   Future<void> _send() async {
-    if (_body.text.trim().isEmpty || _busy) return;
-    if (_body.text.trim().length > 2000) {
+    final messageBody = _body.text.trim();
+    if (messageBody.isEmpty || _busy || _lifecycleStatus != 'active') return;
+    if (messageBody.length > 2000) {
       MortToast.show(context, 'Keep messages under 2,000 characters.');
       return;
     }
+    if (_pendingBody != messageBody || _pendingSendId == null) {
+      _pendingBody = messageBody;
+      _pendingSendId = const Uuid().v4();
+    }
     setState(() => _busy = true);
     try {
-      await ref
+      final saved = await ref
           .read(messagingRepositoryProvider)
-          .sendSafeMessage(widget.threadId, _body.text);
+          .sendSafeMessage(
+            widget.threadId,
+            messageBody,
+            clientRequestId: _pendingSendId,
+          );
+      _mergeMessages([saved]);
       _body.clear();
+      _pendingBody = null;
+      _pendingSendId = null;
       if (mounted) MortToast.show(context, 'Message sent through scanner.');
-      if (mounted) _reload();
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
     } finally {
@@ -3032,6 +3456,7 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = ref.watch(authRepositoryProvider).currentUser?.id;
     return MortScreen(
       children: [
         const MortHeader(
@@ -3045,79 +3470,134 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
               'Use quick replies and report anything unsafe. No ads appear in messages.',
         ),
         const SizedBox(height: MortSpacing.md),
-        FutureBuilder<List<MortMessage>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting)
-              return const MortSkeletonCard();
-            if (snapshot.hasError)
-              return MortErrorState(
-                title: 'Thread error',
-                message: userFacingError(snapshot.error),
-                action: MortButton(
-                  label: 'Retry',
-                  icon: Icons.refresh,
-                  onPressed: _reload,
-                ),
-              );
-            final messages = snapshot.data ?? const [];
-            return Column(
-              children: [
-                if (messages.isEmpty)
-                  const MortEmptyState(
-                    title: 'No messages yet',
-                    message: 'Start with a safe, on-platform note.',
-                  ),
-                for (final message in messages) ...[
-                  MortCard(
-                    color: message.blocked
-                        ? MortColors.danger.withValues(alpha: 0.1)
-                        : MortColors.card,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        MortBadge(
-                          label: message.scannerStatus,
-                          color: message.blocked
-                              ? MortColors.danger
-                              : message.flagged
-                              ? MortColors.warning
-                              : MortColors.neon,
-                        ),
+        if (_initialLoading)
+          const MortSkeletonCard()
+        else if (_loadError != null)
+          MortErrorState(
+            title: 'Thread error',
+            message: userFacingError(_loadError),
+            action: MortButton(
+              label: 'Retry',
+              icon: Icons.refresh,
+              onPressed: _reload,
+            ),
+          )
+        else ...[
+          if (_nextCursor != null) ...[
+            MortButton(
+              label: 'Load earlier messages',
+              icon: Icons.history,
+              onPressed: _loadMore,
+              busy: _loadingMore,
+              busyLabel: 'Loading...',
+              style: MortButtonStyle.secondary,
+            ),
+            const SizedBox(height: MortSpacing.sm),
+          ],
+          if (_messages.isEmpty)
+            const MortEmptyState(
+              title: 'No messages yet',
+              message: 'Start with a safe, on-platform note.',
+            ),
+          for (final message in _messages) ...[
+            Align(
+              alignment: message.senderId == currentUserId
+                  ? Alignment.centerRight
+                  : Alignment.centerLeft,
+              child: FractionallySizedBox(
+                widthFactor: 0.84,
+                child: MortGlassCard(
+                  color: message.blocked
+                      ? MortColors.danger.withValues(alpha: 0.1)
+                      : message.senderId == currentUserId
+                      ? MortColors.roseGoldDeep.withValues(alpha: 0.34)
+                      : MortColors.card,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          MortBadge(
+                            label: message.scannerStatus,
+                            icon: message.blocked
+                                ? Icons.block_rounded
+                                : Icons.shield_outlined,
+                            color: message.blocked
+                                ? MortColors.danger
+                                : message.flagged
+                                ? MortColors.warning
+                                : MortColors.lightBlue,
+                          ),
+                          const Spacer(),
+                          Text(
+                            formatDateTime(message.createdAt),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: MortSpacing.xs),
+                      Text(
+                        message.blocked ? 'Blocked by scanner' : message.body,
+                      ),
+                      if (message.scannerReason != null) ...[
                         const SizedBox(height: MortSpacing.xs),
                         Text(
-                          message.blocked ? 'Blocked by scanner' : message.body,
-                        ),
-                        if (message.scannerReason != null)
-                          Text(
-                            message.scannerReason!,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        const SizedBox(height: MortSpacing.xs),
-                        MortActionRow(
-                          actions: [
-                            MortAction(
-                              label: 'Report message',
-                              icon: Icons.report,
-                              route: '/report/message/${message.id}',
-                              style: MortButtonStyle.danger,
-                            ),
-                          ],
+                          message.scannerReason!,
+                          style: Theme.of(context).textTheme.bodyMedium,
                         ),
                       ],
-                    ),
+                      if (message.senderId != currentUserId) ...[
+                        const SizedBox(height: MortSpacing.xs),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            onPressed: () =>
+                                context.go('/report/message/${message.id}'),
+                            icon: const Icon(Icons.report_outlined),
+                            label: const Text('Report'),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  const SizedBox(height: MortSpacing.sm),
-                ],
-              ],
-            );
-          },
+                ),
+              ),
+            ),
+            const SizedBox(height: MortSpacing.sm),
+          ],
+        ],
+        if (_lifecycleStatus != 'active') ...[
+          const MortSafetyBanner(
+            message:
+                'This job conversation is read-only. Use the structured dispute or Support flow for any next step.',
+          ),
+          const SizedBox(height: MortSpacing.sm),
+        ],
+        Wrap(
+          spacing: MortSpacing.xs,
+          runSpacing: MortSpacing.xs,
+          children: [
+            for (final reply in const [
+              'I am available.',
+              'Thanks, I will review this.',
+              'Can we confirm the schedule?',
+            ])
+              MortFilterChip(
+                label: reply,
+                selected: _body.text == reply,
+                onSelected: _lifecycleStatus == 'active'
+                    ? (_) => setState(() => _body.text = reply)
+                    : null,
+              ),
+          ],
         ),
+        const SizedBox(height: MortSpacing.sm),
         MortTextArea(
           label: 'Message',
           controller: _body,
           maxLines: 3,
           maxLength: 2000,
+          enabled: _lifecycleStatus == 'active',
         ),
         const SizedBox(height: MortSpacing.sm),
         MortActionRow(
@@ -3125,7 +3605,7 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
             MortAction(
               label: 'Send message',
               icon: Icons.send,
-              onPressed: _send,
+              onPressed: _lifecycleStatus == 'active' ? _send : null,
               busy: _busy,
               busyLabel: 'Sending...',
               style: MortButtonStyle.primary,
@@ -3167,6 +3647,19 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   String _reason = 'unsafe_job';
   bool _busy = false;
   bool _submitted = false;
+  bool _immediateDanger = false;
+  String? _requestId;
+  String? _requestPayload;
+  Map<String, dynamic>? _result;
+
+  String _stableRequestId() {
+    final payload = '$_reason|$_immediateDanger|${_details.text.trim()}';
+    if (_requestId == null || _requestPayload != payload) {
+      _requestId = const Uuid().v4();
+      _requestPayload = payload;
+    }
+    return _requestId!;
+  }
 
   @override
   void dispose() {
@@ -3176,13 +3669,13 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
 
   Future<void> _submit() async {
     if (_busy) return;
-    if (_reason == 'other' && _details.text.trim().length < 10) {
-      MortToast.show(context, 'Add a short description for Other.');
+    if (_details.text.trim().length < 10) {
+      MortToast.show(context, 'Add at least 10 characters of useful detail.');
       return;
     }
     setState(() => _busy = true);
     try {
-      await ref
+      final result = await ref
           .read(safetyRepositoryProvider)
           .createReport(
             targetUserId: widget.targetUserId,
@@ -3190,9 +3683,16 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
             targetMessageId: widget.targetMessageId,
             targetReviewId: widget.targetReviewId,
             reason: _reason,
-            details: _details.text.trim().isEmpty ? null : _details.text.trim(),
+            details: _details.text.trim(),
+            immediateDanger: _immediateDanger,
+            clientRequestId: _stableRequestId(),
           );
-      if (mounted) setState(() => _submitted = true);
+      if (mounted) {
+        setState(() {
+          _result = result;
+          _submitted = true;
+        });
+      }
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
     } finally {
@@ -3211,6 +3711,22 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
             subtitle:
                 'MORT records the report for moderation. Immediate danger still requires local emergency services.',
           ),
+          if (_result?['report_id'] != null) ...[
+            MortCard(
+              child: Text(
+                'Case reference: ${_result!['report_id']}',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+            const SizedBox(height: MortSpacing.md),
+          ],
+          if (_immediateDanger) ...[
+            const MortSafetyBanner(
+              message:
+                  'MORT created an urgent human-review case but did not dispatch physical help. Contact local emergency services now.',
+            ),
+            const SizedBox(height: MortSpacing.md),
+          ],
           MortButton(
             label: 'Done',
             icon: Icons.check,
@@ -3242,18 +3758,40 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
             'unsafe_job': 'Unsafe or prohibited job',
             'scam': 'Scam or upfront fee',
             'contact_sharing': 'Off-platform contact pressure',
-            'harassment': 'Threats or harassment',
+            'harassment': 'Harassment',
+            'threats': 'Threats or coercion',
+            'stalking': 'Stalking or repeated contact',
             'sexual_content': 'Sexual content',
+            'grooming_exploitation': 'Grooming or exploitation concern',
+            'private_images': 'Private or inappropriate images',
+            'weapons_substances': 'Weapons, substances, or dangerous tools',
             'other': 'Other',
           },
-          onChanged: (value) => setState(() => _reason = value ?? 'other'),
+          onChanged: (value) => setState(() {
+            _reason = value ?? 'other';
+            _requestId = null;
+          }),
         ),
         const SizedBox(height: MortSpacing.sm),
         MortTextArea(
-          label: 'Details (optional)',
+          label: 'What happened?',
           controller: _details,
           maxLines: 5,
           maxLength: 1000,
+        ),
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          value: _immediateDanger,
+          title: const Text('Someone may be in immediate danger'),
+          subtitle: const Text(
+            'This prioritizes human review. MORT cannot dispatch emergency help.',
+          ),
+          onChanged: _busy
+              ? null
+              : (value) => setState(() {
+                  _immediateDanger = value ?? false;
+                  _requestId = null;
+                }),
         ),
         const SizedBox(height: MortSpacing.md),
         MortButton(
@@ -3341,14 +3879,180 @@ class _BlockUserScreenState extends ConsumerState<BlockUserScreen> {
   }
 }
 
+class BlockedUsersScreen extends ConsumerStatefulWidget {
+  const BlockedUsersScreen({super.key});
+
+  @override
+  ConsumerState<BlockedUsersScreen> createState() => _BlockedUsersScreenState();
+}
+
+class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
+  List<Map<String, dynamic>> _rows = const [];
+  bool _loading = true;
+  String? _busyId;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  Future<void> _load() async {
+    try {
+      final rows = await ref.read(safetyRepositoryProvider).listBlockedUsers();
+      if (mounted)
+        setState(() {
+          _rows = rows;
+          _loading = false;
+        });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      MortToast.show(context, userFacingError(error));
+    }
+  }
+
+  Future<void> _unblock(String blockedId) async {
+    if (_busyId != null) return;
+    final confirmed = await MortConfirmSheet.show(
+      context,
+      title: 'Unblock this account?',
+      message: 'Normal MORT interactions may become available again.',
+      confirmLabel: 'Unblock',
+    );
+    if (!confirmed || !mounted) return;
+    setState(() => _busyId = blockedId);
+    try {
+      await ref.read(safetyRepositoryProvider).unblockUser(blockedId);
+      await _load();
+      if (mounted) MortToast.show(context, 'Account unblocked.');
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busyId = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MortScreen(
+      children: [
+        const MortHeader(
+          eyebrow: 'Privacy and safety',
+          title: 'Blocked accounts',
+          subtitle:
+              'Blocking limits normal interaction. Reports and preserved safety evidence remain separate.',
+        ),
+        if (_loading)
+          const Center(child: CircularProgressIndicator())
+        else if (_rows.isEmpty)
+          const MortEmptyState(
+            title: 'No blocked accounts',
+            message: 'Accounts you block will appear here.',
+            icon: Icons.block,
+          )
+        else
+          ..._rows.map((row) {
+            final blockedId = row['blocked_id']?.toString() ?? '';
+            final shortId = blockedId.length > 8
+                ? blockedId.substring(blockedId.length - 8)
+                : blockedId;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: MortSpacing.sm),
+              child: MortCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Blocked account ...$shortId',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: MortSpacing.xs),
+                    Text('Blocked ${formatDateTime(row['created_at'])}'),
+                    const SizedBox(height: MortSpacing.sm),
+                    MortButton(
+                      label: 'Unblock',
+                      icon: Icons.lock_open,
+                      style: MortButtonStyle.secondary,
+                      busy: _busyId == blockedId,
+                      onPressed: _busyId == null
+                          ? () => _unblock(blockedId)
+                          : null,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+      ],
+    );
+  }
+}
+
 class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
   final _note = TextEditingController();
   bool _busy = false;
+  bool _loading = true;
+  bool _immediateDanger = false;
+  Map<String, dynamic>? _config;
+  List<Map<String, dynamic>> _checkins = const [];
+  String? _selectedJobId = '';
+  String? _pingRequestId;
+  String? _pingPayload;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
 
   @override
   void dispose() {
     _note.dispose();
     super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final repository = ref.read(safetyRepositoryProvider);
+      final values = await Future.wait<dynamic>([
+        repository.getSafetyCenterConfig(),
+        repository.listActiveJobCheckins(),
+      ]);
+      if (!mounted) return;
+      final checkins = List<Map<String, dynamic>>.from(values[1] as List);
+      setState(() {
+        _config = Map<String, dynamic>.from(values[0] as Map);
+        _checkins = checkins;
+        _loading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      MortToast.show(context, userFacingError(error));
+    }
+  }
+
+  String _stablePingRequestId() {
+    final payload = '${_note.text.trim()}|$_selectedJobId|$_immediateDanger';
+    if (_pingRequestId == null || _pingPayload != payload) {
+      _pingRequestId = const Uuid().v4();
+      _pingPayload = payload;
+    }
+    return _pingRequestId!;
+  }
+
+  Future<void> _callEmergencyServices() async {
+    final rawUri = _config?['emergency_phone_uri']?.toString();
+    final uri = rawUri == null ? null : Uri.tryParse(rawUri);
+    if (uri == null || !await launchUrl(uri)) {
+      if (mounted) {
+        MortToast.show(
+          context,
+          'Open your Phone app and call local emergency services.',
+        );
+      }
+    }
   }
 
   Future<void> _ping() async {
@@ -3357,16 +4061,65 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
       context,
       title: 'Send Safety Ping?',
       message:
-          'This alerts the people configured by MORT. It is not a replacement for emergency services.',
+          'This alerts enabled Guardian or Safety Circle contacts and authorized safety staff where configured. MORT does not dispatch physical help.',
       confirmLabel: 'Send Safety Ping',
     );
     if (!confirmed || !mounted) return;
     setState(() => _busy = true);
     try {
+      final result = await ref
+          .read(safetyRepositoryProvider)
+          .createSafetyPing(
+            note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+            jobId: _selectedJobId?.isNotEmpty == true ? _selectedJobId : null,
+            immediateDanger: _immediateDanger,
+            clientRequestId: _stablePingRequestId(),
+          );
+      if (mounted) {
+        MortToast.show(
+          context,
+          result['immediate_danger'] == true
+              ? 'Urgent review case created. MORT did not dispatch physical help.'
+              : 'Safety Ping created.',
+        );
+        setState(() => _pingRequestId = null);
+      }
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _completeCheckin(String checkinId) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
       await ref
           .read(safetyRepositoryProvider)
-          .createSafetyPing(note: _note.text.trim());
-      if (mounted) MortToast.show(context, 'Safety Ping created.');
+          .completeActiveJobCheckin(checkinId: checkinId);
+      if (mounted) MortToast.show(context, 'Check-in completed.');
+      await _load();
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _scheduleCheckin(String applicationId) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(safetyRepositoryProvider)
+          .scheduleActiveJobCheckin(
+            applicationId: applicationId,
+            minutesFromNow: 60,
+          );
+      if (mounted)
+        MortToast.show(context, 'Next check-in scheduled for 60 minutes.');
+      await _load();
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
     } finally {
@@ -3376,6 +4129,13 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final activeJobs = <String, String>{'': 'Do not attach an active job'};
+    for (final checkin in _checkins) {
+      final jobId = checkin['job_id']?.toString();
+      if (jobId != null && jobId.isNotEmpty) {
+        activeJobs[jobId] = checkin['job_title']?.toString() ?? 'Active job';
+      }
+    }
     return MortScreen(
       children: [
         const MortHeader(
@@ -3384,19 +4144,107 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
           subtitle:
               'Safety Ping is not an emergency service. Call local emergency services for immediate danger.',
         ),
-        const MortSafetyBanner(
+        MortSafetyBanner(
           message:
-              'Report, block, and Safety Ping stay free. Keep communication on MORT.',
+              _config?['emergency_guidance']?.toString() ??
+              'Report, block, and Safety Ping stay free. Contact local emergency services for immediate danger.',
         ),
         const SizedBox(height: MortSpacing.md),
+        MortButton(
+          label: 'Call ${_config?['emergency_label'] ?? 'emergency services'}',
+          icon: Icons.call,
+          style: MortButtonStyle.danger,
+          onPressed: _loading ? null : _callEmergencyServices,
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        MortButton(
+          label: 'Urgent support and human review',
+          icon: Icons.support_agent,
+          style: MortButtonStyle.secondary,
+          onPressed: () => context.push('/support/chat'),
+        ),
+        if (_checkins.isNotEmpty) ...[
+          const SizedBox(height: MortSpacing.lg),
+          const MortSectionTitle(title: 'Active job check-ins'),
+          ..._checkins.map(
+            (checkin) => Padding(
+              padding: const EdgeInsets.only(top: MortSpacing.sm),
+              child: MortCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      checkin['job_title']?.toString() ?? 'Active job',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: MortSpacing.xs),
+                    Text(
+                      '${titleCase(checkin['status']?.toString() ?? 'pending')} - due ${formatDateTime(checkin['expected_at'])}',
+                    ),
+                    const SizedBox(height: MortSpacing.sm),
+                    MortActionRow(
+                      actions: [
+                        MortAction(
+                          label: 'I am okay',
+                          icon: Icons.check_circle_outline,
+                          onPressed: _busy
+                              ? null
+                              : () => _completeCheckin(
+                                  checkin['checkin_id'].toString(),
+                                ),
+                        ),
+                        MortAction(
+                          label: 'Add 60-minute check-in',
+                          icon: Icons.add_alarm,
+                          onPressed: _busy
+                              ? null
+                              : () => _scheduleCheckin(
+                                  checkin['application_id'].toString(),
+                                ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: MortSpacing.md),
+          MortDropdown<String>(
+            label: 'Attach Safety Ping to job (optional)',
+            value: _selectedJobId,
+            items: activeJobs,
+            onChanged: _busy
+                ? (_) {}
+                : (value) => setState(() {
+                    _selectedJobId = value ?? '';
+                    _pingRequestId = null;
+                  }),
+          ),
+        ],
+        const SizedBox(height: MortSpacing.lg),
         MortTextArea(
           label: 'Optional Safety Ping note',
           controller: _note,
           maxLines: 3,
         ),
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          value: _immediateDanger,
+          title: const Text('Someone may be in immediate danger'),
+          subtitle: const Text(
+            'Creates an urgent restricted case. MORT cannot dispatch help.',
+          ),
+          onChanged: _busy
+              ? null
+              : (value) => setState(() {
+                  _immediateDanger = value ?? false;
+                  _pingRequestId = null;
+                }),
+        ),
         const SizedBox(height: MortSpacing.md),
         MortButton(
-          label: 'Safety Ping',
+          label: _immediateDanger ? 'Send urgent Safety Ping' : 'Safety Ping',
           busyLabel: 'Sending Safety Ping...',
           busy: _busy,
           icon: Icons.health_and_safety,
@@ -3420,7 +4268,7 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
         const SizedBox(height: MortSpacing.md),
         const FeatureChecklist(
           items: [
-            'Guardian knows where you are.',
+            'Guardian Mode is optional and shares only enabled safety alerts.',
             'No exact address in chat.',
             'No unsafe tools or late-night jobs.',
             'No off-platform pressure.',
@@ -3508,6 +4356,8 @@ class NotificationsScreen extends ConsumerWidget {
 
 enum AdminSensitiveQueueAction { none, incident }
 
+enum AdminModerationQueueAction { none, rejectJob, approveReview }
+
 class AdminQueueScreen extends ConsumerStatefulWidget {
   const AdminQueueScreen({
     super.key,
@@ -3515,8 +4365,7 @@ class AdminQueueScreen extends ConsumerStatefulWidget {
     required this.table,
     this.subtitle,
     this.statusField = 'status',
-    this.actionLabel,
-    this.actionValue,
+    this.moderationAction = AdminModerationQueueAction.none,
     this.equals = const {},
     this.notEquals = const {},
     this.orFilter,
@@ -3528,8 +4377,7 @@ class AdminQueueScreen extends ConsumerStatefulWidget {
   final String table;
   final String? subtitle;
   final String statusField;
-  final String? actionLabel;
-  final String? actionValue;
+  final AdminModerationQueueAction moderationAction;
   final Map<String, String> equals;
   final Map<String, String> notEquals;
   final String? orFilter;
@@ -3609,11 +4457,229 @@ class _AdminQueueScreenState extends ConsumerState<AdminQueueScreen> {
                     table: widget.table,
                     row: row,
                     statusField: widget.statusField,
-                    actionLabel: widget.actionLabel,
-                    actionValue: widget.actionValue,
+                    moderationAction: widget.moderationAction,
                     sensitiveAction: widget.sensitiveAction,
                     detailRoutePrefix: widget.detailRoutePrefix,
                     onUpdated: _reload,
+                  ),
+                  const SizedBox(height: MortSpacing.sm),
+                ],
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class AdminBanAppealsScreen extends ConsumerStatefulWidget {
+  const AdminBanAppealsScreen({super.key});
+
+  @override
+  ConsumerState<AdminBanAppealsScreen> createState() =>
+      _AdminBanAppealsScreenState();
+}
+
+class _AdminBanAppealsScreenState extends ConsumerState<AdminBanAppealsScreen> {
+  late Future<List<Map<String, dynamic>>> _future;
+  String? _busyAppealId;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<List<Map<String, dynamic>>> _load() =>
+      ref.read(adminRepositoryProvider).banAppeals();
+
+  void _reload() => setState(() => _future = _load());
+
+  Future<String?> _reason(String title) async {
+    final controller = TextEditingController();
+    String? error;
+    final value = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(title),
+          content: TextField(
+            controller: controller,
+            minLines: 3,
+            maxLines: 6,
+            maxLength: 1000,
+            decoration: InputDecoration(
+              labelText: 'Required internal reason',
+              errorText: error,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final result = controller.text.trim();
+                if (result.length < 10) {
+                  setDialogState(() => error = 'Enter at least 10 characters.');
+                  return;
+                }
+                Navigator.pop(dialogContext, result);
+              },
+              child: const Text('Confirm'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    return value;
+  }
+
+  Future<void> _claim(String appealId) async {
+    final reason = await _reason('Claim this appeal for two hours?');
+    if (reason == null || !mounted) return;
+    setState(() => _busyAppealId = appealId);
+    try {
+      await ref
+          .read(adminRepositoryProvider)
+          .claimBanAppeal(appealId: appealId, reason: reason);
+      if (!mounted) return;
+      MortToast.show(context, 'Appeal assigned with a two-hour expiry.');
+      _reload();
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busyAppealId = null);
+    }
+  }
+
+  Future<void> _review(String appealId, String decision) async {
+    final reason = await _reason(
+      decision == 'approve' ? 'Reverse this account ban?' : 'Deny this appeal?',
+    );
+    if (reason == null || !mounted) return;
+    setState(() => _busyAppealId = appealId);
+    try {
+      await ref
+          .read(adminRepositoryProvider)
+          .reviewBanAppeal(
+            appealId: appealId,
+            decision: decision,
+            reason: reason,
+          );
+      if (!mounted) return;
+      MortToast.show(context, 'The independent appeal decision was recorded.');
+      _reload();
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busyAppealId = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MortScreen(
+      children: [
+        MortHeader(
+          eyebrow: 'Independent review',
+          title: 'Account ban appeals',
+          subtitle:
+              'A reviewer cannot reverse their own enforcement. Claims expire after two hours and every action is audited.',
+          trailing: MortIconButton(
+            icon: Icons.refresh,
+            tooltip: 'Refresh account ban appeals',
+            onPressed: _reload,
+          ),
+        ),
+        FutureBuilder<List<Map<String, dynamic>>>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const MortSkeletonCard();
+            }
+            if (snapshot.hasError) {
+              return MortErrorState(
+                title: 'Ban appeal queue unavailable',
+                message: userFacingError(snapshot.error),
+                action: MortButton(
+                  label: 'Retry',
+                  icon: Icons.refresh,
+                  onPressed: _reload,
+                ),
+              );
+            }
+            final appeals = snapshot.data ?? const [];
+            if (appeals.isEmpty) {
+              return const MortEmptyState(
+                title: 'No open ban appeals',
+                message: 'No submitted or assigned appeals are visible.',
+              );
+            }
+            return Column(
+              children: [
+                for (final appeal in appeals) ...[
+                  MortCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Appeal ${appeal['id']}',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                            ),
+                            MortBadge(label: '${appeal['status']}'),
+                          ],
+                        ),
+                        const SizedBox(height: MortSpacing.sm),
+                        Text('${appeal['reason']}'),
+                        const SizedBox(height: MortSpacing.sm),
+                        Text('Submitted: ${appeal['created_at']}'),
+                        Text('Appeal expires: ${appeal['expires_at']}'),
+                        if (appeal['assignment_expires_at'] != null)
+                          Text(
+                            'Assignment expires: ${appeal['assignment_expires_at']}',
+                          ),
+                        const SizedBox(height: MortSpacing.md),
+                        if (appeal['status'] == 'submitted')
+                          MortButton(
+                            label: 'Claim appeal',
+                            icon: Icons.assignment_ind_outlined,
+                            busy: _busyAppealId == appeal['id'],
+                            onPressed: _busyAppealId == null
+                                ? () => _claim('${appeal['id']}')
+                                : null,
+                          )
+                        else
+                          MortActionRow(
+                            actions: [
+                              MortAction(
+                                label: 'Approve reversal',
+                                icon: Icons.restore,
+                                busy: _busyAppealId == appeal['id'],
+                                onPressed: _busyAppealId == null
+                                    ? () =>
+                                          _review('${appeal['id']}', 'approve')
+                                    : null,
+                              ),
+                              MortAction(
+                                label: 'Deny appeal',
+                                icon: Icons.block,
+                                busy: _busyAppealId == appeal['id'],
+                                onPressed: _busyAppealId == null
+                                    ? () => _review('${appeal['id']}', 'deny')
+                                    : null,
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: MortSpacing.sm),
                 ],
@@ -3631,8 +4697,7 @@ class _AdminRowCard extends ConsumerStatefulWidget {
     required this.table,
     required this.row,
     required this.statusField,
-    required this.actionLabel,
-    required this.actionValue,
+    required this.moderationAction,
     required this.sensitiveAction,
     required this.detailRoutePrefix,
     required this.onUpdated,
@@ -3641,8 +4706,7 @@ class _AdminRowCard extends ConsumerStatefulWidget {
   final String table;
   final Map<String, dynamic> row;
   final String statusField;
-  final String? actionLabel;
-  final String? actionValue;
+  final AdminModerationQueueAction moderationAction;
   final AdminSensitiveQueueAction sensitiveAction;
   final String? detailRoutePrefix;
   final VoidCallback onUpdated;
@@ -3653,6 +4717,36 @@ class _AdminRowCard extends ConsumerStatefulWidget {
 
 class _AdminRowCardState extends ConsumerState<_AdminRowCard> {
   bool _busy = false;
+
+  List<String> get _reasonCodes => switch (widget.moderationAction) {
+    AdminModerationQueueAction.rejectJob => const [
+      'prohibited_job',
+      'scam_fraud',
+      'unsafe_contact',
+      'harassment',
+      'child_safety',
+      'duplicate_spam',
+      'policy_violation',
+    ],
+    AdminModerationQueueAction.approveReview => const [
+      'content_review_completed',
+      'harassment',
+      'sexual_content',
+      'personal_information',
+      'threats',
+      'scam_fraud',
+      'discrimination',
+      'retaliation',
+      'policy_violation',
+    ],
+    AdminModerationQueueAction.none => const [],
+  };
+
+  String get _actionLabel => switch (widget.moderationAction) {
+    AdminModerationQueueAction.rejectJob => 'Reject job',
+    AdminModerationQueueAction.approveReview => 'Approve review',
+    AdminModerationQueueAction.none => 'Update',
+  };
 
   Future<bool> _confirm(String title, String message) async {
     return await showDialog<bool>(
@@ -3675,15 +4769,99 @@ class _AdminRowCardState extends ConsumerState<_AdminRowCard> {
         false;
   }
 
+  Future<({String reasonCode, String note})?> _moderationDecision() async {
+    final noteController = TextEditingController();
+    var selectedReason = _reasonCodes.isEmpty ? null : _reasonCodes.first;
+    String? error;
+    final result = await showDialog<({String reasonCode, String note})>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('$_actionLabel?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: selectedReason,
+                decoration: const InputDecoration(labelText: 'Reason code'),
+                items: [
+                  for (final code in _reasonCodes)
+                    DropdownMenuItem(value: code, child: Text(titleCase(code))),
+                ],
+                onChanged: (value) => selectedReason = value,
+              ),
+              const SizedBox(height: MortSpacing.sm),
+              TextField(
+                controller: noteController,
+                minLines: 3,
+                maxLines: 6,
+                maxLength: 1000,
+                decoration: InputDecoration(
+                  labelText: 'Internal decision note',
+                  errorText: error,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final note = noteController.text.trim();
+                if (selectedReason == null || note.length < 10) {
+                  setDialogState(
+                    () => error =
+                        'Select a reason and enter at least 10 characters.',
+                  );
+                  return;
+                }
+                Navigator.pop(dialogContext, (
+                  reasonCode: selectedReason!,
+                  note: note,
+                ));
+              },
+              child: const Text('Confirm'),
+            ),
+          ],
+        ),
+      ),
+    );
+    noteController.dispose();
+    return result;
+  }
+
   Future<void> _update(String id) async {
-    if (_busy || widget.actionValue == null) return;
+    if (_busy || widget.moderationAction == AdminModerationQueueAction.none) {
+      return;
+    }
+    final decision = await _moderationDecision();
+    if (decision == null || !mounted) return;
     setState(() => _busy = true);
     try {
-      await ref.read(adminRepositoryProvider).updateById(widget.table, id, {
-        widget.statusField: widget.actionValue,
-      });
+      final repository = ref.read(adminRepositoryProvider);
+      switch (widget.moderationAction) {
+        case AdminModerationQueueAction.rejectJob:
+          await repository.moderateJob(
+            jobId: id,
+            action: 'reject',
+            reasonCode: decision.reasonCode,
+            note: decision.note,
+          );
+        case AdminModerationQueueAction.approveReview:
+          await repository.moderateReview(
+            reviewId: id,
+            action: 'approve',
+            reasonCode: decision.reasonCode,
+            note: decision.note,
+          );
+        case AdminModerationQueueAction.none:
+          return;
+      }
       if (!mounted) return;
-      MortToast.show(context, '${widget.actionLabel} completed.');
+      MortToast.show(context, '$_actionLabel completed.');
       widget.onUpdated();
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
@@ -3788,12 +4966,13 @@ class _AdminRowCardState extends ConsumerState<_AdminRowCard> {
                 ),
               ],
             ),
-          ] else if (id != null && widget.actionValue != null) ...[
+          ] else if (id != null &&
+              widget.moderationAction != AdminModerationQueueAction.none) ...[
             const SizedBox(height: MortSpacing.md),
             MortActionRow(
               actions: [
                 MortAction(
-                  label: widget.actionLabel ?? 'Update',
+                  label: _actionLabel,
                   icon: Icons.check,
                   busy: _busy,
                   onPressed: () => _update(id),
@@ -4087,6 +5266,11 @@ class SettingsScreen extends StatelessWidget {
           route: '/settings/native-permissions',
         ),
         MortAction(
+          label: 'Release diagnostics',
+          icon: Icons.health_and_safety_outlined,
+          route: '/settings/release-diagnostics',
+        ),
+        MortAction(
           label: 'Safety Circle',
           icon: Icons.group_outlined,
           route: '/settings/safety-circle',
@@ -4097,9 +5281,14 @@ class SettingsScreen extends StatelessWidget {
           route: '/settings/safety-cases',
         ),
         MortAction(
-          label: 'Active sessions',
+          label: 'Blocked accounts',
+          icon: Icons.block,
+          route: '/settings/blocked-users',
+        ),
+        MortAction(
+          label: 'Security and sessions',
           icon: Icons.phonelink_lock,
-          route: '/settings/active-sessions',
+          route: '/settings/security-sessions',
         ),
         MortAction(
           label: 'Reviews received',

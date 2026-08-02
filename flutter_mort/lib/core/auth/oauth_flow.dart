@@ -5,6 +5,9 @@ enum OAuthFlowStage {
   processingCallback,
   completingProfile,
   success,
+  sessionExchangeFailed,
+  profileBootstrapFailed,
+  identityAuditFailed,
   providerCanceled,
   browserClosed,
   networkUnavailable,
@@ -37,6 +40,9 @@ class OAuthFlowSnapshot {
   bool get canCancel => stage == OAuthFlowStage.waitingForRedirect;
 
   bool get isError => switch (stage) {
+    OAuthFlowStage.sessionExchangeFailed ||
+    OAuthFlowStage.profileBootstrapFailed ||
+    OAuthFlowStage.identityAuditFailed ||
     OAuthFlowStage.providerCanceled ||
     OAuthFlowStage.browserClosed ||
     OAuthFlowStage.networkUnavailable ||
@@ -50,6 +56,31 @@ class OAuthFlowSnapshot {
     OAuthFlowStage.retryAvailable => true,
     _ => false,
   };
+}
+
+class OAuthSessionReadinessPolicy {
+  const OAuthSessionReadinessPolicy._();
+
+  static bool isReady({
+    required bool hasSession,
+    required bool hasUser,
+    required bool userIdsMatch,
+  }) => hasSession && hasUser && userIdsMatch;
+}
+
+class OAuthCompletionGate {
+  Future<void>? _activeCompletion;
+
+  Future<void> run(Future<void> Function() completion) {
+    final active = _activeCompletion;
+    if (active != null) return active;
+
+    final next = completion();
+    _activeCompletion = next;
+    return next.whenComplete(() {
+      if (identical(_activeCompletion, next)) _activeCompletion = null;
+    });
+  }
 }
 
 class OAuthLaunchGate {

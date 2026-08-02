@@ -44,6 +44,17 @@ String notificationDestination(Map<String, dynamic> data, UserRole? role) {
       _ => '/account-status',
     };
   }
+  final verificationId = _uuid(data['verificationId']);
+  if (verificationId != null) {
+    return role == UserRole.admin
+        ? '/admin/verifications/$verificationId'
+        : '/settings/identity-verification';
+  }
+  final disputeId = _uuid(data['disputeId']);
+  if (disputeId != null) return '/disputes/$disputeId';
+  if (data['type'] == 'account_security_alert') {
+    return '/settings/security-sessions';
+  }
   return '/account-status';
 }
 
