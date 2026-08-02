@@ -138,6 +138,12 @@ class JobsRepository extends RepositoryBase {
 
   Future<Job> publish(JobDraft draft) => _save(draft, publish: true);
 
+  Future<JobSaveResult> saveDraftWithState(JobDraft draft) =>
+      _saveWithState(draft, publish: false);
+
+  Future<JobSaveResult> publishWithState(JobDraft draft) =>
+      _saveWithState(draft, publish: true);
+
   Future<Job> createJob({
     required String title,
     required String description,
@@ -165,7 +171,13 @@ class JobsRepository extends RepositoryBase {
     return publish(draft);
   }
 
-  Future<Job> _save(JobDraft draft, {required bool publish}) async {
+  Future<Job> _save(JobDraft draft, {required bool publish}) async =>
+      (await _saveWithState(draft, publish: publish)).job;
+
+  Future<JobSaveResult> _saveWithState(
+    JobDraft draft, {
+    required bool publish,
+  }) async {
     final result = await client.rpc(
       'save_job_draft_or_publish',
       params: {
@@ -180,7 +192,19 @@ class JobsRepository extends RepositoryBase {
     final jobMap = Map<String, dynamic>.from(map['job'] as Map);
     final job = Job.fromMap(jobMap);
     draft.id = job.id;
-    return job;
+    return JobSaveResult(
+      job: job,
+      publicationState:
+          map['publication_state']?.toString() ??
+          (publish
+              ? job.status == 'open' && job.applicationsOpen
+                    ? 'open'
+                    : job.status == 'pending_review'
+                    ? 'pending_review'
+                    : 'not_open'
+              : 'draft'),
+      replayed: map['replayed'] == true,
+    );
   }
 
   Future<Job?> manageJob(
@@ -266,10 +290,14 @@ class JobsRepository extends RepositoryBase {
 
   static void _throwIfFailed(Map<String, dynamic> result) {
     if (result['ok'] == true) return;
-    throw MortCodedError(
-      (result['code'] as String?) ?? 'unknown_permission_failure',
-      (result['message'] as String?) ??
-          'We could not complete that job action.',
-    );
+    final code = (result['code'] as String?) ?? 'unknown_permission_failure';
+    final message =
+        (result['message'] as String?) ??
+        'We could not complete that job action.';
+    final field = result['field']?.toString();
+    if (field != null && field.isNotEmpty) {
+      throw MortFieldCodedError(code, message, field: field);
+    }
+    throw MortCodedError(code, message);
   }
 }

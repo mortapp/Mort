@@ -5,7 +5,7 @@ Status: `CODE-COMPLETE / MANUAL VERIFICATION REQUIRED`.
 - [ ] Active Apple Developer Program membership.
 - [ ] App ID `com.mortapp.mobile` exists and owner Team is selected.
 - [ ] App Store Connect app record exists with correct SKU and primary locale.
-- [ ] Version `0.9.12`, build `102` is unused in App Store Connect.
+- [ ] Version `0.9.13`, build `103` is unused in App Store Connect.
 - [ ] Closed-test public configuration supplied from protected build settings.
 - [ ] No server/service/provider secrets in the archive or source maps.
 - [ ] iOS archive builds from `Runner.xcworkspace` in Release mode.
@@ -23,4 +23,3 @@ Status: `CODE-COMPLETE / MANUAL VERIFICATION REQUIRED`.
 Do not promote this build to public marketplace operation. Remote push, crash
 reporting, identity verification, payments, staffed support/moderation, and
 approved legal text are separate production gates.
-

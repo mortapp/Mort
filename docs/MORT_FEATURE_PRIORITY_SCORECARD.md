@@ -48,7 +48,7 @@ Priority combines safety, accessibility, retention, growth, revenue, differentia
 | 42 | MORT-F-1697 Public data allowlist | Privacy, compliance, transparency, and user controls | 100 | 5 | 2 | 5 | 2 | 3 | 4 | 3 | 4 | implemented_verified_backend |
 | 43 | MORT-F-1698 Data broker rejection | Privacy, compliance, transparency, and user controls | 100 | 5 | 4 | 3 | 3 | 2 | 3 | 2 | 5 | implemented_verified_backend |
 | 44 | MORT-F-1699 Account-security education | Privacy, compliance, transparency, and user controls | 100 | 4 | 2 | 5 | 2 | 1 | 5 | 2 | 4 | shared_implemented |
-| 45 | MORT-F-1700 Biometric limitations disclosure | Privacy, compliance, transparency, and user controls | 100 | 5 | 4 | 4 | 4 | 3 | 4 | 4 | 4 | shared_implemented |
+| 45 | MORT-F-1700 Biometric limitations disclosure | Privacy, compliance, transparency, and user controls | 100 | 5 | 4 | 4 | 4 | 3 | 4 | 4 | 4 | accepted_roadmap |
 | 46 | MORT-F-1701 Official legal-pattern research corpus | Privacy, compliance, transparency, and user controls | 100 | 4 | 3 | 3 | 4 | 1 | 4 | 4 | 4 | foundation_ready |
 | 47 | MORT-F-1702 Affirmative version-bound legal clickwrap | Privacy, compliance, transparency, and user controls | 100 | 4 | 3 | 5 | 4 | 1 | 3 | 4 | 3 | shared_implemented |
 | 48 | MORT-F-1703 Legal-information boundary | Privacy, compliance, transparency, and user controls | 100 | 5 | 4 | 4 | 2 | 2 | 5 | 2 | 3 | shared_implemented |

@@ -16,6 +16,7 @@ Wave placement is dependency-aware and remains subject to youth-safety, accessib
 
 ## Highest-Priority Accepted Work
 
+- `MORT-F-1700` Biometric limitations disclosure (Wave 0 - multi-signal trust foundation, score 100)
 - `MORT-F-0144` Backup worker roster participant timeline (Wave 2 - repeat value, score 80)
 - `MORT-F-0218` Guardian notification preferences guided workflow (Wave 3 - MORT differentiation, score 79)
 - `MORT-F-1739` Data retention explainable decision support (Wave 1 - safety and core marketplace, score 79)
@@ -75,4 +76,3 @@ Wave placement is dependency-aware and remains subject to youth-safety, accessib
 - `MORT-F-0823` Fake-check and overpayment scam preventive control (Wave 1 - safety and core marketplace, score 73)
 - `MORT-F-1186` Reduce Motion equivalent task path (Wave 1 - safety and core marketplace, score 73)
 - `MORT-F-1193` Reduce Transparency cross-flow consistency (Wave 1 - safety and core marketplace, score 73)
-- `MORT-F-1199` Switch Control user setting (Wave 1 - safety and core marketplace, score 73)

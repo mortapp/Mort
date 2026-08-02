@@ -171,8 +171,47 @@ class _ProfileAvatarEditorState extends ConsumerState<ProfileAvatarEditor> {
       final repository = ref.read(avatarRepositoryProvider);
       final file = await repository.choosePhoto(source: source);
       if (file == null) return;
-      await repository.uploadAvatar(
-        file,
+      final prepared = await repository.prepareAvatar(file);
+      if (!mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Use this square crop?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: Image.memory(
+                    prepared,
+                    fit: BoxFit.cover,
+                    gaplessPlayback: true,
+                  ),
+                ),
+              ),
+              const SizedBox(height: MortSpacing.sm),
+              const Text(
+                'This processed preview is the exact center-square image MORT will upload privately.',
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Choose another'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Use photo'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+      await repository.uploadPreparedAvatar(
+        prepared,
         previousPath: widget.profile.avatarPath,
       );
       ref.invalidate(currentProfileProvider);

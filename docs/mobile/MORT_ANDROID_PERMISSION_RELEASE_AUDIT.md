@@ -2,7 +2,7 @@
 
 > Status: closed-test publication candidate dated 2026-07-20. Not legal approval, not a public launch, and not a production-readiness claim.
 
-The prior merged release manifest contained 11 permissions. `WAKE_LOCK`, inherited from a bundled Google measurement dependency, is explicitly removed for this closed test. The final AAB inventory controls if it differs from this source audit.
+The release manifest retains `WAKE_LOCK` for the compiled Firebase Messaging provider. It remains a normal install-time capability with no runtime prompt and is not permission for background location or a foreground service. The final AAB inventory controls if it differs from this source audit.
 
 | Permission | Requester | Feature / current use | Runtime and denial behavior | Disclosure / Data Safety | Decision |
 |---|---|---|---|---|---|
@@ -15,7 +15,7 @@ The prior merged release manifest contained 11 permissions. `WAKE_LOCK`, inherit
 | `android.permission.ACCESS_FINE_LOCATION` | MORT manifest / geolocator | Optional foreground precision where user approves | User-triggered; precise is optional; approximate/manual fallback; no background access | Precise temporary location must be declared if sent/stored | Keep, monitor |
 | `android.permission.USE_FINGERPRINT` | AndroidX Biometric 1.1.0 | Compatibility path for biometric prompt | Same behavior as USE_BIOMETRIC | On-device only | Keep, transitive compatibility |
 | `android.permission.VIBRATE` | flutter_local_notifications | Notification vibration where OS/user permits | Install-time; no functional failure if vibration disabled | No personal data | Keep |
-| `android.permission.WAKE_LOCK` | Google measurement transitive dependency | No approved closed-test feature | Not requested at runtime | Unnecessary background behavior concern | Remove with manifest merger rule |
+| `android.permission.WAKE_LOCK` | Firebase Messaging | Permit reliable FCM handling while the device is idle | Install-time; no user prompt | No additional personal data | Keep while `firebase_messaging` is compiled in |
 | `com.mortapp.mobile.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` | AndroidX Core 1.18.0 | Signature-only protection for non-exported dynamic receivers | No user prompt; only same-signature apps can hold it | No user data category | Keep, platform security permission |
 
 ## Required interaction rules

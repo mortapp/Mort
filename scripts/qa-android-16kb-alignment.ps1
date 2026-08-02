@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-  [string]$ApkPath = 'build\play\mort-closed-test-0.9.12.apk'
+  [string]$ApkPath = 'build\play\mort-closed-test-0.9.13.apk'
 )
 
 $ErrorActionPreference = 'Stop'

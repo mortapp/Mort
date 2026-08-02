@@ -12,7 +12,7 @@ for (const forbidden of ['ACCESS_BACKGROUND_LOCATION','READ_MEDIA_IMAGES','READ_
 }
 assert(!source.includes('com.android.vending.BILLING'), 'Google Play Billing must be absent from the free pilot.');
 assert(!pubspec.includes('in_app_purchase:'), 'in_app_purchase remains in the free pilot dependency graph.');
-for (const removed of ['com.google.android.gms.permission.AD_ID','ACCESS_ADSERVICES_AD_ID','WAKE_LOCK']) {
+for (const removed of ['com.google.android.gms.permission.AD_ID','ACCESS_ADSERVICES_AD_ID']) {
   const explicitlyRemoved = new RegExp(`${removed.replaceAll('.', '\\.')}[^>]+tools:node="remove"`).test(source);
   assert(
     explicitlyRemoved || (merged !== '' && !merged.includes(removed)),
@@ -32,7 +32,7 @@ for (const component of [
   );
 }
 if (existsSync(report)) {
-  for (const forbidden of ['ACCESS_BACKGROUND_LOCATION','com.google.android.gms.permission.AD_ID','WAKE_LOCK']) {
+  for (const forbidden of ['ACCESS_BACKGROUND_LOCATION','com.google.android.gms.permission.AD_ID']) {
     assert(!merged.includes(forbidden), `Final AAB contains forbidden permission: ${forbidden}`);
   }
   assert(!merged.includes('com.android.vending.BILLING'), 'Final AAB unexpectedly contains Google Play Billing.');
@@ -41,4 +41,5 @@ if (existsSync(report)) {
     'Final AAB still contains the disabled AdMob auto-init provider.',
   );
 }
-pass(scope, 'Billing, background/media/ad/wake-lock permissions, and AdMob auto-start remain absent');
+assert(source.includes('android.permission.WAKE_LOCK'), 'FCM wake-lock capability is missing.');
+pass(scope, 'Billing, background/media/ad permissions and AdMob auto-start remain absent; FCM wake lock is retained');

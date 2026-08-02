@@ -9,7 +9,7 @@ does not claim Apple approval.
 |---|---|
 | Name | MORT |
 | Bundle ID | `com.mortapp.mobile` |
-| Version/build | `0.9.12 (102)` |
+| Version/build | `0.9.13 (103)` |
 | Category | Teen-safe local jobs marketplace |
 | Release scope | Closed test; public marketplace closed |
 | Backend | Hosted Supabase project `rakjydmgwwgtdislanbt` |

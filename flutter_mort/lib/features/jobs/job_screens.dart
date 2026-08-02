@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../core/errors/mort_error.dart';
 import '../../core/errors/user_facing_error.dart';
 import '../../core/money/mort_service_fee.dart';
 import '../../core/theme/mort_colors.dart';
@@ -12,6 +15,8 @@ import '../../core/utils/validators.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/job.dart';
 import '../../data/repositories/providers.dart';
+import '../../data/services/supabase_service.dart';
+import 'job_creation_flow.dart';
 
 const safeJobCategories = [
   'cleaning',
@@ -41,8 +46,9 @@ class JobCreationScreen extends ConsumerStatefulWidget {
   ConsumerState<JobCreationScreen> createState() => _JobCreationScreenState();
 }
 
-class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
-  final _draft = JobDraft(clientRequestId: const Uuid().v4());
+class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
+    with WidgetsBindingObserver {
+  JobDraft _draft = JobDraft(clientRequestId: const Uuid().v4());
   final _title = TextEditingController();
   final _summary = TextEditingController();
   final _description = TextEditingController();
@@ -62,10 +68,35 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
   final _transportationNotes = TextEditingController();
   final _pay = TextEditingController();
   final _safetyNotes = TextEditingController();
+  final _fieldErrors = <String, String>{};
+  final _focusNodes = <String, FocusNode>{
+    for (final field in [
+      'title',
+      'summary',
+      'description',
+      'estimated_duration_minutes',
+      'workers_needed',
+      'special_instructions',
+      'location_text',
+      'city',
+      'state',
+      'zip_code',
+      'travel_radius_miles',
+      'transportation_considerations',
+      'adult_job_amount_cents',
+      'safety_notes',
+    ])
+      field: FocusNode(),
+  };
   int _step = 0;
   bool _busy = false;
   bool _loaded = false;
+  bool _draftPersistenceEnabled = false;
+  bool _restoringDraft = false;
+  bool _recoveredLocalDraft = false;
   bool _prohibitedConfirmed = false;
+  Timer? _draftTimer;
+  Object? _loadError;
   String _category = safeJobCategories.first;
   String _experience = 'any';
   String _scheduleType = 'flexible';
@@ -96,28 +127,169 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
   DateTime? _endsAt;
   DateTime? _deadlineAt;
 
-  static const _stepTitles = [
-    'Job basics',
-    'Work details',
-    'Schedule',
-    'Location and travel',
-    'Payment',
-    'Safety and requirements',
-    'Preview',
-    'Publish',
-  ];
-
   @override
   void initState() {
     super.initState();
-    if (widget.jobId != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _loadJob());
+    WidgetsBinding.instance.addObserver(this);
+    for (final controller in _controllers) {
+      controller.addListener(_onDraftFieldChanged);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.jobId != null) {
+        unawaited(_loadJob());
+      } else {
+        unawaited(_restoreLocalDraft());
+      }
+    });
+  }
+
+  List<TextEditingController> get _controllers => [
+    _title,
+    _summary,
+    _description,
+    _duration,
+    _workers,
+    _skills,
+    _equipmentProvided,
+    _equipmentBrings,
+    _instructions,
+    _recurrenceRule,
+    _area,
+    _city,
+    _state,
+    _neighborhood,
+    _zip,
+    _radius,
+    _transportationNotes,
+    _pay,
+    _safetyNotes,
+  ];
+
+  Future<void> _loadJob() async {
+    try {
+      final job = await ref.read(jobsRepositoryProvider).getJob(widget.jobId!);
+      if (!mounted) return;
+      if (job == null) {
+        throw StateError('The requested job draft was not found.');
+      }
+      _restoringDraft = true;
+      _applyJob(job);
+      _restoringDraft = false;
+      _draftPersistenceEnabled = true;
+      setState(() => _loaded = true);
+    } catch (error) {
+      if (!mounted) return;
+      _restoringDraft = false;
+      setState(() {
+        _loadError = error;
+        _loaded = true;
+      });
     }
   }
 
-  Future<void> _loadJob() async {
-    final job = await ref.read(jobsRepositoryProvider).getJob(widget.jobId!);
-    if (!mounted || job == null) return;
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _draftTimer?.cancel();
+    for (final controller in _controllers) {
+      controller.dispose();
+    }
+    for (final focusNode in _focusNodes.values) {
+      focusNode.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden) {
+      _draftTimer?.cancel();
+      unawaited(_persistLocalDraft());
+    }
+  }
+
+  void _onDraftFieldChanged() {
+    if (_restoringDraft) return;
+    _fieldErrors.clear();
+    _scheduleDraftPersist();
+  }
+
+  void _scheduleDraftPersist() {
+    if (!_draftPersistenceEnabled || _restoringDraft) return;
+    _draftTimer?.cancel();
+    _draftTimer = Timer(const Duration(milliseconds: 350), _persistLocalDraft);
+  }
+
+  void _change(VoidCallback update) {
+    setState(update);
+    _scheduleDraftPersist();
+  }
+
+  Future<void> _persistLocalDraft() async {
+    if (!_draftPersistenceEnabled || !SupabaseService.isInitialized) return;
+    final userId = SupabaseService.client.auth.currentUser?.id;
+    if (userId == null) return;
+    _syncDraft();
+    try {
+      await ref
+          .read(secureDraftStorageProvider)
+          .writeJobDraft(userId, _draft.toLocalMap(activeStep: _step));
+    } catch (_) {
+      // Local recovery is best-effort; server save remains authoritative.
+    }
+  }
+
+  Future<void> _restoreLocalDraft() async {
+    if (!SupabaseService.isInitialized) {
+      _draftPersistenceEnabled = true;
+      return;
+    }
+    final userId = SupabaseService.client.auth.currentUser?.id;
+    if (userId == null) {
+      _draftPersistenceEnabled = true;
+      return;
+    }
+    try {
+      final stored = await ref
+          .read(secureDraftStorageProvider)
+          .readJobDraft(userId);
+      if (!mounted) return;
+      if (stored != null) {
+        final recovered = JobDraft.fromLocalMap(stored);
+        _restoringDraft = true;
+        _draft = recovered;
+        _applyDraft(recovered);
+        _step = _localStep(stored).clamp(0, jobCreationSteps.length - 1);
+        _recoveredLocalDraft = true;
+        _restoringDraft = false;
+      }
+      _draftPersistenceEnabled = true;
+      setState(() {});
+    } catch (_) {
+      _restoringDraft = false;
+      await ref.read(secureDraftStorageProvider).clearJobDraft(userId);
+      if (mounted) {
+        _draftPersistenceEnabled = true;
+        setState(() {});
+      }
+    }
+  }
+
+  static int _localStep(Map<String, dynamic> stored) =>
+      int.tryParse(stored['active_step']?.toString() ?? '') ?? 0;
+
+  Future<void> _clearLocalDraft() async {
+    if (!SupabaseService.isInitialized) return;
+    final userId = SupabaseService.client.auth.currentUser?.id;
+    if (userId == null) return;
+    _draftTimer?.cancel();
+    await ref.read(secureDraftStorageProvider).clearJobDraft(userId);
+  }
+
+  void _applyJob(Job job) {
     _draft.id = job.id;
     _title.text = job.title == 'Untitled draft' ? '' : job.title;
     _summary.text = job.summary ?? '';
@@ -168,35 +340,58 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
       ..clear()
       ..addAll(job.physicalRequirements);
     _safetyNotes.text = job.safetyNotes ?? '';
-    setState(() => _loaded = true);
   }
 
-  @override
-  void dispose() {
-    for (final controller in [
-      _title,
-      _summary,
-      _description,
-      _duration,
-      _workers,
-      _skills,
-      _equipmentProvided,
-      _equipmentBrings,
-      _instructions,
-      _recurrenceRule,
-      _area,
-      _city,
-      _state,
-      _neighborhood,
-      _zip,
-      _radius,
-      _transportationNotes,
-      _pay,
-      _safetyNotes,
-    ]) {
-      controller.dispose();
-    }
-    super.dispose();
+  void _applyDraft(JobDraft draft) {
+    _title.text = draft.title;
+    _summary.text = draft.summary;
+    _description.text = draft.description;
+    _category = safeJobCategories.contains(draft.category)
+        ? draft.category
+        : safeJobCategories.last;
+    _duration.text = draft.estimatedDurationMinutes?.toString() ?? '';
+    _workers.text = draft.workersNeeded.toString();
+    _experience = draft.experienceLevel;
+    _skills.text = draft.skillsNeeded.join(', ');
+    _equipmentProvided.text = draft.equipmentProvided;
+    _equipmentBrings.text = draft.equipmentWorkerBrings;
+    _instructions.text = draft.specialInstructions;
+    _proofExpected = draft.proofExpected;
+    _scheduleType = draft.scheduleType;
+    _startsAt = draft.startsAt;
+    _endsAt = draft.endsAt;
+    _deadlineAt = draft.deadlineAt;
+    _recurring = draft.recurring;
+    _recurrenceRule.text = draft.recurrenceRule;
+    _urgency = draft.urgency;
+    _timezone = draft.timezone;
+    _area.text = draft.locationText;
+    _city.text = draft.city;
+    _state.text = draft.state;
+    _neighborhood.text = draft.neighborhood;
+    _zip.text = draft.zipCode;
+    _radius.text = draft.travelRadiusMiles?.toString() ?? '';
+    _transportationMethods
+      ..clear()
+      ..addAll(draft.acceptableTransportationMethods);
+    _transportationNotes.text = draft.transportationConsiderations;
+    _environment = draft.workEnvironment;
+    _locationType = draft.locationType;
+    _pay.text = draft.adultJobAmountCents == null
+        ? ''
+        : (draft.adultJobAmountCents! / 100).toStringAsFixed(2);
+    _paymentType = draft.paymentType;
+    _paymentMethod = draft.paymentMethod;
+    _paymentTiming = draft.paymentTiming;
+    _tipAllowed = draft.tipAllowed;
+    _adultSupervision = draft.adultSupervisionPresent;
+    _verification = draft.verificationRequirement;
+    _guardianApproval = draft.requiresGuardianApproval;
+    _teenMinAge = draft.teenMinAge;
+    _physicalRequirements
+      ..clear()
+      ..addAll(draft.physicalRequirements);
+    _safetyNotes.text = draft.safetyNotes;
   }
 
   void _syncDraft() {
@@ -252,30 +447,100 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
       .take(12)
       .toList();
 
+  String _validationFailure(String field, String message) {
+    _fieldErrors[field] = message;
+    return message;
+  }
+
+  void _focusFirstFieldError() {
+    for (final field in _focusNodes.keys) {
+      if (_fieldErrors.containsKey(field)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _focusNodes[field]?.requestFocus();
+        });
+        return;
+      }
+    }
+  }
+
+  int _stepForField(String field) => switch (field) {
+    'title' ||
+    'summary' ||
+    'description' ||
+    'category' => JobCreationStep.basics.index,
+    'estimated_duration_minutes' ||
+    'workers_needed' ||
+    'physical_requirements' ||
+    'special_instructions' => JobCreationStep.workDetails.index,
+    'starts_at' ||
+    'ends_at' ||
+    'deadline_at' ||
+    'recurrence_rule' => JobCreationStep.schedule.index,
+    'location_text' ||
+    'city' ||
+    'state' ||
+    'zip_code' ||
+    'travel_radius_miles' ||
+    'acceptable_transportation_methods' ||
+    'transportation_considerations' ||
+    'work_environment' ||
+    'location_type' => JobCreationStep.location.index,
+    'adult_job_amount_cents' => JobCreationStep.payment.index,
+    'teen_min_age' ||
+    'teen_max_age' ||
+    'verification_requirement' ||
+    'safety_notes' => JobCreationStep.safety.index,
+    _ => _step,
+  };
+
   String? _validateStep() {
     if (_step == 0) {
       if (_title.text.trim().length < 5 || _title.text.trim().length > 80) {
-        return 'Use a clear title between 5 and 80 characters.';
+        return _validationFailure(
+          'title',
+          'Use a clear title between 5 and 80 characters.',
+        );
       }
       if (_summary.text.trim().length < 10 ||
           _summary.text.trim().length > 240) {
-        return 'Add a short summary between 10 and 240 characters.';
+        return _validationFailure(
+          'summary',
+          'Add a short summary between 10 and 240 characters.',
+        );
       }
       if (_description.text.trim().length < 20) {
-        return 'Add at least 20 characters of job detail.';
+        return _validationFailure(
+          'description',
+          'Add at least 20 characters of job detail.',
+        );
       }
-      return MortValidators.teenSafeJobText(
+      final safetyError = MortValidators.teenSafeJobText(
         '${_title.text}\n${_summary.text}\n${_description.text}',
       );
+      return safetyError == null
+          ? null
+          : _validationFailure('description', safetyError);
     }
     if (_step == 1) {
       final duration = int.tryParse(_duration.text);
       if (duration == null || duration < 15 || duration > 1440) {
-        return 'Estimated duration must be between 15 and 1,440 minutes.';
+        return _validationFailure(
+          'estimated_duration_minutes',
+          'Estimated duration must be between 15 and 1,440 minutes.',
+        );
       }
       final workers = int.tryParse(_workers.text);
       if (workers == null || workers < 1 || workers > 10) {
-        return 'Workers needed must be between 1 and 10.';
+        return _validationFailure(
+          'workers_needed',
+          'Workers needed must be between 1 and 10.',
+        );
+      }
+      if (_proofExpected && _instructions.text.trim().length < 10) {
+        return _validationFailure(
+          'special_instructions',
+          'Explain in at least 10 characters what the completion photo should show.',
+        );
       }
     }
     if (_step == 2 && _scheduleType == 'exact') {
@@ -290,21 +555,51 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
       return 'Describe the recurring schedule, such as weekly on Saturday.';
     }
     if (_step == 3) {
-      if (_area.text.trim().isEmpty || _city.text.trim().isEmpty) {
-        return 'Add a general area and city.';
+      if (_area.text.trim().isEmpty) {
+        return _validationFailure(
+          'location_text',
+          'Add a general area without a street address.',
+        );
+      }
+      if (_city.text.trim().isEmpty) {
+        return _validationFailure('city', 'Add the city for this job.');
       }
       if (!RegExp(r'^[A-Za-z]{2}$').hasMatch(_state.text.trim())) {
-        return 'Use a two-letter state code.';
+        return _validationFailure('state', 'Use a two-letter state code.');
+      }
+      if (_zip.text.trim().isNotEmpty &&
+          !RegExp(r'^\d{5}(-\d{4})?$').hasMatch(_zip.text.trim())) {
+        return _validationFailure(
+          'zip_code',
+          'Enter a five-digit ZIP code or leave it blank.',
+        );
+      }
+      final radius = int.tryParse(_radius.text);
+      if (_radius.text.trim().isNotEmpty &&
+          (radius == null || radius < 1 || radius > 100)) {
+        return _validationFailure(
+          'travel_radius_miles',
+          'Travel radius must be between 1 and 100 miles.',
+        );
       }
       if (_transportationMethods.isEmpty) {
-        return 'Choose at least one transportation method that can work for this job.';
+        return _validationFailure(
+          'acceptable_transportation_methods',
+          'Choose at least one transportation method that can work for this job.',
+        );
       }
       if (_transportationNotes.text.trim().length > 500) {
-        return 'Keep transportation considerations under 500 characters.';
+        return _validationFailure(
+          'transportation_considerations',
+          'Keep transportation considerations under 500 characters.',
+        );
       }
     }
     if (_step == 4) {
-      return MortServiceFee.validateAdultAmount(_pay.text);
+      final error = MortServiceFee.validateAdultAmount(_pay.text);
+      return error == null
+          ? null
+          : _validationFailure('adult_job_amount_cents', error);
     }
     if (_step == 5 && !_prohibitedConfirmed) {
       return 'Confirm that the job does not include prohibited work or upfront fees.';
@@ -314,14 +609,20 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
 
   Future<void> _save({required bool publish}) async {
     if (_busy) return;
+    _fieldErrors.clear();
     if (publish) {
       final original = _step;
-      for (var step = 0; step <= 5; step++) {
+      for (
+        var step = JobCreationStep.basics.index;
+        step <= JobCreationStep.safety.index;
+        step++
+      ) {
         _step = step;
         final error = _validateStep();
         if (error != null) {
           _step = step;
           setState(() {});
+          _focusFirstFieldError();
           MortToast.show(context, error);
           return;
         }
@@ -329,18 +630,40 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
       _step = original;
     }
     _syncDraft();
+    unawaited(_persistLocalDraft());
     setState(() => _busy = true);
     try {
-      final job = publish
-          ? await ref.read(jobsRepositoryProvider).publish(_draft)
-          : await ref.read(jobsRepositoryProvider).saveDraft(_draft);
+      final result = publish
+          ? await ref.read(jobsRepositoryProvider).publishWithState(_draft)
+          : await ref.read(jobsRepositoryProvider).saveDraftWithState(_draft);
       if (!mounted) return;
-      MortToast.show(context, publish ? 'Job published.' : 'Draft saved.');
+      final message = switch (result.publicationState) {
+        'open' => 'Job opened for applications.',
+        'pending_review' =>
+          'Saved for closed-pilot review. Applications remain closed.',
+        'draft' => 'Draft saved to MORT.',
+        _ =>
+          publish
+              ? 'Job saved, but applications are not open.'
+              : 'Draft saved to MORT.',
+      };
+      MortToast.show(context, message);
       if (publish) {
-        context.go('/adult/jobs/${job.id}');
+        _draftPersistenceEnabled = false;
+        await _clearLocalDraft();
+        if (mounted) context.go('/adult/jobs/${result.job.id}');
       } else {
+        await _persistLocalDraft();
+        if (!mounted) return;
         setState(() {});
       }
+    } on MortFieldCodedError catch (error) {
+      if (!mounted) return;
+      final message = userFacingError(error);
+      _fieldErrors[error.field] = message;
+      setState(() => _step = _stepForField(error.field));
+      _focusFirstFieldError();
+      MortToast.show(context, message);
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
     } finally {
@@ -349,19 +672,44 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
   }
 
   void _next() {
+    _fieldErrors.clear();
     final error = _validateStep();
     if (error != null) {
+      setState(() {});
+      _focusFirstFieldError();
       MortToast.show(context, error);
       return;
     }
     _syncDraft();
-    setState(() => _step = (_step + 1).clamp(0, 7));
+    setState(() => _step = (_step + 1).clamp(0, jobCreationSteps.length - 1));
+    _scheduleDraftPersist();
   }
 
   @override
   Widget build(BuildContext context) {
     if (widget.jobId != null && !_loaded && _draft.id == null) {
       return const MortLoading(label: 'Loading job draft');
+    }
+    if (_loadError != null) {
+      return MortScreen(
+        children: [
+          MortErrorState(
+            title: 'Job draft unavailable',
+            message: userFacingError(_loadError),
+            action: MortButton(
+              label: 'Try again',
+              icon: Icons.refresh,
+              onPressed: () {
+                setState(() {
+                  _loaded = false;
+                  _loadError = null;
+                });
+                unawaited(_loadJob());
+              },
+            ),
+          ),
+        ],
+      );
     }
     return MortScreen(
       bottom: SafeArea(
@@ -381,7 +729,10 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
                     label: 'Back',
                     icon: Icons.arrow_back,
                     style: MortButtonStyle.ghost,
-                    onPressed: () => setState(() => _step--),
+                    onPressed: () {
+                      setState(() => _step--);
+                      _scheduleDraftPersist();
+                    },
                   ),
                 ),
               if (_step > 0) const SizedBox(width: MortSpacing.sm),
@@ -406,12 +757,19 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
       ),
       children: [
         MortHeader(
-          eyebrow: 'Step ${_step + 1} of 8',
-          title: _stepTitles[_step],
+          eyebrow: 'Step ${_step + 1} of ${jobCreationSteps.length}',
+          title: jobCreationStepAt(_step).title,
           subtitle:
               'Create a job listing. Exact addresses and private contact details do not belong in public fields.',
         ),
-        MortStepper(current: _step, total: 8),
+        MortStepper(current: _step, total: jobCreationSteps.length),
+        if (_recoveredLocalDraft) ...[
+          const SizedBox(height: MortSpacing.sm),
+          const MortSafetyBanner(
+            message:
+                'Recovered your encrypted draft from this account on this device. Review it before saving or publishing.',
+          ),
+        ],
         const SizedBox(height: MortSpacing.md),
         _buildStep(),
         const SizedBox(height: MortSpacing.md),
@@ -426,26 +784,36 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
     );
   }
 
-  Widget _buildStep() => switch (_step) {
-    0 => _basics(),
-    1 => _workDetails(),
-    2 => _schedule(),
-    3 => _location(),
-    4 => _payment(),
-    5 => _safety(),
-    6 => _preview(),
-    _ => _publish(),
+  Widget _buildStep() => switch (jobCreationStepAt(_step)) {
+    JobCreationStep.basics => _basics(),
+    JobCreationStep.workDetails => _workDetails(),
+    JobCreationStep.schedule => _schedule(),
+    JobCreationStep.location => _location(),
+    JobCreationStep.payment => _payment(),
+    JobCreationStep.safety => _safety(),
+    JobCreationStep.preview => _preview(),
+    JobCreationStep.publish => _publish(),
   };
 
   Widget _basics() => Column(
     children: [
-      MortTextField(label: 'Title', controller: _title, maxLength: 80),
+      MortTextField(
+        label: 'Title',
+        controller: _title,
+        maxLength: 80,
+        focusNode: _focusNodes['title'],
+        errorText: _fieldErrors['title'],
+      ),
       const SizedBox(height: MortSpacing.sm),
-      MortDropdown<String>(
+      MortSearchableDropdown<String>(
         label: 'Category',
         value: _category,
         items: {for (final value in safeJobCategories) value: value},
-        onChanged: (value) => setState(() => _category = value ?? _category),
+        searchHint: 'Search safe job categories',
+        errorText: _fieldErrors['category'],
+        onChanged: (value) {
+          _change(() => _category = value);
+        },
       ),
       const SizedBox(height: MortSpacing.sm),
       MortTextArea(
@@ -453,6 +821,8 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         controller: _summary,
         maxLines: 2,
         maxLength: 240,
+        focusNode: _focusNodes['summary'],
+        errorText: _fieldErrors['summary'],
       ),
       const SizedBox(height: MortSpacing.sm),
       MortTextArea(
@@ -460,6 +830,8 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         controller: _description,
         maxLength: 4000,
         hint: 'Explain the work, expected result, and safe boundaries.',
+        focusNode: _focusNodes['description'],
+        errorText: _fieldErrors['description'],
       ),
     ],
   );
@@ -470,12 +842,16 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         label: 'Estimated duration (minutes)',
         controller: _duration,
         keyboardType: TextInputType.number,
+        focusNode: _focusNodes['estimated_duration_minutes'],
+        errorText: _fieldErrors['estimated_duration_minutes'],
       ),
       const SizedBox(height: MortSpacing.sm),
       MortTextField(
         label: 'Workers needed',
         controller: _workers,
         keyboardType: TextInputType.number,
+        focusNode: _focusNodes['workers_needed'],
+        errorText: _fieldErrors['workers_needed'],
       ),
       const SizedBox(height: MortSpacing.sm),
       MortDropdown<String>(
@@ -487,7 +863,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
           'some': 'Some experience',
           'experienced': 'Experienced',
         },
-        onChanged: (value) => setState(() => _experience = value ?? 'any'),
+        onChanged: (value) => _change(() => _experience = value ?? 'any'),
       ),
       const SizedBox(height: MortSpacing.sm),
       MortTextField(
@@ -526,7 +902,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
             FilterChip(
               label: Text(requirement),
               selected: _physicalRequirements.contains(requirement),
-              onSelected: (selected) => setState(() {
+              onSelected: (selected) => _change(() {
                 if (requirement == 'no physical requirement' && selected) {
                   _physicalRequirements
                     ..clear()
@@ -550,12 +926,14 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         subtitle: const Text(
           'Explain what a safe completion photo should show.',
         ),
-        onChanged: (value) => setState(() => _proofExpected = value),
+        onChanged: (value) => _change(() => _proofExpected = value),
       ),
       MortTextArea(
         label: 'Special instructions',
         controller: _instructions,
         maxLength: 1000,
+        focusNode: _focusNodes['special_instructions'],
+        errorText: _fieldErrors['special_instructions'],
       ),
     ],
   );
@@ -571,7 +949,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
           'exact': 'Exact date and time',
         },
         onChanged: (value) =>
-            setState(() => _scheduleType = value ?? 'flexible'),
+            _change(() => _scheduleType = value ?? 'flexible'),
       ),
       if (_scheduleType == 'exact') ...[
         const SizedBox(height: MortSpacing.sm),
@@ -597,7 +975,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         value: _recurring,
         title: const Text('Recurring job'),
         subtitle: const Text('Recurring details must still use future dates.'),
-        onChanged: (value) => setState(() => _recurring = value),
+        onChanged: (value) => _change(() => _recurring = value),
       ),
       if (_recurring) ...[
         MortTextField(
@@ -612,7 +990,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         label: 'Urgency',
         value: _urgency,
         items: const {'low': 'Low', 'normal': 'Normal', 'soon': 'Soon'},
-        onChanged: (value) => setState(() => _urgency = value ?? 'normal'),
+        onChanged: (value) => _change(() => _urgency = value ?? 'normal'),
       ),
       const SizedBox(height: MortSpacing.sm),
       MortDropdown<String>(
@@ -627,7 +1005,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
           'America/Indianapolis': 'Indiana (Indianapolis)',
         },
         onChanged: (value) =>
-            setState(() => _timezone = value ?? 'America/Indianapolis'),
+            _change(() => _timezone = value ?? 'America/Indianapolis'),
       ),
       const SizedBox(height: MortSpacing.sm),
       MortButton(
@@ -647,12 +1025,19 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         label: 'Approximate area',
         controller: _area,
         hint: 'North side, downtown, or nearby landmark area',
+        focusNode: _focusNodes['location_text'],
+        errorText: _fieldErrors['location_text'],
       ),
       const SizedBox(height: MortSpacing.sm),
       Row(
         children: [
           Expanded(
-            child: MortTextField(label: 'City', controller: _city),
+            child: MortTextField(
+              label: 'City',
+              controller: _city,
+              focusNode: _focusNodes['city'],
+              errorText: _fieldErrors['city'],
+            ),
           ),
           const SizedBox(width: MortSpacing.sm),
           SizedBox(
@@ -662,6 +1047,8 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
               controller: _state,
               maxLength: 2,
               textCapitalization: TextCapitalization.characters,
+              focusNode: _focusNodes['state'],
+              errorText: _fieldErrors['state'],
             ),
           ),
         ],
@@ -676,12 +1063,16 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         label: 'ZIP code (optional)',
         controller: _zip,
         keyboardType: TextInputType.number,
+        focusNode: _focusNodes['zip_code'],
+        errorText: _fieldErrors['zip_code'],
       ),
       const SizedBox(height: MortSpacing.sm),
       MortTextField(
         label: 'Travel radius miles (optional)',
         controller: _radius,
         keyboardType: TextInputType.number,
+        focusNode: _focusNodes['travel_radius_miles'],
+        errorText: _fieldErrors['travel_radius_miles'],
       ),
       const SizedBox(height: MortSpacing.sm),
       Align(
@@ -707,7 +1098,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
             MortFilterChip(
               label: option.value,
               selected: _transportationMethods.contains(option.key),
-              onSelected: (selected) => setState(() {
+              onSelected: (selected) => _change(() {
                 if (selected) {
                   _transportationMethods.add(option.key);
                 } else {
@@ -724,6 +1115,8 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         maxLength: 500,
         hint:
             'General access guidance only, such as near a bus stop. Do not enter a street address.',
+        focusNode: _focusNodes['transportation_considerations'],
+        errorText: _fieldErrors['transportation_considerations'],
       ),
       const SizedBox(height: MortSpacing.sm),
       MortDropdown<String>(
@@ -736,7 +1129,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
           'both': 'Indoor and outdoor',
         },
         onChanged: (value) =>
-            setState(() => _environment = value ?? 'unspecified'),
+            _change(() => _environment = value ?? 'unspecified'),
       ),
       const SizedBox(height: MortSpacing.sm),
       MortDropdown<String>(
@@ -749,7 +1142,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
           'business': 'Business',
         },
         onChanged: (value) =>
-            setState(() => _locationType = value ?? 'unspecified'),
+            _change(() => _locationType = value ?? 'unspecified'),
       ),
       const SizedBox(height: MortSpacing.sm),
       const MortSafetyBanner(
@@ -767,6 +1160,8 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         onChanged: (_) => setState(() {}),
         validator: MortServiceFee.validateAdultAmount,
+        focusNode: _focusNodes['adult_job_amount_cents'],
+        errorText: _fieldErrors['adult_job_amount_cents'],
       ),
       const SizedBox(height: MortSpacing.sm),
       if (MortServiceFee.breakdown(_pay.text) case final breakdown?) ...[
@@ -787,7 +1182,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         label: 'Payment type',
         value: _paymentType,
         items: const {'fixed': 'Fixed amount', 'hourly': 'Hourly'},
-        onChanged: (value) => setState(() => _paymentType = value ?? 'fixed'),
+        onChanged: (value) => _change(() => _paymentType = value ?? 'fixed'),
       ),
       const SizedBox(height: MortSpacing.sm),
       const MortCard(
@@ -805,14 +1200,14 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         label: 'Minimum recommended age',
         value: _teenMinAge,
         items: const {13: '13+', 14: '14+', 15: '15+', 16: '16+', 17: '17'},
-        onChanged: (value) => setState(() => _teenMinAge = value ?? 13),
+        onChanged: (value) => _change(() => _teenMinAge = value ?? 13),
       ),
       const SizedBox(height: MortSpacing.sm),
       SwitchListTile.adaptive(
         contentPadding: EdgeInsets.zero,
         value: _adultSupervision,
         title: const Text('Adult supervision present'),
-        onChanged: (value) => setState(() => _adultSupervision = value),
+        onChanged: (value) => _change(() => _adultSupervision = value),
       ),
       MortDropdown<String>(
         label: 'Applicant verification',
@@ -822,7 +1217,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
           'preferred': 'Verified applicants preferred',
           'required': 'Verified applicants required',
         },
-        onChanged: (value) => setState(() => _verification = value ?? 'none'),
+        onChanged: (value) => _change(() => _verification = value ?? 'none'),
       ),
       SwitchListTile.adaptive(
         contentPadding: EdgeInsets.zero,
@@ -831,18 +1226,20 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         subtitle: const Text(
           'Optional. Turning this on may reduce the number of eligible applicants.',
         ),
-        onChanged: (value) => setState(() => _guardianApproval = value),
+        onChanged: (value) => _change(() => _guardianApproval = value),
       ),
       MortTextArea(
         label: 'Safety notes',
         controller: _safetyNotes,
         maxLength: 1000,
+        focusNode: _focusNodes['safety_notes'],
+        errorText: _fieldErrors['safety_notes'],
       ),
       CheckboxListTile(
         contentPadding: EdgeInsets.zero,
         value: _prohibitedConfirmed,
         onChanged: (value) =>
-            setState(() => _prohibitedConfirmed = value ?? false),
+            _change(() => _prohibitedConfirmed = value ?? false),
         title: const Text(
           'I confirm this job has no dangerous heights, weapons, hazardous chemicals, illegal activity, alcohol/drug handling, overnight isolation, upfront fee, gift card, or cryptocurrency demand.',
         ),
@@ -955,7 +1352,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
       time.hour,
       time.minute,
     );
-    setState(() {
+    _change(() {
       if (start) {
         _startsAt = value;
       } else {
@@ -972,7 +1369,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
       lastDate: now.add(const Duration(days: 730)),
       initialDate: _deadlineAt ?? now.add(const Duration(days: 7)),
     );
-    if (date != null) setState(() => _deadlineAt = date);
+    if (date != null) _change(() => _deadlineAt = date);
   }
 }
 

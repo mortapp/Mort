@@ -29,6 +29,9 @@ $reviewedMediaHashes = @{
   'artifacts/native-qa/mort-api36-launch-0.9.11.png' = '25A8A730BCAC2C59F319E61F823FF92153786A3E5DD3D634B77DB1071A4180AC'
   'artifacts/release-0.9.12+102/reports/emulator-final-release-launch.png' = '00FD249CEB63C8F2CB8C03C65E5F31F1E2905F090E6B584BBCF7C4138B6FD73E'
   'artifacts/release-0.9.12+102/reports/emulator-release-launch.png' = 'ACB000B71ACC3AFE9474311E3665E7D76F0F8F2BD70664F2A0B30295F3D6FDC4'
+  'artifacts/release-0.9.13+103/reports/emulator-final-release-launch.png' = 'B0846DA5CFA4CC6755BE384064651A85ED099F4E05F6509AEAC25DC5D9BCB9C0'
+  'artifacts/release-0.9.13+103/reports/emulator-auth-screen.png' = '180C510D42FDEAB0BC335D6DC06B5CAE03F5FD59B3B848A850C39C0F60EFF698'
+  'artifacts/release-0.9.13+103/reports/emulator-google-oauth-host.png' = 'EFE3AEC964C1391585D926D3A0004D3776EA6935D75B30C75FAD9FB7EB9D6E7C'
 }
 $allowedMediaPatterns = @(
   '(?i)(^|/)flutter_mort/assets/branding/mort_arrow_rose_gold\.png$',
@@ -52,6 +55,8 @@ if ($AllowPlayStoreMedia) {
 
 function Test-ExcludedPath {
   param([string]$RelativePath)
+  $normalized = $RelativePath.Replace('\', '/')
+  if ($normalized -match '(?i)^qa/recordings(?:/|$)') { return $true }
   $segments = $RelativePath -split '[\\/]'
   foreach ($segment in $segments) {
     if ($excludedSegments -contains $segment) { return $true }

@@ -137,6 +137,21 @@ String applicationErrorMessage(String code, {String? fallback}) {
       'Add at least 20 characters of clear job detail.',
     'invalid_job_location' => 'Add a general area, city, and two-letter state.',
     'invalid_job_payment' => 'Enter an offered job amount greater than zero.',
+    'invalid_job_duration' =>
+      'Estimated duration must be between 15 and 1,440 minutes.',
+    'invalid_job_workers' => 'Workers needed must be between 1 and 10.',
+    'invalid_job_travel_radius' =>
+      'Travel radius must be between 1 and 100 miles.',
+    'invalid_job_age_range' => 'Choose a teen age range from 13 through 17.',
+    'invalid_job_zip' => 'Enter a five-digit ZIP code or leave it blank.',
+    'invalid_job_environment' => 'Choose a supported work environment.',
+    'invalid_job_location_type' => 'Choose a supported location type.',
+    'invalid_job_physical_requirements' =>
+      'Choose valid physical requirements. “No physical requirement” cannot be combined with another choice.',
+    'job_proof_instructions_required' =>
+      'Explain in at least 10 characters what the completion photo should show.',
+    'invalid_job_values' =>
+      'One or more job fields are invalid. Review this step and try again.',
     'invalid_job_response' =>
       'The job server returned an incomplete response. Try again safely.',
     'job_transportation_invalid' =>
@@ -172,6 +187,12 @@ String applicationErrorMessage(String code, {String? fallback}) {
       'A verification request is already pending review.',
     'verification_object_not_found' || 'invalid_verification_path' =>
       'The verification upload could not be verified. Choose the image again and retry.',
+    'avatar_camera_permission_denied' =>
+      'Camera access is off. Enable Camera for MORT in device settings, then try again.',
+    'avatar_photo_permission_denied' =>
+      'Photo access is off. Enable Photos for MORT in device settings, then try again.',
+    'avatar_picker_unavailable' =>
+      'The photo picker is unavailable right now. Try again or use the other photo option.',
     'unknown_permission_failure' =>
       'We could not complete that action. Refresh and try again.',
     _ =>

@@ -33,6 +33,7 @@ void main() {
       'lib/data/repositories/profile_repository.dart',
     ).readAsStringSync();
 
+    expect(source, contains("'save_my_profile_setup_v2'"));
     expect(source, contains("'save_my_onboarding_profile'"));
     expect(source, contains("'update_my_profile'"));
     expect(source, contains("'complete_my_onboarding'"));

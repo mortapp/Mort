@@ -13,7 +13,7 @@ void main() {
       '../supabase/migrations/20260722222534_mort_0_9_3_ai_and_signed_media_rate_limits.sql',
     );
 
-    expect(repository, contains('_profiles.setAvatarPath(path)'));
+    expect(repository, matches(RegExp(r'_profiles\s*\.setAvatarPath\(path\)')));
     expect(repository, contains('client.storage.from(bucket).remove([path])'));
     expect(repository, contains('record_avatar_orphan_cleanup'));
     expect(repository, contains('_maximumSignedUrlEntries = 64'));

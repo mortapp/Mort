@@ -364,6 +364,75 @@ class JobPage {
 class JobDraft {
   JobDraft({required this.clientRequestId});
 
+  factory JobDraft.fromLocalMap(Map<String, dynamic> json) {
+    final requestId = json['client_request_id']?.toString() ?? '';
+    if (requestId.isEmpty) {
+      throw const FormatException('Missing job draft request ID.');
+    }
+    final draft = JobDraft(clientRequestId: requestId)
+      ..id = json['id']?.toString()
+      ..title = json['title']?.toString() ?? ''
+      ..summary = json['summary']?.toString() ?? ''
+      ..description = json['description']?.toString() ?? ''
+      ..category = json['category']?.toString() ?? 'cleaning'
+      ..estimatedDurationMinutes = _nullableInt(
+        json['estimated_duration_minutes'],
+      )
+      ..workersNeeded = _nullableInt(json['workers_needed']) ?? 1
+      ..experienceLevel = json['experience_level']?.toString() ?? 'any'
+      ..skillsNeeded = Job._stringList(json['skills_needed'])
+      ..equipmentProvided = json['equipment_provided']?.toString() ?? ''
+      ..equipmentWorkerBrings =
+          json['equipment_worker_brings']?.toString() ?? ''
+      ..physicalRequirements = Job._stringList(json['physical_requirements'])
+      ..proofExpected = json['proof_expected'] == true
+      ..specialInstructions = json['special_instructions']?.toString() ?? ''
+      ..scheduleType = json['schedule_type']?.toString() ?? 'flexible'
+      ..startsAt = _date(json['starts_at'])
+      ..endsAt = _date(json['ends_at'])
+      ..deadlineAt = _date(json['deadline_at'])
+      ..recurring = json['recurring'] == true
+      ..recurrenceRule = json['recurrence_rule']?.toString() ?? ''
+      ..timezone = json['timezone']?.toString() ?? 'America/Indianapolis'
+      ..urgency = json['urgency']?.toString() ?? 'normal'
+      ..locationText = json['location_text']?.toString() ?? ''
+      ..city = json['city']?.toString() ?? ''
+      ..state = json['state']?.toString() ?? ''
+      ..neighborhood = json['neighborhood']?.toString() ?? ''
+      ..zipCode = json['zip_code']?.toString() ?? ''
+      ..travelRadiusMiles = _nullableInt(json['travel_radius_miles'])
+      ..acceptableTransportationMethods = Job._stringList(
+        json['acceptable_transportation_methods'],
+      )
+      ..transportationConsiderations =
+          json['transportation_considerations']?.toString() ?? ''
+      ..workEnvironment = json['work_environment']?.toString() ?? 'unspecified'
+      ..locationType = json['location_type']?.toString() ?? 'unspecified'
+      ..adultJobAmountCents = _nullableInt(json['adult_job_amount_cents'])
+      ..paymentType = json['payment_type']?.toString() ?? 'fixed'
+      ..paymentMethod = json['payment_method']?.toString() ?? 'flexible'
+      ..paymentTiming = json['payment_timing']?.toString() ?? 'after_completion'
+      ..tipAllowed = json['tip_allowed'] == true
+      ..teenMinAge = _nullableInt(json['teen_min_age']) ?? 13
+      ..teenMaxAge = _nullableInt(json['teen_max_age']) ?? 17
+      ..adultSupervisionPresent = json['adult_supervision_present'] == true
+      ..verificationRequirement =
+          json['verification_requirement']?.toString() ?? 'none'
+      ..requiresGuardianApproval = json['requires_guardian_approval'] == true
+      ..safetyNotes = json['safety_notes']?.toString() ?? '';
+    if (draft.acceptableTransportationMethods.isEmpty) {
+      draft.acceptableTransportationMethods = [
+        'walking',
+        'bicycle',
+        'car',
+        'public_transit',
+        'rideshare',
+        'other',
+      ];
+    }
+    return draft;
+  }
+
   final String clientRequestId;
   String? id;
   String title = '';
@@ -460,4 +529,34 @@ class JobDraft {
     'requires_guardian_approval': requiresGuardianApproval,
     'safety_notes': safetyNotes,
   };
+
+  Map<String, dynamic> toLocalMap({required int activeStep}) => {
+    'id': id,
+    'client_request_id': clientRequestId,
+    'active_step': activeStep,
+    ...toMap(),
+  };
+
+  static int? _nullableInt(Object? value) {
+    if (value is int) return value;
+    return int.tryParse(value?.toString() ?? '');
+  }
+
+  static DateTime? _date(Object? value) =>
+      DateTime.tryParse(value?.toString() ?? '');
+}
+
+class JobSaveResult {
+  const JobSaveResult({
+    required this.job,
+    required this.publicationState,
+    required this.replayed,
+  });
+
+  final Job job;
+  final String publicationState;
+  final bool replayed;
+
+  bool get isOpen => publicationState == 'open';
+  bool get isPendingReview => publicationState == 'pending_review';
 }

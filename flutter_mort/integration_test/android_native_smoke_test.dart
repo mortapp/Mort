@@ -47,8 +47,8 @@ void main() {
       expect(defaultTargetPlatform, TargetPlatform.android);
       final package = await PackageInfo.fromPlatform();
       expect(package.packageName, 'com.mortapp.mobile');
-      expect(package.version, '0.9.12');
-      expect(package.buildNumber, '102');
+      expect(package.version, '0.9.13');
+      expect(package.buildNumber, '103');
 
       await tester.pumpWidget(
         const ProviderScope(

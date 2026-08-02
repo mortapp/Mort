@@ -162,6 +162,51 @@ class ProfileRepository extends RepositoryBase {
     });
   }
 
+  Future<Profile> saveProfileSetup({
+    required UserRole role,
+    required String displayName,
+    required String username,
+    required DateTime dob,
+    required String city,
+    required String state,
+    required String locationSetupMode,
+    required String bio,
+    required String availability,
+    required List<String> preferredJobCategories,
+    required String approximateArea,
+    required String goals,
+    required String adultAccountType,
+    required String businessName,
+    required bool editExisting,
+    required String clientRequestId,
+  }) async {
+    requireUserId();
+    final result = await client.rpc(
+      'save_my_profile_setup_v2',
+      params: {
+        'p_payload': {
+          'role': userRoleToString(role),
+          'display_name': displayName.trim(),
+          'username': username.trim().toLowerCase(),
+          'dob': DateOfBirthParser.toIsoDate(dob),
+          'city': city.trim(),
+          'state': state.trim().toUpperCase(),
+          'location_setup_mode': locationSetupMode,
+          'bio': bio.trim(),
+          'availability': availability.trim(),
+          'preferred_job_categories': preferredJobCategories,
+          'approximate_area': approximateArea.trim(),
+          'goals': goals.trim(),
+          'adult_account_type': adultAccountType,
+          'business_name': businessName.trim(),
+        },
+        'p_client_request_id': clientRequestId,
+        'p_edit_existing': editExisting,
+      },
+    );
+    return _profileFromRpc(result);
+  }
+
   Future<Profile> saveTransportationPreferences({
     required List<String> methods,
     int? maxDistanceMiles,
@@ -215,6 +260,14 @@ class ProfileRepository extends RepositoryBase {
     final result = Map<String, dynamic>.from(response);
     if (result['ok'] != true) {
       final code = result['code']?.toString() ?? 'profile_update_failed';
+      final field = result['field']?.toString();
+      if (field != null && field.isNotEmpty) {
+        throw MortFieldCodedError(
+          code,
+          _profileErrorMessage(code),
+          field: field,
+        );
+      }
       throw MortCodedError(code, _profileErrorMessage(code));
     }
     final profile = result['profile'];
@@ -254,6 +307,40 @@ class ProfileRepository extends RepositoryBase {
         'MORT is available only to users age 13 and older.',
       'display_name_invalid' =>
         'Enter a display name between 2 and 80 characters.',
+      'username_invalid' =>
+        'Use 3-24 lowercase letters, numbers, or underscores.',
+      'username_taken' =>
+        'That username is already in use. Choose another username.',
+      'username_change_unavailable' =>
+        'That username change is not available. Keep your current username or contact support.',
+      'dob_invalid' ||
+      'future_dob_rejected' ||
+      'dob_out_of_range' => 'Enter a valid date of birth.',
+      'teen_role_age_mismatch' =>
+        'Teen accounts must be for someone age 13 through 17.',
+      'adult_role_age_mismatch' =>
+        'Adult and Guardian accounts require an age of 18 or older.',
+      'city_state_required' => 'Enter a city and valid two-letter state code.',
+      'location_setup_mode_role_mismatch' =>
+        'Choose a location option allowed for this account role.',
+      'bio_invalid' => 'Keep the bio under 500 characters.',
+      'availability_invalid' =>
+        'Keep availability or scheduling preferences under 240 characters.',
+      'approximate_area_invalid' =>
+        'Keep the approximate area under 120 characters and do not enter an exact address.',
+      'goals_invalid' => 'Keep goals under 500 characters.',
+      'preferred_job_categories_invalid' =>
+        'Choose up to 12 job categories using 2-50 characters each.',
+      'adult_account_type_invalid' =>
+        'Choose whether you are posting as an individual or business.',
+      'business_name_invalid' =>
+        'Enter a business name between 2 and 120 characters.',
+      'profile_setup_request_payload_mismatch' =>
+        'This saved request no longer matches the form. Close this screen, reopen it, and try again.',
+      'onboarding_already_completed' =>
+        'This account already finished setup. Reopen Profile from Settings and save there.',
+      'profile_setup_failed' =>
+        'MORT could not save the profile consistently. Your edits are still on this device; retry when connected.',
       'profile_not_found' =>
         'Finish account setup before editing your profile.',
       'transportation_methods_invalid' =>

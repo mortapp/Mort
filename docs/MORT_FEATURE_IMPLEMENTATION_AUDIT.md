@@ -2,10 +2,10 @@
 
 ## Result
 
-- Evidence-backed implementation claims audited: 99
-- Claims retained: 99
+- Evidence-backed implementation claims audited: 93
+- Claims retained: 93
 - Claims automatically downgraded: 0
-- Roadmap-only after audit: 1786
+- Roadmap-only after audit: 1792
 - Mac/Xcode compile claimed: no
 - Physical iPhone verification claimed: no
 
@@ -91,16 +91,10 @@ Each retained claim has an existing source or migration file, the expected symbo
 | MORT-F-1579 Incident evidence review reasoned incident evidence grant | shared_implemented | 4 | Remote mutual-trust QA passed 19/19 in one consolidated run; Flutter analyze passed, all 60 tests passed, Flutter web built, and Swift static audit passed. Mac compilation, physical capture, and iPhone verification remain pending. |
 | MORT-F-1580 Incident evidence review preservation and deletion lock | shared_implemented | 4 | Remote mutual-trust QA passed 19/19 in one consolidated run; Flutter analyze passed, all 60 tests passed, Flutter web built, and Swift static audit passed. Mac compilation, physical capture, and iPhone verification remain pending. |
 | MORT-F-1581 Incident evidence review lawful-request and supervisory audit | shared_implemented | 4 | Remote mutual-trust QA passed 19/19 in one consolidated run; Flutter analyze passed, all 60 tests passed, Flutter web built, and Swift static audit passed. Mac compilation, physical capture, and iPhone verification remain pending. |
-| MORT-F-1582 Verification review specialized reviewer role | shared_implemented | 4 | Remote mutual-trust QA passed 19/19 in one consolidated run; Flutter analyze passed, all 60 tests passed, Flutter web built, and Swift static audit passed. Mac compilation, physical capture, and iPhone verification remain pending. |
-| MORT-F-1583 Verification review metadata-only evidence manifest | shared_implemented | 4 | Remote mutual-trust QA passed 19/19 in one consolidated run; Flutter analyze passed, all 60 tests passed, Flutter web built, and Swift static audit passed. Mac compilation, physical capture, and iPhone verification remain pending. |
-| MORT-F-1584 Verification review reasoned short-lived evidence access | shared_implemented | 4 | Remote mutual-trust QA passed 19/19 in one consolidated run; Flutter analyze passed, all 60 tests passed, Flutter web built, and Swift static audit passed. Mac compilation, physical capture, and iPhone verification remain pending. |
-| MORT-F-1585 Verification review specialized audited decision | shared_implemented | 4 | Remote mutual-trust QA passed 19/19 in one consolidated run; Flutter analyze passed, all 60 tests passed, Flutter web built, and Swift static audit passed. Mac compilation, physical capture, and iPhone verification remain pending. |
-| MORT-F-1586 Verification review separate verification-appeal queue | shared_implemented | 4 | Remote mutual-trust QA passed 19/19 in one consolidated run; Flutter analyze passed, all 60 tests passed, Flutter web built, and Swift static audit passed. Mac compilation, physical capture, and iPhone verification remain pending. |
 | MORT-F-1592 Proof decision audit trail append-only review event | implemented_verified_backend | 2 | Remote isolated RLS, storage, abuse, concurrency, and load-sanity QA passed. |
 | MORT-F-1697 Public data allowlist | implemented_verified_backend | 2 | Hosted account-trust QA passed against rakjydmgwwgtdislanbt; sandbox and production remained isolated. |
 | MORT-F-1698 Data broker rejection | implemented_verified_backend | 2 | Hosted account-trust QA passed against rakjydmgwwgtdislanbt; sandbox and production remained isolated. |
 | MORT-F-1699 Account-security education | shared_implemented | 4 | Hosted account-trust QA passed; Flutter analyze passed, all 65 tests passed, and the release web preview built; Swift repository static audit passed. Mac compilation and physical iPhone testing were not performed. |
-| MORT-F-1700 Biometric limitations disclosure | shared_implemented | 4 | Hosted account-trust QA passed; Flutter analyze passed, all 65 tests passed, and the release web preview built; Swift repository static audit passed. Mac compilation and physical iPhone testing were not performed. |
 | MORT-F-1702 Affirmative version-bound legal clickwrap | shared_implemented | 5 | Hosted legal/trust QA passed; Flutter analyze/tests/release web build and Swift repository static audit passed where applicable. |
 | MORT-F-1703 Legal-information boundary | shared_implemented | 4 | Hosted legal/trust QA passed; Flutter analyze/tests/release web build and Swift repository static audit passed where applicable. |
 | MORT-F-1717 Approximate location privacy public coarse-area boundary | shared_implemented | 4 | Remote mutual-trust QA passed 19/19 in one consolidated run; Flutter analyze passed, all 60 tests passed, Flutter web built, and Swift static audit passed. Mac compilation, physical capture, and iPhone verification remain pending. |

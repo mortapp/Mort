@@ -6,7 +6,7 @@ import { parse as parseYaml } from "yaml";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const flutterRoot = join(root, "flutter_mort");
-const outputDirectory = join(root, "artifacts", "release-0.9.12+102");
+const outputDirectory = join(root, "artifacts", "release-0.9.13+103");
 mkdirSync(outputDirectory, { recursive: true });
 
 const executable = (name) => {

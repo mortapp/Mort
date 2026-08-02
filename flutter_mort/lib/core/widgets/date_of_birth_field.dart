@@ -99,6 +99,8 @@ class DateOfBirthField extends StatelessWidget {
     this.onSubmitted,
     this.enabled = true,
     this.showDatePickerButton = true,
+    this.errorText,
+    this.focusNode,
   });
 
   final TextEditingController controller;
@@ -107,6 +109,8 @@ class DateOfBirthField extends StatelessWidget {
   final ValueChanged<String>? onSubmitted;
   final bool enabled;
   final bool showDatePickerButton;
+  final String? errorText;
+  final FocusNode? focusNode;
 
   Future<void> _pickDate(BuildContext context) async {
     final today = DateTime.now();
@@ -140,6 +144,7 @@ class DateOfBirthField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
+      focusNode: focusNode,
       enabled: enabled,
       keyboardType: TextInputType.number,
       textInputAction: TextInputAction.done,
@@ -165,6 +170,7 @@ class DateOfBirthField extends StatelessWidget {
         labelText: 'Date of birth',
         hintText: 'MM/DD/YYYY',
         helperText: 'Month / Day / Year',
+        errorText: errorText,
         suffixIcon: showDatePickerButton
             ? IconButton(
                 tooltip: 'Choose date of birth',

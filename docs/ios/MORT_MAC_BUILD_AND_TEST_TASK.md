@@ -4,7 +4,7 @@
 
 - Repository: this exact clean source artifact
 - Flutter app: `flutter_mort`
-- Version: `0.9.12+102`
+- Version: `0.9.13+103`
 - Bundle ID: `com.mortapp.mobile`
 - Current deployment target: iOS 13.0
 - Release profile: closed test only
@@ -41,7 +41,7 @@ server secret.
 
 1. Select the owner Team and confirm automatic signing for
    `com.mortapp.mobile`.
-2. Confirm the Release scheme and version `0.9.12 (102)`.
+2. Confirm the Release scheme and version `0.9.13 (103)`.
 3. Add Push Notifications and Background Modes only after the real APNs/FCM
    integration is approved and tested. The current closed-test build keeps
    remote push disabled and has no `aps-environment` entitlement.
@@ -65,4 +65,3 @@ resume, memory pressure, account deletion, and provider-disabled screens.
 - Role and account restrictions remain server authoritative.
 - Native permissions appear only at point of use with accurate copy.
 - No public marketplace activation and no real provider claims.
-

@@ -15,6 +15,6 @@ Release target: `com.mortapp.mobile`, Flutter `0.9.2+92`, closed pilot.
 | `ACCESS_FINE_LOCATION` | Foreground location for explicitly selected workflows | Contextual, foreground only | Coarse/manual area fallback | Optional |
 | `com.android.vending.BILLING` | Google Play purchases | Play purchase action | Free core remains available | Compiled, runtime-disabled |
 
-`AD_ID`, Privacy Sandbox ad permissions, foreground service, and wake lock are removed from the merged manifest. Camera, location, and fingerprint hardware are marked optional. Cleartext traffic and Android backup are disabled. No storage permission is declared because the system Photo Picker is used. Ads remain excluded and Google Play Billing remains disabled until console/provider verification is complete.
+`AD_ID`, Privacy Sandbox ad permissions, and foreground service are removed from the merged manifest. `WAKE_LOCK` is retained only for the compiled Firebase Messaging provider; it has no runtime prompt and does not enable background location. Camera, location, and fingerprint hardware are marked optional. Cleartext traffic and Android backup are disabled. No storage permission is declared because the system Photo Picker is used. Ads remain excluded and Google Play Billing remains disabled until console/provider verification is complete.
 
 Validation: `scripts/qa-android-permission-minimization.mjs` and the merged release manifest inspection must pass for every AAB.

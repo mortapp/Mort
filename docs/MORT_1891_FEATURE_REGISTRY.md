@@ -2,8 +2,6 @@
 
 This registry contains exactly 1,891 accepted atomic capabilities. Platform implementations are one capability, not separate Swift and Flutter feature counts. Statuses are evidence-bound and roadmap entries are not implementation claims.
 
-0.9.3 audit note (2026-07-22): this registry remains a roadmap/inventory and is not used as a completion percentage. The current evidence-based product and launch scores are recorded in `MORT_COMPLETION_SCORE.md`; provider-disabled, device-untested, draft, and externally blocked capabilities remain incomplete even when an accepted registry row exists.
-
 ## Summary
 
 | Metric | Count |
@@ -82268,15 +82266,15 @@ The JSON and CSV files beside this document contain the same complete records in
 - **complexity_score:** 3
 - **risk_score:** 2
 - **implementation_priority:** 69
-- **implementation_status:** shared_implemented
-- **verification_evidence:** swift_mort/MORT/Features/Admin/AdminViews.swift; flutter_mort/lib/features/mort_screens.dart; supabase/migrations/20260717161125_mutual_identity_verification.sql; scripts/mutual-trust-qa-suites.mjs
-- **test_status:** Remote mutual-trust QA passed 19/19 in one consolidated run; Flutter analyze passed, all 60 tests passed, Flutter web built, and Swift static audit passed. Mac compilation, physical capture, and iPhone verification remain pending.
+- **implementation_status:** accepted_roadmap
+- **verification_evidence:** Implementation claim automatically downgraded by scripts/audit-feature-implementation.mjs.
+- **test_status:** not_started
 - **Mac_required:** true
 - **iPhone_required:** true
 - **manual_dashboard_required:** false
-- **reason_deferred:** Real operation requires trained verification reviewers, conflict controls, vendor procedures, and a Mac/Xcode compiled admin client check.
+- **reason_deferred:** Evidence audit failed: flutter_mort/lib/features/mort_screens.dart: missing symbol: Approve after evidence review
 - **implementation_wave:** Wave 0 - existing completion
-- **evidence_checks:** [{"path":"swift_mort/MORT/Features/Admin/AdminViews.swift","symbol":"approveIdentity"},{"path":"flutter_mort/lib/features/mort_screens.dart","symbol":"Approve after evidence review"},{"path":"supabase/migrations/20260717161125_mutual_identity_verification.sql","symbol":"admin_review_identity_verification"},{"path":"scripts/mutual-trust-qa-suites.mjs","symbol":"verification reviewer"}]
+- **evidence_checks:** []
 
 ## MORT-F-1583 - Verification review metadata-only evidence manifest
 
@@ -82320,15 +82318,15 @@ The JSON and CSV files beside this document contain the same complete records in
 - **complexity_score:** 2
 - **risk_score:** 4
 - **implementation_priority:** 64
-- **implementation_status:** shared_implemented
-- **verification_evidence:** swift_mort/MORT/Features/Admin/AdminViews.swift; flutter_mort/lib/features/mort_screens.dart; supabase/migrations/20260717161125_mutual_identity_verification.sql; scripts/mutual-trust-qa-suites.mjs
-- **test_status:** Remote mutual-trust QA passed 19/19 in one consolidated run; Flutter analyze passed, all 60 tests passed, Flutter web built, and Swift static audit passed. Mac compilation, physical capture, and iPhone verification remain pending.
+- **implementation_status:** accepted_roadmap
+- **verification_evidence:** Implementation claim automatically downgraded by scripts/audit-feature-implementation.mjs.
+- **test_status:** not_started
 - **Mac_required:** true
 - **iPhone_required:** true
 - **manual_dashboard_required:** false
-- **reason_deferred:** Real operation requires trained verification reviewers, conflict controls, vendor procedures, and a Mac/Xcode compiled admin client check.
+- **reason_deferred:** Evidence audit failed: flutter_mort/lib/features/mort_screens.dart: missing symbol: Approve after evidence review
 - **implementation_wave:** Wave 0 - existing completion
-- **evidence_checks:** [{"path":"swift_mort/MORT/Features/Admin/AdminViews.swift","symbol":"approveIdentity"},{"path":"flutter_mort/lib/features/mort_screens.dart","symbol":"Approve after evidence review"},{"path":"supabase/migrations/20260717161125_mutual_identity_verification.sql","symbol":"admin_review_identity_verification"},{"path":"scripts/mutual-trust-qa-suites.mjs","symbol":"verification reviewer"}]
+- **evidence_checks:** []
 
 ## MORT-F-1584 - Verification review reasoned short-lived evidence access
 
@@ -82372,15 +82370,15 @@ The JSON and CSV files beside this document contain the same complete records in
 - **complexity_score:** 4
 - **risk_score:** 3
 - **implementation_priority:** 60
-- **implementation_status:** shared_implemented
-- **verification_evidence:** swift_mort/MORT/Features/Admin/AdminViews.swift; flutter_mort/lib/features/mort_screens.dart; supabase/migrations/20260717161125_mutual_identity_verification.sql; scripts/mutual-trust-qa-suites.mjs
-- **test_status:** Remote mutual-trust QA passed 19/19 in one consolidated run; Flutter analyze passed, all 60 tests passed, Flutter web built, and Swift static audit passed. Mac compilation, physical capture, and iPhone verification remain pending.
+- **implementation_status:** accepted_roadmap
+- **verification_evidence:** Implementation claim automatically downgraded by scripts/audit-feature-implementation.mjs.
+- **test_status:** not_started
 - **Mac_required:** true
 - **iPhone_required:** true
 - **manual_dashboard_required:** false
-- **reason_deferred:** Real operation requires trained verification reviewers, conflict controls, vendor procedures, and a Mac/Xcode compiled admin client check.
+- **reason_deferred:** Evidence audit failed: flutter_mort/lib/features/mort_screens.dart: missing symbol: Approve after evidence review
 - **implementation_wave:** Wave 0 - existing completion
-- **evidence_checks:** [{"path":"swift_mort/MORT/Features/Admin/AdminViews.swift","symbol":"approveIdentity"},{"path":"flutter_mort/lib/features/mort_screens.dart","symbol":"Approve after evidence review"},{"path":"supabase/migrations/20260717161125_mutual_identity_verification.sql","symbol":"admin_review_identity_verification"},{"path":"scripts/mutual-trust-qa-suites.mjs","symbol":"verification reviewer"}]
+- **evidence_checks:** []
 
 ## MORT-F-1585 - Verification review specialized audited decision
 
@@ -82424,15 +82422,15 @@ The JSON and CSV files beside this document contain the same complete records in
 - **complexity_score:** 4
 - **risk_score:** 3
 - **implementation_priority:** 54
-- **implementation_status:** shared_implemented
-- **verification_evidence:** swift_mort/MORT/Features/Admin/AdminViews.swift; flutter_mort/lib/features/mort_screens.dart; supabase/migrations/20260717161125_mutual_identity_verification.sql; scripts/mutual-trust-qa-suites.mjs
-- **test_status:** Remote mutual-trust QA passed 19/19 in one consolidated run; Flutter analyze passed, all 60 tests passed, Flutter web built, and Swift static audit passed. Mac compilation, physical capture, and iPhone verification remain pending.
+- **implementation_status:** accepted_roadmap
+- **verification_evidence:** Implementation claim automatically downgraded by scripts/audit-feature-implementation.mjs.
+- **test_status:** not_started
 - **Mac_required:** true
 - **iPhone_required:** true
 - **manual_dashboard_required:** false
-- **reason_deferred:** Real operation requires trained verification reviewers, conflict controls, vendor procedures, and a Mac/Xcode compiled admin client check.
+- **reason_deferred:** Evidence audit failed: flutter_mort/lib/features/mort_screens.dart: missing symbol: Approve after evidence review
 - **implementation_wave:** Wave 0 - existing completion
-- **evidence_checks:** [{"path":"swift_mort/MORT/Features/Admin/AdminViews.swift","symbol":"approveIdentity"},{"path":"flutter_mort/lib/features/mort_screens.dart","symbol":"Approve after evidence review"},{"path":"supabase/migrations/20260717161125_mutual_identity_verification.sql","symbol":"admin_review_identity_verification"},{"path":"scripts/mutual-trust-qa-suites.mjs","symbol":"verification reviewer"}]
+- **evidence_checks:** []
 
 ## MORT-F-1586 - Verification review separate verification-appeal queue
 
@@ -82476,15 +82474,15 @@ The JSON and CSV files beside this document contain the same complete records in
 - **complexity_score:** 4
 - **risk_score:** 2
 - **implementation_priority:** 60
-- **implementation_status:** shared_implemented
-- **verification_evidence:** swift_mort/MORT/Features/Admin/AdminViews.swift; flutter_mort/lib/features/mort_screens.dart; supabase/migrations/20260717161125_mutual_identity_verification.sql; scripts/mutual-trust-qa-suites.mjs
-- **test_status:** Remote mutual-trust QA passed 19/19 in one consolidated run; Flutter analyze passed, all 60 tests passed, Flutter web built, and Swift static audit passed. Mac compilation, physical capture, and iPhone verification remain pending.
+- **implementation_status:** accepted_roadmap
+- **verification_evidence:** Implementation claim automatically downgraded by scripts/audit-feature-implementation.mjs.
+- **test_status:** not_started
 - **Mac_required:** true
 - **iPhone_required:** true
 - **manual_dashboard_required:** false
-- **reason_deferred:** Real operation requires trained verification reviewers, conflict controls, vendor procedures, and a Mac/Xcode compiled admin client check.
+- **reason_deferred:** Evidence audit failed: flutter_mort/lib/features/mort_screens.dart: missing symbol: Approve after evidence review
 - **implementation_wave:** Wave 0 - existing completion
-- **evidence_checks:** [{"path":"swift_mort/MORT/Features/Admin/AdminViews.swift","symbol":"approveIdentity"},{"path":"flutter_mort/lib/features/mort_screens.dart","symbol":"Approve after evidence review"},{"path":"supabase/migrations/20260717161125_mutual_identity_verification.sql","symbol":"admin_review_identity_verification"},{"path":"scripts/mutual-trust-qa-suites.mjs","symbol":"verification reviewer"}]
+- **evidence_checks:** []
 
 ## MORT-F-1587 - Avatar review prioritized triage
 
@@ -88404,15 +88402,15 @@ The JSON and CSV files beside this document contain the same complete records in
 - **complexity_score:** 4
 - **risk_score:** 4
 - **implementation_priority:** 100
-- **implementation_status:** shared_implemented
-- **verification_evidence:** supabase/migrations/20260718150502_multi_signal_account_trust_foundation.sql#device_biometrics_are_local_account_security_only; scripts/account-trust-qa-suites.mjs#runBiometric; swift_mort/MORT/Features/Trust/AccountTrustViews.swift#Device biometrics protect your account; flutter_mort/lib/features/trust/account_trust_screens.dart#A web page cannot read Face ID or Touch ID data
-- **test_status:** Hosted account-trust QA passed; Flutter analyze passed, all 65 tests passed, and the release web preview built; Swift repository static audit passed. Mac compilation and physical iPhone testing were not performed.
+- **implementation_status:** accepted_roadmap
+- **verification_evidence:** Implementation claim automatically downgraded by scripts/audit-feature-implementation.mjs.
+- **test_status:** not_started
 - **Mac_required:** false
 - **iPhone_required:** false
 - **manual_dashboard_required:** false
-- **reason_deferred:** Mac/Xcode and physical-device validation remain where applicable; production identity, screening, and public launch require external provider and legal approval.
+- **reason_deferred:** Evidence audit failed: flutter_mort/lib/features/trust/account_trust_screens.dart: missing symbol: A web page cannot read Face ID or Touch ID data
 - **implementation_wave:** Wave 0 - multi-signal trust foundation
-- **evidence_checks:** [{"path":"supabase/migrations/20260718150502_multi_signal_account_trust_foundation.sql","symbol":"device_biometrics_are_local_account_security_only"},{"path":"scripts/account-trust-qa-suites.mjs","symbol":"runBiometric"},{"path":"swift_mort/MORT/Features/Trust/AccountTrustViews.swift","symbol":"Device biometrics protect your account"},{"path":"flutter_mort/lib/features/trust/account_trust_screens.dart","symbol":"A web page cannot read Face ID or Touch ID data"}]
+- **evidence_checks:** []
 
 ## MORT-F-1701 - Official legal-pattern research corpus
 

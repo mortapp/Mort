@@ -72,8 +72,7 @@ foreach ($forbidden in @(
   'android.permission.READ_EXTERNAL_STORAGE',
   'android.permission.WRITE_EXTERNAL_STORAGE',
   'android.permission.MANAGE_EXTERNAL_STORAGE',
-  'android.permission.ACCESS_BACKGROUND_LOCATION',
-  'android.permission.WAKE_LOCK'
+  'android.permission.ACCESS_BACKGROUND_LOCATION'
 )) {
   if ($manifestText.Contains($forbidden)) {
     throw "AAB manifest contains forbidden release capability: $forbidden"

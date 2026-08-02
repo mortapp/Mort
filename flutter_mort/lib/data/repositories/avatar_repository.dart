@@ -1,10 +1,10 @@
-import 'dart:typed_data';
-
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/utils/safe_image.dart';
+import '../../core/errors/mort_error.dart';
 import 'profile_repository.dart';
 import 'repository_base.dart';
 
@@ -22,20 +22,53 @@ class AvatarRepository extends RepositoryBase {
   final ProfileRepository _profiles;
   final Map<String, _SignedAvatarEntry> _signedUrls = {};
 
-  Future<XFile?> choosePhoto({ImageSource source = ImageSource.gallery}) {
-    return _picker.pickImage(
-      source: source,
-      maxWidth: 2048,
-      maxHeight: 2048,
-      imageQuality: 92,
-      requestFullMetadata: false,
-    );
+  Future<XFile?> choosePhoto({ImageSource source = ImageSource.gallery}) async {
+    try {
+      return await _picker.pickImage(
+        source: source,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 92,
+        requestFullMetadata: false,
+      );
+    } on PlatformException catch (error) {
+      final code = error.code.toLowerCase();
+      if (code.contains('camera') &&
+          (code.contains('denied') || code.contains('restricted'))) {
+        throw const MortCodedError(
+          'avatar_camera_permission_denied',
+          'Camera access is off. Enable Camera for MORT in device settings, then try again.',
+        );
+      }
+      if ((code.contains('photo') || code.contains('gallery')) &&
+          (code.contains('denied') || code.contains('restricted'))) {
+        throw const MortCodedError(
+          'avatar_photo_permission_denied',
+          'Photo access is off. Enable Photos for MORT in device settings, then try again.',
+        );
+      }
+      throw const MortCodedError(
+        'avatar_picker_unavailable',
+        'The photo picker is unavailable right now. Try again or use the other photo option.',
+      );
+    }
   }
 
   Future<String> uploadAvatar(XFile file, {String? previousPath}) async {
-    final userId = requireUserId();
+    final processed = await prepareAvatar(file);
+    return uploadPreparedAvatar(processed, previousPath: previousPath);
+  }
+
+  Future<Uint8List> prepareAvatar(XFile file) async {
     final source = await file.readAsBytes();
-    final processed = processAvatarBytes(source);
+    return processAvatarBytes(source);
+  }
+
+  Future<String> uploadPreparedAvatar(
+    Uint8List processed, {
+    String? previousPath,
+  }) async {
+    final userId = requireUserId();
     final path = '$userId/${const Uuid().v4()}.jpg';
 
     try {
@@ -49,7 +82,8 @@ class AvatarRepository extends RepositoryBase {
               cacheControl: '3600',
               upsert: false,
             ),
-          );
+          )
+          .timeout(const Duration(seconds: 45));
     } catch (_) {
       await recordUploadFailure(
         uploadKind: 'avatar',
@@ -59,7 +93,9 @@ class AvatarRepository extends RepositoryBase {
     }
 
     try {
-      final persisted = await _profiles.setAvatarPath(path);
+      final persisted = await _profiles
+          .setAvatarPath(path)
+          .timeout(const Duration(seconds: 20));
       if (persisted.id != userId || persisted.avatarPath != path) {
         throw StateError('The server did not confirm the new avatar path.');
       }
@@ -140,10 +176,12 @@ class AvatarRepository extends RepositoryBase {
     required String avatarPath,
     required DateTime? avatarUpdatedAt,
   }) async {
-    final response = await client.functions.invoke(
-      'avatar-url',
-      body: {'profileId': profileId, 'avatarPath': avatarPath},
-    );
+    final response = await client.functions
+        .invoke(
+          'avatar-url',
+          body: {'profileId': profileId, 'avatarPath': avatarPath},
+        )
+        .timeout(const Duration(seconds: 15));
     final data = response.data;
     if (data is! Map) {
       throw StateError('The avatar service returned an invalid response.');

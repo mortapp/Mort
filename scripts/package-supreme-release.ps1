@@ -5,8 +5,8 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$versionName = '0.9.12'
-$versionCode = '102'
+$versionName = '0.9.13'
+$versionCode = '103'
 $versionLabel = "$versionName+$versionCode"
 $releaseDirectory = Join-Path $root "artifacts\release-$versionLabel"
 $apk = Join-Path $root "build\play\mort-closed-test-$versionName.apk"
@@ -32,12 +32,17 @@ foreach ($staleGeneratedFile in @($manifestPath, $copiedFinalReport)) {
   }
 }
 Copy-Item -LiteralPath $apk, $aab, $apkManifest, $aabManifest -Destination $releaseDirectory -Force
-Copy-Item -LiteralPath (Join-Path $root 'build\play\reports') -Destination $releaseDirectory -Recurse -Force
+$releaseReportsDirectory = Join-Path $releaseDirectory 'reports'
+New-Item -ItemType Directory -Force -Path $releaseReportsDirectory | Out-Null
+Get-ChildItem -LiteralPath (Join-Path $root 'build\play\reports') -File |
+  Where-Object { $_.Name -notmatch '^emulator-' } |
+  Copy-Item -Destination $releaseReportsDirectory -Force
 Copy-Item -LiteralPath (Join-Path $root 'docs\play-final\MORT_CLOSED_TEST_RELEASE_NOTES.txt') -Destination $releaseDirectory -Force
 Copy-Item -LiteralPath (Join-Path $root 'docs\device-test\MORT_DEVICE_TESTER_INSTRUCTIONS.md') -Destination $releaseDirectory -Force
 Copy-Item -LiteralPath (Join-Path $root 'docs\play-final\MORT_REVIEWER_WALKTHROUGH.md') -Destination $releaseDirectory -Force
 Copy-Item -LiteralPath (Join-Path $root 'docs\play-final\MORT_DATA_SAFETY_FINAL_WORKBOOK.md') -Destination $releaseDirectory -Force
 Copy-Item -LiteralPath (Join-Path $root 'docs\mobile\MORT_UPLOAD_CERTIFICATE_REPORT.md') -Destination $releaseDirectory -Force
+Copy-Item -LiteralPath (Join-Path $root 'docs\MORT_0.9.13_FINAL_READINESS_REPORT.md') -Destination $copiedFinalReport -Force
 
 & node (Join-Path $PSScriptRoot 'generate-release-sbom.mjs')
 if ($LASTEXITCODE -ne 0) { throw 'Dependency inventory generation failed.' }
@@ -64,7 +69,7 @@ $excludedFileNames = @(
 )
 $excludedExtensions = @(
   '.zip', '.jks', '.keystore', '.p12', '.pfx', '.mobileprovision',
-  '.log', '.tmp'
+  '.apk', '.aab', '.log', '.tmp'
 )
 
 $archive = [IO.Compression.ZipFile]::Open($sourceZip, [IO.Compression.ZipArchiveMode]::Create)
@@ -75,6 +80,7 @@ try {
       throw "Packaging traversal escaped the repository root: $($file.FullName)"
     }
     $relative = $file.FullName.Substring($root.Length).TrimStart('\', '/').Replace('\', '/')
+    if ($relative -match '(?i)^qa/recordings(?:/|$)') { continue }
     $segments = $relative.Split('/')
     if (@($segments | Where-Object { $excludedDirectoryNames -contains $_ }).Count -gt 0) { continue }
     if ($excludedFileNames -contains $file.Name) { continue }

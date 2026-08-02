@@ -424,6 +424,8 @@ class MortTextField extends StatelessWidget {
     this.enableSuggestions = true,
     this.suffixIcon,
     this.textCapitalization = TextCapitalization.none,
+    this.errorText,
+    this.focusNode,
   });
 
   final String label;
@@ -442,11 +444,14 @@ class MortTextField extends StatelessWidget {
   final bool enableSuggestions;
   final Widget? suffixIcon;
   final TextCapitalization textCapitalization;
+  final String? errorText;
+  final FocusNode? focusNode;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
+      focusNode: focusNode,
       keyboardType: keyboardType,
       obscureText: obscureText,
       validator: validator,
@@ -463,6 +468,7 @@ class MortTextField extends StatelessWidget {
         labelText: label,
         hintText: hint,
         suffixIcon: suffixIcon,
+        errorText: errorText,
       ),
     );
   }
@@ -478,6 +484,9 @@ class MortTextArea extends StatelessWidget {
     this.maxLength,
     this.validator,
     this.enabled = true,
+    this.errorText,
+    this.focusNode,
+    this.onChanged,
   });
 
   final String label;
@@ -487,16 +496,25 @@ class MortTextArea extends StatelessWidget {
   final int? maxLength;
   final String? Function(String?)? validator;
   final bool enabled;
+  final String? errorText;
+  final FocusNode? focusNode;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
+      focusNode: focusNode,
       maxLines: maxLines,
       maxLength: maxLength,
       validator: validator,
       enabled: enabled,
-      decoration: InputDecoration(labelText: label, hintText: hint),
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        errorText: errorText,
+      ),
     );
   }
 }
@@ -528,6 +546,143 @@ class MortDropdown<T> extends StatelessWidget {
           )
           .toList(),
       onChanged: onChanged,
+    );
+  }
+}
+
+class MortSearchableDropdown<T> extends StatelessWidget {
+  const MortSearchableDropdown({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+    this.searchHint = 'Search',
+    this.errorText,
+  });
+
+  final String label;
+  final T value;
+  final Map<T, String> items;
+  final ValueChanged<T> onChanged;
+  final String searchHint;
+  final String? errorText;
+
+  Future<void> _open(BuildContext context) async {
+    final selected = await showModalBottomSheet<T>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: MortColors.cardAlt,
+      builder: (context) => _MortSearchPicker<T>(
+        title: label,
+        selected: value,
+        items: items,
+        searchHint: searchHint,
+      ),
+    );
+    if (selected != null) onChanged(selected);
+  }
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label:
+        '$label. ${items[value] ?? value.toString()}. Opens searchable list.',
+    child: InkWell(
+      borderRadius: BorderRadius.circular(MortRadii.medium),
+      onTap: () => _open(context),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          errorText: errorText,
+          suffixIcon: const Icon(Icons.search),
+        ),
+        child: Text(items[value] ?? value.toString()),
+      ),
+    ),
+  );
+}
+
+class _MortSearchPicker<T> extends StatefulWidget {
+  const _MortSearchPicker({
+    required this.title,
+    required this.selected,
+    required this.items,
+    required this.searchHint,
+  });
+
+  final String title;
+  final T selected;
+  final Map<T, String> items;
+  final String searchHint;
+
+  @override
+  State<_MortSearchPicker<T>> createState() => _MortSearchPickerState<T>();
+}
+
+class _MortSearchPickerState<T> extends State<_MortSearchPicker<T>> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = widget.items.entries
+        .where(
+          (entry) => entry.value.toLowerCase().contains(_query.toLowerCase()),
+        )
+        .toList(growable: false);
+    return SizedBox(
+      height: MediaQuery.sizeOf(context).height * 0.72,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          MortSpacing.md,
+          MortSpacing.md,
+          MortSpacing.md,
+          MediaQuery.viewInsetsOf(context).bottom + MortSpacing.md,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(widget.title, style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: MortSpacing.sm),
+            TextField(
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: widget.searchHint,
+                prefixIcon: const Icon(Icons.search),
+              ),
+              onChanged: (value) => setState(() => _query = value.trim()),
+            ),
+            const SizedBox(height: MortSpacing.sm),
+            Expanded(
+              child: entries.isEmpty
+                  ? const MortEmptyState(
+                      title: 'No matches',
+                      message: 'Try a different search.',
+                    )
+                  : ListView.builder(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      itemCount: entries.length,
+                      itemBuilder: (context, index) {
+                        final entry = entries[index];
+                        return ListTile(
+                          minTileHeight: MortSpacing.minTouchTarget,
+                          title: Text(entry.value),
+                          trailing: entry.key == widget.selected
+                              ? const Icon(
+                                  Icons.check_circle,
+                                  color: MortColors.success,
+                                )
+                              : null,
+                          onTap: () => Navigator.of(context).pop(entry.key),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

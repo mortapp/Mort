@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/config/app_config.dart';
+import '../core/errors/mort_error.dart';
 import '../core/errors/user_facing_error.dart';
 import '../core/money/mort_service_fee.dart';
 import '../core/reviewer/reviewer_session.dart';
@@ -1280,14 +1281,128 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   String _locationSetupMode = 'city_state';
   String _adultAccountType = 'individual';
   final _businessName = TextEditingController();
+  String _clientRequestId = const Uuid().v4();
+  final _fieldErrors = <String, String>{};
+  final _focusNodes = <String, FocusNode>{
+    for (final field in [
+      'display_name',
+      'username',
+      'dob',
+      'city',
+      'state',
+      'bio',
+      'availability',
+      'approximate_area',
+      'preferred_job_categories',
+      'goals',
+      'business_name',
+    ])
+      field: FocusNode(),
+  };
   Profile? _existingProfile;
   bool _busy = false;
+  Timer? _draftTimer;
+  bool _restoringDraft = false;
 
   @override
   void initState() {
     super.initState();
     _role = widget.initialRole;
+    for (final controller in _profileControllers) {
+      controller.addListener(_onDraftFieldChanged);
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadExistingProfile());
+  }
+
+  List<TextEditingController> get _profileControllers => [
+    _name,
+    _username,
+    _dob,
+    _city,
+    _state,
+    _bio,
+    _availability,
+    _approximateArea,
+    _goals,
+    _preferredCategories,
+    _businessName,
+  ];
+
+  bool get _editingExisting => _existingProfile?.onboardingCompleted == true;
+
+  void _onDraftFieldChanged() {
+    if (_restoringDraft) return;
+    _fieldErrors.clear();
+    _draftTimer?.cancel();
+    _draftTimer = Timer(const Duration(milliseconds: 350), _persistDraft);
+  }
+
+  Future<void> _persistDraft() async {
+    if (!_backendReady) return;
+    final userId = SupabaseService.client.auth.currentUser?.id;
+    if (userId == null || _role == null) return;
+    await ref.read(secureDraftStorageProvider).writeProfileDraft(userId, {
+      'client_request_id': _clientRequestId,
+      'role': userRoleToString(_role),
+      'display_name': _name.text,
+      'username': _username.text,
+      'dob': _dob.text,
+      'city': _city.text,
+      'state': _state.text,
+      'location_setup_mode': _locationSetupMode,
+      'bio': _bio.text,
+      'availability': _availability.text,
+      'approximate_area': _approximateArea.text,
+      'goals': _goals.text,
+      'preferred_job_categories': _preferredCategories.text,
+      'adult_account_type': _adultAccountType,
+      'business_name': _businessName.text,
+    });
+  }
+
+  Future<void> _restoreDraft() async {
+    final userId = SupabaseService.client.auth.currentUser?.id;
+    if (userId == null) return;
+    final draft = await ref
+        .read(secureDraftStorageProvider)
+        .readProfileDraft(userId);
+    if (!mounted || draft == null) return;
+    final draftRole = userRoleFromString(draft['role']?.toString());
+    if (draftRole != null &&
+        _existingProfile?.role != null &&
+        draftRole != _existingProfile!.role) {
+      await ref.read(secureDraftStorageProvider).clearProfileDraft(userId);
+      return;
+    }
+    _restoringDraft = true;
+    setState(() {
+      final storedRequestId = draft['client_request_id']?.toString();
+      if (storedRequestId != null && storedRequestId.isNotEmpty) {
+        _clientRequestId = storedRequestId;
+      }
+      _role = draftRole ?? _role;
+      _name.text = draft['display_name']?.toString() ?? _name.text;
+      _username.text = draft['username']?.toString() ?? _username.text;
+      _dob.text = draft['dob']?.toString() ?? _dob.text;
+      _city.text = draft['city']?.toString() ?? _city.text;
+      _state.text = draft['state']?.toString() ?? _state.text;
+      _locationSetupMode =
+          draft['location_setup_mode']?.toString() ?? _locationSetupMode;
+      _bio.text = draft['bio']?.toString() ?? _bio.text;
+      _availability.text =
+          draft['availability']?.toString() ?? _availability.text;
+      _approximateArea.text =
+          draft['approximate_area']?.toString() ?? _approximateArea.text;
+      _goals.text = draft['goals']?.toString() ?? _goals.text;
+      _preferredCategories.text =
+          draft['preferred_job_categories']?.toString() ??
+          _preferredCategories.text;
+      _adultAccountType =
+          draft['adult_account_type']?.toString() ?? _adultAccountType;
+      _businessName.text =
+          draft['business_name']?.toString() ?? _businessName.text;
+    });
+    _restoringDraft = false;
   }
 
   Future<void> _loadExistingProfile() async {
@@ -1296,7 +1411,11 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       final profile = await ref
           .read(profileRepositoryProvider)
           .getCurrentProfile();
-      if (!mounted || profile == null) return;
+      if (!mounted) return;
+      if (profile == null) {
+        await _restoreDraft();
+        return;
+      }
       final progress = await ref
           .read(profileRepositoryProvider)
           .getOnboardingProgress();
@@ -1328,6 +1447,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
           _businessName.text = progress.businessName ?? '';
         }
       });
+      await _restoreDraft();
     } catch (_) {
       if (mounted) {
         MortToast.show(
@@ -1340,6 +1460,10 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
   @override
   void dispose() {
+    _draftTimer?.cancel();
+    for (final controller in _profileControllers) {
+      controller.removeListener(_onDraftFieldChanged);
+    }
     _name.dispose();
     _username.dispose();
     _dob.dispose();
@@ -1351,6 +1475,9 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     _goals.dispose();
     _preferredCategories.dispose();
     _businessName.dispose();
+    for (final node in _focusNodes.values) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -1375,63 +1502,76 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       MortToast.show(context, roleError);
       return;
     }
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _fieldErrors.clear();
+    });
     try {
       await ref
           .read(profileRepositoryProvider)
-          .saveProfile(
+          .saveProfileSetup(
             role: _role!,
             displayName: _name.text,
+            username: _username.text,
             dob: dob,
             city: _city.text,
             state: _state.text,
             locationSetupMode: _role == UserRole.teen
                 ? _locationSetupMode
                 : 'city_state',
-            completeOnboarding: false,
-          );
-      final username = _username.text.trim().toLowerCase();
-      if (_existingProfile?.username != username) {
-        await ref
-            .read(profileRepositoryProvider)
-            .requestUsernameChange(username);
-      }
-      await ref
-          .read(profileRepositoryProvider)
-          .saveProfileDetails(
-            displayName: _name.text,
             bio: _bio.text,
-            availability: _availability.text,
-            preferredJobCategories: _preferredCategories.text
-                .split(',')
-                .map((value) => value.trim().toLowerCase())
-                .where((value) => value.isNotEmpty)
-                .take(12)
-                .toList(),
-            approximateArea: _approximateArea.text,
-            goals: _goals.text,
-          );
-      await ref
-          .read(profileRepositoryProvider)
-          .saveOnboardingProgress(
-            completedStep: 'profile',
-            preferences: _role == UserRole.adult
-                ? {
-                    'adult_account_type': _adultAccountType,
-                    'business_name': _adultAccountType == 'business'
-                        ? _businessName.text.trim()
-                        : null,
-                  }
-                : const {},
+            availability: _role == UserRole.guardian ? '' : _availability.text,
+            preferredJobCategories: _role == UserRole.teen
+                ? _preferredCategories.text
+                      .split(',')
+                      .map((value) => value.trim().toLowerCase())
+                      .where((value) => value.isNotEmpty)
+                      .take(12)
+                      .toList()
+                : const [],
+            approximateArea: _role == UserRole.guardian
+                ? ''
+                : _approximateArea.text,
+            goals: _role == UserRole.teen ? _goals.text : '',
+            adultAccountType: _adultAccountType,
+            businessName: _businessName.text,
+            editExisting: _editingExisting,
+            clientRequestId: _clientRequestId,
           );
       ref.invalidate(currentProfileProvider);
       ref.invalidate(onboardingProgressProvider);
-      if (mounted) context.go('/onboarding/skills');
+      final userId = SupabaseService.client.auth.currentUser?.id;
+      if (userId != null) {
+        await ref.read(secureDraftStorageProvider).clearProfileDraft(userId);
+      }
+      if (!mounted) return;
+      if (_editingExisting) {
+        MortToast.show(context, 'Profile changes saved.');
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/settings');
+        }
+      } else {
+        context.go('/onboarding/skills');
+      }
     } catch (error) {
-      if (mounted) MortToast.show(context, userFacingError(error));
+      if (!mounted) return;
+      if (error is MortFieldCodedError) {
+        _showFieldError(error);
+      }
+      MortToast.show(context, userFacingError(error));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  void _showFieldError(MortFieldCodedError error) {
+    final field = error.field == 'city_state' ? 'city' : error.field;
+    setState(() => _fieldErrors[field] = error.message);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNodes[field]?.requestFocus();
+    });
   }
 
   @override
@@ -1445,12 +1585,12 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
         const SizedBox(height: MortSpacing.xs),
         MortHeader(
           eyebrow: 'Profile',
-          title: 'Set your basics',
+          title: _editingExisting ? 'Edit your profile' : 'Set your basics',
           subtitle: _role == UserRole.teen
               ? 'A permanent address is not required. MORT never asks why you choose a partner-supported or deferred setup.'
               : 'Only safe, general location fields are used here. Exact addresses do not belong in chat.',
         ),
-        const MortStepper(current: 3, total: 12),
+        if (!_editingExisting) const MortStepper(current: 3, total: 12),
         const SizedBox(height: MortSpacing.md),
         MortCard(
           child: Text(
@@ -1469,9 +1609,25 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
           child: Column(
             children: [
               if (_existingProfile?.role != null)
-                MortCard(
-                  child: Text(
-                    'Role: ${userRoleToString(_existingProfile!.role!)}. Role changes require an authorized support review.',
+                MortGlassCard(
+                  infoAccent: true,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Account type: ${switch (_existingProfile!.role!) {
+                          UserRole.teen => 'Teen',
+                          UserRole.adult => 'Adult / job poster',
+                          UserRole.guardian => 'Guardian',
+                          UserRole.admin => 'Admin',
+                        }}',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: MortSpacing.xs),
+                      const Text(
+                        'For account safety, Support confirms any correction to account type or date of birth.',
+                      ),
+                    ],
                   ),
                 )
               else
@@ -1483,7 +1639,10 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     UserRole.adult: 'Adult / business',
                     UserRole.guardian: 'Guardian',
                   },
-                  onChanged: (value) => setState(() => _role = value),
+                  onChanged: (value) {
+                    setState(() => _role = value);
+                    _onDraftFieldChanged();
+                  },
                 ),
               const SizedBox(height: MortSpacing.sm),
               MortTextField(
@@ -1491,6 +1650,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 controller: _name,
                 maxLength: 80,
                 textInputAction: TextInputAction.next,
+                focusNode: _focusNodes['display_name'],
+                errorText: _fieldErrors['display_name'],
                 validator: (value) =>
                     MortValidators.requiredText(value, maximumLength: 80),
               ),
@@ -1502,6 +1663,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 maxLength: 24,
                 autocorrect: false,
                 enableSuggestions: false,
+                focusNode: _focusNodes['username'],
+                errorText: _fieldErrors['username'],
                 validator: (value) {
                   final username = value?.trim().toLowerCase() ?? '';
                   if (!RegExp(r'^[a-z0-9_]{3,24}$').hasMatch(username)) {
@@ -1511,7 +1674,13 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 },
               ),
               const SizedBox(height: MortSpacing.sm),
-              DateOfBirthField(controller: _dob),
+              DateOfBirthField(
+                controller: _dob,
+                enabled: !_editingExisting,
+                focusNode: _focusNodes['dob'],
+                errorText: _fieldErrors['dob'],
+                onChanged: (_) => _onDraftFieldChanged(),
+              ),
               const SizedBox(height: MortSpacing.sm),
               if (_role == UserRole.teen) ...[
                 MortDropdown<String>(
@@ -1522,9 +1691,10 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     'partner_supported': 'Use approved partner support',
                     'location_deferred': 'Safely defer location',
                   },
-                  onChanged: (value) => setState(
-                    () => _locationSetupMode = value ?? 'city_state',
-                  ),
+                  onChanged: (value) {
+                    setState(() => _locationSetupMode = value ?? 'city_state');
+                    _onDraftFieldChanged();
+                  },
                 ),
                 const SizedBox(height: MortSpacing.sm),
                 if (_locationSetupMode != 'city_state') ...[
@@ -1544,8 +1714,10 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     'individual': 'Individual adult',
                     'business': 'Business',
                   },
-                  onChanged: (value) =>
-                      setState(() => _adultAccountType = value ?? 'individual'),
+                  onChanged: (value) {
+                    setState(() => _adultAccountType = value ?? 'individual');
+                    _onDraftFieldChanged();
+                  },
                 ),
                 const SizedBox(height: MortSpacing.sm),
                 if (_adultAccountType == 'business') ...[
@@ -1553,6 +1725,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     label: 'Business name',
                     controller: _businessName,
                     maxLength: 120,
+                    focusNode: _focusNodes['business_name'],
+                    errorText: _fieldErrors['business_name'],
                     validator: (value) =>
                         MortValidators.requiredText(value, maximumLength: 120),
                   ),
@@ -1567,6 +1741,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                   label: 'City',
                   controller: _city,
                   textInputAction: TextInputAction.next,
+                  focusNode: _focusNodes['city'],
+                  errorText: _fieldErrors['city'],
                   validator: (value) {
                     if (_role == UserRole.teen &&
                         _locationSetupMode != 'city_state') {
@@ -1585,6 +1761,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                   controller: _state,
                   textInputAction: TextInputAction.done,
                   maxLength: 2,
+                  focusNode: _focusNodes['state'],
+                  errorText: _fieldErrors['state'],
                   validator: (value) {
                     if (_role == UserRole.teen &&
                         _locationSetupMode != 'city_state') {
@@ -1599,29 +1777,70 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 label: 'Bio',
                 controller: _bio,
                 maxLength: 500,
+                focusNode: _focusNodes['bio'],
+                errorText: _fieldErrors['bio'],
                 hint:
                     'Share safe experience and interests without contact details.',
               ),
               const SizedBox(height: MortSpacing.sm),
-              MortTextField(
-                label: 'Availability',
-                controller: _availability,
-                hint: 'Weekends and weekday afternoons',
-              ),
-              const SizedBox(height: MortSpacing.sm),
-              MortTextField(
-                label: 'Approximate area',
-                controller: _approximateArea,
-                hint: 'General neighborhood or side of town',
-              ),
-              const SizedBox(height: MortSpacing.sm),
-              MortTextField(
-                label: 'Preferred job categories',
-                controller: _preferredCategories,
-                hint: 'cleaning, tutoring, pet care',
-              ),
-              const SizedBox(height: MortSpacing.sm),
-              MortTextArea(label: 'Goals', controller: _goals, maxLength: 500),
+              if (_role == UserRole.teen) ...[
+                MortTextField(
+                  label: 'Availability',
+                  controller: _availability,
+                  hint: 'Weekends and weekday afternoons',
+                  maxLength: 240,
+                  focusNode: _focusNodes['availability'],
+                  errorText: _fieldErrors['availability'],
+                ),
+                const SizedBox(height: MortSpacing.sm),
+                MortTextField(
+                  label: 'Approximate work area',
+                  controller: _approximateArea,
+                  hint: 'General neighborhood or side of town',
+                  maxLength: 120,
+                  focusNode: _focusNodes['approximate_area'],
+                  errorText: _fieldErrors['approximate_area'],
+                ),
+                const SizedBox(height: MortSpacing.sm),
+                MortTextField(
+                  label: 'Preferred job categories',
+                  controller: _preferredCategories,
+                  hint: 'cleaning, tutoring, pet care',
+                  focusNode: _focusNodes['preferred_job_categories'],
+                  errorText: _fieldErrors['preferred_job_categories'],
+                ),
+                const SizedBox(height: MortSpacing.sm),
+                MortTextArea(
+                  label: 'Goals',
+                  controller: _goals,
+                  maxLength: 500,
+                  focusNode: _focusNodes['goals'],
+                  errorText: _fieldErrors['goals'],
+                ),
+              ] else if (_role == UserRole.adult) ...[
+                MortTextField(
+                  label: 'Scheduling and contact preference',
+                  controller: _availability,
+                  hint: 'For example, weekday evenings in MORT messages',
+                  maxLength: 240,
+                  focusNode: _focusNodes['availability'],
+                  errorText: _fieldErrors['availability'],
+                ),
+                const SizedBox(height: MortSpacing.sm),
+                MortTextField(
+                  label: 'Approximate service area',
+                  controller: _approximateArea,
+                  hint: 'General neighborhood or side of town',
+                  maxLength: 120,
+                  focusNode: _focusNodes['approximate_area'],
+                  errorText: _fieldErrors['approximate_area'],
+                ),
+              ] else if (_role == UserRole.guardian) ...[
+                const MortSafetyBanner(
+                  message:
+                      'Guardian Mode is optional. Teen linking and safety notification choices are handled in the next private setup steps.',
+                ),
+              ],
               const SizedBox(height: MortSpacing.md),
               MortButton(
                 label: 'Save profile',
@@ -1666,72 +1885,63 @@ class _SkillsScreenState extends ConsumerState<SkillsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final role = ref.watch(currentProfileProvider).asData?.value?.role;
+    final title = switch (role) {
+      UserRole.adult => 'Set safe posting expectations',
+      UserRole.guardian => 'Choose supervision boundaries',
+      _ => 'Show what you can do safely',
+    };
+    final description = switch (role) {
+      UserRole.adult =>
+        'Review what adults and businesses must provide before posting a job.',
+      UserRole.guardian =>
+        'Guardian Mode is optional and limited to linked safety information.',
+      _ =>
+        'Start with common, safe local categories. You can update interests later.',
+    };
+    final checklist = switch (role) {
+      UserRole.adult => const [
+        'Describe the work, schedule, offered compensation, equipment, and supervision clearly.',
+        'Never ask a teen to move off-platform, pay an upfront fee, or share private contact details.',
+        'Verification and closed-pilot review remain required before applications can open.',
+      ],
+      UserRole.guardian => const [
+        'Teen linking is optional and requires a valid invitation or approval flow.',
+        'Guardians receive only permitted safety and job-status details.',
+        'Private message content and exact location are not exposed by default.',
+      ],
+      _ => const [
+        'Yard help, pet care, tutoring, cleaning, errands, creative help, and event setup are safe starting categories.',
+        'Avoid unsafe tools, overnight work, isolated work, or off-platform pressure.',
+        'Stop, block, report, or send a Safety Ping whenever something feels wrong.',
+      ],
+    };
     return FeatureScaffoldScreen(
-      eyebrow: 'Skills',
-      title: 'Show what you can do safely',
-      description:
-          'Start with common, safe local categories. You can continue now; richer saved skill editing can be added later without blocking onboarding.',
-      children: const [
-        MortStepper(current: 4, total: 12),
-        SizedBox(height: MortSpacing.md),
-        FeatureChecklist(
-          items: [
-            'Yard help, pet care, tutoring, cleaning, errands, creative help, and event setup are safe starting categories.',
-            'Avoid unsafe tools, overnight work, private homes without guardian awareness, or off-platform pressure.',
-            'Adults should describe the job clearly so teens and guardians can decide quickly.',
-          ],
-        ),
+      eyebrow: role == UserRole.teen ? 'Skills' : 'Safety setup',
+      title: title,
+      description: description,
+      children: [
+        const MortStepper(current: 4, total: 12),
+        const SizedBox(height: MortSpacing.md),
+        FeatureChecklist(items: checklist),
       ],
       actions: [
-        const MortAction(
-          label: 'Closed-pilot access',
-          icon: Icons.verified_user_outlined,
-          route: '/mission/pilot-eligibility',
-        ),
-        const MortAction(
-          label: 'Partner affiliation',
-          icon: Icons.account_balance_outlined,
-          route: '/mission/partner-affiliation',
-        ),
-        const MortAction(
-          label: 'Discreet Mode',
-          icon: Icons.visibility_off_outlined,
-          route: '/mission/discreet-mode',
-        ),
-        const MortAction(
-          label: 'Optional Support Circle',
-          icon: Icons.groups_outlined,
-          route: '/mission/support-circle',
-        ),
-        const MortAction(
-          label: 'Earnings and goals',
-          icon: Icons.savings_outlined,
-          route: '/mission/earnings-goals',
-        ),
-        const MortAction(
-          label: 'Future Independence Plan',
-          icon: Icons.route_outlined,
-          route: '/mission/future-independence',
-        ),
-        const MortAction(
-          label: 'Private resource directory',
-          icon: Icons.menu_book_outlined,
-          route: '/mission/resources',
-        ),
+        if (role == UserRole.teen) ...[
+          const MortAction(
+            label: 'Discreet Mode',
+            icon: Icons.visibility_off_outlined,
+            route: '/mission/discreet-mode',
+          ),
+          const MortAction(
+            label: 'Optional Support Circle',
+            icon: Icons.groups_outlined,
+            route: '/mission/support-circle',
+          ),
+        ],
         const MortAction(
           label: 'Pilot job safety',
           icon: Icons.work_outline,
           route: '/mission/pilot-job-safety',
-        ),
-        const MortAction(
-          label: 'What verification means',
-          icon: Icons.fact_check_outlined,
-          route: '/mission/verification-wording',
-        ),
-        const MortAction(
-          label: 'Document review status',
-          icon: Icons.document_scanner_outlined,
-          route: '/mission/document-review',
         ),
         MortAction(
           label: 'Continue',
@@ -1772,20 +1982,42 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final role = ref.watch(currentProfileProvider).asData?.value?.role;
     return FeatureScaffoldScreen(
       eyebrow: 'Availability',
-      title: 'Pick safe time windows',
-      description:
-          'MORT should recommend safe, general windows instead of making users invent a schedule from a blank page.',
-      children: const [
-        MortStepper(current: 5, total: 12),
-        SizedBox(height: MortSpacing.md),
+      title: switch (role) {
+        UserRole.adult => 'Set clear scheduling habits',
+        UserRole.guardian => 'Choose notification timing',
+        _ => 'Pick safe time windows',
+      },
+      description: switch (role) {
+        UserRole.adult =>
+          'Jobs need clear start, end, flexibility, and supervision expectations.',
+        UserRole.guardian =>
+          'Safety alerts and approvals can be adjusted after optional linking.',
+        _ => 'Use daylight-first windows that fit school and local rules.',
+      },
+      children: [
+        const MortStepper(current: 5, total: 12),
+        const SizedBox(height: MortSpacing.md),
         FeatureChecklist(
-          items: [
-            'Teen default: after school, weekends, daylight-first.',
-            'Adult default: flexible windows with clear start/end expectations.',
-            'Guardian default: alerts for approvals, check-ins, and unusual message/report activity.',
-          ],
+          items: switch (role) {
+            UserRole.adult => const [
+              'Use future dates and clear start/end expectations.',
+              'Allow enough time for safe travel and check-in.',
+              'Never pressure a teen to accept last-minute off-platform changes.',
+            ],
+            UserRole.guardian => const [
+              'Choose which optional approvals and safety alerts you want.',
+              'Quiet hours never disable urgent in-app safety actions.',
+              'Guardian Mode does not provide continuous monitoring.',
+            ],
+            _ => const [
+              'Prefer after-school, weekend, and daylight-first windows.',
+              'Leave enough time for safe transportation and check-ins.',
+              'Decline work that conflicts with school, local rules, or safety.',
+            ],
+          },
         ),
       ],
       actions: [

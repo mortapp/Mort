@@ -923,3 +923,23 @@ Status: completed for a closed-test candidate, not public production.
 Budget-split Prompts 01-16 are complete for safe code-controlled work. There is
 no next numbered prompt. Remaining work is the external/manual gate list above;
 public marketplace activation stays blocked.
+
+## 0.9.13 Video-Grounded Hardening - 2026-08-02
+
+Status: safe code-controlled fixes complete; overall verdict partially verified.
+
+- Reviewed all three supplied recordings and reproduced the profile-save,
+  role-content, job-flow, and OAuth-branding issues.
+- Applied hosted migration `20260802062226`; atomic profile save and hardened job
+  publication contracts passed dedicated and full hosted regression.
+- Added encrypted owner-bound profile/job draft recovery, role-specific setup,
+  field focus/errors, exact avatar preview, and one eight-step job flow.
+- Flutter passed 276 tests with 2 provider skips; Expo reference and Flutter web
+  builds passed; Supabase regression passed 45 scripts.
+- Signed APK/AAB `0.9.13+103` passed package, certificate, permission, and 16 KB
+  checks. Native API 36 driver passed 2 tests.
+- Exact APK clean install/cold launch/public auth/Google cancel passed on
+  `emulator-5554`; zero MORT fatal/error matches were observed.
+- Hosted Google still displays the raw Supabase project host. Credentialed role
+  emulator journeys, physical Android, iPhone/TestFlight, store/legal/privacy,
+  providers, and staffing remain external/manual gates.

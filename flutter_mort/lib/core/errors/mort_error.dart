@@ -13,6 +13,12 @@ class MortCodedError extends MortError {
   final String code;
 }
 
+class MortFieldCodedError extends MortCodedError {
+  const MortFieldCodedError(super.code, super.message, {required this.field});
+
+  final String field;
+}
+
 class MortBackendNotConfiguredError extends MortError {
   const MortBackendNotConfiguredError()
     : super(

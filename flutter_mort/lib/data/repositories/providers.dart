@@ -7,6 +7,7 @@ import '../models/onboarding_progress.dart';
 import '../models/job.dart';
 import '../models/account_trust.dart';
 import '../services/supabase_service.dart';
+import '../services/secure_draft_storage.dart';
 import 'account_trust_repository.dart';
 import 'account_deletion_repository.dart';
 import 'admin_repository.dart';
@@ -45,6 +46,9 @@ final avatarRepositoryProvider = Provider<AvatarRepository>(
 );
 final profileRepositoryProvider = Provider<ProfileRepository>(
   (ref) => ProfileRepository(),
+);
+final secureDraftStorageProvider = Provider<MortSecureDraftStorage>(
+  (ref) => MortSecureDraftStorage(),
 );
 final jobsRepositoryProvider = Provider<JobsRepository>(
   (ref) => JobsRepository(),

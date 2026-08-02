@@ -38,6 +38,7 @@ function Write-NativeIntegrationResult {
     apiLevel = $ApiLevel
     abi = $Abi
     gpuMode = $GpuMode
+    driverFile = 'test_driver/integration_test.dart'
     testFile = 'integration_test/android_native_smoke_test.dart'
     expectedTestCount = 2
     failure = $Failure
@@ -112,7 +113,10 @@ try {
 
   Push-Location $flutterRoot
   try {
-    & flutter test --no-pub integration_test/android_native_smoke_test.dart -d $serial
+    & flutter drive --no-pub `
+      --driver test_driver/integration_test.dart `
+      --target integration_test/android_native_smoke_test.dart `
+      -d $serial
     if ($LASTEXITCODE -ne 0) { throw 'Android native integration test failed.' }
   } finally {
     Pop-Location
