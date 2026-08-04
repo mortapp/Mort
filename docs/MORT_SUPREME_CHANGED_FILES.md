@@ -4,6 +4,8 @@ Branch: `mort-supreme-production-readiness`
 Baseline commit: `f566885453786f1fbdea08291b1b646a5cabe1bc`  
 Dirty paths at snapshot: 454
 
+> Local branch note: this workspace also contains an in-progress companion pass on `feature/compact-onboarding-and-screen-polish`.
+
 The repository already contained a large inherited dirty working tree. No
 pre-existing work was reverted. The first list is the exact Phase 14-16 set
 created or intentionally edited in this continuation. The second list is the

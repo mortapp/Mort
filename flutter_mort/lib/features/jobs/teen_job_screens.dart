@@ -107,6 +107,18 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
     });
   }
 
+  bool _hasActiveFilters() {
+    return _keyword.text.isNotEmpty ||
+        _category != 'All' ||
+        _paymentType != 'any' ||
+        _scheduleType != 'any' ||
+        _verification != 'any' ||
+        _guardian != 'any' ||
+        _environment != 'any' ||
+        _city.text.isNotEmpty ||
+        _state.text.isNotEmpty;
+  }
+
   Future<void> _useCurrentArea() async {
     if (_locating) return;
     setState(() => _locating = true);
@@ -358,10 +370,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
                       onPressed: () =>
                           context.go('/settings/native-permissions'),
                     ),
-                    if (_keyword.text.isNotEmpty ||
-                        _category != 'All' ||
-                        _city.text.isNotEmpty ||
-                        _state.text.isNotEmpty) ...[
+                    if (_hasActiveFilters()) ...[
                       const SizedBox(height: MortSpacing.xs),
                       MortButton(
                         label: 'Clear filters',

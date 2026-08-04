@@ -4,6 +4,8 @@ Continue directly in `C:\Users\micha\Mort` on branch
 `mort-supreme-production-readiness`. Preserve the inherited dirty working tree;
 do not reset, restart, or rebuild from scratch.
 
+> Local branch note: current companion development is on `feature/compact-onboarding-and-screen-polish`.
+
 Budget-split Prompts 01-16 are complete for every safe code-controlled task.
 There is no next numbered prompt. Authentication/session persistence and the
 MORT Support assistant remain regression-locked foundations.

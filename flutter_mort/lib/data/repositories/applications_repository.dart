@@ -2,18 +2,36 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/errors/mort_error.dart';
 import '../models/application.dart';
+import '../models/profile.dart';
 import '../models/proof.dart';
 import 'repository_base.dart';
 
 class ApplicationsRepository extends RepositoryBase {
-  Future<MortApplication?> getApplication(String applicationId) async {
-    final row = await client
+  Future<MortApplication?> getApplication(
+    String applicationId, {
+    UserRole? role,
+  }) async {
+    final query = client
         .from('applications')
         .select(
-          '*, jobs(*), teen:profiles!applications_teen_id_fkey(display_name,avatar_path)',
+          role == UserRole.adult
+              ? '*, jobs!inner(*), teen:profiles!applications_teen_id_fkey(display_name,avatar_path)'
+              : '*, jobs(*), teen:profiles!applications_teen_id_fkey(display_name,avatar_path)',
         )
-        .eq('id', applicationId)
-        .maybeSingle();
+        .eq('id', applicationId);
+
+    if (role != null) {
+      final id = requireUserId();
+      if (role == UserRole.teen) {
+        query.eq('teen_id', id);
+      } else if (role == UserRole.adult) {
+        query.eq('jobs.poster_id', id);
+      } else if (role == UserRole.guardian) {
+        query.eq('guardian_id', id);
+      }
+    }
+
+    final row = await query.maybeSingle();
     return row == null
         ? null
         : MortApplication.fromMap(Map<String, dynamic>.from(row));

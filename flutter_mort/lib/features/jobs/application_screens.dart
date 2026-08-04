@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/application.dart';
+import '../../data/models/profile.dart';
 import '../../data/repositories/providers.dart';
 import '../profile/profile_avatar_widgets.dart';
 
@@ -19,6 +21,152 @@ class ApplicationListScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<ApplicationListScreen> createState() =>
       _ApplicationListScreenState();
+}
+
+class ApplicationDetailScreen extends ConsumerStatefulWidget {
+  const ApplicationDetailScreen({
+    super.key,
+    required this.view,
+    required this.applicationId,
+  });
+
+  final ApplicationView view;
+  final String applicationId;
+
+  @override
+  ConsumerState<ApplicationDetailScreen> createState() =>
+      _ApplicationDetailScreenState();
+}
+
+class _ApplicationDetailScreenState
+    extends ConsumerState<ApplicationDetailScreen> {
+  late Future<MortApplication?> _future;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<MortApplication?> _load() {
+    final role = switch (widget.view) {
+      ApplicationView.teen => UserRole.teen,
+      ApplicationView.adult => UserRole.adult,
+      ApplicationView.guardian => UserRole.guardian,
+    };
+    return ref
+        .read(applicationsRepositoryProvider)
+        .getApplication(widget.applicationId, role: role);
+  }
+
+  void _reload() => setState(() => _future = _load());
+
+  Future<void> _changeStatus(MortApplication application, String action) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(applicationsRepositoryProvider)
+          .updateStatus(
+            application.id,
+            action,
+            expectedUpdatedAt: application.updatedAt,
+          );
+      if (!mounted) return;
+      MortToast.show(context, _successMessage(action));
+      _reload();
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  String _successMessage(String action) => switch (action) {
+    'adult_review' => 'Application approved for poster review.',
+    'guardian_rejected' => 'Application declined by guardian.',
+    'viewed' => 'Application marked viewed.',
+    'accepted' => 'Applicant accepted and job assigned.',
+    'rejected' => 'Application declined.',
+    'withdrawn' => 'Application withdrawn.',
+    'in_progress' => 'Job marked in progress.',
+    'proof_submitted' => 'Proof marked submitted.',
+    'completed' => 'Job and application marked completed.',
+    _ => 'Application updated.',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final copy = switch (widget.view) {
+      ApplicationView.adult => (
+        eyebrow: 'Adult review',
+        title: 'Applicant details',
+        subtitle: 'Review and manage the selected application.',
+      ),
+      ApplicationView.guardian => (
+        eyebrow: 'Guardian Mode',
+        title: 'Approval request',
+        subtitle: 'Review the selected teen application.',
+      ),
+      ApplicationView.teen => (
+        eyebrow: 'Teen tracker',
+        title: 'Application details',
+        subtitle: 'Track progress and next steps.',
+      ),
+    };
+    return MortScreen(
+      children: [
+        MortHeader(
+          eyebrow: copy.eyebrow,
+          title: copy.title,
+          subtitle: copy.subtitle,
+          trailing: MortIconButton(
+            icon: Icons.refresh,
+            tooltip: 'Refresh application',
+            onPressed: _reload,
+          ),
+        ),
+        FutureBuilder<MortApplication?>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const MortSkeletonCard();
+            }
+            if (snapshot.hasError) {
+              return MortErrorState(
+                title: 'Application unavailable',
+                message: userFacingError(snapshot.error),
+                action: MortButton(
+                  label: 'Retry',
+                  icon: Icons.refresh,
+                  onPressed: _reload,
+                ),
+              );
+            }
+            final application = snapshot.data;
+            if (application == null) {
+              return const MortEmptyState(
+                title: 'Application not found',
+                message:
+                    'This application may have been removed or is not visible to you.',
+              );
+            }
+            return Column(
+              children: [
+                _ApplicationLifecycleCard(
+                  application: application,
+                  view: widget.view,
+                  busy: _busy,
+                  onStatus: (action) => _changeStatus(application, action),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
 }
 
 class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
@@ -143,11 +291,24 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
             return Column(
               children: [
                 for (final application in applications) ...[
-                  _ApplicationLifecycleCard(
-                    application: application,
-                    view: widget.view,
-                    busy: _busyApplicationId == application.id,
-                    onStatus: (action) => _changeStatus(application, action),
+                  MortCard(
+                    onTap: () {
+                      final route = switch (widget.view) {
+                        ApplicationView.teen =>
+                          '/teen/applications/${application.id}',
+                        ApplicationView.adult =>
+                          '/adult/applicants/${application.id}',
+                        ApplicationView.guardian =>
+                          '/guardian/approvals/${application.id}',
+                      };
+                      context.go(route);
+                    },
+                    child: _ApplicationLifecycleCard(
+                      application: application,
+                      view: widget.view,
+                      busy: _busyApplicationId == application.id,
+                      onStatus: (action) => _changeStatus(application, action),
+                    ),
                   ),
                   const SizedBox(height: MortSpacing.sm),
                 ],

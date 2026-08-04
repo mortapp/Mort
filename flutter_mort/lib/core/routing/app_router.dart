@@ -32,6 +32,7 @@ import '../../features/profile/activity_history_screen.dart';
 import '../../features/notifications/notification_center_screen.dart';
 import '../../features/onboarding/transportation_screen.dart';
 import '../../features/onboarding/onboarding_preferences_screens.dart';
+import '../../features/onboarding/compact_onboarding.dart';
 import '../../features/payments/stripe_marketplace_screens.dart';
 import '../../features/payments/admin_payment_operations_screen.dart';
 import '../../features/admin/admin_moderation_detail_screen.dart';
@@ -85,7 +86,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       _guarded(
         '/onboarding',
-        const OnboardingHubScreen(),
+        const CompactOnboardingScreen(),
         allowIncompleteOnboarding: true,
       ),
       _guarded(
@@ -173,7 +174,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/teen/applications/:id',
         builder: (_, state) => GuardedRoute(
           requiredRole: UserRole.teen,
-          child: const ApplicationListScreen(),
+          child: ApplicationDetailScreen(
+            view: ApplicationView.teen,
+            applicationId: state.pathParameters['id'] ?? '',
+          ),
         ),
       ),
       GoRoute(
@@ -245,7 +249,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/adult/applicants/:applicationId',
         builder: (_, state) => GuardedRoute(
           requiredRole: UserRole.adult,
-          child: const ApplicationListScreen(view: ApplicationView.adult),
+          child: ApplicationDetailScreen(
+            view: ApplicationView.adult,
+            applicationId: state.pathParameters['applicationId'] ?? '',
+          ),
         ),
       ),
       GoRoute(
@@ -309,7 +316,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/guardian/approvals/:applicationId',
         builder: (_, state) => GuardedRoute(
           requiredRole: UserRole.guardian,
-          child: const ApplicationListScreen(view: ApplicationView.guardian),
+          child: ApplicationDetailScreen(
+            view: ApplicationView.guardian,
+            applicationId: state.pathParameters['applicationId'] ?? '',
+          ),
         ),
       ),
       _guarded(

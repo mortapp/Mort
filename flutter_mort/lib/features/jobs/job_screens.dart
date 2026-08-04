@@ -1726,11 +1726,50 @@ class _JobChecklist extends StatelessWidget {
   }
 }
 
-class SavedJobsScreen extends ConsumerWidget {
+class SavedJobsScreen extends ConsumerStatefulWidget {
   const SavedJobsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SavedJobsScreen> createState() => _SavedJobsScreenState();
+}
+
+class _SavedJobsScreenState extends ConsumerState<SavedJobsScreen> {
+  Future<List<Job>>? _jobsFuture;
+  String? _busyJobId;
+
+  @override
+  void initState() {
+    super.initState();
+    _jobsFuture = _loadSavedJobs();
+  }
+
+  Future<List<Job>> _loadSavedJobs() async {
+    return ref.read(jobsRepositoryProvider).listSavedJobs();
+  }
+
+  Future<void> _refresh() async {
+    if (!mounted) return;
+    setState(() => _jobsFuture = _loadSavedJobs());
+    await _jobsFuture;
+  }
+
+  Future<void> _removeSavedJob(String jobId) async {
+    if (_busyJobId != null) return;
+    setState(() => _busyJobId = jobId);
+    try {
+      await ref.read(jobsRepositoryProvider).unsaveJob(jobId);
+      if (!mounted) return;
+      MortToast.show(context, 'Job removed from saved jobs.');
+      setState(() => _jobsFuture = _loadSavedJobs());
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busyJobId = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return MortScreen(
       children: [
         const MortHeader(
@@ -1740,20 +1779,49 @@ class SavedJobsScreen extends ConsumerWidget {
               'Saved jobs stay with your account and show their current availability.',
         ),
         FutureBuilder<List<Job>>(
-          future: ref.watch(jobsRepositoryProvider).listSavedJobs(),
+          future: _jobsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting)
-              return const MortSkeletonCard();
+              return const Column(
+                children: [
+                  MortSkeletonCard(),
+                  SizedBox(height: MortSpacing.sm),
+                  MortSkeletonCard(),
+                ],
+              );
             if (snapshot.hasError)
               return MortErrorState(
                 title: 'Saved jobs unavailable',
                 message: userFacingError(snapshot.error),
+                action: MortButton(
+                  label: 'Retry',
+                  icon: Icons.refresh,
+                  onPressed: _refresh,
+                ),
               );
             final jobs = snapshot.data ?? const [];
             if (jobs.isEmpty)
-              return const MortEmptyState(
+              return MortEmptyState(
                 title: 'No saved jobs',
-                message: 'Save a job from its detail screen to find it here.',
+                message:
+                    'Save a job from its detail screen to find it here. You can return when a poster updates availability.',
+                action: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    MortButton(
+                      label: 'Browse teen jobs',
+                      icon: Icons.search,
+                      onPressed: () => context.go('/teen/jobs'),
+                    ),
+                    const SizedBox(height: MortSpacing.xs),
+                    MortButton(
+                      label: 'Refresh',
+                      icon: Icons.refresh_rounded,
+                      style: MortButtonStyle.secondary,
+                      onPressed: _refresh,
+                    ),
+                  ],
+                ),
               );
             return Column(
               children: [
@@ -1765,11 +1833,53 @@ class SavedJobsScreen extends ConsumerWidget {
                       children: [
                         Text(
                           job.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
-                        Text('${job.payDisplay} | ${job.scheduleDisplay}'),
+                        const SizedBox(height: MortSpacing.xs),
+                        Text(
+                          '${job.payDisplay} • ${job.scheduleDisplay}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: MortSpacing.xs),
+                        Text(
+                          job.locationText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                         const SizedBox(height: MortSpacing.sm),
-                        MortJobStatusBadge(status: job.status),
+                        Row(
+                          children: [
+                            MortJobStatusBadge(status: job.status),
+                            const SizedBox(width: MortSpacing.xs),
+                            if (!job.isOpen)
+                              const MortBadge(
+                                label: 'No longer open',
+                                color: MortColors.danger,
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: MortSpacing.sm),
+                        MortActionRow(
+                          actions: [
+                            MortAction(
+                              label: 'View job',
+                              icon: Icons.open_in_new,
+                              route: '/teen/jobs/${job.id}',
+                            ),
+                            MortAction(
+                              label: 'Remove',
+                              icon: Icons.delete_outline,
+                              style: MortButtonStyle.secondary,
+                              busy: _busyJobId == job.id,
+                              enabled: _busyJobId == null,
+                              onPressed: () => _removeSavedJob(job.id),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),

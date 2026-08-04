@@ -2,6 +2,8 @@
 
 Updated: 2026-08-01 (America/Indianapolis)
 
+> Local branch note: current working tree also includes a parallel `feature/compact-onboarding-and-screen-polish` pass with compact onboarding and QA verification work.
+
 ## Current State
 
 - Current phase: budget-split Prompt 13 complete; Prompt 14 not started

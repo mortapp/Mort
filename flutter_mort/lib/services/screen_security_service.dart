@@ -14,11 +14,16 @@ class ScreenSecurityService {
   }
 
   static Future<void> release() async {
-    _activeSensitiveScreens = (_activeSensitiveScreens - 1).clamp(0, 1000);
+    if (_activeSensitiveScreens <= 0) return;
+    _activeSensitiveScreens -= 1;
     if (_activeSensitiveScreens == 0) await _setSecure(false);
   }
 
   static Future<void> _setSecure(bool enabled) async {
+    if (_platformSetter != null) {
+      await _platformSetter!(enabled);
+      return;
+    }
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
     try {
       await _channel.invokeMethod<void>('setSecureScreen', {
@@ -28,6 +33,21 @@ class ScreenSecurityService {
       // Native protection is unavailable in unit tests and non-Android builds.
     }
   }
+
+  @visibleForTesting
+  static Future<void> debugReset() async {
+    _activeSensitiveScreens = 0;
+    await _setSecure(false);
+  }
+
+  // A test-only platform setter allowing tests to inject a narrow adapter
+  // for observing or faking native secure calls. Visible for testing only.
+  @visibleForTesting
+  static void setPlatformSetter(Future<void> Function(bool enabled)? setter) {
+    _platformSetter = setter;
+  }
+
+  static Future<void> Function(bool enabled)? _platformSetter;
 }
 
 class SensitiveScreenProtection extends StatefulWidget {

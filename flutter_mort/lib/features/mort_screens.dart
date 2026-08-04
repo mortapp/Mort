@@ -597,7 +597,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   final _password = TextEditingController();
   bool _busy = false;
   bool _obscurePassword = true;
+  bool _legalAcknowledged = false;
   bool _reviewerIdentifierEntered = false;
+  // _legalAcknowledged is declared once above
 
   @override
   void dispose() {
@@ -617,9 +619,29 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     if (!_form.currentState!.validate()) return;
     setState(() => _busy = true);
     try {
-      await ref
+      final response = await ref
           .read(authRepositoryProvider)
           .signIn(email: _email.text.trim(), password: _password.text);
+      // If the sign-in produced an active session, attempt to record the
+      // client-side acknowledgement for the closed-pilot notices. Non-blocking.
+      if (_legalAcknowledged && response.session != null) {
+        try {
+          final package = await PackageInfo.fromPlatform();
+          final platform = kIsWeb
+              ? 'flutter_web'
+              : 'flutter_${defaultTargetPlatform.name}';
+          await ref
+              .read(profileRepositoryProvider)
+              .recordOnboardingAcknowledgement(
+                version: mortOnboardingAcknowledgementVersion,
+                platform: platform,
+                appVersion: '${package.version}+${package.buildNumber}',
+              );
+          ref.invalidate(onboardingProgressProvider);
+        } catch (_) {
+          // Swallow failures; onboarding will prompt again server-side if needed.
+        }
+      }
       if (mounted) context.go('/account-status');
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
@@ -771,6 +793,33 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             ],
           ),
         ],
+        const SizedBox(height: MortSpacing.sm),
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          value: _legalAcknowledged,
+          title: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Text('I have read and agree to MORT\'s '),
+              TextButton(
+                onPressed: () => context.push('/legal/terms'),
+                child: const Text('Terms'),
+              ),
+              const Text(' and '),
+              TextButton(
+                onPressed: () => context.push('/legal/privacy'),
+                child: const Text('Privacy Policy'),
+              ),
+              const Text(' ('),
+              Text(
+                mortOnboardingAcknowledgementVersion,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const Text(')'),
+            ],
+          ),
+          onChanged: (v) => setState(() => _legalAcknowledged = v == true),
+        ),
         Wrap(
           alignment: WrapAlignment.center,
           children: [
@@ -802,6 +851,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   final _password = TextEditingController();
   bool _busy = false;
   bool _obscurePassword = true;
+  bool _legalAcknowledged = false;
 
   @override
   void dispose() {
@@ -842,6 +892,29 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         );
         context.go('/auth/sign-in');
       } else {
+        // If the signup produced an active session (e.g. OAuth), and the
+        // user checked the acknowledgement box, attempt to persist the
+        // acknowledgement on the server. Non-blocking; onboarding will
+        // request acknowledgement server-side if this fails.
+        if (_legalAcknowledged) {
+          try {
+            final package = await PackageInfo.fromPlatform();
+            final platform = kIsWeb
+                ? 'flutter_web'
+                : 'flutter_${defaultTargetPlatform.name}';
+            await ref
+                .read(profileRepositoryProvider)
+                .recordOnboardingAcknowledgement(
+                  version: mortOnboardingAcknowledgementVersion,
+                  platform: platform,
+                  appVersion: '${package.version}+${package.buildNumber}',
+                );
+            ref.invalidate(onboardingProgressProvider);
+          } catch (_) {
+            // ignore failures here
+          }
+        }
+        if (!mounted) return;
         context.go('/onboarding/age');
       }
     } catch (error) {
@@ -917,21 +990,31 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         const SizedBox(height: MortSpacing.md),
         const GoogleAuthSection(),
         const SizedBox(height: MortSpacing.sm),
-        Wrap(
-          alignment: WrapAlignment.center,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            const Text('By continuing, you agree to MORT\'s '),
-            TextButton(
-              onPressed: () => context.push('/legal/terms'),
-              child: const Text('Terms'),
-            ),
-            const Text('and'),
-            TextButton(
-              onPressed: () => context.push('/legal/privacy'),
-              child: const Text('Privacy Policy'),
-            ),
-          ],
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          value: _legalAcknowledged,
+          title: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Text('By continuing I agree to MORT\'s '),
+              TextButton(
+                onPressed: () => context.push('/legal/terms'),
+                child: const Text('Terms'),
+              ),
+              const Text(' and '),
+              TextButton(
+                onPressed: () => context.push('/legal/privacy'),
+                child: const Text('Privacy Policy'),
+              ),
+              const Text(' ('),
+              Text(
+                mortOnboardingAcknowledgementVersion,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const Text(')'),
+            ],
+          ),
+          onChanged: (v) => setState(() => _legalAcknowledged = v == true),
         ),
         TextButton.icon(
           onPressed: () => context.go('/auth/sign-in'),
@@ -4276,13 +4359,12 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
 
   Future<void> _callEmergencyServices() async {
     final rawUri = _config?['emergency_phone_uri']?.toString();
-    final uri = rawUri == null ? null : Uri.tryParse(rawUri);
+    final uri = rawUri?.isNotEmpty == true
+        ? Uri.tryParse(rawUri!)
+        : Uri(scheme: 'tel', path: '911');
     if (uri == null || !await launchUrl(uri)) {
       if (mounted) {
-        MortToast.show(
-          context,
-          'Open your Phone app and call local emergency services.',
-        );
+        MortToast.show(context, 'Open your Phone app and call 911.');
       }
     }
   }
@@ -4383,7 +4465,7 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
         ),
         const SizedBox(height: MortSpacing.md),
         MortButton(
-          label: 'Call ${_config?['emergency_label'] ?? 'emergency services'}',
+          label: 'Call 911',
           icon: Icons.call,
           style: MortButtonStyle.danger,
           onPressed: _loading ? null : _callEmergencyServices,
