@@ -20,15 +20,34 @@ class MortScreen extends StatelessWidget {
     this.padding = const EdgeInsets.all(MortSpacing.md),
     this.bottom,
     this.scroll = true,
+    this.onWillPop,
   });
 
   final List<Widget> children;
   final EdgeInsetsGeometry padding;
   final Widget? bottom;
   final bool scroll;
+  final Future<bool> Function(BuildContext context)? onWillPop;
+
+  bool get _hasHeader => children.any((child) => child is MortHeader);
+
+  Future<bool> _handleWillPop(BuildContext context) async {
+    final primaryFocus = FocusManager.instance.primaryFocus;
+    if (primaryFocus != null && primaryFocus.hasFocus) {
+      primaryFocus.unfocus();
+      return false;
+    }
+    if (onWillPop != null) {
+      return await onWillPop!(context);
+    }
+    return true;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final location = GoRouter.maybeOf(context)?.state.uri.path ?? '/';
+    final showFloatingBack =
+        !_hasHeader && !MortBackNavigation.isRootLocation(location);
     final content = SafeArea(
       child: Center(
         child: ConstrainedBox(
@@ -58,12 +77,36 @@ class MortScreen extends StatelessWidget {
       ),
     );
 
+    final body = scroll ? SingleChildScrollView(child: content) : content;
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       bottomNavigationBar: bottom,
       body: DecoratedBox(
         decoration: const BoxDecoration(gradient: MortGradients.background),
-        child: scroll ? SingleChildScrollView(child: content) : content,
+        child: WillPopScope(
+          onWillPop: () => _handleWillPop(context),
+          child: showFloatingBack
+              ? Stack(
+                  children: [
+                    body,
+                    SafeArea(
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.all(MortSpacing.sm),
+                          child: MortBackButton(
+                            fallbackRoute: MortBackNavigation.fallbackRoute(
+                              location,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : body,
+        ),
       ),
     );
   }
@@ -76,20 +119,40 @@ class MortHeader extends StatelessWidget {
     this.eyebrow,
     this.subtitle,
     this.trailing,
+    this.leading,
+    this.showBackButton,
+    this.backFallbackRoute,
   });
 
   final String title;
   final String? eyebrow;
   final String? subtitle;
   final Widget? trailing;
+  final Widget? leading;
+  final bool? showBackButton;
+  final String? backFallbackRoute;
 
   @override
   Widget build(BuildContext context) {
+    final location = GoRouter.maybeOf(context)?.state.uri.path ?? '/';
+    final showBack =
+        showBackButton ?? !MortBackNavigation.isRootLocation(location);
+    final back =
+        leading ??
+        (showBack
+            ? MortBackButton(
+                fallbackRoute:
+                    backFallbackRoute ??
+                    MortBackNavigation.fallbackRoute(location),
+              )
+            : null);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: MortSpacing.lg),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (back != null) ...[back, const SizedBox(width: MortSpacing.md)],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,6 +175,137 @@ class MortHeader extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class MortBackNavigation {
+  static const _rootLocations = {
+    '/',
+    '/splash',
+    '/welcome',
+    '/auth/sign-in',
+    '/auth/sign-up',
+    '/account-status',
+    '/teen/home',
+    '/teen/jobs',
+    '/teen/saved',
+    '/teen/applications',
+    '/teen/profile',
+    '/teen/portfolio',
+    '/teen/skills',
+    '/teen/availability',
+    '/adult/home',
+    '/adult/jobs',
+    '/adult/applicants',
+    '/adult/profile',
+    '/guardian/home',
+    '/guardian/linked-teens',
+    '/guardian/approvals',
+    '/guardian/permissions',
+    '/guardian/safety-pings',
+    '/guardian/activity',
+    '/admin/home',
+    '/support',
+    '/messages',
+    '/notifications',
+    '/guide',
+    '/monetization',
+    '/legal-center',
+    '/settings',
+    '/partner/home',
+    '/review',
+    '/review/teen',
+    '/review/adult',
+    '/review/guardian',
+    '/review/support',
+    '/review/admin',
+  };
+
+  static String _normalizeLocation(String location) {
+    try {
+      return Uri.parse(location).replace(query: '').path;
+    } catch (_) {
+      return location;
+    }
+  }
+
+  static bool isRootLocation(String location) {
+    return _rootLocations.contains(_normalizeLocation(location));
+  }
+
+  static String fallbackRoute(String location) {
+    final normalized = _normalizeLocation(location);
+    if (normalized == '/auth/forgot-password' ||
+        normalized == '/auth-callback' ||
+        normalized == '/auth/confirm' ||
+        normalized == '/auth/recovery') {
+      return '/auth/sign-in';
+    }
+    if (normalized == '/onboarding/age') return '/onboarding';
+    if (normalized == '/onboarding/role') return '/onboarding/age';
+    if (normalized == '/onboarding/profile') return '/onboarding/role';
+    if (normalized == '/onboarding/skills') return '/onboarding/profile';
+    if (normalized == '/onboarding/availability') return '/onboarding/skills';
+    if (normalized == '/onboarding/transportation')
+      return '/onboarding/availability';
+    if (normalized == '/onboarding/payment')
+      return '/onboarding/transportation';
+    if (normalized == '/onboarding/guardian') return '/onboarding/payment';
+    if (normalized == '/onboarding/safety') return '/onboarding/guardian';
+    if (normalized == '/onboarding/preferences') return '/onboarding/safety';
+    if (normalized == '/onboarding/review') return '/onboarding/preferences';
+    if (normalized.startsWith('/teen/jobs/')) return '/teen/jobs';
+    if (normalized.startsWith('/teen/applications/'))
+      return '/teen/applications';
+    if (normalized.startsWith('/teen/proof/')) return '/teen/applications';
+    if (normalized.startsWith('/adult/jobs/') && normalized.endsWith('/edit')) {
+      final segments = normalized.split('/');
+      if (segments.length >= 4) {
+        return '/adult/jobs/${segments[3]}';
+      }
+      return '/adult/jobs';
+    }
+    if (normalized.startsWith('/adult/jobs/')) return '/adult/jobs';
+    if (normalized.startsWith('/adult/applicants/')) return '/adult/applicants';
+    if (normalized.startsWith('/adult/proof-review/'))
+      return '/adult/applicants';
+    if (normalized.startsWith('/guardian/approvals/'))
+      return '/guardian/approvals';
+    if (normalized.startsWith('/admin/reports/')) return '/admin/reports';
+    if (normalized.startsWith('/admin/verifications/'))
+      return '/admin/verifications';
+    if (normalized.startsWith('/admin/support/ticket/'))
+      return '/admin/support';
+    if (normalized.startsWith('/messages/')) return '/messages';
+    if (normalized.startsWith('/support/chat/')) return '/support/chat';
+    if (normalized == '/support/chat/history') return '/support/chat';
+    if (normalized == '/support/new' ||
+        normalized.startsWith('/support/ticket/')) {
+      return '/support';
+    }
+    if (normalized.startsWith('/guide/conversation/')) return '/guide';
+    if (normalized == '/guide/delete-history') return '/guide/history';
+    if (normalized == '/legal/terms' ||
+        normalized == '/legal/privacy' ||
+        normalized == '/legal/community-rules' ||
+        normalized == '/legal/payment-disclaimer' ||
+        normalized == '/legal/verification-disclaimer' ||
+        normalized == '/legal/ad-disclosure' ||
+        normalized == '/legal/subscription-disclosure' ||
+        normalized == '/legal/teen-safety' ||
+        normalized == '/legal/guardian-guide') {
+      return '/legal-center';
+    }
+    if (normalized.startsWith('/contracts/')) return '/contracts';
+    if (normalized.startsWith('/payments/')) return '/account-status';
+    if (normalized.startsWith('/disputes/')) return '/account-status';
+    if (normalized.startsWith('/trust/')) return '/trust/foundations';
+    if (normalized.startsWith('/settings/')) return '/settings';
+    if (normalized.startsWith('/mission/')) return '/account-status';
+    if (normalized.startsWith('/partner/')) return '/partner/home';
+    if (normalized.startsWith('/monetization/')) return '/monetization';
+    if (normalized.startsWith('/review/')) return '/review';
+    return '/account-status';
   }
 }
 
@@ -400,6 +594,75 @@ class MortIconButton extends StatelessWidget {
         foregroundColor: MortColors.roseGoldLight,
         side: const BorderSide(color: MortColors.lineStrong),
         minimumSize: const Size.square(MortSpacing.minTouchTarget),
+      ),
+    );
+  }
+}
+
+class MortBackButton extends StatelessWidget {
+  const MortBackButton({
+    super.key,
+    this.fallbackRoute,
+    this.onPressed,
+    this.confirmExit,
+  });
+
+  final String? fallbackRoute;
+  final VoidCallback? onPressed;
+  final Future<bool> Function(BuildContext context)? confirmExit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Back',
+      child: IconButton(
+        tooltip: 'Back',
+        icon: const Icon(Icons.arrow_back_rounded),
+        onPressed: () async {
+          if (onPressed != null) {
+            onPressed!();
+            return;
+          }
+
+          final goRouter = GoRouter.maybeOf(context);
+          final isGoRouterPresent = goRouter != null;
+          final navigator = Navigator.of(context);
+          final canPop = isGoRouterPresent
+              ? context.canPop()
+              : navigator.canPop();
+          final fallback = fallbackRoute;
+
+          if (confirmExit != null) {
+            final shouldExit = await confirmExit!(context);
+            if (!shouldExit) return;
+          }
+
+          if (canPop) {
+            if (goRouter != null) {
+              goRouter.pop();
+            } else {
+              navigator.pop();
+            }
+            return;
+          }
+
+          if (fallback != null) {
+            if (goRouter != null) {
+              goRouter.go(fallback);
+            } else {
+              navigator.pushReplacement(
+                MaterialPageRoute(builder: (_) => const SizedBox.shrink()),
+              );
+            }
+          }
+        },
+        style: IconButton.styleFrom(
+          backgroundColor: MortColors.glass,
+          foregroundColor: MortColors.text,
+          minimumSize: const Size.square(48),
+          padding: const EdgeInsets.all(12),
+        ),
       ),
     );
   }
