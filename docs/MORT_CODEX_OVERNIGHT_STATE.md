@@ -1,21 +1,23 @@
 ﻿# MORT Codex Overnight State
 
-- timestamp: 2026-08-06T03:42:00.0000000-04:00
+- timestamp: 2026-08-07T02:20:00.0000000-04:00
 - phase completed: Phase 0 (recover), Phase 1 initial fix, Phase 2 audit report, Phase 3 signed APK build and installation
 - files changed:
   - flutter_mort/lib/core/widgets/mort_widgets.dart
   - flutter_mort/test/mort_back_navigation_test.dart
   - flutter_mort/pubspec.yaml
   - docs/MORT_BACK_NAVIGATION_REPORT.md
+  - docs/MORT_CODEX_OVERNIGHT_STATE.md
 - verification performed:
-  - signed closed-test APK rebuilt and copied to `build/play/mort-closed-test-0.9.14.apk`
-  - APK hash verified as `01D2C5D73170FFC0CF6A57595F475BA8B5E879A713A79CACCEF810B711D3E923`
+  - signed closed-test APK rebuilt from commit `d884855` and copied to `build/play/mort-closed-test-0.9.14.apk`
+  - fresh APK hash verified as `3BD098FAC49CCE066F57B4688EC444132DF1D49AEACDB4A723F4648470B6B12D`
+  - superseded pre-fix APK hash retained as `01D2C5D73170FFC0CF6A57595F475BA8B5E879A713A79CACCEF810B711D3E923`
   - Samsung SM-A146U wireless ADB connection restored and the rebuilt APK installed successfully
   - installed package metadata confirmed `versionName=0.9.14`, `versionCode=104`, `package=com.mortapp.mobile`
   - app launch and runtime activity were confirmed on the handset, with the device remaining at the auth/browser boundary for the live session
-- exact failures: none in the local source validation; the remaining hardware verification is blocked by the current device session being at the authentication boundary rather than the role dashboard
-- next command: continue the authenticated Tier 1 QA pass once a human-authenticated role session is available
+- exact failures: none in the local source validation; the remaining hardware verification remains blocked by the current device session being at the authentication boundary rather than the authenticated Adult dashboard
+- next command: continue the authenticated Tier 1 QA pass once a human-authenticated Adult dashboard session is available
 - next unfinished task: capture direct Post job/My jobs Back retest evidence from the live authenticated dashboard
-- current commit hash: 0d42023
-- working tree state: modified `flutter_mort/lib/core/widgets/mort_widgets.dart`, `flutter_mort/test/mort_back_navigation_test.dart`, `flutter_mort/pubspec.yaml`, `docs/MORT_BACK_NAVIGATION_REPORT.md`, `docs/MORT_CODEX_OVERNIGHT_STATE.md`
-- budget/time consumed so far: ~25%
+- current commit hash: `d884855`
+- working tree state: clean after the repair commit
+- budget/time consumed so far: ~30%
