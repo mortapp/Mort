@@ -1,16 +1,21 @@
-# MORT Codex Overnight State
+﻿# MORT Codex Overnight State
 
-- timestamp: 2026-08-05T00:00:00Z
-- phase completed: Phase 0 (recover), Phase 1 initial fix, Phase 2 audit report
+- timestamp: 2026-08-06T03:42:00.0000000-04:00
+- phase completed: Phase 0 (recover), Phase 1 initial fix, Phase 2 audit report, Phase 3 signed APK build and installation
 - files changed:
   - flutter_mort/lib/core/widgets/mort_widgets.dart
   - flutter_mort/test/mort_back_navigation_test.dart
-  - flutter_mort/docs/MORT_BACK_NAVIGATION_REPORT.md
+  - flutter_mort/pubspec.yaml
+  - docs/MORT_BACK_NAVIGATION_REPORT.md
 - verification performed:
-  - `flutter test test/mort_back_navigation_test.dart -r expanded` passed
-- exact failures: none in current focused test run
-- next command: `dart format --set-exit-if-changed lib test` then `flutter analyze` then `flutter test`
-- next unfinished task: run full formatter/analyzer/test pass, then build/install QA APK
-- current commit hash: 6f14534
-- working tree clean: no
-- budget/time consumed so far: ~10%
+  - signed closed-test APK rebuilt and copied to `build/play/mort-closed-test-0.9.14.apk`
+  - APK hash verified as `01D2C5D73170FFC0CF6A57595F475BA8B5E879A713A79CACCEF810B711D3E923`
+  - Samsung SM-A146U wireless ADB connection restored and the rebuilt APK installed successfully
+  - installed package metadata confirmed `versionName=0.9.14`, `versionCode=104`, `package=com.mortapp.mobile`
+  - app launch and runtime activity were confirmed on the handset, with the device remaining at the auth/browser boundary for the live session
+- exact failures: none in the local source validation; the remaining hardware verification is blocked by the current device session being at the authentication boundary rather than the role dashboard
+- next command: continue the authenticated Tier 1 QA pass once a human-authenticated role session is available
+- next unfinished task: capture direct Post job/My jobs Back retest evidence from the live authenticated dashboard
+- current commit hash: 0d42023
+- working tree state: modified `flutter_mort/lib/core/widgets/mort_widgets.dart`, `flutter_mort/test/mort_back_navigation_test.dart`, `flutter_mort/pubspec.yaml`, `docs/MORT_BACK_NAVIGATION_REPORT.md`, `docs/MORT_CODEX_OVERNIGHT_STATE.md`
+- budget/time consumed so far: ~25%

@@ -258,6 +258,7 @@ class MortBackNavigation {
     if (normalized.startsWith('/teen/applications/'))
       return '/teen/applications';
     if (normalized.startsWith('/teen/proof/')) return '/teen/applications';
+    if (normalized.startsWith('/adult/post-job')) return '/adult/home';
     if (normalized.startsWith('/adult/jobs/') && normalized.endsWith('/edit')) {
       final segments = normalized.split('/');
       if (segments.length >= 4) {
@@ -265,17 +266,15 @@ class MortBackNavigation {
       }
       return '/adult/jobs';
     }
-    if (normalized.startsWith('/adult/jobs/')) return '/adult/jobs';
-    if (normalized.startsWith('/adult/applicants/')) return '/adult/applicants';
-    if (normalized.startsWith('/adult/proof-review/'))
-      return '/adult/applicants';
-    if (normalized.startsWith('/guardian/approvals/'))
-      return '/guardian/approvals';
-    if (normalized.startsWith('/admin/reports/')) return '/admin/reports';
-    if (normalized.startsWith('/admin/verifications/'))
-      return '/admin/verifications';
-    if (normalized.startsWith('/admin/support/ticket/'))
-      return '/admin/support';
+    if (normalized.startsWith('/adult/jobs/')) return '/adult/home';
+    if (normalized.startsWith('/adult/applicants/')) return '/adult/home';
+    if (normalized.startsWith('/adult/proof-review/')) return '/adult/home';
+    if (normalized.startsWith('/guardian/approvals/')) return '/guardian/home';
+    if (normalized.startsWith('/guardian/')) return '/guardian/home';
+    if (normalized.startsWith('/admin/reports/')) return '/admin/home';
+    if (normalized.startsWith('/admin/verifications/')) return '/admin/home';
+    if (normalized.startsWith('/admin/support/ticket/')) return '/admin/home';
+    if (normalized.startsWith('/admin/')) return '/admin/home';
     if (normalized.startsWith('/messages/')) return '/messages';
     if (normalized.startsWith('/support/chat/')) return '/support/chat';
     if (normalized == '/support/chat/history') return '/support/chat';

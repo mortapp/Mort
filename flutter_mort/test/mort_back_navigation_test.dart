@@ -65,8 +65,28 @@ void main() {
         '/adult/jobs/xyz',
       );
       expect(
+        MortBackNavigation.fallbackRoute('/adult/post-job'),
+        '/adult/home',
+      );
+      expect(
+        MortBackNavigation.fallbackRoute('/adult/applicants/42'),
+        '/adult/home',
+      );
+      expect(
+        MortBackNavigation.fallbackRoute('/guardian/approvals/42'),
+        '/guardian/home',
+      );
+      expect(
+        MortBackNavigation.fallbackRoute('/guardian/safety-pings'),
+        '/guardian/home',
+      );
+      expect(
         MortBackNavigation.fallbackRoute('/admin/reports/42'),
-        '/admin/reports',
+        '/admin/home',
+      );
+      expect(
+        MortBackNavigation.fallbackRoute('/admin/support/ticket/42'),
+        '/admin/home',
       );
       expect(
         MortBackNavigation.fallbackRoute('/support/chat/123'),
