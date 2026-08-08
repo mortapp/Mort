@@ -91,7 +91,7 @@ class SplashScreen extends ConsumerWidget {
           label: 'Sign in',
           icon: Icons.person_outline_rounded,
           style: MortButtonStyle.ghost,
-          onPressed: () => context.go('/auth/sign-in'),
+          onPressed: () => context.push('/auth/sign-in'),
         ),
         const SizedBox(height: MortSpacing.md),
         Semantics(liveRegion: true, child: _BackendStatusCard()),
@@ -177,14 +177,14 @@ class WelcomeScreen extends StatelessWidget {
         MortButton(
           label: 'Create account',
           icon: Icons.person_add_alt_1_rounded,
-          onPressed: () => context.go('/auth/sign-up'),
+          onPressed: () => context.push('/auth/sign-up'),
         ),
         const SizedBox(height: MortSpacing.sm),
         MortButton(
           label: 'I already have an account',
           icon: Icons.login_rounded,
           style: MortButtonStyle.secondary,
-          onPressed: () => context.go('/auth/sign-in'),
+          onPressed: () => context.push('/auth/sign-in'),
         ),
         TextButton.icon(
           onPressed: () => context.push('/legal/teen-safety'),
@@ -779,16 +779,16 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           const GoogleAuthSection(),
           const SizedBox(height: MortSpacing.sm),
           MortActionRow(
-            actions: const [
+            actions: [
               MortAction(
                 label: 'Create account',
                 icon: Icons.person_add,
-                route: '/auth/sign-up',
+                onPressed: () => context.push('/auth/sign-up'),
               ),
               MortAction(
                 label: 'Forgot password',
                 icon: Icons.lock_reset,
-                route: '/auth/forgot-password',
+                onPressed: () => context.push('/auth/forgot-password'),
               ),
             ],
           ),

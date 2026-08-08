@@ -33,13 +33,28 @@ class MortScreen extends StatelessWidget {
 
   Future<bool> _handleWillPop(BuildContext context) async {
     final primaryFocus = FocusManager.instance.primaryFocus;
-    if (primaryFocus != null && primaryFocus.hasFocus) {
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+    if (keyboardVisible && primaryFocus != null && primaryFocus.hasFocus) {
       primaryFocus.unfocus();
       return false;
     }
     if (onWillPop != null) {
       return await onWillPop!(context);
     }
+
+    final goRouter = GoRouter.maybeOf(context);
+    final location = goRouter?.state.uri.path ?? '/';
+    final canPop = context.canPop();
+    if (!canPop &&
+        goRouter != null &&
+        !MortBackNavigation.isRootLocation(location)) {
+      final fallback = MortBackNavigation.fallbackRoute(location);
+      if (fallback != location) {
+        goRouter.go(fallback);
+        return false;
+      }
+    }
+
     return true;
   }
 
@@ -183,8 +198,6 @@ class MortBackNavigation {
     '/',
     '/splash',
     '/welcome',
-    '/auth/sign-in',
-    '/auth/sign-up',
     '/account-status',
     '/teen/home',
     '/teen/jobs',
@@ -235,6 +248,9 @@ class MortBackNavigation {
 
   static String fallbackRoute(String location) {
     final normalized = _normalizeLocation(location);
+    if (normalized == '/auth/sign-in' || normalized == '/auth/sign-up') {
+      return '/splash';
+    }
     if (normalized == '/auth/forgot-password' ||
         normalized == '/auth-callback' ||
         normalized == '/auth/confirm' ||

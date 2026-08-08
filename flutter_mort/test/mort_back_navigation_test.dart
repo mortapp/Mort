@@ -1,7 +1,48 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_mort/core/widgets/mort_widgets.dart';
+import 'package:flutter_mort/features/mort_screens.dart';
 import 'package:go_router/go_router.dart';
+
+GoRouter _publicRouter({required String initialLocation}) {
+  return GoRouter(
+    initialLocation: initialLocation,
+    routes: [
+      GoRoute(path: '/splash', builder: (_, _) => const SplashScreen()),
+      GoRoute(path: '/welcome', builder: (_, _) => const WelcomeScreen()),
+      GoRoute(path: '/auth/sign-in', builder: (_, _) => const SignInScreen()),
+      GoRoute(path: '/auth/sign-up', builder: (_, _) => const SignUpScreen()),
+      GoRoute(
+        path: '/auth/forgot-password',
+        builder: (_, _) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/legal/terms',
+        builder: (_, _) => const LegalDocScreen(title: 'Terms'),
+      ),
+      GoRoute(
+        path: '/legal/privacy',
+        builder: (_, _) => const LegalDocScreen(title: 'Privacy'),
+      ),
+    ],
+  );
+}
+
+Future<void> _pumpPublicRouter(WidgetTester tester, GoRouter router) async {
+  await tester.pumpWidget(
+    ProviderScope(child: MaterialApp.router(routerConfig: router)),
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> _tapText(WidgetTester tester, String label) async {
+  final control = find.text(label).first;
+  expect(control, findsOneWidget);
+  await tester.ensureVisible(control);
+  await tester.tap(control);
+  await tester.pumpAndSettle();
+}
 
 void main() {
   group('MortBackNavigation', () {
@@ -15,6 +56,13 @@ void main() {
         MortBackNavigation.isRootLocation('/auth/forgot-password'),
         isFalse,
       );
+      expect(MortBackNavigation.isRootLocation('/auth/sign-in'), isFalse);
+      expect(MortBackNavigation.isRootLocation('/auth/sign-up'), isFalse);
+    });
+
+    test('provides fallback route for auth entry routes', () {
+      expect(MortBackNavigation.fallbackRoute('/auth/sign-in'), '/splash');
+      expect(MortBackNavigation.fallbackRoute('/auth/sign-up'), '/splash');
     });
 
     test('provides fallback route for auth cleanup routes', () {
@@ -122,13 +170,13 @@ void main() {
       await tester.pumpWidget(MaterialApp.router(routerConfig: router));
       await tester.pumpAndSettle();
 
-      expect(router.routeInformationProvider.value.location, '/details');
+      expect(router.state.uri.path, '/details');
       expect(find.byTooltip('Back'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
 
-      expect(router.routeInformationProvider.value.location, '/');
+      expect(router.state.uri.path, '/');
       expect(find.byKey(const ValueKey('home')), findsOneWidget);
     });
 
@@ -175,5 +223,100 @@ void main() {
 
       expect(find.byKey(const ValueKey('navToDetails')), findsOneWidget);
     });
+
+    testWidgets('real splash Sign in visible back returns to splash', (
+      WidgetTester tester,
+    ) async {
+      final router = _publicRouter(initialLocation: '/splash');
+      addTearDown(router.dispose);
+      await _pumpPublicRouter(tester, router);
+
+      await _tapText(tester, 'Sign in');
+      expect(router.state.uri.path, '/auth/sign-in');
+      expect(find.byType(TextFormField), findsWidgets);
+
+      expect(find.byTooltip('Back'), findsOneWidget);
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
+
+      expect(router.state.uri.path, '/splash');
+      expect(find.text('Enter MORT'), findsOneWidget);
+    });
+
+    testWidgets('real splash Sign in system back returns to splash', (
+      WidgetTester tester,
+    ) async {
+      final router = _publicRouter(initialLocation: '/splash');
+      addTearDown(router.dispose);
+      await _pumpPublicRouter(tester, router);
+
+      await _tapText(tester, 'Sign in');
+      expect(router.state.uri.path, '/auth/sign-in');
+      expect(find.byType(TextFormField), findsWidgets);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(router.state.uri.path, '/splash');
+      expect(find.text('Enter MORT'), findsOneWidget);
+    });
+
+    testWidgets('real welcome Create account back returns to welcome', (
+      WidgetTester tester,
+    ) async {
+      final router = _publicRouter(initialLocation: '/welcome');
+      addTearDown(router.dispose);
+      await _pumpPublicRouter(tester, router);
+
+      await _tapText(tester, 'Create account');
+      expect(router.state.uri.path, '/auth/sign-up');
+      expect(find.text('Age-gated'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
+
+      expect(router.state.uri.path, '/welcome');
+      expect(find.text('Welcome to MORT'), findsOneWidget);
+    });
+
+    testWidgets('real Sign in Forgot password back returns to Sign in', (
+      WidgetTester tester,
+    ) async {
+      final router = _publicRouter(initialLocation: '/auth/sign-in');
+      addTearDown(router.dispose);
+      await _pumpPublicRouter(tester, router);
+
+      await _tapText(tester, 'Forgot password');
+      expect(router.state.uri.path, '/auth/forgot-password');
+      expect(find.text('Reset password'), findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(router.state.uri.path, '/auth/sign-in');
+      expect(find.text('Welcome back'), findsOneWidget);
+    });
+
+    for (final legalRoute in const {
+      'Terms': '/legal/terms',
+      'Privacy Policy': '/legal/privacy',
+    }.entries) {
+      testWidgets('real ${legalRoute.key} back returns to invoking Sign in', (
+        WidgetTester tester,
+      ) async {
+        final router = _publicRouter(initialLocation: '/auth/sign-in');
+        addTearDown(router.dispose);
+        await _pumpPublicRouter(tester, router);
+
+        await _tapText(tester, legalRoute.key);
+        expect(router.state.uri.path, legalRoute.value);
+
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+
+        expect(router.state.uri.path, '/auth/sign-in');
+        expect(find.text('Welcome back'), findsOneWidget);
+      });
+    }
   });
 }
