@@ -203,6 +203,8 @@ class MortBackNavigation {
     '/teen/jobs',
     '/teen/saved',
     '/teen/applications',
+    '/teen/safety',
+    '/teen/messages',
     '/teen/profile',
     '/teen/portfolio',
     '/teen/skills',
@@ -270,7 +272,8 @@ class MortBackNavigation {
     if (normalized == '/onboarding/safety') return '/onboarding/guardian';
     if (normalized == '/onboarding/preferences') return '/onboarding/safety';
     if (normalized == '/onboarding/review') return '/onboarding/preferences';
-    if (normalized.startsWith('/teen/jobs/')) return '/teen/jobs';
+    if (normalized.startsWith('/teen/jobs/')) return '/teen/home';
+    if (normalized == '/teen/profile/edit') return '/teen/profile';
     if (normalized.startsWith('/teen/applications/'))
       return '/teen/applications';
     if (normalized.startsWith('/teen/proof/')) return '/teen/applications';

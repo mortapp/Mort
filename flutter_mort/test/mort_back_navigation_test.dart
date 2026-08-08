@@ -106,7 +106,7 @@ void main() {
     test('provides fallback route for nested resources', () {
       expect(
         MortBackNavigation.fallbackRoute('/teen/jobs/abc123'),
-        '/teen/jobs',
+        '/teen/home',
       );
       expect(
         MortBackNavigation.fallbackRoute('/adult/jobs/xyz/edit'),
