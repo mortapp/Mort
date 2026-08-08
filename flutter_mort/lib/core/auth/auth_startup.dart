@@ -242,7 +242,7 @@ class AuthStartupController extends ChangeNotifier {
     this.refreshAttempts = 2,
     this.refreshTimeout = const Duration(seconds: 12),
     this.profileTimeout = const Duration(seconds: 12),
-    this.initialRecoveryGrace = const Duration(milliseconds: 900),
+    this.initialRecoveryGrace = const Duration(seconds: 3),
     this.retryDelay = const Duration(milliseconds: 350),
   });
 
@@ -433,7 +433,10 @@ class AuthStartupController extends ChangeNotifier {
     try {
       return await completer.future.timeout(
         initialRecoveryGrace,
-        onTimeout: () => _gateway.currentSession,
+        onTimeout: () async {
+          await Future<void>.delayed(const Duration(milliseconds: 250));
+          return _gateway.currentSession;
+        },
       );
     } finally {
       await subscription.cancel();

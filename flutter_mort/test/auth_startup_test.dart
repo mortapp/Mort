@@ -30,7 +30,7 @@ class _FakeGateway implements MortAuthStartupGateway {
   final controller = StreamController<MortAuthEvent>.broadcast();
   int refreshCalls = 0;
   int clearCalls = 0;
-
+  int recoverCalls = 0;
   @override
   MortSessionSnapshot? get currentSession => session;
 
@@ -127,6 +127,35 @@ void main() {
   });
 
   test(
+    'startup succeeds when a persisted session already exists before startup',
+    () async {
+      final gateway = _FakeGateway(session: _session());
+      gateway.profile = {
+        'id': 'user-1',
+        'role': 'teen',
+        'dob': '2010-01-01',
+        'onboarding_completed': true,
+        'account_status': 'active',
+      };
+      final startup = AuthStartupController(
+        gateway,
+        refreshAttempts: 2,
+        refreshTimeout: const Duration(milliseconds: 100),
+        profileTimeout: const Duration(milliseconds: 100),
+        initialRecoveryGrace: const Duration(milliseconds: 25),
+        retryDelay: Duration.zero,
+      );
+
+      await startup.start();
+
+      expect(startup.snapshot.stage, MortAuthStartupStage.authenticated);
+      expect(startup.snapshot.destination, '/teen/home');
+      startup.dispose();
+      await gateway.close();
+    },
+  );
+
+  test(
     'startup waits briefly for a restored session before falling back to splash',
     () async {
       final gateway = _FakeGateway();
@@ -175,6 +204,40 @@ void main() {
 
       final startupFuture = startup.start();
       await Future<void>.delayed(const Duration(milliseconds: 20));
+      gateway.controller.add(
+        MortAuthEvent(MortAuthEventType.initialSession, _session()),
+      );
+      gateway.profile = {
+        'id': 'user-1',
+        'role': 'adult',
+        'dob': '1985-01-01',
+        'onboarding_completed': true,
+        'account_status': 'active',
+      };
+      await startupFuture;
+
+      expect(startup.snapshot.stage, MortAuthStartupStage.authenticated);
+      expect(startup.snapshot.destination, '/adult/home');
+      startup.dispose();
+      await gateway.close();
+    },
+  );
+
+  test(
+    'startup still recovers when a restored session arrives shortly after the grace window',
+    () async {
+      final gateway = _FakeGateway();
+      final startup = AuthStartupController(
+        gateway,
+        refreshAttempts: 2,
+        refreshTimeout: const Duration(milliseconds: 100),
+        profileTimeout: const Duration(milliseconds: 100),
+        initialRecoveryGrace: const Duration(milliseconds: 500),
+        retryDelay: Duration.zero,
+      );
+
+      final startupFuture = startup.start();
+      await Future<void>.delayed(const Duration(milliseconds: 700));
       gateway.controller.add(
         MortAuthEvent(MortAuthEventType.initialSession, _session()),
       );
