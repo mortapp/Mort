@@ -109,6 +109,85 @@ void main() {
   });
 
   test(
+    'startup waits briefly for a restored session before falling back to splash',
+    () async {
+      final gateway = _FakeGateway();
+      final startup = AuthStartupController(
+        gateway,
+        refreshAttempts: 2,
+        refreshTimeout: const Duration(milliseconds: 100),
+        profileTimeout: const Duration(milliseconds: 100),
+        initialRecoveryGrace: const Duration(milliseconds: 25),
+        retryDelay: Duration.zero,
+      );
+
+      final startupFuture = startup.start();
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      gateway.session = _session();
+      gateway.profile = {
+        'id': 'user-1',
+        'role': 'teen',
+        'dob': '2010-01-01',
+        'onboarding_completed': true,
+        'account_status': 'active',
+      };
+      await startupFuture;
+
+      expect(startup.snapshot.stage, MortAuthStartupStage.authenticated);
+      expect(startup.snapshot.destination, '/teen/home');
+      startup.dispose();
+      await gateway.close();
+    },
+  );
+
+  test('startup falls back to splash when no session ever appears', () async {
+    final gateway = _FakeGateway();
+    final startup = AuthStartupController(
+      gateway,
+      refreshAttempts: 2,
+      refreshTimeout: const Duration(milliseconds: 100),
+      profileTimeout: const Duration(milliseconds: 100),
+      initialRecoveryGrace: const Duration(milliseconds: 25),
+      retryDelay: Duration.zero,
+    );
+
+    await startup.start();
+
+    expect(startup.snapshot.stage, MortAuthStartupStage.unauthenticated);
+    expect(startup.snapshot.destination, '/splash');
+    startup.dispose();
+    await gateway.close();
+  });
+
+  for (final entry in {
+    'adult': '/adult/home',
+    'guardian': '/guardian/home',
+    'admin': '/admin/home',
+    'teen': '/teen/home',
+  }.entries) {
+    test('restored ${entry.key} session resolves to ${entry.value}', () async {
+      final gateway = _FakeGateway(
+        session: _session(),
+        profile: {
+          'id': 'user-1',
+          'role': entry.key,
+          'dob': '2010-01-01',
+          'onboarding_completed': true,
+          'account_status': 'active',
+        },
+      );
+      final startup = _startup(gateway);
+
+      await startup.start();
+
+      expect(startup.snapshot.stage, MortAuthStartupStage.authenticated);
+      expect(startup.snapshot.destination, entry.value);
+      startup.dispose();
+      await gateway.close();
+    });
+  }
+
+  test(
     'valid restored session reaches the server-authoritative teen route',
     () async {
       final gateway = _FakeGateway(session: _session());

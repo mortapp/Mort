@@ -304,6 +304,14 @@ class AuthStartupController extends ChangeNotifier {
     );
 
     if (session == null) {
+      if (restoring && initialRecoveryGrace > Duration.zero) {
+        final recovered = await _waitForRestoredSession(operation);
+        if (operation != _operation || _disposed) return;
+        if (recovered != null) {
+          await _resolve(session: recovered, restoring: true);
+          return;
+        }
+      }
       _completeIfCurrent(
         operation,
         const MortAuthStartupSnapshot(
@@ -411,6 +419,38 @@ class AuthStartupController extends ChangeNotifier {
           message: 'Your session ended. Sign in again.',
         ),
       );
+    }
+  }
+
+  Future<MortSessionSnapshot?> _waitForRestoredSession(int operation) async {
+    final current = _gateway.currentSession;
+    if (current != null) return current;
+
+    final completer = Completer<MortSessionSnapshot?>.sync();
+    late final StreamSubscription<MortAuthEvent> subscription;
+    subscription = _gateway.events.listen(
+      (event) {
+        if (!completer.isCompleted) {
+          if (event.type == MortAuthEventType.signedOut ||
+              event.type == MortAuthEventType.userDeleted) {
+            completer.complete(null);
+          } else if (event.session != null) {
+            completer.complete(event.session);
+          }
+        }
+      },
+      onError: (_) {
+        if (!completer.isCompleted) completer.complete(null);
+      },
+    );
+
+    try {
+      return await completer.future.timeout(
+        initialRecoveryGrace,
+        onTimeout: () => _gateway.currentSession,
+      );
+    } finally {
+      await subscription.cancel();
     }
   }
 
