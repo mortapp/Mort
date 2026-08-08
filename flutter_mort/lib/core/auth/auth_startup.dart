@@ -407,21 +407,6 @@ class AuthStartupController extends ChangeNotifier {
     }
   }
 
-  Future<void> _clearRevokedSession(int operation) async {
-    try {
-      await _gateway.clearLocalSession();
-    } finally {
-      _completeIfCurrent(
-        operation,
-        const MortAuthStartupSnapshot(
-          stage: MortAuthStartupStage.unauthenticated,
-          destination: '/auth/sign-in',
-          message: 'Your session ended. Sign in again.',
-        ),
-      );
-    }
-  }
-
   Future<MortSessionSnapshot?> _waitForRestoredSession(int operation) async {
     final current = _gateway.currentSession;
     if (current != null) return current;
@@ -430,13 +415,14 @@ class AuthStartupController extends ChangeNotifier {
     late final StreamSubscription<MortAuthEvent> subscription;
     subscription = _gateway.events.listen(
       (event) {
-        if (!completer.isCompleted) {
-          if (event.type == MortAuthEventType.signedOut ||
-              event.type == MortAuthEventType.userDeleted) {
-            completer.complete(null);
-          } else if (event.session != null) {
-            completer.complete(event.session);
-          }
+        if (completer.isCompleted) return;
+        if (event.type == MortAuthEventType.signedOut ||
+            event.type == MortAuthEventType.userDeleted) {
+          completer.complete(null);
+          return;
+        }
+        if (event.session != null) {
+          completer.complete(event.session);
         }
       },
       onError: (_) {
@@ -451,6 +437,21 @@ class AuthStartupController extends ChangeNotifier {
       );
     } finally {
       await subscription.cancel();
+    }
+  }
+
+  Future<void> _clearRevokedSession(int operation) async {
+    try {
+      await _gateway.clearLocalSession();
+    } finally {
+      _completeIfCurrent(
+        operation,
+        const MortAuthStartupSnapshot(
+          stage: MortAuthStartupStage.unauthenticated,
+          destination: '/auth/sign-in',
+          message: 'Your session ended. Sign in again.',
+        ),
+      );
     }
   }
 
@@ -470,7 +471,13 @@ class AuthStartupController extends ChangeNotifier {
   void _handleAuthError(Object error, StackTrace stackTrace) {
     final session = _gateway.currentSession;
     if (session == null) {
-      markSignedOut();
+      _operation++;
+      _set(
+        const MortAuthStartupSnapshot(
+          stage: MortAuthStartupStage.offline,
+          message: 'Session updates are unavailable. Retry when connected.',
+        ),
+      );
       return;
     }
     _operation++;

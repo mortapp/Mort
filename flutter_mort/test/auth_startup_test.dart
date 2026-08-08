@@ -61,6 +61,24 @@ class _FakeGateway implements MortAuthStartupGateway {
   Future<void> close() => controller.close();
 }
 
+class _DelayedProfileGateway extends _FakeGateway {
+  _DelayedProfileGateway({
+    super.session,
+    Object? profileError,
+    required this.delay,
+  }) {
+    this.profileError = profileError;
+  }
+
+  final Duration delay;
+
+  @override
+  Future<Map<String, dynamic>> ensureCurrentProfile() async {
+    await Future<void>.delayed(delay);
+    return super.ensureCurrentProfile();
+  }
+}
+
 AuthStartupController _startup(_FakeGateway gateway) => AuthStartupController(
   gateway,
   refreshAttempts: 2,
@@ -123,7 +141,9 @@ void main() {
 
       final startupFuture = startup.start();
       await Future<void>.delayed(const Duration(milliseconds: 5));
-      gateway.session = _session();
+      gateway.controller.add(
+        MortAuthEvent(MortAuthEventType.initialSession, _session()),
+      );
       gateway.profile = {
         'id': 'user-1',
         'role': 'teen',
@@ -140,7 +160,41 @@ void main() {
     },
   );
 
-  test('startup falls back to splash when no session ever appears', () async {
+  test(
+    'startup recovers a session emitted just before the grace period ends',
+    () async {
+      final gateway = _FakeGateway();
+      final startup = AuthStartupController(
+        gateway,
+        refreshAttempts: 2,
+        refreshTimeout: const Duration(milliseconds: 100),
+        profileTimeout: const Duration(milliseconds: 100),
+        initialRecoveryGrace: const Duration(milliseconds: 25),
+        retryDelay: Duration.zero,
+      );
+
+      final startupFuture = startup.start();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      gateway.controller.add(
+        MortAuthEvent(MortAuthEventType.initialSession, _session()),
+      );
+      gateway.profile = {
+        'id': 'user-1',
+        'role': 'adult',
+        'dob': '1985-01-01',
+        'onboarding_completed': true,
+        'account_status': 'active',
+      };
+      await startupFuture;
+
+      expect(startup.snapshot.stage, MortAuthStartupStage.authenticated);
+      expect(startup.snapshot.destination, '/adult/home');
+      startup.dispose();
+      await gateway.close();
+    },
+  );
+
+  test('startup resolves unauthenticated when no session appears', () async {
     final gateway = _FakeGateway();
     final startup = AuthStartupController(
       gateway,
@@ -158,6 +212,60 @@ void main() {
     startup.dispose();
     await gateway.close();
   });
+
+  test(
+    'startup uses offline state when auth stream errors before session restoration',
+    () async {
+      final gateway = _FakeGateway();
+      final startup = AuthStartupController(
+        gateway,
+        refreshAttempts: 2,
+        refreshTimeout: const Duration(milliseconds: 100),
+        profileTimeout: const Duration(milliseconds: 100),
+        initialRecoveryGrace: const Duration(milliseconds: 25),
+        retryDelay: Duration.zero,
+      );
+
+      final startupFuture = startup.start();
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      gateway.controller.addError(StateError('socket disconnected'));
+      await startupFuture;
+
+      expect(startup.snapshot.stage, MortAuthStartupStage.offline);
+      expect(startup.snapshot.destination, isNull);
+      startup.dispose();
+      await gateway.close();
+    },
+  );
+
+  test(
+    'startup waits for profile resolution before final destination',
+    () async {
+      final gateway = _DelayedProfileGateway(
+        session: _session(),
+        delay: const Duration(milliseconds: 40),
+      );
+      final startup = AuthStartupController(
+        gateway,
+        refreshAttempts: 2,
+        refreshTimeout: const Duration(milliseconds: 100),
+        profileTimeout: const Duration(milliseconds: 200),
+        initialRecoveryGrace: Duration.zero,
+        retryDelay: Duration.zero,
+      );
+
+      final stages = <MortAuthStartupStage>[];
+      startup.addListener(() => stages.add(startup.snapshot.stage));
+
+      await startup.start();
+
+      expect(stages, contains(MortAuthStartupStage.restoring));
+      expect(stages, contains(MortAuthStartupStage.authenticated));
+      expect(startup.snapshot.destination, '/teen/home');
+      startup.dispose();
+      await gateway.close();
+    },
+  );
 
   for (final entry in {
     'adult': '/adult/home',
