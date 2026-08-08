@@ -13,18 +13,21 @@ class MortSearchField extends StatelessWidget {
     this.controller,
     this.hint = 'Search MORT',
     this.onChanged,
+    this.onSubmitted,
     this.onFilter,
   });
 
   final TextEditingController? controller;
   final String hint;
   final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
   final VoidCallback? onFilter;
 
   @override
   Widget build(BuildContext context) => TextField(
     controller: controller,
     onChanged: onChanged,
+    onSubmitted: onSubmitted,
     textInputAction: TextInputAction.search,
     decoration: InputDecoration(
       hintText: hint,

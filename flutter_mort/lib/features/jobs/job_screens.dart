@@ -1827,7 +1827,7 @@ class _SavedJobsScreenState extends ConsumerState<SavedJobsScreen> {
               children: [
                 for (final job in jobs) ...[
                   MortCard(
-                    onTap: () => context.go('/teen/jobs/${job.id}'),
+                    onTap: () => context.push('/teen/jobs/${job.id}'),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1839,7 +1839,7 @@ class _SavedJobsScreenState extends ConsumerState<SavedJobsScreen> {
                         ),
                         const SizedBox(height: MortSpacing.xs),
                         Text(
-                          '${job.payDisplay} • ${job.scheduleDisplay}',
+                          '${job.payDisplay} | ${job.scheduleDisplay}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -1868,7 +1868,8 @@ class _SavedJobsScreenState extends ConsumerState<SavedJobsScreen> {
                             MortAction(
                               label: 'View job',
                               icon: Icons.open_in_new,
-                              route: '/teen/jobs/${job.id}',
+                              onPressed: () =>
+                                  context.push('/teen/jobs/${job.id}'),
                             ),
                             MortAction(
                               label: 'Remove',

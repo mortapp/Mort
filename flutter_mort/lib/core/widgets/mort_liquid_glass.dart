@@ -534,6 +534,59 @@ class MortSectionLabel extends StatelessWidget {
   );
 }
 
+class MortSafetyPulse extends StatelessWidget {
+  const MortSafetyPulse({
+    super.key,
+    required this.title,
+    required this.status,
+    this.icon = Icons.shield_rounded,
+    this.color = MortColors.lightBlue,
+    this.onPressed,
+  });
+
+  final String title;
+  final String status;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 224),
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: LiquidGlassContainer(
+          tint: color,
+          borderRadius: BorderRadius.circular(MortRadii.pill),
+          onTap: onPressed,
+          semanticLabel: '$title. $status',
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 52, color: color),
+              const SizedBox(height: MortSpacing.sm),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: MortSpacing.xs),
+              Text(
+                status,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 class MortConfirmationState extends StatelessWidget {
   const MortConfirmationState({
     super.key,

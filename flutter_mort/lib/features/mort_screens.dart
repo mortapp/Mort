@@ -34,6 +34,7 @@ import 'ads/widgets/mort_banner_ad.dart';
 import 'auth/google_auth_screens.dart';
 import 'mission/partner_staff_screens.dart';
 import 'profile/profile_avatar_widgets.dart';
+import 'teen/teen_shell.dart';
 
 bool get _backendReady => SupabaseService.isInitialized;
 
@@ -3543,18 +3544,39 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   @override
   Widget build(BuildContext context) {
     if (!_backendReady) return const SetupRequiredScreen();
+    final inTeenShell = TeenNavigationScope.maybeOf(context) != null;
+    final header = inTeenShell
+        ? MortTeenDestinationHeader(
+            eyebrow: 'Protected chat',
+            title: 'Messages',
+            subtitle:
+                'No ads in chat. Messages pass through MORT safety checks.',
+            trailing: MortIconButton(
+              icon: Icons.refresh,
+              tooltip: 'Refresh conversations',
+              onPressed: _reload,
+            ),
+          )
+        : MortHeader(
+            eyebrow: 'Safety scanner',
+            title: 'Messages',
+            subtitle:
+                'No ads in chat. Messages pass through MORT safety checks.',
+            trailing: MortIconButton(
+              icon: Icons.refresh,
+              tooltip: 'Refresh conversations',
+              onPressed: _reload,
+            ),
+          );
     return MortScreen(
       children: [
-        MortHeader(
-          eyebrow: 'Safety scanner',
-          title: 'Messages',
-          subtitle: 'No ads in chat. Messages pass through MORT safety checks.',
-          trailing: MortIconButton(
-            icon: Icons.refresh,
-            tooltip: 'Refresh conversations',
-            onPressed: _reload,
-          ),
+        header,
+        if (inTeenShell) const SizedBox(height: MortSpacing.md),
+        const MortSafetyBanner(
+          message:
+              'Protected chat blocks unsafe contact sharing and keeps report tools close by.',
         ),
+        const SizedBox(height: MortSpacing.md),
         FutureBuilder<List<MessageThread>>(
           future: _future,
           builder: (context, snapshot) {
@@ -3576,7 +3598,9 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
               children: [
                 for (final thread in threads) ...[
                   MortCard(
-                    onTap: () => context.go('/messages/${thread.id}'),
+                    onTap: () => context.push(
+                      '${inTeenShell ? '/teen/messages' : '/messages'}/${thread.id}',
+                    ),
                     child: Row(
                       children: [
                         const MortAvatar(label: 'M'),
@@ -3592,6 +3616,19 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                               Text(
                                 formatDateTime(thread.updatedAt),
                                 style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                              const SizedBox(height: MortSpacing.xs),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: MortStatusPill(
+                                  label: thread.lifecycleStatus == 'active'
+                                      ? 'Protected'
+                                      : 'Read only',
+                                  icon: Icons.shield_outlined,
+                                  color: thread.lifecycleStatus == 'active'
+                                      ? MortColors.lightBlue
+                                      : MortColors.silver,
+                                ),
                               ),
                             ],
                           ),
@@ -4369,6 +4406,17 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
     }
   }
 
+  Future<void> _confirmEmergencyCall() async {
+    final confirmed = await MortConfirmSheet.show(
+      context,
+      title: 'Open the emergency dialer?',
+      message:
+          'Use this only for immediate danger. MORT will open the Phone app with 911 ready, but will not place the call for you.',
+      confirmLabel: 'Open dialer',
+    );
+    if (confirmed && mounted) await _callEmergencyServices();
+  }
+
   Future<void> _ping() async {
     if (_busy) return;
     final confirmed = await MortConfirmSheet.show(
@@ -4443,6 +4491,8 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final inTeenShell = TeenNavigationScope.maybeOf(context) != null;
+    final currentCheckin = _checkins.isEmpty ? null : _checkins.first;
     final activeJobs = <String, String>{'': 'Do not attach an active job'};
     for (final checkin in _checkins) {
       final jobId = checkin['job_id']?.toString();
@@ -4450,25 +4500,54 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
         activeJobs[jobId] = checkin['job_title']?.toString() ?? 'Active job';
       }
     }
+    final header = inTeenShell
+        ? MortTeenDestinationHeader(
+            eyebrow: 'Free safety tools',
+            title: 'Safety',
+            subtitle:
+                'Check in, reach trusted support, or send a Safety Ping without a paywall.',
+            trailing: MortIconButton(
+              icon: Icons.refresh_rounded,
+              tooltip: 'Refresh Safety Center',
+              onPressed: _loading ? null : _load,
+            ),
+          )
+        : const MortHeader(
+            eyebrow: 'Safety Center',
+            title: 'Get help inside MORT',
+            subtitle:
+                'Safety Ping is not an emergency service. Call local emergency services for immediate danger.',
+          );
     return MortScreen(
       children: [
-        const MortHeader(
-          eyebrow: 'Safety Center',
-          title: 'Get help inside MORT',
-          subtitle:
-              'Safety Ping is not an emergency service. Call local emergency services for immediate danger.',
-        ),
+        header,
+        if (inTeenShell) const SizedBox(height: MortSpacing.md),
         MortSafetyBanner(
           message:
               _config?['emergency_guidance']?.toString() ??
               'Report, block, and Safety Ping stay free. Contact local emergency services for immediate danger.',
         ),
         const SizedBox(height: MortSpacing.md),
+        MortSafetyPulse(
+          title: currentCheckin == null ? 'Safety ready' : 'I am okay',
+          status: _loading
+              ? 'Loading active check-ins'
+              : currentCheckin == null
+              ? 'No active job check-in'
+              : 'Due ${formatDateTime(currentCheckin['expected_at'])}',
+          icon: currentCheckin == null
+              ? Icons.shield_rounded
+              : Icons.touch_app_rounded,
+          onPressed: currentCheckin == null || _busy
+              ? null
+              : () => _completeCheckin(currentCheckin['checkin_id'].toString()),
+        ),
+        const MortSectionLabel(label: 'Immediate help'),
         MortButton(
           label: 'Call 911',
           icon: Icons.call,
           style: MortButtonStyle.danger,
-          onPressed: _loading ? null : _callEmergencyServices,
+          onPressed: _loading ? null : _confirmEmergencyCall,
         ),
         const SizedBox(height: MortSpacing.sm),
         MortButton(
@@ -4476,6 +4555,13 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
           icon: Icons.support_agent,
           style: MortButtonStyle.secondary,
           onPressed: () => context.push('/support/chat'),
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        MortButton(
+          label: 'Report a safety concern',
+          icon: Icons.report_outlined,
+          style: MortButtonStyle.secondary,
+          onPressed: () => context.push('/report'),
         ),
         if (_checkins.isNotEmpty) ...[
           const SizedBox(height: MortSpacing.lg),
@@ -4515,6 +4601,18 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
                               : () => _scheduleCheckin(
                                   checkin['application_id'].toString(),
                                 ),
+                        ),
+                        MortAction(
+                          label: 'Open job safety',
+                          icon: Icons.health_and_safety_outlined,
+                          onPressed: () => context.push(
+                            '/teen/safety/applications/${checkin['application_id']}',
+                          ),
+                        ),
+                        MortAction(
+                          label: 'Message',
+                          icon: Icons.chat_outlined,
+                          onPressed: () => context.push('/messages'),
                         ),
                       ],
                     ),

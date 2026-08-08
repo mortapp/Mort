@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +16,7 @@ import '../../data/models/profile.dart';
 import '../../data/repositories/providers.dart';
 import '../../services/native_permissions_service.dart';
 import '../profile/profile_avatar_widgets.dart';
+import '../teen/teen_shell.dart';
 
 const _feedCategories = [
   'All',
@@ -35,6 +38,15 @@ const _feedCategories = [
   'other safe local work',
 ];
 
+const _quickFeedCategories = <String, String>{
+  'All': 'All',
+  'Yard': 'lawn care',
+  'Pets': 'pet care',
+  'Tutoring': 'tutoring',
+  'Moving': 'moving/light lifting',
+  'Tech': 'technology help',
+};
+
 class TeenJobFeedScreen extends ConsumerStatefulWidget {
   const TeenJobFeedScreen({super.key});
 
@@ -47,6 +59,8 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
   final _minimumPay = TextEditingController();
   final _city = TextEditingController();
   final _state = TextEditingController();
+  final _filtersController = ExpansionTileController();
+  final Set<String> _savedJobIds = {};
   String _category = 'All';
   String _paymentType = 'any';
   String _scheduleType = 'any';
@@ -55,6 +69,13 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
   String _environment = 'any';
   JobSort _sort = JobSort.newest;
   bool _locating = false;
+  String? _savingJobId;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadSavedJobs());
+  }
 
   @override
   void dispose() {
@@ -62,7 +83,49 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
     _minimumPay.dispose();
     _city.dispose();
     _state.dispose();
+    _filtersController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSavedJobs() async {
+    try {
+      final jobs = await ref.read(jobsRepositoryProvider).listSavedJobs();
+      if (!mounted) return;
+      setState(() {
+        _savedJobIds
+          ..clear()
+          ..addAll(jobs.map((job) => job.id));
+      });
+    } catch (_) {
+      // The feed remains usable when optional saved-state hydration fails.
+    }
+  }
+
+  Future<void> _toggleSaved(Job job) async {
+    if (_savingJobId != null) return;
+    final wasSaved = _savedJobIds.contains(job.id);
+    setState(() => _savingJobId = job.id);
+    try {
+      final repository = ref.read(jobsRepositoryProvider);
+      if (wasSaved) {
+        await repository.unsaveJob(job.id);
+      } else {
+        await repository.saveJob(job.id);
+      }
+      if (!mounted) return;
+      setState(() {
+        if (wasSaved) {
+          _savedJobIds.remove(job.id);
+        } else {
+          _savedJobIds.add(job.id);
+        }
+      });
+      MortToast.show(context, wasSaved ? 'Job unsaved.' : 'Job saved.');
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _savingJobId = null);
+    }
   }
 
   JobSearchFilters _filtersFor(Profile? profile) => JobSearchFilters(
@@ -147,22 +210,53 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
     final jobs = ref.watch(openJobsProvider(filters));
     return MortScreen(
       children: [
-        const MortHeader(
+        MortTeenDestinationHeader(
           eyebrow: 'Teen-safe feed',
-          title: 'Jobs in your selected area',
+          title: 'Discover',
           subtitle:
-              'Search open jobs by city, state, and travel method. MORT does not calculate your distance to a job, and exact addresses are never shown in the feed.',
+              'Open jobs in your selected area. Exact addresses never appear in the feed.',
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              MortIconButton(
+                icon: Icons.bookmark_outline_rounded,
+                tooltip: 'Saved jobs',
+                onPressed: () => context.push('/teen/saved'),
+              ),
+              MortIconButton(
+                icon: Icons.notifications_none_rounded,
+                tooltip: 'Notifications',
+                onPressed: () => context.push('/notifications'),
+              ),
+            ],
+          ),
         ),
-        MortTextField(
-          label: 'Search jobs',
+        const SizedBox(height: MortSpacing.md),
+        MortSearchField(
           controller: _keyword,
           hint: 'Try tutoring, yard work, or technology help',
-          textInputAction: TextInputAction.search,
-          suffixIcon: const Icon(Icons.search),
-          onFieldSubmitted: (_) => setState(() {}),
+          onSubmitted: (_) => setState(() {}),
+          onFilter: _filtersController.expand,
         ),
         const SizedBox(height: MortSpacing.sm),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (final category in _quickFeedCategories.entries) ...[
+                MortChip(
+                  label: category.key,
+                  selected: _category == category.value,
+                  onSelected: (_) => setState(() => _category = category.value),
+                ),
+                const SizedBox(width: MortSpacing.xs),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: MortSpacing.xs),
         ExpansionTile(
+          controller: _filtersController,
           tilePadding: EdgeInsets.zero,
           childrenPadding: const EdgeInsets.only(bottom: MortSpacing.sm),
           title: const Text('Filters and sorting'),
@@ -393,7 +487,12 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
                   const SizedBox(height: MortSpacing.sm),
                 ],
                 for (final job in items) ...[
-                  _TeenJobCard(job: job),
+                  _TeenJobCard(
+                    job: job,
+                    saved: _savedJobIds.contains(job.id),
+                    saving: _savingJobId == job.id,
+                    onToggleSaved: () => _toggleSaved(job),
+                  ),
                   const SizedBox(height: MortSpacing.sm),
                 ],
                 if (feed.paginationError != null) ...[
@@ -432,35 +531,85 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
 }
 
 class _TeenJobCard extends StatelessWidget {
-  const _TeenJobCard({required this.job});
+  const _TeenJobCard({
+    required this.job,
+    required this.saved,
+    required this.saving,
+    required this.onToggleSaved,
+  });
 
   final Job job;
+  final bool saved;
+  final bool saving;
+  final VoidCallback onToggleSaved;
 
   @override
   Widget build(BuildContext context) {
     return MortCard(
-      onTap: () => context.go('/teen/jobs/${job.id}'),
+      onTap: () => context.push('/teen/jobs/${job.id}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              MortBadge(label: job.category),
-              const Spacer(),
-              MortJobStatusBadge(status: job.status),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      job.title,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: MortSpacing.xxs),
+                    Text(
+                      job.category,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: MortSpacing.sm),
+              Text(
+                job.payDisplay,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: MortColors.roseGoldLight,
+                ),
+              ),
+              const SizedBox(width: MortSpacing.xs),
+              SizedBox.square(
+                dimension: MortSpacing.minTouchTarget,
+                child: saving
+                    ? const Padding(
+                        padding: EdgeInsets.all(MortSpacing.sm),
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : IconButton(
+                        tooltip: saved ? 'Unsave job' : 'Save job',
+                        onPressed: onToggleSaved,
+                        icon: Icon(
+                          saved
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                          color: saved
+                              ? MortColors.roseGoldLight
+                              : MortColors.silver,
+                        ),
+                      ),
+              ),
             ],
           ),
           const SizedBox(height: MortSpacing.sm),
-          Text(job.title, style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: MortSpacing.xs),
-          Text('${job.payDisplay} | ${job.locationText}'),
-          const SizedBox(height: MortSpacing.xs),
-          Text(job.scheduleDisplay),
+          _JobCardFact(icon: Icons.place_outlined, value: job.locationText),
+          _JobCardFact(
+            icon: Icons.schedule_outlined,
+            value: job.scheduleDisplay,
+          ),
           if (job.acceptableTransportationMethods.isNotEmpty) ...[
-            const SizedBox(height: MortSpacing.xs),
-            Text(
-              'Travel: ${job.acceptableTransportationMethods.map((method) => method.replaceAll('_', ' ')).join(', ')}',
-              style: Theme.of(context).textTheme.bodySmall,
+            _JobCardFact(
+              icon: Icons.route_outlined,
+              value:
+                  'Travel: ${job.acceptableTransportationMethods.map((method) => method.replaceAll('_', ' ')).join(', ')}',
             ),
           ],
           if (job.matchExplanation?.isNotEmpty == true) ...[
@@ -479,21 +628,54 @@ class _TeenJobCard extends StatelessWidget {
             spacing: MortSpacing.xs,
             runSpacing: MortSpacing.xs,
             children: [
-              MortTrustBadge(
+              MortStatusPill(
                 label: job.verificationDisplay,
-                verified: job.posterVerified,
+                icon: Icons.verified_user_outlined,
+                color: job.posterVerified
+                    ? MortColors.success
+                    : MortColors.lightBlue,
               ),
               if (job.requiresGuardianApproval)
-                const MortBadge(
-                  label: 'Poster requested guardian approval',
-                  color: MortColors.safetyBlue,
+                const MortStatusPill(
+                  label: 'Guardian approval requested',
+                  icon: Icons.family_restroom_outlined,
+                  color: MortColors.lightBlue,
                 ),
+              MortStatusPill(
+                label: job.workEnvironment == 'unspecified'
+                    ? 'Environment details in job'
+                    : job.workEnvironment.replaceAll('_', ' '),
+                icon: Icons.health_and_safety_outlined,
+                color: MortColors.silver,
+              ),
             ],
           ),
         ],
       ),
     );
   }
+}
+
+class _JobCardFact extends StatelessWidget {
+  const _JobCardFact({required this.icon, required this.value});
+
+  final IconData icon;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: MortSpacing.xs),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: MortColors.lightBlue),
+        const SizedBox(width: MortSpacing.xs),
+        Expanded(
+          child: Text(value, style: Theme.of(context).textTheme.bodyMedium),
+        ),
+      ],
+    ),
+  );
 }
 
 class TeenJobDetailScreen extends ConsumerStatefulWidget {
@@ -695,11 +877,15 @@ class _TeenJobDetailScreenState extends ConsumerState<TeenJobDetailScreen> {
             ),
           ),
           children: [
-            MortHeader(
+            MortGlassHeader(
               eyebrow: job.category,
               title: job.title,
-              subtitle: '${job.payDisplay} | ${job.locationText}',
+              subtitle: '${job.payDisplay} | General area: ${job.locationText}',
+              showBack: true,
+              onBack: () =>
+                  context.canPop() ? context.pop() : context.go('/teen/home'),
             ),
+            const SizedBox(height: MortSpacing.md),
             Wrap(
               spacing: MortSpacing.xs,
               runSpacing: MortSpacing.xs,
@@ -761,7 +947,8 @@ class _TeenJobDetailScreenState extends ConsumerState<TeenJobDetailScreen> {
                   MortIconButton(
                     icon: Icons.flag_outlined,
                     tooltip: 'Report profile picture or poster',
-                    onPressed: () => context.go('/report/user/${job.posterId}'),
+                    onPressed: () =>
+                        context.push('/report/user/${job.posterId}'),
                   ),
                 ],
               ),
@@ -784,7 +971,8 @@ class _TeenJobDetailScreenState extends ConsumerState<TeenJobDetailScreen> {
                   _DetailLine(icon: Icons.schedule, label: job.scheduleDisplay),
                   _DetailLine(
                     icon: Icons.place_outlined,
-                    label: '${job.locationText}, ${job.city}, ${job.state}',
+                    label:
+                        'Approximate area: ${job.locationText}, ${job.city}, ${job.state}',
                   ),
                   if (job.estimatedDurationMinutes != null)
                     _DetailLine(
@@ -900,13 +1088,13 @@ class _TeenJobDetailScreenState extends ConsumerState<TeenJobDetailScreen> {
                 MortAction(
                   label: 'Report job',
                   icon: Icons.report_outlined,
-                  route: '/report/job/${job.id}',
+                  onPressed: () => context.push('/report/job/${job.id}'),
                   style: MortButtonStyle.danger,
                 ),
                 MortAction(
                   label: 'Block poster',
                   icon: Icons.block,
-                  route: '/block/user/${job.posterId}',
+                  onPressed: () => context.push('/block/user/${job.posterId}'),
                   style: MortButtonStyle.danger,
                 ),
               ],

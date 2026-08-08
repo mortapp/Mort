@@ -109,6 +109,16 @@ void main() {
         '/teen/home',
       );
       expect(
+        MortBackNavigation.fallbackRoute(
+          '/teen/safety/applications/application-1',
+        ),
+        '/teen/safety',
+      );
+      expect(
+        MortBackNavigation.fallbackRoute('/teen/messages/thread-1'),
+        '/teen/messages',
+      );
+      expect(
         MortBackNavigation.fallbackRoute('/adult/jobs/xyz/edit'),
         '/adult/jobs/xyz',
       );
@@ -148,6 +158,35 @@ void main() {
   });
 
   group('MortBackButton', () {
+    testWidgets('MortHeader shows Back for a pushed canonical root', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const MortScreen(
+                    children: [MortHeader(title: 'Saved jobs')],
+                  ),
+                ),
+              ),
+              child: const Text('Open saved jobs'),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open saved jobs'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Back'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
+      expect(find.text('Open saved jobs'), findsOneWidget);
+    });
+
     testWidgets('falls back to route when navigation stack is not poppable', (
       WidgetTester tester,
     ) async {

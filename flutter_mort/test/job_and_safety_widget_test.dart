@@ -18,6 +18,7 @@ class _FakeJobsRepository extends JobsRepository {
   final JobPage openJobsPage;
   final List<Job> savedJobs;
   String? unsavedJobId;
+  String? savedJobId;
 
   @override
   Future<List<Job>> listSavedJobs() async => savedJobs;
@@ -35,6 +36,11 @@ class _FakeJobsRepository extends JobsRepository {
     unsavedJobId = jobId;
     savedJobs.removeWhere((job) => job.id == jobId);
   }
+
+  @override
+  Future<void> saveJob(String jobId) async {
+    savedJobId = jobId;
+  }
 }
 
 class _FakeSafetyRepository extends SafetyRepository {
@@ -46,12 +52,22 @@ class _FakeSafetyRepository extends SafetyRepository {
 
   final Map<String, dynamic> config;
   final List<Map<String, dynamic>> checkins;
+  String? completedCheckinId;
 
   @override
   Future<Map<String, dynamic>> getSafetyCenterConfig() async => config;
 
   @override
   Future<List<Map<String, dynamic>>> listActiveJobCheckins() async => checkins;
+
+  @override
+  Future<Map<String, dynamic>> completeActiveJobCheckin({
+    required String checkinId,
+    String? clientRequestId,
+  }) async {
+    completedCheckinId = checkinId;
+    return {'ok': true, 'checkin_id': checkinId};
+  }
 }
 
 Widget _app({required Widget child, List overrides = const []}) {
@@ -116,7 +132,8 @@ void main() {
       final searchField = find.byWidgetPredicate(
         (widget) =>
             widget is TextField &&
-            widget.decoration?.labelText == 'Search jobs',
+            widget.decoration?.hintText ==
+                'Try tutoring, yard work, or technology help',
       );
       expect(searchField, findsOneWidget);
 
@@ -128,12 +145,51 @@ void main() {
       final applyFiltersButton = find.text('Apply filters');
       expect(applyFiltersButton, findsOneWidget);
       await tester.ensureVisible(applyFiltersButton);
+      await tester.pumpAndSettle();
       await tester.tap(applyFiltersButton);
       await tester.pumpAndSettle();
 
       expect(find.text('Clear filters'), findsOneWidget);
     },
   );
+
+  testWidgets('TeenJobFeedScreen saves a real feed job', (tester) async {
+    final job = _job(id: 'job-1', title: 'Yard cleanup');
+    final repository = _FakeJobsRepository(
+      openJobsPage: JobPage(items: [job], hasMore: false),
+    );
+    final profile = Profile(
+      id: 'profile-1',
+      role: UserRole.teen,
+      displayName: 'Test Teen',
+      username: 'testteen',
+      dob: DateTime(2010, 1, 1),
+      city: 'TestCity',
+      state: 'TS',
+      onboardingCompleted: true,
+      accountStatus: 'active',
+      verificationStatus: 'approved',
+      paymentPreference: 'none',
+    );
+
+    await tester.pumpWidget(
+      _app(
+        child: const TeenJobFeedScreen(),
+        overrides: [
+          jobsRepositoryProvider.overrideWithValue(repository),
+          currentProfileProvider.overrideWithValue(AsyncValue.data(profile)),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Yard cleanup'), findsOneWidget);
+    await tester.tap(find.byTooltip('Save job'));
+    await tester.pumpAndSettle();
+
+    expect(repository.savedJobId, 'job-1');
+    expect(find.byTooltip('Unsave job'), findsOneWidget);
+  });
 
   testWidgets(
     'SavedJobsScreen shows empty state when there are no saved jobs',
@@ -206,6 +262,51 @@ void main() {
       expect(find.text('Call 911'), findsOneWidget);
       expect(find.text('Urgent support and human review'), findsOneWidget);
       expect(find.text('Test safety guidance message'), findsOneWidget);
+
+      final emergencyButton = find.text('Call 911');
+      await tester.ensureVisible(emergencyButton);
+      await tester.pumpAndSettle();
+      await tester.tap(emergencyButton);
+      await tester.pumpAndSettle();
+      expect(find.text('Open the emergency dialer?'), findsOneWidget);
+      expect(find.text('Open dialer'), findsOneWidget);
     },
   );
+
+  testWidgets('Safety Pulse completes the active persisted check-in', (
+    tester,
+  ) async {
+    final repository = _FakeSafetyRepository(
+      checkins: [
+        {
+          'checkin_id': 'checkin-1',
+          'application_id': 'application-1',
+          'job_id': 'job-1',
+          'job_title': 'Yard cleanup',
+          'status': 'pending',
+          'expected_at': '2026-08-08T12:00:00Z',
+        },
+      ],
+    );
+
+    await tester.pumpWidget(
+      _app(
+        child: const SafetyCenterScreen(),
+        overrides: [
+          safetyRepositoryProvider.overrideWithValue(repository),
+          currentProfileProvider.overrideWithValue(const AsyncValue.data(null)),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('I am okay'), findsWidgets);
+    final checkInControl = find.text('I am okay').first;
+    await tester.ensureVisible(checkInControl);
+    await tester.pumpAndSettle();
+    await tester.tap(checkInControl);
+    await tester.pumpAndSettle();
+
+    expect(repository.completedCheckinId, 'checkin-1');
+  });
 }

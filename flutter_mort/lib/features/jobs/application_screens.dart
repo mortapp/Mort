@@ -10,6 +10,7 @@ import '../../data/models/application.dart';
 import '../../data/models/profile.dart';
 import '../../data/repositories/providers.dart';
 import '../profile/profile_avatar_widgets.dart';
+import '../teen/teen_shell.dart';
 
 enum ApplicationView { teen, adult, guardian }
 
@@ -244,18 +245,32 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
             'Track real submission, review, assignment, work, proof, and completion states.',
       ),
     };
+    final header = widget.view == ApplicationView.teen
+        ? MortTeenDestinationHeader(
+            eyebrow: copy.eyebrow,
+            title: copy.title,
+            subtitle: copy.subtitle,
+            trailing: MortIconButton(
+              icon: Icons.refresh,
+              tooltip: 'Refresh applications',
+              onPressed: _reload,
+            ),
+          )
+        : MortHeader(
+            eyebrow: copy.eyebrow,
+            title: copy.title,
+            subtitle: copy.subtitle,
+            trailing: MortIconButton(
+              icon: Icons.refresh,
+              tooltip: 'Refresh applications',
+              onPressed: _reload,
+            ),
+          );
     return MortScreen(
       children: [
-        MortHeader(
-          eyebrow: copy.eyebrow,
-          title: copy.title,
-          subtitle: copy.subtitle,
-          trailing: MortIconButton(
-            icon: Icons.refresh,
-            tooltip: 'Refresh applications',
-            onPressed: _reload,
-          ),
-        ),
+        header,
+        if (widget.view == ApplicationView.teen)
+          const SizedBox(height: MortSpacing.md),
         if (widget.view == ApplicationView.guardian) ...[
           const MortSafetyBanner(
             message:
@@ -291,7 +306,11 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
             return Column(
               children: [
                 for (final application in applications) ...[
-                  MortCard(
+                  _ApplicationLifecycleCard(
+                    application: application,
+                    view: widget.view,
+                    busy: _busyApplicationId == application.id,
+                    onStatus: (action) => _changeStatus(application, action),
                     onTap: () {
                       final route = switch (widget.view) {
                         ApplicationView.teen =>
@@ -301,14 +320,8 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
                         ApplicationView.guardian =>
                           '/guardian/approvals/${application.id}',
                       };
-                      context.go(route);
+                      context.push(route);
                     },
-                    child: _ApplicationLifecycleCard(
-                      application: application,
-                      view: widget.view,
-                      busy: _busyApplicationId == application.id,
-                      onStatus: (action) => _changeStatus(application, action),
-                    ),
                   ),
                   const SizedBox(height: MortSpacing.sm),
                 ],
@@ -327,17 +340,20 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
     required this.view,
     required this.busy,
     required this.onStatus,
+    this.onTap,
   });
 
   final MortApplication application;
   final ApplicationView view;
   final bool busy;
   final ValueChanged<String> onStatus;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final job = application.job;
     return MortCard(
+      onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -533,7 +549,8 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
           MortAction(
             label: 'Review proof',
             icon: Icons.fact_check_outlined,
-            route: '/adult/proof-review/${application.id}',
+            onPressed: () =>
+                context.push('/adult/proof-review/${application.id}'),
           ),
         );
       }
@@ -546,14 +563,15 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
           MortAction(
             label: 'Job safety',
             icon: Icons.health_and_safety_outlined,
-            route: '/applications/${application.id}/safety',
+            onPressed: () =>
+                context.push('/applications/${application.id}/safety'),
           ),
         );
         actions.add(
-          const MortAction(
+          MortAction(
             label: 'Message',
             icon: Icons.chat_outlined,
-            route: '/messages',
+            onPressed: () => context.push('/messages'),
           ),
         );
       }
@@ -562,7 +580,7 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
           MortAction(
             label: 'Leave review',
             icon: Icons.rate_review_outlined,
-            route: '/reviews/${application.id}',
+            onPressed: () => context.push('/reviews/${application.id}'),
           ),
         );
       }
@@ -591,7 +609,8 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
         MortAction(
           label: 'Confirm safety terms',
           icon: Icons.health_and_safety_outlined,
-          route: '/applications/${application.id}/safety',
+          onPressed: () =>
+              context.push('/teen/safety/applications/${application.id}'),
         ),
       );
       actions.add(
@@ -608,7 +627,7 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
         MortAction(
           label: 'Upload proof',
           icon: Icons.upload,
-          route: '/teen/proof/${application.id}',
+          onPressed: () => context.push('/teen/proof/${application.id}'),
         ),
       );
     }
@@ -622,15 +641,16 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
           MortAction(
             label: 'Job safety',
             icon: Icons.health_and_safety_outlined,
-            route: '/applications/${application.id}/safety',
+            onPressed: () =>
+                context.push('/teen/safety/applications/${application.id}'),
           ),
         );
       }
       actions.add(
-        const MortAction(
+        MortAction(
           label: 'Message',
           icon: Icons.chat_outlined,
-          route: '/messages',
+          onPressed: () => context.push('/messages'),
         ),
       );
     }
@@ -639,7 +659,7 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
         MortAction(
           label: 'Leave review',
           icon: Icons.rate_review_outlined,
-          route: '/reviews/${application.id}',
+          onPressed: () => context.push('/reviews/${application.id}'),
         ),
       );
     }

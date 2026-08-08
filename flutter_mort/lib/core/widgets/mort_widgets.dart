@@ -29,7 +29,8 @@ class MortScreen extends StatelessWidget {
   final bool scroll;
   final Future<bool> Function(BuildContext context)? onWillPop;
 
-  bool get _hasHeader => children.any((child) => child is MortHeader);
+  bool get _hasHeader =>
+      children.any((child) => child is MortHeader || child is MortGlassHeader);
 
   Future<bool> _handleWillPop(BuildContext context) async {
     final primaryFocus = FocusManager.instance.primaryFocus;
@@ -151,7 +152,9 @@ class MortHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final location = GoRouter.maybeOf(context)?.state.uri.path ?? '/';
     final showBack =
-        showBackButton ?? !MortBackNavigation.isRootLocation(location);
+        showBackButton ??
+        (Navigator.of(context).canPop() ||
+            !MortBackNavigation.isRootLocation(location));
     final back =
         leading ??
         (showBack
@@ -274,6 +277,10 @@ class MortBackNavigation {
     if (normalized == '/onboarding/review') return '/onboarding/preferences';
     if (normalized.startsWith('/teen/jobs/')) return '/teen/home';
     if (normalized == '/teen/profile/edit') return '/teen/profile';
+    if (normalized.startsWith('/teen/safety/applications/')) {
+      return '/teen/safety';
+    }
+    if (normalized.startsWith('/teen/messages/')) return '/teen/messages';
     if (normalized.startsWith('/teen/applications/'))
       return '/teen/applications';
     if (normalized.startsWith('/teen/proof/')) return '/teen/applications';

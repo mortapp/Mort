@@ -172,6 +172,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/teen/applications',
                 builder: (_, _) => const ApplicationListScreen(),
+                routes: [
+                  GoRoute(
+                    path: ':id',
+                    builder: (_, state) => ApplicationDetailScreen(
+                      view: ApplicationView.teen,
+                      applicationId: state.pathParameters['id'] ?? '',
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -180,6 +189,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/teen/safety',
                 builder: (_, _) => const SafetyCenterScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'applications/:applicationId',
+                    builder: (_, state) => SensitiveScreenProtection(
+                      child: JobSafetyWorkspaceScreen(
+                        applicationId:
+                            state.pathParameters['applicationId'] ?? '',
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -189,6 +209,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: '/teen/messages',
                 builder: (_, _) =>
                     const SensitiveScreenProtection(child: MessagesScreen()),
+                routes: [
+                  GoRoute(
+                    path: ':conversationId',
+                    builder: (_, state) => SensitiveScreenProtection(
+                      child: MessageThreadScreen(
+                        threadId: state.pathParameters['conversationId'] ?? '',
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -211,16 +241,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       _guarded('/teen/saved', const SavedJobsScreen(), role: UserRole.teen),
-      GoRoute(
-        path: '/teen/applications/:id',
-        builder: (_, state) => GuardedRoute(
-          requiredRole: UserRole.teen,
-          child: ApplicationDetailScreen(
-            view: ApplicationView.teen,
-            applicationId: state.pathParameters['id'] ?? '',
-          ),
-        ),
-      ),
       GoRoute(
         path: '/teen/proof/:applicationId',
         builder: (_, state) => GuardedRoute(
@@ -907,6 +927,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
         ),
+      ),
+      _guarded(
+        '/report',
+        const SensitiveScreenProtection(child: ReportScreen()),
       ),
       GoRoute(
         path: '/report/job/:id',
