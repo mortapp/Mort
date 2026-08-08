@@ -1,10 +1,9 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 export 'mort_brand.dart';
 export 'mort_design_components.dart';
+export 'mort_liquid_glass.dart';
 
 import '../config/app_config.dart';
 import '../constants/app_constants.dart';
@@ -12,6 +11,7 @@ import '../theme/mort_colors.dart';
 import '../theme/mort_spacing.dart';
 import '../theme/mort_tokens.dart';
 import 'mort_brand.dart';
+import 'mort_liquid_glass.dart';
 
 class MortScreen extends StatelessWidget {
   const MortScreen({
@@ -371,71 +371,13 @@ class MortGlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(MortRadii.card);
-    final surfaceGradient = infoAccent
-        ? MortGradients.infoGlass
-        : color == MortColors.card
-        ? MortGradients.glass
-        : LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [color, Color.lerp(color, MortColors.bgElevated, 0.38)!],
-          );
-    Widget surface = Container(
+    return LiquidGlassContainer(
       padding: padding,
-      decoration: BoxDecoration(
-        color: color,
-        gradient: surfaceGradient,
-        borderRadius: radius,
-      ),
+      tint: infoAccent ? MortColors.lightBlue : color,
+      liveBlur: blur,
+      onTap: onTap,
+      semanticLabel: semanticLabel,
       child: child,
-    );
-
-    if (blur) {
-      surface = ClipRRect(
-        borderRadius: radius,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: MortGlassTokens.blurSigma,
-            sigmaY: MortGlassTokens.blurSigma,
-          ),
-          child: surface,
-        ),
-      );
-    }
-
-    surface = Container(
-      padding: const EdgeInsets.all(MortGlassTokens.borderWidth),
-      decoration: BoxDecoration(
-        gradient: infoAccent
-            ? const LinearGradient(
-                colors: [MortColors.lightBlue, MortColors.line],
-              )
-            : MortGradients.metallic,
-        borderRadius: radius,
-        boxShadow: MortShadows.card,
-      ),
-      child: ClipRRect(borderRadius: radius, child: surface),
-    );
-
-    if (onTap != null) {
-      surface = Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: radius,
-          onTap: onTap,
-          splashColor: MortColors.roseGold.withValues(alpha: 0.12),
-          highlightColor: MortColors.roseGold.withValues(alpha: 0.06),
-          child: surface,
-        ),
-      );
-    }
-
-    return Semantics(
-      label: semanticLabel,
-      button: onTap != null,
-      container: true,
-      child: surface,
     );
   }
 }
