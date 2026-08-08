@@ -38,6 +38,7 @@ import '../../features/payments/admin_payment_operations_screen.dart';
 import '../../features/admin/admin_moderation_detail_screen.dart';
 import '../../features/admin/admin_operational_alerts_screen.dart';
 import '../../features/auth/google_auth_screens.dart';
+import '../../features/auth/unified_auth_screen.dart';
 import '../../features/safety/trust_safety_screens.dart';
 import '../../features/support/support_screens.dart';
 import '../../features/support/support_assistant_screen.dart';
@@ -60,8 +61,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/', builder: (_, _) => const SplashScreen()),
       GoRoute(path: '/splash', builder: (_, _) => const SplashScreen()),
       GoRoute(path: '/welcome', builder: (_, _) => const WelcomeScreen()),
-      GoRoute(path: '/auth/sign-in', builder: (_, _) => const SignInScreen()),
-      GoRoute(path: '/auth/sign-up', builder: (_, _) => const SignUpScreen()),
+      GoRoute(
+        path: '/auth/sign-in',
+        builder: (_, _) => const UnifiedAuthScreen(),
+      ),
+      GoRoute(
+        path: '/auth/sign-up',
+        builder: (_, _) =>
+            const UnifiedAuthScreen(initialMode: UnifiedAuthMode.signUp),
+      ),
       if (AppConfig.playReviewModeEnabled) ...[
         _reviewer('/review', const ReviewerRoleSelectorScreen()),
         _reviewer('/review/teen', const ReviewerTeenScreen()),

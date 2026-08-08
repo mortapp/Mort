@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_mort/core/widgets/date_of_birth_field.dart';
-import 'package:flutter_mort/features/mort_screens.dart';
+import 'package:flutter_mort/features/auth/unified_auth_screen.dart';
 import 'package:flutter_mort/features/onboarding/compact_onboarding.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,7 +31,7 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      const ProviderScope(child: MaterialApp(home: SignInScreen())),
+      const ProviderScope(child: MaterialApp(home: UnifiedAuthScreen())),
     );
     await tester.pumpAndSettle();
 
@@ -40,7 +40,11 @@ void main() {
     expect(find.byType(CheckboxListTile), findsWidgets);
 
     await tester.pumpWidget(
-      const ProviderScope(child: MaterialApp(home: SignUpScreen())),
+      const ProviderScope(
+        child: MaterialApp(
+          home: UnifiedAuthScreen(initialMode: UnifiedAuthMode.signUp),
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 

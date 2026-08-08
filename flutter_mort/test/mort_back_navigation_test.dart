@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_mort/core/widgets/mort_widgets.dart';
+import 'package:flutter_mort/features/auth/unified_auth_screen.dart';
 import 'package:flutter_mort/features/mort_screens.dart';
 import 'package:go_router/go_router.dart';
 
@@ -11,8 +12,15 @@ GoRouter _publicRouter({required String initialLocation}) {
     routes: [
       GoRoute(path: '/splash', builder: (_, _) => const SplashScreen()),
       GoRoute(path: '/welcome', builder: (_, _) => const WelcomeScreen()),
-      GoRoute(path: '/auth/sign-in', builder: (_, _) => const SignInScreen()),
-      GoRoute(path: '/auth/sign-up', builder: (_, _) => const SignUpScreen()),
+      GoRoute(
+        path: '/auth/sign-in',
+        builder: (_, _) => const UnifiedAuthScreen(),
+      ),
+      GoRoute(
+        path: '/auth/sign-up',
+        builder: (_, _) =>
+            const UnifiedAuthScreen(initialMode: UnifiedAuthMode.signUp),
+      ),
       GoRoute(
         path: '/auth/forgot-password',
         builder: (_, _) => const ForgotPasswordScreen(),

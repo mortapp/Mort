@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_mort/core/reviewer/reviewer_session.dart';
-import 'package:flutter_mort/features/mort_screens.dart';
+import 'package:flutter_mort/features/auth/unified_auth_screen.dart';
 import 'package:flutter_mort/features/reviewer/reviewer_screens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -130,7 +130,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [reviewerModeEnabledProvider.overrideWithValue(true)],
-          child: const MaterialApp(home: SignInScreen()),
+          child: const MaterialApp(home: UnifiedAuthScreen()),
         ),
       );
       await tester.enterText(
@@ -151,7 +151,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [reviewerModeEnabledProvider.overrideWithValue(true)],
-          child: const MaterialApp(home: SignInScreen()),
+          child: const MaterialApp(home: UnifiedAuthScreen()),
         ),
       );
       await tester.enterText(
