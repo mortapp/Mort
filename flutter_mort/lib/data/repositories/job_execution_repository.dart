@@ -61,9 +61,16 @@ class JobExecutionStatus {
       DateTime.tryParse(value?.toString() ?? '');
 }
 
-class GeneratedJobPin {
-  const GeneratedJobPin({required this.pin, required this.expiresAt});
+enum JobPinKind { start, finish }
 
+class GeneratedJobPin {
+  const GeneratedJobPin({
+    required this.kind,
+    required this.pin,
+    required this.expiresAt,
+  });
+
+  final JobPinKind kind;
   final String pin;
   final DateTime? expiresAt;
 }
@@ -84,6 +91,7 @@ class JobExecutionRepository extends RepositoryBase {
       'p_client_request_id': _uuid.v4(),
     });
     return GeneratedJobPin(
+      kind: JobPinKind.start,
       pin: result['start_pin']?.toString() ?? '',
       expiresAt: JobExecutionStatus._date(result['expires_at']),
     );
@@ -116,6 +124,7 @@ class JobExecutionRepository extends RepositoryBase {
       'p_client_request_id': _uuid.v4(),
     });
     return GeneratedJobPin(
+      kind: JobPinKind.finish,
       pin: result['finish_pin']?.toString() ?? '',
       expiresAt: JobExecutionStatus._date(result['expires_at']),
     );
@@ -233,6 +242,16 @@ class JobExecutionRepository extends RepositoryBase {
       'The PIN entry changed during a retry. Check the six digits and submit again.',
     'adult_report_required' =>
       'There is no open abandonment report requiring your response.',
+    'response_confirmation_required' =>
+      'Confirm the response before submitting it.',
+    'abandonment_statement_required' =>
+      'Add a few more factual details before submitting.',
+    'active_dispute_blocks_finish_pin' =>
+      'An open dispute must be resolved before a finish PIN can be generated.',
+    'active_safety_incident_blocks_start' =>
+      'An open safety report is blocking the start PIN for this job.',
+    'participant_not_eligible' =>
+      'One participant is not currently eligible to start this job.',
     'job_participant_required' =>
       'Only the assigned teen and adult can view this job progress.',
     _ =>

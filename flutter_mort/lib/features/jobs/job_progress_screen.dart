@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -26,34 +28,119 @@ class JobProgressScreen extends ConsumerStatefulWidget {
   ConsumerState<JobProgressScreen> createState() => _JobProgressScreenState();
 }
 
-class _JobProgressScreenState extends ConsumerState<JobProgressScreen> {
+class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
+    with WidgetsBindingObserver {
+  static const _pollInterval = Duration(seconds: 5);
+  static const _terminalStates = {'completed', 'cancelled'};
+
   final _pin = TextEditingController();
-  late Future<JobExecutionStatus> _status;
+  JobExecutionStatus? _current;
+  Object? _loadError;
+  bool _initialLoading = true;
   GeneratedJobPin? _generatedPin;
   String? _startConfirmationRequestId;
   String? _startConfirmationPin;
   String? _finishConfirmationRequestId;
   String? _finishConfirmationPin;
   bool _busy = false;
+  bool _statusFetchInFlight = false;
+  bool _statusRefreshPending = false;
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
-    _reload();
+    WidgetsBinding.instance.addObserver(this);
+    _fetchStatus(showSpinner: true);
+    _startPolling();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _pollTimer?.cancel();
     _pin.dispose();
     super.dispose();
   }
 
-  void _reload() {
-    _status = widget.syntheticStatusForTesting == null
-        ? ref
-              .read(jobExecutionRepositoryProvider)
-              .getStatus(widget.applicationId)
-        : Future.value(widget.syntheticStatusForTesting);
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _fetchStatus(showSpinner: false);
+      _startPolling();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _pollTimer?.cancel();
+    }
+  }
+
+  void _startPolling() {
+    _pollTimer?.cancel();
+    if (widget.syntheticStatusForTesting != null) return;
+    _pollTimer = Timer.periodic(_pollInterval, (_) {
+      if (!mounted || _busy) return;
+      final state = _current?.state;
+      if (state != null && _terminalStates.contains(state)) {
+        _pollTimer?.cancel();
+        return;
+      }
+      _fetchStatus(showSpinner: false);
+    });
+  }
+
+  Future<void> _fetchStatus({required bool showSpinner}) async {
+    if (_statusFetchInFlight) {
+      _statusRefreshPending = true;
+      return;
+    }
+    if (widget.syntheticStatusForTesting != null) {
+      if (mounted) {
+        setState(() {
+          _current = widget.syntheticStatusForTesting;
+          _initialLoading = false;
+        });
+      }
+      return;
+    }
+    _statusFetchInFlight = true;
+    if (showSpinner && mounted) {
+      setState(() {
+        _initialLoading = _current == null;
+        _loadError = null;
+      });
+    }
+    try {
+      final status = await ref
+          .read(jobExecutionRepositoryProvider)
+          .getStatus(widget.applicationId);
+      if (!mounted) return;
+      setState(() {
+        _current = status;
+        _initialLoading = false;
+        _loadError = null;
+        final generatedPin = _generatedPin;
+        if (generatedPin != null) {
+          final generatedPinIsActive = switch (generatedPin.kind) {
+            JobPinKind.start => status.startPinActive,
+            JobPinKind.finish => status.finishPinActive,
+          };
+          if (!generatedPinIsActive) _generatedPin = null;
+        }
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _initialLoading = false;
+        if (_current == null) _loadError = error;
+      });
+    } finally {
+      _statusFetchInFlight = false;
+      final refreshAgain = _statusRefreshPending && mounted && !_busy;
+      if (refreshAgain) {
+        _statusRefreshPending = false;
+        unawaited(_fetchStatus(showSpinner: false));
+      }
+    }
   }
 
   Future<T?> _perform<T>(
@@ -66,14 +153,20 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen> {
       final result = await operation();
       if (mounted) {
         MortToast.show(context, success);
-        setState(_reload);
+        await _fetchStatus(showSpinner: false);
       }
       return result;
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
       return null;
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() => _busy = false);
+        if (_statusRefreshPending) {
+          _statusRefreshPending = false;
+          unawaited(_fetchStatus(showSpinner: false));
+        }
+      }
     }
   }
 
@@ -295,32 +388,32 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen> {
       false;
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<JobExecutionStatus>(
-    future: _status,
-    builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done) {
-        return const MortLoading(label: 'Loading server job progress...');
-      }
-      if (snapshot.hasError || snapshot.data == null) {
-        return MortScreen(
-          children: [
-            MortErrorState(
-              title: 'Job progress unavailable',
-              message: userFacingError(snapshot.error),
-              action: MortButton(
-                label: 'Retry',
-                icon: Icons.refresh,
-                onPressed: () => setState(_reload),
-              ),
-            ),
-          ],
-        );
-      }
-      final status = snapshot.data!;
+  Widget build(BuildContext context) {
+    if (_initialLoading) {
+      return const MortLoading(label: 'Loading server job progress...');
+    }
+    if (_current == null) {
       return MortScreen(
         children: [
+          MortErrorState(
+            title: 'Job progress unavailable',
+            message: userFacingError(_loadError),
+            action: MortButton(
+              label: 'Retry',
+              icon: Icons.refresh,
+              onPressed: () => _fetchStatus(showSpinner: true),
+            ),
+          ),
+        ],
+      );
+    }
+    final status = _current!;
+    return RefreshIndicator(
+      onRefresh: () => _fetchStatus(showSpinner: false),
+      child: MortScreen(
+        children: [
           MortHeader(
-            eyebrow: 'Server-owned job status',
+            eyebrow: 'Server-owned job status - updates automatically',
             title: 'Job progress',
             subtitle:
                 'Agreement, funding, in-person handoff, completion review, and payment release stay separate.',
@@ -391,9 +484,9 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen> {
             ],
           ),
         ],
-      );
-    },
-  );
+      ),
+    );
+  }
 
   Widget _adultActions(JobExecutionStatus status) {
     final awaitingStart = {
@@ -681,35 +774,92 @@ class _ProgressTimeline extends StatelessWidget {
   }
 }
 
-class _GeneratedPinCard extends StatelessWidget {
+class _GeneratedPinCard extends StatefulWidget {
   const _GeneratedPinCard({required this.pin});
 
   final GeneratedJobPin pin;
 
   @override
-  Widget build(BuildContext context) => MortCard(
-    color: MortColors.neonDeep,
-    child: Semantics(
-      label: 'Generated six digit in-person job PIN',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Share in person only'),
-          Text(
-            pin.pin,
-            style: Theme.of(
-              context,
-            ).textTheme.displaySmall?.copyWith(letterSpacing: 8),
-          ),
-          Text(
-            pin.expiresAt == null
-                ? 'Expires soon and can be used once.'
-                : 'Expires ${DateFormat.jm().format(pin.expiresAt!.toLocal())}. Single use.',
-          ),
-        ],
+  State<_GeneratedPinCard> createState() => _GeneratedPinCardState();
+}
+
+class _GeneratedPinCardState extends State<_GeneratedPinCard> {
+  Timer? _ticker;
+  Duration _remaining = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _tick();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+  }
+
+  @override
+  void didUpdateWidget(covariant _GeneratedPinCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.pin.pin != widget.pin.pin ||
+        oldWidget.pin.expiresAt != widget.pin.expiresAt) {
+      _tick();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  void _tick() {
+    final expiresAt = widget.pin.expiresAt;
+    final remaining = expiresAt == null
+        ? Duration.zero
+        : expiresAt.toUtc().difference(DateTime.now().toUtc());
+    if (!mounted) return;
+    final next = remaining.isNegative ? Duration.zero : remaining;
+    if (next != _remaining) setState(() => _remaining = next);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final expiresAt = widget.pin.expiresAt;
+    final expired = expiresAt != null && _remaining == Duration.zero;
+    final low = !expired && _remaining.inSeconds <= 30;
+    final minutes = _remaining.inMinutes;
+    final seconds = _remaining.inSeconds % 60;
+    return MortCard(
+      color: expired
+          ? MortColors.warning.withValues(alpha: 0.12)
+          : MortColors.neonDeep,
+      child: Semantics(
+        label: 'Generated six digit in-person job PIN',
+        liveRegion: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Share in person only'),
+            Text(
+              widget.pin.pin,
+              style: Theme.of(
+                context,
+              ).textTheme.displaySmall?.copyWith(letterSpacing: 8),
+            ),
+            if (expiresAt == null)
+              const Text('Expires soon and can be used once.')
+            else if (expired)
+              const Text(
+                'This PIN expired. Generate a new one in person.',
+                style: TextStyle(color: MortColors.danger),
+              )
+            else
+              Text(
+                'Expires in ${minutes.toString().padLeft(1, '0')}:${seconds.toString().padLeft(2, '0')}. Single use.',
+                style: low ? const TextStyle(color: MortColors.danger) : null,
+              ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _StatementDialog extends StatefulWidget {
