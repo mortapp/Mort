@@ -9,7 +9,7 @@ truth. Historical reports are evidence only when they still match current source
 ## Current State
 
 - Branch: `feature/compact-onboarding-and-screen-polish`
-- Current checkpoint: `214ed2a` (`Complete Safety Center and route action audit`)
+- Current checkpoint: `3c1f9f0` (`Harden Android native integration runner`)
 - Private Samsung/navigation captures are preserved outside distributable
   artifacts under ignored `backups/private-qa-evidence/`.
 - Flutter application: `flutter_mort/`
@@ -32,6 +32,10 @@ truth. Historical reports are evidence only when they still match current source
 | Safety and action audit | Verified checkpoint | `214ed2a`; durable Safety Center retry, free emergency access, role-scoped Safety Ping, universal guarded route, and generated route/action inventory |
 | Hosted backend regression | Verified | 45/45 scripts passed in 511.7 seconds; one transient hosted fetch retried once; isolated QA users removed |
 | Dependency/security pass | Verified with upstream limits | Expo SDK 57 patches applied; four transitive advisories patched by compatible overrides; two unpatched Metro `image-size` advisories and one non-reachable Xcode `uuid` advisory remain documented |
+| Play release QA | Verified | 18 release checks plus AAB/APK binary secret and signer checks passed |
+| Android release integrity | Verified | Signed APK/AAB, target SDK 36, 11-permission manifest, Android lint, and 18/18 native-library 16 KB alignment passed |
+| API 36 emulator | Verified | Exact signed APK cold launch and two-test native integration suite passed on `Medium_Phone_API_36.1` |
+| Physical Samsung completion | Blocked - secure human action | Remembered wireless endpoint refused connection; exact OAuth/account-status rendering retest and authenticated role matrix remain unperformed |
 
 ## Hosted Messaging Evidence
 
@@ -66,22 +70,22 @@ truth. Historical reports are evidence only when they still match current source
 - Focused secure-startup/navigation regression: PASS, 19 tests.
 - Full Flutter suite after repair: PASS, 349 tests; two intentional
   provider-configuration skips; zero failures.
+- Play release QA: PASS after repairing stale age-gate, SDK inventory, and
+  build-wrapper assertions.
+- Android release lint: PASS; 703 Gradle tasks.
+- Native integration: PASS on API 36/x86_64 with host GPU; two test bodies.
+- Exact signed APK cold launch: PASS; resumed activity and fatal-log scan.
+- APK alignment: PASS; 18/18 native libraries.
 - `git diff --check`: PASS.
 
 ## Remaining Code-Controlled Work
 
-1. Rerun final analyzer/format checks after the secure-startup navigation repair.
-2. Reconcile current Google Play requirements against official sources and
-   update Play/privacy/child-safety/reviewer documentation without inventing
-   legal or staffing approval.
-3. Commit current source, build protected-signed APK/AAB, verify package,
-   version, signing, permissions, target API, 16 KB alignment, provenance,
-   sizes, and SHA-256 hashes.
-4. Use the connected Samsung only through authorized ADB access for the required
-   synthetic journeys; preserve screenshots/logcat and classify physical results
-   separately from automated results.
-5. Clean generated root files, update final reports, and organize release
-   artifacts without overwriting immutable historical artifacts.
+1. Run the final post-documentation format, analyzer, test, source-secret, and
+   repository-cleanliness gates.
+2. Package the immutable signed artifacts, symbols, source, reports, hashes, and
+   SBOM under `artifacts/release-0.9.14+104`.
+3. Complete the secure physical Samsung login and exact OAuth/account-status
+   rendering retest when the owner re-enables authorized wireless debugging.
 
 ## External Gates
 
@@ -100,6 +104,7 @@ truth. Historical reports are evidence only when they still match current source
 
 ## Next Exact Step
 
-Run the final post-repair analyzer/format gates, commit the verified source, then
-reconcile current Google Play requirements and prepare the protected-signed
-`0.9.14+104` APK/AAB release candidate.
+Commit the final readiness documentation, run all final local gates, and create
+the clean `0.9.14+104` release directory. Physical release status remains open
+until the Samsung OAuth/account-status journey produces zero invalid-matrix
+errors.

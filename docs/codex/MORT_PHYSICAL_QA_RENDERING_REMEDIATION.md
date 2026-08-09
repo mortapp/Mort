@@ -138,3 +138,17 @@ SHA-256: FBA7CE65575BB4A2F7F7E8DE365FC33971DC75DB42D73B0E04AC043E590C60F6
 Second physical Samsung retest: **not done in this pass**.
 
 Do not mark this rendering defect fixed until the second-repair APK is installed on the physical Samsung SM-A146U and the same OAuth/account-status journey produces zero invalid-matrix errors in logcat.
+
+## 0.9.14+104 Final-Pass Status
+
+The finite opacity transition repair remains in the signed `0.9.14+104` runtime
+source. Focused rendering tests, the full Flutter suite, API 36 native
+integration, and an exact signed-APK cold launch pass. The cold-launch fatal-log
+scan did not emit an invalid-matrix error, but it did not exercise the OAuth
+callback/account-status transition.
+
+The final attempt to reconnect the remembered Samsung wireless-debugging
+endpoint was actively refused. No pairing, unlock, credential, clipboard, or
+biometric action was attempted. The required physical OAuth/account-status
+retest therefore remains **not done**, and this report does not mark the defect
+physically cleared.

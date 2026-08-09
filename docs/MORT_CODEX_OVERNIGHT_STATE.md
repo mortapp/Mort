@@ -1,23 +1,43 @@
-﻿# MORT Codex Overnight State
+# MORT Codex Overnight State
 
-- timestamp: 2026-08-07T02:20:00.0000000-04:00
-- phase completed: Phase 0 (recover), Phase 1 initial fix, Phase 2 audit report, Phase 3 signed APK build and installation
-- files changed:
-  - flutter_mort/lib/core/widgets/mort_widgets.dart
-  - flutter_mort/test/mort_back_navigation_test.dart
-  - flutter_mort/pubspec.yaml
-  - docs/MORT_BACK_NAVIGATION_REPORT.md
-  - docs/MORT_CODEX_OVERNIGHT_STATE.md
-- verification performed:
-  - signed closed-test APK rebuilt from commit `d884855` and copied to `build/play/mort-closed-test-0.9.14.apk`
-  - fresh APK hash verified as `3BD098FAC49CCE066F57B4688EC444132DF1D49AEACDB4A723F4648470B6B12D`
-  - superseded pre-fix APK hash retained as `01D2C5D73170FFC0CF6A57595F475BA8B5E879A713A79CACCEF810B711D3E923`
-  - Samsung SM-A146U wireless ADB connection restored and the rebuilt APK installed successfully
-  - installed package metadata confirmed `versionName=0.9.14`, `versionCode=104`, `package=com.mortapp.mobile`
-  - app launch and runtime activity were confirmed on the handset, with the device remaining at the auth/browser boundary for the live session
-- exact failures: none in the local source validation; the remaining hardware verification remains blocked by the current device session being at the authentication boundary rather than the authenticated Adult dashboard
-- next command: continue the authenticated Tier 1 QA pass once a human-authenticated Adult dashboard session is available
-- next unfinished task: capture direct Post job/My jobs Back retest evidence from the live authenticated dashboard
-- current commit hash: `d884855`
-- working tree state: clean after the repair commit
-- budget/time consumed so far: ~30%
+- Updated: 2026-08-08 (America/Indianapolis)
+- Branch: `feature/compact-onboarding-and-screen-polish`
+- Latest verified checkpoint before final documentation: `3c1f9f0`
+- Runtime artifact source: `909a4235268ee16b2d6884862c0236cbec632b4b`
+- Version: `0.9.14+104`
+- Package: `com.mortapp.mobile`
+
+## Completed
+
+- Unified auth, role onboarding, Liquid Glass system, role dashboards,
+  messaging, settings, Safety Center, and route/action audit are committed.
+- Hosted Supabase regression passed 45/45 scripts; migration parity, schema
+  lint, advisors, RLS, and storage checks passed.
+- Flutter analyzer and full tests passed: 349 passed, two provider-gated skips.
+- Expo reference checks, lint, build, export, and Doctor passed.
+- Play release QA passed after stale QA assertions were repaired.
+- Signed APK and AAB from clean runtime source are verified.
+- APK target SDK 36, 11 permissions, and 18/18 native-library 16 KB alignment
+  passed.
+- Android release lint passed.
+- API 36 native integration passed two test bodies with the canonical version
+  injected through non-secret test defines.
+- Exact signed APK cold-launched on API 36 with the process alive, MainActivity
+  resumed, and no fatal Android/Flutter logs.
+
+## Open
+
+- The Samsung SM-A146U remembered wireless endpoint refused the final connection.
+- The repaired OAuth callback to `/account-status` still needs the exact physical
+  rerun with zero invalid-matrix errors.
+- Authenticated Teen, Adult, Guardian, Admin, and Support hardware journeys need
+  secure human login.
+- Provider, moderation/support staffing, legal/privacy, Play Console, and iOS
+  gates remain external.
+
+## Next Exact Step
+
+Finish the final local gates and package `artifacts/release-0.9.14+104`. When the
+owner securely re-enables Samsung wireless debugging and authenticates, install
+the exact signed APK and rerun the OAuth/account-status and role matrices without
+recording credentials or private device data.
