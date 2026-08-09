@@ -9,7 +9,7 @@ truth. Historical reports are evidence only when they still match current source
 ## Current State
 
 - Branch: `feature/compact-onboarding-and-screen-polish`
-- Current checkpoint: `3c1f9f0` (`Harden Android native integration runner`)
+- Current checkpoint: `dd2e6b6` (`Make release SBOM packaging version safe`)
 - Private Samsung/navigation captures are preserved outside distributable
   artifacts under ignored `backups/private-qa-evidence/`.
 - Flutter application: `flutter_mort/`
@@ -37,6 +37,7 @@ truth. Historical reports are evidence only when they still match current source
 | API 36 emulator | Verified | Exact signed APK cold launch and two-test native integration suite passed on `Medium_Phone_API_36.1` |
 | Physical Samsung completion | Blocked - secure human action | Remembered wireless endpoint refused connection; exact OAuth/account-status rendering retest and authenticated role matrix remain unperformed |
 | Release SBOM path | Repaired with disclosed historical impact | Hardcoded `0.9.13+103` output replaced by explicit version-matched output; old SBOM reconstructed from its verified source ZIP, original bytes unrecoverable |
+| Final release package | Verified | 13 manifest-tracked artifacts matched; 1,851 source ZIP entries; excluded-path, sensitive-file, secret, signer, and binary checks passed |
 
 ## Hosted Messaging Evidence
 
@@ -77,15 +78,13 @@ truth. Historical reports are evidence only when they still match current source
 - Native integration: PASS on API 36/x86_64 with host GPU; two test bodies.
 - Exact signed APK cold launch: PASS; resumed activity and fatal-log scan.
 - APK alignment: PASS; 18/18 native libraries.
+- Version-safe release packaging: PASS; `artifacts/release-0.9.14+104` contains
+  signed binaries, symbols, SBOM, reports, manifests, and an audited source ZIP.
 - `git diff --check`: PASS.
 
 ## Remaining Code-Controlled Work
 
-1. Run the final post-documentation format, analyzer, test, source-secret, and
-   repository-cleanliness gates.
-2. Rerun packaging with the version-bound SBOM generator, then audit every
-   `artifacts/release-0.9.14+104` file and archive entry.
-3. Complete the secure physical Samsung login and exact OAuth/account-status
+1. Complete the secure physical Samsung login and exact OAuth/account-status
    rendering retest when the owner re-enables authorized wireless debugging.
 
 ## External Gates
@@ -105,7 +104,7 @@ truth. Historical reports are evidence only when they still match current source
 
 ## Next Exact Step
 
-Commit the final readiness documentation, run all final local gates, and create
-the clean `0.9.14+104` release directory. Physical release status remains open
-until the Samsung OAuth/account-status journey produces zero invalid-matrix
-errors.
+When the owner securely re-enables Samsung wireless debugging, install the exact
+signed APK, complete human authentication, and capture the OAuth/account-status
+plus role-matrix retest. Physical release status remains open until that journey
+produces zero invalid-matrix errors.

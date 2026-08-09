@@ -142,6 +142,12 @@ No artifact was uploaded automatically. Historical APK/AAB/source/symbol and
 manifest evidence were not changed. The historical `0.9.13+103` SBOM incident
 and non-byte-identical reconstruction are disclosed above.
 
+The version-safe final release directory contains 13 manifest-tracked files,
+including the signed APK/AAB, symbols, CycloneDX SBOM, reports, build manifests,
+and source ZIP. The source ZIP contains 1,851 files. Manifest hash comparison,
+excluded-path review, archive sensitive-file scan, source secret audit, binary
+secret scan, signing verification, and APK alignment checks pass.
+
 ## Physical Android Status
 
 Earlier Samsung SM-A146U work confirmed signed installation and launch for an

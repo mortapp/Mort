@@ -24,6 +24,10 @@
   injected through non-secret test defines.
 - Exact signed APK cold-launched on API 36 with the process alive, MainActivity
   resumed, and no fatal Android/Flutter logs.
+- The version-safe `release-0.9.14+104` directory passed manifest, source ZIP,
+  secret, sensitive-file, signer, binary, and 16 KB audits.
+- The stale SBOM output defect was fixed and its historical impact was disclosed
+  in `docs/MORT_IMMUTABLE_ARTIFACT_RECOVERY_2026_08_08.md`.
 
 ## Open
 
@@ -37,7 +41,6 @@
 
 ## Next Exact Step
 
-Finish the final local gates and package `artifacts/release-0.9.14+104`. When the
-owner securely re-enables Samsung wireless debugging and authenticates, install
-the exact signed APK and rerun the OAuth/account-status and role matrices without
-recording credentials or private device data.
+When the owner securely re-enables Samsung wireless debugging and authenticates,
+install the exact signed APK and rerun the OAuth/account-status and role matrices
+without recording credentials or private device data.
