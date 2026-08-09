@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { anonClient, assert, pass, serviceClient } from './play-release-qa-helpers.mjs';
 
 const scope = 'qa-under-13-block';
@@ -13,13 +13,16 @@ try {
   if (signInError) throw new Error('Disposable age-gate QA sign-in failed.');
   const birth = new Date();
   birth.setUTCFullYear(birth.getUTCFullYear() - 12);
-  const { error } = await client.from('profiles').update({
-    role: 'teen', display_name: 'Under 13 QA', dob: birth.toISOString().slice(0, 10),
-    city: 'Testville', state: 'IN', onboarding_completed: true,
-  }).eq('id', created.user.id);
-  assert(error, 'Server accepted under-13 onboarding.');
-  assert(/13|age|profile/i.test(error.message), 'Under-13 rejection did not come from an age/profile rule.');
-  pass(scope, 'server trigger rejected completion of an under-13 registration');
+  const { data, error } = await client.rpc('save_my_onboarding_age', {
+    p_dob: birth.toISOString().slice(0, 10),
+    p_client_request_id: randomUUID(),
+  });
+  assert(!error, 'Canonical age gate returned a transport or database error.');
+  assert(
+    data?.ok === false && data?.code === 'under_13_not_eligible',
+    'Canonical age gate did not return the under-13 rejection code.',
+  );
+  pass(scope, 'canonical server age gate rejected an under-13 registration');
 } finally {
   await admin.auth.admin.deleteUser(created.user.id, false);
 }

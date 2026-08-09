@@ -7,13 +7,27 @@ const pubspec = read('flutter_mort/pubspec.yaml');
 for (const category of ['Email','Date of birth and age band','Approximate location','Messages','Photos/files','Safety reports','Payment preference']) {
   assert(collection.includes(`"${category}"`), `Data inventory omits ${category}.`);
 }
-for (const dependency of ['supabase_flutter','local_auth','image_picker','geolocator','flutter_local_notifications']) {
+for (const dependency of [
+  'supabase_flutter',
+  'local_auth',
+  'image_picker',
+  'geolocator',
+  'firebase_core',
+  'firebase_messaging',
+  'sentry_flutter',
+]) {
   assert(pubspec.includes(`${dependency}:`), `Expected dependency ${dependency} changed without inventory review.`);
 }
 for (const dependency of ['purchases_flutter', 'purchases_ui_flutter', 'google_mobile_ads']) {
   assert(!pubspec.includes(`${dependency}:`), `Excluded dependency ${dependency} returned without inventory review.`);
 }
-for (const sdkName of ['Supabase','RevenueCat','google_mobile_ads','flutter_local_notifications']) {
+for (const sdkName of [
+  'Supabase',
+  'Firebase Messaging',
+  'Sentry',
+  'RevenueCat',
+  'google_mobile_ads',
+]) {
   assert(sdk.toLowerCase().includes(sdkName.toLowerCase()), `SDK inventory omits ${sdkName}.`);
 }
 for (const excludedRow of [

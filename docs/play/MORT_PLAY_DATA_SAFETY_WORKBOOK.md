@@ -12,7 +12,11 @@ This is a source-and-backend inventory, not a Play Console submission. The adult
 - Data shared for advertising: **No in this build**; AdMob is disabled and ad identifier permissions are removed.
 - Payments/purchases: **No in this build**; IAP and billing permission are disabled. Payment preference records are not card/payment processing.
 - Real identity documents/biometrics: **Not collected**; provider verification and document collection are disabled.
-- Third-party SDKs bundled but disabled: RevenueCat and Google Mobile Ads code require detection review in Play SDK Index and the final AAB. Their runtime initialization is disabled; this statement must be revisited if the artifacts show otherwise.
+- Third-party SDKs bundled but disabled: Firebase Core/Messaging and Sentry are
+  physically present but have no closed-test client configuration and are not
+  initialized. RevenueCat and Google Mobile Ads are not bundled. Reconcile the
+  exact AAB with Play SDK Index and revisit this statement before enabling any
+  provider.
 
 Use the companion collection, SDK, and retention CSVs as the item-by-item entry worksheet. Do not submit until a real public privacy URL, adult publisher identity, support contact, and exact AAB SDK scan are complete.
 

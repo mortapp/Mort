@@ -2,7 +2,7 @@
 
 # Data Safety Final Workbook
 
-This workbook is a code/schema recommendation for version `0.9.1+91`. The adult owner must compare it to the exact Play-accepted AAB and hosted processor contracts.
+This workbook is a code/schema recommendation for version `0.9.14+104`. The adult owner must compare it to the exact Play-accepted AAB and hosted processor contracts.
 
 | Category | Collected | Shared | Purpose | Required | Ephemeral | Transit | Retention | Deletion | Code/table path | Storage path |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -22,7 +22,12 @@ This workbook is a code/schema recommendation for version `0.9.1+91`. The adult 
 | Organization affiliation | Optional | Organization staff and participant as scoped; Supabase processor | Pilot eligibility/support | Optional | No | HTTPS | Membership/attestation expiry | Revocation/deletion rules | mission_pilot_repository.dart; partner tables | None |
 | Guardian/Support Circle | Optional | Only linked authorized users; Supabase processor | Optional support and safety | Optional | No | HTTPS | Until unlink/deletion | Unlink/deletion | guardian_repository.dart; support_circle tables | None |
 
-Bundled SDK conclusion: Supabase, secure storage, local auth, image picker, geolocation/geocoding, notifications, device/package info, URL launcher, cached images, and Flutter runtime remain. AdMob and RevenueCat SDKs are not bundled. Verify the final dependency and bundle reports before checking Play fields.
+Bundled SDK conclusion: Supabase, secure storage, local auth, image picker,
+geolocation/geocoding, Firebase Core/Messaging, Sentry, device/package info, URL
+launcher, cached images, and Flutter runtime remain. Firebase remote push and
+Sentry crash reporting are fail-closed and uninitialized in the closed-test
+profile. AdMob and RevenueCat SDKs are not bundled. Verify the final dependency,
+Play SDK Index, and bundle reports before checking Play fields.
 
 - [ ] Owner confirms each category against the exact accepted AAB.
 - [ ] Owner confirms encryption, retention, deletion, and processor statements.
