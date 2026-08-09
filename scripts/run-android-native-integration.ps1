@@ -16,6 +16,9 @@ $adb = Join-Path $sdk 'platform-tools\adb.exe'
 $emulator = Join-Path $sdk 'emulator\emulator.exe'
 $stdout = Join-Path $env:TEMP 'mort-integration-emulator-stdout.log'
 $stderr = Join-Path $env:TEMP 'mort-integration-emulator-stderr.log'
+$versionJson = & node (Join-Path $PSScriptRoot 'read-mobile-version.mjs') --json
+if ($LASTEXITCODE -ne 0) { throw 'Could not read the authoritative mobile version.' }
+$version = $versionJson | ConvertFrom-Json
 if ([string]::IsNullOrWhiteSpace($ResultPath)) {
   $ResultPath = Join-Path $root 'artifacts\native-qa\android-native-integration-result.json'
 }
@@ -38,7 +41,7 @@ function Write-NativeIntegrationResult {
     apiLevel = $ApiLevel
     abi = $Abi
     gpuMode = $GpuMode
-    driverFile = 'test_driver/integration_test.dart'
+    testCommand = 'flutter test integration_test/android_native_smoke_test.dart'
     testFile = 'integration_test/android_native_smoke_test.dart'
     expectedTestCount = 2
     failure = $Failure
@@ -113,9 +116,9 @@ try {
 
   Push-Location $flutterRoot
   try {
-    & flutter drive --no-pub `
-      --driver test_driver/integration_test.dart `
-      --target integration_test/android_native_smoke_test.dart `
+    & flutter test integration_test/android_native_smoke_test.dart `
+      "--dart-define=MORT_EXPECTED_VERSION_NAME=$($version.versionName)" `
+      "--dart-define=MORT_EXPECTED_VERSION_CODE=$($version.versionCode)" `
       -d $serial
     if ($LASTEXITCODE -ne 0) { throw 'Android native integration test failed.' }
   } finally {

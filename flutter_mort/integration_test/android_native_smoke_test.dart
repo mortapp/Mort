@@ -14,6 +14,13 @@ import 'package:flutter_mort/services/screen_security_service.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
+  const expectedVersionName = String.fromEnvironment(
+    'MORT_EXPECTED_VERSION_NAME',
+  );
+  const expectedVersionCode = String.fromEnvironment(
+    'MORT_EXPECTED_VERSION_CODE',
+  );
+
   testWidgets('Android native services initialize without plugin errors', (
     tester,
   ) async {
@@ -47,8 +54,10 @@ void main() {
       expect(defaultTargetPlatform, TargetPlatform.android);
       final package = await PackageInfo.fromPlatform();
       expect(package.packageName, 'com.mortapp.mobile');
-      expect(package.version, '0.9.13');
-      expect(package.buildNumber, '103');
+      expect(expectedVersionName, isNotEmpty);
+      expect(expectedVersionCode, isNotEmpty);
+      expect(package.version, expectedVersionName);
+      expect(package.buildNumber, expectedVersionCode);
 
       await tester.pumpWidget(
         const ProviderScope(
