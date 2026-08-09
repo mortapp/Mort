@@ -7,6 +7,18 @@ import 'package:image/image.dart' as image;
 String _read(String path) => File(path).readAsStringSync();
 
 void main() {
+  test('shared Safety route is guarded and obsolete jobs alias is absent', () {
+    final router = _read('lib/core/routing/app_router.dart');
+    final support = _read('lib/features/support/support_screens.dart');
+
+    expect(router, contains("_guarded(\n        '/safety'"));
+    expect(support, isNot(contains("context.go('/jobs')")));
+    expect(support, contains("UserRole.teen => '/teen/applications'"));
+    expect(support, contains("UserRole.adult => '/adult/jobs'"));
+    expect(support, contains("UserRole.guardian => '/guardian/activity'"));
+    expect(support, contains("UserRole.admin => '/admin/jobs'"));
+  });
+
   test('release configuration is fail-closed and bound to MORT Supabase', () {
     final config = _read('lib/core/config/app_config.dart');
     final main = _read('lib/main.dart');

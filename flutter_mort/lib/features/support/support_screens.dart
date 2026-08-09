@@ -10,6 +10,7 @@ import '../../core/theme/mort_spacing.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/validators.dart';
 import '../../core/widgets/mort_widgets.dart';
+import '../../data/models/profile.dart';
 import '../../data/repositories/providers.dart';
 import '../../data/repositories/support_repository.dart';
 
@@ -118,6 +119,14 @@ class _SupportHomeScreenState extends ConsumerState<SupportHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authRepositoryProvider).currentUser;
+    final role = ref.watch(currentProfileProvider).asData?.value?.role;
+    final recentJobRoute = switch (role) {
+      UserRole.teen => '/teen/applications',
+      UserRole.adult => '/adult/jobs',
+      UserRole.guardian => '/guardian/activity',
+      UserRole.admin => '/admin/jobs',
+      null => null,
+    };
     return MortScreen(
       children: [
         const Align(
@@ -223,17 +232,18 @@ class _SupportHomeScreenState extends ConsumerState<SupportHomeScreen> {
           ),
           const SizedBox(height: MortSpacing.xs),
         ],
-        MortCard(
-          onTap: () => context.go('/jobs'),
-          child: const Row(
-            children: [
-              Icon(Icons.history_outlined, color: MortColors.lightBlue),
-              SizedBox(width: MortSpacing.sm),
-              Expanded(child: Text('Recent job help')),
-              Icon(Icons.chevron_right),
-            ],
+        if (recentJobRoute != null)
+          MortCard(
+            onTap: () => context.go(recentJobRoute),
+            child: const Row(
+              children: [
+                Icon(Icons.history_outlined, color: MortColors.lightBlue),
+                SizedBox(width: MortSpacing.sm),
+                Expanded(child: Text('Recent job activity')),
+                Icon(Icons.chevron_right),
+              ],
+            ),
           ),
-        ),
         const SizedBox(height: MortSpacing.md),
         if (user == null) ...[
           const MortEmptyState(

@@ -67,18 +67,45 @@ const failures = [];
 let directRouteCount = 0;
 let guardedDirectRouteCount = 0;
 
+const teenShellStart = router.indexOf('StatefulShellRoute.indexedStack(');
+if (teenShellStart < 0) {
+  failures.push('Teen StatefulShellRoute is missing');
+}
+const teenShellCall = teenShellStart < 0 ? '' : extractCall(router, teenShellStart);
+const teenShellEnd = teenShellStart + teenShellCall.length;
+if (
+  teenShellCall &&
+  (!teenShellCall.includes('builder: (_, _, navigationShell) => GuardedRoute(') ||
+    !teenShellCall.includes('requiredRole: UserRole.teen') ||
+    !teenShellCall.includes('child: TeenShell(navigationShell: navigationShell)'))
+) {
+  failures.push('Teen StatefulShellRoute is missing its explicit Teen GuardedRoute');
+}
+
+const guardedRedirects = new Map([['/teen/jobs', '/teen/home']]);
+
 for (const match of router.matchAll(/\bGoRoute\s*\(/g)) {
   const call = extractCall(router, match.index);
   const route = call.match(/\bpath:\s*'([^']+)'/s)?.[1];
   if (!route) continue;
   directRouteCount += 1;
-  const guarded = call.includes('GuardedRoute(');
+  const insideTeenShell =
+    teenShellStart >= 0 && match.index > teenShellStart && match.index < teenShellEnd;
+  const redirectTarget = call.match(/\bredirect:.*?=>\s*'([^']+)'/s)?.[1];
+  const guardedRedirect = guardedRedirects.get(route) === redirectTarget;
+  const guarded = call.includes('GuardedRoute(') || insideTeenShell || guardedRedirect;
   if (guarded) guardedDirectRouteCount += 1;
   if (!publicRoutes.has(route) && !guarded) {
     failures.push(`${route}: direct route is neither public-allowlisted nor guarded`);
   }
   for (const role of ['teen', 'adult', 'guardian', 'admin']) {
-    if (route.startsWith(`/${role}/`) && !call.includes(`UserRole.${role}`)) {
+    const inheritedRoleGuard = role === 'teen' && insideTeenShell;
+    if (
+      route.startsWith(`/${role}/`) &&
+      !call.includes(`UserRole.${role}`) &&
+      !inheritedRoleGuard &&
+      !guardedRedirect
+    ) {
       failures.push(`${route}: missing explicit ${role} role guard`);
     }
   }
@@ -123,6 +150,7 @@ const designSource = [
   'lib/core/theme/mort_theme.dart',
   'lib/core/widgets/mort_brand.dart',
   'lib/core/widgets/mort_widgets.dart',
+  'lib/core/widgets/mort_liquid_glass.dart',
   'lib/core/widgets/mort_design_components.dart',
 ]
   .map((relative) => fs.readFileSync(path.join(flutterRoot, relative), 'utf8'))

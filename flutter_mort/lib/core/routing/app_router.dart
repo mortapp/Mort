@@ -801,6 +801,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         role: UserRole.admin,
       ),
       _guarded(
+        '/safety',
+        const SensitiveScreenProtection(child: SafetyCenterScreen()),
+      ),
+      _guarded(
         '/messages',
         const SensitiveScreenProtection(child: MessagesScreen()),
       ),

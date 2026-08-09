@@ -4554,6 +4554,7 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
   bool _busy = false;
   bool _loading = true;
   bool _immediateDanger = false;
+  String? _loadError;
   Map<String, dynamic>? _config;
   List<Map<String, dynamic>> _checkins = const [];
   String? _selectedJobId = '';
@@ -4573,6 +4574,12 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
   }
 
   Future<void> _load() async {
+    if (!_loading || _loadError != null) {
+      setState(() {
+        _loading = true;
+        _loadError = null;
+      });
+    }
     try {
       final repository = ref.read(safetyRepositoryProvider);
       final values = await Future.wait<dynamic>([
@@ -4584,12 +4591,15 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
       setState(() {
         _config = Map<String, dynamic>.from(values[0] as Map);
         _checkins = checkins;
+        _loadError = null;
         _loading = false;
       });
     } catch (error) {
       if (!mounted) return;
-      setState(() => _loading = false);
-      MortToast.show(context, userFacingError(error));
+      setState(() {
+        _loadError = userFacingError(error);
+        _loading = false;
+      });
     }
   }
 
@@ -4700,6 +4710,8 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
   @override
   Widget build(BuildContext context) {
     final inTeenShell = TeenNavigationScope.maybeOf(context) != null;
+    final profile = ref.watch(currentProfileProvider).asData?.value;
+    final isTeen = profile?.role == UserRole.teen;
     final currentCheckin = _checkins.isEmpty ? null : _checkins.first;
     final activeJobs = <String, String>{'': 'Do not attach an active job'};
     for (final checkin in _checkins) {
@@ -4736,17 +4748,37 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
               'Report, block, and Safety Ping stay free. Contact local emergency services for immediate danger.',
         ),
         const SizedBox(height: MortSpacing.md),
+        if (_loadError != null) ...[
+          MortErrorState(
+            title: 'Safety status unavailable',
+            message:
+                'MORT could not refresh active check-ins. Emergency calling, reporting, and support remain available.',
+            action: MortButton(
+              label: 'Retry safety status',
+              icon: Icons.refresh_rounded,
+              style: MortButtonStyle.secondary,
+              onPressed: _loading ? null : _load,
+            ),
+          ),
+          const SizedBox(height: MortSpacing.md),
+        ],
         MortSafetyPulse(
-          title: currentCheckin == null ? 'Safety ready' : 'I am okay',
-          status: _loading
+          title: isTeen && currentCheckin != null
+              ? 'I am okay'
+              : 'Safety ready',
+          status: _loadError != null
+              ? 'Active check-in status needs a refresh'
+              : _loading
               ? 'Loading active check-ins'
+              : !isTeen
+              ? 'Emergency, report, and support tools are available'
               : currentCheckin == null
               ? 'No active job check-in'
               : 'Due ${formatDateTime(currentCheckin['expected_at'])}',
-          icon: currentCheckin == null
+          icon: !isTeen || currentCheckin == null
               ? Icons.shield_rounded
               : Icons.touch_app_rounded,
-          onPressed: currentCheckin == null || _busy
+          onPressed: !isTeen || currentCheckin == null || _busy
               ? null
               : () => _completeCheckin(currentCheckin['checkin_id'].toString()),
         ),
@@ -4755,7 +4787,7 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
           label: 'Call 911',
           icon: Icons.call,
           style: MortButtonStyle.danger,
-          onPressed: _loading ? null : _confirmEmergencyCall,
+          onPressed: _confirmEmergencyCall,
         ),
         const SizedBox(height: MortSpacing.sm),
         MortButton(
@@ -4771,7 +4803,7 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
           style: MortButtonStyle.secondary,
           onPressed: () => context.push('/report'),
         ),
-        if (_checkins.isNotEmpty) ...[
+        if (isTeen && _checkins.isNotEmpty) ...[
           const SizedBox(height: MortSpacing.lg),
           const MortSectionTitle(title: 'Active job check-ins'),
           ..._checkins.map(
@@ -4842,35 +4874,45 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
                   }),
           ),
         ],
-        const SizedBox(height: MortSpacing.lg),
-        MortTextArea(
-          label: 'Optional Safety Ping note',
-          controller: _note,
-          maxLines: 3,
-        ),
-        CheckboxListTile(
-          contentPadding: EdgeInsets.zero,
-          value: _immediateDanger,
-          title: const Text('Someone may be in immediate danger'),
-          subtitle: const Text(
-            'Creates an urgent restricted case. MORT cannot dispatch help.',
+        if (isTeen) ...[
+          const SizedBox(height: MortSpacing.lg),
+          MortTextArea(
+            label: 'Optional Safety Ping note',
+            controller: _note,
+            maxLines: 3,
           ),
-          onChanged: _busy
-              ? null
-              : (value) => setState(() {
-                  _immediateDanger = value ?? false;
-                  _pingRequestId = null;
-                }),
-        ),
-        const SizedBox(height: MortSpacing.md),
-        MortButton(
-          label: _immediateDanger ? 'Send urgent Safety Ping' : 'Safety Ping',
-          busyLabel: 'Sending Safety Ping...',
-          busy: _busy,
-          icon: Icons.health_and_safety,
-          style: MortButtonStyle.danger,
-          onPressed: _ping,
-        ),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _immediateDanger,
+            title: const Text('Someone may be in immediate danger'),
+            subtitle: const Text(
+              'Creates an urgent restricted case. MORT cannot dispatch help.',
+            ),
+            onChanged: _busy
+                ? null
+                : (value) => setState(() {
+                    _immediateDanger = value ?? false;
+                    _pingRequestId = null;
+                  }),
+          ),
+          const SizedBox(height: MortSpacing.md),
+          MortButton(
+            label: _immediateDanger ? 'Send urgent Safety Ping' : 'Safety Ping',
+            busyLabel: 'Sending Safety Ping...',
+            busy: _busy,
+            icon: Icons.health_and_safety,
+            style: MortButtonStyle.danger,
+            onPressed: _ping,
+          ),
+        ] else ...[
+          const SizedBox(height: MortSpacing.md),
+          const MortEmptyState(
+            title: 'Safety Ping is for Teen accounts',
+            message:
+                'Adults, Guardians, and staff can still call emergency services, report concerns, contact Support, and use role-authorized safety tools.',
+            icon: Icons.shield_outlined,
+          ),
+        ],
         const SizedBox(height: MortSpacing.sm),
         MortButton(
           label: 'Safety Circle',

@@ -47,15 +47,25 @@ class _FakeSafetyRepository extends SafetyRepository {
   _FakeSafetyRepository({
     Map<String, dynamic>? config,
     List<Map<String, dynamic>>? checkins,
+    this.configFailuresRemaining = 0,
   }) : config = config ?? const {},
        checkins = checkins ?? const [];
 
   final Map<String, dynamic> config;
   final List<Map<String, dynamic>> checkins;
+  int configFailuresRemaining;
+  int configLoadCount = 0;
   String? completedCheckinId;
 
   @override
-  Future<Map<String, dynamic>> getSafetyCenterConfig() async => config;
+  Future<Map<String, dynamic>> getSafetyCenterConfig() async {
+    configLoadCount += 1;
+    if (configFailuresRemaining > 0) {
+      configFailuresRemaining -= 1;
+      throw StateError('safety_status_unavailable');
+    }
+    return config;
+  }
 
   @override
   Future<List<Map<String, dynamic>>> listActiveJobCheckins() async => checkins;
@@ -76,6 +86,20 @@ Widget _app({required Widget child, List overrides = const []}) {
     child: MaterialApp(home: child),
   );
 }
+
+Profile _teenProfile() => Profile(
+  id: 'profile-1',
+  role: UserRole.teen,
+  displayName: 'Test Teen',
+  username: 'testteen',
+  dob: DateTime(2010, 1, 1),
+  city: 'TestCity',
+  state: 'TS',
+  onboardingCompleted: true,
+  accountStatus: 'active',
+  verificationStatus: 'approved',
+  paymentPreference: 'none',
+);
 
 Job _job({required String id, String title = 'Test Job'}) {
   return Job(
@@ -251,7 +275,7 @@ void main() {
           overrides: [
             safetyRepositoryProvider.overrideWithValue(repository),
             currentProfileProvider.overrideWithValue(
-              const AsyncValue.data(null),
+              AsyncValue.data(_teenProfile()),
             ),
           ],
         ),
@@ -294,7 +318,9 @@ void main() {
         child: const SafetyCenterScreen(),
         overrides: [
           safetyRepositoryProvider.overrideWithValue(repository),
-          currentProfileProvider.overrideWithValue(const AsyncValue.data(null)),
+          currentProfileProvider.overrideWithValue(
+            AsyncValue.data(_teenProfile()),
+          ),
         ],
       ),
     );
@@ -308,5 +334,83 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.completedCheckinId, 'checkin-1');
+  });
+
+  testWidgets(
+    'SafetyCenterScreen keeps emergency help available and recovers after load failure',
+    (tester) async {
+      final repository = _FakeSafetyRepository(
+        config: {'emergency_guidance': 'Recovered safety guidance'},
+        configFailuresRemaining: 1,
+      );
+
+      await tester.pumpWidget(
+        _app(
+          child: const SafetyCenterScreen(),
+          overrides: [
+            safetyRepositoryProvider.overrideWithValue(repository),
+            currentProfileProvider.overrideWithValue(
+              AsyncValue.data(_teenProfile()),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Safety status unavailable'), findsOneWidget);
+      expect(find.text('Retry safety status'), findsOneWidget);
+
+      final emergencyButton = find.text('Call 911');
+      await tester.ensureVisible(emergencyButton);
+      await tester.tap(emergencyButton);
+      await tester.pumpAndSettle();
+      expect(find.text('Open the emergency dialer?'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      final retry = find.text('Retry safety status');
+      await tester.ensureVisible(retry);
+      await tester.tap(retry);
+      await tester.pumpAndSettle();
+
+      expect(repository.configLoadCount, 2);
+      expect(find.text('Safety status unavailable'), findsNothing);
+      expect(find.text('Recovered safety guidance'), findsOneWidget);
+    },
+  );
+
+  testWidgets('SafetyCenterScreen keeps Teen-only Safety Ping off adult UI', (
+    tester,
+  ) async {
+    final repository = _FakeSafetyRepository();
+    final adult = Profile(
+      id: 'adult-1',
+      role: UserRole.adult,
+      displayName: 'Test Adult',
+      username: 'testadult',
+      dob: DateTime(1990, 1, 1),
+      city: 'TestCity',
+      state: 'TS',
+      onboardingCompleted: true,
+      accountStatus: 'active',
+      verificationStatus: 'approved',
+      paymentPreference: 'none',
+    );
+
+    await tester.pumpWidget(
+      _app(
+        child: const SafetyCenterScreen(),
+        overrides: [
+          safetyRepositoryProvider.overrideWithValue(repository),
+          currentProfileProvider.overrideWithValue(AsyncValue.data(adult)),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Safety Ping is for Teen accounts'), findsOneWidget);
+    expect(find.text('Optional Safety Ping note'), findsNothing);
+    expect(find.text('Call 911'), findsOneWidget);
+    expect(find.text('Report a safety concern'), findsOneWidget);
   });
 }

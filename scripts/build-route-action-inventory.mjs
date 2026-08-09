@@ -76,16 +76,22 @@ for (const [file, source] of sources) {
 }
 
 const router = fs.readFileSync(routerPath, 'utf8');
+const teenShellStart = router.indexOf('StatefulShellRoute.indexedStack(');
+const teenShellCall = teenShellStart < 0 ? '' : extractCall(router, teenShellStart);
+const teenShellEnd = teenShellStart + teenShellCall.length;
 const calls = [];
 for (const match of router.matchAll(/\b(?:GoRoute|_guarded)\s*\(/g)) {
   const call = extractCall(router, match.index);
   const routeMatch = call.startsWith('_guarded')
     ? call.match(/^_guarded\s*\(\s*'([^']+)'/s)
     : call.match(/\bpath:\s*'([^']+)'/s);
-  if (routeMatch) calls.push({ call, route: routeMatch[1] });
+  if (routeMatch) calls.push({ call, route: routeMatch[1], offset: match.index });
 }
 
-const flutterRows = calls.map(({ call, route }) => {
+const flutterRows = calls.map(({ call, route, offset }) => {
+  const inheritedTeenShellGuard =
+    teenShellStart >= 0 && offset > teenShellStart && offset < teenShellEnd;
+  const redirectTarget = call.match(/\bredirect:.*?=>\s*'([^']+)'/s)?.[1];
   const constructors = unique(
     [...call.matchAll(/\b([A-Z][A-Za-z0-9_]*)\s*\(/g)].map((match) => match[1]),
   );
@@ -94,7 +100,9 @@ const flutterRows = calls.map(({ call, route }) => {
     'GuardedRoute',
     'SensitiveScreenProtection',
   ]);
-  const screen = constructors.find((name) => classFiles.has(name) && !ignored.has(name)) ??
+  const screen = redirectTarget
+    ? `redirect:${redirectTarget}`
+    : constructors.find((name) => classFiles.has(name) && !ignored.has(name)) ??
     (call.includes('_adminDetail') ? '_adminDetail' :
       call.includes('_pilotUnavailable') ? '_pilotUnavailable' :
       call.includes('_academy') ? '_academy' :
@@ -102,10 +110,11 @@ const flutterRows = calls.map(({ call, route }) => {
   const sourceFile = classFiles.get(screen) ?? routerPath;
   const source = sources.get(sourceFile) ?? router;
   const role = call.match(/(?:requiredRole|role):\s*UserRole\.([a-z]+)/)?.[1] ??
+    (inheritedTeenShellGuard ? 'teen' :
     (route.startsWith('/teen/') ? 'teen' :
       route.startsWith('/adult/') ? 'adult' :
         route.startsWith('/guardian/') ? 'guardian' :
-          route.startsWith('/admin/') ? 'admin' : 'authenticated_or_public');
+          route.startsWith('/admin/') ? 'admin' : 'authenticated_or_public'));
   const repositories = unique(
     [...source.matchAll(/\b([a-z][A-Za-z0-9]+RepositoryProvider)\b/g)].map((match) => match[1]),
   ).slice(0, 12);
@@ -126,11 +135,15 @@ const flutterRows = calls.map(({ call, route }) => {
     client: 'flutter_android_authoritative',
     route,
     role,
-    purpose: labels[0] ?? `Open the ${screen} product surface`,
+    purpose: redirectTarget
+      ? `Redirect the compatibility route to ${redirectTarget}`
+      : labels[0] ?? `Open the ${screen} product surface`,
     screen,
     source: sourceRelative(sourceFile),
     backend_dependency: unique([...repositories, ...rpcNames, ...tables]),
-    authorization_requirement: call.includes('GuardedRoute') || call.startsWith('_guarded')
+    authorization_requirement: inheritedTeenShellGuard
+      ? 'teen_shell_route_guard_plus_server_authorization'
+      : call.includes('GuardedRoute') || call.startsWith('_guarded')
       ? `${role}_route_guard_plus_server_authorization`
       : 'public_route_with_server_authorization_for_mutations',
     loading_state: evidence(source, [/MortLoading/, /MortSkeleton/, /ConnectionState\.waiting/]),
@@ -138,7 +151,11 @@ const flutterRows = calls.map(({ call, route }) => {
     empty_state: evidence(source, [/MortEmptyState/, /\.isEmpty/]),
     offline_state: evidence(source, [/offline/i, /SocketException/, /network/i]),
     validation_state: evidence(source, [/validate\(/, /validator:/, /MortCodedError/, /\.trim\(\)\.length/]),
-    unauthorized_state: call.includes('GuardedRoute') || call.startsWith('_guarded') ? 'route_guard_detected' : 'public_route',
+    unauthorized_state: inheritedTeenShellGuard || call.includes('GuardedRoute') || call.startsWith('_guarded')
+      ? 'route_guard_detected'
+      : redirectTarget
+        ? 'redirects_to_guarded_destination'
+        : 'public_route',
     recoverable_error_state: evidence(source, [/MortErrorState/, /onRetry/, /Retry/, /catch \(/]),
     nonrecoverable_error_state: evidence(source, [/MortErrorStateScreen/, /account.*restricted/i, /not available/i]),
     success_state: evidence(source, [/MortToast\.show/, /success/i, /completed/i]),
