@@ -1,25 +1,43 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const flutterRoot = join(root, "flutter_mort");
-const outputDirectory = join(root, "artifacts", "release-0.9.13+103");
-mkdirSync(outputDirectory, { recursive: true });
+const pubspec = readFileSync(join(flutterRoot, "pubspec.yaml"), "utf8");
+const version = pubspec.match(/^version:\s*([^\s]+)$/m)?.[1];
+if (!version || !/^\d+\.\d+\.\d+\+\d+$/.test(version)) {
+  throw new Error("Flutter pubspec version is missing or invalid.");
+}
 
-const executable = (name) => {
-  if (process.platform !== "win32") return name;
-  return name === "pnpm" ? "pnpm.cmd" : `${name}.bat`;
-};
+const args = process.argv.slice(2);
+if (args.length !== 2 || args[0] !== "--output") {
+  throw new Error("Usage: node scripts/generate-release-sbom.mjs --output <path>");
+}
+const outputPath = resolve(args[1]);
+const expectedOutputPath = resolve(
+  root,
+  "artifacts",
+  `release-${version}`,
+  "MORT_SBOM.cdx.json",
+);
+if (outputPath.toLowerCase() !== expectedOutputPath.toLowerCase()) {
+  throw new Error("SBOM output must match the authoritative Flutter release version.");
+}
+mkdirSync(dirname(outputPath), { recursive: true });
+
+const flutterCommand =
+  process.platform === "win32"
+    ? [process.env.ComSpec || "cmd.exe", ["/d", "/s", "/c", "flutter pub deps --json"]]
+    : ["flutter", ["pub", "deps", "--json"]];
 
 const flutterGraph = JSON.parse(
-  execFileSync(executable("flutter"), ["pub", "deps", "--json"], {
+  execFileSync(flutterCommand[0], flutterCommand[1], {
     cwd: flutterRoot,
     encoding: "utf8",
     maxBuffer: 32 * 1024 * 1024,
-    shell: process.platform === "win32",
   }),
 );
 const pnpmLock = parseYaml(readFileSync(join(root, "pnpm-lock.yaml"), "utf8"));
@@ -61,8 +79,6 @@ for (const packageKey of Object.keys(pnpmLock.packages ?? {})) {
   });
 }
 
-const pubspec = readFileSync(join(flutterRoot, "pubspec.yaml"), "utf8");
-const version = pubspec.match(/^version:\s*([^\s]+)$/m)?.[1] ?? "unknown";
 const sbom = {
   bomFormat: "CycloneDX",
   specVersion: "1.5",
@@ -85,7 +101,6 @@ const sbom = {
   ),
 };
 
-const outputPath = join(outputDirectory, "MORT_SBOM.cdx.json");
 writeFileSync(outputPath, `${JSON.stringify(sbom, null, 2)}\n`, "utf8");
 console.log(
   `[release-sbom] Wrote ${sbom.components.length} dependency components to ${outputPath}`,

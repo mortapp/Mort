@@ -20,6 +20,7 @@ $sourceZip = Join-Path $releaseDirectory "mort-supreme-closed-test-$versionLabel
 $symbolsDirectory = Join-Path $env:USERPROFILE "MortSymbols\android\$versionLabel"
 $symbolsZip = Join-Path $releaseDirectory "mort-android-symbols-$versionLabel.zip"
 $manifestPath = Join-Path $releaseDirectory 'MORT_RELEASE_ARTIFACT_MANIFEST.json'
+$sbomPath = Join-Path $releaseDirectory 'MORT_SBOM.cdx.json'
 $copiedFinalReport = Join-Path $releaseDirectory 'MORT_SUPREME_FINAL_READINESS_REPORT.md'
 $sourceFinalReport = Join-Path $root "docs\MORT_${versionName}_FINAL_READINESS_REPORT.md"
 
@@ -48,8 +49,11 @@ Copy-Item -LiteralPath (Join-Path $root 'docs\play-final\MORT_DATA_SAFETY_FINAL_
 Copy-Item -LiteralPath (Join-Path $root 'docs\mobile\MORT_UPLOAD_CERTIFICATE_REPORT.md') -Destination $releaseDirectory -Force
 Copy-Item -LiteralPath $sourceFinalReport -Destination $copiedFinalReport -Force
 
-& node (Join-Path $PSScriptRoot 'generate-release-sbom.mjs')
+& node (Join-Path $PSScriptRoot 'generate-release-sbom.mjs') --output $sbomPath
 if ($LASTEXITCODE -ne 0) { throw 'Dependency inventory generation failed.' }
+if (-not (Test-Path -LiteralPath $sbomPath -PathType Leaf)) {
+  throw 'Dependency inventory was not written to the current release directory.'
+}
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 Add-Type -AssemblyName System.IO.Compression

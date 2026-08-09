@@ -36,6 +36,7 @@ truth. Historical reports are evidence only when they still match current source
 | Android release integrity | Verified | Signed APK/AAB, target SDK 36, 11-permission manifest, Android lint, and 18/18 native-library 16 KB alignment passed |
 | API 36 emulator | Verified | Exact signed APK cold launch and two-test native integration suite passed on `Medium_Phone_API_36.1` |
 | Physical Samsung completion | Blocked - secure human action | Remembered wireless endpoint refused connection; exact OAuth/account-status rendering retest and authenticated role matrix remain unperformed |
+| Release SBOM path | Repaired with disclosed historical impact | Hardcoded `0.9.13+103` output replaced by explicit version-matched output; old SBOM reconstructed from its verified source ZIP, original bytes unrecoverable |
 
 ## Hosted Messaging Evidence
 
@@ -82,8 +83,8 @@ truth. Historical reports are evidence only when they still match current source
 
 1. Run the final post-documentation format, analyzer, test, source-secret, and
    repository-cleanliness gates.
-2. Package the immutable signed artifacts, symbols, source, reports, hashes, and
-   SBOM under `artifacts/release-0.9.14+104`.
+2. Rerun packaging with the version-bound SBOM generator, then audit every
+   `artifacts/release-0.9.14+104` file and archive entry.
 3. Complete the secure physical Samsung login and exact OAuth/account-status
    rendering retest when the owner re-enables authorized wireless debugging.
 

@@ -124,6 +124,12 @@ provider, staffing, and Play Console decisions remain external.
   that hung after passing. It now receives the authoritative version through
   non-secret dart-defines and uses Flutter's supported Android `flutter test`
   integration command.
+- Release SBOM generation hardcoded the `0.9.13+103` artifact directory. The
+  first package run overwrote that historical SBOM. The generator and package
+  script are now version-bound and fail-closed. The old dependency inventory was
+  reconstructed from its verified source ZIP, but its original random UUID and
+  timestamp make byte-for-byte recovery impossible. See
+  `docs/MORT_IMMUTABLE_ARTIFACT_RECOVERY_2026_08_08.md`.
 
 ## Signed Artifacts
 
@@ -132,8 +138,9 @@ provider, staffing, and Play Console decisions remain external.
 | `build/play/mort-closed-test-0.9.14.apk` | 69,287,402 | `4550D402406117BC4B5FDB99C3DDB5C2C56392F3D5E74B7351881DCF0344BEBF` | Signed; package/version/minSdk 24/targetSdk 36; 11 permissions; 16 KB pass |
 | `build/play/mort-closed-test-0.9.14.aab` | 52,162,594 | `1EA1B69B6CE6B46B552B9391A570A1A3FE4EC1B74243C01003F6ADCB21B814F3` | Upload certificate verified; debug signer rejected |
 
-No artifact was uploaded automatically. Historical release directories and
-immutable `0.9.13+103` evidence were not overwritten.
+No artifact was uploaded automatically. Historical APK/AAB/source/symbol and
+manifest evidence were not changed. The historical `0.9.13+103` SBOM incident
+and non-byte-identical reconstruction are disclosed above.
 
 ## Physical Android Status
 
