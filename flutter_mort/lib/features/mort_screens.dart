@@ -537,25 +537,33 @@ String _statusLabel(String value) {
   return '${clean[0].toUpperCase()}${clean.substring(1)}';
 }
 
-class OnboardingRequiredScreen extends StatelessWidget {
+class OnboardingRequiredScreen extends ConsumerWidget {
   const OnboardingRequiredScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MortScreen(
-      children: [
-        const MortHeader(
-          eyebrow: 'Onboarding',
-          title: 'Finish setup',
-          subtitle:
-              'MORT needs age, role, city/state, safety acknowledgement, and payment preference.',
-        ),
-        MortButton(
-          label: 'Continue onboarding',
-          icon: Icons.flag,
-          onPressed: () => context.go('/onboarding'),
-        ),
-      ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final progress = ref.watch(onboardingProgressProvider);
+    return progress.when(
+      loading: () => const MortLoading(),
+      error: (error, _) => MortErrorStateScreen(
+        title: 'Onboarding status error',
+        message: userFacingError(error),
+      ),
+      data: (progress) => MortScreen(
+        children: [
+          const MortHeader(
+            eyebrow: 'Onboarding',
+            title: 'Finish setup',
+            subtitle:
+                'MORT needs age, role, city/state, safety acknowledgement, and payment preference.',
+          ),
+          MortButton(
+            label: 'Continue onboarding',
+            icon: Icons.flag,
+            onPressed: () => context.go(progress.resumePath),
+          ),
+        ],
+      ),
     );
   }
 }
