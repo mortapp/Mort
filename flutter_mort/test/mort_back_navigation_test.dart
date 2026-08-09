@@ -37,6 +37,25 @@ GoRouter _publicRouter({required String initialLocation}) {
   );
 }
 
+GoRouter _onboardingRouter({required String initialLocation}) {
+  return GoRouter(
+    initialLocation: initialLocation,
+    routes: [
+      for (final route in const {
+        '/onboarding/profile': 'Profile route',
+        '/onboarding/skills': 'Skills route',
+        '/onboarding/guardian': 'Guardian route',
+        '/onboarding/preferences': 'Preferences route',
+        '/onboarding/safety': 'Safety route',
+      }.entries)
+        GoRoute(
+          path: route.key,
+          builder: (_, _) => MortScreen(children: [Text(route.value)]),
+        ),
+    ],
+  );
+}
+
 Future<void> _pumpPublicRouter(WidgetTester tester, GoRouter router) async {
   await tester.pumpWidget(
     ProviderScope(child: MaterialApp.router(routerConfig: router)),
@@ -109,6 +128,14 @@ void main() {
         MortBackNavigation.fallbackRoute('/onboarding/review'),
         '/onboarding/preferences',
       );
+      expect(
+        MortBackNavigation.fallbackRoute('/onboarding/preferences'),
+        '/onboarding/guardian',
+      );
+      expect(
+        MortBackNavigation.fallbackRoute('/onboarding/safety'),
+        '/onboarding/preferences',
+      );
     });
 
     test('provides fallback route for nested resources', () {
@@ -164,6 +191,31 @@ void main() {
       );
     });
   });
+
+  testWidgets(
+    'system back repeatedly follows server-authoritative onboarding order',
+    (tester) async {
+      final router = _onboardingRouter(initialLocation: '/onboarding/skills');
+      addTearDown(router.dispose);
+      await _pumpPublicRouter(tester, router);
+      for (final transition in const {
+        '/onboarding/skills': 'Profile route',
+        '/onboarding/preferences': 'Guardian route',
+        '/onboarding/safety': 'Preferences route',
+      }.entries) {
+        for (var attempt = 0; attempt < 3; attempt += 1) {
+          router.go(transition.key);
+          await tester.pumpAndSettle();
+          expect(find.byType(PopScope<Object?>), findsOneWidget);
+
+          await tester.binding.handlePopRoute();
+          await tester.pumpAndSettle();
+
+          expect(find.text(transition.value), findsOneWidget);
+        }
+      }
+    },
+  );
 
   group('MortBackButton', () {
     testWidgets('MortHeader is safe without a Navigator ancestor', (

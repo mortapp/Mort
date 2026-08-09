@@ -41,6 +41,7 @@ await withQaUsers(
     { key: "normalTeen", role: "teen", isTest: false },
   ],
   async ({ adult, otherAdult, teen, normalTeen }) => {
+    const feedMarker = randomUUID().replaceAll("-", "").slice(0, 12);
     const preferences = await teen.client.rpc(
       "save_my_transportation_preferences",
       {
@@ -58,14 +59,14 @@ await withQaUsers(
     );
 
     const alpha = await saveJob(adult.client, {
-      title: "QA Pagination Alpha Job",
+      title: `QA Pagination ${feedMarker} Alpha Job`,
       summary: "A safe first job for stable marketplace paging checks.",
       acceptable_transportation_methods: ["walking", "bicycle"],
       transportation_considerations: "Use the public entrance near the library.",
       adult_job_amount_cents: 2100,
     });
     const beta = await saveJob(adult.client, {
-      title: "QA Pagination Beta Job",
+      title: `QA Pagination ${feedMarker} Beta Job`,
       summary: "A safe second job for stable marketplace paging checks.",
       acceptable_transportation_methods: ["walking"],
       transportation_considerations: "The general downtown area has sidewalks.",
@@ -99,7 +100,7 @@ await withQaUsers(
     qaLog(scope, "server keyset pagination is stable and exposes only general-area matching data");
 
     const filtered = await feed(teen.client, {
-      p_keyword: "pagination alpha",
+      p_keyword: `${feedMarker} alpha`,
       p_limit: 20,
     });
     assertQa(

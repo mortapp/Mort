@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 export 'mort_brand.dart';
@@ -47,7 +48,7 @@ class MortScreen extends StatelessWidget {
 
     final goRouter = GoRouter.maybeOf(context);
     final location = goRouter?.state.uri.path ?? '/';
-    final canPop = context.canPop();
+    final canPop = Navigator.maybeOf(context)?.canPop() ?? false;
     if (!canPop &&
         goRouter != null &&
         !MortBackNavigation.isRootLocation(location)) {
@@ -61,11 +62,37 @@ class MortScreen extends StatelessWidget {
     return true;
   }
 
+  Future<void> _handlePopInvoked(
+    BuildContext context, {
+    required bool didPop,
+  }) async {
+    if (didPop) return;
+    final shouldPop = await _handleWillPop(context);
+    if (!context.mounted || !shouldPop) return;
+
+    final navigator = Navigator.maybeOf(context);
+    if (navigator?.canPop() ?? false) {
+      navigator!.pop();
+      return;
+    }
+
+    final location = GoRouter.maybeOf(context)?.state.uri.path ?? '/';
+    if (MortBackNavigation.isRootLocation(location)) {
+      await SystemNavigator.pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final location = GoRouter.maybeOf(context)?.state.uri.path ?? '/';
     final showFloatingBack =
         !_hasHeader && !MortBackNavigation.isRootLocation(location);
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final allowImmediatePop =
+        onWillPop == null &&
+        !keyboardVisible &&
+        ((Navigator.maybeOf(context)?.canPop() ?? false) ||
+            MortBackNavigation.isRootLocation(location));
     final content = SafeArea(
       child: Center(
         child: ConstrainedBox(
@@ -104,8 +131,10 @@ class MortScreen extends StatelessWidget {
       bottomNavigationBar: bottom,
       body: DecoratedBox(
         decoration: const BoxDecoration(gradient: MortGradients.background),
-        child: WillPopScope(
-          onWillPop: () => _handleWillPop(context),
+        child: PopScope<Object?>(
+          canPop: allowImmediatePop,
+          onPopInvokedWithResult: (didPop, _) =>
+              _handlePopInvoked(context, didPop: didPop),
           child: showFloatingBack
               ? Stack(
                   children: [
@@ -276,8 +305,8 @@ class MortBackNavigation {
     if (normalized == '/onboarding/payment')
       return '/onboarding/transportation';
     if (normalized == '/onboarding/guardian') return '/onboarding/payment';
-    if (normalized == '/onboarding/safety') return '/onboarding/guardian';
-    if (normalized == '/onboarding/preferences') return '/onboarding/safety';
+    if (normalized == '/onboarding/preferences') return '/onboarding/guardian';
+    if (normalized == '/onboarding/safety') return '/onboarding/preferences';
     if (normalized == '/onboarding/review') return '/onboarding/preferences';
     if (normalized.startsWith('/teen/jobs/')) return '/teen/home';
     if (normalized == '/teen/profile/edit') return '/teen/profile';

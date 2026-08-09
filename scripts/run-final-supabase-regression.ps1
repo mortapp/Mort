@@ -8,6 +8,7 @@ Set-MortPlayReviewEnvironment
 $scripts = @(
   'qa-old-project-smoke.mjs',
   'qa-resumable-onboarding.mjs',
+  'qa-orphaned-onboarding-progress.mjs',
   'qa-complete-multi-user-isolation.mjs',
   'audit-remote-storage.mjs',
   'qa-avatar-storage.mjs',
