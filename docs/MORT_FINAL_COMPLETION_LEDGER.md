@@ -9,9 +9,9 @@ truth. Historical reports are evidence only when they still match current source
 ## Current State
 
 - Branch: `feature/compact-onboarding-and-screen-polish`
-- Current checkpoint: `ef1cbdd` (`Complete protected messaging context and recovery`)
-- Worktree after checkpoint: clean; root navigation screenshots/XML preserved in
-  ignored `artifacts/qa-evidence/public-navigation-2026-08-08/`
+- Current checkpoint: `214ed2a` (`Complete Safety Center and route action audit`)
+- Private Samsung/navigation captures are preserved outside distributable
+  artifacts under ignored `backups/private-qa-evidence/`.
 - Flutter application: `flutter_mort/`
 - Android package: `com.mortapp.mobile`
 - Hosted Supabase project: `rakjydmgwwgtdislanbt`
@@ -29,6 +29,9 @@ truth. Historical reports are evidence only when they still match current source
 | Role dashboards | Verified checkpoint | `6545efc`; Adult, Guardian, and Admin grouped production routes; focused tests pass |
 | Settings and device preferences | Verified checkpoint | `d487135`; persisted motion, transparency, contrast, haptic preferences and grouped routes |
 | Messaging completion | Hosted and local verified | `ef1cbdd`; safe participant/job context, keyset pagination, realtime cancellation, unread state, report/block, visible retry, text-only boundary |
+| Safety and action audit | Verified checkpoint | `214ed2a`; durable Safety Center retry, free emergency access, role-scoped Safety Ping, universal guarded route, and generated route/action inventory |
+| Hosted backend regression | Verified | 45/45 scripts passed in 511.7 seconds; one transient hosted fetch retried once; isolated QA users removed |
+| Dependency/security pass | Verified with upstream limits | Expo SDK 57 patches applied; four transitive advisories patched by compatible overrides; two unpatched Metro `image-size` advisories and one non-reachable Xcode `uuid` advisory remain documented |
 
 ## Hosted Messaging Evidence
 
@@ -44,33 +47,40 @@ truth. Historical reports are evidence only when they still match current source
 - Hosted authenticated API QA: teen/adult context, search, unread count, message
   summary, outsider denial, and anonymous denial passed; ephemeral users removed.
 
-## Latest Local Verification
+## Latest Verification
 
-- `flutter analyze --no-pub`: PASS, no issues.
-- Focused messaging/settings/dashboard/navigation/auth suite: PASS, 29 tests.
+- Linked Supabase migration parity: PASS through `20260808010000`; push dry-run
+  reports the remote database is up to date.
+- Linked `public,private` schema lint: PASS, no errors.
+- Supabase advisors: PASS with no error-level findings. Leaked-password screening
+  remains `DEFERRED - PLAN-LIMITED SECURITY ENHANCEMENT` on the Free plan.
+- Source secret scan: PASS. Sensitive-file scan: PASS, 1,964 files and 57 known
+  app-media files checked. Git-history scan: PASS, 30 commits and 45 candidate
+  blobs inspected with zero findings.
+- Expo reference app: frozen install PASS; dependency compatibility PASS;
+  Expo Doctor 20/20; TypeScript PASS; lint PASS; 48-route web export PASS.
+- Flutter dependency lock refreshed within existing constraints; 34 compatible
+  package updates resolved successfully.
+- Dart format: PASS, 226 files and zero changes required.
+- Flutter analyzer: PASS, zero issues before the final navigation repair.
+- Focused secure-startup/navigation regression: PASS, 19 tests.
+- Full Flutter suite after repair: PASS, 349 tests; two intentional
+  provider-configuration skips; zero failures.
 - `git diff --check`: PASS.
-- Note: one earlier aggregate command referenced nonexistent
-  `test/back_navigation_test.dart`; the corrected repository file is
-  `test/mort_back_navigation_test.dart`, and the rerun passed.
 
 ## Remaining Code-Controlled Work
 
-1. Reconcile Safety Center and profile/admin/support surfaces against the final
-   directive and add only missing production states or tests.
-2. Regenerate and inspect the route/action inventory; repair dead buttons,
-   unguarded routes, placeholder production actions, and missing failure states.
-3. Run format, analyzer, complete Flutter tests, backend regression, RLS/storage/
-   Edge Function audits, secret scans, and dependency/security checks.
-4. Reconcile current Google Play requirements against official sources and
+1. Rerun final analyzer/format checks after the secure-startup navigation repair.
+2. Reconcile current Google Play requirements against official sources and
    update Play/privacy/child-safety/reviewer documentation without inventing
    legal or staffing approval.
-5. Commit current source, build protected-signed APK/AAB, verify package,
+3. Commit current source, build protected-signed APK/AAB, verify package,
    version, signing, permissions, target API, 16 KB alignment, provenance,
    sizes, and SHA-256 hashes.
-6. Use the connected Samsung only through authorized ADB access for the required
+4. Use the connected Samsung only through authorized ADB access for the required
    synthetic journeys; preserve screenshots/logcat and classify physical results
    separately from automated results.
-7. Clean generated root files, update final reports, and organize release
+5. Clean generated root files, update final reports, and organize release
    artifacts without overwriting immutable historical artifacts.
 
 ## External Gates
@@ -90,6 +100,6 @@ truth. Historical reports are evidence only when they still match current source
 
 ## Next Exact Step
 
-Audit Safety Center routes, interactions, loading/empty/error states, and focused
-tests; then run the generated route/action inventory against every production
-destination.
+Run the final post-repair analyzer/format gates, commit the verified source, then
+reconcile current Google Play requirements and prepare the protected-signed
+`0.9.14+104` APK/AAB release candidate.

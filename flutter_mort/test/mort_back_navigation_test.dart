@@ -166,6 +166,21 @@ void main() {
   });
 
   group('MortBackButton', () {
+    testWidgets('MortHeader is safe without a Navigator ancestor', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: MortHeader(title: 'Secure startup stopped'),
+        ),
+      );
+
+      expect(find.text('Secure startup stopped'), findsOneWidget);
+      expect(find.byTooltip('Back'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('MortHeader shows Back for a pushed canonical root', (
       tester,
     ) async {

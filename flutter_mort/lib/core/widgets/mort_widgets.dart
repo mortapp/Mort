@@ -157,7 +157,7 @@ class MortHeader extends StatelessWidget {
     final location = GoRouter.maybeOf(context)?.state.uri.path ?? '/';
     final showBack =
         showBackButton ??
-        (Navigator.of(context).canPop() ||
+        ((Navigator.maybeOf(context)?.canPop() ?? false) ||
             !MortBackNavigation.isRootLocation(location));
     final back =
         leading ??
@@ -598,10 +598,10 @@ class MortBackButton extends StatelessWidget {
 
           final goRouter = GoRouter.maybeOf(context);
           final isGoRouterPresent = goRouter != null;
-          final navigator = Navigator.of(context);
+          final navigator = Navigator.maybeOf(context);
           final canPop = isGoRouterPresent
               ? context.canPop()
-              : navigator.canPop();
+              : (navigator?.canPop() ?? false);
           final fallback = fallbackRoute;
 
           if (confirmExit != null) {
@@ -612,7 +612,7 @@ class MortBackButton extends StatelessWidget {
           if (canPop) {
             if (goRouter != null) {
               goRouter.pop();
-            } else {
+            } else if (navigator != null) {
               navigator.pop();
             }
             return;
@@ -621,7 +621,7 @@ class MortBackButton extends StatelessWidget {
           if (fallback != null) {
             if (goRouter != null) {
               goRouter.go(fallback);
-            } else {
+            } else if (navigator != null) {
               navigator.pushReplacement(
                 MaterialPageRoute(builder: (_) => const SizedBox.shrink()),
               );

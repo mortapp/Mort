@@ -67,7 +67,17 @@ for (const commit of commits) {
 
 const jwtPattern = /eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g;
 const providerSecretPattern = /\b(?:sk_(?:live|test|restricted)|rk_(?:live|test)|sb_secret|sbp)_[A-Za-z0-9_-]{12,}\b/g;
-const privateKeyPattern = /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g;
+const privateKeyBlockPattern =
+  /-----BEGIN ((?:RSA |EC |OPENSSH )?)PRIVATE KEY-----([\s\S]*?)-----END \1PRIVATE KEY-----/g;
+
+const containsPrivateKeyMaterial = (content) => {
+  privateKeyBlockPattern.lastIndex = 0;
+  for (const match of content.matchAll(privateKeyBlockPattern)) {
+    const body = match[2].replace(/\s/g, "");
+    if (body.length >= 64 && /^[A-Za-z0-9+/=]+$/.test(body)) return true;
+  }
+  return false;
+};
 
 for (const reference of candidateFiles) {
   const separator = reference.indexOf(":");
@@ -79,8 +89,7 @@ for (const reference of candidateFiles) {
 
   if (providerSecretPattern.test(content)) findings.add(`${reference}:provider_secret_pattern`);
   providerSecretPattern.lastIndex = 0;
-  if (privateKeyPattern.test(content)) findings.add(`${reference}:private_key_pattern`);
-  privateKeyPattern.lastIndex = 0;
+  if (containsPrivateKeyMaterial(content)) findings.add(`${reference}:private_key_pattern`);
 
   for (const token of content.match(jwtPattern) ?? []) {
     try {
