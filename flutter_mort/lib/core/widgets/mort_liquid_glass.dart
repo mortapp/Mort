@@ -636,6 +636,53 @@ class MortSectionLabel extends StatelessWidget {
   );
 }
 
+class MortDashboardActionTile extends StatelessWidget {
+  const MortDashboardActionTile({
+    super.key,
+    required this.label,
+    required this.description,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String label;
+  final String description;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => MortGlassSoftSurface(
+    onTap: onPressed,
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: MortSpacing.minTouchTarget,
+          height: MortSpacing.minTouchTarget,
+          decoration: BoxDecoration(
+            color: MortColors.lightBlue.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(MortRadii.medium),
+          ),
+          child: Icon(icon, color: MortColors.lightBlue),
+        ),
+        const SizedBox(width: MortSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: MortSpacing.xxs),
+              Text(description, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+        ),
+        const SizedBox(width: MortSpacing.xs),
+        const Icon(Icons.chevron_right_rounded, color: MortColors.silver),
+      ],
+    ),
+  );
+}
+
 class MortSafetyPulse extends StatelessWidget {
   const MortSafetyPulse({
     super.key,

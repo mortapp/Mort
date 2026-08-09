@@ -2136,6 +2136,7 @@ class RoleHomeScreen extends ConsumerWidget {
         ),
       ],
     };
+    final dashboard = _roleDashboardDefinition(role, hasPartnerWorkspace);
     return MortScreen(
       children: [
         const Align(
@@ -2143,15 +2144,16 @@ class RoleHomeScreen extends ConsumerWidget {
           child: MortBrandMark(size: 46),
         ),
         const SizedBox(height: MortSpacing.xs),
-        MortHeader(
+        MortGlassHeader(
           eyebrow: profile?.displayName ?? userRoleToString(role) ?? 'MORT',
           title: title,
           subtitle:
               'Safety-first workflows and optional perks without paywalling core safety.',
           trailing: MortNotificationBell(
-            onPressed: () => context.go('/notifications'),
+            onPressed: () => context.push('/notifications'),
           ),
         ),
+        const SizedBox(height: MortSpacing.md),
         if (role == UserRole.teen)
           MortProfileCompletionMeter(value: profile?.completionRatio ?? 0),
         if (role == UserRole.adult) const MortVerificationDisclaimer(),
@@ -2161,8 +2163,33 @@ class RoleHomeScreen extends ConsumerWidget {
             message:
                 'Admin tools are limited to authorized moderation accounts.',
           ),
-        const SizedBox(height: MortSpacing.md),
-        MortActionRow(actions: actions),
+        if (role == UserRole.adult || role == UserRole.admin) ...[
+          const SizedBox(height: MortSpacing.md),
+          _ReleaseModeCard(status: ref.watch(releaseModeStatusProvider)),
+        ],
+        const SizedBox(height: MortSpacing.lg),
+        if (role == UserRole.teen)
+          MortActionRow(actions: actions)
+        else ...[
+          MortGlassButton(
+            label: dashboard.primary.label,
+            icon: dashboard.primary.icon,
+            primary: true,
+            onPressed: () => context.push(dashboard.primary.route),
+          ),
+          for (final group in dashboard.groups) ...[
+            MortSectionLabel(label: group.label),
+            for (final action in group.actions) ...[
+              MortDashboardActionTile(
+                label: action.label,
+                description: action.description,
+                icon: action.icon,
+                onPressed: () => context.push(action.route),
+              ),
+              const SizedBox(height: MortSpacing.sm),
+            ],
+          ],
+        ],
         const SizedBox(height: MortSpacing.md),
         if (role == UserRole.teen || role == UserRole.adult)
           MortBannerAd(
@@ -2172,6 +2199,341 @@ class RoleHomeScreen extends ConsumerWidget {
     );
   }
 }
+
+class _DashboardActionDefinition {
+  const _DashboardActionDefinition({
+    required this.label,
+    required this.description,
+    required this.icon,
+    required this.route,
+  });
+
+  final String label;
+  final String description;
+  final IconData icon;
+  final String route;
+}
+
+class _DashboardGroupDefinition {
+  const _DashboardGroupDefinition({required this.label, required this.actions});
+
+  final String label;
+  final List<_DashboardActionDefinition> actions;
+}
+
+class _RoleDashboardDefinition {
+  const _RoleDashboardDefinition({required this.primary, required this.groups});
+
+  final _DashboardActionDefinition primary;
+  final List<_DashboardGroupDefinition> groups;
+}
+
+_RoleDashboardDefinition _roleDashboardDefinition(
+  UserRole role,
+  bool hasPartnerWorkspace,
+) => switch (role) {
+  UserRole.teen => const _RoleDashboardDefinition(
+    primary: _DashboardActionDefinition(
+      label: 'Browse jobs',
+      description: 'Find approved local work.',
+      icon: Icons.search_rounded,
+      route: '/teen/home',
+    ),
+    groups: [],
+  ),
+  UserRole.adult => _RoleDashboardDefinition(
+    primary: const _DashboardActionDefinition(
+      label: 'Post a job',
+      description: 'Create and publish an age-appropriate local job.',
+      icon: Icons.add_business_rounded,
+      route: '/adult/post-job',
+    ),
+    groups: [
+      const _DashboardGroupDefinition(
+        label: 'Work',
+        actions: [
+          _DashboardActionDefinition(
+            label: 'My jobs',
+            description:
+                'Manage drafts, open listings, assignments, and completed work.',
+            icon: Icons.work_outline_rounded,
+            route: '/adult/jobs',
+          ),
+          _DashboardActionDefinition(
+            label: 'Applicants',
+            description:
+                'Review real applications and protected lifecycle actions.',
+            icon: Icons.groups_outlined,
+            route: '/adult/applicants',
+          ),
+          _DashboardActionDefinition(
+            label: 'Messages',
+            description: 'Use scanner-protected job conversations.',
+            icon: Icons.chat_bubble_outline_rounded,
+            route: '/messages',
+          ),
+          _DashboardActionDefinition(
+            label: 'Contracts and payment status',
+            description:
+                'Review agreements and the current fail-closed payment state.',
+            icon: Icons.receipt_long_outlined,
+            route: '/contracts',
+          ),
+        ],
+      ),
+      const _DashboardGroupDefinition(
+        label: 'Business and account',
+        actions: [
+          _DashboardActionDefinition(
+            label: 'Verification',
+            description:
+                'Review the current internal verification state and requirements.',
+            icon: Icons.verified_user_outlined,
+            route: '/adult/verification',
+          ),
+          _DashboardActionDefinition(
+            label: 'Business profile',
+            description: 'Update public-safe poster and business information.',
+            icon: Icons.storefront_outlined,
+            route: '/adult/profile',
+          ),
+          _DashboardActionDefinition(
+            label: 'Notifications',
+            description: 'Review job, application, and security updates.',
+            icon: Icons.notifications_outlined,
+            route: '/notifications',
+          ),
+          _DashboardActionDefinition(
+            label: 'Settings',
+            description:
+                'Manage privacy, security, account, and legal controls.',
+            icon: Icons.settings_outlined,
+            route: '/settings',
+          ),
+        ],
+      ),
+      _DashboardGroupDefinition(
+        label: 'Safety and support',
+        actions: [
+          const _DashboardActionDefinition(
+            label: 'Teen safety standards',
+            description:
+                'Review posting, communication, and prohibited-work rules.',
+            icon: Icons.health_and_safety_outlined,
+            route: '/legal/teen-safety',
+          ),
+          const _DashboardActionDefinition(
+            label: 'Support',
+            description: 'Open MORT Support or escalate a real account issue.',
+            icon: Icons.support_agent_outlined,
+            route: '/support',
+          ),
+          if (hasPartnerWorkspace)
+            const _DashboardActionDefinition(
+              label: 'Partner workspace',
+              description:
+                  'Manage authorized closed-pilot organization participants.',
+              icon: Icons.account_balance_outlined,
+              route: '/partner/home',
+            ),
+        ],
+      ),
+    ],
+  ),
+  UserRole.guardian => const _RoleDashboardDefinition(
+    primary: _DashboardActionDefinition(
+      label: 'Review approvals',
+      description: 'Review linked-teen requests that require Guardian Mode.',
+      icon: Icons.fact_check_outlined,
+      route: '/guardian/approvals',
+    ),
+    groups: [
+      _DashboardGroupDefinition(
+        label: 'Linked teen safety',
+        actions: [
+          _DashboardActionDefinition(
+            label: 'Linked teens',
+            description: 'Manage optional, consent-based Guardian Mode links.',
+            icon: Icons.family_restroom_outlined,
+            route: '/guardian/linked-teens',
+          ),
+          _DashboardActionDefinition(
+            label: 'Permissions',
+            description:
+                'Control authorized alerts without opening private messages.',
+            icon: Icons.tune_rounded,
+            route: '/guardian/permissions',
+          ),
+          _DashboardActionDefinition(
+            label: 'Safety Pings',
+            description: 'View only pings shared through an active link.',
+            icon: Icons.health_and_safety_outlined,
+            route: '/guardian/safety-pings',
+          ),
+          _DashboardActionDefinition(
+            label: 'Activity',
+            description: 'Review permitted linked-account safety activity.',
+            icon: Icons.history_rounded,
+            route: '/guardian/activity',
+          ),
+        ],
+      ),
+      _DashboardGroupDefinition(
+        label: 'Privacy and account',
+        actions: [
+          _DashboardActionDefinition(
+            label: 'Guardian Mode settings',
+            description:
+                'Review link status, privacy boundaries, and unlinking.',
+            icon: Icons.shield_outlined,
+            route: '/settings/guardian-mode',
+          ),
+          _DashboardActionDefinition(
+            label: 'Privacy',
+            description: 'Review data visibility and location protections.',
+            icon: Icons.privacy_tip_outlined,
+            route: '/settings/privacy',
+          ),
+          _DashboardActionDefinition(
+            label: 'Notifications',
+            description: 'Review enabled safety and account updates.',
+            icon: Icons.notifications_outlined,
+            route: '/notifications',
+          ),
+          _DashboardActionDefinition(
+            label: 'Settings',
+            description: 'Manage security, legal, and account controls.',
+            icon: Icons.settings_outlined,
+            route: '/settings',
+          ),
+          _DashboardActionDefinition(
+            label: 'Support',
+            description: 'Ask for help without claiming 24/7 staffing.',
+            icon: Icons.support_agent_outlined,
+            route: '/support',
+          ),
+        ],
+      ),
+    ],
+  ),
+  UserRole.admin => const _RoleDashboardDefinition(
+    primary: _DashboardActionDefinition(
+      label: 'Review reports',
+      description: 'Open the authorized report moderation queue.',
+      icon: Icons.report_outlined,
+      route: '/admin/reports',
+    ),
+    groups: [
+      _DashboardGroupDefinition(
+        label: 'Moderation',
+        actions: [
+          _DashboardActionDefinition(
+            label: 'Restricted queues',
+            description: 'Open scoped high-sensitivity moderation queues.',
+            icon: Icons.admin_panel_settings_outlined,
+            route: '/admin/restricted-queues',
+          ),
+          _DashboardActionDefinition(
+            label: 'Incident cases',
+            description: 'Review restricted safety incidents and assignments.',
+            icon: Icons.folder_shared_outlined,
+            route: '/admin/incidents',
+          ),
+          _DashboardActionDefinition(
+            label: 'Verifications',
+            description:
+                'Review internal verification state and evidence gates.',
+            icon: Icons.verified_user_outlined,
+            route: '/admin/verifications',
+          ),
+          _DashboardActionDefinition(
+            label: 'Jobs',
+            description:
+                'Moderate marketplace listings under server authority.',
+            icon: Icons.work_history_outlined,
+            route: '/admin/jobs',
+          ),
+          _DashboardActionDefinition(
+            label: 'Reviews',
+            description: 'Moderate reputation content and reported reviews.',
+            icon: Icons.rate_review_outlined,
+            route: '/admin/reviews',
+          ),
+          _DashboardActionDefinition(
+            label: 'Users',
+            description: 'Open authorized account controls and restrictions.',
+            icon: Icons.manage_accounts_outlined,
+            route: '/admin/users',
+          ),
+        ],
+      ),
+      _DashboardGroupDefinition(
+        label: 'Operations',
+        actions: [
+          _DashboardActionDefinition(
+            label: 'Message moderation',
+            description: 'Review only messages exposed by moderation policy.',
+            icon: Icons.forum_outlined,
+            route: '/admin/messages',
+          ),
+          _DashboardActionDefinition(
+            label: 'Safety Pings',
+            description: 'Review authorized urgent safety cases and state.',
+            icon: Icons.health_and_safety_outlined,
+            route: '/admin/safety-pings',
+          ),
+          _DashboardActionDefinition(
+            label: 'Support',
+            description: 'Manage support tickets, assignment, and escalation.',
+            icon: Icons.support_agent_outlined,
+            route: '/admin/support',
+          ),
+          _DashboardActionDefinition(
+            label: 'Operational alerts',
+            description: 'Review backend and provider health alerts.',
+            icon: Icons.monitor_heart_outlined,
+            route: '/admin/operational-alerts',
+          ),
+          _DashboardActionDefinition(
+            label: 'Payment operations',
+            description: 'Review fail-closed payment operation records.',
+            icon: Icons.account_balance_wallet_outlined,
+            route: '/admin/payment-operations',
+          ),
+        ],
+      ),
+      _DashboardGroupDefinition(
+        label: 'Governance',
+        actions: [
+          _DashboardActionDefinition(
+            label: 'Audit logs',
+            description: 'Review server-recorded administrative actions.',
+            icon: Icons.history_edu_outlined,
+            route: '/admin/action-logs',
+          ),
+          _DashboardActionDefinition(
+            label: 'Marketplace and monetization gates',
+            description: 'Review current server-controlled release gates.',
+            icon: Icons.toggle_on_outlined,
+            route: '/admin/monetization',
+          ),
+          _DashboardActionDefinition(
+            label: 'Account trust',
+            description: 'Open multi-signal trust and appeal operations.',
+            icon: Icons.policy_outlined,
+            route: '/admin/account-trust',
+          ),
+          _DashboardActionDefinition(
+            label: 'Settings',
+            description: 'Review this account, legal material, and security.',
+            icon: Icons.settings_outlined,
+            route: '/settings',
+          ),
+        ],
+      ),
+    ],
+  ),
+};
 
 class JobFeedScreen extends ConsumerStatefulWidget {
   const JobFeedScreen({super.key});
