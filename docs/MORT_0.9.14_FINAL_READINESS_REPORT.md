@@ -1,8 +1,72 @@
 # MORT 0.9.14+104 Final Readiness Report
 
-Updated: 2026-08-08 (America/Indianapolis)
+Updated: 2026-08-09 (America/Indianapolis)
 
-## Verdict
+## Superseding 0.9.15+105 Status
+
+**ANDROID CLOSED-TEST ENGINEERING CANDIDATE VERIFIED - OWNER LEGAL AND STORE
+APPROVALS REMAIN**
+
+This section supersedes the physical-QA status below while preserving the
+immutable `0.9.14+104` record. MORT is not production-ready and the public
+marketplace remains closed.
+
+- Current runtime commit:
+  `79630b195098a2c5428a30104b55cfec27ea764f` (`gitDirty=false`).
+- One authorized fresh-auth QA reset cleared only MORT local app data on the
+  Samsung SM-A146U. It did not uninstall MORT, clear Google/Chrome data, or
+  modify hosted account data.
+- The real Google/Supabase PKCE flow used the authorized Google QA account. A
+  private chooser capture was retained only under ignored `artifacts/`.
+- The exact final signed APK returned from Google to MORT, showed the
+  authenticated onboarding status, and resumed the server-persisted Safety
+  step. There was no OAuth loop, blank screen, crash, router error, or secure
+  startup failure.
+- Final callback and cold-start log windows contain zero `TransformLayer`,
+  invalid-matrix, `E/flutter`, fatal exception, ANR, `GoException`, route-not-
+  found, `RenderFlex`, or predictive-back warning entries.
+- Five post-OAuth force-stop/cold-start cycles all began with no PID, reported
+  `COLD`, restored the Safety step, kept MORT foreground, and did not reopen
+  OAuth. Three Home/resume cycles and the 1.3 text-scale Safety pass also
+  passed; font scale was restored to `1.0`.
+- Screen off/on preserved the MORT process. Samsung then presented its secure
+  keyguard, so no PIN bypass was attempted. Physical offline cold start was not
+  attempted because wireless-only ADB would be severed.
+- The legitimate account role is Teen. Completion stops at owner-controlled
+  safety/legal acknowledgements. No DOB, legal acceptance, identity,
+  guardian, address, or payment data was invented. Teen dashboard, Messages,
+  and Settings hardware journeys therefore remain unavailable until the owner
+  completes that step; their automated suites pass.
+- Adult Back was not applicable because the authorized account is not Adult.
+
+Two additional physical defects were repaired in `0.9.15`:
+
+1. Legacy profiles with validated DOB/role but no resumable progress could not
+   save Profile. Migration `20260809040544` now bootstraps only validated,
+   non-legal onboarding prerequisites and is applied remotely.
+2. Post-OAuth Account Status routed incomplete users into the obsolete compact
+   wizard while cold starts used the server resume path. Account Status and
+   role guards now share `get_my_onboarding_progress` and route to its persisted
+   `resume_path`; the final APK physically resumes Safety.
+
+Current verification:
+
+- Focused auth/onboarding/Back suite: 44 passed.
+- Flutter analyzer: no issues.
+- Full Flutter suite after the final runtime change: 352 passed, two intentional
+  provider-gated skips, zero failed.
+- Expanded hosted Supabase regression: all 46 scripts passed; migration parity
+  is current through `20260809040544`; linked lint and security advisors report
+  no error-level findings.
+- APK: 69,287,402 bytes; SHA-256
+  `A4578C163638A952B8C1B9F6BE8CC190B3F38D1C7B927A5F4AEA200C6E918E10`.
+- AAB: 52,164,950 bytes; SHA-256
+  `84758C39817B42129282CBD74BD9FAC2B37854CCEA04EC4CA81946793DFFA144`.
+- Package `com.mortapp.mobile`, version `0.9.15+105`, min SDK 24, target SDK
+  36, upload signing, 11-permission policy, artifact secret scan, and 18/18
+  native-library 16 KB alignment all pass.
+
+## Historical 0.9.14 Verdict
 
 **NOT RELEASE READY - BLOCKING PHYSICAL VERIFICATION AND EXTERNAL GATES REMAIN**
 

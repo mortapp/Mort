@@ -152,3 +152,32 @@ endpoint was actively refused. No pairing, unlock, credential, clipboard, or
 biometric action was attempted. The required physical OAuth/account-status
 retest therefore remains **not done**, and this report does not mark the defect
 physically cleared.
+
+## 0.9.15+105 Physical Closure
+
+The required real callback was completed on the Samsung SM-A146U on 2026-08-09.
+One deliberate reset cleared only `com.mortapp.mobile` local data. The real
+Google/Supabase PKCE chooser used the authorized QA account and returned to
+MORT without a secret challenge.
+
+The final signed APK was built from
+`79630b195098a2c5428a30104b55cfec27ea764f` and has SHA-256
+`A4578C163638A952B8C1B9F6BE8CC190B3F38D1C7B927A5F4AEA200C6E918E10`.
+Its exact callback window and five subsequent cold starts produced:
+
+```text
+TransformLayer: 0
+invalid matrix: 0
+E/flutter: 0
+FATAL EXCEPTION: 0
+ANR: 0
+GoException / route not found: 0
+RenderFlex: 0
+predictive-back not-enabled warning: 0
+```
+
+The original invalid-matrix regression is therefore **PHYSICALLY CLEARED on
+the tested Samsung journey**. Private chooser, return, UI-dump, and log-summary
+evidence remains ignored under
+`artifacts/release-0.9.15+105/samsung-final-qa/google-oauth-final-apk/` and is
+not committed.

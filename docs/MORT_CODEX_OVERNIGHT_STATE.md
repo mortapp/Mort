@@ -1,46 +1,77 @@
 # MORT Codex Overnight State
 
-- Updated: 2026-08-08 (America/Indianapolis)
+- Updated: 2026-08-09 (America/Indianapolis)
 - Branch: `feature/compact-onboarding-and-screen-polish`
-- Latest verified checkpoint before final documentation: `3c1f9f0`
-- Runtime artifact source: `909a4235268ee16b2d6884862c0236cbec632b4b`
-- Version: `0.9.14+104`
+- Runtime artifact source:
+  `79630b195098a2c5428a30104b55cfec27ea764f`
+- Version: `0.9.15+105`
 - Package: `com.mortapp.mobile`
+
+## Current Verdict
+
+**ANDROID CLOSED-TEST ENGINEERING CANDIDATE VERIFIED - OWNER LEGAL AND STORE
+APPROVALS REMAIN**
+
+MORT is not production-ready. Public marketplace access, real identity
+verification, real payments, and public activation remain fail-closed.
 
 ## Completed
 
-- Unified auth, role onboarding, Liquid Glass system, role dashboards,
-  messaging, settings, Safety Center, and route/action audit are committed.
-- Hosted Supabase regression passed 45/45 scripts; migration parity, schema
-  lint, advisors, RLS, and storage checks passed.
-- Flutter analyzer and full tests passed: 349 passed, two provider-gated skips.
-- Expo reference checks, lint, build, export, and Doctor passed.
-- Play release QA passed after stale QA assertions were repaired.
-- Signed APK and AAB from clean runtime source are verified.
-- APK target SDK 36, 11 permissions, and 18/18 native-library 16 KB alignment
-  passed.
-- Android release lint passed.
-- API 36 native integration passed two test bodies with the canonical version
-  injected through non-secret test defines.
-- Exact signed APK cold-launched on API 36 with the process alive, MainActivity
-  resumed, and no fatal Android/Flutter logs.
-- The version-safe `release-0.9.14+104` directory passed manifest, source ZIP,
-  secret, sensitive-file, signer, binary, and 16 KB audits.
-- The stale SBOM output defect was fixed and its historical impact was disclosed
-  in `docs/MORT_IMMUTABLE_ARTIFACT_RECOVERY_2026_08_08.md`.
+- Applied and remotely verified the orphaned-onboarding-progress repair through
+  migration `20260809040544` without creating legal acknowledgements.
+- Replaced legacy predictive-Back handling with `PopScope`, corrected the
+  server onboarding order, and physically passed Profile/Skills and all safe
+  onboarding Back transitions.
+- Corrected legal-reference navigation so all four Safety links return to the
+  invoking Safety step. The replacement APK passed all four physical checks.
+- Performed exactly one authorized local-data reset on the Samsung SM-A146U and
+  completed the real Google/Supabase PKCE flow with the authorized QA account.
+  Private chooser evidence remains ignored under `artifacts/`.
+- Physically verified the final signed APK callback, authenticated account
+  status, and server-persisted Safety resume path. Final callback logs contain
+  zero invalid matrices, Flutter errors, crashes, ANRs, router failures,
+  overflows, or predictive-back warnings.
+- Fixed the post-OAuth route mismatch that sent incomplete users into an old
+  compact wizard. Focused regression: 44 passed; analyzer: zero issues; final
+  full Flutter suite: 352 passed and two provider-gated skips.
+- Final post-OAuth cold starts: 5/5 `COLD`, 5/5 Safety resume, no OAuth reopen,
+  blank screen, route error, crash, or secure-startup error.
+- Earlier `0.9.15` physical checks passed Home/resume x3 and Safety at 1.3 text
+  scale; font scale was restored to `1.0`. Screen off/on preserved the process,
+  then correctly stopped at Samsung's secure keyguard.
+- Expanded hosted Supabase regression passed all 46 scripts. Linked migration
+  parity, schema/storage lint, security advisors, RLS, and storage checks pass.
+- Final signed APK/AAB pass package, version, permission, upload-signing,
+  binary-secret, and 18/18 native-library 16 KB checks.
 
-## Open
+## Final Artifacts
 
-- The Samsung SM-A146U remembered wireless endpoint refused the final connection.
-- The repaired OAuth callback to `/account-status` still needs the exact physical
-  rerun with zero invalid-matrix errors.
-- Authenticated Teen, Adult, Guardian, Admin, and Support hardware journeys need
-  secure human login.
-- Provider, moderation/support staffing, legal/privacy, Play Console, and iOS
-  gates remain external.
+- APK: `artifacts/release-0.9.15+105/mort-closed-test-0.9.15.apk`
+  - 69,287,402 bytes
+  - SHA-256
+    `A4578C163638A952B8C1B9F6BE8CC190B3F38D1C7B927A5F4AEA200C6E918E10`
+- AAB: `artifacts/release-0.9.15+105/mort-closed-test-0.9.15.aab`
+  - 52,164,950 bytes
+  - SHA-256
+    `84758C39817B42129282CBD74BD9FAC2B37854CCEA04EC4CA81946793DFFA144`
+
+## Human And External Gates
+
+- The authorized role is Teen and onboarding is paused at owner-controlled
+  safety/legal acknowledgements. No legal, DOB, identity, address, guardian, or
+  payment declaration was fabricated.
+- Teen dashboard, Messages, and Settings physical role journeys remain behind
+  that legal step. Adult Back was not applicable to this account.
+- Physical offline cold start was not attempted because wireless-only ADB would
+  lose the device. Screen-on visual resume requires the owner's Samsung unlock.
+- Legal/privacy/child-safety approval, provider contracts, staffed moderation
+  and support, Play Console declarations/review, and public activation remain
+  external.
+- iPhone, Xcode, TestFlight, App Store privacy manifests, and App Store review
+  were not performed.
 
 ## Next Exact Step
 
-When the owner securely re-enables Samsung wireless debugging and authenticates,
-install the exact signed APK and rerun the OAuth/account-status and role matrices
-without recording credentials or private device data.
+The owner should review and personally complete the Safety acknowledgements on
+the QA account. Then run the Teen dashboard, Messages, Safety, Notifications,
+Profile, and Settings physical matrix before expanding the closed-test cohort.

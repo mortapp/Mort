@@ -1,110 +1,82 @@
 # MORT Final Completion Ledger
 
-Updated: 2026-08-08 (America/Indianapolis)
+Updated: 2026-08-09 (America/Indianapolis)
 
-This ledger records the active final completion pass. Repository source, hosted
-Supabase state, test output, and signed-artifact inspection remain the sources of
-truth. Historical reports are evidence only when they still match current source.
+Repository source, hosted Supabase state, signed artifacts, and private physical
+QA evidence are the sources of truth. MORT is not production-ready.
 
 ## Current State
 
 - Branch: `feature/compact-onboarding-and-screen-polish`
-- Current checkpoint: `dd2e6b6` (`Make release SBOM packaging version safe`)
-- Private Samsung/navigation captures are preserved outside distributable
-  artifacts under ignored `backups/private-qa-evidence/`.
-- Flutter application: `flutter_mort/`
+- Runtime artifact commit:
+  `79630b195098a2c5428a30104b55cfec27ea764f`
+- Flutter version: `0.9.15+105`
 - Android package: `com.mortapp.mobile`
 - Hosted Supabase project: `rakjydmgwwgtdislanbt`
-- Public marketplace: fail-closed until real production identity verification,
-  legal approval, and staffed safety operations exist
+- Public marketplace: fail-closed
+- Real verification provider: not connected
+- Real ID collection: disabled
+- Payments/escrow: disabled
 
-## Completed In This Pass
+## Verification Ledger
 
 | Area | Status | Evidence |
 |---|---|---|
-| Public Back stack | Verified checkpoint | `bf37a9d`; physical navigation evidence preserved under `artifacts/qa-evidence/` |
-| Shared Liquid Glass system | Verified checkpoint | `91904ed`; selective blur, reduced-transparency fallback, semantic rose/blue/success states |
-| Teen routed destinations | Verified checkpoint | `a322e62`, `042116b`; StatefulShellRoute destinations and production flows |
-| Unified authentication UI | Verified checkpoint | `08684c5`; sign-in/sign-up routes share one accessible screen |
-| Role dashboards | Verified checkpoint | `6545efc`; Adult, Guardian, and Admin grouped production routes; focused tests pass |
-| Settings and device preferences | Verified checkpoint | `d487135`; persisted motion, transparency, contrast, haptic preferences and grouped routes |
-| Messaging completion | Hosted and local verified | `ef1cbdd`; safe participant/job context, keyset pagination, realtime cancellation, unread state, report/block, visible retry, text-only boundary |
-| Safety and action audit | Verified checkpoint | `214ed2a`; durable Safety Center retry, free emergency access, role-scoped Safety Ping, universal guarded route, and generated route/action inventory |
-| Hosted backend regression | Verified | 45/45 scripts passed in 511.7 seconds; one transient hosted fetch retried once; isolated QA users removed |
-| Dependency/security pass | Verified with upstream limits | Expo SDK 57 patches applied; four transitive advisories patched by compatible overrides; two unpatched Metro `image-size` advisories and one non-reachable Xcode `uuid` advisory remain documented |
-| Play release QA | Verified | 18 release checks plus AAB/APK binary secret and signer checks passed |
-| Android release integrity | Verified | Signed APK/AAB, target SDK 36, 11-permission manifest, Android lint, and 18/18 native-library 16 KB alignment passed |
-| API 36 emulator | Verified | Exact signed APK cold launch and two-test native integration suite passed on `Medium_Phone_API_36.1` |
-| Physical Samsung completion | Blocked - secure human action | Remembered wireless endpoint refused connection; exact OAuth/account-status rendering retest and authenticated role matrix remain unperformed |
-| Release SBOM path | Repaired with disclosed historical impact | Hardcoded `0.9.13+103` output replaced by explicit version-matched output; old SBOM reconstructed from its verified source ZIP, original bytes unrecoverable |
-| Final release package | Verified | 13 manifest-tracked artifacts matched; 1,851 source ZIP entries; excluded-path, sensitive-file, secret, signer, and binary checks passed |
+| Real Google callback | PASS on final APK | Authorized chooser selection, PKCE return, MORT foreground, no loop/challenge; private evidence under ignored `artifacts/` |
+| Invalid matrix remediation | PHYSICALLY CLEARED | Final callback plus five cold starts: zero `TransformLayer`/invalid-matrix entries |
+| Predictive Back | PASS | Active callback, no not-enabled warning; safe onboarding and legal-link Back checks pass |
+| Legacy onboarding repair | PASS locally/remotely | Migration `20260809040544`; caller-bound QA; no legal acknowledgement synthesis |
+| Post-OAuth onboarding route | PASS after repair | Account Status and role guards use persisted server `resume_path`; focused 44-test suite and final APK physical retest |
+| Flutter | PASS | Analyzer zero issues; full suite 352 passed, two intentional provider-gated skips |
+| Hosted Supabase | PASS | Expanded 46-script regression, migration parity, lint, advisors, RLS, and storage checks |
+| Samsung session restoration | PASS | Final APK 5/5 cold starts restored Safety; no OAuth auto-launch, blanks, route errors, or crashes |
+| Samsung Home/resume | PASS | 3/3 on the `0.9.15` candidate; runtime route repair did not touch lifecycle code |
+| Large text | PASS | Safety top/bottom reachable at 1.3; font scale restored to 1.0 |
+| Screen off/on | PARTIAL - HUMAN UNLOCK | Process persisted; secure Samsung keyguard appeared and was not bypassed |
+| Offline physical cold start | BLOCKED - WIRELESS ADB | Disabling network would sever the only device-control channel; focused offline/session tests pass |
+| Authorized role | Teen, incomplete | QA-safe onboarding through Safety; owner legal acknowledgements not selected |
+| Teen role matrix | BLOCKED - HUMAN LEGAL ACTION | Dashboard, Messages, Notifications, and Settings remain behind Safety completion |
+| Adult Back matrix | NOT APPLICABLE | The authorized account is Teen; automated Adult route/Back coverage passes |
+| Final APK/AAB | PASS | Signed, package/version/SDK/permissions verified, binary secret scan clean, 18/18 16 KB alignment |
 
-## Hosted Messaging Evidence
+## Defects Closed In 0.9.15
 
-- Migration `20260808010000_message_thread_context_and_pagination.sql` is applied
-  locally and remotely.
-- Pre-apply schema backup:
-  `backups/remote-feature-schema-rakjydmgwwgtdislanbt-2026-08-09T00-56-04-482Z.json`
-  (5,776,825 bytes; SHA-256
-  `85DD49BFC5DDF491BE238602EA850E2D64DA4787E7E2D4E6B772B5E0FF44CEC7`).
-- Linked schema lint: no error-level findings.
-- Direct PostgreSQL JWT/RLS QA: participant context passed; private helper,
-  outsider, and anonymous access denied; transaction rolled back.
-- Hosted authenticated API QA: teen/adult context, search, unread count, message
-  summary, outsider denial, and anonymous denial passed; ephemeral users removed.
+1. Legacy validated profiles missing `onboarding_progress` could not advance.
+   The private trigger/backfill restores only validated age/role prerequisites.
+2. Android predictive Back did not consistently invoke route fallbacks. Shared
+   screens now use `PopScope` and the server onboarding order.
+3. Safety legal references used replacement navigation and lost their caller.
+   They now use pushed routes and return to Safety.
+4. Post-OAuth Account Status used the obsolete compact onboarding route while
+   cold starts used server progress. Both now use the persisted resume path.
 
-## Latest Verification
+## Final Artifacts
 
-- Linked Supabase migration parity: PASS through `20260808010000`; push dry-run
-  reports the remote database is up to date.
-- Linked `public,private` schema lint: PASS, no errors.
-- Supabase advisors: PASS with no error-level findings. Leaked-password screening
-  remains `DEFERRED - PLAN-LIMITED SECURITY ENHANCEMENT` on the Free plan.
-- Source secret scan: PASS. Sensitive-file scan: PASS, 1,964 files and 57 known
-  app-media files checked. Git-history scan: PASS, 30 commits and 45 candidate
-  blobs inspected with zero findings.
-- Expo reference app: frozen install PASS; dependency compatibility PASS;
-  Expo Doctor 20/20; TypeScript PASS; lint PASS; 48-route web export PASS.
-- Flutter dependency lock refreshed within existing constraints; 34 compatible
-  package updates resolved successfully.
-- Dart format: PASS, 226 files and zero changes required.
-- Flutter analyzer: PASS, zero issues before the final navigation repair.
-- Focused secure-startup/navigation regression: PASS, 19 tests.
-- Full Flutter suite after repair: PASS, 349 tests; two intentional
-  provider-configuration skips; zero failures.
-- Play release QA: PASS after repairing stale age-gate, SDK inventory, and
-  build-wrapper assertions.
-- Android release lint: PASS; 703 Gradle tasks.
-- Native integration: PASS on API 36/x86_64 with host GPU; two test bodies.
-- Exact signed APK cold launch: PASS; resumed activity and fatal-log scan.
-- APK alignment: PASS; 18/18 native libraries.
-- Version-safe release packaging: PASS; `artifacts/release-0.9.14+104` contains
-  signed binaries, symbols, SBOM, reports, manifests, and an audited source ZIP.
-- `git diff --check`: PASS.
+| Artifact | Size | SHA-256 |
+|---|---:|---|
+| `artifacts/release-0.9.15+105/mort-closed-test-0.9.15.apk` | 69,287,402 | `A4578C163638A952B8C1B9F6BE8CC190B3F38D1C7B927A5F4AEA200C6E918E10` |
+| `artifacts/release-0.9.15+105/mort-closed-test-0.9.15.aab` | 52,164,950 | `84758C39817B42129282CBD74BD9FAC2B37854CCEA04EC4CA81946793DFFA144` |
 
-## Remaining Code-Controlled Work
+Both manifests record the clean runtime commit. The protected closed-test
+profile keeps public marketplace, verification, payments, ads/IAP, remote push,
+crash reporting, and public activation disabled.
 
-1. Complete the secure physical Samsung login and exact OAuth/account-status
-   rendering retest when the owner re-enables authorized wireless debugging.
+## Deferred And External Gates
 
-## External Gates
+- `DEFERRED - PLAN-LIMITED SECURITY ENHANCEMENT`: Supabase leaked-password
+  protection requires Pro. On upgrade, enable it immediately and rerun Auth
+  security advisors.
+- Owner/counsel approval is still required for Terms, Privacy, community and
+  teen-safety rules, retention, insurance, tax/payment, and jurisdiction.
+- Real verification provider approval, moderation/support/on-call staffing,
+  provider credentials, and incident response ownership remain external.
+- Play Console declarations, processed-AAB SDK review, tester cohort, review,
+  and production access remain external.
+- iPhone manual testing, Xcode signing, TestFlight, App Store privacy manifests,
+  and App Store/legal review were not done.
 
-- Production identity-verification provider contract, credentials, and real-ID
-  collection remain unavailable; sandbox verification is QA-only.
-- Attorney, child-safety, privacy, tax/payment, and insurance decisions remain
-  human responsibilities.
-- Real moderation/support/on-call staffing and escalation commitments remain
-  unverified.
-- Production push/crash/payment provider activation remains credential/provider
-  gated where runtime flags are fail-closed.
-- Play Console declarations, production access, and review decisions remain
-  external.
-- iPhone/Xcode/TestFlight/App Store verification cannot be completed on this
-  Windows host and must not be reported as passed.
+## Warning Before Real Users
 
-## Next Exact Step
-
-When the owner securely re-enables Samsung wireless debugging, install the exact
-signed APK, complete human authentication, and capture the OAuth/account-status
-plus role-matrix retest. Physical release status remains open until that journey
-produces zero invalid-matrix errors.
+Do not open the public marketplace, collect real identity documents, accept
+payments, represent adults as provider-verified, or invite teen users beyond a
+controlled closed test until the human and external gates above are complete.
