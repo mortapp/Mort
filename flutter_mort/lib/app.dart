@@ -13,6 +13,7 @@ import 'core/widgets/app_lock_gate.dart';
 import 'core/widgets/auth_startup_gate.dart';
 import 'core/widgets/mort_widgets.dart';
 import 'core/observability/product_analytics.dart';
+import 'core/preferences/mort_experience_preferences.dart';
 import 'data/repositories/providers.dart';
 import 'services/app_lock_controller.dart';
 import 'services/push/push_notification_coordinator.dart';
@@ -87,6 +88,10 @@ class _MortAppState extends ConsumerState<MortApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
     final startup = ref.watch(authStartupProvider);
+    final experience = ref
+        .watch(mortExperiencePreferencesProvider)
+        .asData
+        ?.value;
     final snapshot = startup.snapshot;
     if (!snapshot.blocksNavigation &&
         snapshot.destination != null &&
@@ -108,10 +113,24 @@ class _MortAppState extends ConsumerState<MortApp> with WidgetsBindingObserver {
       ],
       supportedLocales: const [Locale('en')],
       routerConfig: router,
-      builder: (context, child) => AuthStartupGate(
-        controller: startup,
-        child: AppLockGate(child: child ?? const SizedBox.shrink()),
-      ),
+      builder: (context, child) {
+        final preferences = experience ?? const MortExperiencePreferences();
+        final deviceMedia = MediaQuery.of(context);
+        return MediaQuery(
+          data: deviceMedia.copyWith(
+            disableAnimations:
+                deviceMedia.disableAnimations || preferences.reducedMotion,
+            highContrast: deviceMedia.highContrast || preferences.highContrast,
+          ),
+          child: MortExperiencePreferencesScope(
+            preferences: preferences,
+            child: AuthStartupGate(
+              controller: startup,
+              child: AppLockGate(child: child ?? const SizedBox.shrink()),
+            ),
+          ),
+        );
+      },
     );
   }
 }

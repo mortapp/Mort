@@ -43,6 +43,7 @@ import '../../features/safety/trust_safety_screens.dart';
 import '../../features/support/support_screens.dart';
 import '../../features/support/support_assistant_screen.dart';
 import '../../features/settings/account_management_screens.dart';
+import '../../features/settings/experience_settings_screen.dart';
 import '../../features/settings/native_permissions_screen.dart';
 import '../../features/settings/release_diagnostics_screen.dart';
 import '../../features/trust/account_trust_screens.dart';
@@ -984,12 +985,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       _guarded('/settings/connected-accounts', const ConnectedAccountsScreen()),
       _guarded('/settings/guardian-mode', const GuardianModeScreen()),
       _guarded('/settings/username', const UsernameSettingsScreen()),
+      _guarded('/settings/accessibility', const ExperienceSettingsScreen()),
+      _guarded(
+        '/settings/appearance',
+        const ExperienceSettingsScreen(appearanceFirst: true),
+      ),
+      _guarded('/settings/privacy', const PrivacySettingsScreen()),
+      _guarded('/settings/safety', const SafetySettingsScreen()),
+      _guarded('/settings/data', const DataControlsScreen()),
+      _guarded('/settings/about', const AboutMortScreen()),
       _guarded('/settings/subscription', const MortPlusView()),
       _guarded('/settings/ad-preferences', const AdPreferencesScreen()),
-      _guarded(
-        '/settings/privacy',
-        const LegalDocScreen(title: 'Privacy controls'),
-      ),
       _guarded('/settings/legal', _legalIndex()),
       _guarded('/legal-center', const LegalCenterScreen()),
       _guarded('/legal-center/teen-summary', const TeenTermsSummaryScreen()),

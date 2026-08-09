@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../l10n/mort_l10n.dart';
+import '../preferences/mort_experience_preferences.dart';
 import '../theme/mort_colors.dart';
 import '../theme/mort_spacing.dart';
 import '../theme/mort_tokens.dart';
@@ -343,9 +343,9 @@ class MortPinPad extends StatelessWidget {
   final int digits;
   final bool enabled;
 
-  void _append(String digit) {
+  void _append(BuildContext context, String digit) {
     if (!enabled || value.length >= digits) return;
-    HapticFeedback.selectionClick();
+    MortHaptics.selectionClick(context);
     onChanged('$value$digit');
   }
 
@@ -440,7 +440,7 @@ class MortPinPad extends StatelessWidget {
                                                   value.length - 1,
                                                 ),
                                         )
-                                      : () => _append(key),
+                                      : () => _append(context, key),
                                   child: key == 'back'
                                       ? const Icon(Icons.backspace_outlined)
                                       : Text(

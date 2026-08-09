@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../preferences/mort_experience_preferences.dart';
 import '../theme/mort_colors.dart';
 import '../theme/mort_spacing.dart';
 import '../theme/mort_tokens.dart';
@@ -34,7 +35,11 @@ class LiquidGlassContainer extends StatelessWidget {
   final String? semanticLabel;
 
   bool _useLiveBlur(BuildContext context) {
-    if (!liveBlur || kIsWeb || MediaQuery.highContrastOf(context)) {
+    final preferences = MortExperiencePreferencesScope.of(context);
+    if (!liveBlur ||
+        kIsWeb ||
+        MediaQuery.highContrastOf(context) ||
+        preferences.reducedTransparency) {
       return false;
     }
     if (defaultTargetPlatform == TargetPlatform.android && !allowAndroidBlur) {
@@ -648,37 +653,41 @@ class MortDashboardActionTile extends StatelessWidget {
   final String label;
   final String description;
   final IconData icon;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   @override
-  Widget build(BuildContext context) => MortGlassSoftSurface(
-    onTap: onPressed,
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Container(
-          width: MortSpacing.minTouchTarget,
-          height: MortSpacing.minTouchTarget,
-          decoration: BoxDecoration(
-            color: MortColors.lightBlue.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(MortRadii.medium),
+  Widget build(BuildContext context) => Opacity(
+    opacity: onPressed == null ? 0.62 : 1,
+    child: MortGlassSoftSurface(
+      onTap: onPressed,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: MortSpacing.minTouchTarget,
+            height: MortSpacing.minTouchTarget,
+            decoration: BoxDecoration(
+              color: MortColors.lightBlue.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(MortRadii.medium),
+            ),
+            child: Icon(icon, color: MortColors.lightBlue),
           ),
-          child: Icon(icon, color: MortColors.lightBlue),
-        ),
-        const SizedBox(width: MortSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: MortSpacing.xxs),
-              Text(description, style: Theme.of(context).textTheme.bodySmall),
-            ],
+          const SizedBox(width: MortSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: MortSpacing.xxs),
+                Text(description, style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: MortSpacing.xs),
-        const Icon(Icons.chevron_right_rounded, color: MortColors.silver),
-      ],
+          const SizedBox(width: MortSpacing.xs),
+          if (onPressed != null)
+            const Icon(Icons.chevron_right_rounded, color: MortColors.silver),
+        ],
+      ),
     ),
   );
 }

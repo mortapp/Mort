@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/errors/user_facing_error.dart';
+import '../../core/preferences/mort_experience_preferences.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/profile.dart';
@@ -69,6 +70,12 @@ class _OnboardingPreferencesScreenState
                 'high_contrast': _highContrast,
               },
             },
+          );
+      await ref
+          .read(mortExperiencePreferencesProvider.notifier)
+          .applyOnboardingPreferences(
+            reducedMotion: _reducedMotion,
+            highContrast: _highContrast,
           );
       ref.invalidate(onboardingProgressProvider);
       if (mounted) context.go('/onboarding/safety');

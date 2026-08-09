@@ -5548,147 +5548,238 @@ class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const FeatureScaffoldScreen(
-      eyebrow: 'Settings',
-      title: 'Control your account',
-      description:
-          'Profile, trust, device security, privacy, legal, support, and sign-out.',
-      actions: [
-        MortAction(
-          label: 'Edit profile',
-          icon: Icons.person,
-          route: '/settings/profile',
-        ),
-        MortAction(
-          label: 'Username',
-          icon: Icons.alternate_email,
-          route: '/settings/username',
-        ),
-        MortAction(
-          label: 'Connected accounts',
-          icon: Icons.link,
-          route: '/settings/connected-accounts',
-        ),
-        MortAction(
-          label: 'Guardian Mode',
-          icon: Icons.family_restroom,
-          route: '/settings/guardian-mode',
-        ),
-        MortAction(
-          label: 'Account trust',
-          icon: Icons.shield_outlined,
-          route: '/settings/account-trust',
-        ),
-        MortAction(
-          label: 'Teen verification options',
-          icon: Icons.school_outlined,
-          route: '/trust/teen-verification',
-        ),
-        MortAction(
-          label: 'Device security',
-          icon: Icons.phonelink_lock,
-          route: '/settings/device-security',
-        ),
-        MortAction(
-          label: 'Device permissions',
-          icon: Icons.admin_panel_settings_outlined,
-          route: '/settings/native-permissions',
-        ),
-        MortAction(
-          label: 'Release diagnostics',
-          icon: Icons.health_and_safety_outlined,
-          route: '/settings/release-diagnostics',
-        ),
-        MortAction(
-          label: 'Safety Circle',
-          icon: Icons.group_outlined,
-          route: '/settings/safety-circle',
-        ),
-        MortAction(
-          label: 'Safety cases',
-          icon: Icons.folder_shared_outlined,
-          route: '/settings/safety-cases',
-        ),
-        MortAction(
-          label: 'Blocked accounts',
-          icon: Icons.block,
-          route: '/settings/blocked-users',
-        ),
-        MortAction(
-          label: 'Security and sessions',
-          icon: Icons.phonelink_lock,
-          route: '/settings/security-sessions',
-        ),
-        MortAction(
-          label: 'Reviews received',
-          icon: Icons.star_outline,
-          route: '/settings/reviews',
-        ),
-        MortAction(
-          label: 'Activity history',
-          icon: Icons.history,
-          route: '/settings/activity',
-        ),
-        MortAction(
-          label: 'Notifications',
-          icon: Icons.notifications_outlined,
-          route: '/notifications',
-        ),
-        MortAction(
-          label: 'Support',
-          icon: Icons.support_agent,
-          route: '/support',
-        ),
-        MortAction(
-          label: 'MORT Guide',
-          icon: Icons.assistant_outlined,
-          route: '/guide',
-        ),
-        MortAction(
-          label: 'Subscription',
-          icon: Icons.workspace_premium,
-          route: '/settings/subscription',
-        ),
-        MortAction(
-          label: 'Ad preferences',
-          icon: Icons.ads_click,
-          route: '/settings/ad-preferences',
-        ),
-        MortAction(
-          label: 'Privacy',
-          icon: Icons.privacy_tip,
-          route: '/settings/privacy',
-        ),
-        MortAction(
-          label: 'Legal',
-          icon: Icons.policy,
-          route: '/settings/legal',
-        ),
-        MortAction(
-          label: 'Legal center and clickwrap',
-          icon: Icons.verified_user_outlined,
-          route: '/legal-center',
-        ),
-        MortAction(
-          label: 'Job agreements and payment',
-          icon: Icons.description_outlined,
-          route: '/contracts',
-        ),
-        MortAction(
-          label: 'Trust architecture status',
-          icon: Icons.fact_check_outlined,
-          route: '/trust/foundations',
-        ),
-        MortAction(
-          label: 'Request account deletion',
-          icon: Icons.delete_outline,
-          route: '/settings/account-deletion',
-          style: MortButtonStyle.danger,
-        ),
+  Widget build(BuildContext context) => MortScreen(
+    children: [
+      const MortGlassHeader(
+        eyebrow: 'Settings',
+        title: 'Control your account',
+        subtitle:
+            'Privacy, safety, accessibility, security, support, and legal controls in one place.',
+      ),
+      for (final group in _settingsGroups) ...[
+        MortSectionLabel(label: group.label),
+        for (final action in group.actions) ...[
+          MortDashboardActionTile(
+            label: action.label,
+            description: action.description,
+            icon: action.icon,
+            onPressed: () => context.push(action.route),
+          ),
+          const SizedBox(height: MortSpacing.sm),
+        ],
       ],
-    );
-  }
+      const MortSectionLabel(label: 'Account closure'),
+      MortGlassButton(
+        label: 'Request account deletion',
+        icon: Icons.delete_outline,
+        danger: true,
+        onPressed: () => context.push('/settings/account-deletion'),
+      ),
+      const SizedBox(height: MortSpacing.md),
+      const MortSafetyBanner(
+        message:
+            'Report, block, Safety Ping, Guardian Mode basics, and account security are never paywalled.',
+      ),
+    ],
+  );
+}
+
+const _settingsGroups = <_SettingsGroup>[
+  _SettingsGroup(
+    label: 'Account',
+    actions: [
+      _SettingsAction(
+        label: 'Profile',
+        description: 'Edit public-safe profile details and approximate area.',
+        icon: Icons.person_outline_rounded,
+        route: '/settings/profile',
+      ),
+      _SettingsAction(
+        label: 'Username',
+        description: 'Review your current username and available changes.',
+        icon: Icons.alternate_email_rounded,
+        route: '/settings/username',
+      ),
+      _SettingsAction(
+        label: 'Connected accounts',
+        description: 'Review email/password and Google sign-in methods.',
+        icon: Icons.link_rounded,
+        route: '/settings/connected-accounts',
+      ),
+      _SettingsAction(
+        label: 'Security and sessions',
+        description:
+            'Review active sessions, device lock, and sign-out controls.',
+        icon: Icons.phonelink_lock_outlined,
+        route: '/settings/security-sessions',
+      ),
+      _SettingsAction(
+        label: 'Account trust',
+        description: 'Review verified signals, limitations, and appeals.',
+        icon: Icons.shield_outlined,
+        route: '/settings/account-trust',
+      ),
+    ],
+  ),
+  _SettingsGroup(
+    label: 'Privacy and safety',
+    actions: [
+      _SettingsAction(
+        label: 'Privacy',
+        description:
+            'Control approximate location, visibility, sharing, and blocks.',
+        icon: Icons.privacy_tip_outlined,
+        route: '/settings/privacy',
+      ),
+      _SettingsAction(
+        label: 'Safety',
+        description:
+            'Open Safety Center, Safety Circle, cases, reporting, and standards.',
+        icon: Icons.health_and_safety_outlined,
+        route: '/settings/safety',
+      ),
+      _SettingsAction(
+        label: 'Device permissions',
+        description:
+            'Review camera, photos, foreground location, and notifications.',
+        icon: Icons.admin_panel_settings_outlined,
+        route: '/settings/native-permissions',
+      ),
+      _SettingsAction(
+        label: 'Guardian Mode',
+        description: 'Review optional links and privacy boundaries.',
+        icon: Icons.family_restroom_outlined,
+        route: '/settings/guardian-mode',
+      ),
+    ],
+  ),
+  _SettingsGroup(
+    label: 'Notifications and accessibility',
+    actions: [
+      _SettingsAction(
+        label: 'Notifications',
+        description:
+            'Control categories, quiet hours, permission, and delivery status.',
+        icon: Icons.notifications_outlined,
+        route: '/notifications',
+      ),
+      _SettingsAction(
+        label: 'Accessibility',
+        description: 'Control motion, contrast, transparency, and haptics.',
+        icon: Icons.accessibility_new_rounded,
+        route: '/settings/accessibility',
+      ),
+      _SettingsAction(
+        label: 'Appearance',
+        description: 'Review the active theme and performance fallback.',
+        icon: Icons.palette_outlined,
+        route: '/settings/appearance',
+      ),
+    ],
+  ),
+  _SettingsGroup(
+    label: 'Data and history',
+    actions: [
+      _SettingsAction(
+        label: 'Data controls',
+        description: 'Review activity, privacy requests, and deletion.',
+        icon: Icons.data_usage_outlined,
+        route: '/settings/data',
+      ),
+      _SettingsAction(
+        label: 'Reviews received',
+        description: 'Review real marketplace reputation records.',
+        icon: Icons.star_outline_rounded,
+        route: '/settings/reviews',
+      ),
+      _SettingsAction(
+        label: 'Activity history',
+        description: 'Review account-visible job and safety activity.',
+        icon: Icons.history_rounded,
+        route: '/settings/activity',
+      ),
+    ],
+  ),
+  _SettingsGroup(
+    label: 'Support and optional perks',
+    actions: [
+      _SettingsAction(
+        label: 'Support',
+        description: 'Open help, MORT Support, and human escalation paths.',
+        icon: Icons.support_agent_outlined,
+        route: '/support',
+      ),
+      _SettingsAction(
+        label: 'MORT Guide',
+        description: 'Use the bounded, safety-aware help assistant.',
+        icon: Icons.assistant_outlined,
+        route: '/guide',
+      ),
+      _SettingsAction(
+        label: 'Optional subscription',
+        description: 'Review voluntary perks without safety paywalls.',
+        icon: Icons.workspace_premium_outlined,
+        route: '/settings/subscription',
+      ),
+      _SettingsAction(
+        label: 'Ad preferences',
+        description: 'Review age-restricted ad and consent controls.',
+        icon: Icons.ads_click_outlined,
+        route: '/settings/ad-preferences',
+      ),
+    ],
+  ),
+  _SettingsGroup(
+    label: 'Legal and about',
+    actions: [
+      _SettingsAction(
+        label: 'Legal center',
+        description: 'Review current documents, versions, and clickwrap.',
+        icon: Icons.policy_outlined,
+        route: '/legal-center',
+      ),
+      _SettingsAction(
+        label: 'Teen safety standards',
+        description: 'Review child-safety and prohibited-work standards.',
+        icon: Icons.verified_user_outlined,
+        route: '/legal/teen-safety',
+      ),
+      _SettingsAction(
+        label: 'Release diagnostics',
+        description:
+            'Review closed-test configuration without exposing secrets.',
+        icon: Icons.monitor_heart_outlined,
+        route: '/settings/release-diagnostics',
+      ),
+      _SettingsAction(
+        label: 'About MORT',
+        description: 'Review version, build, environment, and licenses.',
+        icon: Icons.info_outline_rounded,
+        route: '/settings/about',
+      ),
+    ],
+  ),
+];
+
+class _SettingsGroup {
+  const _SettingsGroup({required this.label, required this.actions});
+
+  final String label;
+  final List<_SettingsAction> actions;
+}
+
+class _SettingsAction {
+  const _SettingsAction({
+    required this.label,
+    required this.description,
+    required this.icon,
+    required this.route,
+  });
+
+  final String label;
+  final String description;
+  final IconData icon;
+  final String route;
 }
 
 class LegalDocScreen extends StatelessWidget {
