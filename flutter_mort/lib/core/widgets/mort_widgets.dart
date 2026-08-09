@@ -21,6 +21,7 @@ class MortScreen extends StatelessWidget {
     this.bottom,
     this.scroll = true,
     this.onWillPop,
+    this.scrollController,
   });
 
   final List<Widget> children;
@@ -28,6 +29,7 @@ class MortScreen extends StatelessWidget {
   final Widget? bottom;
   final bool scroll;
   final Future<bool> Function(BuildContext context)? onWillPop;
+  final ScrollController? scrollController;
 
   bool get _hasHeader =>
       children.any((child) => child is MortHeader || child is MortGlassHeader);
@@ -93,7 +95,9 @@ class MortScreen extends StatelessWidget {
       ),
     );
 
-    final body = scroll ? SingleChildScrollView(child: content) : content;
+    final body = scroll
+        ? SingleChildScrollView(controller: scrollController, child: content)
+        : content;
 
     return Scaffold(
       backgroundColor: Colors.transparent,

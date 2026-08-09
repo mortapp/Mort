@@ -7,11 +7,25 @@ import 'repository_base.dart';
 
 class MessagingRepository extends RepositoryBase {
   Future<List<MessageThread>> listThreads() async {
+    return (await listThreadsPage()).items;
+  }
+
+  Future<MessageThreadPage> listThreadsPage({
+    String query = '',
+    MessageThreadPageCursor? cursor,
+    int limit = 20,
+  }) async {
     requireUserId();
-    final rows = await client.rpc('get_my_message_threads');
-    return List<Map<String, dynamic>>.from(
-      rows as List,
-    ).map(MessageThread.fromMap).toList();
+    final value = await client.rpc(
+      'list_my_message_threads_page',
+      params: {
+        'p_query': query.trim(),
+        'p_cursor_updated_at': cursor?.updatedAt.toIso8601String(),
+        'p_cursor_id': cursor?.id,
+        'p_limit': limit.clamp(1, 50),
+      },
+    );
+    return MessageThreadPage.fromMap(Map<String, dynamic>.from(value as Map));
   }
 
   Future<MessagePage> listMessagesPage(
@@ -56,7 +70,7 @@ class MessagingRepository extends RepositoryBase {
     }
   }
 
-  RealtimeChannel subscribeToMessages(
+  MortMessageSubscription subscribeToMessages(
     String threadId,
     void Function(MortMessage message) onInsert,
   ) {
@@ -81,11 +95,7 @@ class MessagingRepository extends RepositoryBase {
           },
         )
         .subscribe();
-    return channel;
-  }
-
-  Future<void> unsubscribe(RealtimeChannel channel) async {
-    await client.removeChannel(channel);
+    return _SupabaseMessageSubscription(client, channel);
   }
 
   Future<void> markThreadRead(String threadId) async {
@@ -107,4 +117,18 @@ class MessagingRepository extends RepositoryBase {
       );
     }
   }
+}
+
+abstract interface class MortMessageSubscription {
+  Future<void> cancel();
+}
+
+class _SupabaseMessageSubscription implements MortMessageSubscription {
+  const _SupabaseMessageSubscription(this._client, this._channel);
+
+  final SupabaseClient _client;
+  final RealtimeChannel _channel;
+
+  @override
+  Future<void> cancel() => _client.removeChannel(_channel);
 }

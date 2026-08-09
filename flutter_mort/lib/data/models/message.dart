@@ -9,6 +9,13 @@ class MessageThread {
     this.lifecycleStatus = 'active',
     this.updatedAt,
     this.unreadCount = 0,
+    this.jobTitle,
+    this.counterpartyId,
+    this.counterpartyDisplayName,
+    this.counterpartyRole,
+    this.counterpartyVerificationStatus,
+    this.lastMessagePreview,
+    this.lastMessageAt,
   });
 
   final String id;
@@ -20,6 +27,13 @@ class MessageThread {
   final String lifecycleStatus;
   final DateTime? updatedAt;
   final int unreadCount;
+  final String? jobTitle;
+  final String? counterpartyId;
+  final String? counterpartyDisplayName;
+  final String? counterpartyRole;
+  final String? counterpartyVerificationStatus;
+  final String? lastMessagePreview;
+  final DateTime? lastMessageAt;
 
   factory MessageThread.fromMap(Map<String, dynamic> json) {
     return MessageThread(
@@ -32,6 +46,56 @@ class MessageThread {
       lifecycleStatus: (json['lifecycle_status'] as String?) ?? 'active',
       updatedAt: DateTime.tryParse((json['updated_at'] ?? '').toString()),
       unreadCount: (json['unread_count'] as num?)?.toInt() ?? 0,
+      jobTitle: json['job_title'] as String?,
+      counterpartyId: json['counterparty_id']?.toString(),
+      counterpartyDisplayName: json['counterparty_display_name'] as String?,
+      counterpartyRole: json['counterparty_role'] as String?,
+      counterpartyVerificationStatus:
+          json['counterparty_verification_status'] as String?,
+      lastMessagePreview: json['last_message_preview'] as String?,
+      lastMessageAt: DateTime.tryParse(
+        (json['last_message_at'] ?? '').toString(),
+      ),
+    );
+  }
+}
+
+class MessageThreadPageCursor {
+  const MessageThreadPageCursor({required this.updatedAt, required this.id});
+
+  final DateTime updatedAt;
+  final String id;
+
+  factory MessageThreadPageCursor.fromMap(Map<String, dynamic> json) =>
+      MessageThreadPageCursor(
+        updatedAt: DateTime.parse(json['updated_at'].toString()),
+        id: json['id'].toString(),
+      );
+}
+
+class MessageThreadPage {
+  const MessageThreadPage({
+    required this.items,
+    required this.hasMore,
+    this.nextCursor,
+  });
+
+  final List<MessageThread> items;
+  final bool hasMore;
+  final MessageThreadPageCursor? nextCursor;
+
+  factory MessageThreadPage.fromMap(Map<String, dynamic> json) {
+    final rawCursor = json['next_cursor'];
+    return MessageThreadPage(
+      items: List<Map<String, dynamic>>.from(
+        (json['items'] as List?) ?? const [],
+      ).map(MessageThread.fromMap).toList(growable: false),
+      hasMore: json['has_more'] == true,
+      nextCursor: rawCursor is Map
+          ? MessageThreadPageCursor.fromMap(
+              Map<String, dynamic>.from(rawCursor),
+            )
+          : null,
     );
   }
 }
@@ -56,12 +120,14 @@ class MessagePage {
     required this.hasMore,
     required this.lifecycleStatus,
     this.nextCursor,
+    this.thread,
   });
 
   final List<MortMessage> items;
   final bool hasMore;
   final String lifecycleStatus;
   final MessagePageCursor? nextCursor;
+  final MessageThread? thread;
 
   factory MessagePage.fromMap(Map<String, dynamic> json) {
     final rawCursor = json['next_cursor'];
@@ -73,6 +139,11 @@ class MessagePage {
       lifecycleStatus: json['lifecycle_status']?.toString() ?? 'active',
       nextCursor: rawCursor is Map
           ? MessagePageCursor.fromMap(Map<String, dynamic>.from(rawCursor))
+          : null,
+      thread: json['thread'] is Map
+          ? MessageThread.fromMap(
+              Map<String, dynamic>.from(json['thread'] as Map),
+            )
           : null,
     );
   }

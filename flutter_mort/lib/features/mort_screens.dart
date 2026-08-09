@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
@@ -16,6 +15,7 @@ import '../core/errors/user_facing_error.dart';
 import '../core/money/mort_service_fee.dart';
 import '../core/theme/mort_colors.dart';
 import '../core/theme/mort_spacing.dart';
+import '../core/theme/mort_tokens.dart';
 import '../core/utils/formatters.dart';
 import '../core/utils/validators.dart';
 import '../core/utils/date_of_birth.dart';
@@ -27,6 +27,7 @@ import '../data/models/message.dart';
 import '../data/models/onboarding_progress.dart';
 import '../data/models/profile.dart';
 import '../data/repositories/providers.dart';
+import '../data/repositories/messaging_repository.dart';
 import '../data/repositories/uploads_repository.dart';
 import '../data/services/supabase_service.dart';
 import 'ads/widgets/mort_banner_ad.dart';
@@ -3445,23 +3446,168 @@ class MessagesScreen extends ConsumerStatefulWidget {
 }
 
 class _MessagesScreenState extends ConsumerState<MessagesScreen> {
-  late Future<List<MessageThread>> _future;
+  final _search = TextEditingController();
+  final List<MessageThread> _threads = [];
+  MessageThreadPageCursor? _nextCursor;
+  Object? _loadError;
+  String _activeQuery = '';
+  bool _initialLoading = true;
+  bool _loadingMore = false;
 
   @override
   void initState() {
     super.initState();
-    _future = ref.read(messagingRepositoryProvider).listThreads();
+    unawaited(_load(reset: true));
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load({required bool reset}) async {
+    if (reset) {
+      setState(() {
+        _initialLoading = true;
+        _loadError = null;
+        _activeQuery = _search.text.trim();
+      });
+    } else {
+      if (_nextCursor == null || _loadingMore) return;
+      setState(() => _loadingMore = true);
+    }
+    try {
+      final page = await ref
+          .read(messagingRepositoryProvider)
+          .listThreadsPage(
+            query: _activeQuery,
+            cursor: reset ? null : _nextCursor,
+          );
+      if (!mounted) return;
+      setState(() {
+        if (reset) _threads.clear();
+        final knownIds = _threads.map((thread) => thread.id).toSet();
+        _threads.addAll(page.items.where((thread) => knownIds.add(thread.id)));
+        _nextCursor = page.nextCursor;
+        _loadError = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _loadError = error);
+      if (!reset && _threads.isNotEmpty) {
+        MortToast.show(context, userFacingError(error));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _initialLoading = false;
+          _loadingMore = false;
+        });
+      }
+    }
   }
 
   void _reload() {
-    setState(() {
-      _future = ref.read(messagingRepositoryProvider).listThreads();
-    });
+    if (_initialLoading) return;
+    unawaited(_load(reset: true));
+  }
+
+  void _clearSearch() {
+    _search.clear();
+    _reload();
+  }
+
+  Widget _threadCard(
+    BuildContext context,
+    MessageThread thread, {
+    required bool inTeenShell,
+  }) {
+    final name = thread.counterpartyDisplayName?.trim();
+    final displayName = name?.isNotEmpty == true ? name! : 'MORT participant';
+    final avatarLabel = displayName.characters.first.toUpperCase();
+    final jobTitle = thread.jobTitle?.trim();
+    final preview = thread.lastMessagePreview?.trim();
+    return MortCard(
+      onTap: () => context.push(
+        '${inTeenShell ? '/teen/messages' : '/messages'}/${thread.id}',
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          MortAvatar(label: avatarLabel),
+          const SizedBox(width: MortSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  displayName,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                if (jobTitle?.isNotEmpty == true)
+                  Text(
+                    jobTitle!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: MortColors.lightBlue,
+                    ),
+                  ),
+                if (preview?.isNotEmpty == true) ...[
+                  const SizedBox(height: MortSpacing.xxs),
+                  Text(
+                    preview!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+                const SizedBox(height: MortSpacing.xs),
+                Wrap(
+                  spacing: MortSpacing.xs,
+                  runSpacing: MortSpacing.xs,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    MortStatusPill(
+                      label: thread.lifecycleStatus == 'active'
+                          ? 'Protected'
+                          : 'Read only',
+                      icon: Icons.shield_outlined,
+                      color: thread.lifecycleStatus == 'active'
+                          ? MortColors.lightBlue
+                          : MortColors.silver,
+                    ),
+                    Text(
+                      formatDateTime(thread.lastMessageAt ?? thread.updatedAt),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          if (thread.unreadCount > 0) ...[
+            const SizedBox(width: MortSpacing.xs),
+            MortBadge(
+              label: thread.unreadCount > 99
+                  ? '99+ unread'
+                  : '${thread.unreadCount} unread',
+              color: MortColors.warning,
+            ),
+          ],
+          const SizedBox(width: MortSpacing.xxs),
+          const Icon(Icons.chevron_right),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_backendReady) return const SetupRequiredScreen();
+    if (!ref.watch(supabaseReadyProvider)) {
+      return const SetupRequiredScreen();
+    }
     final inTeenShell = TeenNavigationScope.maybeOf(context) != null;
     final header = inTeenShell
         ? MortTeenDestinationHeader(
@@ -3495,81 +3641,67 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
               'Protected chat blocks unsafe contact sharing and keeps report tools close by.',
         ),
         const SizedBox(height: MortSpacing.md),
-        FutureBuilder<List<MessageThread>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting)
-              return const MortSkeletonCard();
-            if (snapshot.hasError)
-              return MortErrorState(
-                title: 'Messages error',
-                message: userFacingError(snapshot.error),
-              );
-            final threads = snapshot.data ?? const [];
-            if (threads.isEmpty) {
-              return const MortEmptyState(
-                title: 'No conversations yet',
-                message: 'A thread appears when a job/application creates one.',
-              );
-            }
-            return Column(
-              children: [
-                for (final thread in threads) ...[
-                  MortCard(
-                    onTap: () => context.push(
-                      '${inTeenShell ? '/teen/messages' : '/messages'}/${thread.id}',
-                    ),
-                    child: Row(
-                      children: [
-                        const MortAvatar(label: 'M'),
-                        const SizedBox(width: MortSpacing.sm),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Protected conversation',
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              Text(
-                                formatDateTime(thread.updatedAt),
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                              const SizedBox(height: MortSpacing.xs),
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: MortStatusPill(
-                                  label: thread.lifecycleStatus == 'active'
-                                      ? 'Protected'
-                                      : 'Read only',
-                                  icon: Icons.shield_outlined,
-                                  color: thread.lifecycleStatus == 'active'
-                                      ? MortColors.lightBlue
-                                      : MortColors.silver,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (thread.unreadCount > 0) ...[
-                          MortBadge(
-                            label: thread.unreadCount == 1
-                                ? '1 unread'
-                                : '${thread.unreadCount} unread',
-                            color: MortColors.warning,
-                          ),
-                          const SizedBox(width: MortSpacing.xs),
-                        ],
-                        const Icon(Icons.chevron_right),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: MortSpacing.sm),
-                ],
-              ],
-            );
-          },
+        MortSearchField(
+          controller: _search,
+          hint: 'Search by participant or job',
+          onSubmitted: (_) => _reload(),
         ),
+        const SizedBox(height: MortSpacing.sm),
+        Wrap(
+          spacing: MortSpacing.xs,
+          runSpacing: MortSpacing.xs,
+          children: [
+            MortGlassButton(
+              label: 'Search conversations',
+              icon: Icons.search_rounded,
+              primary: true,
+              onPressed: _initialLoading ? null : _reload,
+            ),
+            if (_activeQuery.isNotEmpty)
+              MortGlassButton(
+                label: 'Clear search',
+                icon: Icons.clear_rounded,
+                onPressed: _initialLoading ? null : _clearSearch,
+              ),
+          ],
+        ),
+        const SizedBox(height: MortSpacing.md),
+        if (_initialLoading)
+          const MortSkeletonCard()
+        else if (_loadError != null && _threads.isEmpty)
+          MortErrorState(
+            title: 'Messages unavailable',
+            message: userFacingError(_loadError),
+            action: MortButton(
+              label: 'Retry',
+              icon: Icons.refresh,
+              onPressed: _reload,
+            ),
+          )
+        else if (_threads.isEmpty)
+          MortEmptyState(
+            title: _activeQuery.isEmpty
+                ? 'No conversations yet'
+                : 'No matching conversations',
+            message: _activeQuery.isEmpty
+                ? 'A protected thread appears when a job application creates one.'
+                : 'Try a different participant or job name.',
+          )
+        else ...[
+          for (final thread in _threads) ...[
+            _threadCard(context, thread, inTeenShell: inTeenShell),
+            const SizedBox(height: MortSpacing.sm),
+          ],
+          if (_nextCursor != null)
+            MortGlassButton(
+              label: 'Load more conversations',
+              icon: Icons.expand_more_rounded,
+              onPressed: _loadingMore
+                  ? null
+                  : () => unawaited(_load(reset: false)),
+            ),
+          if (_loadingMore) const MortLoading(label: 'Loading conversations'),
+        ],
       ],
     );
   }
@@ -3587,10 +3719,13 @@ class MessageThreadScreen extends ConsumerStatefulWidget {
 
 class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
   final _body = TextEditingController();
+  final _scrollController = ScrollController();
   final List<MortMessage> _messages = [];
   MessagePageCursor? _nextCursor;
-  RealtimeChannel? _channel;
+  MortMessageSubscription? _subscription;
+  MessageThread? _thread;
   Object? _loadError;
+  String? _sendError;
   String _lifecycleStatus = 'active';
   String? _pendingSendId;
   String? _pendingBody;
@@ -3607,24 +3742,38 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
 
   @override
   void dispose() {
-    final channel = _channel;
-    if (channel != null) {
-      unawaited(ref.read(messagingRepositoryProvider).unsubscribe(channel));
+    final subscription = _subscription;
+    if (subscription != null) {
+      unawaited(subscription.cancel());
     }
+    _scrollController.dispose();
     _body.dispose();
     super.dispose();
   }
 
   void _subscribe() {
     final repository = ref.read(messagingRepositoryProvider);
-    _channel = repository.subscribeToMessages(widget.threadId, (message) {
+    _subscription = repository.subscribeToMessages(widget.threadId, (message) {
       if (!mounted) return;
-      _mergeMessages([message]);
-      unawaited(repository.markThreadRead(widget.threadId));
+      _mergeMessages([message], scrollToLatest: true);
+      unawaited(_markRead());
     });
   }
 
-  void _mergeMessages(Iterable<MortMessage> incoming) {
+  Future<void> _markRead() async {
+    try {
+      await ref
+          .read(messagingRepositoryProvider)
+          .markThreadRead(widget.threadId);
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    }
+  }
+
+  void _mergeMessages(
+    Iterable<MortMessage> incoming, {
+    bool scrollToLatest = false,
+  }) {
     final byId = <String, MortMessage>{
       for (final message in _messages) message.id: message,
       for (final message in incoming) message.id: message,
@@ -3642,6 +3791,25 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
         ..clear()
         ..addAll(merged);
     });
+    if (scrollToLatest) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showLatest());
+    }
+  }
+
+  void _showLatest() {
+    if (!mounted || !_scrollController.hasClients) return;
+    final target = _scrollController.position.maxScrollExtent;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _scrollController.jumpTo(target);
+    } else {
+      unawaited(
+        _scrollController.animateTo(
+          target,
+          duration: MortMotion.standard,
+          curve: Curves.easeOutCubic,
+        ),
+      );
+    }
   }
 
   Future<void> _loadInitial() async {
@@ -3656,12 +3824,12 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
       final page = await repository.listMessagesPage(widget.threadId);
       if (!mounted) return;
       setState(() {
-        _messages.clear();
         _nextCursor = page.nextCursor;
         _lifecycleStatus = page.lifecycleStatus;
+        _thread = page.thread;
       });
-      _mergeMessages(page.items);
-      await repository.markThreadRead(widget.threadId);
+      _mergeMessages(page.items, scrollToLatest: true);
+      unawaited(_markRead());
     } catch (error) {
       if (mounted) setState(() => _loadError = error);
     } finally {
@@ -3703,7 +3871,10 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
       _pendingBody = messageBody;
       _pendingSendId = const Uuid().v4();
     }
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _sendError = null;
+    });
     try {
       final saved = await ref
           .read(messagingRepositoryProvider)
@@ -3712,13 +3883,15 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
             messageBody,
             clientRequestId: _pendingSendId,
           );
-      _mergeMessages([saved]);
+      _mergeMessages([saved], scrollToLatest: true);
       _body.clear();
       _pendingBody = null;
       _pendingSendId = null;
       if (mounted) MortToast.show(context, 'Message sent through scanner.');
     } catch (error) {
-      if (mounted) MortToast.show(context, userFacingError(error));
+      if (mounted) {
+        setState(() => _sendError = userFacingError(error));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -3727,19 +3900,101 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
   @override
   Widget build(BuildContext context) {
     final currentUserId = ref.watch(authRepositoryProvider).currentUser?.id;
+    final currentRole = ref.watch(currentProfileProvider).asData?.value?.role;
+    final thread = _thread;
+    final counterpartyName = thread?.counterpartyDisplayName?.trim();
+    final jobTitle = thread?.jobTitle?.trim();
     return MortScreen(
+      scrollController: _scrollController,
       children: [
-        const MortHeader(
+        MortHeader(
           eyebrow: 'Keep chat in MORT',
-          title: 'Thread',
-          subtitle:
-              'Phone numbers, social handles, exact addresses, and off-platform pressure can be blocked.',
+          title: counterpartyName?.isNotEmpty == true
+              ? counterpartyName!
+              : 'Protected conversation',
+          subtitle: jobTitle?.isNotEmpty == true
+              ? 'Job: $jobTitle'
+              : 'Phone numbers, social handles, exact addresses, and off-platform pressure can be blocked.',
         ),
         const MortSafetyBanner(
           message:
               'Use quick replies and report anything unsafe. No ads appear in messages.',
         ),
         const SizedBox(height: MortSpacing.md),
+        if (thread != null) ...[
+          MortGlassCard(
+            infoAccent: true,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: MortSpacing.xs,
+                  runSpacing: MortSpacing.xs,
+                  children: [
+                    const MortStatusPill(
+                      label: 'Protected chat',
+                      icon: Icons.shield_outlined,
+                      color: MortColors.lightBlue,
+                    ),
+                    if (thread.counterpartyRole?.isNotEmpty == true)
+                      MortBadge(
+                        label: thread.counterpartyRole!.replaceAll('_', ' '),
+                      ),
+                    if (thread.counterpartyVerificationStatus?.isNotEmpty ==
+                        true)
+                      MortBadge(
+                        label:
+                            'Verification: ${thread.counterpartyVerificationStatus!.replaceAll('_', ' ')}',
+                        color: MortColors.silver,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: MortSpacing.sm),
+                Text(
+                  'Only job participants can open this thread. Guardian Mode does not grant unrestricted message access.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: MortSpacing.sm),
+                Wrap(
+                  spacing: MortSpacing.xs,
+                  runSpacing: MortSpacing.xs,
+                  children: [
+                    if (thread.jobId?.isNotEmpty == true &&
+                        (currentRole == UserRole.teen ||
+                            currentRole == UserRole.adult))
+                      MortGlassButton(
+                        label: 'Job details',
+                        icon: Icons.work_outline_rounded,
+                        onPressed: () => context.push(
+                          currentRole == UserRole.teen
+                              ? '/teen/jobs/${thread.jobId}'
+                              : '/adult/jobs/${thread.jobId}',
+                        ),
+                      ),
+                    if (thread.counterpartyId?.isNotEmpty == true) ...[
+                      MortGlassButton(
+                        label: 'Report participant',
+                        icon: Icons.report_outlined,
+                        onPressed: () => context.push(
+                          '/report/user/${thread.counterpartyId}',
+                        ),
+                      ),
+                      MortGlassButton(
+                        label: 'Block participant',
+                        icon: Icons.block_outlined,
+                        danger: true,
+                        onPressed: () => context.push(
+                          '/block/user/${thread.counterpartyId}',
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: MortSpacing.md),
+        ],
         if (_initialLoading)
           const MortSkeletonCard()
         else if (_loadError != null)
@@ -3856,7 +4111,10 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
                 label: reply,
                 selected: _body.text == reply,
                 onSelected: _lifecycleStatus == 'active'
-                    ? (_) => setState(() => _body.text = reply)
+                    ? (_) => setState(() {
+                        _body.text = reply;
+                        _sendError = null;
+                      })
                     : null,
               ),
           ],
@@ -3868,8 +4126,25 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
           maxLines: 3,
           maxLength: 2000,
           enabled: _lifecycleStatus == 'active',
+          onChanged: (value) {
+            if (_sendError != null && value.trim() != _pendingBody) {
+              setState(() => _sendError = null);
+            }
+          },
         ),
         const SizedBox(height: MortSpacing.sm),
+        if (_sendError != null) ...[
+          MortErrorState(
+            title: 'Message not sent',
+            message: _sendError!,
+            action: MortButton(
+              label: 'Retry send',
+              icon: Icons.refresh_rounded,
+              onPressed: _busy ? null : _send,
+            ),
+          ),
+          const SizedBox(height: MortSpacing.sm),
+        ],
         MortActionRow(
           actions: [
             MortAction(
@@ -3881,6 +4156,21 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
               style: MortButtonStyle.primary,
             ),
           ],
+        ),
+        const SizedBox(height: MortSpacing.md),
+        const MortGlassCard(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.chat_bubble_outline_rounded, color: MortColors.silver),
+              SizedBox(width: MortSpacing.sm),
+              Expanded(
+                child: Text(
+                  'Job chat is text-only by design. Use the job proof flow for completion evidence or Support for authorized case evidence.',
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );

@@ -36,6 +36,9 @@ import 'uploads_repository.dart';
 final supabaseConfiguredProvider = Provider<bool>(
   (ref) => SupabaseService.isConfigured,
 );
+final supabaseReadyProvider = Provider<bool>(
+  (ref) => SupabaseService.isInitialized,
+);
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final repository = AuthRepository();
   ref.onDispose(repository.dispose);
