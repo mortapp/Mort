@@ -5,8 +5,11 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$versionName = '0.9.13'
-$versionCode = '103'
+$versionJson = & node (Join-Path $PSScriptRoot 'read-mobile-version.mjs') --json
+if ($LASTEXITCODE -ne 0) { throw 'Could not read the authoritative mobile version.' }
+$version = $versionJson | ConvertFrom-Json
+$versionName = [string]$version.versionName
+$versionCode = [string]$version.versionCode
 $versionLabel = "$versionName+$versionCode"
 $releaseDirectory = Join-Path $root "artifacts\release-$versionLabel"
 $apk = Join-Path $root "build\play\mort-closed-test-$versionName.apk"
@@ -18,8 +21,9 @@ $symbolsDirectory = Join-Path $env:USERPROFILE "MortSymbols\android\$versionLabe
 $symbolsZip = Join-Path $releaseDirectory "mort-android-symbols-$versionLabel.zip"
 $manifestPath = Join-Path $releaseDirectory 'MORT_RELEASE_ARTIFACT_MANIFEST.json'
 $copiedFinalReport = Join-Path $releaseDirectory 'MORT_SUPREME_FINAL_READINESS_REPORT.md'
+$sourceFinalReport = Join-Path $root "docs\MORT_${versionName}_FINAL_READINESS_REPORT.md"
 
-foreach ($required in @($apk, $aab, $apkManifest, $aabManifest, $symbolsDirectory)) {
+foreach ($required in @($apk, $aab, $apkManifest, $aabManifest, $symbolsDirectory, $sourceFinalReport)) {
   if (-not (Test-Path -LiteralPath $required)) {
     throw "Required release input is missing: $required"
   }
@@ -42,7 +46,7 @@ Copy-Item -LiteralPath (Join-Path $root 'docs\device-test\MORT_DEVICE_TESTER_INS
 Copy-Item -LiteralPath (Join-Path $root 'docs\play-final\MORT_REVIEWER_WALKTHROUGH.md') -Destination $releaseDirectory -Force
 Copy-Item -LiteralPath (Join-Path $root 'docs\play-final\MORT_DATA_SAFETY_FINAL_WORKBOOK.md') -Destination $releaseDirectory -Force
 Copy-Item -LiteralPath (Join-Path $root 'docs\mobile\MORT_UPLOAD_CERTIFICATE_REPORT.md') -Destination $releaseDirectory -Force
-Copy-Item -LiteralPath (Join-Path $root 'docs\MORT_0.9.13_FINAL_READINESS_REPORT.md') -Destination $copiedFinalReport -Force
+Copy-Item -LiteralPath $sourceFinalReport -Destination $copiedFinalReport -Force
 
 & node (Join-Path $PSScriptRoot 'generate-release-sbom.mjs')
 if ($LASTEXITCODE -ne 0) { throw 'Dependency inventory generation failed.' }

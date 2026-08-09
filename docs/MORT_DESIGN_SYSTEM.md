@@ -1,6 +1,6 @@
 # MORT Design System
 
-Updated: 2026-07-29
+Updated: 2026-08-08
 
 ## Scope
 
@@ -43,7 +43,8 @@ bounded content contract.
 
 ## Navigation And Authorization
 
-The router currently resolves 184 Flutter routes with no unresolved builder.
+The generated `0.9.14+104` inventory resolves 198 authoritative Flutter routes
+with no unresolved builder.
 Public routes are limited to splash/welcome, authentication callbacks,
 password recovery, the public Support entry, and legal disclosures. Private
 routes use `GuardedRoute`; teen, adult, guardian, and admin prefixes also carry
