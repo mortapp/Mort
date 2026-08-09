@@ -1908,29 +1908,29 @@ class _SafetyRulesScreenState extends ConsumerState<SafetyRulesScreen> {
         ),
         const SizedBox(height: MortSpacing.sm),
         MortActionRow(
-          actions: const [
+          actions: [
             MortAction(
               label: 'Terms notice',
               icon: Icons.article_outlined,
-              route: '/legal/terms',
+              onPressed: () => context.push('/legal/terms'),
               style: MortButtonStyle.ghost,
             ),
             MortAction(
               label: 'Privacy notice',
               icon: Icons.privacy_tip_outlined,
-              route: '/legal/privacy',
+              onPressed: () => context.push('/legal/privacy'),
               style: MortButtonStyle.ghost,
             ),
             MortAction(
               label: 'Community rules',
               icon: Icons.groups_outlined,
-              route: '/legal/community-rules',
+              onPressed: () => context.push('/legal/community-rules'),
               style: MortButtonStyle.ghost,
             ),
             MortAction(
               label: 'Teen safety',
               icon: Icons.health_and_safety_outlined,
-              route: '/legal/teen-safety',
+              onPressed: () => context.push('/legal/teen-safety'),
               style: MortButtonStyle.ghost,
             ),
           ],

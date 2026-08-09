@@ -498,12 +498,12 @@ class _CompactOnboardingScreenState
                   actions: [
                     MortAction(
                       label: 'Terms',
-                      route: '/legal/terms',
+                      onPressed: () => context.push('/legal/terms'),
                       style: MortButtonStyle.secondary,
                     ),
                     MortAction(
                       label: 'Privacy',
-                      route: '/legal/privacy',
+                      onPressed: () => context.push('/legal/privacy'),
                       style: MortButtonStyle.secondary,
                     ),
                   ],

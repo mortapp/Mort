@@ -46,7 +46,20 @@ GoRouter _onboardingRouter({required String initialLocation}) {
         '/onboarding/skills': 'Skills route',
         '/onboarding/guardian': 'Guardian route',
         '/onboarding/preferences': 'Preferences route',
-        '/onboarding/safety': 'Safety route',
+      }.entries)
+        GoRoute(
+          path: route.key,
+          builder: (_, _) => MortScreen(children: [Text(route.value)]),
+        ),
+      GoRoute(
+        path: '/onboarding/safety',
+        builder: (_, _) => const SafetyRulesScreen(),
+      ),
+      for (final route in const {
+        '/legal/terms': 'Terms document',
+        '/legal/privacy': 'Privacy document',
+        '/legal/community-rules': 'Community rules document',
+        '/legal/teen-safety': 'Teen safety document',
       }.entries)
         GoRoute(
           path: route.key,
@@ -213,6 +226,41 @@ void main() {
 
           expect(find.text(transition.value), findsOneWidget);
         }
+      }
+    },
+  );
+
+  testWidgets(
+    'Safety legal references return to the invoking onboarding step',
+    (tester) async {
+      final router = _onboardingRouter(initialLocation: '/onboarding/safety');
+      addTearDown(router.dispose);
+      await _pumpPublicRouter(tester, router);
+
+      for (final legalRoute in const {
+        'Terms notice': ('/legal/terms', 'Terms document'),
+        'Privacy notice': ('/legal/privacy', 'Privacy document'),
+        'Community rules': (
+          '/legal/community-rules',
+          'Community rules document',
+        ),
+        'Teen safety': ('/legal/teen-safety', 'Teen safety document'),
+      }.entries) {
+        final control = find.byWidgetPredicate(
+          (widget) => widget is MortButton && widget.label == legalRoute.key,
+        );
+        expect(control, findsOneWidget);
+        await tester.ensureVisible(control);
+        await tester.tap(control);
+        await tester.pumpAndSettle();
+        expect(router.state.uri.path, legalRoute.value.$1);
+        expect(find.text(legalRoute.value.$2), findsOneWidget);
+
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+
+        expect(router.state.uri.path, '/onboarding/safety');
+        expect(find.text('Review the closed-pilot rules'), findsOneWidget);
       }
     },
   );
