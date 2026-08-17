@@ -606,6 +606,29 @@ export async function cleanupQaRestrictedData(userIds) {
   });
 }
 
+async function withRateLimitRetry(operation, description, fn) {
+  let lastError;
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      const message = error?.message ?? String(error ?? "unknown");
+      const isRateLimit =
+        message.includes("rate limit") ||
+        message.includes("429") ||
+        message.includes("too many requests");
+      if (!isRateLimit || attempt >= 6) {
+        throw error;
+      }
+      const delayMs = 1000 * attempt;
+      console.warn(`[${operation}] ${description} rate-limited; retrying in ${delayMs}ms (attempt ${attempt}/5)`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  throw lastError;
+}
+
 export async function withQaUsers(scope, definitions, run) {
   const suffix = `${Date.now().toString(36)}-${randomBytes(4).toString("hex")}`;
   const password = randomBytes(30).toString("base64url");
@@ -615,12 +638,22 @@ export async function withQaUsers(scope, definitions, run) {
   try {
     for (const definition of definitions) {
       const email = `qa-feature-${definition.key}-${suffix}@mort.test`;
-      const { data, error } = await serviceClient.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: { display_name: `QA ${definition.key}` },
-      });
+      const { data, error } = await withRateLimitRetry(
+        scope,
+        `creating QA user ${definition.key}`,
+        async () => {
+          const result = await serviceClient.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: { display_name: `QA ${definition.key}` },
+          });
+          if (result.error || !result.data.user) {
+            throw new Error(`Could not create ${definition.key} QA user: ${result.error?.message}`);
+          }
+          return result;
+        },
+      );
       if (error || !data.user) {
         throw new Error(`Could not create ${definition.key} QA user: ${error?.message}`);
       }
@@ -764,15 +797,19 @@ export async function withQaUsers(scope, definitions, run) {
       });
       let data;
       let error;
-      for (let attempt = 1; attempt <= 3; attempt += 1) {
-        const response = await client.auth.signInWithPassword({
-          email: users[definition.key].email,
-          password,
-        });
+      for (let attempt = 1; attempt <= 6; attempt += 1) {
+        const response = await withRateLimitRetry(
+          scope,
+          `signing in QA user ${definition.key}`,
+          async () => client.auth.signInWithPassword({
+            email: users[definition.key].email,
+            password,
+          }),
+        );
         data = response.data;
         error = response.error;
         if (!error && data.user?.id === users[definition.key].id) break;
-        if (attempt < 3) {
+        if (attempt < 6) {
           await new Promise((resolve) => setTimeout(resolve, attempt * 500));
         }
       }
