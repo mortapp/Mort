@@ -170,13 +170,27 @@ BLOCKERS:
   service-role credential (JWT or DB password) not present in this session. Not a
   code defect; recorded as CREDENTIAL_GATE, not a blocker on other work.
 
-NEXT_AUTOMATIC_PHASE: Continue engineering-controlled work not gated by that
-credential -- candidates: static/manual review of RLS policies on remaining sensitive
-tables (message_threads, conversation_participants, support_conversations,
-support_messages, identity_verifications, incident_* tables), then move toward
-UI/onboarding work or surface this status to the user given the scope of remaining
-directive items (full redesign, website, iOS catch-up, physical Android QA, release
-artifacts) each warrant their own dedicated pass.
+Extended RLS policy read (message_threads, conversation_participants,
+support_conversations, support_messages, identity_verifications, incident_participants,
+incident_evidence): all `{authenticated}`-only, correctly scoped
+(owner/admin/thread-or-application-participant/production-reviewer/
+can_manage_incident() gates). Two notable good patterns: `support_messages` explicitly
+excludes `staff_visible_only` rows from the ticket owner's own SELECT (internal notes
+don't leak to the user), and `incident_evidence` access grants are time-bounded
+(`expires_at > now()`) and revocable (`revoked_at IS NULL`). No overbroad predicate
+found across 13 sensitive tables sampled. This is a spot check, not exhaustive
+coverage of all ~230 tables.
+
+STATUS: BASELINE REGRESSION PHASE COMPLETE for what's achievable without a
+service-role credential.
+
+NEXT_AUTOMATIC_PHASE: Report status to the user (huge remaining scope -- full UI/UX
+redesign, onboarding redesign, website redesign, iOS shared-source catch-up, physical
+Android device QA, release artifacts -- each warrants a dedicated, scoped pass rather
+than being rushed at the tail of this one). On resumption without further user
+input: continue with either (a) further static RLS/storage-bucket policy review on
+remaining tables, or (b) begin the onboarding/UI work this branch is named for, given
+Flutter tests are green and the working tree is clean at this commit.
 
 ## EXTERNAL_GATES (unchanged, not evaluated this session)
 
