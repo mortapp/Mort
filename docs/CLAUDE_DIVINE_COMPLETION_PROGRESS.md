@@ -8,14 +8,58 @@ current; only this file and fresh tool output reflect present state.
 START_TIME: 2026-08-17T00:00:00-04:00 (session start, wall-clock approximate)
 REPOSITORY: C:\Users\micha\Mort
 BRANCH: feature/compact-onboarding-and-screen-polish
-LAST_KNOWN_GOOD_COMMIT: 8d2c9b54fd28addcc7839e2648592192c24dcff7
+LAST_KNOWN_GOOD_COMMIT: f69914d341fd2139a4878cc949004c20da8f7e60
 SUPABASE_PROJECT_REF: rakjydmgwwgtdislanbt
 CURRENT_APP_VERSION: 0.9.15+106
+WORKING_TREE_STATUS: CLEAN (verified via `git status --short` immediately before this update)
 
 ## CURRENT_PHASE
 
-Repository cleanup/recovery — COMPLETE.
-Next: baseline regression (Flutter tests, Support classifier QA, RLS/security spot checks).
+Baseline regression — IN PROGRESS.
+
+Completed so far this phase:
+- `flutter test` (full suite): 379 passed, 0 failed, 2 skipped. Fresh run against f69914d.
+- `flutter analyze --no-pub`: No issues found.
+- `dart format --set-exit-if-changed`: clean (the one violation found during cleanup was
+  already fixed and committed in an earlier checkpoint).
+- Support classifier regression via `scripts/qa-support-classifier.mjs` (local, offline,
+  no network calls — imports `localClassification` from support_runtime.ts directly):
+  TOTAL 543, PASSED 458, FAILED 85. Matches the historical high-water mark exactly, now
+  independently reverified against current HEAD rather than trusted from an old report.
+  Reviewed the direction of every failure: none under-classify a genuinely dangerous
+  message to a lower safety level. All 85 are benign-vs-benign intent-routing confusion
+  (e.g. "account_access" expected vs. "jobs_or_applications" actual) or safe-direction
+  over-escalation. Largest cluster (24/85) is the `holdout_benign_25_plus` fixture group:
+  benign questions that deliberately contain job/payment/guardian/PIN/privacy/safety
+  keywords with no actual action request, testing that the classifier doesn't over-route
+  on keyword presence alone. Root-caused to imprecise domain/action keyword heuristics.
+  NOT hand-tuned this session: fixing 85 cases risks regressing the 458 that already pass,
+  and this exact gap already consumed multiple prior sessions going 402->458; needs a
+  dedicated, carefully-regressed pass, not a rushed one.
+
+IMPORTANT CORRECTION vs. earlier assumption this session: `scripts/qa-support-classifier.mjs`
+only exercises `localClassification`, the TypeScript mirror. Per support_runtime.ts:696-721,
+that is NOT the primary production path -- the actual authority for live user-message
+routing is the Postgres function `private.support_classify_message`, called via the
+`support_classify_message_internal` RPC from `classifyForEvaluation`. `localClassification`
+is only (a) a fallback if that RPC is unreachable, and (b) a second-pass scan of the AI
+provider's own output for jailbreak leakage (`securityBoundaryClassification`). So the
+458/543 number characterizes the fallback/output-scan path, not necessarily the real
+production decision path.
+
+IN PROGRESS: freshly verifying SQL/TS parity (whether `private.support_classify_message`
+agrees with `localClassification` on all 543 cases, as migration 20260816010000 claimed to
+fix) via a read-only batched query through the Supabase MCP `execute_sql` tool -- chosen
+over the repo's own `scripts/qa-support-sql-ts-parity.mjs`, which requires a raw
+`SUPABASE_DB_PASSWORD` superuser credential this session does not have and should not
+acquire. Query is built (all 543 messages base64-encoded to avoid both SQL-escaping issues
+and printing raw adversarial fixture text), calls only the `stable`/read-only classify
+function, and is saved at
+`.../scratchpad/parity_query.sql` (session-local temp path, not in the repo). Not yet
+executed against the live project.
+
+NOT YET DONE this phase: RLS/storage isolation spot checks, hosted Support gauntlet,
+SQL/TS parity result, migration ledger re-diff after the new commits.
 
 ## PHASE LOG
 
@@ -68,9 +112,26 @@ Verification run during cleanup:
   reports are orientation only, not current evidence.
 
 BLOCKERS: None.
-NEXT_AUTOMATIC_PHASE: Baseline regression — rerun Flutter test suite, Support classifier
-QA (`scripts/qa-support-classifier.mjs`, SQL/TS parity), and RLS/storage isolation checks
-against current HEAD before any further feature work.
+NEXT_AUTOMATIC_PHASE: (superseded by the BASELINE REGRESSION phase log below — this line
+kept for history.)
+
+### PHASE: BASELINE REGRESSION
+STATUS: IN_PROGRESS
+START_HEAD: f69914d341fd2139a4878cc949004c20da8f7e60
+
+See CURRENT_PHASE section above for full detail. Summary:
+- Flutter test/analyze/format: PASS, freshly verified.
+- Support classifier (TS fallback path): 458/543, freshly verified, no safety-direction
+  failures, root cause documented, intentionally not hand-tuned this pass.
+- Support classifier (SQL production path) parity: query built, not yet executed.
+- RLS/storage isolation, hosted gauntlet: not yet started.
+
+BLOCKERS: None.
+NEXT_AUTOMATIC_PHASE: Execute the SQL/TS parity query via Supabase MCP `execute_sql`
+(read-only, `stable` function, safe to run), record TOTAL/PARITY_PASSED/PARITY_FAILED/
+SQL_EXPECTED_PASSED/SQL_EXPECTED_FAILED, then move to RLS/storage isolation spot checks
+(Teen/Adult/Guardian/staff/anonymous cross-user access probes) before returning to any
+UI/redesign work.
 
 ## EXTERNAL_GATES (unchanged, not evaluated this session)
 
