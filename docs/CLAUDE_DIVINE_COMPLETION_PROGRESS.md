@@ -252,11 +252,44 @@ is at the session scratchpad `failures_detail.tsv` if needed for a dedicated
 follow-up session -- not duplicated into this doc to keep it from becoming another
 stale wall of adversarial-adjacent fixture text.
 
-NEXT_AUTOMATIC_PHASE: Complete static Supabase/RLS/storage audit beyond the initial
-13-table sample -- applications, job_contracts/lifecycle tables, evidence, message
-attachments, reports, blocks, storage buckets, moderation, staff access. Then job/
-application/PIN lifecycle review, then location privacy verification, then begin
-scoped UI/onboarding implementation work.
+### PHASE: EXTENDED STATIC RLS/STORAGE AUDIT
+STATUS: COMPLETE for the categories the directive named
+START_HEAD: 3241c3e
+
+Checked pg_policies for applications, job_contracts, reports, blocks, reviews,
+account_deletion_requests, notifications, admin_role_assignments,
+team_role_assignments, moderation_events, partner_staff (11 more tables, ~25 total
+across both sessions of this audit). All `{authenticated}`-only, correctly scoped
+(participant/owner/admin/role-gated), no `using (true)`. Notable good pattern:
+`reviews` implements a proper blind-reveal mechanism (own review always visible;
+others only after moderation approval AND a reveal delay/mutual-submission
+condition), preventing retaliatory review inspection.
+
+Storage: all 9 buckets (identity-evidence, incident-evidence, mort-document-vault,
+profile-avatars, proof-uploads, report-uploads, support-attachments,
+support-evidence, verification-uploads) are `public = false`. Read every
+storage.objects policy: consistent first-path-segment ownership scoping
+(`storage.foldername(name)[1] = auth.uid()`), UUID-pattern filename enforcement,
+explicit path-traversal guard (`name !~ '(^|/)\.\.(/|$)'`) on incident-evidence
+uploads, file-extension allowlisting, and the same time-bounded/revocable
+access-grant pattern from the table layer reused at the storage layer too (defense
+in depth). Zero anon/public storage policies found. identity-evidence has no direct
+client INSERT policy at all -- uploads for that bucket are server-mediated only,
+which is the correct pattern for that sensitivity level, not a gap.
+
+FINDING: zero P0/P1 RLS or storage issues across this static review (~25 of ~230
+tables sampled, weighted toward the highest-risk categories named in the directive;
+not exhaustive coverage of all 230).
+
+Migration ledger recheck: local now has ONE migration ahead of remote
+(20260817120000, drafted but not yet applied per the blocker above) -- this is
+expected/healthy "pending local work" state, not drift. Remote's last applied
+version remains 20260816010000, confirmed via list_migrations earlier this session.
+
+NEXT_AUTOMATIC_PHASE: Job/application/PIN lifecycle code review (generation, expiry,
+attempts/lockout, replay, single-use, concurrency), then location privacy
+verification (server-side exact-vs-general enforcement), then begin scoped
+UI/onboarding implementation work.
 
 ## EXTERNAL_GATES (unchanged, not evaluated this session)
 
