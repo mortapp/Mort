@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/data/repositories/support_repository.dart';
@@ -44,6 +46,15 @@ class _FakeSupportRepository extends SupportRepository {
   );
 }
 
+class _DeferredSupportRepository extends _FakeSupportRepository {
+  final postMessageCompleter = Completer<SupportTicketMessage>();
+
+  @override
+  Future<SupportTicketMessage> postMessage(String ticketId, String message) {
+    return postMessageCompleter.future;
+  }
+}
+
 void main() {
   testWidgets(
     'new support conversation includes categories and quick replies',
@@ -88,4 +99,40 @@ void main() {
     expect(find.text('Request human review'), findsOneWidget);
     expect(find.text('Email fallback'), findsOneWidget);
   });
+
+  testWidgets(
+    'leaving a support case during send does not update disposed UI',
+    (tester) async {
+      final repository = _DeferredSupportRepository();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [supportRepositoryProvider.overrideWithValue(repository)],
+          child: const MaterialApp(
+            home: SupportTicketScreen(ticketId: 'ticket-widget-qa'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextFormField), 'Please check this.');
+      await tester.ensureVisible(find.text('Send reply'));
+      await tester.tap(find.text('Send reply'));
+      await tester.pump();
+
+      await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+      repository.postMessageCompleter.complete(
+        SupportTicketMessage(
+          id: 'message-after-pop',
+          senderKind: 'user',
+          source: 'support_case',
+          body: 'Please check this.',
+          createdAt: DateTime.utc(2026, 8, 16),
+          safeAttachmentCount: 0,
+        ),
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

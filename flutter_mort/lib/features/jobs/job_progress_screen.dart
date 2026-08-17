@@ -31,6 +31,7 @@ class JobProgressScreen extends ConsumerStatefulWidget {
 class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
     with WidgetsBindingObserver {
   static const _pollInterval = Duration(seconds: 5);
+  static const _settlementPollInterval = Duration(seconds: 30);
   static const _terminalStates = {'completed', 'cancelled'};
 
   final _pin = TextEditingController();
@@ -45,18 +46,19 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
   bool _busy = false;
   bool _statusFetchInFlight = false;
   bool _statusRefreshPending = false;
+  bool _pollingEnabled = true;
   Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _fetchStatus(showSpinner: true);
-    _startPolling();
+    unawaited(_refreshAndSchedule(showSpinner: true));
   }
 
   @override
   void dispose() {
+    _pollingEnabled = false;
     WidgetsBinding.instance.removeObserver(this);
     _pollTimer?.cancel();
     _pin.dispose();
@@ -66,25 +68,42 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _fetchStatus(showSpinner: false);
-      _startPolling();
-    } else if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
+      _pollingEnabled = true;
+      unawaited(_refreshAndSchedule(showSpinner: false));
+    } else {
+      _pollingEnabled = false;
       _pollTimer?.cancel();
     }
   }
 
-  void _startPolling() {
+  Future<void> _refreshAndSchedule({required bool showSpinner}) async {
+    await _fetchStatus(showSpinner: showSpinner);
+    _scheduleNextPoll();
+  }
+
+  void _scheduleNextPoll() {
     _pollTimer?.cancel();
-    if (widget.syntheticStatusForTesting != null) return;
-    _pollTimer = Timer.periodic(_pollInterval, (_) {
-      if (!mounted || _busy) return;
-      final state = _current?.state;
-      if (state != null && _terminalStates.contains(state)) {
-        _pollTimer?.cancel();
+    final state = _current?.state;
+    if (!_pollingEnabled ||
+        !mounted ||
+        widget.syntheticStatusForTesting != null ||
+        (state != null && _terminalStates.contains(state))) {
+      return;
+    }
+    final delay = state == 'completion_pending_release'
+        ? _settlementPollInterval
+        : _pollInterval;
+    _pollTimer = Timer(delay, () async {
+      final latestState = _current?.state;
+      if (!_pollingEnabled ||
+          !mounted ||
+          (latestState != null && _terminalStates.contains(latestState))) {
         return;
       }
-      _fetchStatus(showSpinner: false);
+      if (!_busy && !_statusFetchInFlight) {
+        await _fetchStatus(showSpinner: false);
+      }
+      _scheduleNextPoll();
     });
   }
 
@@ -138,7 +157,7 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
       final refreshAgain = _statusRefreshPending && mounted && !_busy;
       if (refreshAgain) {
         _statusRefreshPending = false;
-        unawaited(_fetchStatus(showSpinner: false));
+        await _fetchStatus(showSpinner: false);
       }
     }
   }
@@ -790,8 +809,7 @@ class _GeneratedPinCardState extends State<_GeneratedPinCard> {
   @override
   void initState() {
     super.initState();
-    _tick();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    _restartTicker();
   }
 
   @override
@@ -799,7 +817,7 @@ class _GeneratedPinCardState extends State<_GeneratedPinCard> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.pin.pin != widget.pin.pin ||
         oldWidget.pin.expiresAt != widget.pin.expiresAt) {
-      _tick();
+      _restartTicker();
     }
   }
 
@@ -807,6 +825,14 @@ class _GeneratedPinCardState extends State<_GeneratedPinCard> {
   void dispose() {
     _ticker?.cancel();
     super.dispose();
+  }
+
+  void _restartTicker() {
+    _ticker?.cancel();
+    _tick();
+    if (_remaining > Duration.zero) {
+      _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    }
   }
 
   void _tick() {
@@ -817,6 +843,7 @@ class _GeneratedPinCardState extends State<_GeneratedPinCard> {
     if (!mounted) return;
     final next = remaining.isNegative ? Duration.zero : remaining;
     if (next != _remaining) setState(() => _remaining = next);
+    if (expiresAt != null && next == Duration.zero) _ticker?.cancel();
   }
 
   @override
@@ -832,16 +859,20 @@ class _GeneratedPinCardState extends State<_GeneratedPinCard> {
           : MortColors.neonDeep,
       child: Semantics(
         label: 'Generated six digit in-person job PIN',
-        liveRegion: true,
+        liveRegion: expired || _remaining.inSeconds == 30,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Share in person only'),
-            Text(
-              widget.pin.pin,
-              style: Theme.of(
-                context,
-              ).textTheme.displaySmall?.copyWith(letterSpacing: 8),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                widget.pin.pin,
+                style: Theme.of(
+                  context,
+                ).textTheme.displaySmall?.copyWith(letterSpacing: 8),
+              ),
             ),
             if (expiresAt == null)
               const Text('Expires soon and can be used once.')

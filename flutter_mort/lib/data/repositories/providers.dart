@@ -169,6 +169,12 @@ final legalContractRepositoryProvider = Provider<LegalContractRepository>(
 final applicationsRepositoryProvider = Provider<ApplicationsRepository>(
   (ref) => ApplicationsRepository(),
 );
+final myApplicationsProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(applicationsRepositoryProvider).listMyApplications(),
+);
+final myJobsProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(jobsRepositoryProvider).listMyJobs(),
+);
 final messagingRepositoryProvider = Provider<MessagingRepository>(
   (ref) => MessagingRepository(),
 );
@@ -196,8 +202,14 @@ final supportRepositoryProvider = Provider<SupportRepository>(
 final supportAssistantRepositoryProvider = Provider<SupportAssistantRepository>(
   (ref) => SupportAssistantRepository(),
 );
+final supportAssistantConversationsProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(supportAssistantRepositoryProvider).listConversations(),
+);
 final guardianRepositoryProvider = Provider<GuardianRepository>(
   (ref) => GuardianRepository(),
+);
+final guardianConnectionsProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(guardianRepositoryProvider).listConnections(),
 );
 final adminRepositoryProvider = Provider<AdminRepository>(
   (ref) => AdminRepository(),
@@ -216,6 +228,12 @@ final monetizationRepositoryProvider = Provider<MonetizationRepository>(
 );
 final reviewsRepositoryProvider = Provider<ReviewsRepository>(
   (ref) => ReviewsRepository(),
+);
+final receivedReviewsProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(reviewsRepositoryProvider).listReceived(),
+);
+final myReportsProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(safetyRepositoryProvider).listMyReports(),
 );
 final stripeMarketplaceRepositoryProvider =
     Provider<StripeMarketplaceRepository>(
@@ -255,6 +273,12 @@ void invalidateUserScopedProviders(WidgetRef ref) {
   ref.invalidate(onboardingProgressProvider);
   ref.invalidate(accountTrustProfileProvider);
   ref.invalidate(openJobsProvider);
+  ref.invalidate(myApplicationsProvider);
+  ref.invalidate(myJobsProvider);
+  ref.invalidate(supportAssistantConversationsProvider);
+  ref.invalidate(guardianConnectionsProvider);
+  ref.invalidate(receivedReviewsProvider);
+  ref.invalidate(myReportsProvider);
   ref.invalidate(authRepositoryProvider);
   ref.invalidate(avatarRepositoryProvider);
   ref.invalidate(profileRepositoryProvider);

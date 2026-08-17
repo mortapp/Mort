@@ -191,26 +191,31 @@ class MyReviewsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final reviews = ref.watch(receivedReviewsProvider);
     return MortScreen(
       children: [
-        const MortHeader(
+        MortHeader(
           eyebrow: 'Profile',
           title: 'Reviews received',
           subtitle: 'Only approved reviews appear here.',
+          trailing: MortIconButton(
+            icon: Icons.refresh,
+            tooltip: 'Refresh reviews',
+            onPressed: () => ref.invalidate(receivedReviewsProvider),
+          ),
         ),
-        FutureBuilder<List<MortReview>>(
-          future: ref.watch(reviewsRepositoryProvider).listReceived(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const MortSkeletonCard();
-            }
-            if (snapshot.hasError) {
-              return MortErrorState(
-                title: 'Reviews unavailable',
-                message: userFacingError(snapshot.error),
-              );
-            }
-            final reviews = snapshot.data ?? const [];
+        reviews.when(
+          loading: () => const MortSkeletonCard(),
+          error: (error, _) => MortErrorState(
+            title: 'Reviews unavailable',
+            message: userFacingError(error),
+            action: MortButton(
+              label: 'Retry',
+              icon: Icons.refresh,
+              onPressed: () => ref.invalidate(receivedReviewsProvider),
+            ),
+          ),
+          data: (reviews) {
             if (reviews.isEmpty) {
               return const MortEmptyState(
                 title: 'No reviews yet',

@@ -82,6 +82,7 @@ class _StripePayoutSetupScreenState
       await ref
           .read(stripeMarketplaceRepositoryProvider)
           .synchronizePayoutStatus();
+      if (!mounted) return;
       setState(_reload);
     } catch (error) {
       _notice = userFacingError(error);
@@ -229,11 +230,13 @@ class _StripeJobFundingScreenState
       final completed = await const StripePaymentSheetService().present(
         initialization,
       );
+      if (!mounted) return;
       _notice = completed
           ? 'Payment Sheet finished. MORT is waiting for Stripe webhook confirmation before showing this job as funded.'
           : 'Payment Sheet was canceled. No funded status was recorded by the app.';
-      setState(_reload);
+      _reload();
     } catch (error) {
+      if (!mounted) return;
       _notice = userFacingError(error);
     } finally {
       if (mounted) setState(() => _busy = false);

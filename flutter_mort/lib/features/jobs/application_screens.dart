@@ -435,46 +435,9 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
           const SizedBox(height: MortSpacing.md),
           MortActionRow(actions: _actions(context)),
           const SizedBox(height: MortSpacing.sm),
-          ExpansionTile(
-            tilePadding: EdgeInsets.zero,
-            childrenPadding: EdgeInsets.zero,
-            title: const Text('Status timeline'),
-            children: [
-              FutureBuilder<List<Map<String, dynamic>>>(
-                future: ref
-                    .watch(applicationsRepositoryProvider)
-                    .listStatusEvents(application.id),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const LinearProgressIndicator();
-                  }
-                  if (snapshot.hasError) {
-                    return Text(userFacingError(snapshot.error));
-                  }
-                  final events = snapshot.data ?? const [];
-                  if (events.isEmpty) {
-                    return const Text('No status events have been recorded.');
-                  }
-                  return Column(
-                    children: [
-                      for (final event in events)
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.check_circle_outline),
-                          title: Text(
-                            (event['to_status'] ?? 'updated')
-                                .toString()
-                                .replaceAll('_', ' '),
-                          ),
-                          subtitle: Text(
-                            _formatTimestamp(event['created_at']?.toString()),
-                          ),
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ],
+          _LazyApplicationStatusTimeline(
+            applicationId: application.id,
+            formatTimestamp: _formatTimestamp,
           ),
         ],
       ),
@@ -681,5 +644,94 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
     if (timestamp == null) return 'Time unavailable';
     final local = timestamp.toLocal();
     return '${local.month}/${local.day}/${local.year} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+class _LazyApplicationStatusTimeline extends ConsumerStatefulWidget {
+  const _LazyApplicationStatusTimeline({
+    required this.applicationId,
+    required this.formatTimestamp,
+  });
+
+  final String applicationId;
+  final String Function(String?) formatTimestamp;
+
+  @override
+  ConsumerState<_LazyApplicationStatusTimeline> createState() =>
+      _LazyApplicationStatusTimelineState();
+}
+
+class _LazyApplicationStatusTimelineState
+    extends ConsumerState<_LazyApplicationStatusTimeline> {
+  Future<List<Map<String, dynamic>>>? _eventsFuture;
+
+  void _loadEvents() {
+    setState(() {
+      _eventsFuture = ref
+          .read(applicationsRepositoryProvider)
+          .listStatusEvents(widget.applicationId);
+    });
+  }
+
+  void _handleExpansionChanged(bool expanded) {
+    if (expanded && _eventsFuture == null) {
+      _loadEvents();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: EdgeInsets.zero,
+      title: const Text('Status timeline'),
+      onExpansionChanged: _handleExpansionChanged,
+      children: [
+        if (_eventsFuture case final future?)
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const LinearProgressIndicator();
+              }
+              if (snapshot.hasError) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(userFacingError(snapshot.error)),
+                    TextButton.icon(
+                      onPressed: _loadEvents,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry timeline'),
+                    ),
+                  ],
+                );
+              }
+              final events = snapshot.data ?? const [];
+              if (events.isEmpty) {
+                return const Text('No status events have been recorded.');
+              }
+              return Column(
+                children: [
+                  for (final event in events)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.check_circle_outline),
+                      title: Text(
+                        (event['to_status'] ?? 'updated').toString().replaceAll(
+                          '_',
+                          ' ',
+                        ),
+                      ),
+                      subtitle: Text(
+                        widget.formatTimestamp(event['created_at']?.toString()),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+      ],
+    );
   }
 }

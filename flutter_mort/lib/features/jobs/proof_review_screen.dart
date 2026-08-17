@@ -6,6 +6,7 @@ import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/image_decode_size.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/proof.dart';
 import '../../data/repositories/providers.dart';
@@ -22,6 +23,7 @@ class ProofReviewScreen extends ConsumerStatefulWidget {
 
 class _ProofReviewScreenState extends ConsumerState<ProofReviewScreen> {
   final _reviewNote = TextEditingController();
+  final _signedProofUrls = <String, Future<String>>{};
   late Future<List<ProofUpload>> _future;
   bool _busy = false;
 
@@ -43,7 +45,27 @@ class _ProofReviewScreenState extends ConsumerState<ProofReviewScreen> {
         .listProofs(widget.applicationId);
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() {
+    setState(() {
+      _signedProofUrls.clear();
+      _future = _load();
+    });
+  }
+
+  Future<String> _signedProofUrl(String storagePath) {
+    return _signedProofUrls.putIfAbsent(
+      storagePath,
+      () => ref
+          .read(uploadsRepositoryProvider)
+          .signedUrl(UploadsRepository.proofBucket, storagePath),
+    );
+  }
+
+  void _retrySignedProofUrl(String storagePath) {
+    setState(() {
+      _signedProofUrls.remove(storagePath);
+    });
+  }
 
   Future<void> _review(ProofUpload proof, String action) async {
     if (_busy) return;
@@ -169,22 +191,33 @@ class _ProofReviewScreenState extends ConsumerState<ProofReviewScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         FutureBuilder<String>(
-          future: ref
-              .read(uploadsRepositoryProvider)
-              .signedUrl(UploadsRepository.proofBucket, proof.storagePath),
+          future: _signedProofUrl(proof.storagePath),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const AspectRatio(
                 aspectRatio: 4 / 3,
-                child: MortLoading(),
+                child: MortLoading(
+                  label: 'Loading private proof...',
+                  fullScreen: false,
+                ),
               );
             }
             if (snapshot.hasError || snapshot.data == null) {
               return MortErrorState(
                 title: 'Private image unavailable',
                 message: userFacingError(snapshot.error),
+                action: MortButton(
+                  label: 'Retry signed image',
+                  icon: Icons.refresh,
+                  onPressed: () => _retrySignedProofUrl(proof.storagePath),
+                ),
               );
             }
+            final cacheWidth = imageDecodePixelsForContext(
+              context,
+              MediaQuery.sizeOf(context).width,
+              minimum: 320,
+            );
             return Semantics(
               label: 'Private completion proof image',
               image: true,
@@ -195,6 +228,7 @@ class _ProofReviewScreenState extends ConsumerState<ProofReviewScreen> {
                   child: Image.network(
                     snapshot.data!,
                     fit: BoxFit.cover,
+                    cacheWidth: cacheWidth,
                     errorBuilder: (_, _, _) => const MortEmptyState(
                       title: 'Image could not load',
                       message: 'Refresh the signed proof link and try again.',

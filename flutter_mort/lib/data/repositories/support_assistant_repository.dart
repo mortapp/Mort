@@ -408,6 +408,8 @@ class SupportAssistantRepository extends RepositoryBase {
       'That file or description may contain prohibited sensitive information.',
     'support_timeout' =>
       'MORT Support took too long to respond. Check your connection and retry.',
+    'support_conversation_not_found' =>
+      'This conversation is now with a person and cannot continue automatically. Send another message to start a new one, or check the case above for updates.',
     _ => 'MORT Support could not complete that request. Try again.',
   };
 }

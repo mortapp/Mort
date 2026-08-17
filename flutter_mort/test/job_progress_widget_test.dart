@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_mort/data/repositories/job_execution_repository.dart';
 import 'package:flutter_mort/features/jobs/job_progress_screen.dart';
@@ -5,6 +7,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('job progress polling is one-shot and lifecycle bounded', () {
+    final source = File(
+      '${Directory.current.path}/lib/features/jobs/job_progress_screen.dart',
+    ).readAsStringSync();
+
+    expect(source, isNot(contains('Timer.periodic(_pollInterval')));
+    expect(source, contains('_pollTimer = Timer(delay'));
+    expect(source, contains("state == 'completion_pending_release'"));
+    expect(source, contains('_settlementPollInterval'));
+    expect(source, contains('_pollingEnabled = false'));
+    expect(source, contains('!_statusFetchInFlight'));
+    expect(source, isNot(contains('liveRegion: true')));
+    expect(source, contains('_remaining.inSeconds == 30'));
+    expect(source, contains('if (_remaining > Duration.zero)'));
+  });
+
   testWidgets('adult job progress shows server state and role actions', (
     tester,
   ) async {

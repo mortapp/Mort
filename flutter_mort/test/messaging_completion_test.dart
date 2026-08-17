@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -31,6 +32,7 @@ class _FakeMessagingRepository extends MessagingRepository {
   final sendRequestIds = <String?>[];
   var markReadCount = 0;
   var sendAttempts = 0;
+  void Function(MortMessage message)? _onInsert;
 
   final firstThread = MessageThread(
     id: 'thread-1',
@@ -107,7 +109,12 @@ class _FakeMessagingRepository extends MessagingRepository {
   MortMessageSubscription subscribeToMessages(
     String threadId,
     void Function(MortMessage message) onInsert,
-  ) => subscription;
+  ) {
+    _onInsert = onInsert;
+    return subscription;
+  }
+
+  void emit(MortMessage message) => _onInsert?.call(message);
 
   @override
   Future<void> markThreadRead(String threadId) async {
@@ -131,6 +138,51 @@ class _FakeMessagingRepository extends MessagingRepository {
       scannerStatus: 'clean',
       createdAt: DateTime.utc(2026, 8, 8, 14, 5),
     );
+  }
+}
+
+class _OutOfOrderThreadRepository extends MessagingRepository {
+  final loadMore = Completer<MessageThreadPage>();
+  final search = Completer<MessageThreadPage>();
+
+  final initialThread = MessageThread(
+    id: 'initial-thread',
+    lifecycleStatus: 'active',
+    updatedAt: DateTime.utc(2026, 8, 8, 14),
+    counterpartyDisplayName: 'Initial Person',
+  );
+
+  @override
+  Future<MessageThreadPage> listThreadsPage({
+    String query = '',
+    MessageThreadPageCursor? cursor,
+    int limit = 20,
+  }) {
+    if (query == 'new search') return search.future;
+    if (cursor != null) return loadMore.future;
+    return Future.value(
+      MessageThreadPage(
+        items: [initialThread],
+        hasMore: true,
+        nextCursor: MessageThreadPageCursor(
+          updatedAt: initialThread.updatedAt!,
+          id: initialThread.id,
+        ),
+      ),
+    );
+  }
+}
+
+class _DeferredMessageSendRepository extends _FakeMessagingRepository {
+  final sendCompleter = Completer<MortMessage>();
+
+  @override
+  Future<MortMessage> sendSafeMessage(
+    String threadId,
+    String body, {
+    String? clientRequestId,
+  }) {
+    return sendCompleter.future;
   }
 }
 
@@ -207,6 +259,70 @@ void main() {
     expect(repository.requestedQueries.last, 'mowing');
   });
 
+  testWidgets('new search ignores an older pagination response', (
+    tester,
+  ) async {
+    final repository = _OutOfOrderThreadRepository();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          supabaseReadyProvider.overrideWithValue(true),
+          messagingRepositoryProvider.overrideWithValue(repository),
+        ],
+        child: const MaterialApp(home: MessagesScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Load more conversations'));
+    await tester.tap(find.text('Load more conversations'));
+    await tester.pump();
+
+    final searchField = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.hintText == 'Search by participant or job',
+    );
+    await tester.enterText(searchField, 'new search');
+    await tester.tap(find.text('Search conversations'));
+    await tester.pump();
+
+    repository.search.complete(
+      MessageThreadPage(
+        items: [
+          MessageThread(
+            id: 'new-thread',
+            lifecycleStatus: 'active',
+            updatedAt: DateTime.utc(2026, 8, 9),
+            counterpartyDisplayName: 'New Search Match',
+          ),
+        ],
+        hasMore: false,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('New Search Match'), findsOneWidget);
+
+    repository.loadMore.complete(
+      MessageThreadPage(
+        items: [
+          MessageThread(
+            id: 'stale-thread',
+            lifecycleStatus: 'active',
+            updatedAt: DateTime.utc(2026, 8, 7),
+            counterpartyDisplayName: 'Stale Old Result',
+          ),
+        ],
+        hasMore: false,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('New Search Match'), findsOneWidget);
+    expect(find.text('Stale Old Result'), findsNothing);
+    expect(find.text('Initial Person'), findsNothing);
+  });
+
   testWidgets('thread exposes safety context and retries one failed send', (
     tester,
   ) async {
@@ -254,6 +370,97 @@ void main() {
     expect(repository.sendAttempts, 2);
     expect(repository.sendRequestIds[0], isNotNull);
     expect(repository.sendRequestIds[1], repository.sendRequestIds[0]);
+  });
+
+  testWidgets('leaving a thread during send does not update disposed UI', (
+    tester,
+  ) async {
+    final repository = _DeferredMessageSendRepository();
+    final auth = _FakeAuthRepository();
+    addTearDown(auth.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          messagingRepositoryProvider.overrideWithValue(repository),
+          authRepositoryProvider.overrideWithValue(auth),
+          currentProfileProvider.overrideWithValue(
+            AsyncValue.data(_teenProfile()),
+          ),
+        ],
+        child: const MaterialApp(
+          home: MessageThreadScreen(threadId: 'thread-1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField), 'Pending message');
+    await tester.ensureVisible(find.text('Send message'));
+    await tester.tap(find.text('Send message'));
+    await tester.pump();
+
+    await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+    repository.sendCompleter.complete(
+      MortMessage(
+        id: 'late-message',
+        threadId: 'thread-1',
+        senderId: 'teen-1',
+        body: 'Pending message',
+        scannerStatus: 'clean',
+        createdAt: DateTime.utc(2026, 8, 16),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('realtime message bursts coalesce read acknowledgements', (
+    tester,
+  ) async {
+    final repository = _FakeMessagingRepository();
+    final auth = _FakeAuthRepository();
+    addTearDown(auth.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          messagingRepositoryProvider.overrideWithValue(repository),
+          authRepositoryProvider.overrideWithValue(auth),
+          currentProfileProvider.overrideWithValue(
+            AsyncValue.data(_teenProfile()),
+          ),
+        ],
+        child: const MaterialApp(
+          home: MessageThreadScreen(threadId: 'thread-1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final initialMarkReadCount = repository.markReadCount;
+
+    for (var index = 0; index < 100; index += 1) {
+      repository.emit(
+        MortMessage(
+          id: 'burst-$index',
+          threadId: 'thread-1',
+          senderId: 'adult-1',
+          body: 'Synthetic burst message $index',
+          scannerStatus: 'clean',
+          createdAt: DateTime.utc(2026, 8, 8, 15, 0, index),
+        ),
+      );
+    }
+
+    await tester.pump(const Duration(milliseconds: 249));
+    expect(repository.markReadCount, initialMarkReadCount);
+
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pump();
+
+    expect(repository.markReadCount, initialMarkReadCount + 1);
+    expect(find.text('Synthetic burst message 99'), findsOneWidget);
   });
 
   test('messaging migration keeps participant and evidence boundaries', () {

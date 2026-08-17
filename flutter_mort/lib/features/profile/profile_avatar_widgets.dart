@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
+import '../../core/utils/image_decode_size.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/profile.dart';
 import '../../data/repositories/providers.dart';
@@ -105,6 +106,11 @@ class _ProfileAvatarViewState extends ConsumerState<ProfileAvatarView> {
             radius: widget.radius,
           );
         }
+        final cacheDimension = imageDecodePixelsForContext(
+          context,
+          widget.radius * 2,
+          maximum: 512,
+        );
         return Semantics(
           image: true,
           label: '${widget.fallbackLabel} profile picture',
@@ -115,6 +121,8 @@ class _ProfileAvatarViewState extends ConsumerState<ProfileAvatarView> {
                 url,
                 key: ValueKey(url),
                 fit: BoxFit.cover,
+                cacheWidth: cacheDimension,
+                cacheHeight: cacheDimension,
                 errorBuilder: (_, _, _) =>
                     _AvatarRetry(radius: widget.radius, onRetry: _retryLoad),
               ),

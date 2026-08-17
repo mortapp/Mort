@@ -7,8 +7,8 @@ class MortPageTransitions {
     builders: <TargetPlatform, PageTransitionsBuilder>{
       TargetPlatform.android: MortFiniteFadePageTransitionsBuilder(),
       TargetPlatform.fuchsia: MortFiniteFadePageTransitionsBuilder(),
-      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-      TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+      TargetPlatform.iOS: MortCupertinoPageTransitionsBuilder(),
+      TargetPlatform.macOS: MortCupertinoPageTransitionsBuilder(),
       TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
       TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
     },
@@ -26,7 +26,7 @@ class MortFiniteFadePageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    if (route.isFirst) return child;
+    if (route.isFirst || MediaQuery.disableAnimationsOf(context)) return child;
     return AnimatedBuilder(
       animation: animation,
       child: child,
@@ -36,6 +36,30 @@ class MortFiniteFadePageTransitionsBuilder extends PageTransitionsBuilder {
           child: child ?? const SizedBox.shrink(),
         );
       },
+    );
+  }
+}
+
+class MortCupertinoPageTransitionsBuilder extends PageTransitionsBuilder {
+  const MortCupertinoPageTransitionsBuilder();
+
+  static const _delegate = CupertinoPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    if (route.isFirst || MediaQuery.disableAnimationsOf(context)) return child;
+    return _delegate.buildTransitions(
+      route,
+      context,
+      animation,
+      secondaryAnimation,
+      child,
     );
   }
 }

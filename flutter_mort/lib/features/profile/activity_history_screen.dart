@@ -26,24 +26,18 @@ class ActivityHistoryScreen extends ConsumerWidget {
         ),
         if (profile?.role == UserRole.teen)
           _ApplicationsHistory(
-            future: ref
-                .watch(applicationsRepositoryProvider)
-                .listMyApplications(),
+            future: ref.watch(myApplicationsProvider.future),
           ),
         if (profile?.role == UserRole.adult)
-          _JobsHistory(future: ref.watch(jobsRepositoryProvider).listMyJobs()),
+          _JobsHistory(future: ref.watch(myJobsProvider.future)),
         if (profile?.role == UserRole.guardian)
           _GuardianHistory(
-            future: ref.watch(guardianRepositoryProvider).listConnections(),
+            future: ref.watch(guardianConnectionsProvider.future),
           ),
         const SizedBox(height: MortSpacing.md),
-        _ReviewsHistory(
-          future: ref.watch(reviewsRepositoryProvider).listReceived(),
-        ),
+        _ReviewsHistory(future: ref.watch(receivedReviewsProvider.future)),
         const SizedBox(height: MortSpacing.md),
-        _ReportsHistory(
-          future: ref.watch(safetyRepositoryProvider).listMyReports(),
-        ),
+        _ReportsHistory(future: ref.watch(myReportsProvider.future)),
       ],
     );
   }

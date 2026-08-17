@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:uuid/uuid.dart';
 
 import '../../core/errors/mort_error.dart';
@@ -7,8 +9,52 @@ import 'repository_base.dart';
 const _jobSelect =
     '*, profiles:poster_id(display_name,verification_status,avatar_path)';
 
+class JobPageSessionCache {
+  JobPageSessionCache({
+    this.maximumEntries = 24,
+    this.timeToLive = const Duration(minutes: 15),
+    DateTime Function()? now,
+  }) : assert(maximumEntries > 0),
+       assert(!timeToLive.isNegative),
+       _now = now ?? DateTime.now;
+
+  final int maximumEntries;
+  final Duration timeToLive;
+  final DateTime Function() _now;
+  final LinkedHashMap<String, _CachedJobPage> _entries = LinkedHashMap();
+
+  int get length => _entries.length;
+
+  JobPage? read(String key) {
+    final entry = _entries.remove(key);
+    if (entry == null) return null;
+    if (_now().difference(entry.storedAt) >= timeToLive) return null;
+    _entries[key] = entry;
+    return entry.page;
+  }
+
+  void write(String key, JobPage page) {
+    final now = _now();
+    _entries.removeWhere(
+      (_, entry) => now.difference(entry.storedAt) >= timeToLive,
+    );
+    _entries.remove(key);
+    _entries[key] = _CachedJobPage(page: page, storedAt: now);
+    while (_entries.length > maximumEntries) {
+      _entries.remove(_entries.keys.first);
+    }
+  }
+}
+
+class _CachedJobPage {
+  const _CachedJobPage({required this.page, required this.storedAt});
+
+  final JobPage page;
+  final DateTime storedAt;
+}
+
 class JobsRepository extends RepositoryBase {
-  final Map<String, JobPage> _sessionFeedCache = {};
+  final JobPageSessionCache _sessionFeedCache = JobPageSessionCache();
 
   Future<List<Job>> listOpenJobs({
     JobSearchFilters filters = const JobSearchFilters(),
@@ -65,7 +111,7 @@ class JobsRepository extends RepositoryBase {
       final map = _rpcMap(result);
       _throwIfFailed(map);
       final page = JobPage.fromMap(map);
-      _sessionFeedCache[cacheKey] = page;
+      _sessionFeedCache.write(cacheKey, page);
       return page;
     } on MortCodedError {
       rethrow;
@@ -78,7 +124,7 @@ class JobsRepository extends RepositoryBase {
           message.contains('clientexception') ||
           message.contains('connection');
       if (!connectivityFailure) rethrow;
-      final cached = _sessionFeedCache[cacheKey];
+      final cached = _sessionFeedCache.read(cacheKey);
       if (cached != null) return cached.asSessionCacheFallback();
       rethrow;
     }

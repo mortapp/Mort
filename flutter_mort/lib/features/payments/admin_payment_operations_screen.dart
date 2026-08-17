@@ -102,10 +102,15 @@ class _AdminPaymentOperationsScreenState
       _notice = null;
     });
     try {
-      _notice = await operation();
-      setState(_reload);
+      final notice = await operation();
+      if (!mounted) return;
+      setState(() {
+        _notice = notice;
+        _reload();
+      });
     } catch (error) {
-      _notice = userFacingError(error);
+      if (!mounted) return;
+      setState(() => _notice = userFacingError(error));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -133,7 +138,10 @@ class _AdminPaymentOperationsScreenState
         future: _queue,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const MortLoading(label: 'Loading assigned payment work...');
+            return const MortLoading(
+              label: 'Loading assigned payment work...',
+              fullScreen: false,
+            );
           }
           if (snapshot.hasError) {
             return MortErrorState(

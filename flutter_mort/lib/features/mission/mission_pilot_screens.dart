@@ -623,6 +623,7 @@ class _EarningsGoalsScreenState extends ConsumerState<EarningsGoalsScreen> {
             title: _title.text,
             targetAmountCents: dollars == null ? null : (dollars * 100).round(),
           );
+      if (!mounted) return;
       _title.clear();
       _target.clear();
       setState(() => _goals = _loadGoals());

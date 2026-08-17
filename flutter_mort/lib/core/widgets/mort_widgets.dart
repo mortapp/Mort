@@ -291,6 +291,8 @@ class MortBackNavigation {
     }
     if (normalized == '/auth/forgot-password' ||
         normalized == '/auth-callback' ||
+        normalized == '/auth-confirm' ||
+        normalized == '/auth-recovery' ||
         normalized == '/auth/confirm' ||
         normalized == '/auth/recovery') {
       return '/auth/sign-in';
@@ -1722,27 +1724,29 @@ class MortConfirmSheet {
   }) async {
     final result = await showModalBottomSheet<bool>(
       context: context,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(MortSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: MortSpacing.sm),
-            Text(message, style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: MortSpacing.lg),
-            MortButton(
-              label: confirmLabel,
-              onPressed: () => Navigator.pop(context, true),
-            ),
-            const SizedBox(height: MortSpacing.sm),
-            MortButton(
-              label: 'Cancel',
-              style: MortButtonStyle.ghost,
-              onPressed: () => Navigator.pop(context, false),
-            ),
-          ],
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(MortSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(title, style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: MortSpacing.sm),
+              Text(message, style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(height: MortSpacing.lg),
+              MortButton(
+                label: confirmLabel,
+                onPressed: () => Navigator.pop(context, true),
+              ),
+              const SizedBox(height: MortSpacing.sm),
+              MortButton(
+                label: 'Cancel',
+                style: MortButtonStyle.ghost,
+                onPressed: () => Navigator.pop(context, false),
+              ),
+            ],
+          ),
         ),
       ),
     );

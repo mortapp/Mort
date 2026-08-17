@@ -88,7 +88,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const EmailConfirmationCallbackScreen(),
       ),
       GoRoute(
+        path: '/auth-confirm',
+        builder: (_, _) => const EmailConfirmationCallbackScreen(),
+      ),
+      GoRoute(
         path: '/auth/recovery',
+        builder: (_, _) => const PasswordRecoveryCallbackScreen(),
+      ),
+      GoRoute(
+        path: '/auth-recovery',
         builder: (_, _) => const PasswordRecoveryCallbackScreen(),
       ),
       GoRoute(

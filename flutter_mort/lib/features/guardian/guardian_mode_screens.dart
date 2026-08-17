@@ -42,6 +42,7 @@ class _GuardianOptionalOnboardingScreenState
             completedStep: 'guardian',
             preferences: const {'safety_setup_choice': 'configured'},
           );
+      if (!mounted) return;
       setState(() => _inviteCode = result['invite_code'] as String?);
       ref.invalidate(currentProfileProvider);
       ref.invalidate(onboardingProgressProvider);

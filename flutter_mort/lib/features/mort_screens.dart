@@ -3209,7 +3209,9 @@ class _ProofUploadScreenState extends ConsumerState<ProofUploadScreen> {
       );
       if (file == null || !mounted) return;
       final repository = ref.read(uploadsRepositoryProvider);
-      final prepared = UploadsRepository.prepareProof(await file.readAsBytes());
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+      final prepared = UploadsRepository.prepareProof(bytes);
       setState(() {
         _proof = prepared;
         _fileName = file.name;
@@ -3461,6 +3463,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   String _activeQuery = '';
   bool _initialLoading = true;
   bool _loadingMore = false;
+  int _loadGeneration = 0;
 
   @override
   void initState() {
@@ -3475,24 +3478,31 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   }
 
   Future<void> _load({required bool reset}) async {
+    final int generation;
+    final String query;
+    final MessageThreadPageCursor? cursor;
     if (reset) {
+      generation = ++_loadGeneration;
+      query = _search.text.trim();
+      cursor = null;
       setState(() {
         _initialLoading = true;
+        _loadingMore = false;
         _loadError = null;
-        _activeQuery = _search.text.trim();
+        _activeQuery = query;
       });
     } else {
       if (_nextCursor == null || _loadingMore) return;
+      generation = _loadGeneration;
+      query = _activeQuery;
+      cursor = _nextCursor;
       setState(() => _loadingMore = true);
     }
     try {
       final page = await ref
           .read(messagingRepositoryProvider)
-          .listThreadsPage(
-            query: _activeQuery,
-            cursor: reset ? null : _nextCursor,
-          );
-      if (!mounted) return;
+          .listThreadsPage(query: query, cursor: cursor);
+      if (!mounted || generation != _loadGeneration) return;
       setState(() {
         if (reset) _threads.clear();
         final knownIds = _threads.map((thread) => thread.id).toSet();
@@ -3501,13 +3511,13 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
         _loadError = null;
       });
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() => _loadError = error);
       if (!reset && _threads.isNotEmpty) {
         MortToast.show(context, userFacingError(error));
       }
     } finally {
-      if (mounted) {
+      if (mounted && generation == _loadGeneration) {
         setState(() {
           _initialLoading = false;
           _loadingMore = false;
@@ -3708,7 +3718,11 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                   ? null
                   : () => unawaited(_load(reset: false)),
             ),
-          if (_loadingMore) const MortLoading(label: 'Loading conversations'),
+          if (_loadingMore)
+            const MortLoading(
+              label: 'Loading conversations',
+              fullScreen: false,
+            ),
         ],
       ],
     );
@@ -3731,6 +3745,7 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
   final List<MortMessage> _messages = [];
   MessagePageCursor? _nextCursor;
   MortMessageSubscription? _subscription;
+  Timer? _markReadDebounce;
   MessageThread? _thread;
   Object? _loadError;
   String? _sendError;
@@ -3740,6 +3755,8 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
   bool _initialLoading = true;
   bool _loadingMore = false;
   bool _busy = false;
+  bool _markReadInFlight = false;
+  bool _markReadQueued = false;
 
   @override
   void initState() {
@@ -3750,6 +3767,7 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
 
   @override
   void dispose() {
+    _markReadDebounce?.cancel();
     final subscription = _subscription;
     if (subscription != null) {
       unawaited(subscription.cancel());
@@ -3764,36 +3782,81 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
     _subscription = repository.subscribeToMessages(widget.threadId, (message) {
       if (!mounted) return;
       _mergeMessages([message], scrollToLatest: true);
-      unawaited(_markRead());
+      _scheduleMarkRead();
     });
   }
 
+  void _scheduleMarkRead({Duration delay = const Duration(milliseconds: 250)}) {
+    _markReadDebounce?.cancel();
+    _markReadDebounce = Timer(delay, () => unawaited(_markRead()));
+  }
+
   Future<void> _markRead() async {
-    try {
-      await ref
-          .read(messagingRepositoryProvider)
-          .markThreadRead(widget.threadId);
-    } catch (error) {
-      if (mounted) MortToast.show(context, userFacingError(error));
+    if (_markReadInFlight) {
+      _markReadQueued = true;
+      return;
     }
+    _markReadInFlight = true;
+    do {
+      _markReadQueued = false;
+      try {
+        await ref
+            .read(messagingRepositoryProvider)
+            .markThreadRead(widget.threadId);
+      } catch (error) {
+        if (mounted) MortToast.show(context, userFacingError(error));
+      }
+    } while (mounted && _markReadQueued);
+    _markReadInFlight = false;
+  }
+
+  static int _compareMessages(MortMessage left, MortMessage right) {
+    final time = (left.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+        .compareTo(right.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0));
+    return time != 0 ? time : left.id.compareTo(right.id);
+  }
+
+  int _messageInsertionIndex(MortMessage message) {
+    var low = 0;
+    var high = _messages.length;
+    while (low < high) {
+      final middle = low + ((high - low) >> 1);
+      if (_compareMessages(_messages[middle], message) <= 0) {
+        low = middle + 1;
+      } else {
+        high = middle;
+      }
+    }
+    return low;
   }
 
   void _mergeMessages(
     Iterable<MortMessage> incoming, {
     bool scrollToLatest = false,
   }) {
+    final incomingMessages = incoming.toList(growable: false);
+    if (incomingMessages.isEmpty) return;
+    if (incomingMessages.length == 1) {
+      final message = incomingMessages.single;
+      setState(() {
+        final existingIndex = _messages.indexWhere(
+          (existing) => existing.id == message.id,
+        );
+        if (existingIndex >= 0) {
+          _messages.removeAt(existingIndex);
+        }
+        _messages.insert(_messageInsertionIndex(message), message);
+      });
+      if (scrollToLatest) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _showLatest());
+      }
+      return;
+    }
     final byId = <String, MortMessage>{
       for (final message in _messages) message.id: message,
-      for (final message in incoming) message.id: message,
+      for (final message in incomingMessages) message.id: message,
     };
-    final merged = byId.values.toList()
-      ..sort((left, right) {
-        final time = (left.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0))
-            .compareTo(
-              right.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
-            );
-        return time != 0 ? time : left.id.compareTo(right.id);
-      });
+    final merged = byId.values.toList()..sort(_compareMessages);
     setState(() {
       _messages
         ..clear()
@@ -3837,7 +3900,7 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
         _thread = page.thread;
       });
       _mergeMessages(page.items, scrollToLatest: true);
-      unawaited(_markRead());
+      _scheduleMarkRead(delay: Duration.zero);
     } catch (error) {
       if (mounted) setState(() => _loadError = error);
     } finally {
@@ -3891,6 +3954,7 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
             messageBody,
             clientRequestId: _pendingSendId,
           );
+      if (!mounted) return;
       _mergeMessages([saved], scrollToLatest: true);
       _body.clear();
       _pendingBody = null;
@@ -6139,11 +6203,17 @@ class LegalDocScreen extends StatelessWidget {
         SizedBox(height: MortSpacing.sm),
         MortSafetyBanner(),
       ],
-      actions: const [
+      actions: [
         MortAction(
-          label: 'Back to settings',
-          icon: Icons.settings,
-          route: '/settings',
+          label: 'Back',
+          icon: Icons.arrow_back_rounded,
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/legal-center');
+            }
+          },
         ),
       ],
     );

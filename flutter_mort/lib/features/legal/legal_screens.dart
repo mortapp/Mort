@@ -188,14 +188,37 @@ class LegalClickwrapScreen extends ConsumerStatefulWidget {
 
 class _LegalClickwrapScreenState extends ConsumerState<LegalClickwrapScreen> {
   final _signature = TextEditingController();
+  late Future<Map<String, dynamic>> _versionFuture;
   bool _summaryViewed = false;
   bool _affirmative = false;
   bool _busy = false;
 
   @override
+  void initState() {
+    super.initState();
+    _versionFuture = _loadVersion();
+  }
+
+  @override
+  void didUpdateWidget(covariant LegalClickwrapScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.versionId != widget.versionId) {
+      _versionFuture = _loadVersion();
+    }
+  }
+
+  @override
   void dispose() {
     _signature.dispose();
     super.dispose();
+  }
+
+  Future<Map<String, dynamic>> _loadVersion() => ref
+      .read(legalContractRepositoryProvider)
+      .publishedLegalVersion(widget.versionId);
+
+  void _retryVersion() {
+    setState(() => _versionFuture = _loadVersion());
   }
 
   Future<void> _accept() async {
@@ -250,9 +273,7 @@ class _LegalClickwrapScreenState extends ConsumerState<LegalClickwrapScreen> {
         ),
         const SizedBox(height: MortSpacing.sm),
         FutureBuilder<Map<String, dynamic>>(
-          future: ref
-              .read(legalContractRepositoryProvider)
-              .publishedLegalVersion(widget.versionId),
+          future: _versionFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const MortSkeletonCard();
@@ -261,6 +282,11 @@ class _LegalClickwrapScreenState extends ConsumerState<LegalClickwrapScreen> {
               return MortErrorState(
                 title: 'Exact version unavailable',
                 message: userFacingError(snapshot.error),
+                action: MortButton(
+                  label: 'Retry exact version',
+                  icon: Icons.refresh,
+                  onPressed: _retryVersion,
+                ),
               );
             }
             final version = snapshot.data ?? const {};

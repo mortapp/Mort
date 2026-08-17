@@ -18,7 +18,7 @@ class AccountTrustScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(accountTrustProfileProvider);
     return profile.when(
-      loading: () => const MortScreen(children: [MortLoading()]),
+      loading: () => const MortLoading(label: 'Loading account trust'),
       error: (error, _) => MortScreen(
         children: [
           MortHeader(

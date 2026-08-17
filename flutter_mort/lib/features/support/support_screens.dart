@@ -8,6 +8,7 @@ import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/image_decode_size.dart';
 import '../../core/utils/validators.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/profile.dart';
@@ -539,6 +540,7 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
       await ref
           .read(supportRepositoryProvider)
           .postMessage(widget.ticketId, body);
+      if (!mounted) return;
       _message.clear();
       setState(_reload);
     } catch (error) {
@@ -554,6 +556,7 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
       await ref
           .read(supportRepositoryProvider)
           .requestHumanReview(widget.ticketId);
+      if (!mounted) return;
       setState(_reload);
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
@@ -1140,11 +1143,10 @@ class _AdminSupportTicketScreenState
       await ref
           .read(supportRepositoryProvider)
           .postStaffReply(widget.ticketId, body);
+      if (!mounted) return;
       _reply.clear();
-      if (mounted) {
-        MortToast.show(context, 'Human-reviewed support reply posted.');
-        setState(_reload);
-      }
+      MortToast.show(context, 'Human-reviewed support reply posted.');
+      setState(_reload);
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
     } finally {
@@ -1203,11 +1205,10 @@ class _AdminSupportTicketScreenState
       await ref
           .read(supportRepositoryProvider)
           .addInternalNote(ticketId: widget.ticketId, body: body);
+      if (!mounted) return;
       _internalNote.clear();
-      if (mounted) {
-        MortToast.show(context, 'Private internal note added.');
-        setState(_reload);
-      }
+      MortToast.show(context, 'Private internal note added.');
+      setState(_reload);
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
     } finally {
@@ -1256,21 +1257,36 @@ class _AdminSupportTicketScreenState
       if (!mounted) return;
       await showDialog<void>(
         context: context,
-        builder: (_) => Dialog(
-          child: Padding(
-            padding: const EdgeInsets.all(MortSpacing.sm),
-            child: InteractiveViewer(
-              child: Image.network(
-                url,
-                fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => const Padding(
-                  padding: EdgeInsets.all(MortSpacing.lg),
-                  child: Text('The expiring evidence preview could not load.'),
+        builder: (dialogContext) {
+          final size = MediaQuery.sizeOf(dialogContext);
+          final cacheWidth = imageDecodePixelsForContext(
+            dialogContext,
+            size.width,
+          );
+          final cacheHeight = imageDecodePixelsForContext(
+            dialogContext,
+            size.height,
+          );
+          return Dialog(
+            child: Padding(
+              padding: const EdgeInsets.all(MortSpacing.sm),
+              child: InteractiveViewer(
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  cacheWidth: cacheWidth,
+                  cacheHeight: cacheHeight,
+                  errorBuilder: (_, _, _) => const Padding(
+                    padding: EdgeInsets.all(MortSpacing.lg),
+                    child: Text(
+                      'The expiring evidence preview could not load.',
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       );
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));

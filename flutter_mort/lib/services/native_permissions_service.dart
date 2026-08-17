@@ -9,6 +9,7 @@ class NativePermissionSnapshot {
     required this.camera,
     required this.photos,
     required this.location,
+    required this.locationAccuracy,
     required this.locationServicesEnabled,
     required this.photoPickerNeedsBroadPermission,
   });
@@ -17,6 +18,7 @@ class NativePermissionSnapshot {
   final PermissionStatus camera;
   final PermissionStatus photos;
   final LocationPermission location;
+  final LocationAccuracyStatus? locationAccuracy;
   final bool locationServicesEnabled;
   final bool photoPickerNeedsBroadPermission;
 }
@@ -34,20 +36,25 @@ class NativePermissionsService {
   Future<NativePermissionSnapshot> snapshot() async {
     final photoPermissionNeeded =
         !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    final notificationsFuture = Permission.notification.status;
+    final cameraFuture = Permission.camera.status;
+    final photosFuture = photoPermissionNeeded
+        ? Permission.photos.status
+        : Future.value(PermissionStatus.granted);
+    final locationFuture = Geolocator.checkPermission();
+    final servicesFuture = Geolocator.isLocationServiceEnabled();
+    final location = await locationFuture;
+
     return NativePermissionSnapshot(
-      notifications: await Permission.notification.status,
-      camera: await Permission.camera.status,
-      photos: photoPermissionNeeded
-          ? await Permission.photos.status
-          : PermissionStatus.granted,
-      location: await Geolocator.checkPermission(),
-      locationServicesEnabled: await Geolocator.isLocationServiceEnabled(),
+      notifications: await notificationsFuture,
+      camera: await cameraFuture,
+      photos: await photosFuture,
+      location: location,
+      locationAccuracy: await _readLocationAccuracy(location),
+      locationServicesEnabled: await servicesFuture,
       photoPickerNeedsBroadPermission: photoPermissionNeeded,
     );
   }
-
-  Future<PermissionStatus> requestNotifications() =>
-      Permission.notification.request();
 
   Future<PermissionStatus> requestCamera() => Permission.camera.request();
 
@@ -118,6 +125,21 @@ class NativePermissionsService {
   }
 
   Future<bool> openSettings() => openAppSettings();
+
+  Future<LocationAccuracyStatus?> _readLocationAccuracy(
+    LocationPermission permission,
+  ) async {
+    if (kIsWeb ||
+        permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return null;
+    }
+    try {
+      return await Geolocator.getLocationAccuracy();
+    } on Exception {
+      return null;
+    }
+  }
 }
 
 String _stateCode(String value) {

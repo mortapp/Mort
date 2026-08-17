@@ -1378,13 +1378,19 @@ class AdultJobsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final jobs = ref.watch(myJobsProvider);
     return MortScreen(
       children: [
-        const MortHeader(
+        MortHeader(
           eyebrow: 'Adult jobs',
           title: 'Manage jobs',
           subtitle:
               'Drafts, open jobs, assignments, proof, and completion use tracked workflow states.',
+          trailing: MortIconButton(
+            icon: Icons.refresh,
+            tooltip: 'Refresh jobs',
+            onPressed: () => ref.invalidate(myJobsProvider),
+          ),
         ),
         const MortActionRow(
           actions: [
@@ -1396,19 +1402,18 @@ class AdultJobsScreen extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: MortSpacing.md),
-        FutureBuilder<List<Job>>(
-          future: ref.watch(jobsRepositoryProvider).listMyJobs(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const MortSkeletonCard();
-            }
-            if (snapshot.hasError) {
-              return MortErrorState(
-                title: 'Jobs unavailable',
-                message: userFacingError(snapshot.error),
-              );
-            }
-            final jobs = snapshot.data ?? const [];
+        jobs.when(
+          loading: () => const MortSkeletonCard(),
+          error: (error, _) => MortErrorState(
+            title: 'Jobs unavailable',
+            message: userFacingError(error),
+            action: MortButton(
+              label: 'Retry',
+              icon: Icons.refresh,
+              onPressed: () => ref.invalidate(myJobsProvider),
+            ),
+          ),
+          data: (jobs) {
             if (jobs.isEmpty) {
               return const MortEmptyState(
                 title: 'No jobs yet',

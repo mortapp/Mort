@@ -115,7 +115,15 @@ void main() {
         '/auth/sign-in',
       );
       expect(
+        MortBackNavigation.fallbackRoute('/auth-recovery'),
+        '/auth/sign-in',
+      );
+      expect(
         MortBackNavigation.fallbackRoute('/auth/confirm'),
+        '/auth/sign-in',
+      );
+      expect(
+        MortBackNavigation.fallbackRoute('/auth-confirm'),
         '/auth/sign-in',
       );
       expect(

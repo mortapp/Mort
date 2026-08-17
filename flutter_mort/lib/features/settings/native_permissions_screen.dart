@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/errors/user_facing_error.dart';
@@ -7,6 +8,7 @@ import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../services/native_permissions_service.dart';
+import '../../services/push/push_notification_coordinator.dart';
 
 class NativePermissionsScreen extends StatefulWidget {
   const NativePermissionsScreen({super.key});
@@ -18,6 +20,7 @@ class NativePermissionsScreen extends StatefulWidget {
 
 class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
   final _service = const NativePermissionsService();
+  final _pushCoordinator = PushNotificationCoordinator.instance;
   late Future<NativePermissionSnapshot> _future;
   bool _busy = false;
   String? _areaMessage;
@@ -97,12 +100,13 @@ class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
                   icon: Icons.notifications_outlined,
                   title: 'Notifications',
                   status: _permissionLabel(status.notifications),
-                  detail:
-                      'Permission enables alerts on this device. Remote push delivery is not active in this closed-test build; in-app notifications still work.',
-                  onRequest: _busy
+                  detail: _pushCoordinator.configured
+                      ? 'Permission enables remote alerts on this device. After approval, MORT securely registers this signed-in installation.'
+                      : 'Remote push is disabled in this build, so MORT will not request notification permission. The in-app notification inbox still works.',
+                  onRequest: _busy || !_pushCoordinator.configured
                       ? null
                       : () => _run(() async {
-                          await _service.requestNotifications();
+                          await _pushCoordinator.requestPermissionAndRegister();
                         }),
                 ),
                 const SizedBox(height: MortSpacing.sm),
@@ -139,9 +143,9 @@ class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
                   icon: Icons.location_on_outlined,
                   title: 'Foreground location',
                   status:
-                      '${status.location.name.replaceAll('_', ' ')}; services ${status.locationServicesEnabled ? 'on' : 'off'}',
+                      '${status.location.name.replaceAll('_', ' ')}; ${locationAccuracyLabel(status.locationAccuracy)}; services ${status.locationServicesEnabled ? 'on' : 'off'}',
                   detail:
-                      'A user-initiated lookup may resolve the current position to city/state for coarse job search. MORT discards the raw coordinates. Manual city/state search always remains available.',
+                      'A user-initiated lookup may resolve the current position to city/state for general-area job search. MORT reports whether device accuracy is precise or reduced, then discards the raw coordinates. Manual city/state search always remains available.',
                   onRequest: _busy || kIsWeb ? null : _resolveArea,
                 ),
               ],
@@ -226,3 +230,12 @@ class _PermissionCard extends StatelessWidget {
 
 String _permissionLabel(PermissionStatus status) =>
     status.name.replaceAll('_', ' ');
+
+@visibleForTesting
+String locationAccuracyLabel(LocationAccuracyStatus? accuracy) =>
+    switch (accuracy) {
+      LocationAccuracyStatus.precise => 'precise accuracy',
+      LocationAccuracyStatus.reduced => 'reduced accuracy',
+      LocationAccuracyStatus.unknown => 'accuracy unavailable',
+      null => 'accuracy unavailable',
+    };

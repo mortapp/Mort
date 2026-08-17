@@ -656,7 +656,8 @@ class _SafetyCircleScreenState extends ConsumerState<SafetyCircleScreen> {
             relationship: _labelController.text,
             permissions: _permissions,
           );
-      if (mounted) setState(() => _codeController.text = code);
+      if (!mounted) return;
+      setState(() => _codeController.text = code);
       await _load();
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
@@ -671,6 +672,7 @@ class _SafetyCircleScreenState extends ConsumerState<SafetyCircleScreen> {
       await ref
           .read(trustSafetyRepositoryProvider)
           .acceptSafetyCircleInvite(_codeController.text);
+      if (!mounted) return;
       _codeController.clear();
       await _load();
     } catch (error) {
@@ -684,6 +686,7 @@ class _SafetyCircleScreenState extends ConsumerState<SafetyCircleScreen> {
     setState(() => _busy = true);
     try {
       await ref.read(trustSafetyRepositoryProvider).unlinkSafetyCircle(id);
+      if (!mounted) return;
       await _load();
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));

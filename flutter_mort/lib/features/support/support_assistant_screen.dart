@@ -36,6 +36,12 @@ class _SupportAssistantScreenState
   bool _sending = false;
   bool _attachmentBusy = false;
   bool _assistantEnabled = true;
+  // True once the conversation currently held in `_conversationId` has been
+  // handed to a person (status = 'handed_off' server-side). The backend
+  // refuses to append further automated messages to a closed conversation,
+  // so once this is true a new send starts a fresh conversation rather than
+  // surfacing a confusing "conversation not found" error.
+  bool _currentConversationClosed = false;
 
   SupportAssistantRepository get _repository =>
       ref.read(supportAssistantRepositoryProvider);
@@ -73,6 +79,8 @@ class _SupportAssistantScreenState
           ..clear()
           ..addAll(thread?.messages ?? const []);
         _ticketId = thread?.conversation.ticketId;
+        _currentConversationClosed =
+            thread?.conversation.status == 'handed_off';
         _loading = false;
       });
     } catch (error) {
@@ -87,6 +95,8 @@ class _SupportAssistantScreenState
   Future<void> _send([String? suggested]) async {
     final text = (suggested ?? _composer.text).trim();
     if (_sending || text.length < 3) return;
+    final startingNewThread =
+        _currentConversationClosed && _conversationId != null;
     final optimistic = SupportAssistantMessage(
       id: const Uuid().v4(),
       role: 'user',
@@ -105,15 +115,26 @@ class _SupportAssistantScreenState
     try {
       final reply = await _repository.send(
         message: text,
-        conversationId: _conversationId,
+        conversationId: startingNewThread ? null : _conversationId,
       );
       if (!mounted) return;
       setState(() {
         _conversationId = reply.conversationId;
         _messages.add(reply.message);
+        _currentConversationClosed = reply.ticketId != null;
+        // A ticket created by *this* reply belongs to the still-current
+        // conversation and case card. A ticket carried over from an earlier,
+        // now-closed conversation stays visible above as the prior case, so
+        // it is left in place rather than cleared here.
         _ticketId = reply.ticketId ?? _ticketId;
         _caseNumber = reply.caseNumber ?? _caseNumber;
       });
+      if (startingNewThread && mounted) {
+        MortToast.show(
+          context,
+          'Your previous case is with a person. Continuing in a new conversation.',
+        );
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -148,6 +169,7 @@ class _SupportAssistantScreenState
       setState(() {
         _ticketId = handoff['ticket_id']?.toString() ?? _ticketId;
         _caseNumber = handoff['case_number']?.toString() ?? _caseNumber;
+        _currentConversationClosed = true;
       });
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
@@ -640,62 +662,77 @@ class SupportAssistantHistoryScreen extends ConsumerWidget {
   const SupportAssistantHistoryScreen({super.key});
 
   @override
-  Widget build(
-    BuildContext context,
-    WidgetRef ref,
-  ) => FutureBuilder<List<SupportAssistantConversation>>(
-    future: ref.read(supportAssistantRepositoryProvider).listConversations(),
-    builder: (context, snapshot) => MortScreen(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final conversations = ref.watch(supportAssistantConversationsProvider);
+    return MortScreen(
       children: [
-        const MortHeader(
+        MortHeader(
           eyebrow: 'Private history',
           title: 'Support Assistant history',
           subtitle:
               'Guardian Mode does not grant automatic access to these conversations.',
+          trailing: MortIconButton(
+            icon: Icons.refresh,
+            tooltip: 'Refresh support history',
+            onPressed: () =>
+                ref.invalidate(supportAssistantConversationsProvider),
+          ),
         ),
-        if (snapshot.connectionState != ConnectionState.done)
-          const MortLoading(
+        conversations.when(
+          loading: () => const MortLoading(
             label: 'Loading support history...',
             fullScreen: false,
-          )
-        else if (snapshot.hasError)
-          MortErrorState(
+          ),
+          error: (error, _) => MortErrorState(
             title: 'Support history unavailable',
-            message: userFacingError(snapshot.error),
-          )
-        else if ((snapshot.data ?? const []).isEmpty)
-          const MortEmptyState(
-            title: 'No Support Assistant conversations',
-            message: 'Start a private support chat when you need help.',
-          )
-        else
-          for (final conversation in snapshot.data!) ...[
-            MortCard(
-              onTap: () => context.go('/support/chat/${conversation.id}'),
-              child: Row(
-                children: [
-                  const Icon(Icons.chat_bubble_outline),
-                  const SizedBox(width: MortSpacing.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+            message: userFacingError(error),
+            action: MortButton(
+              label: 'Retry',
+              icon: Icons.refresh,
+              onPressed: () =>
+                  ref.invalidate(supportAssistantConversationsProvider),
+            ),
+          ),
+          data: (conversations) {
+            if (conversations.isEmpty) {
+              return const MortEmptyState(
+                title: 'No Support Assistant conversations',
+                message: 'Start a private support chat when you need help.',
+              );
+            }
+            return Column(
+              children: [
+                for (final conversation in conversations) ...[
+                  MortCard(
+                    onTap: () => context.go('/support/chat/${conversation.id}'),
+                    child: Row(
                       children: [
-                        Text(conversation.title),
-                        Text(
-                          conversation.ticketId == null
-                              ? 'Private guided support'
-                              : 'Human case linked',
+                        const Icon(Icons.chat_bubble_outline),
+                        const SizedBox(width: MortSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(conversation.title),
+                              Text(
+                                conversation.ticketId == null
+                                    ? 'Private guided support'
+                                    : 'Human case linked',
+                              ),
+                            ],
+                          ),
                         ),
+                        MortBadge(label: conversation.status),
                       ],
                     ),
                   ),
-                  MortBadge(label: conversation.status),
+                  const SizedBox(height: MortSpacing.sm),
                 ],
-              ),
-            ),
-            const SizedBox(height: MortSpacing.sm),
-          ],
+              ],
+            );
+          },
+        ),
       ],
-    ),
-  );
+    );
+  }
 }

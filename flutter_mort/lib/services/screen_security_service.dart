@@ -24,13 +24,16 @@ class ScreenSecurityService {
       await _platformSetter!(enabled);
       return;
     }
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    final platform = defaultTargetPlatform;
+    final supportsNativeProtection =
+        platform == TargetPlatform.android || platform == TargetPlatform.iOS;
+    if (kIsWeb || !supportsNativeProtection) return;
     try {
       await _channel.invokeMethod<void>('setSecureScreen', {
         'enabled': enabled,
       });
     } on MissingPluginException {
-      // Native protection is unavailable in unit tests and non-Android builds.
+      // Native protection is unavailable in unit tests and unsupported builds.
     }
   }
 

@@ -6,7 +6,6 @@ import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/widgets/mort_widgets.dart';
-import '../../data/models/application.dart';
 import '../../data/models/profile.dart';
 import '../../data/repositories/providers.dart';
 import '../profile/profile_avatar_widgets.dart';
@@ -158,56 +157,60 @@ class _TeenProfileBody extends ConsumerWidget {
           ),
         ],
         const MortSectionLabel(label: 'Recent work'),
-        FutureBuilder<List<MortApplication>>(
-          future: ref
-              .watch(applicationsRepositoryProvider)
-              .listMyApplications(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const MortSkeletonCard();
-            }
-            if (snapshot.hasError) {
-              return MortErrorState(
+        ref
+            .watch(myApplicationsProvider)
+            .when(
+              loading: () => const MortSkeletonCard(),
+              error: (error, _) => MortErrorState(
                 title: 'Recent work unavailable',
-                message: userFacingError(snapshot.error),
-              );
-            }
-            final recent = (snapshot.data ?? const <MortApplication>[])
-                .where(
-                  (application) =>
-                      application.status == 'completed' ||
-                      application.status == 'paid',
-                )
-                .take(3)
-                .toList(growable: false);
-            if (recent.isEmpty) {
-              return const MortGlassSoftSurface(
-                child: Text('Completed jobs will appear here.'),
-              );
-            }
-            return MortGlassSoftSurface(
-              child: Column(
-                children: [
-                  for (var index = 0; index < recent.length; index++) ...[
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(
-                        Icons.check_circle_outline_rounded,
-                        color: MortColors.success,
-                      ),
-                      title: Text(recent[index].job?.title ?? 'Completed job'),
-                      subtitle: Text(recent[index].status.replaceAll('_', ' ')),
-                      onTap: () => context.push(
-                        '/teen/applications/${recent[index].id}',
-                      ),
-                    ),
-                    if (index < recent.length - 1) const Divider(),
-                  ],
-                ],
+                message: userFacingError(error),
+                action: MortButton(
+                  label: 'Retry',
+                  icon: Icons.refresh,
+                  onPressed: () => ref.invalidate(myApplicationsProvider),
+                ),
               ),
-            );
-          },
-        ),
+              data: (applications) {
+                final recent = applications
+                    .where(
+                      (application) =>
+                          application.status == 'completed' ||
+                          application.status == 'paid',
+                    )
+                    .take(3)
+                    .toList(growable: false);
+                if (recent.isEmpty) {
+                  return const MortGlassSoftSurface(
+                    child: Text('Completed jobs will appear here.'),
+                  );
+                }
+                return MortGlassSoftSurface(
+                  child: Column(
+                    children: [
+                      for (var index = 0; index < recent.length; index++) ...[
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(
+                            Icons.check_circle_outline_rounded,
+                            color: MortColors.success,
+                          ),
+                          title: Text(
+                            recent[index].job?.title ?? 'Completed job',
+                          ),
+                          subtitle: Text(
+                            recent[index].status.replaceAll('_', ' '),
+                          ),
+                          onTap: () => context.push(
+                            '/teen/applications/${recent[index].id}',
+                          ),
+                        ),
+                        if (index < recent.length - 1) const Divider(),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
         const MortSectionLabel(label: 'Account'),
         Wrap(
           spacing: MortSpacing.sm,

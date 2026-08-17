@@ -10,6 +10,7 @@ import 'package:flutter_mort/features/jobs/application_screens.dart';
 
 class _FakeApplicationsRepository extends ApplicationsRepository {
   final List<Map<String, Object?>> recordedCalls = [];
+  final List<String> statusEventCalls = [];
 
   @override
   Future<MortApplication?> getApplication(
@@ -50,6 +51,7 @@ class _FakeApplicationsRepository extends ApplicationsRepository {
   Future<List<Map<String, dynamic>>> listStatusEvents(
     String applicationId,
   ) async {
+    statusEventCalls.add(applicationId);
     return const [];
   }
 }
@@ -111,5 +113,30 @@ void main() {
     expect(repository.recordedCalls.single['role'], UserRole.guardian);
     expect(find.text('Approval request'), findsOneWidget);
     expect(find.text('Test job'), findsOneWidget);
+  });
+
+  testWidgets('loads the status timeline only when it is first expanded', (
+    tester,
+  ) async {
+    final repository = _FakeApplicationsRepository();
+    await tester.pumpWidget(
+      _app(view: ApplicationView.teen, repository: repository),
+    );
+    await tester.pumpAndSettle();
+
+    expect(repository.statusEventCalls, isEmpty);
+
+    await tester.tap(find.text('Status timeline'));
+    await tester.pumpAndSettle();
+
+    expect(repository.statusEventCalls, ['app-1']);
+    expect(find.text('No status events have been recorded.'), findsOneWidget);
+
+    await tester.tap(find.text('Status timeline'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Status timeline'));
+    await tester.pumpAndSettle();
+
+    expect(repository.statusEventCalls, ['app-1']);
   });
 }
