@@ -126,12 +126,57 @@ See CURRENT_PHASE section above for full detail. Summary:
 - Support classifier (SQL production path) parity: query built, not yet executed.
 - RLS/storage isolation, hosted gauntlet: not yet started.
 
-BLOCKERS: None.
-NEXT_AUTOMATIC_PHASE: Execute the SQL/TS parity query via Supabase MCP `execute_sql`
-(read-only, `stable` function, safe to run), record TOTAL/PARITY_PASSED/PARITY_FAILED/
-SQL_EXPECTED_PASSED/SQL_EXPECTED_FAILED, then move to RLS/storage isolation spot checks
-(Teen/Adult/Guardian/staff/anonymous cross-user access probes) before returning to any
-UI/redesign work.
+SQL/TS parity result: BLOCKED, not failed. Attempted the read-only batched query
+(150 safety-critical cases: emergency/trust_safety/adversarial/prompt+secret
+extraction/sensitive_data_disclosure/urgent_mixed_intent) via Supabase MCP
+`execute_sql` against `private.support_classify_message` directly -> permission
+denied. Retried against the documented service-role wrapper
+`public.support_classify_message_internal` -> also permission denied. Root cause:
+the MCP connection authenticates as `supabase_read_only_user` (confirmed via
+`select current_user`), a Postgres role with no `request.jwt.claims`/role GUC set,
+and the function is deliberately `revoke all ... grant execute ... to service_role`
+plus an internal `auth.role() <> 'service_role'` gate. This is the hardening working
+as intended -- the classifier cannot be invoked by a low-privilege or credential-less
+connection, including this one. NOT circumvented (no role/privilege escalation
+attempted). Full SQL/TS parity re-verification requires either the service-role JWT
+or the raw `SUPABASE_DB_PASSWORD` that `scripts/qa-support-sql-ts-parity.mjs` wants --
+neither is available to this session and neither should be requested over chat.
+Recorded as a credential gate, not a code defect.
+
+RLS spot check (read-only, via the same restricted MCP role -- a reasonable stand-in
+for "anonymous/no-JWT caller" since it has no auth context):
+- `list_tables` confirms `rls_enabled = true` on all ~230 public tables. No table found
+  with RLS disabled.
+- Read actual `pg_policies` predicates (not just the enabled flag) for profiles,
+  teen_profiles, guardian_connections, messages, safety_pings: all policies scope to
+  `{authenticated}` only (no `anon`/`public` grants seen), predicates are
+  self/admin/connected-guardian/thread-participant/job-poster scoped, using
+  `auth.uid()` correctly and helper functions like `is_minor_teen()`,
+  `guardian_is_connected_to_teen()`, `is_thread_participant()`. No `using (true)` or
+  similarly overbroad predicate found in this sample.
+- `job_private_locations` (exact job coordinates) has RLS enabled with ZERO table
+  policies -- meaning no direct SELECT/INSERT/UPDATE/DELETE is possible for
+  `authenticated` or `anon` at all; access must go through SECURITY DEFINER RPCs with
+  their own authorization. This is the correct, maximally-restrictive shape for
+  "exact internally, private externally" location data.
+- NOT DONE: genuine cross-user impersonation testing (Teen A querying as Teen A vs.
+  Teen B's data) -- requires creating and authenticating as two real test users, which
+  needs the service-role admin API (the same credential gap as above). This is what
+  the repo's own `scripts/feature-qa-helpers.mjs` `withQaUsers` helper is for, and it
+  also requires `SUPABASE_SERVICE_ROLE_KEY`.
+
+BLOCKERS:
+- SQL/TS classifier parity and true cross-user RLS impersonation both require a
+  service-role credential (JWT or DB password) not present in this session. Not a
+  code defect; recorded as CREDENTIAL_GATE, not a blocker on other work.
+
+NEXT_AUTOMATIC_PHASE: Continue engineering-controlled work not gated by that
+credential -- candidates: static/manual review of RLS policies on remaining sensitive
+tables (message_threads, conversation_participants, support_conversations,
+support_messages, identity_verifications, incident_* tables), then move toward
+UI/onboarding work or surface this status to the user given the scope of remaining
+directive items (full redesign, website, iOS catch-up, physical Android QA, release
+artifacts) each warrant their own dedicated pass.
 
 ## EXTERNAL_GATES (unchanged, not evaluated this session)
 
