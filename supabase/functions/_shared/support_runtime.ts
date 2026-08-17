@@ -1757,11 +1757,11 @@ export function localClassification(message: string): Classification {
         value,
       );
   const accountEducationPattern =
-    /\b(?:how do i|how can i|what is|what's|what are|where do i|why do i|can i|could i|should i|what should i do|is there a way to)\b.{0,70}\b(?:account|login|sign[- ]?in|sign[- ]?out|log[- ]?in|log[- ]?out|password|verification|verify|email|security settings|2fa|passcode|locked out)\b/i
+    /\b(?:how do i|how can i|what is|what's|what are|where do i|why do i|why was|why is|can i|could i|should i|what should i do|is there a way to)\b.{0,70}\b(?:account|login|sign(?:ed)?[- ]?in|sign(?:ed)?[- ]?out|log(?:ged)?[- ]?in|log(?:ged)?[- ]?out|password|verification|verify|email|security settings|2fa|passcode|locked out)\b/i
       .test(
         value,
       ) ||
-    /\b(?:account|login|sign[- ]?in|sign[- ]?out|log[- ]?in|log[- ]?out|password|verification|verify|email|security settings|2fa|passcode|locked out)\b.{0,70}\b(?:how do i|how can i|what is|what's|what are|where do i|why do i|can i|could i|should i|what should i do|is there a way to)\b/i
+    /\b(?:account|login|sign(?:ed)?[- ]?in|sign(?:ed)?[- ]?out|log(?:ged)?[- ]?in|log(?:ged)?[- ]?out|password|verification|verify|email|security settings|2fa|passcode|locked out)\b.{0,70}\b(?:how do i|how can i|what is|what's|what are|where do i|why do i|why was|why is|can i|could i|should i|what should i do|is there a way to)\b/i
       .test(
         value,
       );
