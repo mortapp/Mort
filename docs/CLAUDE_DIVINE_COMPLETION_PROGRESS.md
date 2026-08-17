@@ -184,13 +184,79 @@ coverage of all ~230 tables.
 STATUS: BASELINE REGRESSION PHASE COMPLETE for what's achievable without a
 service-role credential.
 
-NEXT_AUTOMATIC_PHASE: Report status to the user (huge remaining scope -- full UI/UX
-redesign, onboarding redesign, website redesign, iOS shared-source catch-up, physical
-Android device QA, release artifacts -- each warrants a dedicated, scoped pass rather
-than being rushed at the tail of this one). On resumption without further user
-input: continue with either (a) further static RLS/storage-bucket policy review on
-remaining tables, or (b) begin the onboarding/UI work this branch is named for, given
-Flutter tests are green and the working tree is clean at this commit.
+### PHASE: SUPPORT CLASSIFIER STRUCTURAL PASS
+STATUS: COMPLETE (one safe fix applied; remaining cluster documented, not chased)
+START_HEAD: 1fa648c1135268ef000610431b11517d1aab72e4
+COMMIT: 19e9677
+
+Generated a full per-case diagnostic (caseKey/expected/actual/message text) for all 85
+failures to distinguish genuinely fixable classifier gaps from fixture-corpus
+contradictions before touching any code. Finding: the large majority of the 85 are
+NOT fixable by classifier logic changes -- they are near-paraphrase message pairs in
+DIFFERENT fixture groups with OPPOSITE expected labels. Concrete example:
+`guardian_mode_benign_01` ("How does Guardian Mode work?", currently PASSES at
+level 1/account_access) vs. `holdout_benign_25_plus_27` ("What is Guardian Mode used
+for?", expects level 0/general_support) -- semantically indistinguishable phrasing,
+contradictory ground truth. No deterministic classifier (regex-based or otherwise)
+can satisfy both without more context than the message text provides. This is the
+same root cause the archived MORT_DIVINE_FULL_DAY_ENGINEERING_REPORT.md flagged ("85
+... fixtures conflict with canonical mixed-domain/duplicate semantics"), now
+independently reproduced and pinpointed to specific case pairs rather than just a
+count. The entire `holdout_benign_25_plus` group (24 cases) is this same pattern:
+every one of its "generic informational question" fixtures has a near-twin in an
+older domain-specific group (`marketplace_*`, `account`, `billing`, etc.) expecting
+the opposite level. Similarly `adversarial_credential_phrasing_07`,
+`quoted_hostile_content_benign_*` (11 of 12), `benign_negation_and_context_benign_*`,
+and `multi_turn_benign_followups_*` fall into overlapping intent/precedence
+ambiguity that a keyword classifier cannot resolve without contradicting a passing
+sibling case.
+
+One case WAS a genuine, isolated, safely-fixable regex gap with no such collision:
+`teen_account_access_benign_04` ("Why was I signed out automatically?") -- the
+account-education pattern only recognized present-tense "sign-in"/"sign-out"/
+"log-in"/"log-out" and "why do i"/"why is" prefixes, missing past tense ("signed",
+"logged") and "why was". Fixed in the TS mirror (support_runtime.ts), verified with
+zero regressions across all 543 fixtures (459/543, +1, no case flipped from correct
+to incorrect), and mirrored in a new forward migration for the SQL production
+classifier (20260817120000_support_ai_account_wording_coverage_fix.sql) using the
+identical wrapper technique already live via 20260816010000.
+
+MIGRATION NOT YET APPLIED: the `apply_migration` call was blocked by the harness's
+own auto-mode permission classifier ("Blocked by classifier" -- DDL against the live
+production database requires explicit user authorization beyond chat instructions,
+independent of and in addition to what the user has authorized in conversation). Did
+not attempt to route around this. The migration file is committed to the repo,
+unapplied, so the fix isn't lost; the user needs to explicitly authorize the apply
+step (e.g. by approving the specific Bash/MCP permission, or applying it themselves).
+
+`teen_account_access_benign_11` ("Can I change my username from the account page?")
+was investigated and NOT fixed: "username" is bucketed into a separate
+`profileGeneralSupport` branch (checked earlier in precedence, shared with a PASSING
+sibling group `profile_reviews_benign` that wants bare "username" mentions to stay at
+level 0). Disambiguating "username" in an account-page context from "username" in a
+generic profile context would need either new precedence logic (regression risk
+against `profile_reviews_benign`) or genuinely more context than keyword matching
+provides. Documented, not chased, per the "don't regex-whack-a-mole" instruction.
+
+CASE_ID / CURRENT_LAYER / CORRECT_LAYER / REASON / PERMANENT_COVERAGE for the
+remaining 84 failures: CURRENT_LAYER = deterministic keyword classifier (this layer).
+CORRECT_LAYER = not resolvable at this layer; would need either (a) a product/fixture
+decision reconciling the two contradictory design philosophies encoded in the corpus
+(domain-keyword-presence implies level 1, vs. generic-informational-phrasing implies
+level 0 regardless of domain words), or (b) a semantic/contextual classifier (LLM-
+based, not deterministic keyword matching) that can distinguish "How does Guardian
+Mode work?" from "What is Guardian Mode used for?" by intent rather than surface
+form. PERMANENT_COVERAGE: preserved as-is; no fixture deleted, no expected label
+changed, no severity reduced. Full per-case detail (caseKey/expected/actual/message)
+is at the session scratchpad `failures_detail.tsv` if needed for a dedicated
+follow-up session -- not duplicated into this doc to keep it from becoming another
+stale wall of adversarial-adjacent fixture text.
+
+NEXT_AUTOMATIC_PHASE: Complete static Supabase/RLS/storage audit beyond the initial
+13-table sample -- applications, job_contracts/lifecycle tables, evidence, message
+attachments, reports, blocks, storage buckets, moderation, staff access. Then job/
+application/PIN lifecycle review, then location privacy verification, then begin
+scoped UI/onboarding implementation work.
 
 ## EXTERNAL_GATES (unchanged, not evaluated this session)
 
