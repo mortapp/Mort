@@ -286,10 +286,50 @@ Migration ledger recheck: local now has ONE migration ahead of remote
 expected/healthy "pending local work" state, not drift. Remote's last applied
 version remains 20260816010000, confirmed via list_migrations earlier this session.
 
-NEXT_AUTOMATIC_PHASE: Job/application/PIN lifecycle code review (generation, expiry,
-attempts/lockout, replay, single-use, concurrency), then location privacy
-verification (server-side exact-vs-general enforcement), then begin scoped
-UI/onboarding implementation work.
+### PHASE: JOB/APPLICATION/PIN LIFECYCLE CODE REVIEW
+STATUS: COMPLETE, clean
+Reviewed 20260722202206_mort_0_9_3_job_execution_pins.sql (core PIN/execution state
+machine) and 20260730050000_job_pin_confirmation_idempotency.sql (v2 hardening).
+Findings, all positive:
+- PINs: cryptographically random, bcrypt-hashed at rest (never plaintext in tables
+  or event logs), 10-min TTL, 5-attempt lockout with 30-min lock, single-use
+  (`*_pin_used_at`), rate-limited regeneration (60s cooldown).
+- Idempotency: every mutating RPC takes a `client_request_id`; v1 already replayed
+  stored responses for repeated requests, but v2
+  (confirm_job_start_pin_v2/confirm_job_finish_pin_v2) closes a genuine TOCTOU race
+  in v1 (two near-simultaneous double-taps could both pass the "not yet recorded"
+  check before either inserted) via `pg_advisory_xact_lock` on
+  hash(actor_id, client_request_id), plus a dedicated idempotency ledger that stores
+  a bcrypt fingerprint of the submitted PIN so a reused request-id can't be replayed
+  with a *different* PIN (returns `pin_request_payload_mismatch` instead).
+- v1 functions (confirm_job_start_pin, confirm_job_finish_pin,
+  generate_job_arrival_code, confirm_job_arrival_code) had client-facing grants
+  revoked in the v2 migration -- only the hardened v2 path is reachable from
+  authenticated/anon. Confirmed the Flutter client
+  (job_execution_repository.dart, trust_safety_repository.dart) actually calls
+  confirm_job_start_pin_v2/confirm_job_finish_pin_v2, not the deprecated names --
+  the hardening is live, not dead code.
+- Concurrency: `SELECT ... FOR UPDATE` row locks on job_arrival_handshakes and
+  job_contracts throughout, preventing races between concurrent start/finish
+  operations on the same application.
+- PINs are cryptographically bound to a specific `contract_version_id` at
+  generation; if the contract changes before confirmation, the PIN is invalidated
+  ("contract_changed_reconfirmation_required") rather than silently confirming
+  stale terms.
+- Safety precedence: submit_teen_abandonment explicitly rejects
+  `safety_related = true` submissions and redirects to `/safety` rather than
+  processing them as a routine abandonment.
+- Every state-changing response explicitly returns `money_moved: false` --
+  consistent with the fail-closed payment posture.
+- Minor/immaterial: 6-digit PIN generation uses `% 1000000` on a 32-bit random
+  value, which has a statistically negligible modulo bias (~2e-5% per bucket).
+  Not flagged as a fix given the entropy space plus attempt-lockout design; would
+  be over-engineering a non-issue.
+No P0/P1 findings.
+
+NEXT_AUTOMATIC_PHASE: Location privacy verification (server-side exact-vs-general
+enforcement: distance/feed RPCs must never return raw Teen coordinates to
+unrelated parties), then begin scoped UI/onboarding implementation work.
 
 ## EXTERNAL_GATES (unchanged, not evaluated this session)
 
