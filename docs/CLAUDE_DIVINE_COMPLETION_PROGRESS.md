@@ -327,9 +327,41 @@ Findings, all positive:
   be over-engineering a non-issue.
 No P0/P1 findings.
 
-NEXT_AUTOMATIC_PHASE: Location privacy verification (server-side exact-vs-general
-enforcement: distance/feed RPCs must never return raw Teen coordinates to
-unrelated parties), then begin scoped UI/onboarding implementation work.
+### PHASE: LOCATION PRIVACY VERIFICATION
+STATUS: COMPLETE, clean
+- `private.marketplace_job_feed_item` (main job feed): strips `zip_code`,
+  `special_instructions`, `safety_scan_reasons` from every job row and returns
+  `distance_status: 'unavailable'` unconditionally -- the feed does not compute or
+  expose any distance/coordinate figure at all, only a transportation-method match
+  hint plus general area/city/state text. Confirmed the Flutter UI
+  (job_screens.dart:1323) actually displays "Approximate location: {area}, {city},
+  {state}", matching this design -- not a stale/dead code path.
+  No `st_distance`/`earth_distance`/geodistance computation found anywhere in the
+  migrations at all; distance-from-coordinates is not calculated server-side in the
+  current design.
+- `public.get_released_job_location(application_id)`: exact address released only
+  to (a) the job poster always, or (b) the accepted teen worker, and only when
+  application/job status is in an active-execution stage AND both parties have
+  confirmed the mutual safety agreement at its *current* version (a terms change
+  revokes address access until re-confirmed). Every successful exact-address read
+  is audit-logged to `private_data_access_events` (actor/resource/action/reason).
+  Unauthorized/ineligible callers get a safe fallback (general
+  area/city/state/location_type), never an error that leaks existence.
+- `job_private_locations` table itself has zero direct RLS policies (confirmed
+  earlier in the storage/RLS audit) -- all access is RPC-mediated through the
+  function above, which is the correct shape.
+No P0/P1 findings. "Exact internally, private externally" holds up under review.
+
+STATUS: Backend/security/lifecycle audit stretch of this session is now complete
+(repository cleanup, fresh regression baseline, Support classifier structural pass,
+~25-table + all-storage-bucket RLS audit, job/PIN lifecycle review, location
+privacy review). Zero P0 findings across all of it; one real classifier bug found
+and fixed (TS side applied, SQL migration drafted pending user-authorized apply).
+
+NEXT_AUTOMATIC_PHASE: Begin scoped UI/onboarding implementation work. First step:
+inspect the current canonical onboarding architecture (this session has not yet
+read it) before changing anything, per the "do not create a duplicate architecture"
+rule.
 
 ## EXTERNAL_GATES (unchanged, not evaluated this session)
 
