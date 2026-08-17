@@ -409,9 +409,69 @@ was not given access to. NOT touching the legacy Expo directory -- doing so woul
 recreate exactly the "duplicate architecture" problem the directive warns against,
 against the evident intent of whoever committed it as a frozen baseline.
 
-NEXT_AUTOMATIC_PHASE: iOS shared-source/config catch-up review (Info.plist, URL
-schemes, permission descriptions, platform conditionals in shared Dart) -- readable
-and checkable without Xcode, unlike device/emulator-dependent work.
+### PHASE: IOS SHARED-SOURCE/CONFIG CATCH-UP
+STATUS: COMPLETE, clean
+- Info.plist: camera/photos/notifications/location usage descriptions present and
+  accurately worded (location description explicitly states "exact coordinates are
+  not shown in the public job feed" -- matches the verified backend behavior).
+  Cross-checked against actual runtime permission requests in
+  native_permissions_service.dart (Permission.camera, .notification, .photos) --
+  complete match, no undeclared-but-requested permission gap. No video/microphone
+  plugin in pubspec.yaml and no video-profile feature implemented client-side
+  (backend migration exists but is unused by Flutter), so no missing
+  NSMicrophoneUsageDescription gap either. URL scheme com.mortapp.mobile present
+  and matches the expected OAuth callback identity; FlutterDeepLinkingEnabled set.
+- AppDelegate.swift: implements the iOS screen-security "privacy shield" (there is
+  no direct FLAG_SECURE equivalent on iOS, so this is the standard workaround) --
+  shields sensitive screens both when the app is inactive (app-switcher preview)
+  and when the screen is actively captured/mirrored
+  (`window.screen.isCaptured`), correct weak-self handling, observer cleanup in
+  deinit. Confirmed the Dart side (screen_security_service.dart) wires to it
+  correctly via a reference-counted acquire/release pattern on the same
+  "mort/native_security"/"setSecureScreen" channel name and argument key, so
+  multiple concurrently-mounted sensitive screens don't prematurely disable
+  protection.
+- Podfile: standard Flutter-generated structure, deployment target consistently
+  15.0 in both the platform declaration and post_install build settings (avoiding
+  a common mismatch).
+No P0/P1 findings. Not claiming Xcode/TestFlight/App Store verification -- those
+remain external Apple-platform gates per the directive's own rules.
+
+STATUS: All engineering-controlled work tractable in this session (i.e. not gated
+by a missing service-role credential, a physical/emulated device, or the ability to
+render Flutter UI visually) has been completed as of this checkpoint.
+
+### PHASE: FINAL GATES
+STATUS: COMPLETE
+- `git status --short`: clean.
+- `git diff --check`: no conflict markers, no new whitespace issues.
+- Fresh secret scan across the FULL session diff (bf0f07c..HEAD, all 15 commits):
+  sb_secret_/JWT/Google API key/generic sk-/private key/GitHub token/Slack token
+  patterns -- SECRET_SCAN=PASS, zero findings.
+
+LAST_KNOWN_GOOD_COMMIT: b81cd3b42babd55cf00ecfcf65e15df91246019a
+COMPLETED_PHASES: repository cleanup/recovery, baseline regression (Flutter
+tests/analyze/format), Support classifier structural pass, extended RLS/storage
+audit, job/PIN lifecycle review, location privacy verification, onboarding
+inspection, targeted Flutter bug hunt, wireless device QA check, website location
+resolution, iOS shared-source/config catch-up, final gates.
+
+CURRENT_BLOCKERS:
+- SQL migration 20260817120000_support_ai_account_wording_coverage_fix.sql:
+  drafted, not applied -- blocked by the harness's own auto-mode DDL permission
+  classifier, requires explicit user authorization to apply to the live database.
+- SQL/TS classifier parity and true cross-user RLS impersonation testing: require
+  a service-role credential not available to this session.
+- Wireless ADB: no device currently attached (DEVICE_QA_BLOCKER=
+  WIRELESS_ADB_REPAIR_REQUIRED).
+- Complete UI/UX visual redesign, website redesign (no website exists in this
+  repo), release artifact builds: not attempted this session -- each requires
+  either visual verification this session cannot perform (no Flutter
+  renderer/device), doesn't apply (no website), or isn't yet justified by outstanding
+  work (release artifacts).
+
+NEXT_AUTOMATIC_PHASE: None remaining that is both engineering-controlled and
+tractable without one of the above gates. Producing the final completion report.
 
 ## EXTERNAL_GATES (unchanged, not evaluated this session)
 
