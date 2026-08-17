@@ -470,8 +470,26 @@ CURRENT_BLOCKERS:
   renderer/device), doesn't apply (no website), or isn't yet justified by outstanding
   work (release artifacts).
 
-NEXT_AUTOMATIC_PHASE: None remaining that is both engineering-controlled and
-tractable without one of the above gates. Producing the final completion report.
+NEXT_AUTOMATIC_PHASE: (superseded -- see PHYSICAL DEVICE QA phase below)
+
+### PHASE: PHYSICAL ANDROID DEVICE QA
+STATUS: IN_PROGRESS
+DEVICE_CONNECTED=YES
+DEVICE_MODEL=SM_A146U (Samsung Galaxy A14 5G)
+ANDROID_VERSION=15 (API 35)
+Confirmed via `adb devices -l`: authorized, state "device". Previous
+DEVICE_QA_BLOCKER=WIRELESS_ADB_REPAIR_REQUIRED is resolved.
+applicationId confirmed in build.gradle.kts: com.mortapp.mobile, minSdk 24,
+targetSdk 36 (device API 35 satisfies minSdk).
+Building a debug APK now for initial hardware verification (install/launch/
+no-crash check) before any UI QA or performance work.
+SCREENS_TESTED: none yet
+VISUAL_FINDINGS: none yet
+FUNCTIONAL_FINDINGS: none yet
+PERFORMANCE_FINDINGS: none yet
+LOGCAT_FINDINGS: none yet
+FIXES: none yet
+NEXT_AUTOMATIC_PHASE: install debug APK, launch, verify no immediate crash.
 
 ## EXTERNAL_GATES (unchanged, not evaluated this session)
 
