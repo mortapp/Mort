@@ -38,8 +38,9 @@ try {
   if ($LASTEXITCODE -ne 0) { throw 'Could not read the authoritative mobile version.' }
   $version = $versionJson | ConvertFrom-Json
   $playRoot = Join-Path (Split-Path $PSScriptRoot -Parent) 'build\play'
-  $aab = Join-Path $playRoot "mort-closed-test-$($version.versionName).aab"
-  $apk = Join-Path $playRoot "mort-closed-test-$($version.versionName).apk"
+  $artifactVersion = "$($version.versionName)-$($version.versionCode)"
+  $aab = Join-Path $playRoot "mort-closed-test-$artifactVersion.aab"
+  $apk = Join-Path $playRoot "mort-closed-test-$artifactVersion.apk"
   if ((Test-Path -LiteralPath $aab) -and (Test-Path -LiteralPath $apk)) {
     foreach ($script in @('qa-aab-secret-scan.mjs', 'qa-aab-signing.mjs')) {
       if ($script -eq 'qa-aab-secret-scan.mjs') {

@@ -24,7 +24,7 @@ $outputDirectory = Join-Path $root 'build\play'
 $expectedUrl = 'https://rakjydmgwwgtdislanbt.supabase.co'
 $expectedProjectRef = 'rakjydmgwwgtdislanbt'
 $expectedAuthRedirectUrl = 'com.mortapp.mobile://app/auth-callback'
-$expectedCertificateSha256 = '04:42:C2:21:38:B0:D6:23:F9:A6:F4:78:1A:44:2B:F4:A9:33:27:8F:AB:8E:85:76:74:4D:C1:FD:7C:33:4D:EF'
+$expectedCertificateSha256 = Get-MortUploadCertificateSha256
 $defineFile = $null
 
 if ([string]::IsNullOrWhiteSpace($ReleaseProfile)) {
@@ -74,7 +74,7 @@ $certificateExitCode = $LASTEXITCODE
 $ErrorActionPreference = $previousPreference
 if ($certificateExitCode -ne 0) { throw 'The upload certificate could not be inspected.' }
 $certificateSha256 = (($certificateOutput | Select-String '^\s*SHA256:' | Select-Object -First 1).Line -replace '^\s*SHA256:\s*','').Trim()
-if ($certificateSha256 -ne $expectedCertificateSha256) {
+if ((ConvertTo-MortCertificateDigest $certificateSha256) -ne (ConvertTo-MortCertificateDigest $expectedCertificateSha256)) {
   throw 'The configured upload certificate does not match MORT release identity.'
 }
 
@@ -181,7 +181,7 @@ $built = if ($ArtifactKind -eq 'Aab') {
   Join-Path $flutterRoot 'build\app\outputs\flutter-apk\app-release.apk'
 }
 if (-not (Test-Path -LiteralPath $built -PathType Leaf)) { throw "Flutter did not produce the release $extension." }
-$artifactBaseName = "mort-$($ReleaseStage.Replace('_','-'))-$($version.versionName)"
+$artifactBaseName = "mort-$($ReleaseStage.Replace('_','-'))-$($version.versionName)-$($version.versionCode)"
 $destination = Join-Path $outputDirectory "$artifactBaseName.$extension"
 Copy-Item -LiteralPath $built -Destination $destination -Force
 

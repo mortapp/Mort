@@ -66,4 +66,18 @@ void main() {
       expect(source, isNot(contains('SUPABASE_SERVICE_ROLE_KEY')));
     }
   });
+
+  test('permissions screen couples notification approval to registration', () {
+    final screen = File(
+      'lib/features/settings/native_permissions_screen.dart',
+    ).readAsStringSync();
+    final service = File(
+      'lib/services/native_permissions_service.dart',
+    ).readAsStringSync();
+
+    expect(screen, contains('requestPermissionAndRegister()'));
+    expect(screen, contains('!_pushCoordinator.configured'));
+    expect(screen, contains('Remote push is disabled in this build'));
+    expect(service, isNot(contains('requestNotifications()')));
+  });
 }

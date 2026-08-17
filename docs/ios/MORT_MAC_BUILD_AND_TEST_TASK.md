@@ -4,15 +4,16 @@
 
 - Repository: this exact clean source artifact
 - Flutter app: `flutter_mort`
-- Version: `0.9.13+103`
+- Version: `0.9.15+106`
 - Bundle ID: `com.mortapp.mobile`
-- Current deployment target: iOS 13.0
+- Current deployment target: iOS 15.0 (required by the locked FlutterFire packages)
 - Release profile: closed test only
 - Backend ref: `rakjydmgwwgtdislanbt`
 
 The Windows audit verified the Xcode project, bundle identifier, URL scheme,
-camera/photo usage descriptions, and removal of the stale AdMob application ID.
-It did not compile or run iOS.
+camera/photo usage descriptions, iOS 15 deployment target, canonical Flutter
+Podfile integration, and removal of the stale AdMob application ID. It did not
+run CocoaPods, compile with Xcode, or run iOS.
 
 ## Mac Commands
 
@@ -41,7 +42,7 @@ server secret.
 
 1. Select the owner Team and confirm automatic signing for
    `com.mortapp.mobile`.
-2. Confirm the Release scheme and version `0.9.13 (103)`.
+2. Confirm the Release scheme and version `0.9.15 (106)`.
 3. Add Push Notifications and Background Modes only after the real APNs/FCM
    integration is approved and tested. The current closed-test build keeps
    remote push disabled and has no `aps-environment` entitlement.

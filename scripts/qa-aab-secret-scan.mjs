@@ -6,14 +6,15 @@ import { randomBytes } from 'node:crypto';
 import { assert, pass, read, root } from './play-release-qa-helpers.mjs';
 
 const scope = 'qa-aab-secret-scan';
-const version = read('flutter_mort/pubspec.yaml').match(/^version:\s*(\d+\.\d+\.\d+)\+\d+\s*$/m)?.[1];
+const version = read('flutter_mort/pubspec.yaml').match(/^version:\s*(\d+\.\d+\.\d+)\+(\d+)\s*$/m);
 assert(version, 'Flutter version could not be read.');
+const artifactVersion = `${version[1]}-${version[2]}`;
 const bundle = process.argv[2]
   ? resolve(process.argv[2])
-  : resolve(root, `build/play/mort-closed-test-${version}.aab`);
+  : resolve(root, `build/play/mort-closed-test-${artifactVersion}.aab`);
 const apk = process.argv[3]
   ? resolve(process.argv[3])
-  : resolve(root, `build/play/mort-closed-test-${version}.apk`);
+  : resolve(root, `build/play/mort-closed-test-${artifactVersion}.apk`);
 assert(existsSync(bundle), 'Closed-test AAB does not exist.');
 assert(existsSync(apk), 'Closed-test QA APK does not exist.');
 

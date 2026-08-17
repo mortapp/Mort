@@ -22,6 +22,9 @@ void main() {
   final routeAccess = File(
     '${Directory.current.path}/lib/core/routing/route_access.dart',
   ).readAsStringSync();
+  final appRouter = File(
+    '${Directory.current.path}/lib/core/routing/app_router.dart',
+  ).readAsStringSync();
   final accountStatusUi = File(
     '${Directory.current.path}/lib/features/mort_screens.dart',
   ).readAsStringSync();
@@ -81,6 +84,8 @@ void main() {
       appConfig,
       contains("defaultValue: 'com.mortapp.mobile://app/auth-recovery'"),
     );
+    expect(appRouter, contains("path: '/auth-confirm'"));
+    expect(appRouter, contains("path: '/auth-recovery'"));
     expect(infoPlist, contains('<string>com.mortapp.mobile</string>'));
     expect(manifest, isNot(contains('android:scheme="mort"')));
   });

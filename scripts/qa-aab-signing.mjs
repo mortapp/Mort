@@ -3,11 +3,12 @@ import { resolve } from 'node:path';
 import { assert, pass, read, root } from './play-release-qa-helpers.mjs';
 
 const scope = 'qa-aab-signing';
-const version = read('flutter_mort/pubspec.yaml').match(/^version:\s*(\d+\.\d+\.\d+)\+\d+\s*$/m)?.[1];
+const version = read('flutter_mort/pubspec.yaml').match(/^version:\s*(\d+\.\d+\.\d+)\+(\d+)\s*$/m);
 assert(version, 'Flutter version could not be read.');
+const artifactVersion = `${version[1]}-${version[2]}`;
 const bundle = process.argv[2]
   ? resolve(process.argv[2])
-  : resolve(root, `build/play/mort-closed-test-${version}.aab`);
+  : resolve(root, `build/play/mort-closed-test-${artifactVersion}.aab`);
 const report = resolve(root, 'build/play/reports/aab-verification.txt');
 assert(existsSync(bundle) && existsSync(report), 'Verified AAB/report is missing.');
 const text = read('build/play/reports/aab-verification.txt');

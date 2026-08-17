@@ -8,7 +8,7 @@ $root = Split-Path $PSScriptRoot -Parent
 $versionJson = & node (Join-Path $PSScriptRoot 'read-mobile-version.mjs') --json
 if ($LASTEXITCODE -ne 0) { throw 'Could not read the authoritative mobile version.' }
 $version = $versionJson | ConvertFrom-Json
-$baseName = "mort-closed-test-$($version.versionName)"
+$baseName = "mort-closed-test-$($version.versionName)-$($version.versionCode)"
 $play = Join-Path $root 'build\play'
 $apkPath = Join-Path $play "$baseName.apk"
 $aabPath = Join-Path $play "$baseName.aab"

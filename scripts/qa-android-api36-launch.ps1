@@ -15,7 +15,7 @@ $versionJson = & node (Join-Path $PSScriptRoot 'read-mobile-version.mjs') --json
 if ($LASTEXITCODE -ne 0) { throw 'Could not read the authoritative mobile version.' }
 $version = $versionJson | ConvertFrom-Json
 if ([string]::IsNullOrWhiteSpace($ApkPath)) {
-  $ApkPath = Join-Path $root "build\play\mort-closed-test-$($version.versionName).apk"
+  $ApkPath = Join-Path $root "build\play\mort-closed-test-$($version.versionName)-$($version.versionCode).apk"
 }
 $sdk = Join-Path $env:LOCALAPPDATA 'Android\Sdk'
 $adb = Join-Path $sdk 'platform-tools\adb.exe'

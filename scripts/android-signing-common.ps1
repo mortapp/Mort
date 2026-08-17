@@ -1,5 +1,16 @@
 Set-StrictMode -Version Latest
 
+$script:MortUploadCertificateSha256 = '04:42:C2:21:38:B0:D6:23:F9:A6:F4:78:1A:44:2B:F4:A9:33:27:8F:AB:8E:85:76:74:4D:C1:FD:7C:33:4D:EF'
+
+function Get-MortUploadCertificateSha256 {
+  $script:MortUploadCertificateSha256
+}
+
+function ConvertTo-MortCertificateDigest {
+  param([Parameter(Mandatory)][string]$Value)
+  ($Value -replace '[^0-9A-Fa-f]', '').ToUpperInvariant()
+}
+
 function Get-MortSigningCredentialPath {
   Join-Path $env:USERPROFILE 'MortSecrets\android\mort-upload-key.credentials.xml'
 }

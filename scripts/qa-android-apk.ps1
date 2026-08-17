@@ -4,6 +4,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$root = Split-Path $PSScriptRoot -Parent
+. (Join-Path $PSScriptRoot 'android-signing-common.ps1')
 $apk = Resolve-Path -LiteralPath $ApkPath
 $buildTools = Join-Path $env:ANDROID_HOME 'build-tools\36.1.0'
 $aapt = Join-Path $buildTools 'aapt2.exe'
@@ -43,7 +45,6 @@ foreach ($permission in $forbidden) {
 if ((& $apkanalyzer manifest application-id $apk) -ne 'com.mortapp.mobile') { throw 'APK application ID mismatch.' }
 if ((& $apkanalyzer manifest min-sdk $apk) -ne '24') { throw 'APK min SDK mismatch.' }
 if ((& $apkanalyzer manifest target-sdk $apk) -ne '36') { throw 'APK target SDK mismatch.' }
-$root = Split-Path $PSScriptRoot -Parent
 $versionJson = & node (Join-Path $PSScriptRoot 'read-mobile-version.mjs') --json
 if ($LASTEXITCODE -ne 0) { throw 'Could not read the authoritative mobile version.' }
 $version = $versionJson | ConvertFrom-Json
@@ -51,10 +52,19 @@ if ((& $apkanalyzer manifest version-code $apk) -ne [string]$version.versionCode
 if ((& $apkanalyzer manifest version-name $apk) -ne [string]$version.versionName) { throw 'APK version name mismatch.' }
 
 $ErrorActionPreference = 'Continue'
-& $apksigner verify --verbose $apk *> $null
+$signatureOutput = & $apksigner verify --verbose --print-certs $apk 2>&1
 $signed = $LASTEXITCODE -eq 0
 $ErrorActionPreference = 'Stop'
 if ($RequireSigned -and -not $signed) { throw 'APK is unsigned.' }
+if ($RequireSigned) {
+  $digestLine = $signatureOutput | Select-String 'Signer #1 certificate SHA-256 digest:' | Select-Object -First 1
+  if ($null -eq $digestLine) { throw 'APK signer certificate digest is unavailable.' }
+  $actualDigest = ($digestLine.Line -replace '^.*digest:\s*', '').Trim()
+  $expectedDigest = Get-MortUploadCertificateSha256
+  if ((ConvertTo-MortCertificateDigest $actualDigest) -ne (ConvertTo-MortCertificateDigest $expectedDigest)) {
+    throw 'APK signer does not match the MORT upload certificate.'
+  }
+}
 $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $apk).Hash
 $size = (Get-Item -LiteralPath $apk).Length
 Write-Output "PASS: package=com.mortapp.mobile version=$($version.versionName)+$($version.versionCode) minSdk=24 targetSdk=36 permissions=$($permissions.Count) signed=$signed bytes=$size sha256=$hash"

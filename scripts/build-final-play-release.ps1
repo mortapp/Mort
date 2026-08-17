@@ -6,8 +6,9 @@ $play = Join-Path $root 'build\play'
 $versionJson = & node (Join-Path $PSScriptRoot 'read-mobile-version.mjs') --json
 if ($LASTEXITCODE -ne 0) { throw 'Could not read the authoritative mobile version.' }
 $version = $versionJson | ConvertFrom-Json
-$builtApk = Join-Path $play "mort-closed-test-$($version.versionName).apk"
-$builtAab = Join-Path $play "mort-closed-test-$($version.versionName).aab"
+$artifactVersion = "$($version.versionName)-$($version.versionCode)"
+$builtApk = Join-Path $play "mort-closed-test-$artifactVersion.apk"
+$builtAab = Join-Path $play "mort-closed-test-$artifactVersion.aab"
 
 & (Join-Path $PSScriptRoot 'build-closed-test-apk.ps1')
 if ($LASTEXITCODE -ne 0) { throw 'Signed QA APK build failed.' }

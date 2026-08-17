@@ -127,12 +127,22 @@ void main() {
 
   test('release pipeline uses upload identity and a real R8 rules file', () {
     final buildScript = _read('../scripts/android-release-profile-common.ps1');
+    final apkQa = _read('../scripts/qa-android-apk.ps1');
+    final signing = _read('../scripts/android-signing-common.ps1');
     final gradle = _read('android/app/build.gradle.kts');
     final proguard = File('android/app/proguard-rules.pro');
 
     expect(buildScript, contains('upload certificate'));
+    expect(buildScript, contains('Get-MortUploadCertificateSha256'));
+    expect(apkQa, contains('--print-certs'));
+    expect(apkQa, contains('APK signer does not match'));
+    expect(signing, contains('ConvertTo-MortCertificateDigest'));
     expect(buildScript, contains('MORT_SUPABASE_PROJECT_REF'));
     expect(buildScript, contains('--dart-define-from-file'));
+    expect(
+      buildScript,
+      contains(r'$($version.versionName)-$($version.versionCode)'),
+    );
     expect(
       buildScript,
       contains(r'$artifactBaseName-$extension-build-manifest.json'),

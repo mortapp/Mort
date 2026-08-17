@@ -15,7 +15,7 @@ $versionJson = & node (Join-Path $PSScriptRoot 'read-mobile-version.mjs') --json
 if ($LASTEXITCODE -ne 0) { throw 'Could not read the authoritative mobile version.' }
 $version = $versionJson | ConvertFrom-Json
 if ([string]::IsNullOrWhiteSpace($BundlePath)) {
-  $BundlePath = Join-Path $root "build\play\mort-closed-test-$($version.versionName).aab"
+  $BundlePath = Join-Path $root "build\play\mort-closed-test-$($version.versionName)-$($version.versionCode).aab"
 }
 
 if (-not (Test-Path -LiteralPath $BundlePath -PathType Leaf)) {
