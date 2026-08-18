@@ -828,6 +828,25 @@ real issue), keep-awake restarted (new PID, task b2s75petl), profile build
 restarted (task baeqou090). Continuing per "if context compacts, recover and
 continue."
 
+SESSION NOTE 2: same interruption pattern repeated (keep-awake + profile
+build both killed together a second time). Given this recurs at the same
+cadence regardless of the keep-awake helper's presence, concluded it's a
+periodic session/shell-layer recycle, not a solvable system-sleep issue --
+stopped retrying the keep-awake helper specifically (it wasn't preventing
+anything). Retried the profile build once more (task bwifaiwtq); if it's
+interrupted again too, will report the debug-build launch numbers already
+captured (with their honest caveat) as tonight's dynamic-performance evidence
+rather than keep re-attempting an operation this environment can't sustain.
+Migration ledger re-verified read-only via Supabase MCP: remote unchanged
+(still ends 20260816010000), local still exactly one migration ahead as
+expected -- no drift.
+
+PROFILE BUILD SUCCEEDED on the retry: `app-profile.apk`, 97.8MB (vs 215MB for
+the debug APK -- expected, AOT builds don't bundle the full debug Dart
+VM/JIT). Waiting for the device to reconnect to install and measure real
+profile-mode (AOT) launch timing for a fair comparison against the debug
+numbers already captured.
+
 NEXT_AUTOMATIC_PHASE: continue other engineering-controlled work not gated by
 device access or a service-role credential. Given the breadth already covered
 this session (repository cleanup, full backend/RLS/storage/security audit,
