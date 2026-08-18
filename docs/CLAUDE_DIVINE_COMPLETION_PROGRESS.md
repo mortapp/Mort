@@ -847,6 +847,27 @@ VM/JIT). Waiting for the device to reconnect to install and measure real
 profile-mode (AOT) launch timing for a fair comparison against the debug
 numbers already captured.
 
+### PHASE: DYNAMIC PERFORMANCE -- PROFILE BUILD RESULTS
+STATUS: COMPLETE
+Installed app-profile.apk (AOT-compiled, 97.8MB) on the device and measured
+real `am start-activity -W` cold launches:
+- Profile cold launch #1: TotalTime 1271ms
+- Profile cold launch #2: TotalTime 1012ms
+Compared to the debug-build figures from earlier tonight (3834ms, 3121ms),
+this is roughly a 3x speedup, exactly the expected magnitude for AOT vs JIT
+-- confirms the debug numbers were not representative and that MORT's actual
+near-release cold-launch performance (~1.0-1.3s) is genuinely good on this
+non-flagship device, well under typical 2s cold-start guidelines.
+Verified the profile build renders correctly (screenshot matches the debug
+build's welcome screen exactly, no visual regression from the build-mode
+switch) and produces zero logcat errors/exceptions/warnings across these
+launches (filtered to the app's own PID).
+NOTE: the device currently has the PROFILE build installed (not debug) as of
+this checkpoint -- a future session continuing device QA should be aware of
+this if it needs debug-only capabilities (e.g. certain Flutter DevTools
+features), though profile builds support most inspection needs and render
+identically for visual QA purposes.
+
 NEXT_AUTOMATIC_PHASE: continue other engineering-controlled work not gated by
 device access or a service-role credential. Given the breadth already covered
 this session (repository cleanup, full backend/RLS/storage/security audit,
