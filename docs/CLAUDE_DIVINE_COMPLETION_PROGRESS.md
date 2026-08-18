@@ -61,9 +61,57 @@ Final artifacts copied with traceable names to `C:\Users\micha\Mort\artifacts\pl
 gitignored -- consistent with established policy, binaries never committed. Manifest written
 to `artifacts/play-final/FINAL_RELEASE_ARTIFACTS.txt`.
 
-Physical release-build smoke test (final signed APK install + launch on the Samsung
-SM_A146U): device connectivity was intermittent again during this pass; see the live status
-further down this document / the final report for the outcome.
+Physical release-build smoke test: PASS. Device reconnected; uninstalled the previously
+installed profile build (required -- different signing certificate,
+INSTALL_FAILED_UPDATE_INCOMPATIBLE on direct install, expected), installed the signed
+`mort-closed-test-0.9.16-107.apk` fresh. APP_INSTALL=PASS, APP_LAUNCH=PASS,
+NO_IMMEDIATE_CRASH=PASS. Welcome screen correctly shows the "Closed Pilot" badge (vs.
+"Development" on debug/profile builds). Verified reachable and working: welcome, sign-in/
+sign-up choice screen, sign-in form, Terms link (navigates), Privacy Policy link (independent
+accessible node -- the accessibility fix survives release obfuscation), consent checkbox,
+back navigation, background/resume (state preserved, no crash). Zero FATAL/Exception/ANR/
+overflow logcat lines from the app across the whole stretch.
+
+## Authenticated UI coverage classification (final pass)
+
+Legitimate pre-existing QA credentials were found: `PLAY_REVIEW_TEEN_EMAIL/PASSWORD` and
+`PLAY_REVIEW_ADULT_EMAIL/PASSWORD` as Windows User-scope env vars, documented as the Play
+reviewer demo accounts (`scripts/play-review-secrets-common.ps1`). These were used safely at
+the backend/RPC level: `scripts/run-play-release-qa.ps1`'s `validate-play-review-tenant.mjs`
+and related scripts logged in and exercised real authenticated flows (profile isolation, job/
+conversation/contract lifecycle, safety start/completion, payment disagreement, partner scope,
+report/block, deletion path) via the Supabase client directly -- all PASS, self-cleaned.
+
+Deliberately NOT attempted: injecting these same credentials through the physical device via
+`adb shell input text`. Reasoning: `adb shell` re-tokenizes its argument through a remote
+shell, so any shell-metacharacter in the password could be silently mis-typed without any way
+to detect it (inspecting the value to check would mean printing it, which is forbidden); and
+the earlier session already observed the real signup rate-limiter trigger after 2-3 attempts,
+so a mistyped login has a real chance of soft-locking the same account Play reviewers may need
+during the live 12-day verification window. The risk was judged to outweigh the benefit given
+strong existing coverage already exists. This is a judgment call, documented rather than
+silently skipped.
+
+Coverage per required authenticated surface, all confirmed by direct grep of `test/*.dart`
+rendering the real production widget (not assumed from memory):
+- TEEN DASHBOARD: HARNESS_VERIFIED (`role_dashboard_test.dart`)
+- ADULT/BUSINESS DASHBOARD: HARNESS_VERIFIED (`role_dashboard_test.dart`)
+- JOB FEED: HARNESS_VERIFIED (`job_and_safety_widget_test.dart`, `marketplace_pagination_test.dart`)
+- JOB DETAILS: HARNESS_VERIFIED (`application_detail_screen_test.dart`, `job_and_safety_widget_test.dart`)
+- APPLICATIONS: HARNESS_VERIFIED (`application_detail_screen_test.dart`)
+- START PIN: HARNESS_VERIFIED (`job_progress_widget_test.dart`)
+- FINISH PIN: HARNESS_VERIFIED (`job_progress_widget_test.dart`)
+- MESSAGES: HARNESS_VERIFIED (`messaging_completion_test.dart`)
+- SAFETY CENTER: HARNESS_VERIFIED (`safety_circle_lifecycle_test.dart`, `job_and_safety_widget_test.dart`)
+- SUPPORT: HARNESS_VERIFIED (`support_assistant_widget_test.dart`, `support_chat_widget_test.dart`)
+- PROFILE: HARNESS_VERIFIED (multiple files, e.g. `job_and_safety_widget_test.dart`, `guardian_job_profile_features_test.dart`)
+- SETTINGS: HARNESS_VERIFIED (`settings_experience_test.dart`)
+- GUARDIAN: HARNESS_VERIFIED (`guardian_job_profile_features_test.dart`, `monetization_safety_test.dart`)
+
+None of the above are PHYSICAL_VERIFIED this session -- only BACKEND_LIVE_VERIFIED (RPC-level,
+via the real reviewer accounts) and HARNESS_VERIFIED (UI-level, via widget tests rendering
+real production screens). Not conflated with physical-device UI verification anywhere in this
+document or the final report.
 
 Never generated a replacement signing key. Never printed a password, private key, or keystore
 content. Never bypassed the production-DDL migration gate despite having read access to
