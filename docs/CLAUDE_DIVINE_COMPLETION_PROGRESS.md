@@ -868,15 +868,70 @@ this if it needs debug-only capabilities (e.g. certain Flutter DevTools
 features), though profile builds support most inspection needs and render
 identically for visual QA purposes.
 
+## Accessibility fix: Terms/Privacy links merged into checkbox semantics (2026-08-17)
+
+STATUS: FIXED, tested, committed (173beb4).
+
+Root-caused (not guessed) the earlier open finding "nested Terms/Privacy link
+taps neither navigate nor toggle the checkbox reliably" from the physical-device
+QA phase. Reconnected the device, re-dumped the sign-up form's accessibility
+tree via `uiautomator dump`, and found the entire `CheckboxListTile` row --
+including the two nested `TextButton`s for "Terms" and "Privacy Policy" --
+collapses into a SINGLE `android.widget.CheckBox` accessibility node, whose
+`content-desc` concatenates all title text (`"...Terms\nPrivacy Policy"`).
+There were zero independent Button nodes for either link. This is Flutter's
+`CheckboxListTile`/`ListTile` automatic `MergeSemantics` behavior: any
+interactive descendants placed in `title`/`subtitle` lose their own semantics
+node and become unreachable to screen readers (TalkBack). Activating the
+merged node only toggles the checkbox -- a real accessibility defect in a
+legal-consent flow, and the most likely explanation for the earlier unreliable
+manual tap targeting on this exact row.
+
+Searched the rest of the codebase for the same pattern (CheckboxListTile with
+nested interactive widgets in title/subtitle): found 12 files using
+CheckboxListTile total, but confirmed by direct read that all other 11 use
+plain `Text` titles/subtitles with no nested buttons -- `unified_auth_screen.dart`
+was the only occurrence of this specific defect. Not a repo-wide pattern; no
+speculative changes made elsewhere.
+
+Fix: replaced `CheckboxListTile` with an explicit `Row(Checkbox + Expanded(...))`
+in `lib/features/auth/unified_auth_screen.dart` so the checkbox and the two
+links keep independent semantics/hit-test areas (Row does not opt into
+MergeSemantics). Preserved identical visual layout, spacing tokens, and the
+inline error message.
+
+Verification, in order:
+1. `flutter analyze` (single file, then full project `--no-pub`): No issues found.
+2. Two widget tests referenced the old `CheckboxListTile` type directly
+   (`test/unified_auth_screen_test.dart`, `test/compact_onboarding_test.dart`);
+   updated both to assert on `Checkbox` (+ added explicit `Terms`/`Privacy Policy`
+   text-presence assertions to the first). Full suite rerun twice for
+   determinism: 379 passed, 0 failed, 2 skipped both times (matches baseline).
+3. `dart format --set-exit-if-changed`: clean.
+4. Built a fresh profile (AOT) APK, installed on the physical Samsung
+   SM_A146U device (after a ~7 device-disconnect/reconnect cycle -- wireless
+   ADB instability continues to be the dominant friction this session, not a
+   regression from this change).
+
+NOTE: on-device re-dump of the post-fix accessibility tree (to directly
+confirm "Terms"/"Privacy Policy" now appear as independent nodes) was
+in progress and blocked by a device disconnect at the point this entry was
+written. The fix is committed on strong non-device evidence (semantics-merge
+mechanics are a well-documented Flutter behavior, not a guess; static
+analysis and full regression are clean); the on-device semantics re-check is
+a confirmation step, not a prerequisite this entry is contingent on. Will be
+completed opportunistically once the device reconnects.
+
 NEXT_AUTOMATIC_PHASE: continue other engineering-controlled work not gated by
 device access or a service-role credential. Given the breadth already covered
 this session (repository cleanup, full backend/RLS/storage/security audit,
 PIN/lifecycle audit, location privacy audit, Support classifier structural pass,
-iOS config review, static Android performance audit, 16KB verification, and
-real physical-device QA up to the authentication wall), remaining tractable
-scope without a device or elevated credentials is genuinely small. A future
-session with a stable device connection and/or a service-role credential is
-needed for: authenticated-screen QA, dynamic performance profiling, applying
+iOS config review, static Android performance audit, 16KB verification, real
+physical-device QA up to the authentication wall, dynamic cold-launch
+performance measurement, and the Terms/Privacy accessibility-semantics fix
+above), remaining tractable scope without a device or elevated credentials is
+genuinely small. A future session with a stable device connection and/or a
+service-role credential is needed for: authenticated-screen QA, applying
 the drafted SQL migration, true cross-user RLS impersonation testing, and
 final signed-release artifacts.
 
