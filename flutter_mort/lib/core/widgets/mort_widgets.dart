@@ -94,14 +94,6 @@ class MortScreen extends StatelessWidget {
         ((Navigator.maybeOf(context)?.canPop() ?? false) ||
             MortBackNavigation.isRootLocation(location));
     final content = SafeArea(
-      // Guarantees real clearance from the system nav bar for the last
-      // scrollable child even when the platform under-reports its bottom
-      // inset for edge-to-edge windows (observed on a physical Android 15
-      // device: the last one or two children in `children`-only screens —
-      // i.e. no dedicated `bottom` bar — rendered underneath the 3-button
-      // nav bar). `minimum` only tops up what SafeArea already reserves, so
-      // it does not double the padding on devices that report it correctly.
-      minimum: const EdgeInsets.only(bottom: MortSpacing.md),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(
