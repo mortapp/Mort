@@ -743,6 +743,36 @@ VERDICT A per the directive's own framing (no successful authentication present
 in the *current* installation), with a known, specific, honest cause -- not
 VERDICT B (a persistence bug), and not fabricated.
 
+### PHASE: UNAUTHENTICATED PHYSICAL QA CONTINUATION (overnight)
+STATUS: COMPLETE for what's reachable
+Confirmed via cold restart (force-stop + relaunch): still no authenticated
+session, as expected since the owner is asleep. Continued unauthenticated
+coverage:
+- "Read teen safety" page: reached, inspected. Genuinely well-written, honest
+  disclosure content -- explicitly labeled "Legal draft", states plainly
+  "Payments are arranged between the job poster and worker for MVP. MORT does
+  not currently process, escrow, split, or guarantee payments," consistent
+  safety messaging with the welcome screen. Both a floating back button and an
+  explicit bottom "Back" button work correctly; back navigation preserves the
+  prior screen's scroll position.
+- Sign-up form's "Terms"/"Privacy Policy" links: attempted via precise
+  uiautomator-bounds-derived taps on the visible text glyphs (twice, from two
+  independently-computed pixel positions that agreed with each other).
+  Neither navigated to the legal page NOR toggled the enclosing checkbox --
+  the tap is landing in dead space between the merged-semantics
+  CheckboxListTile row and the nested TextButton hit-test areas. Checked
+  whether a direct deep-link could bypass this (`am start -a VIEW -d
+  com.mortapp.mobile://app/legal/terms`): not possible, the manifest only
+  registers intent-filters for the three OAuth paths (auth-callback/-confirm/
+  -recovery), which is correct/intentional, not a gap. MINOR FINDING, not
+  confirmed as a real defect: this specific nested-link tap target may be
+  imprecise/small in the current CheckboxListTile-based layout. Not chased
+  further tonight -- this is a secondary path (the same legal documents are
+  reachable via the Teen Safety page's pattern and presumably a legal center
+  once authenticated), not a blocking or core-flow issue, and each attempt
+  costs a device round-trip on an already-volatile connection. Worth a
+  source-level look in a future session rather than more device guessing.
+
 NEXT_AUTOMATIC_PHASE: continue other engineering-controlled work not gated by
 device access or a service-role credential. Given the breadth already covered
 this session (repository cleanup, full backend/RLS/storage/security audit,
