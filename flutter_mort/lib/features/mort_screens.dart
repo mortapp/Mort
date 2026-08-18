@@ -2177,9 +2177,20 @@ class RoleHomeScreen extends ConsumerWidget {
           _ReleaseModeCard(status: ref.watch(releaseModeStatusProvider)),
         ],
         const SizedBox(height: MortSpacing.lg),
-        if (role == UserRole.teen)
-          MortActionRow(actions: actions)
-        else ...[
+        if (role == UserRole.teen) ...[
+          const _TeenActiveJobSection(),
+          const SizedBox(height: MortSpacing.md),
+          const _TeenNearbyWorkSection(),
+          const SizedBox(height: MortSpacing.md),
+          MortSafetyPulse(
+            title: 'Safety',
+            status: 'Tap for the Safety Center, check-ins, and help.',
+            onPressed: () => context.push('/teen/safety'),
+          ),
+          const SizedBox(height: MortSpacing.md),
+          MortSectionLabel(label: 'Quick links'),
+          MortActionRow(actions: actions),
+        ] else ...[
           MortGlassButton(
             label: dashboard.primary.label,
             icon: dashboard.primary.icon,
@@ -2204,6 +2215,120 @@ class RoleHomeScreen extends ConsumerWidget {
           MortBannerAd(
             placement: role == UserRole.teen ? 'job_feed' : 'adult_dashboard',
           ),
+      ],
+    );
+  }
+}
+
+class _TeenActiveJobSection extends ConsumerWidget {
+  const _TeenActiveJobSection();
+
+  static const _activeStatuses = ['in_progress', 'proof_submitted', 'accepted'];
+  static const _pendingStatuses = [
+    'submitted',
+    'adult_review',
+    'viewed',
+    'guardian_pending',
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final applicationsAsync = ref.watch(myApplicationsProvider);
+    return applicationsAsync.when(
+      loading: () => const MortSkeletonCard(),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (applications) {
+        MortApplication? featured;
+        for (final status in [..._activeStatuses, ..._pendingStatuses]) {
+          for (final app in applications) {
+            if (app.status == status) {
+              featured = app;
+              break;
+            }
+          }
+          if (featured != null) break;
+        }
+        if (featured == null) return const SizedBox.shrink();
+        final job = featured.job;
+        final isActive = _activeStatuses.contains(featured.status);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            MortSectionLabel(label: isActive ? 'Active job' : 'Upcoming job'),
+            MortDashboardActionTile(
+              label: job?.title ?? 'Job details',
+              description: job == null
+                  ? _statusLabel(featured.status)
+                  : '${_statusLabel(featured.status)} · ${job.city}, ${job.state}'
+                        '${job.payAmountCents != null ? ' · ${formatCents(job.payAmountCents!)}' : ''}',
+              icon: isActive
+                  ? Icons.directions_run_rounded
+                  : Icons.schedule_rounded,
+              onPressed: () =>
+                  context.push('/teen/applications/${featured!.id}'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _statusLabel(String status) => switch (status) {
+    'in_progress' => 'In progress',
+    'proof_submitted' => 'Proof submitted',
+    'accepted' => 'Accepted — not started yet',
+    'submitted' => 'Application submitted',
+    'adult_review' => 'Waiting on poster review',
+    'viewed' => 'Viewed by poster',
+    'guardian_pending' => 'Waiting on guardian approval',
+    _ => status,
+  };
+}
+
+class _TeenNearbyWorkSection extends ConsumerWidget {
+  const _TeenNearbyWorkSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final feedAsync = ref.watch(
+      openJobsProvider(const JobSearchFilters(limit: 3)),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        MortSectionLabel(label: 'Available nearby work'),
+        feedAsync.when(
+          loading: () => const MortSkeletonCard(),
+          error: (_, _) => const SizedBox.shrink(),
+          data: (state) {
+            if (state.items.isEmpty) {
+              return const MortEmptyState(
+                icon: Icons.search_off_rounded,
+                title: 'No open jobs right now',
+                message: 'Check back soon, or widen your search filters.',
+              );
+            }
+            return Column(
+              children: [
+                for (final job in state.items) ...[
+                  MortDashboardActionTile(
+                    label: job.title,
+                    description:
+                        '${job.payAmountCents != null ? formatCents(job.payAmountCents!) : job.payLabel ?? 'Pay varies'}'
+                        ' · ${job.city}, ${job.state} · ${job.category}',
+                    icon: Icons.work_outline_rounded,
+                    onPressed: () => context.push('/teen/jobs/${job.id}'),
+                  ),
+                  const SizedBox(height: MortSpacing.sm),
+                ],
+              ],
+            );
+          },
+        ),
+        MortSecondaryButton(
+          label: 'Browse all nearby jobs',
+          onPressed: () => context.push('/teen/jobs'),
+        ),
       ],
     );
   }
@@ -2246,7 +2371,7 @@ _RoleDashboardDefinition _roleDashboardDefinition(
       label: 'Browse jobs',
       description: 'Find approved local work.',
       icon: Icons.search_rounded,
-      route: '/teen/home',
+      route: '/teen/jobs',
     ),
     groups: [],
   ),

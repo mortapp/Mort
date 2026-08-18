@@ -122,7 +122,7 @@ class MortTeenDestinationHeader extends StatelessWidget {
 
 const _teenDestinations = [
   MortNavigationDestination(
-    label: 'Discover',
+    label: 'Dashboard',
     icon: Icons.grid_view_outlined,
     selectedIcon: Icons.grid_view_rounded,
   ),

@@ -180,24 +180,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/teen/home',
-                builder: (_, _) => const TeenJobFeedScreen(),
+                builder: (_, _) => const RoleHomeScreen(role: UserRole.teen),
               ),
             ],
           ),
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/teen/applications',
-                builder: (_, _) => const ApplicationListScreen(),
-                routes: [
-                  GoRoute(
-                    path: ':id',
-                    builder: (_, state) => ApplicationDetailScreen(
-                      view: ApplicationView.teen,
-                      applicationId: state.pathParameters['id'] ?? '',
-                    ),
-                  ),
-                ],
+                path: '/teen/jobs',
+                builder: (_, _) => const TeenJobFeedScreen(),
               ),
             ],
           ),
@@ -249,7 +240,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
-      GoRoute(path: '/teen/jobs', redirect: (_, _) => '/teen/home'),
+      _guarded(
+        '/teen/applications',
+        const ApplicationListScreen(),
+        role: UserRole.teen,
+      ),
+      GoRoute(
+        path: '/teen/applications/:id',
+        builder: (_, state) => GuardedRoute(
+          requiredRole: UserRole.teen,
+          child: ApplicationDetailScreen(
+            view: ApplicationView.teen,
+            applicationId: state.pathParameters['id'] ?? '',
+          ),
+        ),
+      ),
       GoRoute(
         path: '/teen/jobs/:id',
         builder: (_, state) => GuardedRoute(

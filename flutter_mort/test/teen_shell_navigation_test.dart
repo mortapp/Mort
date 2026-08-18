@@ -32,8 +32,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Discover content'), findsOneWidget);
-      await tester.enterText(find.byKey(const Key('discover-search')), 'Yard');
+      expect(find.text('Dashboard content'), findsOneWidget);
+      await tester.enterText(find.byKey(const Key('dashboard-search')), 'Yard');
 
       await tester.tap(find.text('Jobs').last);
       await tester.pumpAndSettle();
@@ -42,7 +42,7 @@ void main() {
 
       await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
-      expect(find.text('Discover content'), findsOneWidget);
+      expect(find.text('Dashboard content'), findsOneWidget);
       expect(find.text('Yard'), findsOneWidget);
 
       await tester.tap(find.text('Safety').last);
@@ -51,7 +51,7 @@ void main() {
 
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      expect(find.text('Discover content'), findsOneWidget);
+      expect(find.text('Dashboard content'), findsOneWidget);
       expect(find.text('Yard'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
@@ -78,9 +78,9 @@ void main() {
         await tester.tap(find.text('Profile').last);
         await tester.pumpAndSettle();
         expect(find.text('Profile content'), findsOneWidget);
-        await tester.tap(find.text('Discover').last);
+        await tester.tap(find.text('Dashboard').last);
         await tester.pumpAndSettle();
-        expect(find.text('Discover content'), findsOneWidget);
+        expect(find.text('Dashboard content'), findsOneWidget);
       }
 
       expect(find.byType(MortGlassNavigationBar), findsOneWidget);
@@ -96,7 +96,7 @@ GoRouter _teenRouter() => GoRouter(
       builder: (_, _, navigationShell) =>
           TeenShell(navigationShell: navigationShell),
       branches: [
-        _branch('/teen/home', 'Discover', includeSearch: true),
+        _branch('/teen/home', 'Dashboard', includeSearch: true),
         _branch('/teen/applications', 'Applications'),
         _branch('/teen/safety', 'Safety'),
         _branch('/teen/messages', 'Messages'),
@@ -120,7 +120,7 @@ StatefulShellBranch _branch(
           Text('$title content'),
           if (includeSearch)
             const TextField(
-              key: Key('discover-search'),
+              key: Key('dashboard-search'),
               decoration: InputDecoration(labelText: 'Search'),
             ),
         ],
