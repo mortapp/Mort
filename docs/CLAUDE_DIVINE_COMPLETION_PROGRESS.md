@@ -713,6 +713,36 @@ Legal pages (Terms/Privacy/Teen Safety), which are reachable without an account,
 were identified as the next reachable target but not reached before the final
 disconnect.
 
+### PHASE: OVERNIGHT AUTONOMOUS RUN
+STATUS: IN_PROGRESS
+Owner is asleep for the remainder of tonight; operating autonomously per their
+explicit standing instruction, continuing to apply the same safety judgment as
+before (no auth bypass, no production DDL without already-available tool-level
+authorization, no real user harm, no secret exposure).
+Keep-awake: started a process-scoped SetThreadExecutionState loop (PowerShell,
+PID 28748, background task bj71sab8t) so the host machine doesn't suspend
+overnight. Does not touch the Windows power plan or any permanent setting; will
+be terminated before the final report.
+
+### SESSION-PERSISTENCE INVESTIGATION (evidence-based, not assumed)
+Read `secure_session_storage.dart` (MortSecureSessionStorage) and
+`supabase_service.dart` in full. Finding: the persistence implementation is
+genuinely robust -- Android Keystore-backed (FlutterSecureStorage), validates
+full session structure (access_token/refresh_token/token_type/expires_at/user.id
+all required non-empty) before trusting a stored value, verifies every write by
+reading it back, and includes legacy-key migration logic. No bug found in this
+path.
+Root cause for "no session present" is procedural, not a code defect: earlier
+in this session's physical QA, installing the freshly-built debug APK failed
+with `INSTALL_FAILED_UPDATE_INCOMPATIBLE` (signing certificate mismatch against
+whatever was previously installed), which required uninstalling the existing
+MORT installation before a working install could proceed. That uninstall would
+have destroyed any session that existed in secure storage before this session's
+testing began, independent of whatever the owner did afterward. This is
+VERDICT A per the directive's own framing (no successful authentication present
+in the *current* installation), with a known, specific, honest cause -- not
+VERDICT B (a persistence bug), and not fabricated.
+
 NEXT_AUTOMATIC_PHASE: continue other engineering-controlled work not gated by
 device access or a service-role credential. Given the breadth already covered
 this session (repository cleanup, full backend/RLS/storage/security audit,
