@@ -86,6 +86,29 @@ No other engineering-controlled work remains outstanding. All items from the
 final completion report below are unchanged and still current (no source
 changed since `fb0a95b`).
 
+## GOOGLE PLAY CLOSED-TEST RELEASE — APPROVED (2026-08-18)
+
+```
+GOOGLE_PLAY_REVIEW_STATUS=APPROVED
+VERSION_NAME=0.9.16
+VERSION_CODE=107
+TRACK=Closed testing - Alpha
+TESTER_GROUP=mortapp@googlegroups.com
+PRODUCTION_TOUCHED=NO
+CLOSED_TEST_RELEASE_APPROVED=YES
+```
+
+Uploaded to the existing "Closed testing - Alpha" track (the only active
+closed-testing track; no new track created), release notes submitted, sent
+for review scoped to exactly that one change. Google approved the release
+on 2026-08-18. Tester group (`mortapp@googlegroups.com`) was not modified.
+Production was not touched -- confirmed directly in Play Console, which
+still shows "You don't have access to production yet." No new AAB/APK
+build was required or performed for this checkpoint; the artifacts remain
+the same ones verified in the release-artifacts section above
+(`artifacts/play-final/mort-0.9.16+107-play.aab` /
+`mort-0.9.16+107-release.apk`).
+
 ## RELEASE ARTIFACTS BUILT (2026-08-18, final completion + Play artifact pass)
 
 Following the overnight pass (ending at 4f9ab74), a follow-on directive requested final
