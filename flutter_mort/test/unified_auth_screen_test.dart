@@ -80,7 +80,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Access MORT'), findsOneWidget);
-    expect(find.byType(CheckboxListTile), findsOneWidget);
+    expect(find.byType(Checkbox), findsOneWidget);
+    expect(find.text('Terms'), findsOneWidget);
+    expect(find.text('Privacy Policy'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

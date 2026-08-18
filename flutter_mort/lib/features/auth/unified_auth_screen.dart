@@ -382,37 +382,64 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
           const GoogleAuthSection(),
         ],
         const SizedBox(height: MortSpacing.sm),
-        CheckboxListTile(
-          contentPadding: EdgeInsets.zero,
-          value: _legalAcknowledged,
-          title: Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text(_isSignIn ? 'I have read MORT\'s ' : 'I agree to MORT\'s '),
-              TextButton(
-                onPressed: () => context.push('/legal/terms'),
-                child: const Text('Terms'),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Checkbox(
+              value: _legalAcknowledged,
+              onChanged: _busy
+                  ? null
+                  : (value) => setState(() {
+                      _legalAcknowledged = value == true;
+                      if (_legalAcknowledged) _legalError = false;
+                    }),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        _isSignIn
+                            ? 'I have read MORT\'s '
+                            : 'I agree to MORT\'s ',
+                      ),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(48, 36),
+                          tapTargetSize: MaterialTapTargetSize.padded,
+                        ),
+                        onPressed: () => context.push('/legal/terms'),
+                        child: const Text('Terms'),
+                      ),
+                      const Text(' and '),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(48, 36),
+                          tapTargetSize: MaterialTapTargetSize.padded,
+                        ),
+                        onPressed: () => context.push('/legal/privacy'),
+                        child: const Text('Privacy Policy'),
+                      ),
+                      Text(' ($mortOnboardingAcknowledgementVersion)'),
+                    ],
+                  ),
+                  if (_legalError)
+                    const Padding(
+                      padding: EdgeInsets.only(top: MortSpacing.xs),
+                      child: Text(
+                        'Agreement is required to create an account.',
+                        style: TextStyle(color: MortColors.danger),
+                      ),
+                    ),
+                ],
               ),
-              const Text(' and '),
-              TextButton(
-                onPressed: () => context.push('/legal/privacy'),
-                child: const Text('Privacy Policy'),
-              ),
-              Text(' ($mortOnboardingAcknowledgementVersion)'),
-            ],
-          ),
-          subtitle: _legalError
-              ? const Text(
-                  'Agreement is required to create an account.',
-                  style: TextStyle(color: MortColors.danger),
-                )
-              : null,
-          onChanged: _busy
-              ? null
-              : (value) => setState(() {
-                  _legalAcknowledged = value == true;
-                  if (_legalAcknowledged) _legalError = false;
-                }),
+            ),
+          ],
         ),
       ],
     );

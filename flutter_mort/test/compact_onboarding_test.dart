@@ -235,7 +235,7 @@ void main() {
 
     expect(find.textContaining('Terms'), findsWidgets);
     expect(find.textContaining('Privacy Policy'), findsWidgets);
-    expect(find.byType(CheckboxListTile), findsWidgets);
+    expect(find.byType(Checkbox), findsWidgets);
 
     await tester.pumpWidget(
       const ProviderScope(
@@ -248,6 +248,6 @@ void main() {
 
     expect(find.textContaining('Terms'), findsWidgets);
     expect(find.textContaining('Privacy Policy'), findsWidgets);
-    expect(find.byType(CheckboxListTile), findsOneWidget);
+    expect(find.byType(Checkbox), findsOneWidget);
   });
 }
