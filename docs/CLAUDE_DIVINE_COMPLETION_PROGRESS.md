@@ -640,6 +640,31 @@ as real back-navigation out of the app) -- confirmed this is normal, harmless,
 recoverable Android behavior, relaunched MORT via the launcher intent, did not
 interact with anything else on the owner's home screen.
 
+### PHASE: STATIC ANDROID PERFORMANCE AUDIT
+STATUS: COMPLETE (complements, does not replace, on-device dynamic profiling)
+Done during a device-reconnection wait window rather than sitting idle:
+- BackdropFilter: used in exactly ONE file (mort_liquid_glass.dart) -- the
+  "Liquid Glass" effect is centralized in a single shared widget, not scattered
+  ad-hoc across screens. Confirmed only 2 other files actually use that widget
+  (sparing use, matches "glass strategically, not everywhere").
+- The blur itself is wrapped in a `RepaintBoundary` -- the only RepaintBoundary
+  in the entire lib/ tree, placed exactly where it has the most value (isolating
+  the single most expensive repaint from cascading to the rest of the tree).
+  `blurSigma` is a centralized design token (22.0, a moderate/reasonable value,
+  not a magic number scattered per call site).
+- ListView usage: 100% `.builder`/`.separated` -- zero raw unbounded `ListView(`
+  instances found anywhere in lib/.
+- Image decode sizing: 3 `Image.network(` call sites total, all 3 covered by
+  `cacheWidth`/`cacheHeight` usage (matches the image_decode_size.dart util
+  confirmed wired into 3 screens during the earlier iOS/permissions review) --
+  no over-decode gap found.
+- Provider discipline: 100 `ref.watch(` vs 126 `ref.read(` call sites -- more
+  reads than watches, consistent with disciplined reactive-rebuild scoping
+  rather than over-subscribing to providers.
+No anti-patterns found via static analysis. Dynamic, on-device profiling
+(cold/warm launch timing, actual scroll frame timing, memory growth) remains
+outstanding and requires the physical device.
+
 NEXT_AUTOMATIC_PHASE: once reconnected, check unauthenticated-reachable legal
 pages (Terms/Privacy/Teen Safety) for additional coverage, then reassess whether
 remaining wall-clock in this session is better spent continuing to chase
