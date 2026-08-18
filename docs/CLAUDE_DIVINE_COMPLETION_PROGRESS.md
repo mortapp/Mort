@@ -682,14 +682,48 @@ from config alone -- satisfies the "16 KB verified" release-gauntlet
 requirement for the build tooling in use (release builds share the same
 AGP/NDK toolchain).
 
-NEXT_AUTOMATIC_PHASE: once reconnected, check unauthenticated-reachable legal
-pages (Terms/Privacy/Teen Safety) for additional coverage, then reassess whether
-remaining wall-clock in this session is better spent continuing to chase
-authenticated screens (blocked without a QA credential or waiting out the rate
-limit) versus closing out this phase with what's been verified. Device has now
-been unreachable for an extended period (multiple 5-9+ minute wait windows in a
-row); if it does not return, this phase will close honestly rather than wait
-indefinitely, per "reasonable extended retry window."
+DEVICE_QA_BLOCKED: after this checkpoint, the device remained unreachable
+through six consecutive extended wait windows (roughly 45+ minutes of
+cumulative retry time in this stretch alone, on top of similar patterns earlier
+in the session), confirmed via both `adb devices -l` and `adb mdns services`
+returning empty each time. This exceeds any reasonable definition of "extended
+retry window." Per protocol, this is now recorded as DEVICE_QA_BLOCKED rather
+than waited on indefinitely. Used every wait window productively (static
+performance audit, 16KB verification, doc checkpointing) rather than idling.
+
+### PHYSICAL DEVICE QA -- FINAL SUMMARY FOR THIS SESSION
+Verified on real hardware (Samsung SM_A146U, Android 15/API 35): clean
+install/launch/no-crash, premium on-brand visuals matching the design system,
+zero logcat errors/exceptions/overflow across an extended interactive session,
+correct scroll/SafeArea behavior (one false positive found and honestly
+corrected via re-testing, not left unaddressed), accessible standard tap
+targets, a full end-to-end sign-up flow test (form validation, network request,
+error handling, and a real backend rate-limit control all confirmed working
+correctly), a device setting changed for testing (font_scale) verified restored,
+and 16KB native-library alignment tool-verified on the actual built APK.
+NOT reached this session (genuinely blocked, not skipped): onboarding-after-
+signup, Teen/Adult dashboards, job feed/details, applications, PIN flow,
+messages, Safety Center, Support, profile/settings, Guardian -- all of these
+require an authenticated session, and this session has neither a working QA
+credential (the repo's local-test-user tooling needs a service-role key and an
+unset env var) nor a completed signup (blocked by the correctly-functioning
+signup rate limit after repeated test attempts, compounded by the device
+disconnecting before the cooldown could be waited out reliably).
+Legal pages (Terms/Privacy/Teen Safety), which are reachable without an account,
+were identified as the next reachable target but not reached before the final
+disconnect.
+
+NEXT_AUTOMATIC_PHASE: continue other engineering-controlled work not gated by
+device access or a service-role credential. Given the breadth already covered
+this session (repository cleanup, full backend/RLS/storage/security audit,
+PIN/lifecycle audit, location privacy audit, Support classifier structural pass,
+iOS config review, static Android performance audit, 16KB verification, and
+real physical-device QA up to the authentication wall), remaining tractable
+scope without a device or elevated credentials is genuinely small. A future
+session with a stable device connection and/or a service-role credential is
+needed for: authenticated-screen QA, dynamic performance profiling, applying
+the drafted SQL migration, true cross-user RLS impersonation testing, and
+final signed-release artifacts.
 
 ## EXTERNAL_GATES (unchanged, not evaluated this session)
 
