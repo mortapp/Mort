@@ -820,6 +820,14 @@ Building a --profile mode APK now (AOT-compiled like release, but does not
 require the release signing key) to get a genuinely comparable number rather
 than reporting only the debug-build figure as if it were representative.
 
+SESSION NOTE: both background tasks (keep-awake loop, profile build) were
+killed simultaneously mid-run -- a session-level interruption, not something
+this run did intentionally. Recovered cleanly: repo state verified clean
+(one gitignored build-cache dir only, confirmed via git check-ignore, not a
+real issue), keep-awake restarted (new PID, task b2s75petl), profile build
+restarted (task baeqou090). Continuing per "if context compacts, recover and
+continue."
+
 NEXT_AUTOMATIC_PHASE: continue other engineering-controlled work not gated by
 device access or a service-role credential. Given the breadth already covered
 this session (repository cleanup, full backend/RLS/storage/security audit,
