@@ -665,11 +665,31 @@ No anti-patterns found via static analysis. Dynamic, on-device profiling
 (cold/warm launch timing, actual scroll frame timing, memory growth) remains
 outstanding and requires the physical device.
 
+### PHASE: 16KB PAGE-SIZE COMPATIBILITY VERIFICATION
+STATUS: COMPLETE, PASS
+Checked during another device-reconnection wait window. Config: AGP 8.11.1,
+Gradle 8.14 (both well above the 8.5.1 minimum required for 16KB support), NDK
+version managed by Flutter (not pinned to an old version), no
+`useLegacyPackaging`/`extractNativeLibs` overrides that would disable it.
+Directly verified the actual built debug APK with
+`zipalign -c -v -P 16 4 app-debug.apk`: "Verification successful" for the whole
+archive, and explicitly confirmed every native `.so` (libflutter.so,
+libdartjni.so, libsentry.so, libsentry-android.so,
+libdatastore_shared_counter.so, libVkLayer_khronos_validation.so, both
+arm64-v8a and armeabi-v7a ABIs) individually reports "OK" alignment. This is a
+real, tool-verified pass on an explicit release-checklist item, not inferred
+from config alone -- satisfies the "16 KB verified" release-gauntlet
+requirement for the build tooling in use (release builds share the same
+AGP/NDK toolchain).
+
 NEXT_AUTOMATIC_PHASE: once reconnected, check unauthenticated-reachable legal
 pages (Terms/Privacy/Teen Safety) for additional coverage, then reassess whether
 remaining wall-clock in this session is better spent continuing to chase
 authenticated screens (blocked without a QA credential or waiting out the rate
-limit) versus closing out this phase with what's been verified.
+limit) versus closing out this phase with what's been verified. Device has now
+been unreachable for an extended period (multiple 5-9+ minute wait windows in a
+row); if it does not return, this phase will close honestly rather than wait
+indefinitely, per "reasonable extended retry window."
 
 ## EXTERNAL_GATES (unchanged, not evaluated this session)
 
