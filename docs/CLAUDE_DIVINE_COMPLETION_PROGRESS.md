@@ -794,6 +794,32 @@ No defects found. All auth-adjacent unauthenticated screens now have real
 physical-device coverage this session except the two nested legal links
 (documented above as a minor, unconfirmed finding).
 
+### PHASE: RELEASE READINESS + DYNAMIC PERFORMANCE (overnight)
+STATUS: IN_PROGRESS
+Release signing: confirmed `MORT_UPLOAD_KEYSTORE_PATH` is not set in this
+shell environment (existence check only, no value read/printed). This
+genuinely blocks building a signed release artifact tonight -- recorded as
+RELEASE_SIGNING=BLOCKED_MISSING_KEYSTORE_ENV, not routed around, not requested
+from the sleeping owner. Current version confirmed via
+read-mobile-version.mjs: 0.9.15+106 (unchanged).
+
+Dynamic performance (real device measurements, not static inference) via
+Android's own `am start-activity -W` metric on the DEBUG build:
+- Cold launch #1: TotalTime 3834ms
+- Cold launch #2: TotalTime 3121ms
+- Warm/hot launch (resumed from background, process resident): TotalTime
+  566ms -- genuinely good, well within acceptable UX bounds for resuming from
+  background.
+IMPORTANT CAVEAT: the cold-launch figures characterize the DEBUG build
+specifically (JIT, no AOT, no code shrinking) -- Flutter debug builds are
+routinely 2-4x slower to first frame than release/profile (AOT) builds on
+the same hardware, so a 3.1-3.8s cold start here is NOT necessarily
+representative of what ships to users, and should not be read as a
+performance verdict on its own.
+Building a --profile mode APK now (AOT-compiled like release, but does not
+require the release signing key) to get a genuinely comparable number rather
+than reporting only the debug-build figure as if it were representative.
+
 NEXT_AUTOMATIC_PHASE: continue other engineering-controlled work not gated by
 device access or a service-role credential. Given the breadth already covered
 this session (repository cleanup, full backend/RLS/storage/security audit,
