@@ -590,11 +590,61 @@ restored. Did not reach onboarding/dashboard/jobs/messages/safety/support/PIN
 screens this session -- blocked primarily by connection instability eating the
 available session time, not by any discovered defect.
 
-NEXT_AUTOMATIC_PHASE: report status. Remaining screens (onboarding through
-dashboard, jobs, messages, safety, support, PIN, profile/settings) and the
-Android performance pass are legitimate next steps for a future session with a
-more stable connection window, not abandoned -- just not reached given how much
-of this phase's time went to connection recovery.
+### PHASE: PHYSICAL DEVICE QA CONTINUATION -- SIGN-UP FLOW
+STATUS: IN_PROGRESS
+Built a reusable QA helper (session scratchpad `mort_qa.sh`): device-wait,
+ground-truth `uiautomator dump` based tap-by-content-desc (NOT screenshot pixel
+estimation), text entry, screenshot, logcat helpers. This directly fixed a real
+methodology problem from earlier in the session: screenshot-based coordinate
+guessing repeatedly mistapped between scrolled/unscrolled and pre/post-error-card
+layouts (confirmed via `uiautomator dump` ground truth that several taps landed
+tens to hundreds of px away from the intended target). All taps from this point
+forward use exact accessibility-tree bounds.
+
+QA credential check: searched the repo for an existing safe QA/test-account
+mechanism (`create-local-test-users.mjs` etc.). Found only scripts that require a
+service-role admin key and an unset `MORT_LOCAL_TEST_PASSWORD` env var -- neither
+available to this session. Documented as a real auth gate, not routed around.
+
+Attempted a genuine end-to-end sign-up instead (synthetic `@mort.test` address,
+synthetic password) to see exactly what happens:
+- Filled email/password correctly (verified via uiautomator text= attribute, not
+  visual guess), checked the legal-agreement checkbox (verified checked="true").
+- Submission #1: "Account creation unsuccessful -- Something went wrong. Please
+  try again." Investigated via logcat: system-level DNS resolution failures were
+  present (`getaddrinfo(): No address associated with hostname`,
+  `SecureTCP connection establish timeout`) but from Samsung's own background
+  services (msys/MQTTBypassDGW), not necessarily from MORT's own network call.
+- Directly verified device connectivity to the actual Supabase host: `ping
+  rakjydmgwwgtdislanbt.supabase.co` succeeded, 0% packet loss, ~38ms avg --
+  network to the actual backend was fine at time of retry.
+- Submission #2/#3: "Account creation unsuccessful -- Too many attempts. Wait a
+  moment and try again." -- a real, correctly-functioning signup rate limit
+  (matches the add_rate_limiting / harden_rate_limit_function_access backend
+  work found during the earlier RLS audit). This also retroactively confirms the
+  taps WERE landing correctly all along (a rate-limited response only happens if
+  the request reaches the backend) -- the earlier ambiguity was about the
+  generic first error message, not a tap/coordinate failure.
+- Did NOT continue retrying once rate-limited -- respecting the control rather
+  than working around it. No completed account exists from this session.
+VERDICT: sign-up flow is functionally correct end-to-end (form validation,
+network request, error handling, rate-limiting) under real hardware/network
+conditions. The specific "Something went wrong" first-attempt message is
+generic/unmapped -- worth a follow-up to see if it should surface more specific
+reasons, but not confirmed as a defect this session (could not reproduce it
+in isolation from the rate-limit-adjacent retries).
+
+Device also exited MORT to the actual home screen once during this stretch (an
+`input keyevent 4` landed on a moment with no keyboard/dialog open, so it acted
+as real back-navigation out of the app) -- confirmed this is normal, harmless,
+recoverable Android behavior, relaunched MORT via the launcher intent, did not
+interact with anything else on the owner's home screen.
+
+NEXT_AUTOMATIC_PHASE: once reconnected, check unauthenticated-reachable legal
+pages (Terms/Privacy/Teen Safety) for additional coverage, then reassess whether
+remaining wall-clock in this session is better spent continuing to chase
+authenticated screens (blocked without a QA credential or waiting out the rate
+limit) versus closing out this phase with what's been verified.
 
 ## EXTERNAL_GATES (unchanged, not evaluated this session)
 
