@@ -560,9 +560,41 @@ screenshot was captured; font_scale restoration to 1.0 is queued as the first
 action the instant the device reconnects (firm obligation, ahead of any other
 device work).
 
-NEXT_AUTOMATIC_PHASE: restore font_scale to 1.0 (blocking obligation), capture the
-large-text screenshot if the connection allows, then continue through
-onboarding/dashboard screens as connectivity permits.
+RESOLVED: font_scale restored to 1.0, confirmed via `settings get system
+font_scale` returning "1.0" -- the persistent device setting (what actually
+matters for "don't leave the owner's phone altered") is correct. The follow-up
+screenshot still showed large text because the already-running MORT process
+hadn't yet picked up the config-change broadcast (a normal Android/Flutter
+lifecycle lag, not a settings-restoration failure) -- cosmetic only, not chased
+further. Incidental unconfirmed observation from that stale-render screenshot:
+the large-text welcome screen appeared to show the same "not yet scrolled"
+pattern as the 1.0x case; not verified by actually scrolling, so not recorded as
+a finding either way.
+
+CONNECTION RELIABILITY NOTE: wireless ADB to this device was highly intermittent
+throughout this phase -- multiple outages of 2 to 9 minutes each, no clear
+trigger identified (not obviously tied to screen-timeout alone, since some drops
+happened mid-command). Recovered every time without re-pairing. Consumed a large
+share of this phase's wall-clock time. Worth flagging to the user as a real
+constraint on how much physical-device QA is practical per session, independent
+of anything MORT-side.
+
+DEVICE QA PHASE SUMMARY: confirmed on real hardware (Samsung SM_A146U, Android
+15/API 35) -- app installs and launches cleanly (once correctly configured),
+zero crashes/errors/exceptions across an extended interactive session (multiple
+screens, text entry, keyboard, scrolling, back-navigation), premium on-brand
+visual quality matching the design system, correct SafeArea/scroll behavior
+(after correcting one false-positive), standard accessible tap targets
+(CheckboxListTile), and a device setting changed for testing was verified
+restored. Did not reach onboarding/dashboard/jobs/messages/safety/support/PIN
+screens this session -- blocked primarily by connection instability eating the
+available session time, not by any discovered defect.
+
+NEXT_AUTOMATIC_PHASE: report status. Remaining screens (onboarding through
+dashboard, jobs, messages, safety, support, PIN, profile/settings) and the
+Android performance pass are legitimate next steps for a future session with a
+more stable connection window, not abandoned -- just not reached given how much
+of this phase's time went to connection recovery.
 
 ## EXTERNAL_GATES (unchanged, not evaluated this session)
 
