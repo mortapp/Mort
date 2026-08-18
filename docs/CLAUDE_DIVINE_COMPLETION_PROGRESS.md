@@ -913,14 +913,30 @@ Verification, in order:
    ADB instability continues to be the dominant friction this session, not a
    regression from this change).
 
-NOTE: on-device re-dump of the post-fix accessibility tree (to directly
-confirm "Terms"/"Privacy Policy" now appear as independent nodes) was
-in progress and blocked by a device disconnect at the point this entry was
-written. The fix is committed on strong non-device evidence (semantics-merge
-mechanics are a well-documented Flutter behavior, not a guess; static
-analysis and full regression are clean); the on-device semantics re-check is
-a confirmation step, not a prerequisite this entry is contingent on. Will be
-completed opportunistically once the device reconnects.
+ON-DEVICE CONFIRMATION (completed after several device reconnect cycles):
+rebuilt the profile APK -- first attempt omitted the required
+`--dart-define=SUPABASE_URL=...`/`SUPABASE_ANON_KEY=...` flags and correctly
+hit the fail-closed `auth_startup_gate.dart` screen instead of the real app
+(same benign gap as the very first install earlier this session); refetched
+the public anon URL/key via Supabase MCP `get_publishable_keys`/
+`get_project_url` (client-embeddable public values, not secrets) and
+rebuilt correctly. Installed on the Samsung SM_A146U, navigated to the
+sign-up form, and re-dumped the accessibility tree:
+- The `CheckBox` node's `content-desc` is now empty (own independent node,
+  `NAF="true"`), no longer swallowing the title text.
+- "Terms" and "Privacy Policy" now appear as two independent
+  `android.widget.Button` nodes, each `clickable="true"` with their own
+  `bounds`.
+- Tapped the "Terms" button's on-screen bounds directly: navigation to the
+  legal document screen succeeded (confirmed via post-tap dump showing the
+  "Legal draft"/"Terms" screen with a working Back button).
+- `logcat` across the whole interaction: zero FATAL/FlutterError/
+  PlatformException/ANR/RenderFlex-overflow/SecurityException lines from the
+  app (only routine ADB tool-invocation and Bluetooth-scan noise matched the
+  grep pattern).
+Both AUTHENTICATED_UI_CODE_VERIFIED (via updated widget tests) and a genuine
+AUTHENTICATED-adjacent physical-device confirmation are now satisfied for
+this fix (the auth screen itself is reachable pre-authentication).
 
 NEXT_AUTOMATIC_PHASE: continue other engineering-controlled work not gated by
 device access or a service-role credential. Given the breadth already covered
