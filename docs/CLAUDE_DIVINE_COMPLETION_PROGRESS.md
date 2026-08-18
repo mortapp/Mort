@@ -8,10 +8,66 @@ current; only this file and fresh tool output reflect present state.
 START_TIME: 2026-08-17T00:00:00-04:00 (session start, wall-clock approximate)
 REPOSITORY: C:\Users\micha\Mort
 BRANCH: feature/compact-onboarding-and-screen-polish
-LAST_KNOWN_GOOD_COMMIT: f69914d341fd2139a4878cc949004c20da8f7e60
+LAST_KNOWN_GOOD_COMMIT: 629a32a (chore(release): bump version to 0.9.16+107)
 SUPABASE_PROJECT_REF: rakjydmgwwgtdislanbt
-CURRENT_APP_VERSION: 0.9.15+106
+CURRENT_APP_VERSION: 0.9.16+107
 WORKING_TREE_STATUS: CLEAN (verified via `git status --short` immediately before this update)
+
+## RELEASE ARTIFACTS BUILT (2026-08-18, final completion + Play artifact pass)
+
+Following the overnight pass (ending at 4f9ab74), a follow-on directive requested final
+signed Play artifacts. Recovered the EXISTING MORT upload signing identity (never generated
+a new key) from the documented location `C:\Users\micha\MortSecrets\android\mort-upload-key.jks`
+(cert SHA-256 `04:42:C2:21:38:B0:D6:23:F9:A6:F4:78:1A:44:2B:F4:A9:33:27:8F:AB:8E:85:76:74:4D:C1:FD:7C:33:4D:EF`,
+alias `mort-upload`, credentials via Windows-DPAPI-protected CLIXML per
+`docs/mobile/MORT_PLAY_SIGNING_SETUP.md`). Also found legitimate pre-existing Play-reviewer
+QA credentials as Windows User-scope env vars (`PLAY_REVIEW_TEEN_EMAIL/PASSWORD`,
+`PLAY_REVIEW_ADULT_EMAIL/PASSWORD`, plus `SUPABASE_SERVICE_ROLE_KEY`/`SUPABASE_DB_PASSWORD`/
+`SUPABASE_ACCESS_TOKEN` used only by the pre-existing, already-vetted release-QA scripts --
+never used to bypass the `apply_migration` production-DDL gate).
+
+Version bumped 0.9.15+106 -> 0.9.16+107 via the canonical
+`scripts/increment-android-version.mjs` (106 was the highest versionCode with a built/
+verified artifact on disk, `build/play/mort-closed-test-0.9.15-106.*`; real source changed
+this session, so a new versionCode + patch bump was warranted per
+`docs/mobile/MORT_VERSIONING_POLICY.md`).
+
+Fresh full regression immediately before building: `dart format` clean (240 files, 0 changed),
+`flutter analyze --no-pub` clean (263.8s), `flutter test` 379 passed / 0 failed / 2 skipped.
+Support classifier regression re-run fresh: 459/543 (unchanged, stable). Supabase migration
+ledger re-verified read-only: still ends at `20260816010000`, local exactly one migration
+ahead (`20260817120000_support_ai_account_wording_coverage_fix.sql`, correctly unapplied,
+zero drift).
+
+Built via the project's own canonical scripts (not reimplemented manually):
+- `scripts/build-play-aab.ps1` -> AAB_BUILD=PASS. `build/play/mort-closed-test-0.9.16-107.aab`,
+  52288331 bytes, SHA-256 `1C7A9A05108252254BD606DE5A000CFA27C5560BF2344A17700F17379DED8197`.
+  Signature auto-verified against the protected MORT upload certificate inside the build script.
+- `scripts/build-closed-test-apk.ps1` -> APK_BUILD=PASS. `build/play/mort-closed-test-0.9.16-107.apk`,
+  69582926 bytes, SHA-256 `9FA8763A0053EE75BD34B4CD377E0B9861CDB8D48D7F8D82E9AB763620E62690`.
+  package=com.mortapp.mobile, minSdk=24, targetSdk=36, signed=True (apksigner-verified against
+  the MORT upload cert).
+- `scripts/qa-android-16kb-alignment.ps1` against the **final signed release APK** (not
+  inferred from debug/profile builds): `ELF_16KB_ALIGNMENT=PASS`, 18 native libraries checked.
+- `scripts/run-play-release-qa.ps1` (18 QA scripts + 2 post-build AAB checks): **22/22 PASS**,
+  including a live authenticated backend lifecycle test against the real closed-pilot tenant
+  (QA account creation/status/cancel, cross-account read denial, self-cleanup of only the
+  QA-created users) and a secret scan of the actual extracted AAB/APK contents (970 entries
+  checked against real sensitive values -- none found).
+
+Final artifacts copied with traceable names to `C:\Users\micha\Mort\artifacts\play-final\`
+(`mort-0.9.16+107-play.aab`, `mort-0.9.16+107-release.apk`) alongside the originals in
+`build/play/` (existing canonical location, preferred). Both `build/` and `artifacts/` are
+gitignored -- consistent with established policy, binaries never committed. Manifest written
+to `artifacts/play-final/FINAL_RELEASE_ARTIFACTS.txt`.
+
+Physical release-build smoke test (final signed APK install + launch on the Samsung
+SM_A146U): device connectivity was intermittent again during this pass; see the live status
+further down this document / the final report for the outcome.
+
+Never generated a replacement signing key. Never printed a password, private key, or keystore
+content. Never bypassed the production-DDL migration gate despite having read access to
+`SUPABASE_SERVICE_ROLE_KEY` (used only for its documented, pre-existing QA-script purpose).
 
 ## CURRENT_PHASE
 
