@@ -773,6 +773,27 @@ coverage:
   costs a device round-trip on an already-volatile connection. Worth a
   source-level look in a future session rather than more device guessing.
 
+### PHASE: UNAUTHENTICATED PHYSICAL QA -- SIGN-IN / RESET FLOWS
+STATUS: COMPLETE
+- Sign In tab: switching tabs works (verified via `selected="true"` in the
+  accessibility tree, not just visual guess), copy correctly changes to
+  "Welcome back" / "Use your account or switch to create one without leaving
+  this screen." Empty-submit validation: both fields correctly outlined in
+  the danger color with clear inline errors ("Enter a valid email.", "Use at
+  least 6 characters."), no network call attempted for client-side-invalid
+  input, no crash.
+- Forgot password: reached via the Sign In screen, own dedicated "Reset
+  password" screen, clean and on-brand. Empty-submit validation: same correct
+  red-outline + inline-error pattern, no crash, no network call for invalid
+  input.
+- Logcat (filtered to the MORT process's own PID) across this entire
+  interactive stretch (teen safety page, sign-in tab, empty-submit
+  validation x2, forgot-password, multiple navigations): zero error/
+  exception/overflow/warn lines.
+No defects found. All auth-adjacent unauthenticated screens now have real
+physical-device coverage this session except the two nested legal links
+(documented above as a minor, unconfirmed finding).
+
 NEXT_AUTOMATIC_PHASE: continue other engineering-controlled work not gated by
 device access or a service-role credential. Given the breadth already covered
 this session (repository cleanup, full backend/RLS/storage/security audit,
