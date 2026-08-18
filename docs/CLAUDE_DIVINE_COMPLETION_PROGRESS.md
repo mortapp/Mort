@@ -86,6 +86,63 @@ No other engineering-controlled work remains outstanding. All items from the
 final completion report below are unchanged and still current (no source
 changed since `fb0a95b`).
 
+## PUBLIC-PRODUCTION MASTER RUN (2026-08-18, evening session)
+
+Directive scope (78 sections) is genuinely multi-week engineering work; per
+explicit owner direction, tonight's session works a fixed order -- (1) exact
+location + RLS/exploit hardening, (2) Quick Accept + atomic concurrency,
+(3) Dashboard/nav/job-card UI -- continuously through ~20:55, then
+checkpoints. AdMob and legal-document drafting are explicitly NOT in
+tonight's queue.
+
+### WORKSTREAM 1: EXACT LOCATION + RLS/EXPLOIT HARDENING -- STATUS: DONE for tonight's safe scope
+
+Inspected the current location architecture before touching anything.
+Finding: MORT's job-feed matching deliberately does NOT use device GPS
+coordinates at all -- `native_permissions_service.dart`'s only GPS call
+(`resolveCurrentGeneralArea`, `LocationAccuracy.medium`) resolves a
+city/state label for onboarding, not job-feed distance. The marketplace
+feed RPC (`private.marketplace_job_feed_item`) returns
+`distance_status: 'unavailable'` unconditionally and the Flutter UI
+literally labels results "Approximate location: {area}, {city}, {state}"
+(`job_screens.dart`) -- this was a previously-completed, deliberate,
+already-audited privacy decision ("Location Privacy Verification" phase
+above, zero P0/P1, "exact internally, private externally holds up under
+review").
+
+Building a new always-on precise-GPS proximity-matching system for minors
+(directive Section 11 as literally written) would REVERSE that deliberate,
+already-clean privacy design and introduce a new class of continuous minor
+location collection with real COPPA/state-privacy-law exposure -- exactly
+the kind of product/legal trade-off the owner should decide explicitly, not
+something to build silently under a general "use tools now" directive. NOT
+built tonight; flagged to the owner. Everything else in workstream 1
+proceeded without waiting on that answer.
+
+RLS/exploit hardening -- genuine adversarial testing, not a policy re-read:
+- Reran the existing `scripts/qa-complete-multi-user-isolation.mjs`
+  (30 real cross-user attack cases: profile/job/application/conversation/
+  guardian/avatar/admin-RPC/monetization/review-timing/saved-jobs/support-
+  ticket/notification/history isolation, anonymous+cross-user private-
+  bucket access) fresh against live production: **30/30 PASS**, zero
+  regressions since it was last verified.
+- Identified two genuine gaps that suite doesn't cover (direct
+  `job_private_locations` table access, and `get_released_job_location`
+  leakage to a non-participant) and wrote a new, narrow, self-cleaning
+  adversarial test for exactly those: `scripts/qa-rls-cross-user-exploit.mjs`.
+  Uses the same `withQaUsers` harness (real isolated QA accounts, real
+  anon-key + authenticated-session calls, full self-cleanup). Result:
+  **0 findings** -- an unrelated outsider AND even the job's own active
+  applicant (Teen A, pre-active-execution-stage) both get zero rows from a
+  direct `job_private_locations` SELECT (RPC-only access, confirmed
+  empirically, not just via static `pg_policies` read), and
+  `get_released_job_location` correctly withholds the exact address from
+  both until the documented active-execution-stage gate is met.
+
+No P0/P1 findings. No code changes were required -- the architecture was
+already correct; this pass converted a static audit claim into an
+empirically-verified one and closed the one real coverage gap.
+
 ## GOOGLE PLAY CLOSED-TEST RELEASE — APPROVED (2026-08-18)
 
 ```
