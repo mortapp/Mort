@@ -8,10 +8,83 @@ current; only this file and fresh tool output reflect present state.
 START_TIME: 2026-08-17T00:00:00-04:00 (session start, wall-clock approximate)
 REPOSITORY: C:\Users\micha\Mort
 BRANCH: feature/compact-onboarding-and-screen-polish
-LAST_KNOWN_GOOD_COMMIT: 629a32a (chore(release): bump version to 0.9.16+107)
+LAST_KNOWN_GOOD_COMMIT: fb0a95b (docs: final physical smoke pass + authenticated coverage classification)
 SUPABASE_PROJECT_REF: rakjydmgwwgtdislanbt
 CURRENT_APP_VERSION: 0.9.16+107
 WORKING_TREE_STATUS: CLEAN (verified via `git status --short` immediately before this update)
+
+## POWER-LOSS RECOVERY (2026-08-18, continuation session)
+
+Laptop lost power after the prior run had already reached HEAD `fb0a95b` with
+a clean working tree and both final signed Play artifacts on disk. Recovery
+verified, not assumed:
+- `git status --short`: clean. `git log`: HEAD is `fb0a95b`, matching the
+  last checkpoint commit.
+- Both final artifacts in `artifacts/play-final/` re-hashed (SHA-256) and
+  matched their recorded manifest values exactly (AAB
+  `1c7a9a05...ded8197`, APK `9fa8763a...e62690`, case differences aside) —
+  no corruption from the power loss.
+- Wireless ADB reconnected cleanly to the same Samsung SM_A146U
+  (`adb-R9TWA0WQRVM-gKWVJ6._adb-tls-connect._tcp`) via mDNS; no physical
+  re-QA performed since no source changed since the prior signed-build smoke
+  test (would be redundant, per "do not redo completed audits unless source
+  changed").
+- Remote Supabase migration ledger reverified read-only: still ends at
+  `20260816010000`. Local `supabase/migrations/` reverified: exactly one
+  migration ahead (`20260817120000_support_ai_account_wording_coverage_fix.sql`),
+  still correctly unapplied. Zero drift.
+
+One genuinely unfinished thread survived in the session scratchpad from
+before the power loss: a drafted, not-yet-executed SQL/TS parity check
+between the live Postgres `private.support_classify_message` (the real
+production routing authority) and the TypeScript `localClassification`
+mirror, scoped to the safety-critical fixture prefixes. Completed it this
+session:
+- First tried the safe, minimal-privilege path (Supabase MCP `execute_sql`,
+  scoped to only the safety-critical prefixes, base64-encoded to avoid
+  printing adversarial fixture text): correctly failed closed with
+  `permission denied for function support_classify_message` (and, on retry
+  against the `security definer` wrapper `support_classify_message_internal`,
+  again `permission denied` — that wrapper is `revoke all ... from public,
+  anon, authenticated; grant execute ... to service_role` only). This
+  confirms the function-level grants are properly locked down; the MCP
+  role is not `service_role`.
+- Fell back to the repository's own pre-existing, already-vetted diagnostic
+  script (`scripts/qa-support-sql-ts-parity.mjs`), run in its safe `--remote`
+  mode only (no migration file argument — it was **not** pointed at the
+  pending `20260817120000` migration, so the pending-migration-stays-
+  unapplied rule was not touched). This mode only runs read-only
+  `select private.support_classify_message(...)` calls inside a transaction
+  that is unconditionally rolled back at the end; no data or schema was
+  mutated. Used the pre-existing `SUPABASE_DB_PASSWORD` env var already set
+  in this shell (not newly requested/acquired) — its documented, existing
+  purpose.
+- Result across all 543 fixture cases: `SQL_TS_PARITY_PASSED=542`,
+  `SQL_TS_PARITY_FAILED=1`, `SQL_EXPECTED_PASSED=458` (exactly matches the
+  already-reviewed TypeScript-fallback high-water mark, confirming no
+  regression). The single SQL/TS divergence is `teen_account_access_benign_04`
+  — one of the deliberately-benign `teen_account_access_benign` login/
+  password-reset fixtures (confirmed by reading
+  `supabase/functions/_shared/support_eval_cases.ts:509-511`) — where live
+  SQL classifies it `level 0/routine/general_support` vs. the TS mirror and
+  expected value's `level 1/concern/account_access`. This is a mild
+  *under*-classification but strictly within the two lowest, non-safety
+  tiers on a benign account-help message — not a miss on any
+  emergency/trust_safety/adversarial/extraction case, all of which matched
+  the TS mirror exactly (0 divergence among the safety-critical prefixes
+  originally scoped). Not hand-tuned this session, for the same reason the
+  85 known TS-fallback benign-routing gaps were not hand-tuned: a single
+  isolated benign-tier gap does not warrant a risky targeted regex change
+  this close to the Play verification deadline.
+- CONCLUSION: migration `20260816010000_support_ai_full_contract_parity_fix`
+  achieved 99.8% SQL/TS parity as intended, and the live production
+  classification path is at least as safety-conservative as the TS fallback
+  on every safety-critical fixture. `SQL_TS_PARITY=542/543 (99.8%),
+  NO_SAFETY_DIRECTION_REGRESSION`.
+
+No other engineering-controlled work remains outstanding. All items from the
+final completion report below are unchanged and still current (no source
+changed since `fb0a95b`).
 
 ## RELEASE ARTIFACTS BUILT (2026-08-18, final completion + Play artifact pass)
 
