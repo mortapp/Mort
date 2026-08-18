@@ -143,6 +143,53 @@ No P0/P1 findings. No code changes were required -- the architecture was
 already correct; this pass converted a static audit claim into an
 empirically-verified one and closed the one real coverage gap.
 
+### WORKSTREAM 2: QUICK ACCEPT + ATOMIC CONCURRENCY -- STATUS: BLOCKED on migration apply, design/tests otherwise ready
+
+Inspected the existing accept path first (`update_application_status_v2`'s
+"accepted" branch, `20260714031704_harden_profile_storage_business_logic.sql`):
+it already locks the parent job row `FOR UPDATE` before checking
+`applications_open`, then flips `applications_open = false` -- this is
+already the exact "lock parent job first" pattern the directive asks Quick
+Accept to have, just for the adult-manually-accepts-one-applicant flow, not
+a teen self-serve claim. Also discovered `jobs.acceptable_transportation_methods`
+/ `transportation_required` / `transportation_considerations` already exist
+in the live schema (confirmed via `information_schema.columns`) -- more of
+directive Section 10 (Transportation) was already built than assumed;
+noted, not re-verified end-to-end tonight.
+
+Designed Quick Accept as a genuinely new, opt-in (`jobs.quick_accept_eligible`,
+default false -- ordinary jobs unaffected), additive migration:
+`supabase/migrations/20260818200000_quick_accept_job_v1.sql`. The new RPC
+`quick_accept_job_v1(p_job_id, p_client_request_id)` reuses every
+eligibility check from `get_job_application_eligibility` (role, account
+restriction, identity verification, job open/not-test/not-own/not-expired/
+schedule-not-passed, poster verified, age range, guardian requirement,
+application limit) but re-verifies all of them itself AFTER acquiring the
+job-row `FOR UPDATE` lock -- so a concurrent caller blocks on the lock,
+then re-reads the now-committed `applications_open = false` state and
+cleanly returns `offer_taken` instead of racing. Insert-then-catch on the
+existing `applications_job_id_teen_id_key` unique constraint makes a
+same-teen retry safely idempotent without adding new tracking
+infrastructure.
+
+Wrote `scripts/qa-quick-accept-concurrency.mjs`: 25 real QA teen accounts
+fire `quick_accept_job_v1` simultaneously (`Promise.all`) at one
+single-worker quick-accept job; asserts exactly 1 success, zero transport-
+level errors, and a consistent final job state (`assigned` /
+`applications_open=false`).
+
+BLOCKED: `apply_migration` was denied by the Claude Code harness's own
+auto-mode classifier ("Blocked by classifier... requires explicit user
+authorization beyond chat instructions") -- the identical gate that
+correctly blocked the pending `20260817120000` migration earlier this
+session. NOT routed around (no attempt to apply via a raw DB-password
+connection or any other path). The migration is forward-only and additive
+(one new nullable-default column, one new function, standard revoke/grant)
+-- it does not touch any existing table row or previously-applied
+migration. Recorded as `QUICK_ACCEPT_MIGRATION_BLOCKED` (P1) in
+`docs/MORT_PUBLIC_COMPLETION_BOARD.md`; the concurrency test cannot execute
+until the migration is live, since the RPC doesn't exist yet.
+
 ## GOOGLE PLAY CLOSED-TEST RELEASE — APPROVED (2026-08-18)
 
 ```
