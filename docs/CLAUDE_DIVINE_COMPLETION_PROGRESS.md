@@ -489,7 +489,43 @@ FUNCTIONAL_FINDINGS: none yet
 PERFORMANCE_FINDINGS: none yet
 LOGCAT_FINDINGS: none yet
 FIXES: none yet
-NEXT_AUTOMATIC_PHASE: install debug APK, launch, verify no immediate crash.
+UPDATE: APP_INSTALL=PASS, APP_LAUNCH=PASS, NO_IMMEDIATE_CRASH=PASS. First build
+lacked required SUPABASE_URL/SUPABASE_ANON_KEY dart-defines -- app correctly
+fail-closed with a clean localized "MORT cannot start securely" screen instead of
+crashing (auth_startup_gate.dart, working as designed, not a bug). Fetched the
+public anon URL/key via Supabase MCP (these are client-embeddable public values,
+not secrets) and rebuilt; app now reaches the real welcome screen.
+
+SCREENS_TESTED: splash/loading, welcome (pre-auth)
+VISUAL_FINDINGS:
+- Splash and welcome screens are genuinely premium and on-brand: metallic
+  rose-gold logo mark with glow, consistent onyx background, clean typography
+  hierarchy, honest closed-pilot disclosure copy ("Marketplace access remains
+  limited to approved closed-pilot participants"). No complaints.
+- REAL BUG (visually confirmed on hardware, device SM_A146U/Android 15/API 35):
+  on the welcome screen, "I already have an account" and "Read teen safety" (the
+  last two interactive elements in MortScreen's scrollable `children` list, in
+  screens that don't pass a dedicated `bottom:` action bar) render underneath/
+  overlapped by the 3-button system navigation bar. "Create account" above them
+  was fully clear. Root cause: MortScreen wraps scrollable content in a single
+  SafeArea with no minimum bottom guarantee; likely an Android 15 edge-to-edge
+  inset under-report for the trailing portion of scroll content on this device.
+FUNCTIONAL_FINDINGS: none yet beyond the above
+PERFORMANCE_FINDINGS: none yet
+LOGCAT_FINDINGS: none yet (no FATAL/crash signatures during this stretch)
+FIXES:
+- mort_widgets.dart: added `minimum: const EdgeInsets.only(bottom: MortSpacing.md)`
+  to MortScreen's SafeArea -- a canonical, shared-widget fix (benefits every
+  screen using the `children`-only pattern, not a per-screen patch), using
+  Flutter's standard idiom for guaranteeing extra bottom clearance without
+  double-counting when the system already reports sufficient padding.
+  `flutter analyze` on the file: No issues found. Rebuilding to verify visually
+  on-device before deciding if the amount is sufficient (empirical iteration,
+  not guessing).
+
+NEXT_AUTOMATIC_PHASE: reinstall rebuilt APK, re-screenshot the welcome screen,
+verify the SafeArea fix visually, then continue through auth/onboarding/dashboard
+screens.
 
 ## EXTERNAL_GATES (unchanged, not evaluated this session)
 
