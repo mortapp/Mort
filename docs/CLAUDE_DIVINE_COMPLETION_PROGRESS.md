@@ -523,9 +523,46 @@ FIXES:
   on-device before deciding if the amount is sufficient (empirical iteration,
   not guessing).
 
-NEXT_AUTOMATIC_PHASE: reinstall rebuilt APK, re-screenshot the welcome screen,
-verify the SafeArea fix visually, then continue through auth/onboarding/dashboard
-screens.
+CORRECTION: the "bottom SafeArea overlap" finding above was a FALSE POSITIVE.
+Rebuilt with the fix, reinstalled, re-screenshotted -- no visible change. Rather
+than assume a bigger padding value was needed, tested the actual interaction
+(swiped to scroll) instead of re-guessing: both "I already have an account" and
+"Read teen safety" are fully visible with correct clearance above the nav bar once
+scrolled. Measured the real nav bar inset via `dumpsys window displays`
+(135 physical px / ~48 logical px, a standard 3-button bar) -- it was already being
+correctly reserved; the apparent overlap was purely an artifact of screenshotting
+an unscrolled long page. Reverted the speculative fix (commit 7995b21) rather than
+leave unjustified defensive padding in a widget used 168 times across 46 files.
+Re-verified the SAME scroll-reveals-correctly pattern on a second, independent
+screen (sign-up form's legal version tag) to confirm this generalizes, not a fluke.
+
+SCREENS_TESTED (expanded): splash/loading, pre-auth gate ("Enter MORT"/"Sign in"),
+welcome (post-auth-gate, "Create account"/"I already have an account"), sign-up
+form (email/password/legal-checkbox/version-tag)
+FUNCTIONAL_FINDINGS:
+- Text entry, floating-label focus states, and keyboard-avoidance all work
+  correctly on the sign-up form (field stays visible above the IME, no overlap).
+- System back-button correctly navigates back through the flow (age-gate -> sign-up
+  form -> welcome) without crashing or losing app state improperly.
+- Did not complete an actual account-creation submission (checkbox tap didn't land
+  precisely twice, then back-nav reset the form; not worth the wireless-connection
+  budget to perfect given actual submission would likely just hit Supabase's email
+  confirmation step, which this session can't complete without an inbox anyway).
+LOGCAT_FINDINGS: checked twice across this entire interactive stretch (multiple
+screen transitions, text entry, keyboard show/hide, scrolling, back navigation) --
+zero FATAL EXCEPTION/AndroidRuntime/FlutterError/PlatformException/ANR/overflow/
+SecurityException. Only benign Play Protect (Finsky) verification-scan log lines
+for the newly installed package (verdict 0 = clean). Filtering logcat to the app's
+own PID specifically: zero error/exception/overflow/warn lines at all.
+ACCESSIBILITY: tested font_scale=1.3 (device default was 1.0, recorded before
+changing). IN PROGRESS -- device dropped mid-sequence before the large-text
+screenshot was captured; font_scale restoration to 1.0 is queued as the first
+action the instant the device reconnects (firm obligation, ahead of any other
+device work).
+
+NEXT_AUTOMATIC_PHASE: restore font_scale to 1.0 (blocking obligation), capture the
+large-text screenshot if the connection allows, then continue through
+onboarding/dashboard screens as connectivity permits.
 
 ## EXTERNAL_GATES (unchanged, not evaluated this session)
 
