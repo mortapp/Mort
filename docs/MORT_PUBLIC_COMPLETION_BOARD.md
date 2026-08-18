@@ -18,7 +18,7 @@ scope for this session.
 | GOOGLE_AUTH | NOT_STARTED | Same as above. |
 | DASHBOARD | NOT_STARTED | Workstream 3. |
 | LEADERBOARD | NOT_STARTED | Not scoped into tonight's 3-item order. |
-| QUICK_ACCEPT | IN_PROGRESS | RPC + migration written and reviewed (`quick_accept_job_v1`, `20260818200000_quick_accept_job_v1.sql`); concurrency test written (`scripts/qa-quick-accept-concurrency.mjs`). BLOCKED: migration application denied by the harness's own production-DDL auto-mode classifier -- needs the owner's explicit tool-permission action, not just chat authorization. Test cannot run until applied. |
+| QUICK_ACCEPT | IN_PROGRESS | `20260818200000_quick_accept_job_v1.sql` (the RPC itself) is APPLIED to production (owner-authorized). First concurrency run found a real gap, not a race bug: `public.jobs` has zero direct UPDATE RLS policies, so there was no way for a poster to actually set `quick_accept_eligible`. Fixed via `20260818210000_quick_accept_job_opt_in.sql`, extending `save_job_draft_or_publish` the same way it already handles transportation fields (+ a `workers_needed=1` guard). BLOCKED: this second migration was denied by the harness's classifier -- the owner's earlier authorization was scoped only to the first file, correctly not extended here. Test script updated to use the real opt-in path; ready to rerun once this migration is applied. |
 | TRANSPORTATION | PASS (pre-existing) | `jobs.acceptable_transportation_methods` / `transportation_required` / `transportation_considerations` already exist in schema (confirmed via live `information_schema.columns` read) -- more of Section 10 was already built than the directive assumed. Not re-verified end-to-end in the UI tonight. |
 | JOBS | PASS (pre-existing, reverified) | `update_application_status_v2`'s accept branch already locks the job row FOR UPDATE before checking `applications_open` -- the same atomic pattern reused for Quick Accept. |
 | APPLICATIONS | PASS (pre-existing, reverified) | Covered by the 30-check isolation suite rerun tonight. |
@@ -43,15 +43,18 @@ scope for this session.
 
 ## BLOCKERS
 
-- **P1** `QUICK_ACCEPT_MIGRATION_BLOCKED`: `supabase/migrations/20260818200000_quick_accept_job_v1.sql`
-  cannot be applied -- denied by the Claude Code auto-mode classifier
-  ("Blocked by classifier... requires explicit user authorization"). The
-  file is written, reviewed, and forward-only (adds one nullable-safe
-  column with a default, one new function, standard revoke/grant -- does
-  not touch any existing table row or previously-applied migration). The
-  owner needs to either apply it directly or grant the specific tool
-  permission this session is missing. `scripts/qa-quick-accept-concurrency.mjs`
-  is written and ready to run the instant it's live.
+- **P1** `QUICK_ACCEPT_OPT_IN_MIGRATION_BLOCKED`: `supabase/migrations/20260818210000_quick_accept_job_opt_in.sql`
+  cannot be applied -- denied by the Claude Code auto-mode classifier. The
+  owner's authorization for the first Quick Accept migration was
+  explicitly scoped to that one file only, and this is a second, later
+  file, so the classifier correctly did not extend it automatically. The
+  migration is additive (extends one existing RPC's payload handling by
+  one optional field + one guard clause; does not touch any other
+  function or previously-applied migration). `scripts/qa-quick-accept-concurrency.mjs`
+  is updated to use the real opt-in path and ready to run the instant this
+  migration is live.
+- `20260818200000_quick_accept_job_v1.sql` (the atomic-claim RPC itself)
+  IS applied to production, owner-authorized.
 - No P0 found tonight.
 
 ## COMPLETED_TODAY (2026-08-18 evening session)

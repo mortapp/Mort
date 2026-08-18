@@ -27,26 +27,24 @@ async function run() {
   await withQaUsers(scope, userDefinitions, async (users) => {
     const adult = users.adult.client;
 
+    // quick_accept_eligible is set via save_job_draft_or_publish's payload
+    // (migration 20260818210000_quick_accept_job_opt_in.sql) -- public.jobs
+    // has zero direct UPDATE RLS policies (confirmed empirically: writes
+    // are RPC-mediated only), so a client-side .from('jobs').update(...)
+    // would silently affect zero rows.
     const { result: job } = await saveJob(
       adult,
-      { workers_needed: 1 },
+      { workers_needed: 1, quick_accept_eligible: true },
       true,
     );
     if (job?.ok !== true) {
       throw new Error(`job publish failed: ${JSON.stringify(job)}`);
     }
     const jobId = job.job.id;
-
-    // Opt this specific job into quick-accept via the adult's own session
-    // (their job, their column) rather than a service-role shortcut --
-    // exercises the real client path, not a privileged bypass.
-    const { error: optInError } = await adult
-      .from("jobs")
-      .update({ quick_accept_eligible: true })
-      .eq("id", jobId)
-      .eq("poster_id", users.adult.id);
-    if (optInError) {
-      throw new Error(`could not opt job into quick accept: ${optInError.message}`);
+    if (job.job.quick_accept_eligible !== true) {
+      throw new Error(
+        `job did not persist quick_accept_eligible=true: ${JSON.stringify(job.job)}`,
+      );
     }
 
     const claimants = Array.from({ length: CLAIMANT_COUNT }, (_, i) => users[`teen_${i}`].client);
