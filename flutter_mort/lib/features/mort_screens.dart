@@ -144,7 +144,47 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The primary CTAs are pinned in `bottom:` (matching the same
+    // always-visible, safe-area-respecting pattern used for e.g. the job
+    // detail Apply button) rather than living inside the scrollable
+    // `children`. A real, physically-confirmed bug on a device with a
+    // 3-button navigation bar: when content is tall enough that the
+    // screen's natural resting (unscrolled) height ends near the
+    // viewport height, whichever child happens to fall in that last
+    // stretch renders behind -- and receives no touches through -- the
+    // system navigation bar, with no visual indication it needs to be
+    // scrolled. Scrollable-child trailing SafeArea padding does not
+    // protect against this; only content the system bar can never reach
+    // (Scaffold.bottomNavigationBar territory) reliably does.
     return MortScreen(
+      bottom: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(
+          MortSpacing.md,
+          MortSpacing.xs,
+          MortSpacing.md,
+          MortSpacing.md,
+        ),
+        child: DecoratedBox(
+          decoration: const BoxDecoration(color: MortColors.bg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              MortButton(
+                label: 'Create account',
+                icon: Icons.person_add_alt_1_rounded,
+                onPressed: () => context.push('/auth/sign-up'),
+              ),
+              const SizedBox(height: MortSpacing.sm),
+              MortButton(
+                label: 'I already have an account',
+                icon: Icons.login_rounded,
+                style: MortButtonStyle.secondary,
+                onPressed: () => context.push('/auth/sign-in'),
+              ),
+            ],
+          ),
+        ),
+      ),
       children: [
         const Center(child: MortBrandMark(size: 96, showWordmark: true)),
         const SizedBox(height: MortSpacing.xl),
@@ -174,22 +214,15 @@ class WelcomeScreen extends StatelessWidget {
               'Separate secure start and finish PINs protect the work timeline.',
         ),
         const SizedBox(height: MortSpacing.lg),
-        MortButton(
-          label: 'Create account',
-          icon: Icons.person_add_alt_1_rounded,
-          onPressed: () => context.push('/auth/sign-up'),
-        ),
-        const SizedBox(height: MortSpacing.sm),
-        MortButton(
-          label: 'I already have an account',
-          icon: Icons.login_rounded,
-          style: MortButtonStyle.secondary,
-          onPressed: () => context.push('/auth/sign-in'),
-        ),
-        TextButton.icon(
-          onPressed: () => context.push('/legal/teen-safety'),
-          icon: const Icon(Icons.shield_outlined, color: MortColors.lightBlue),
-          label: const Text('Read teen safety'),
+        Center(
+          child: TextButton.icon(
+            onPressed: () => context.push('/legal/teen-safety'),
+            icon: const Icon(
+              Icons.shield_outlined,
+              color: MortColors.lightBlue,
+            ),
+            label: const Text('Read teen safety'),
+          ),
         ),
       ],
     );

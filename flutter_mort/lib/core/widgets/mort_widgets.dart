@@ -14,6 +14,12 @@ import '../theme/mort_tokens.dart';
 import 'mort_brand.dart';
 import 'mort_liquid_glass.dart';
 
+/// Floor for bottom safe-area clearance -- see the comment at its use
+/// site in [MortScreen]. Sized to comfortably clear a real 3-button
+/// Android navigation bar (including the extra accessibility-shortcut
+/// icon some OEMs add to it) even when the OS under-reports the inset.
+const double _minimumBottomSafeArea = 48;
+
 class MortScreen extends StatelessWidget {
   const MortScreen({
     super.key,
@@ -93,7 +99,15 @@ class MortScreen extends StatelessWidget {
         !keyboardVisible &&
         ((Navigator.maybeOf(context)?.canPop() ?? false) ||
             MortBackNavigation.isRootLocation(location));
+    // A physically-confirmed bug: on at least one real Android 15 device,
+    // MediaQuery's reported bottom viewPadding did not reliably reflect
+    // the actual system navigation bar height even after opting into
+    // edge-to-edge explicitly (see main.dart), leaving SafeArea with
+    // nothing to inset by -- the last interactive element on a screen
+    // could render (and receive touches) behind the system nav bar.
+    // `minimum` guarantees a floor regardless of what the OS reports.
     final content = SafeArea(
+      minimum: const EdgeInsets.only(bottom: _minimumBottomSafeArea),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(

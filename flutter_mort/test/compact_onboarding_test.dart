@@ -123,6 +123,15 @@ void main() {
   testWidgets(
     'compact onboarding completes the canonical five-step teen flow',
     (WidgetTester tester) async {
+      // A real phone-sized viewport, not the default tiny headless test
+      // surface -- this flow's later steps (e.g. skill chips) need
+      // realistic vertical space, matching the "Samsung viewport" test
+      // below rather than assuming an unrealistic 800x600 window.
+      tester.view.physicalSize = const Size(1080, 2408);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       final repository = _FakeProfileRepository();
       await _pumpOnboarding(tester, repository: repository);
 
