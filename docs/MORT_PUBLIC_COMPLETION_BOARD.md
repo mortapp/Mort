@@ -58,6 +58,7 @@ current implementation status.
 | ACCOUNT_DELETION | PASS (pre-existing, reverified live) | Reran `qa-account-deletion` (remote create/status/cancel, cross-account read denied) and `qa-account-deletion-in-app` (easy to locate, reauthenticated, dedicated, status-aware) live tonight -- both PASS. `qa-account-deletion-processor` requires server-only/service-role environment variables not present in this session (correct -- this session does not handle service-role or database-password secrets) and was not run; the in-app + remote-request paths that engineering controls were verified instead. |
 | REVIEWER_ACCESS | PASS (pre-existing, reverified live) | Reran `qa-play-reviewer-isolation` live tonight: reservation trigger enabled with no public execute grant, Auth Admin creation of the exact reviewer identifier denied, ordinary email/password auth unaffected, anonymous access cannot read profiles/messages/proof evidence, demo PINs rejected by production job-verification, destructive administration denied without a real authorized session. 0 findings. |
 | DATA_SAFETY | PASS (pre-existing, reverified live) | Reran `qa-data-safety-inventory` live tonight: declared data categories and detected privacy-relevant Flutter SDKs are inventoried and consistent. |
+| PUBLIC_LEGAL_WEB | PASS (deployable package) / BLOCKED_EXTERNAL (hosting + publisher config) | Reinspected rather than rebuilt -- `scripts/build-public-legal-site.mjs`/`scripts/deploy-netlify-legal-site.ps1`/`scripts/validate-public-legal-site.mjs` plus `netlify.toml`/`web/netlify.toml` already exist. Reran the build tonight: `Built MORT public legal/support package with 13 routes. Deployment ready: false.` -- builds clean without any private config, and correctly refuses to deploy until owner-scope values (`MORT_PUBLIC_PUBLISHER_NAME`/`SUPPORT_EMAIL`/`PRIVACY_EMAIL`/`CHILD_SAFETY_EMAIL`/`WEBSITE_URL`/`EFFECTIVE_DATE`, `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID`) are set and `validate-public-legal-site.mjs` confirms live HTTPS 200s. This is item 16/19 of the owner's queue (public legal/web resources for the Play Store listing URLs) -- engineering side complete; actual hosting requires the owner's real contact emails and a Netlify account/token, which this session correctly does not fabricate or hold. |
 | ANDROID | NOT_STARTED | No device QA performed tonight (no UI changes yet to verify). |
 | IOS | PASS (source parity audited and reverified live) | `ios/Runner/Info.plist` permission-usage descriptions checked against `AndroidManifest.xml` runtime permissions -- exact match (camera/notifications/biometric-FaceID/location, no unused entries either side); deep-link callback identity already covered by `google_auth_contract_test.dart` (`<string>com.mortapp.mobile</string>` in Info.plist). Reran `qa-ios-android-feature-parity` live: found and fixed a genuine stale check (script asserted the removed legacy `android:scheme="mort"` still existed, contradicting the deliberate hardening already verified by `google_auth_contract_test.dart`'s `isNot(contains('android:scheme="mort"'))` -- fixed to assert the current exact `com.mortapp.mobile` scheme and the legacy scheme's absence). Also found the 34-capability `MORT_PLATFORM_CAPABILITY_MATRIX.json` predated tonight's Leaderboard feature; added a MOB-035 record (pure shared Dart/RPC, no native code on either platform, so parity is exact by construction) and the matching required-capability entry in the QA script. Suite now passes at 35 records. No Xcode/TestFlight/App Store claim made -- physical iPhone verification remains explicitly pending on both new and pre-existing records, as the matrix already stated for every row. |
 | PERFORMANCE | NOT_STARTED | Not touched tonight. |
@@ -115,6 +116,24 @@ current implementation status.
   coordinates anywhere in the schema -- needs a geocoding provider, a
   product/vendor decision) rather than built with a shortcut.
 
+## POWER-LOSS RECOVERY (2026-08-19, continuation session)
+
+Laptop lost power again. Recovery verified, not assumed: `git status --short`
+was clean, HEAD was `341ad7e` (9 commits ahead of the last checkpoint noted
+in the recovery directive, `adec690`) -- every commit in between (Leaderboard
+backend+UI, Google Auth reverification, Transportation/Safety/Profile/
+Notifications reverification, Ads/Legal/Account Deletion/Reviewer Access/
+Data Safety/Moderation reverification, and the two QA-script bug fixes) was
+already present and intact. No dirty files, nothing to recover, nothing
+re-done. Wireless ADB retried again (`adb connect 192.168.1.1:5555` and
+`adb devices -l`): still unreachable (error 10060, ADB daemon itself had to
+restart, consistent with the fresh boot after power loss). Found and
+reverified one more genuinely-already-built item not yet itemized on this
+board: public legal/web resources deployment package (see PUBLIC_LEGAL_WEB
+row, new tonight) -- item 16/19 of the owner's queue, engineering-complete,
+blocked only on owner-provided contact emails and Netlify hosting
+credentials.
+
 ## NEXT_AUTOMATIC_PHASE
 
 Items 1-6 of the owner's "IMMEDIATE ORDER" are now all DONE or reverified:
@@ -146,27 +165,31 @@ remain drafts pending qualified attorney review, as intended; nothing
 here claims legal compliance. Moderation was also reverified live
 (0 findings) though not explicitly itemized in the original 25-item list.
 
+Items 16/19 (public legal/web resources) and 20 (iOS source parity) are now
+also DONE -- see PUBLIC_LEGAL_WEB and IOS rows above, both completed and
+committed (`341ad7e` for iOS; PUBLIC_LEGAL_WEB reverified this recovery
+session).
+
 Genuinely remaining work, all requiring either a reachable physical
 device or a new build/release action (cannot be faked or skipped):
-1. **iOS source parity** (item 20): audit for drift against the latest
-   Android/Dart changes (Leaderboard, Transportation matching, Google
-   Auth reverification) -- likely already carried since this session's
-   pattern has been Dart-shared logic with platform config parity, but
-   needs an explicit pass, not an assumption.
-2. **Full Android physical QA** (item 21): blocked tonight on wireless
-   ADB reachability (`adb connect`/`adb mdns services` both came back
-   empty). Retry continues; do not fake PHYSICAL_VERIFIED without a real
-   device session.
-3. **Final production regression** (item 22): full flutter test suite
-   already reverified clean tonight (398/0/2) as part of the checkpoint
-   process, but the true "final" pass belongs right before build/release,
-   not now, since further changes are still expected.
-4. **Final signed AAB/APK** (items 23-24) and **artifact verification**
-   (item 25): hold until items 20-22 are genuinely done -- a new signed
-   build today would not reflect a meaningfully different app than the
-   already-approved 0.9.16+107 Closed Testing build.
+1. **Full Android physical QA** (item 21/18): blocked again this session
+   on wireless ADB reachability (`adb connect`/`adb devices -l` both came
+   back empty, ADB daemon had to restart after the power loss). Retry
+   continues; do not fake PHYSICAL_VERIFIED without a real device session.
+2. **Performance profiling**: also genuinely NOT_STARTED -- requires a
+   reachable device or a profiler, neither available yet.
+3. **Final production regression** (item 22/19): full flutter test suite
+   has been reverified clean at every checkpoint so far, but the true
+   "final" pass belongs right before build/release, not now, since further
+   changes are still expected.
+4. **Final signed AAB/APK** (items 23-24/20) and **artifact verification**
+   (item 25): hold until items 21/18 (device QA) and 22/19 (final
+   regression) are genuinely done -- a new signed build today would not
+   reflect a meaningfully different app than the already-approved
+   0.9.16+107 Closed Testing build.
 5. Owner decisions still pending (not engineering blockers): navigation
    SDK billing/API-key setup (Google Cloud), AdMob account setup
    (+ app-ads.txt hosting + consent/UMP flow), Google OAuth provider
    activation (Google Cloud + Supabase dashboard), qualified legal
-   counsel review of the drafted documents.
+   counsel review of the drafted documents, public legal/web site hosting
+   (owner contact emails + Netlify credentials).

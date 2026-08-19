@@ -1365,6 +1365,38 @@ service-role credential is needed for: authenticated-screen QA, applying
 the drafted SQL migration, true cross-user RLS impersonation testing, and
 final signed-release artifacts.
 
+## POWER-LOSS RECOVERY (2026-08-19, continuation session)
+
+Laptop lost power again. Recovery verified per protocol, not assumed:
+`git status --short` clean, `git log` HEAD at `341ad7e` -- 9 commits ahead
+of the last checkpoint named in the recovery directive (`adec690`), all of
+them intact (Leaderboard backend + UI, Google Auth reverification,
+Transportation/Safety/Profile/Notifications reverification, Ads/Legal/
+Account Deletion/Reviewer Access/Data Safety/Moderation reverification, and
+two genuine QA-script bug fixes -- see `docs/MORT_PUBLIC_COMPLETION_BOARD.md`
+for full detail on each, which is now the actively-maintained recovery
+board for this phase of work; this file is kept for historical continuity).
+No dirty files, nothing lost, nothing re-done.
+
+Wireless ADB retried (`adb connect 192.168.1.1:5555`, `adb devices -l`):
+still unreachable -- the ADB daemon itself needed to restart ("daemon not
+running; starting now"), consistent with a genuine fresh boot after power
+loss, not a regression. `List of devices attached` empty.
+
+Reverified one more already-built item not previously itemized on the
+completion board: the public legal/web resources deployment package
+(`scripts/build-public-legal-site.mjs` et al.) -- reran the build tonight,
+clean: "Built MORT public legal/support package with 13 routes. Deployment
+ready: false." Correctly refuses to deploy without owner-provided contact
+emails and Netlify credentials, which this session does not fabricate or
+acquire. Added as the PUBLIC_LEGAL_WEB row on the completion board.
+
+Remaining genuinely open work is unchanged from before the power loss and
+is documented in the completion board's NEXT_AUTOMATIC_PHASE section:
+Android physical QA and performance profiling (device-gated), final
+production regression + signed artifacts (deliberately held until the
+above), and a handful of owner-only external decisions.
+
 ## EXTERNAL_GATES (unchanged, not evaluated this session)
 
 - Google Play production eligibility / review
