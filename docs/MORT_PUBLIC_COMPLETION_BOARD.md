@@ -75,6 +75,18 @@ current implementation status.
 
 ## COMPLETED_TODAY (2026-08-18 evening session)
 
+- **Real bug fix, owner-reported and root-caused on-device**: Welcome
+  screen's "I already have an account" was rendered behind, and had its
+  touches intercepted by, the system navigation bar -- untappable in
+  practice, making "Enter MORT" appear to always lead to sign-up.
+  Root cause: primary CTAs lived in scrollable `children` rather than
+  the safe-area-respecting pinned `bottom:` slot used elsewhere in the
+  app; diagnosed with a temporary on-device MediaQuery debug readout,
+  not guessed. Fixed by moving both CTAs to `bottom:`; verified via a
+  real tap on-device that Sign In now opens correctly. Also added
+  app-wide defense-in-depth (explicit edge-to-edge opt-in, SafeArea
+  minimum floor) though the pinned-CTA restructure is what actually
+  fixed it.
 - Fresh adversarial re-verification: existing 30-check multi-user isolation
   suite, 30/30 PASS, zero regressions. Plus 2 new adversarial checks
   (`job_private_locations` direct access, `get_released_job_location`
