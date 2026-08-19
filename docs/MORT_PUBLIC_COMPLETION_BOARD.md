@@ -38,15 +38,16 @@ current implementation status.
 | EXACT_LOCATION | PASS (backend + UI, interim navigation shipped) | Corrected architecture implemented end-to-end: Adult job-site capture takes precise GPS coordinates directly, `get_nearby_job_distances_v1` computes real server-side distance for Teens pre-acceptance (zero raw-coordinate leakage), `get_released_job_location` releases coordinates only once genuinely authorized (block-check added). 18-check live adversarial suite, 0 findings. Flutter UI: Adult "Job site" capture section, Teen job-feed real distance, and an interim "Navigate to job site" action on the active-job screen (launches the device's default maps app via the same lifecycle-gated RPC -- see `docs/MORT_NAVIGATION_SDK_RESEARCH.md`). Full in-app turn-by-turn (Google `google_navigation_flutter`, researched and recommended) deferred pending the owner's Google Cloud billing/API-key decision. Physical smoke: profile build boots clean, 0 crashes, twice this session. Authenticated-screen verification remains HARNESS_VERIFIED only (standing credential-injection policy). |
 | LEADERBOARD | PASS | Server-authoritative by construction (no stored/mutable score -- computed live from already-hardened applications.completed + reviews data). 14-check live adversarial suite, 0 findings: forgery/replay/cross-user-tamper structurally denied, opt-out works, no PII leakage. UI inside Dashboard (not a 6th tab): own rank/tier always visible, top-5 public preview, opt-out toggle. Physical device verification pending (unreachable this pass). |
 | QUICK_ACCEPT | PASS (backend + UI) | Both migrations applied to production, owner-authorized. Live 25-simultaneous-claimant concurrency test: exactly 1 success, 24 clean `offer_taken` denials, 0 transport errors. `QuickAcceptButton` implements the full AVAILABLE/CLAIMING/ACCEPTED/OFFER_TAKEN/NOT_ELIGIBLE/EXPIRED/NETWORK_ERROR state machine, integrated into both job feed cards and job detail. 6 widget tests, all pass. |
-| TRANSPORTATION | PASS (pre-existing) | `jobs.acceptable_transportation_methods` / `transportation_required` / `transportation_considerations` already exist in schema (confirmed via live `information_schema.columns` read) -- more of Section 10 was already built than the directive assumed. Not re-verified end-to-end in the UI tonight. |
+| TRANSPORTATION | PASS (pre-existing, reverified end-to-end) | Full loop confirmed already built, not just the schema columns: `TransportationScreen` (onboarding step 6/12, Teen-only, skippable) collects `transportationMethods`/`maxTravelDistanceMiles`/`maxTravelMinutes`/`walkingDistanceOnly`/`guardianTransportationPossible` via `profileRepository.saveTransportationPreferences`; `save_job_draft_or_publish` (see `20260728185618_job_transportation_matching.sql`) validates and stores the Adult's `acceptable_transportation_methods`/`transportation_considerations` on the job (regex-blocked against embedded emails/phone numbers/handles); the Teen job feed query (`teen_job_screens.dart:184-190`) filters `transportationMethods` from the Teen's saved profile (walking-distance-only collapses to `['walking']`) when calling `listOpenJobsPage`; job detail renders the job's accepted travel options and considerations text. Item 5 of the owner's immediate order is complete -- board previously understated this as schema-only. |
 | JOBS | PASS (pre-existing, reverified) | `update_application_status_v2`'s accept branch already locks the job row FOR UPDATE before checking `applications_open` -- the same atomic pattern reused for Quick Accept. |
 | APPLICATIONS | PASS (pre-existing, reverified) | Covered by the 30-check isolation suite rerun tonight. |
 | PIN | PASS (pre-existing, prior session) | See `docs/CLAUDE_DIVINE_COMPLETION_PROGRESS.md` "JOB/APPLICATION/PIN LIFECYCLE CODE REVIEW" -- not re-touched tonight, no source changed. |
 | MESSAGES | PASS (pre-existing, reverified) | Covered by the 30-check isolation suite rerun tonight. |
-| SAFETY | NOT_STARTED | Not touched tonight. |
+| SAFETY | PASS (pre-existing, reverified live) | Reinspected rather than rebuilt -- Safety Center (`trust_safety_screens.dart`, `safety_repository.dart`, Safety Circle guardian-delivery flow) already exists and is extensive. Reran 5 live adversarial suites tonight: `qa-safety-action-rate-limits` (report/ping replay dedupe + separate urgent budget + payload-bound block/unblock + no exact-location in ping notes), `qa-safety-cancellation` (workflow pause + incident creation + no automatic reputation penalty), `qa-child-safety-standards` (public CSAE escalation docs), `qa-harassment-controls` (flag/block/preserve-evidence), `qa-remote-push-foundation` (safety-bypass quiet hours, payload privacy, deletion revokes push). `qa-safety-circle-permissions` initially failed with a genuine finding -- **not a production bug**: the QA script itself was stale, doing a raw `.from('safety_pings').insert(...)` that current RLS correctly rejects (`permission denied for table safety_pings`) because the real app (`safety_repository.dart:107-126`) has always written through the audited, rate-limited `create_safety_ping_v2` RPC, never a direct table insert. Fixed the QA script to call the real RPC (`scripts/mutual-trust-qa-suites.mjs`); reran, now PASS. 0 findings against production code. |
 | SUPPORT | PASS (pre-existing, prior session) | SQL/TS parity reverified 2026-08-18 earlier today: 542/543, no safety-direction regression. |
-| PROFILE | NOT_STARTED | Not touched tonight. |
+| PROFILE | PASS (pre-existing, reverified live) | Reinspected rather than rebuilt -- `activity_history_screen.dart`, `review_screens.dart`, `profile_avatar_widgets.dart`, plus `settings/` (account management, experience settings, native permissions, release diagnostics) already exist. Reran 3 live adversarial suites tonight: `qa-profile-cross-user-isolation` (direct + RPC writes cannot target another user), `qa-profile-update-forgery` and `qa-profile-protected-fields` (role/DOB/verification/moderation/account/onboarding fields reject client forgery). 0 findings. |
 | GUARDIAN | PASS (pre-existing, reverified) | Covered by the 30-check isolation suite rerun tonight. |
+| NOTIFICATIONS | PASS (pre-existing, reverified live) | `notification_center_screen.dart` + `notifications_repository.dart` already exist. Reran `qa-remote-push-foundation` live tonight: response-minimized/replay-safe registration, raw-token reads/writes denied to owners and outsiders, server-authoritative rotation, exact category/quiet-hours validation, safety-bypass preserved through quiet hours, account deletion immediately revokes push. Hosted FCM runtime remains correctly disabled pending real provider verification (owner action, matches `MORT_REMOTE_PUSH_ENABLED` gate in `app_config.dart`). 0 findings. |
 | ADS | NOT_STARTED | Explicitly out of tonight's scope per owner instruction. |
 | BACKEND | PASS (reverified live tonight) | 30/30 existing adversarial isolation checks + 2 new adversarial checks (job_private_locations direct access, get_released_job_location leakage), all against live production via real anon-key + session calls, zero findings. |
 | RLS | PASS (reverified live tonight) | Same as BACKEND row. |
@@ -113,24 +114,37 @@ current implementation status.
 
 ## NEXT_AUTOMATIC_PHASE
 
-Items 1-3 of the owner's "IMMEDIATE ORDER" (job cards, Quick Accept UI,
-post-authorized navigation) are DONE -- see JOBS/QUICK_ACCEPT/
-EXACT_LOCATION rows. Item 4 (Leaderboard) is DONE -- see LEADERBOARD row.
-Item 6 (Google Login + Google Sign-Up) was found already fully engineered
-and reverified rather than rebuilt -- see GOOGLE_AUTH row; only the
-owner's external Google Cloud/Supabase provider activation remains.
-Physical smoke-verified twice on the Galaxy A14 (clean boot, 0 crashes)
-across all changes so far.
+Items 1-6 of the owner's "IMMEDIATE ORDER" are now all DONE or reverified:
+job cards, Quick Accept UI, post-authorized navigation (JOBS/QUICK_ACCEPT/
+EXACT_LOCATION), Leaderboard (LEADERBOARD), Transportation end-to-end
+(TRANSPORTATION -- found already fully wired onboarding-to-job-feed, not
+schema-only as previously noted), and Google Login + Google Sign-Up
+(GOOGLE_AUTH -- found already fully engineered; only the owner's external
+Google Cloud/Supabase provider activation remains). Messages, Safety
+Center, Support, Profile/Settings, and Guardian (items 8-12) were also
+found already built in prior sessions and reverified live tonight with
+0 findings (one stale QA script bug found and fixed along the way -- see
+SAFETY row). Notifications (item 13) likewise reverified live. Onboarding
+polish (item 7) was audited: `CompactOnboardingScreen` is already mature
+(pinned bottom CTAs, full resumability with field hydration, dirty-step
+leave-confirmation, accessible reduced-motion transitions, legal
+acceptance gating) -- no changes made without physical-device evidence of
+a real problem. Physical smoke-verified twice on the Galaxy A14 (clean
+boot, 0 crashes) across all changes so far; device unreachable again
+tonight (wireless ADB down), retry continues.
 
-1. **Transportation end-to-end** (item 5): job cards already show it;
-   remaining piece is Teen profile/preference-based eligibility signal.
-2. **Onboarding polish** (item 7): audit current compact onboarding flow
-   for remaining polish items.
-3. Then continue in order: messaging, safety center, support,
-   profile/settings, guardian, notifications, ads/AdMob, legal/Play
-   production, account deletion, reviewer access, data safety, public
-   legal/web resources, iOS source parity, final Android QA, final
-   signed AAB/APK, artifact verification.
+Genuinely remaining engineering work:
+1. **Ads/AdMob** (item 14): code integration with test ads, config-driven
+   production ad IDs, no-ads placement list -- explicitly deferred by
+   prior owner instruction, revisit now that items 1-13 are clear.
+2. **Legal/Play production** (item 15), **account deletion** (item 16),
+   **reviewer access** (item 17), **data safety** (item 18), **public
+   legal/web resources** (item 19) -- audit for already-built vs. missing
+   before writing anything new, matching tonight's pattern.
+3. **iOS source parity** (item 20), **full Android physical QA** (item 21,
+   blocked on device reachability tonight), **final production
+   regression** (item 22), **final signed AAB/APK** (items 23-24),
+   **artifact verification** (item 25).
 4. Owner decisions still pending (not engineering blockers): navigation
    SDK billing/API-key setup (Google Cloud), AdMob account setup, Google
    OAuth provider activation (Google Cloud + Supabase dashboard).

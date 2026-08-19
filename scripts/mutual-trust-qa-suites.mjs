@@ -691,13 +691,17 @@ async function runSafetyCircle(scope) {
       const outsiderRows = await outsider.client.from("safety_circle_members").select("id").eq("id", invite.circle_id);
       assertQa(!outsiderRows.error && outsiderRows.data.length === 0, "unrelated guardian read Safety Circle membership");
 
-      const silentPing = await teen.client
-        .from("safety_pings")
-        .insert({ teen_id: teen.id, status: "ok", note: "Permission-off QA ping" })
-        .select("id")
-        .single();
-      assertQa(!silentPing.error, `silent ping insert failed: ${silentPing.error?.message}`);
-      const hidden = await contact.client.from("safety_pings").select("id").eq("id", silentPing.data.id);
+      const silentPing = expectRpc(
+        await teen.client.rpc("create_safety_ping_v2", {
+          p_status: "ok",
+          p_note: "Permission-off QA ping",
+          p_job_id: null,
+          p_immediate_danger: false,
+          p_client_request_id: randomUUID(),
+        }),
+        "create silent Safety Ping",
+      );
+      const hidden = await contact.client.from("safety_pings").select("id").eq("id", silentPing.safety_ping_id);
       assertQa(!hidden.error && hidden.data.length === 0, "contact received a disabled Safety Ping permission");
 
       const contactPermissionWrite = await contact.client.rpc("update_safety_circle_permissions", {
@@ -712,12 +716,17 @@ async function runSafetyCircle(scope) {
         }),
         "teen updates Safety Circle permission",
       );
-      const visiblePing = await teen.client
-        .from("safety_pings")
-        .insert({ teen_id: teen.id, status: "needs_help", note: "Permission-on QA ping" })
-        .select("id")
-        .single();
-      const visible = await contact.client.from("safety_pings").select("id").eq("id", visiblePing.data.id);
+      const visiblePing = expectRpc(
+        await teen.client.rpc("create_safety_ping_v2", {
+          p_status: "needs_help",
+          p_note: "Permission-on QA ping",
+          p_job_id: null,
+          p_immediate_danger: false,
+          p_client_request_id: randomUUID(),
+        }),
+        "create visible Safety Ping",
+      );
+      const visible = await contact.client.from("safety_pings").select("id").eq("id", visiblePing.safety_ping_id);
       assertQa(visible.data?.length === 1, "contact did not receive an enabled Safety Ping");
       expectRpc(
         await contact.client.rpc("unlink_safety_circle_member", { p_circle_id: invite.circle_id }),
