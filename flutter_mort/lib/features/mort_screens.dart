@@ -2221,6 +2221,8 @@ class RoleHomeScreen extends ConsumerWidget {
             onPressed: () => context.push('/teen/safety'),
           ),
           const SizedBox(height: MortSpacing.md),
+          const _TeenLeaderboardSection(),
+          const SizedBox(height: MortSpacing.md),
           MortSectionLabel(label: 'Quick links'),
           MortActionRow(actions: actions),
         ] else ...[
@@ -2361,6 +2363,142 @@ class _TeenNearbyWorkSection extends ConsumerWidget {
         MortSecondaryButton(
           label: 'Browse all nearby jobs',
           onPressed: () => context.push('/teen/jobs'),
+        ),
+      ],
+    );
+  }
+}
+
+class _TeenLeaderboardSection extends ConsumerWidget {
+  const _TeenLeaderboardSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final myRankAsync = ref.watch(myLeaderboardRankProvider);
+    final boardAsync = ref.watch(leaderboardProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        MortSectionLabel(label: 'Leaderboard'),
+        myRankAsync.when(
+          loading: () => const MortSkeletonCard(),
+          error: (_, _) => const SizedBox.shrink(),
+          data: (rank) => MortGlassCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            rank.tierLabel,
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(color: MortColors.roseGoldLight),
+                          ),
+                          Text(
+                            rank.completedCount == 0
+                                ? 'Complete a job to join the leaderboard.'
+                                : '${rank.completedCount} verified completed jobs'
+                                      '${rank.reviewCount > 0 ? ' · ${rank.averageRating.toStringAsFixed(1)}★ avg' : ''}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (rank.rank > 0 && !rank.leaderboardOptOut)
+                      Column(
+                        children: [
+                          Text(
+                            '#${rank.rank}',
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                          const Text('your rank'),
+                        ],
+                      ),
+                  ],
+                ),
+                const SizedBox(height: MortSpacing.xs),
+                TextButton(
+                  onPressed: () async {
+                    try {
+                      await ref
+                          .read(leaderboardRepositoryProvider)
+                          .setOptOut(!rank.leaderboardOptOut);
+                      ref.invalidate(myLeaderboardRankProvider);
+                      ref.invalidate(leaderboardProvider);
+                      if (context.mounted) {
+                        MortToast.show(
+                          context,
+                          rank.leaderboardOptOut
+                              ? 'You are visible on the public leaderboard again.'
+                              : 'You are hidden from the public leaderboard. Your own rank is still visible to you.',
+                        );
+                      }
+                    } catch (error) {
+                      if (context.mounted) {
+                        MortToast.show(context, userFacingError(error));
+                      }
+                    }
+                  },
+                  child: Text(
+                    rank.leaderboardOptOut
+                        ? 'Show me on the public leaderboard'
+                        : 'Hide me from the public leaderboard',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        boardAsync.when(
+          loading: () => const SizedBox.shrink(),
+          error: (_, _) => const SizedBox.shrink(),
+          data: (entries) {
+            if (entries.isEmpty) return const SizedBox.shrink();
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Top community workers',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: MortSpacing.xs),
+                for (final entry in entries)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: MortSpacing.xs),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 28,
+                          child: Text(
+                            '#${entry.rank}',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ),
+                        MortAvatar(label: entry.displayName, radius: 16),
+                        const SizedBox(width: MortSpacing.xs),
+                        Expanded(
+                          child: Text(
+                            entry.displayName ?? 'MORT worker',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        MortStatusPill(
+                          label: entry.tierLabel,
+                          icon: Icons.military_tech_outlined,
+                          color: MortColors.roseGoldLight,
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ],
     );

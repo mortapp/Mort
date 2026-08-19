@@ -17,6 +17,7 @@ import 'avatar_repository.dart';
 import 'guardian_repository.dart';
 import 'jobs_repository.dart';
 import 'job_execution_repository.dart';
+import 'leaderboard_repository.dart';
 import 'legal_contract_repository.dart';
 import 'messaging_repository.dart';
 import 'mission_pilot_repository.dart';
@@ -189,6 +190,15 @@ final safetyRepositoryProvider = Provider<SafetyRepository>(
 );
 final trustSafetyRepositoryProvider = Provider<TrustSafetyRepository>(
   (ref) => TrustSafetyRepository(),
+);
+final leaderboardRepositoryProvider = Provider<LeaderboardRepository>(
+  (ref) => LeaderboardRepository(),
+);
+final leaderboardProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(leaderboardRepositoryProvider).getLeaderboard(limit: 5),
+);
+final myLeaderboardRankProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(leaderboardRepositoryProvider).getMyRank(),
 );
 final accountTrustRepositoryProvider = Provider<AccountTrustRepository>(
   (ref) => AccountTrustRepository(),
