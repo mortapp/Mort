@@ -68,6 +68,7 @@ class Job {
     this.distanceStatus = 'unavailable',
     this.transportationMatch,
     this.matchExplanation,
+    this.quickAcceptEligible = false,
   });
 
   final String id;
@@ -129,6 +130,7 @@ class Job {
   final String distanceStatus;
   final bool? transportationMatch;
   final String? matchExplanation;
+  final bool quickAcceptEligible;
 
   String get payDisplay => formatCents(payAmountCents, fallback: payLabel);
   String get adultAmountDisplay => formatCents(adultJobAmountCents);
@@ -215,6 +217,7 @@ class Job {
       distanceStatus: (json['distance_status'] as String?) ?? 'unavailable',
       transportationMatch: json['transportation_match'] as bool?,
       matchExplanation: json['match_explanation'] as String?,
+      quickAcceptEligible: json['quick_accept_eligible'] as bool? ?? false,
     );
   }
 

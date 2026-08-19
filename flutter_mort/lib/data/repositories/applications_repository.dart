@@ -91,6 +91,25 @@ class ApplicationsRepository extends RepositoryBase {
     );
   }
 
+  /// Atomically claims a Quick-Accept-eligible single-worker job. The
+  /// server (quick_accept_job_v1) is the sole source of truth for who
+  /// wins -- this never shows success before the RPC actually confirms
+  /// it. Throws MortCodedError with a specific code (e.g. 'offer_taken',
+  /// 'not_quick_accept_eligible', 'applicant_age_not_allowed') on any
+  /// denial so callers can render a precise, non-alarming state rather
+  /// than a generic error.
+  Future<MortApplication> quickAccept(String jobId) async {
+    final result = await client.rpc(
+      'quick_accept_job_v1',
+      params: {'p_job_id': jobId, 'p_client_request_id': const Uuid().v4()},
+    );
+    final map = _rpcMap(result);
+    _throwIfFailed(map);
+    return MortApplication.fromMap(
+      Map<String, dynamic>.from(map['application'] as Map),
+    );
+  }
+
   Future<MortApplication> updateStatus(
     String applicationId,
     String action, {

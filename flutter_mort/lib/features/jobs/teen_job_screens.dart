@@ -18,6 +18,7 @@ import '../../services/native_permissions_service.dart';
 import '../../services/precise_location_service.dart';
 import '../profile/profile_avatar_widgets.dart';
 import '../teen/teen_shell.dart';
+import 'quick_accept_button.dart';
 
 const _feedCategories = [
   'All',
@@ -622,7 +623,7 @@ class _TeenJobCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MortCard(
+    return MortGlassCard(
       onTap: () => context.push('/teen/jobs/${job.id}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -647,10 +648,13 @@ class _TeenJobCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: MortSpacing.sm),
+              // Pay stays the single most prominent figure on the card --
+              // the first thing a Teen's eye should land on after the title.
               Text(
                 job.payDisplay,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: MortColors.roseGoldLight,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(width: MortSpacing.xs),
@@ -677,17 +681,23 @@ class _TeenJobCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: MortSpacing.sm),
-          _JobCardFact(icon: Icons.place_outlined, value: job.locationText),
           if (distanceMiles != null)
             _JobCardFact(
-              icon: Icons.near_me_outlined,
+              icon: Icons.near_me_rounded,
               value:
                   '${distanceMiles! < 0.1 ? 'Less than 0.1' : distanceMiles!.toStringAsFixed(1)} mi away',
+              emphasize: true,
             ),
+          _JobCardFact(icon: Icons.place_outlined, value: job.locationText),
           _JobCardFact(
             icon: Icons.schedule_outlined,
             value: job.scheduleDisplay,
           ),
+          if (job.estimatedDurationMinutes != null)
+            _JobCardFact(
+              icon: Icons.hourglass_bottom_rounded,
+              value: _durationDisplay(job.estimatedDurationMinutes!),
+            ),
           if (job.acceptableTransportationMethods.isNotEmpty) ...[
             _JobCardFact(
               icon: Icons.route_outlined,
@@ -695,7 +705,8 @@ class _TeenJobCard extends StatelessWidget {
                   'Travel: ${job.acceptableTransportationMethods.map((method) => method.replaceAll('_', ' ')).join(', ')}',
             ),
           ],
-          if (job.matchExplanation?.isNotEmpty == true) ...[
+          if (distanceMiles == null &&
+              job.matchExplanation?.isNotEmpty == true) ...[
             const SizedBox(height: MortSpacing.xs),
             Text(
               job.matchExplanation!,
@@ -733,17 +744,40 @@ class _TeenJobCard extends StatelessWidget {
               ),
             ],
           ),
+          if (job.quickAcceptEligible) ...[
+            const SizedBox(height: MortSpacing.sm),
+            Align(
+              alignment: Alignment.centerRight,
+              child: QuickAcceptButton(
+                job: job,
+                onAccepted: (application) =>
+                    context.push('/teen/applications/${application.id}'),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
+
+  static String _durationDisplay(int minutes) {
+    if (minutes < 60) return '$minutes min';
+    final hours = minutes ~/ 60;
+    final remainder = minutes % 60;
+    return remainder == 0 ? '$hours hr' : '$hours hr $remainder min';
+  }
 }
 
 class _JobCardFact extends StatelessWidget {
-  const _JobCardFact({required this.icon, required this.value});
+  const _JobCardFact({
+    required this.icon,
+    required this.value,
+    this.emphasize = false,
+  });
 
   final IconData icon;
   final String value;
+  final bool emphasize;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -751,10 +785,22 @@ class _JobCardFact extends StatelessWidget {
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: MortColors.lightBlue),
+        Icon(
+          icon,
+          size: 18,
+          color: emphasize ? MortColors.roseGoldLight : MortColors.lightBlue,
+        ),
         const SizedBox(width: MortSpacing.xs),
         Expanded(
-          child: Text(value, style: Theme.of(context).textTheme.bodyMedium),
+          child: Text(
+            value,
+            style: emphasize
+                ? Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: MortColors.roseGoldLight,
+                    fontWeight: FontWeight.w600,
+                  )
+                : Theme.of(context).textTheme.bodyMedium,
+          ),
         ),
       ],
     ),
@@ -933,6 +979,24 @@ class _TeenJobDetailScreenState extends ConsumerState<TeenJobDetailScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (job.quickAcceptEligible && eligibility.eligible) ...[
+                    Align(
+                      alignment: Alignment.center,
+                      child: QuickAcceptButton(
+                        job: job,
+                        onAccepted: (application) => context.pushReplacement(
+                          '/teen/applications/${application.id}',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: MortSpacing.xs),
+                    Text(
+                      'Instant accept, or apply the regular way below.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: MortSpacing.sm),
+                  ],
                   if (!eligibility.eligible)
                     Padding(
                       padding: const EdgeInsets.only(bottom: MortSpacing.xs),

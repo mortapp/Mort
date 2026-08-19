@@ -195,6 +195,14 @@ String applicationErrorMessage(String code, {String? fallback}) {
       'The photo picker is unavailable right now. Try again or use the other photo option.',
     'unknown_permission_failure' =>
       'We could not complete that action. Refresh and try again.',
+    'offer_taken' => 'Another teen already accepted this job.',
+    'not_quick_accept_eligible' =>
+      'This job is no longer set up for instant accept. Apply the regular way instead.',
+    'job_not_found' => 'This job is no longer available.',
+    'invalid_quick_accept_request' =>
+      'That request was not valid. Refresh and try again.',
+    'quick_accept_requires_single_worker' =>
+      'Instant accept is only available for single-worker jobs.',
     _ =>
       fallback?.trim().isNotEmpty == true
           ? fallback!.trim()
