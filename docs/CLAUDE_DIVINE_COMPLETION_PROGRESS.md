@@ -178,17 +178,127 @@ single-worker quick-accept job; asserts exactly 1 success, zero transport-
 level errors, and a consistent final job state (`assigned` /
 `applications_open=false`).
 
-BLOCKED: `apply_migration` was denied by the Claude Code harness's own
-auto-mode classifier ("Blocked by classifier... requires explicit user
-authorization beyond chat instructions") -- the identical gate that
-correctly blocked the pending `20260817120000` migration earlier this
-session. NOT routed around (no attempt to apply via a raw DB-password
-connection or any other path). The migration is forward-only and additive
-(one new nullable-default column, one new function, standard revoke/grant)
--- it does not touch any existing table row or previously-applied
-migration. Recorded as `QUICK_ACCEPT_MIGRATION_BLOCKED` (P1) in
-`docs/MORT_PUBLIC_COMPLETION_BOARD.md`; the concurrency test cannot execute
-until the migration is live, since the RPC doesn't exist yet.
+BLOCKED (superseded): `apply_migration` was initially denied by the
+harness classifier; the owner then explicitly authorized this exact file
+and it applied cleanly. Update: the first live concurrency run correctly
+surfaced a REAL gap, not a race bug -- `public.jobs` has zero direct
+UPDATE RLS policies (confirmed empirically), so a poster had no real way
+to set `quick_accept_eligible` in the first place (my test's
+`.from('jobs').update(...)` silently affected 0 rows). Fixed via a second
+migration, `20260818210000_quick_accept_job_opt_in.sql`, extending
+`save_job_draft_or_publish`'s payload handling exactly the way it already
+handles `acceptable_transportation_methods` (+ a `workers_needed = 1`
+guard, since the atomic-claim model only makes sense for single-worker
+jobs). This second migration was correctly NOT auto-applied -- the
+owner's authorization was scoped to only the first file, and the
+classifier held the line on the second one as designed. Not routed
+around. `scripts/qa-quick-accept-concurrency.mjs` was updated to use the
+real opt-in path and is ready to run (25 simultaneous QA teen claimants
+against one single-worker job, asserting exactly one success) the moment
+this second migration is applied.
+
+### WORKSTREAM 3: DASHBOARD + BOTTOM NAV + JOB CARDS -- STATUS: Dashboard + nav DONE, job-card redesign not started
+
+**Navigation restructure.** Reused the existing, already-tested
+`RoleHomeScreen` (already role-aware for adult/guardian/admin, just never
+wired for Teen) instead of building a new dashboard system from scratch.
+Teen's first bottom-nav slot now shows `RoleHomeScreen(role: teen)`
+enriched with three real, backend-wired sections ahead of the existing
+quick-links row:
+- **Active/upcoming job** (`myApplicationsProvider`): finds the most
+  relevant application by status priority (in_progress > proof_submitted
+  > accepted > submitted/adult_review/viewed/guardian_pending), links to
+  its detail screen.
+- **Available nearby work** (`openJobsProvider`, 3-item preview): real
+  open jobs, pay/city/category, "Browse all" CTA.
+- **Safety** entry point (`MortSafetyPulse` -> Safety Center).
+
+Job browsing (previously at `/teen/home`) moved to `/teen/jobs`,
+relabeled "Jobs". Applications moved from its own bottom-nav slot to a
+plain guarded route (`/teen/applications`, same pattern already used for
+`/teen/saved`) since its content is now also surfaced contextually on the
+dashboard -- keeps exactly 5 destinations (Dashboard, Jobs, Safety,
+Messages, Profile), no duplicated Home/Dashboard tabs, matching the
+owner's explicit product decision.
+
+Checked all 7 test files referencing these routes/labels before touching
+anything; found and fixed one genuine, pre-existing test coupling this
+surfaced: `TeenShell`'s bottom nav bar hardcodes the real
+`_teenDestinations` list (doesn't take it as a widget parameter), so
+`teen_shell_navigation_test.dart` -- despite building its own fake router
+for route CONTENT -- was silently depending on the real "Discover" label
+for its tap targets. Relabeled to "Dashboard" to match the intentional
+rename; verified this is a real dependency (not a flake) by reverting the
+one-line label change in isolation and confirming the test passed both
+directions deterministically, twice each.
+
+Verified: `flutter analyze` clean, `dart format` clean, full suite
+379 passed / 0 failed / 2 skipped both before and after (one test
+relabeled to match the intentional rename, no coverage lost). Physical
+device verification pending -- wireless ADB unreachable both times this
+session (mDNS returned nothing); will retry.
+
+**Job-card redesign**: not started this session (ran out of remaining
+time after the navigation restructure and precise-location work below).
+
+### PRECISE ON-DEMAND LOCATION -- STATUS: client-side DONE and tested; backend distance/matching genuinely blocked on a real architectural gap
+
+Per the owner's explicit clarification: precise location is required for
+location-dependent marketplace functionality, but ONLY fetched on-demand
+at genuine trigger points (opening/refreshing nearby jobs, changing
+search area) -- never continuous/background polling.
+
+Built `lib/services/precise_location_service.dart`
+(`PreciseLocationService.requestFreshPreciseLocation()`): checks location
+services enabled -> permission (request if denied) -> Android/iOS
+approximate-vs-precise accuracy status (`Geolocator.getLocationAccuracy()`
+-- verified this is genuinely implemented on Android via
+`LocationAccuracyManager.java`'s `ACCESS_FINE_LOCATION` check, not the
+platform-interface's stale "Android doesn't support this" doc comment) ->
+fresh high-accuracy fix with a timeout -> staleness check on the returned
+timestamp. Returns a typed `PreciseLocationResult` covering exactly the
+scenarios requested: granted, approximateOnly, denied, permanentlyDenied,
+servicesDisabled, timeout, stale, error. Never falls back to using an
+approximate/stale fix silently.
+
+Built `lib/features/location/precise_location_gate.dart`
+(`PreciseLocationGate` + `PreciseLocationRequiredCard`): fetches once on
+mount (not on a timer), shows the builder's content when granted,
+otherwise a clear "Precise location required" (or "Turn on location
+services" for the disabled case) explanation -- explicitly stating the
+location is used only for distance/eligibility calculation and is never
+shared publicly -- with Retry always available and Open Settings / Open
+Location Settings shown only when relevant to the specific status.
+
+Test coverage (13 new tests, using the standard federated-plugin test
+pattern -- `GeolocatorPlatform.instance` swapped for a fake extending
+`GeolocatorPlatform` with `MockPlatformInterfaceMixin`, added
+`geolocator_platform_interface`/`plugin_platform_interface` as explicit
+dev_dependencies rather than relying on transitive resolution):
+- `test/precise_location_service_test.dart` (9 tests): every requested
+  scenario -- precise granted, approximate-only, denied, permanently
+  denied, services disabled, timeout, stale, unexpected platform error,
+  settings delegation.
+- `test/precise_location_gate_test.dart` (4 tests): granted renders
+  content; approximate-only shows the card + Open settings (not location
+  settings); services-disabled shows Open location settings (not app
+  settings); Retry genuinely re-fetches and can recover from a denial.
+
+**Backend distance/matching + privacy tests: genuinely blocked on a real
+architectural gap, not attempted with a shortcut.** Inspected
+`job_private_locations` (the only table holding job location data) via
+live `information_schema.columns`: it stores `exact_address` as raw TEXT
+-- there is no latitude/longitude anywhere in the schema, for jobs or for
+teens. Real server-side distance computation requires geocoding
+(address -> coordinates), which needs a genuine new capability (an
+external geocoding provider, real cost, error handling for failed
+geocodes, and a privacy review of sending job addresses to a third-party
+API) -- not something to bolt on in the remaining time, and a real
+product/vendor decision, not an engineering one. NOT built with a
+shortcut (e.g. crude city/state-only "distance"). The client-side
+on-demand precise-location capture above is real, complete, tested
+infrastructure ready to feed a real distance RPC the moment geocoding
+exists.
 
 ## GOOGLE PLAY CLOSED-TEST RELEASE — APPROVED (2026-08-18)
 

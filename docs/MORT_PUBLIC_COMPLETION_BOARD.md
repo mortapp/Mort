@@ -13,11 +13,12 @@ scope for this session.
 | AREA | STATUS | NOTE |
 |---|---|---|
 | PRODUCT | IN_PROGRESS | See per-area rows below. |
-| UI_UX | NOT_STARTED | Workstream 3, not yet reached tonight. |
+| UI_UX | IN_PROGRESS | Dashboard + bottom nav done (see DASHBOARD row). Job-card redesign not started. |
 | AUTH | NOT_STARTED | Google auth (Section 14-17) not in tonight's queue. |
 | GOOGLE_AUTH | NOT_STARTED | Same as above. |
-| DASHBOARD | NOT_STARTED | Workstream 3. |
-| LEADERBOARD | NOT_STARTED | Not scoped into tonight's 3-item order. |
+| DASHBOARD | PASS | Teen Dashboard is now the primary bottom-nav destination (index 0), reusing the existing role-aware `RoleHomeScreen`, enriched with real active/upcoming-job, nearby-work-preview, and safety sections. 5 destinations total (Dashboard, Jobs, Safety, Messages, Profile), no duplicate tabs. `flutter analyze`/`format` clean, full suite 379/0/2 unchanged. Physical device verification pending (wireless ADB unreachable this session). |
+| EXACT_LOCATION | PASS (client) / BLOCKED_EXTERNAL (backend) | Client-side on-demand precise-location service + UI gate built and fully tested (13 new tests: granted/approximate-only/denied/permanently-denied/services-disabled/timeout/stale/error/retry/settings). Backend distance/matching genuinely blocked: `job_private_locations` stores addresses as raw text, no coordinates anywhere in the schema -- real distance computation needs a geocoding provider (external API, cost, privacy review), a product/vendor decision, not engineering. Not built with a crude shortcut. |
+| LEADERBOARD | NOT_STARTED | Not scoped into tonight's queue. |
 | QUICK_ACCEPT | IN_PROGRESS | `20260818200000_quick_accept_job_v1.sql` (the RPC itself) is APPLIED to production (owner-authorized). First concurrency run found a real gap, not a race bug: `public.jobs` has zero direct UPDATE RLS policies, so there was no way for a poster to actually set `quick_accept_eligible`. Fixed via `20260818210000_quick_accept_job_opt_in.sql`, extending `save_job_draft_or_publish` the same way it already handles transportation fields (+ a `workers_needed=1` guard). BLOCKED: this second migration was denied by the harness's classifier -- the owner's earlier authorization was scoped only to the first file, correctly not extended here. Test script updated to use the real opt-in path; ready to rerun once this migration is applied. |
 | TRANSPORTATION | PASS (pre-existing) | `jobs.acceptable_transportation_methods` / `transportation_required` / `transportation_considerations` already exist in schema (confirmed via live `information_schema.columns` read) -- more of Section 10 was already built than the directive assumed. Not re-verified end-to-end in the UI tonight. |
 | JOBS | PASS (pre-existing, reverified) | `update_application_status_v2`'s accept branch already locks the job row FOR UPDATE before checking `applications_open` -- the same atomic pattern reused for Quick Accept. |
@@ -28,7 +29,6 @@ scope for this session.
 | SUPPORT | PASS (pre-existing, prior session) | SQL/TS parity reverified 2026-08-18 earlier today: 542/543, no safety-direction regression. |
 | PROFILE | NOT_STARTED | Not touched tonight. |
 | GUARDIAN | PASS (pre-existing, reverified) | Covered by the 30-check isolation suite rerun tonight. |
-| EXACT_LOCATION | PASS (design already correct) + FLAGGED | Job-feed matching deliberately never uses device GPS coordinates (`distance_status: 'unavailable'` unconditionally, UI labels results "Approximate location"). This is a prior, deliberate, already-audited privacy decision, zero P0/P1. Building live GPS-based proximity tracking of minors (directive Section 11 literally) would REVERSE that design -- flagged to the owner, not built without explicit confirmation. |
 | ADS | NOT_STARTED | Explicitly out of tonight's scope per owner instruction. |
 | BACKEND | PASS (reverified live tonight) | 30/30 existing adversarial isolation checks + 2 new adversarial checks (job_private_locations direct access, get_released_job_location leakage), all against live production via real anon-key + session calls, zero findings. |
 | RLS | PASS (reverified live tonight) | Same as BACKEND row. |
@@ -60,26 +60,38 @@ scope for this session.
 ## COMPLETED_TODAY (2026-08-18 evening session)
 
 - Fresh adversarial re-verification: existing 30-check multi-user isolation
-  suite, 30/30 PASS, zero regressions.
-- New adversarial coverage for the 2 gaps that suite didn't have: direct
-  `job_private_locations` table access, `get_released_job_location`
-  leakage to non-participants -- 0 findings.
-- Confirmed (not assumed) that job-feed location matching deliberately
-  avoids GPS coordinates by design; flagged the GPS-tracking question to
-  the owner rather than silently building it.
-- Designed, wrote, and reviewed `quick_accept_job_v1` (atomic, job-row-
-  locked, self-serve single-worker claim RPC) and its migration; wrote a
-  25-simultaneous-claimant concurrency test. Blocked only on migration
-  application (harness permission gate, not a design or code issue).
+  suite, 30/30 PASS, zero regressions. Plus 2 new adversarial checks
+  (`job_private_locations` direct access, `get_released_job_location`
+  leakage to non-participants) -- 0 findings.
+- `quick_accept_job_v1` (atomic, job-row-locked, self-serve single-worker
+  claim RPC) applied to production, owner-authorized. First concurrency
+  run surfaced a real gap (jobs has zero UPDATE RLS policies -- no way to
+  set the opt-in column); fixed via a second migration extending
+  `save_job_draft_or_publish`, currently pending the owner's apply action.
+- Dashboard made the primary Teen bottom-nav destination, reusing the
+  existing `RoleHomeScreen`, enriched with real active-job/nearby-work/
+  safety sections. 5-destination nav (Dashboard, Jobs, Safety, Messages,
+  Profile), no duplicate tabs. Found and fixed one genuine pre-existing
+  test coupling this surfaced (verified as real, not a flake, by isolating
+  the one-line change). Full suite green throughout.
+- Precise on-demand location: full client-side service + UI gate built,
+  13 new tests covering every requested scenario. Backend distance/
+  matching found to be genuinely blocked on a real architectural gap (no
+  coordinates anywhere in the schema -- needs a geocoding provider, a
+  product/vendor decision) rather than built with a shortcut.
 
 ## NEXT_AUTOMATIC_PHASE
 
 1. Owner applies (or grants permission to apply)
-   `20260818200000_quick_accept_job_v1.sql`, then run
+   `20260818210000_quick_accept_job_opt_in.sql`, then run
    `scripts/qa-quick-accept-concurrency.mjs` for live proof of "exactly one
    winner."
-2. Workstream 3: Dashboard / bottom navigation / job-card UI-UX pass,
-   reusing canonical components, with physical device verification via
-   wireless ADB once UI changes exist to verify.
-3. Flutter-side Quick Accept UI (offer card + Accept button + clean
-   "offer taken" state) once the RPC is confirmed live.
+2. Owner decision needed on backend distance/matching: which geocoding
+   provider (cost + privacy review of sending job addresses to a third
+   party), before that piece can be built at all.
+3. Job-card redesign (pay/distance/transportation/poster-trust hierarchy),
+   reusing canonical components.
+4. Physical device verification of tonight's Dashboard/nav changes via
+   wireless ADB (unreachable both attempts this session -- retry).
+5. Flutter-side Quick Accept UI (offer card + Accept button + clean
+   "offer taken" state) once the RPC's opt-in path is confirmed live.
