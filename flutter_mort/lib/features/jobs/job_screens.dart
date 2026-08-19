@@ -637,9 +637,9 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
     if (_jobSiteLatitude == null || _jobSiteLongitude == null) return;
     try {
       await ref
-          .read(jobsRepositoryProvider)
-          .saveJobPrivateLocation(
-            jobId,
+          .read(trustSafetyRepositoryProvider)
+          .savePrivateJobLocation(
+            jobId: jobId,
             latitude: _jobSiteLatitude,
             longitude: _jobSiteLongitude,
             locationAccuracyMeters: _jobSiteAccuracyMeters,

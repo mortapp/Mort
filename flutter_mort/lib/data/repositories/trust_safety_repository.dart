@@ -231,19 +231,30 @@ class TrustSafetyRepository extends RepositoryBase {
     );
   }
 
+  /// Saves the job site's private location. Coordinates (the primary
+  /// path -- captured from the Adult's own precise device location) and
+  /// free-form address text are both optional but at least one is
+  /// required server-side; coordinates never reach the public job feed.
   Future<void> savePrivateJobLocation({
     required String jobId,
-    required String exactAddress,
+    String? exactAddress,
     String? arrivalInstructions,
+    String? accessNotes,
+    double? latitude,
+    double? longitude,
+    double? locationAccuracyMeters,
   }) async {
     _success(
       await client.rpc(
         'save_job_private_location',
         params: {
           'p_job_id': jobId,
-          'p_exact_address': exactAddress.trim(),
+          'p_exact_address': _blankToNull(exactAddress),
           'p_arrival_instructions': _blankToNull(arrivalInstructions),
-          'p_access_notes': null,
+          'p_access_notes': _blankToNull(accessNotes),
+          'p_latitude': latitude,
+          'p_longitude': longitude,
+          'p_location_accuracy_meters': locationAccuracyMeters,
         },
       ),
       'The restricted job location could not be saved.',

@@ -276,34 +276,6 @@ class JobsRepository extends RepositoryBase {
     return job is Map ? Job.fromMap(Map<String, dynamic>.from(job)) : null;
   }
 
-  /// Saves the job site's precise, private location. Coordinates never
-  /// reach the public job feed -- see save_job_private_location's
-  /// server-side contract.
-  Future<void> saveJobPrivateLocation(
-    String jobId, {
-    double? latitude,
-    double? longitude,
-    double? locationAccuracyMeters,
-    String? exactAddress,
-    String? arrivalInstructions,
-    String? accessNotes,
-  }) async {
-    final result = await client.rpc(
-      'save_job_private_location',
-      params: {
-        'p_job_id': jobId,
-        'p_exact_address': exactAddress,
-        'p_arrival_instructions': arrivalInstructions,
-        'p_access_notes': accessNotes,
-        'p_latitude': latitude,
-        'p_longitude': longitude,
-        'p_location_accuracy_meters': locationAccuracyMeters,
-      },
-    );
-    final map = _rpcMap(result);
-    _throwIfFailed(map);
-  }
-
   /// Server-computed, rounded distance (miles) from the Teen's fresh
   /// on-demand coordinates to each open job's private location. Never
   /// returns raw job coordinates -- see get_nearby_job_distances_v1.

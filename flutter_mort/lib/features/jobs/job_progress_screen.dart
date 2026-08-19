@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/errors/user_facing_error.dart';
@@ -273,6 +274,43 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
     if (mounted) context.go('/safety');
   }
 
+  /// Interim navigation UX (see docs/MORT_NAVIGATION_SDK_RESEARCH.md):
+  /// launches the device's default maps app with the job-site
+  /// coordinates, rather than a full in-app turn-by-turn SDK (deferred
+  /// pending the owner's routing-provider/billing decision). The
+  /// coordinates are only ever obtained via the same lifecycle-gated
+  /// get_released_job_location RPC used elsewhere -- this never renders
+  /// a persistent, copyable address in MORT's own UI, and access follows
+  /// the job's real state (revoked on completion/cancellation/block).
+  Future<void> _navigateToJobSite() async {
+    try {
+      final result = await ref
+          .read(trustSafetyRepositoryProvider)
+          .getReleasedJobLocation(widget.applicationId);
+      final lat = result['latitude'] as num?;
+      final lng = result['longitude'] as num?;
+      if (lat == null || lng == null) {
+        if (mounted) {
+          MortToast.show(
+            context,
+            'Navigation is not available for this job yet.',
+          );
+        }
+        return;
+      }
+      final uri = Uri.parse('geo:$lat,$lng?q=$lat,$lng');
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        MortToast.show(context, 'Could not open a maps app on this device.');
+      }
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    }
+  }
+
   Future<void> _finishPinUnavailable(JobExecutionStatus status) async {
     final response = await showDialog<_FinishStatement>(
       context: context,
@@ -469,6 +507,12 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
                 icon: Icons.chat_bubble_outline,
                 route: '/messages',
               ),
+              if (status.isTeen)
+                MortAction(
+                  label: 'Navigate to job site',
+                  icon: Icons.directions_rounded,
+                  onPressed: _navigateToJobSite,
+                ),
               MortAction(
                 label: 'Exact agreement',
                 icon: Icons.description_outlined,
