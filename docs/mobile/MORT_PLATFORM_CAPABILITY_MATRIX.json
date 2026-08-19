@@ -510,6 +510,21 @@
       "webStatus": "browser storage",
       "fallbackBehavior": "reauthenticate and sign in again",
       "knownLimitation": "Native secure-storage migration intentionally invalidates the old unencrypted persisted session"
+    },
+    {
+      "featureId": "MOB-035",
+      "capability": "Leaderboard",
+      "androidUiStatus": "implemented in shared Flutter UI (Dashboard subsection, not a bottom-nav tab)",
+      "androidServiceStatus": "server-authoritative-by-construction Supabase RPCs implemented (get_leaderboard_v1, get_my_leaderboard_rank_v1, set_leaderboard_opt_out_v1); score computed live from hardened completions/reviews data, never stored client-mutable",
+      "androidPermissionStatus": "no runtime permission",
+      "androidTestStatus": "14-check live adversarial suite passed (forgery/replay/cross-user-tamper structurally denied, opt-out works, no PII leakage); physical-device flow testing pending",
+      "iosUiStatus": "implemented in shared Flutter UI; no platform-specific code path",
+      "iosServiceStatus": "identical Supabase RPCs called through the same shared repository; no platform-specific code path",
+      "iosPermissionStatus": "no runtime permission",
+      "iosTestStatus": "Source parity is exact (pure shared Dart/RPC feature, no native iOS code); physical iPhone test pending",
+      "webStatus": "supported (same shared repository)",
+      "fallbackBehavior": "loading/error/empty states via AsyncValue.when",
+      "knownLimitation": "Physical-device verification not yet performed on either platform"
     }
   ]
 }

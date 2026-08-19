@@ -54,6 +54,7 @@ const requiredCapabilities = [
   "Dark mode",
   "Offline and degraded states",
   "Session management",
+  "Leaderboard",
 ];
 
 function assert(condition, message) {
@@ -83,7 +84,8 @@ assert(gradle.includes('applicationId = "com.mortapp.mobile"'), "Android applica
 assert(activity.includes("package com.mortapp.mobile"), "MainActivity package mismatch");
 assert(activity.includes("FlutterFragmentActivity"), "Android device authentication activity is not configured");
 assert(!manifest.includes("ACCESS_BACKGROUND_LOCATION"), "Background location must remain absent");
-assert(manifest.includes('android:scheme="mort"'), "Android deep-link scheme missing");
+assert(manifest.includes('android:scheme="com.mortapp.mobile"'), "Android deep-link scheme missing");
+assert(!manifest.includes('android:scheme="mort"'), "Android deep-link scheme must stay the exact package identifier, not a broad legacy scheme");
 assert(manifest.includes('android:usesCleartextTraffic="false"'), "Android cleartext traffic is not blocked");
 
 console.log(`PASS: ${matrix.records.length} Android/iOS capability records validated without device-test overclaims.`);
