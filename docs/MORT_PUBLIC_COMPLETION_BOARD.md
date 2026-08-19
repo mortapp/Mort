@@ -35,9 +35,9 @@ current implementation status.
 | AUTH | NOT_STARTED | Google auth (Section 14-17) not in tonight's queue. |
 | GOOGLE_AUTH | NOT_STARTED | Same as above. |
 | DASHBOARD | PASS | Teen Dashboard is now the primary bottom-nav destination (index 0), reusing the existing role-aware `RoleHomeScreen`, enriched with real active/upcoming-job, nearby-work-preview, and safety sections. 5 destinations total (Dashboard, Jobs, Safety, Messages, Profile), no duplicate tabs. `flutter analyze`/`format` clean, full suite green throughout. Physical smoke: fresh profile build (with all location/nav changes) installed and boots clean on the Galaxy A14, zero FATAL/crash lines, reaches Welcome screen. Deeper authenticated screens (Dashboard/Jobs feed/job creation content itself) remain HARNESS_VERIFIED only -- same standing policy against injecting real credentials via `adb shell input text`. |
-| EXACT_LOCATION | PASS (backend + core UI) | Corrected architecture implemented end-to-end: Adult job-site capture takes precise GPS coordinates directly (no geocoding needed -- resolved the earlier "no coordinates in schema" blocker), `get_nearby_job_distances_v1` computes real server-side distance for Teens pre-acceptance (rounded figure only, zero raw-coordinate leakage), `get_released_job_location` releases coordinates for navigation only once genuinely authorized (existing lifecycle gate was already correct; added explicit block-check). 18-check live adversarial suite, 0 findings. Flutter UI now wired: Adult job-creation screen has a "Job site" section using `PreciseLocationService` ("Use current precise location" -> saves via `saveJobPrivateLocation`); Teen job feed shows real distance per job card, fetched on load/refresh, never blocking browsing when unavailable. Physical smoke: profile build with these changes boots clean, 0 crashes. Not yet built: post-authorization navigation UI (needs the routing/navigation SDK provider decision, Section 15) and physical on-device verification of the authenticated screens themselves (credential-injection risk, standing policy). |
+| EXACT_LOCATION | PASS (backend + UI, interim navigation shipped) | Corrected architecture implemented end-to-end: Adult job-site capture takes precise GPS coordinates directly, `get_nearby_job_distances_v1` computes real server-side distance for Teens pre-acceptance (zero raw-coordinate leakage), `get_released_job_location` releases coordinates only once genuinely authorized (block-check added). 18-check live adversarial suite, 0 findings. Flutter UI: Adult "Job site" capture section, Teen job-feed real distance, and an interim "Navigate to job site" action on the active-job screen (launches the device's default maps app via the same lifecycle-gated RPC -- see `docs/MORT_NAVIGATION_SDK_RESEARCH.md`). Full in-app turn-by-turn (Google `google_navigation_flutter`, researched and recommended) deferred pending the owner's Google Cloud billing/API-key decision. Physical smoke: profile build boots clean, 0 crashes, twice this session. Authenticated-screen verification remains HARNESS_VERIFIED only (standing credential-injection policy). |
 | LEADERBOARD | NOT_STARTED | Not scoped into tonight's queue. |
-| QUICK_ACCEPT | PASS (backend + UI) | Both migrations applied to production, owner-authorized. Live 25-simultaneous-claimant concurrency test: exactly 1 success, 24 clean `offer_taken` denials, 0 transport errors. `QuickAcceptButton` implements the full AVAILABLE/CLAIMING/ACCEPTED/OFFER_TAKEN/NOT_ELIGIBLE/EXPIRED/NETWORK_ERROR state machine, integrated into both job feed cards and job detail. 6 widget tests, all pass. Physical on-device verification of this specific UI still pending (device unreachable this session; also requires an authenticated session per standing policy). |
+| QUICK_ACCEPT | PASS (backend + UI) | Both migrations applied to production, owner-authorized. Live 25-simultaneous-claimant concurrency test: exactly 1 success, 24 clean `offer_taken` denials, 0 transport errors. `QuickAcceptButton` implements the full AVAILABLE/CLAIMING/ACCEPTED/OFFER_TAKEN/NOT_ELIGIBLE/EXPIRED/NETWORK_ERROR state machine, integrated into both job feed cards and job detail. 6 widget tests, all pass. |
 | TRANSPORTATION | PASS (pre-existing) | `jobs.acceptable_transportation_methods` / `transportation_required` / `transportation_considerations` already exist in schema (confirmed via live `information_schema.columns` read) -- more of Section 10 was already built than the directive assumed. Not re-verified end-to-end in the UI tonight. |
 | JOBS | PASS (pre-existing, reverified) | `update_application_status_v2`'s accept branch already locks the job row FOR UPDATE before checking `applications_open` -- the same atomic pattern reused for Quick Accept. |
 | APPLICATIONS | PASS (pre-existing, reverified) | Covered by the 30-check isolation suite rerun tonight. |
@@ -98,20 +98,23 @@ current implementation status.
 
 ## NEXT_AUTOMATIC_PHASE
 
-1. Flutter-side job-site capture: Adult "Set Job Location" UI using the
-   existing `PreciseLocationGate`/`PreciseLocationService`, wired to
-   `save_job_private_location`'s new coordinate parameters.
-2. Flutter-side distance display: wire `PreciseLocationGate` +
-   `get_nearby_job_distances_v1` into the Teen job feed/job cards.
-3. Job-card redesign (pay/distance/transportation/poster-trust hierarchy),
-   reusing canonical components -- now with real distance data available.
-4. Flutter-side Quick Accept UI (offer card + Accept button + clean
-   "offer taken" state) -- backend fully proven live.
-5. Post-authorization navigation UI (uses `get_released_job_location`'s
-   now-returned coordinates) -- routing/navigation SDK provider research
-   (Section 15) needed first.
-6. Physical device verification of the Dashboard/nav changes via wireless
-   ADB (unreachable every attempt this session so far -- keep retrying).
-7. Continue down the completion board: Leaderboard, Google Auth,
-   onboarding, messaging/safety/support/profile/guardian polish, ads,
-   legal drafts, iOS parity, final release artifacts.
+Items 1-3 of the owner's "IMMEDIATE ORDER" (job cards, Quick Accept UI,
+post-authorized navigation) are DONE -- see JOBS/QUICK_ACCEPT/
+EXACT_LOCATION rows. Physical smoke-verified twice on the Galaxy A14
+(clean boot, 0 crashes) across all changes so far.
+
+1. **Leaderboard** (item 4): server-authoritative scoring inside
+   Dashboard (not a 6th tab), safe inputs only (verified completions,
+   reliability, reputation, badges -- never exact earnings/location/
+   addresses), anti-cheat tests for fake completions/duplicate events/
+   self-review manipulation/client-side score forging.
+2. **Transportation end-to-end** (item 5): job cards already show it;
+   remaining piece is Teen profile/preference-based eligibility signal.
+3. **Google Login + Google Sign-Up** (item 6): Supabase Auth + Google
+   OAuth + PKCE, canonical callback `com.mortapp.mobile://app/auth-callback`,
+   full new/existing-user + error-state handling.
+4. Then continue in order: onboarding polish, messaging, safety,
+   support, profile/settings, guardian, ads/AdMob, legal/Play production,
+   iOS source parity, final Android QA, final AAB/APK.
+5. Owner decisions still pending (not engineering blockers): navigation
+   SDK billing/API-key setup (Google Cloud), AdMob account setup.
