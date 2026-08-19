@@ -15,6 +15,7 @@ import '../../data/models/job.dart';
 import '../../data/models/profile.dart';
 import '../../data/repositories/providers.dart';
 import '../../services/native_permissions_service.dart';
+import '../../services/precise_location_service.dart';
 import '../profile/profile_avatar_widgets.dart';
 import '../teen/teen_shell.dart';
 
@@ -70,6 +71,9 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
   JobSort _sort = JobSort.newest;
   bool _locating = false;
   String? _savingJobId;
+  final _distances = <String, double>{};
+  bool _distancesLoading = false;
+  PreciseLocationStatus? _distanceStatus;
 
   @override
   void initState() {
@@ -85,6 +89,39 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
     _state.dispose();
     _filtersController.dispose();
     super.dispose();
+  }
+
+  Future<void> _refreshDistances(List<Job> jobsNeedingDistance) async {
+    if (jobsNeedingDistance.isEmpty || _distancesLoading) return;
+    setState(() => _distancesLoading = true);
+    final result = await const PreciseLocationService()
+        .requestFreshPreciseLocation();
+    if (!mounted) return;
+    if (!result.isUsable) {
+      setState(() {
+        _distancesLoading = false;
+        _distanceStatus = result.status;
+      });
+      return;
+    }
+    try {
+      final distances = await ref
+          .read(jobsRepositoryProvider)
+          .getNearbyJobDistances(
+            jobsNeedingDistance.map((job) => job.id).toList(),
+            latitude: result.position!.latitude,
+            longitude: result.position!.longitude,
+          );
+      if (!mounted) return;
+      setState(() {
+        _distances.addAll(distances);
+        _distancesLoading = false;
+        _distanceStatus = PreciseLocationStatus.granted;
+      });
+    } catch (_) {
+      // Distance is an enhancement, not required to browse the feed.
+      if (mounted) setState(() => _distancesLoading = false);
+    }
   }
 
   Future<void> _loadSavedJobs() async {
@@ -208,11 +245,23 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
     final profile = ref.watch(currentProfileProvider).asData?.value;
     final filters = _filtersFor(profile);
     final jobs = ref.watch(openJobsProvider(filters));
+    ref.listen<AsyncValue<JobFeedState>>(openJobsProvider(filters), (
+      previous,
+      next,
+    ) {
+      final items = next.asData?.value.items ?? const <Job>[];
+      final missing = items
+          .where((job) => !_distances.containsKey(job.id))
+          .toList();
+      if (missing.isNotEmpty) {
+        unawaited(_refreshDistances(missing));
+      }
+    });
     return MortScreen(
       children: [
         MortTeenDestinationHeader(
           eyebrow: 'Teen-safe feed',
-          title: 'Discover',
+          title: 'Jobs',
           subtitle:
               'Open jobs in your selected area. Exact addresses never appear in the feed.',
           trailing: Row(
@@ -486,12 +535,38 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
                   ),
                   const SizedBox(height: MortSpacing.sm),
                 ],
+                if (!_distancesLoading &&
+                    _distanceStatus != null &&
+                    _distanceStatus != PreciseLocationStatus.granted) ...[
+                  MortCard(
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.location_disabled_rounded,
+                          color: MortColors.lightBlue,
+                        ),
+                        const SizedBox(width: MortSpacing.sm),
+                        const Expanded(
+                          child: Text(
+                            'Turn on precise location to see how far each job is.',
+                          ),
+                        ),
+                        MortSecondaryButton(
+                          label: 'Enable',
+                          onPressed: () => _refreshDistances(items),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: MortSpacing.sm),
+                ],
                 for (final job in items) ...[
                   _TeenJobCard(
                     job: job,
                     saved: _savedJobIds.contains(job.id),
                     saving: _savingJobId == job.id,
                     onToggleSaved: () => _toggleSaved(job),
+                    distanceMiles: _distances[job.id],
                   ),
                   const SizedBox(height: MortSpacing.sm),
                 ],
@@ -536,12 +611,14 @@ class _TeenJobCard extends StatelessWidget {
     required this.saved,
     required this.saving,
     required this.onToggleSaved,
+    this.distanceMiles,
   });
 
   final Job job;
   final bool saved;
   final bool saving;
   final VoidCallback onToggleSaved;
+  final double? distanceMiles;
 
   @override
   Widget build(BuildContext context) {
@@ -601,6 +678,12 @@ class _TeenJobCard extends StatelessWidget {
           ),
           const SizedBox(height: MortSpacing.sm),
           _JobCardFact(icon: Icons.place_outlined, value: job.locationText),
+          if (distanceMiles != null)
+            _JobCardFact(
+              icon: Icons.near_me_outlined,
+              value:
+                  '${distanceMiles! < 0.1 ? 'Less than 0.1' : distanceMiles!.toStringAsFixed(1)} mi away',
+            ),
           _JobCardFact(
             icon: Icons.schedule_outlined,
             value: job.scheduleDisplay,
