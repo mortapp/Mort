@@ -35,7 +35,7 @@ current implementation status.
 | AUTH | NOT_STARTED | Google auth (Section 14-17) not in tonight's queue. |
 | GOOGLE_AUTH | NOT_STARTED | Same as above. |
 | DASHBOARD | PASS | Teen Dashboard is now the primary bottom-nav destination (index 0), reusing the existing role-aware `RoleHomeScreen`, enriched with real active/upcoming-job, nearby-work-preview, and safety sections. 5 destinations total (Dashboard, Jobs, Safety, Messages, Profile), no duplicate tabs. `flutter analyze`/`format` clean, full suite 379/0/2 unchanged. Physical device verification pending (wireless ADB unreachable this session). |
-| EXACT_LOCATION | PASS (client) / BLOCKED_EXTERNAL (backend) | Client-side on-demand precise-location service + UI gate built and fully tested (13 new tests: granted/approximate-only/denied/permanently-denied/services-disabled/timeout/stale/error/retry/settings). Backend distance/matching genuinely blocked: `job_private_locations` stores addresses as raw text, no coordinates anywhere in the schema -- real distance computation needs a geocoding provider (external API, cost, privacy review), a product/vendor decision, not engineering. Not built with a crude shortcut. |
+| EXACT_LOCATION | PASS (backend) / IN_PROGRESS (Flutter UI) | Corrected architecture implemented end-to-end on the backend: Adult job-site capture now takes precise GPS coordinates directly (no geocoding needed for the primary path -- this resolved the earlier "no coordinates in schema" blocker), `get_nearby_job_distances_v1` computes real server-side distance for Teens pre-acceptance (rounded figure only, zero raw-coordinate leakage), `get_released_job_location` releases coordinates for navigation only once genuinely authorized (existing lifecycle gate was already correct; added explicit block-check). 18-check live adversarial suite, 0 findings (unrelated parties/anonymous/forged-ids/direct-table-reads all denied; block and job-completion both correctly revoke access). Client-side `PreciseLocationService`/`PreciseLocationGate` (13 tests, prior session) ready to wire into: Adult "Set Job Location" UI, Teen job-card distance display, and post-authorization navigation UI -- none of that Flutter wiring exists yet. |
 | LEADERBOARD | NOT_STARTED | Not scoped into tonight's queue. |
 | QUICK_ACCEPT | PASS (backend) | Both migrations applied to production, owner-authorized. Live 25-simultaneous-claimant concurrency test: exactly 1 success, 24 clean `offer_taken` denials, 0 transport errors, job correctly assigned+closed. Atomic single-worker claim proven under real concurrent load. Flutter-side UI (offer card, Accept button, "offer taken" state) not yet built. |
 | TRANSPORTATION | PASS (pre-existing) | `jobs.acceptable_transportation_methods` / `transportation_required` / `transportation_considerations` already exist in schema (confirmed via live `information_schema.columns` read) -- more of Section 10 was already built than the directive assumed. Not re-verified end-to-end in the UI tonight. |
@@ -61,19 +61,17 @@ current implementation status.
 
 ## BLOCKERS
 
-- **P1** `QUICK_ACCEPT_OPT_IN_MIGRATION_BLOCKED`: `supabase/migrations/20260818210000_quick_accept_job_opt_in.sql`
-  cannot be applied -- denied by the Claude Code auto-mode classifier. The
-  owner's authorization for the first Quick Accept migration was
-  explicitly scoped to that one file only, and this is a second, later
-  file, so the classifier correctly did not extend it automatically. The
-  migration is additive (extends one existing RPC's payload handling by
-  one optional field + one guard clause; does not touch any other
-  function or previously-applied migration). `scripts/qa-quick-accept-concurrency.mjs`
-  is updated to use the real opt-in path and ready to run the instant this
-  migration is live.
-- `20260818200000_quick_accept_job_v1.sql` (the atomic-claim RPC itself)
-  IS applied to production, owner-authorized.
-- No P0 found tonight.
+- No P0, no P1 currently open. Quick Accept's opt-in migration was
+  owner-authorized and applied; the 25-simultaneous-claimant concurrency
+  test passed live (exactly 1 success, 24 clean denials). The location
+  architecture's backend is fully implemented and adversarially tested.
+- Remaining external/owner-decision gates (not P0/P1 engineering
+  blockers -- explicit product/business decisions): in-app routing/
+  navigation SDK provider choice (Google Maps Platform vs Mapbox vs
+  other -- pricing/ToS/API-key-security research still needed before
+  picking one); AdMob account setup requiring adult publisher
+  attestation; any Play/legal step requiring the owner's own identity or
+  payment action.
 
 ## COMPLETED_TODAY (2026-08-18 evening session)
 
@@ -100,16 +98,20 @@ current implementation status.
 
 ## NEXT_AUTOMATIC_PHASE
 
-1. Owner applies (or grants permission to apply)
-   `20260818210000_quick_accept_job_opt_in.sql`, then run
-   `scripts/qa-quick-accept-concurrency.mjs` for live proof of "exactly one
-   winner."
-2. Owner decision needed on backend distance/matching: which geocoding
-   provider (cost + privacy review of sending job addresses to a third
-   party), before that piece can be built at all.
+1. Flutter-side job-site capture: Adult "Set Job Location" UI using the
+   existing `PreciseLocationGate`/`PreciseLocationService`, wired to
+   `save_job_private_location`'s new coordinate parameters.
+2. Flutter-side distance display: wire `PreciseLocationGate` +
+   `get_nearby_job_distances_v1` into the Teen job feed/job cards.
 3. Job-card redesign (pay/distance/transportation/poster-trust hierarchy),
-   reusing canonical components.
-4. Physical device verification of tonight's Dashboard/nav changes via
-   wireless ADB (unreachable both attempts this session -- retry).
-5. Flutter-side Quick Accept UI (offer card + Accept button + clean
-   "offer taken" state) once the RPC's opt-in path is confirmed live.
+   reusing canonical components -- now with real distance data available.
+4. Flutter-side Quick Accept UI (offer card + Accept button + clean
+   "offer taken" state) -- backend fully proven live.
+5. Post-authorization navigation UI (uses `get_released_job_location`'s
+   now-returned coordinates) -- routing/navigation SDK provider research
+   (Section 15) needed first.
+6. Physical device verification of the Dashboard/nav changes via wireless
+   ADB (unreachable every attempt this session so far -- keep retrying).
+7. Continue down the completion board: Leaderboard, Google Auth,
+   onboarding, messaging/safety/support/profile/guardian polish, ads,
+   legal drafts, iOS parity, final release artifacts.
