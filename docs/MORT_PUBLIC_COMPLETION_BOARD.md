@@ -48,13 +48,16 @@ current implementation status.
 | PROFILE | PASS (pre-existing, reverified live) | Reinspected rather than rebuilt -- `activity_history_screen.dart`, `review_screens.dart`, `profile_avatar_widgets.dart`, plus `settings/` (account management, experience settings, native permissions, release diagnostics) already exist. Reran 3 live adversarial suites tonight: `qa-profile-cross-user-isolation` (direct + RPC writes cannot target another user), `qa-profile-update-forgery` and `qa-profile-protected-fields` (role/DOB/verification/moderation/account/onboarding fields reject client forgery). 0 findings. |
 | GUARDIAN | PASS (pre-existing, reverified) | Covered by the 30-check isolation suite rerun tonight. |
 | NOTIFICATIONS | PASS (pre-existing, reverified live) | `notification_center_screen.dart` + `notifications_repository.dart` already exist. Reran `qa-remote-push-foundation` live tonight: response-minimized/replay-safe registration, raw-token reads/writes denied to owners and outsiders, server-authoritative rotation, exact category/quiet-hours validation, safety-bypass preserved through quiet hours, account deletion immediately revokes push. Hosted FCM runtime remains correctly disabled pending real provider verification (owner action, matches `MORT_REMOTE_PUSH_ENABLED` gate in `app_config.dart`). 0 findings. |
-| ADS | NOT_STARTED | Explicitly out of tonight's scope per owner instruction. |
+| ADS | PASS (engineering) / BLOCKED_EXTERNAL (live ad serving) | Reinspected rather than rebuilt -- `lib/features/ads/` (data + widgets), `AppConfig.adsEnabled`/`nativeAdsCompiledIn = false` gate, and dedicated docs (`ADMOB_SETUP.md`, `ADMOB_FINAL_SETUP.md`, `ADMOB_SCREEN_ELIGIBILITY_MATRIX.md`, `ADS_AND_IAP_SAFETY.md`) already exist. Reran 3 live adversarial suites tonight: `qa-admob-disabled-mode` (SDK/runtime stays disabled, Android advertising ID stripped while unconfigured), `qa-sensitive-ad-placement` (auth/safety/messaging/proof/verification/payment/admin/paywall all correctly reject ads), `qa-teen-ad-treatment` (teen and unknown-age traffic forced non-personalized + age-restricted). 0 findings. Rewarded ads remain optional by design (paywall QA covers this). Native ad rendering/live serving is correctly gated off pending the owner's AdMob account setup + app-ads.txt hosting + consent/UMP flow -- `ADULT_OWNER_ACTION_REQUIRED`, matches the Google Auth pattern; do not enable until that owner step completes. |
 | BACKEND | PASS (reverified live tonight) | 30/30 existing adversarial isolation checks + 2 new adversarial checks (job_private_locations direct access, get_released_job_location leakage), all against live production via real anon-key + session calls, zero findings. |
 | RLS | PASS (reverified live tonight) | Same as BACKEND row. |
 | EXPLOIT_PREVENTION | PASS (reverified live tonight) | Same as BACKEND row. |
-| MODERATION | NOT_STARTED | Not touched tonight. |
-| LEGAL | NOT_STARTED | Explicitly out of tonight's scope per owner instruction. |
+| MODERATION | PASS (pre-existing, reverified live) | Reran `qa-moderation-legal-completion` live tonight: legal controls/inactive drafts/direct-write removal/hard activation trigger, coded job/review moderation with reason allowlists, access logging, ban-appeal isolation, assignment expiry, independent reversal. 0 findings. |
+| LEGAL | PASS (drafts) / OWNER_ACTION_REQUIRED (counsel approval) | Reinspected rather than rebuilt -- `docs/legal/` already holds a comprehensive draft package (Terms of Service, Terms of Use, Privacy Policy, Community Guidelines, Child Safety Standards, Acceptable Use, Prohibited Work, Payment/Cancellation/Dispute policies, Data Retention and Deletion, Guardian Terms, Business Account Agreement, Evidence and Dispute Policy, Moderation and Appeals Policy, Location and Meeting Policy, Marketplace Risk Disclosure, Limitation of Liability, plus a dedicated `MORT_LEGAL_REVIEW_PACKET.md` counsel handoff) and `lib/features/legal/legal_screens.dart` renders/gates them with version-and-hash-bound clickwrap. Reran `qa-legal-clickwrap` live tonight (affirmative, teen-summary-first, version/hash-bound acceptance) -- PASS. These remain drafts pending qualified attorney/adult review before public-production launch, as they always have been; Claude is not a lawyer and this session does not claim legal compliance. |
 | PLAY | PASS (prior session) | 0.9.16+107 approved on Closed testing - Alpha, 2026-08-18. Not re-touched tonight. |
+| ACCOUNT_DELETION | PASS (pre-existing, reverified live) | Reran `qa-account-deletion` (remote create/status/cancel, cross-account read denied) and `qa-account-deletion-in-app` (easy to locate, reauthenticated, dedicated, status-aware) live tonight -- both PASS. `qa-account-deletion-processor` requires server-only/service-role environment variables not present in this session (correct -- this session does not handle service-role or database-password secrets) and was not run; the in-app + remote-request paths that engineering controls were verified instead. |
+| REVIEWER_ACCESS | PASS (pre-existing, reverified live) | Reran `qa-play-reviewer-isolation` live tonight: reservation trigger enabled with no public execute grant, Auth Admin creation of the exact reviewer identifier denied, ordinary email/password auth unaffected, anonymous access cannot read profiles/messages/proof evidence, demo PINs rejected by production job-verification, destructive administration denied without a real authorized session. 0 findings. |
+| DATA_SAFETY | PASS (pre-existing, reverified live) | Reran `qa-data-safety-inventory` live tonight: declared data categories and detected privacy-relevant Flutter SDKs are inventoried and consistent. |
 | ANDROID | NOT_STARTED | No device QA performed tonight (no UI changes yet to verify). |
 | IOS | NOT_STARTED | Not touched tonight. |
 | PERFORMANCE | NOT_STARTED | Not touched tonight. |
@@ -133,18 +136,37 @@ a real problem. Physical smoke-verified twice on the Galaxy A14 (clean
 boot, 0 crashes) across all changes so far; device unreachable again
 tonight (wireless ADB down), retry continues.
 
-Genuinely remaining engineering work:
-1. **Ads/AdMob** (item 14): code integration with test ads, config-driven
-   production ad IDs, no-ads placement list -- explicitly deferred by
-   prior owner instruction, revisit now that items 1-13 are clear.
-2. **Legal/Play production** (item 15), **account deletion** (item 16),
-   **reviewer access** (item 17), **data safety** (item 18), **public
-   legal/web resources** (item 19) -- audit for already-built vs. missing
-   before writing anything new, matching tonight's pattern.
-3. **iOS source parity** (item 20), **full Android physical QA** (item 21,
-   blocked on device reachability tonight), **final production
-   regression** (item 22), **final signed AAB/APK** (items 23-24),
-   **artifact verification** (item 25).
-4. Owner decisions still pending (not engineering blockers): navigation
-   SDK billing/API-key setup (Google Cloud), AdMob account setup, Google
-   OAuth provider activation (Google Cloud + Supabase dashboard).
+Items 14-19 were also audited rather than assumed and found already built:
+Ads/AdMob (item 14 -- engineering PASS, live serving OWNER_ACTION_REQUIRED),
+account deletion (item 16), reviewer access (item 17), data safety
+(item 18) all reverified live with 0 findings tonight. Legal/Play
+production (item 15, item 19) found to already have a comprehensive draft
+package (`docs/legal/`) plus a dedicated counsel-handoff packet -- these
+remain drafts pending qualified attorney review, as intended; nothing
+here claims legal compliance. Moderation was also reverified live
+(0 findings) though not explicitly itemized in the original 25-item list.
+
+Genuinely remaining work, all requiring either a reachable physical
+device or a new build/release action (cannot be faked or skipped):
+1. **iOS source parity** (item 20): audit for drift against the latest
+   Android/Dart changes (Leaderboard, Transportation matching, Google
+   Auth reverification) -- likely already carried since this session's
+   pattern has been Dart-shared logic with platform config parity, but
+   needs an explicit pass, not an assumption.
+2. **Full Android physical QA** (item 21): blocked tonight on wireless
+   ADB reachability (`adb connect`/`adb mdns services` both came back
+   empty). Retry continues; do not fake PHYSICAL_VERIFIED without a real
+   device session.
+3. **Final production regression** (item 22): full flutter test suite
+   already reverified clean tonight (398/0/2) as part of the checkpoint
+   process, but the true "final" pass belongs right before build/release,
+   not now, since further changes are still expected.
+4. **Final signed AAB/APK** (items 23-24) and **artifact verification**
+   (item 25): hold until items 20-22 are genuinely done -- a new signed
+   build today would not reflect a meaningfully different app than the
+   already-approved 0.9.16+107 Closed Testing build.
+5. Owner decisions still pending (not engineering blockers): navigation
+   SDK billing/API-key setup (Google Cloud), AdMob account setup
+   (+ app-ads.txt hosting + consent/UMP flow), Google OAuth provider
+   activation (Google Cloud + Supabase dashboard), qualified legal
+   counsel review of the drafted documents.
