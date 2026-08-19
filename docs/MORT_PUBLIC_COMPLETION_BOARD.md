@@ -5,10 +5,28 @@ onward). Status values: NOT_STARTED, IN_PROGRESS, PASS, BLOCKED_EXTERNAL.
 Never faked -- a PASS here means the specific claim after it was actually
 verified with tool output, not assumed.
 
-Tonight's session works a fixed, owner-set order: (1) exact location +
-RLS/exploit hardening, (2) Quick Accept + atomic concurrency, (3) Dashboard/
-nav/job-card UI. AdMob and legal-document drafting are explicitly out of
-scope for this session.
+TIMELINE: August 21, 2026 is a target, not a deadline. There is no
+session time limit and no artificial stop condition. Work continues
+across however many sessions it takes until every engineering-controlled
+requirement below is implemented, tested, security-verified, device-
+verified where possible, and documented. This board (plus
+`docs/CLAUDE_DIVINE_COMPLETION_PROGRESS.md` and git history) is the
+recovery mechanism if a session is interrupted -- checkpoint frequently,
+never leave more than one atomic unit of work uncommitted.
+
+LOCATION ARCHITECTURE (current, corrected 2026-08-18):
+PRECISE ON-DEMAND LOCATION REQUIRED for location-dependent marketplace
+functionality (both Adult job-site capture and Teen nearby-job/Quick-
+Accept/navigation use). JOB SITE CAPTURED PRIVATELY via the Adult's own
+precise device location at job-creation time (not free-form address
+text). NAVIGATION AUTHORIZED TEMPORARILY -- only while an authorized,
+active job relationship justifies it, revoked on completion/cancellation/
+block/serious safety restriction. NO CONTINUOUS BACKGROUND TRACKING of
+either party. NO PERSISTENT TEEN-VISIBLE EXACT ADDRESS at any stage --
+Teens get distance/area/transportation pre-acceptance and turn-by-
+turn-style navigation (not a copyable street address) post-authorization.
+See the EXACT_LOCATION / JOB_SITE_CAPTURE / NAVIGATION rows below for
+current implementation status.
 
 | AREA | STATUS | NOTE |
 |---|---|---|
@@ -19,7 +37,7 @@ scope for this session.
 | DASHBOARD | PASS | Teen Dashboard is now the primary bottom-nav destination (index 0), reusing the existing role-aware `RoleHomeScreen`, enriched with real active/upcoming-job, nearby-work-preview, and safety sections. 5 destinations total (Dashboard, Jobs, Safety, Messages, Profile), no duplicate tabs. `flutter analyze`/`format` clean, full suite 379/0/2 unchanged. Physical device verification pending (wireless ADB unreachable this session). |
 | EXACT_LOCATION | PASS (client) / BLOCKED_EXTERNAL (backend) | Client-side on-demand precise-location service + UI gate built and fully tested (13 new tests: granted/approximate-only/denied/permanently-denied/services-disabled/timeout/stale/error/retry/settings). Backend distance/matching genuinely blocked: `job_private_locations` stores addresses as raw text, no coordinates anywhere in the schema -- real distance computation needs a geocoding provider (external API, cost, privacy review), a product/vendor decision, not engineering. Not built with a crude shortcut. |
 | LEADERBOARD | NOT_STARTED | Not scoped into tonight's queue. |
-| QUICK_ACCEPT | IN_PROGRESS | `20260818200000_quick_accept_job_v1.sql` (the RPC itself) is APPLIED to production (owner-authorized). First concurrency run found a real gap, not a race bug: `public.jobs` has zero direct UPDATE RLS policies, so there was no way for a poster to actually set `quick_accept_eligible`. Fixed via `20260818210000_quick_accept_job_opt_in.sql`, extending `save_job_draft_or_publish` the same way it already handles transportation fields (+ a `workers_needed=1` guard). BLOCKED: this second migration was denied by the harness's classifier -- the owner's earlier authorization was scoped only to the first file, correctly not extended here. Test script updated to use the real opt-in path; ready to rerun once this migration is applied. |
+| QUICK_ACCEPT | PASS (backend) | Both migrations applied to production, owner-authorized. Live 25-simultaneous-claimant concurrency test: exactly 1 success, 24 clean `offer_taken` denials, 0 transport errors, job correctly assigned+closed. Atomic single-worker claim proven under real concurrent load. Flutter-side UI (offer card, Accept button, "offer taken" state) not yet built. |
 | TRANSPORTATION | PASS (pre-existing) | `jobs.acceptable_transportation_methods` / `transportation_required` / `transportation_considerations` already exist in schema (confirmed via live `information_schema.columns` read) -- more of Section 10 was already built than the directive assumed. Not re-verified end-to-end in the UI tonight. |
 | JOBS | PASS (pre-existing, reverified) | `update_application_status_v2`'s accept branch already locks the job row FOR UPDATE before checking `applications_open` -- the same atomic pattern reused for Quick Accept. |
 | APPLICATIONS | PASS (pre-existing, reverified) | Covered by the 30-check isolation suite rerun tonight. |
