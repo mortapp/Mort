@@ -32,8 +32,8 @@ current implementation status.
 |---|---|---|
 | PRODUCT | IN_PROGRESS | See per-area rows below. |
 | UI_UX | IN_PROGRESS | Dashboard + bottom nav done (see DASHBOARD row). Job cards redesigned: MortGlassCard, real distance, duration, full hierarchy (pay/title/category/distance/area/when/duration/transportation/trust/Quick Accept), no exact address anywhere. |
-| AUTH | NOT_STARTED | Google auth (Section 14-17) not in tonight's queue. |
-| GOOGLE_AUTH | NOT_STARTED | Same as above. |
+| AUTH | PASS (pre-existing, reverified) | Email/password + Google OAuth both live in `UnifiedAuthScreen`; see GOOGLE_AUTH row for detail. |
+| GOOGLE_AUTH | PASS (engineering) / BLOCKED_EXTERNAL (live activation) | Reinspected rather than rebuilt -- Google Auth was already comprehensively engineered in a prior session: `GoogleAuthSection` renders on both Sign In and Create Account (`unified_auth_screen.dart:382`, gated only by reviewer-mode, not by sign-in/sign-up), Supabase Auth + PKCE (`authFlowType: AuthFlowType.pkce`), canonical deep-link callback `com.mortapp.mobile://app/auth-callback` wired in `app_router.dart`, `AndroidManifest.xml`, and iOS `Info.plist`. `auth_repository.dart` handles: launch-gate against duplicate taps, 3-minute/30-second timeouts, provider-cancel, offline/network-unavailable classification, invalid/error callback rejection, cold/warm/delayed session events via `AuthChangeEvent.initialSession/signedIn/userUpdated`, idempotent `_completionGate`-guarded profile bootstrap (`ensure_my_profile` RPC), suspended-account and deletion-pending blocking, Google link/unlink with 15-minute recent-auth window + password reauth fallback, and full sign-out (local/global) with OAuth-state cleanup. `test/google_auth_contract_test.dart`: 13/13 PASS (verified live tonight), covering PKCE-only tokens (no `signInWithIdToken`/provider-token storage), exact callback identity across Dart/Android/iOS, closed-test build scripts already pass `-GoogleAuthEnabled $true`, onboarding/role guards preserved, idempotent profile-bootstrap trigger, no embedded secrets. Genuinely remaining is external-only and already documented in `docs/MORT_GOOGLE_AUTH_EXTERNAL_SETUP.md`: the owner must create a Google Cloud OAuth consent screen + Web client and enter the Client ID/Secret into the Supabase Auth provider dashboard (`Web client ID entered in Supabase: NOT CONFIGURED`, `Google provider enabled: NOT CONFIGURED`) -- this cannot and must not be done by fabricating or handling real OAuth credentials. Installed-APK login/linking/deletion end-to-end tests stay `BLOCKED BY PROVIDER SETUP` until that owner step completes. |
 | DASHBOARD | PASS | Teen Dashboard is now the primary bottom-nav destination (index 0), reusing the existing role-aware `RoleHomeScreen`, enriched with real active/upcoming-job, nearby-work-preview, and safety sections. 5 destinations total (Dashboard, Jobs, Safety, Messages, Profile), no duplicate tabs. `flutter analyze`/`format` clean, full suite green throughout. Physical smoke: fresh profile build (with all location/nav changes) installed and boots clean on the Galaxy A14, zero FATAL/crash lines, reaches Welcome screen. Deeper authenticated screens (Dashboard/Jobs feed/job creation content itself) remain HARNESS_VERIFIED only -- same standing policy against injecting real credentials via `adb shell input text`. |
 | EXACT_LOCATION | PASS (backend + UI, interim navigation shipped) | Corrected architecture implemented end-to-end: Adult job-site capture takes precise GPS coordinates directly, `get_nearby_job_distances_v1` computes real server-side distance for Teens pre-acceptance (zero raw-coordinate leakage), `get_released_job_location` releases coordinates only once genuinely authorized (block-check added). 18-check live adversarial suite, 0 findings. Flutter UI: Adult "Job site" capture section, Teen job-feed real distance, and an interim "Navigate to job site" action on the active-job screen (launches the device's default maps app via the same lifecycle-gated RPC -- see `docs/MORT_NAVIGATION_SDK_RESEARCH.md`). Full in-app turn-by-turn (Google `google_navigation_flutter`, researched and recommended) deferred pending the owner's Google Cloud billing/API-key decision. Physical smoke: profile build boots clean, 0 crashes, twice this session. Authenticated-screen verification remains HARNESS_VERIFIED only (standing credential-injection policy). |
 | LEADERBOARD | PASS | Server-authoritative by construction (no stored/mutable score -- computed live from already-hardened applications.completed + reviews data). 14-check live adversarial suite, 0 findings: forgery/replay/cross-user-tamper structurally denied, opt-out works, no PII leakage. UI inside Dashboard (not a 6th tab): own rank/tier always visible, top-5 public preview, opt-out toggle. Physical device verification pending (unreachable this pass). |
@@ -70,8 +70,11 @@ current implementation status.
   navigation SDK provider choice (Google Maps Platform vs Mapbox vs
   other -- pricing/ToS/API-key-security research still needed before
   picking one); AdMob account setup requiring adult publisher
-  attestation; any Play/legal step requiring the owner's own identity or
-  payment action.
+  attestation; Google OAuth provider activation requiring the owner's
+  Google Cloud Console (Web client + secret entered into the Supabase
+  Auth provider dashboard -- see `docs/MORT_GOOGLE_AUTH_EXTERNAL_SETUP.md`,
+  engineering side is 100% complete and tested); any Play/legal step
+  requiring the owner's own identity or payment action.
 
 ## COMPLETED_TODAY (2026-08-18 evening session)
 
@@ -112,21 +115,22 @@ current implementation status.
 
 Items 1-3 of the owner's "IMMEDIATE ORDER" (job cards, Quick Accept UI,
 post-authorized navigation) are DONE -- see JOBS/QUICK_ACCEPT/
-EXACT_LOCATION rows. Physical smoke-verified twice on the Galaxy A14
-(clean boot, 0 crashes) across all changes so far.
+EXACT_LOCATION rows. Item 4 (Leaderboard) is DONE -- see LEADERBOARD row.
+Item 6 (Google Login + Google Sign-Up) was found already fully engineered
+and reverified rather than rebuilt -- see GOOGLE_AUTH row; only the
+owner's external Google Cloud/Supabase provider activation remains.
+Physical smoke-verified twice on the Galaxy A14 (clean boot, 0 crashes)
+across all changes so far.
 
-1. **Leaderboard** (item 4): server-authoritative scoring inside
-   Dashboard (not a 6th tab), safe inputs only (verified completions,
-   reliability, reputation, badges -- never exact earnings/location/
-   addresses), anti-cheat tests for fake completions/duplicate events/
-   self-review manipulation/client-side score forging.
-2. **Transportation end-to-end** (item 5): job cards already show it;
+1. **Transportation end-to-end** (item 5): job cards already show it;
    remaining piece is Teen profile/preference-based eligibility signal.
-3. **Google Login + Google Sign-Up** (item 6): Supabase Auth + Google
-   OAuth + PKCE, canonical callback `com.mortapp.mobile://app/auth-callback`,
-   full new/existing-user + error-state handling.
-4. Then continue in order: onboarding polish, messaging, safety,
-   support, profile/settings, guardian, ads/AdMob, legal/Play production,
-   iOS source parity, final Android QA, final AAB/APK.
-5. Owner decisions still pending (not engineering blockers): navigation
-   SDK billing/API-key setup (Google Cloud), AdMob account setup.
+2. **Onboarding polish** (item 7): audit current compact onboarding flow
+   for remaining polish items.
+3. Then continue in order: messaging, safety center, support,
+   profile/settings, guardian, notifications, ads/AdMob, legal/Play
+   production, account deletion, reviewer access, data safety, public
+   legal/web resources, iOS source parity, final Android QA, final
+   signed AAB/APK, artifact verification.
+4. Owner decisions still pending (not engineering blockers): navigation
+   SDK billing/API-key setup (Google Cloud), AdMob account setup, Google
+   OAuth provider activation (Google Cloud + Supabase dashboard).
