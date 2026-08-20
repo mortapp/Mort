@@ -8,7 +8,7 @@ Android resources, Gradle, iOS files, Expo variables, Git, logs,
 screenshots, zips, APKs, or AABs. Enter it only in Supabase Auth provider
 configuration or an approved server-side secret manager.
 
-## Status: ENGINEERING COMPLETE, EXTERNAL_BLOCKED (2026-08-19/20)
+## Status: ENGINEERING + SERVER-SIDE COMPLETE, BLOCKED_EXTERNAL_APPLE_DEVELOPER_ACCOUNT (2026-08-19/20)
 
 The Dart/Flutter side of Apple Sign-In is built, tested, and committed --
 it reuses the exact same architecture already verified live for Google
@@ -36,19 +36,40 @@ What exists in code right now:
 - `ConnectedAccountsScreen` (`lib/features/auth/google_auth_screens.dart`)
   extended with an Apple identity card and Connect/Disconnect Apple
   buttons, alongside the existing Google and password identity cards.
-- `test/apple_auth_contract_test.dart` -- 7 passing assertions mirroring
+- `test/apple_auth_contract_test.dart` -- 8 passing assertions mirroring
   `google_auth_contract_test.dart`'s coverage for the parts that apply to
   Apple (PKCE flow, scopes, gating, callback identity, UI branding,
-  connected-accounts wiring, no embedded secrets).
+  connected-accounts wiring, the server-side RPC gate, no embedded
+  secrets).
 - `test/google_auth_contract_test.dart` -- re-verified, all 13 original
   assertions still pass unchanged; the Google implementation's strings and
   behavior were preserved byte-for-byte during the generalization.
+- **`supabase/migrations/20260820000000_apple_identity_controls.sql` --
+  applied to production** (`rakjydmgwwgtdislanbt`, recorded as
+  `20260820113638_apple_identity_controls`), owner-approved after the
+  first attempt was correctly blocked by Claude Code's own safety
+  classifier as a production schema change. Makes
+  `record_my_auth_identity_event` (previously hardcoded to accept only
+  `'google'`) and its supporting unique index provider-agnostic across
+  `google`/`apple`, with identical per-provider validation preserved
+  (own-caller-only via `auth.uid()`, rate-limited, requires a prior link
+  event before an unlink event, idempotent via `client_request_id`).
+  Verified post-apply: migration present in Supabase's migration history;
+  function source confirms only `google`/`apple` are accepted, everything
+  else returns `provider_not_allowed`; `EXECUTE` grants confirmed limited
+  to `authenticated`/`service_role` (not `anon`/`public`); `get_advisors`
+  shows only the same pre-existing, intentional `SECURITY DEFINER`
+  advisory the original Google-only function already had, nothing new.
+  Without this migration, Apple account linking and unlinking would have
+  failed server-side with `provider_not_allowed` even after the OAuth
+  provider itself is configured below -- this is no longer a risk.
 
 What is genuinely blocked and requires the account owner, not this
-session: everything below. No Apple Developer session exists in this
-browser (a real sign-in page with an empty email field, no cached
-identity) -- this was not typed into, per the standing rule against typing
-into external account logins with no session.
+session: OAuth provider activation itself (everything in the two sections
+below). No Apple Developer session exists in this browser (a real sign-in
+page with an empty email field, no cached identity) -- this was not typed
+into, per the standing rule against typing into external account logins
+with no session.
 
 ## Apple Developer Owner Steps (REQUIRED, none of this can be done from here)
 
