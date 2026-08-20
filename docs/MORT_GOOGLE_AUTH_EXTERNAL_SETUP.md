@@ -7,7 +7,49 @@ resources, Gradle, iOS files, Expo variables, Git, logs, screenshots, zips, APKs
 or AABs. Enter it only in Supabase Auth provider configuration or an approved
 server-side secret manager.
 
-## Current Status (2026-08-19, browser-controlled completion pass)
+## VERIFIED LIVE (2026-08-20) -- real end-to-end login tested twice
+
+Google Sign-In is confirmed genuinely working, not just configured. Two
+separate real logins were run through `https://mort-web.vercel.app/login` ->
+"Continue with Google" -> real Google consent screen -> real account
+selection -> real Supabase token exchange -> real session -> real redirect
+to `/app/onboarding`, each followed by a real sign-out:
+
+1. Against the **original** client (`621016064579-...`, from a GCP project
+   neither available Google account could administer) -- this was the
+   config actually saved in Supabase at the time (an earlier session's edit
+   to swap the Client ID had never been saved, only typed and abandoned).
+   This test proved that pairing was fully valid and Google Sign-In had
+   been live and working the whole time, contrary to an earlier assumption
+   that it was broken.
+2. Against the **new**, fully-owned client (`382105285546-g863...`, project
+   `mort-506011`) after the owner pasted its matching secret into Supabase
+   and saved. Also fully succeeded end-to-end.
+
+Supabase's Google provider is now configured with the new, owner-controlled
+client (Client ID confirmed persisted after page reload; Client Secret
+pasted directly by the owner from Google's one-time creation dialog --
+never read, typed, or handled by the automated agent at any point).
+
+**Android and iOS use this exact same configuration.** MORT's mobile OAuth
+flow goes through Supabase's PKCE authorization-code exchange (external
+browser -> Google consent -> Supabase callback -> deep link back into the
+app), not a native platform SDK -- so there is no separate per-platform
+client to configure for this to work on Android or iOS. The two additional
+"Android" OAuth clients created in `mort-506011` (see below) are unused by
+the current flow; they exist only as a defensive fallback should native
+Google Sign-In/Credential Manager ever be added later.
+
+Note on the consent screen text ("Sign in to rakjydmgwwgtdislanbt.supabase.co"):
+this is Google's own anti-phishing security display, always showing the
+actual domain that performs the token exchange (Supabase's domain, since
+Supabase -- not MORT directly -- receives the authorization code). It is
+not controlled by the Branding settings and cannot be changed to "MORT"
+without giving Supabase Auth a custom domain (e.g. `auth.mortapp.com`,
+requiring real DNS + a paid Supabase tier) -- a real, deliberately separate
+future project, not a quick setting.
+
+## Superseded status snapshot (2026-08-19, browser-controlled completion pass)
 
 A dedicated GCP project (`mort-506011`, name "MORT") was created under the
 owner's `kolawoleorelesi@gmail.com` account -- the previously-referenced

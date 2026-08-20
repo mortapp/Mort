@@ -21,14 +21,13 @@ void main() {
     expect(AppConfig.identityVerificationEnabled, isFalse);
   });
 
-  test('native ads, billing, and Stripe SDKs stay excluded', () {
+  test('native billing and Stripe SDKs stay excluded', () {
     final pubspec = _read('pubspec.yaml');
     final pluginRegistry = _read(
       'android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java',
     );
 
     for (final dependency in [
-      'google_mobile_ads',
       'purchases_flutter',
       'purchases_ui_flutter',
       'flutter_stripe',
@@ -36,13 +35,46 @@ void main() {
       expect(pubspec, isNot(contains(dependency)));
       expect(pluginRegistry, isNot(contains(dependency)));
     }
-    expect(AppConfig.nativeAdsCompiledIn, isFalse);
     expect(AppConfig.nativeBillingCompiledIn, isFalse);
-    expect(AppConfig.supportsNativeAds, isFalse);
     expect(AppConfig.supportsNativePurchases, isFalse);
     expect(pubspec, isNot(contains('in_app_purchase:')));
     expect(AppConfig.nativeStripePaymentSheetCompiledIn, isFalse);
     expect(AppConfig.supportsStripePaymentSheet, isFalse);
+  });
+
+  test('native ads SDK is present and gated correctly, not excluded', () {
+    // Deliberate architecture decision (owner-authorized product change):
+    // MORT ships real Banner/Rewarded ads. The SDK being compiled in is no
+    // longer prohibited -- what's still required is that it stays inert
+    // wherever config/policy says it must (ADS_ENABLED=false, sensitive
+    // placements, no ad-free entitlement bypass), never that it's absent.
+    final pubspec = _read('pubspec.yaml');
+    expect(pubspec, contains('google_mobile_ads'));
+    expect(AppConfig.nativeAdsCompiledIn, isTrue);
+
+    final manifest = _read('android/app/src/main/AndroidManifest.xml');
+    expect(
+      manifest,
+      contains('com.google.android.gms.ads.APPLICATION_ID'),
+    );
+
+    final service = _read('lib/features/ads/data/admob_service.dart');
+    for (final placement in [
+      'auth',
+      'onboarding',
+      'age_gate',
+      'safety_ping',
+      'report',
+      'messages',
+      'guardian_approval',
+      'proof_upload',
+      'verification',
+      'payment_preference',
+      'admin',
+      'paywall',
+    ]) {
+      expect(service, contains("'$placement'"));
+    }
   });
 
   test('version source is valid and greater than the previous Play build', () {

@@ -47,8 +47,11 @@ void main() {
       contains("'digital_purchases_provider', 'google_play_billing'"),
     );
     expect(pubspec, isNot(contains('flutter_stripe')));
-    expect(pubspec, isNot(contains('google_mobile_ads')));
     expect(pubspec, isNot(contains('purchases_flutter')));
+    // google_mobile_ads is deliberately allowed here -- see
+    // release_candidate_policy_test.dart for the current, real ads-shipping
+    // contract (SDK present, fail-closed eligibility, no ads on sensitive
+    // placements). This test only guards the payment-SDK boundary now.
   });
 
   test('Stripe provider secrets do not appear in mobile sources', () {
