@@ -8,6 +8,7 @@ import '../../core/theme/mort_spacing.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/profile.dart';
 import '../../data/repositories/providers.dart';
+import '../ads/widgets/mort_spark_section.dart';
 import '../profile/profile_avatar_widgets.dart';
 import 'teen_shell.dart';
 
@@ -156,6 +157,8 @@ class _TeenProfileBody extends ConsumerWidget {
             ],
           ),
         ],
+        const MortSectionLabel(label: 'Profile extras'),
+        const MortSparkSection(),
         const MortSectionLabel(label: 'Recent work'),
         ref
             .watch(myApplicationsProvider)

@@ -1,6 +1,35 @@
+import 'package:uuid/uuid.dart';
+
 import 'repository_base.dart';
 
 class MonetizationRepository extends RepositoryBase {
+  static const _uuid = Uuid();
+
+  /// Watching a rewarded ad to completion may grant a purely cosmetic,
+  /// 24h "MORT Spark" profile accent. No marketplace, safety, ranking, or
+  /// job-eligibility effect. Call only from inside the ad SDK's own
+  /// onUserEarnedReward callback -- never on tap.
+  Future<Map<String, dynamic>> grantSparkReward() async {
+    final result = await client.rpc(
+      'grant_mort_spark_reward',
+      params: {'p_client_request_id': _uuid.v4()},
+    );
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  Future<DateTime?> getActiveSparkExpiry() async {
+    final row = await client
+        .from('mort_spark_grants')
+        .select('expires_at')
+        .eq('user_id', requireUserId())
+        .order('granted_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+    if (row == null) return null;
+    final expiresAt = DateTime.parse(row['expires_at'] as String);
+    return expiresAt.isAfter(DateTime.now().toUtc()) ? expiresAt : null;
+  }
+
   Future<Map<String, dynamic>> getMyEntitlements() async {
     final result = await client.rpc('get_my_entitlements');
     return Map<String, dynamic>.from(result as Map);
