@@ -301,7 +301,7 @@ if (!config.supabaseUrl || !config.supabaseAnonKey) {
   });
   signOut.addEventListener('click', async () => { await client.auth.signOut(); await showSession(); });
   client.auth.onAuthStateChange(() => { void showSession(); });
-  await showSession();
+  void showSession();
 }
 `);
 
@@ -331,9 +331,40 @@ write('_headers', `
   Content-Security-Policy: default-src 'self'; script-src 'self'; connect-src 'self' https://rakjydmgwwgtdislanbt.supabase.co; style-src 'self'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; worker-src 'none'; upgrade-insecure-requests
 `);
 write('_redirects', '/* /index.html 404');
+// Real, confirmed AdMob publisher ID (pub-9883419411387958), standard
+// AdMob app-ads.txt authorized-seller line -- not a placeholder.
+write('app-ads.txt', 'google.com, pub-9883419411387958, DIRECT, f08c47fec0942fa0');
 write(
   '../netlify.toml',
   `[build]\n  publish = "public"\n  command = "node ../scripts/build-public-legal-site.mjs"\n`,
+);
+write(
+  'vercel.json',
+  JSON.stringify(
+    {
+      headers: [
+        {
+          source: '/(.*)',
+          headers: [
+            { key: 'X-Content-Type-Options', value: 'nosniff' },
+            { key: 'X-Frame-Options', value: 'DENY' },
+            { key: 'Referrer-Policy', value: 'no-referrer' },
+            {
+              key: 'Permissions-Policy',
+              value: 'camera=(), microphone=(), geolocation=(), payment=()',
+            },
+            {
+              key: 'Content-Security-Policy',
+              value:
+                "default-src 'self'; script-src 'self'; connect-src 'self' https://rakjydmgwwgtdislanbt.supabase.co; style-src 'self'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; worker-src 'none'; upgrade-insecure-requests",
+            },
+          ],
+        },
+      ],
+    },
+    null,
+    2,
+  ),
 );
 
 process.stdout.write(

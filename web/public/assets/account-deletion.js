@@ -47,5 +47,5 @@ if (!config.supabaseUrl || !config.supabaseAnonKey) {
   });
   signOut.addEventListener('click', async () => { await client.auth.signOut(); await showSession(); });
   client.auth.onAuthStateChange(() => { void showSession(); });
-  await showSession();
+  void showSession();
 }
