@@ -18,5 +18,6 @@ if (-not (Test-Path -LiteralPath $crashProvider) -or -not (Test-Path -LiteralPat
   -IdentityVerificationEnabled $false `
   -RemotePushEnabled $true `
   -CrashReportingEnabled $true `
-  -PublicActivationApproved $false
+  -PublicActivationApproved $false `
+  -AdsEnabled $true
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

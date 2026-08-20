@@ -82,8 +82,11 @@ for (const [name, profile] of Object.entries(matrix.profiles)) {
   if (["reviewer_demo", "closed_test", "production_candidate", "production"].includes(name) && profile.debugEndpointsEnabled) {
     fail(`${name} cannot compile debug endpoints`);
   }
-  if (["reviewer_demo", "closed_test", "production_candidate", "production"].includes(name) && (profile.adsEnabled || profile.iapEnabled)) {
-    fail(`${name} cannot enable unapproved ads or IAP`);
+  if (["reviewer_demo", "closed_test"].includes(name) && profile.adsEnabled) {
+    fail(`${name} cannot enable ads -- real ad traffic is reserved for production_candidate/production`);
+  }
+  if (["reviewer_demo", "closed_test", "production_candidate", "production"].includes(name) && profile.iapEnabled) {
+    fail(`${name} cannot enable unapproved IAP`);
   }
 }
 

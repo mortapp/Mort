@@ -191,6 +191,76 @@ void main() {
     },
   );
 
+  test(
+    'real ads are approved only for production_candidate and production',
+    () {
+      final productionWithAds = configuration(
+        profile: MortReleaseProfile.production,
+        releaseStage: 'production_public',
+        publicMarketplaceEnabled: true,
+        identityVerificationEnabled: true,
+        remotePushEnabled: true,
+        crashReportingEnabled: true,
+        productionActivationApproved: true,
+        adsEnabled: true,
+        termsVersion: 'terms-2026-08-approved',
+        privacyVersion: 'privacy-2026-08-approved',
+        communityVersion: 'community-2026-08-approved',
+        safetyVersion: 'safety-2026-08-approved',
+      );
+      expect(productionWithAds.validationErrors, isEmpty);
+
+      final candidateWithAds = configuration(
+        profile: MortReleaseProfile.productionCandidate,
+        releaseStage: 'production_pilot',
+        remotePushEnabled: true,
+        crashReportingEnabled: true,
+        adsEnabled: true,
+      );
+      expect(candidateWithAds.validationErrors, isEmpty);
+
+      final closedTestWithAds = configuration(
+        profile: MortReleaseProfile.closedTest,
+        releaseStage: 'closed_test',
+        adsEnabled: true,
+      );
+      expect(
+        closedTestWithAds.validationErrors,
+        contains(contains('real ad traffic is reserved')),
+      );
+
+      final reviewerDemoWithAds = configuration(
+        profile: MortReleaseProfile.reviewerDemo,
+        releaseStage: 'closed_test',
+        reviewerModeEnabled: true,
+        adsEnabled: true,
+      );
+      expect(
+        reviewerDemoWithAds.validationErrors,
+        contains(contains('real ad traffic is reserved')),
+      );
+
+      final productionWithIap = configuration(
+        profile: MortReleaseProfile.production,
+        releaseStage: 'production_public',
+        publicMarketplaceEnabled: true,
+        identityVerificationEnabled: true,
+        remotePushEnabled: true,
+        crashReportingEnabled: true,
+        productionActivationApproved: true,
+        iapEnabled: true,
+        termsVersion: 'terms-2026-08-approved',
+        privacyVersion: 'privacy-2026-08-approved',
+        communityVersion: 'community-2026-08-approved',
+        safetyVersion: 'safety-2026-08-approved',
+      );
+      expect(
+        productionWithIap.validationErrors,
+        contains('IAP is not approved for this release'),
+      );
+    },
+  );
+
   test('safe diagnostics contain status but no public key or backend URL', () {
     final diagnostics = configuration(
       profile: MortReleaseProfile.closedTest,

@@ -166,8 +166,17 @@ class MortReleaseConfiguration {
     if (profile.isReleaseBuild && debugEndpointsEnabled) {
       errors.add('debug endpoints are forbidden in release builds');
     }
-    if (profile.isReleaseBuild && (adsEnabled || iapEnabled)) {
-      errors.add('ads and IAP are not approved for this release');
+    if ((profile == MortReleaseProfile.reviewerDemo ||
+            profile == MortReleaseProfile.closedTest) &&
+        adsEnabled) {
+      errors.add(
+        'ads are not approved for this release -- real ad traffic is '
+        'reserved for production_candidate/production while closed_test '
+        'stays on test inventory or ads disabled',
+      );
+    }
+    if (profile.isReleaseBuild && iapEnabled) {
+      errors.add('IAP is not approved for this release');
     }
 
     switch (profile) {

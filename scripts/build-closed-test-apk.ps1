@@ -12,5 +12,6 @@ param()
   -IdentityVerificationEnabled $false `
   -RemotePushEnabled $false `
   -CrashReportingEnabled $false `
-  -PublicActivationApproved $false
+  -PublicActivationApproved $false `
+  -AdsEnabled $false
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
