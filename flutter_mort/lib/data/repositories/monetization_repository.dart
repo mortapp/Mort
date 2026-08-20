@@ -42,6 +42,7 @@ class MonetizationRepository extends RepositoryBase {
     required String placement,
     required String format,
     String? adUnitId,
+    bool requestNonPersonalized = true,
   }) async {
     await client.rpc(
       'record_ad_impression',
@@ -49,6 +50,7 @@ class MonetizationRepository extends RepositoryBase {
         'p_placement': placement,
         'p_ad_format': format,
         'p_ad_unit_id': adUnitId,
+        'p_request_non_personalized': requestNonPersonalized,
       },
     );
   }
