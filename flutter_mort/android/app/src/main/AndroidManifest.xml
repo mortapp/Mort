@@ -28,6 +28,13 @@
         android:enableOnBackInvokedCallback="true"
         android:usesCleartextTraffic="false"
         android:networkSecurityConfig="@xml/network_security_config">
+        <!-- Google Mobile Ads SDK requires this exact meta-data to
+             initialize. This is the public AdMob App ID (safe to commit,
+             not a secret) -- it only identifies the app to AdMob, the same
+             way a package name does. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-9883419411387958~1048817736" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

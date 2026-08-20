@@ -251,14 +251,23 @@ class AppConfig {
     'ADMOB_IOS_NATIVE_AD_UNIT_ID',
   );
 
+  // Defaults are the real, confirmed MORT production AdMob identifiers
+  // (public identifiers, not secrets -- same category as the package name).
+  // A dart-define can still override them if the AdMob app/units are ever
+  // recreated. USE_TEST_ADS (default true) governs whether these are
+  // actually used or Google's own test ad unit ids are, so simply having
+  // real values configured here does not by itself serve real ads.
   static const admobAndroidAppId = String.fromEnvironment(
     'ADMOB_ANDROID_APP_ID',
+    defaultValue: 'ca-app-pub-9883419411387958~1048817736',
   );
   static const admobAndroidBannerAdUnitId = String.fromEnvironment(
     'ADMOB_ANDROID_BANNER_AD_UNIT_ID',
+    defaultValue: 'ca-app-pub-9883419411387958/8216077490',
   );
   static const admobAndroidRewardedAdUnitId = String.fromEnvironment(
     'ADMOB_ANDROID_REWARDED_AD_UNIT_ID',
+    defaultValue: 'ca-app-pub-9883419411387958/1877899853',
   );
   static const admobAndroidInterstitialAdUnitId = String.fromEnvironment(
     'ADMOB_ANDROID_INTERSTITIAL_AD_UNIT_ID',
@@ -279,7 +288,7 @@ class AppConfig {
     'IAP_ENABLED',
     defaultValue: false,
   );
-  static const nativeAdsCompiledIn = false;
+  static const nativeAdsCompiledIn = true;
   static const nativeBillingCompiledIn = false;
   static const nativeStripePaymentSheetCompiledIn = false;
   static const webPreviewMode = bool.fromEnvironment(
@@ -382,8 +391,25 @@ class AppConfig {
       if (iapEnabled || nativeBillingCompiledIn) {
         errors.add('native billing must be absent from this release');
       }
-      if (adsEnabled || nativeAdsCompiledIn) {
-        errors.add('native ads must be absent from this release');
+      // Ads SDK being compiled in is a deliberate, owner-authorized product
+      // decision (MORT ships real Banner/Rewarded ads) -- no longer
+      // prohibited. What must still fail closed: if a release build turns
+      // ads on at all, it must actually be configured for the platform it's
+      // building for, rather than silently shipping a broken ad slot.
+      if (adsEnabled && useTestAds) {
+        errors.add(
+          'ads are enabled for this release but USE_TEST_ADS was not set to false -- this would serve Google test ads to real users',
+        );
+      }
+      if (adsEnabled && !kIsWeb) {
+        final adUnitIdMissing = defaultTargetPlatform == TargetPlatform.iOS
+            ? admobIosAppId.isEmpty || admobIosBannerAdUnitId.isEmpty
+            : admobAndroidAppId.isEmpty || admobAndroidBannerAdUnitId.isEmpty;
+        if (adUnitIdMissing) {
+          errors.add(
+            'ads are enabled for this release but the platform AdMob app/ad unit ids are not configured',
+          );
+        }
       }
       if (marketplacePaymentsEnabled) {
         errors.add('marketplace payments are not approved for this release');

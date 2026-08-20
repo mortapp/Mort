@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
-import '../../../core/theme/mort_colors.dart';
-import '../../../core/theme/mort_spacing.dart';
-import '../../../core/widgets/mort_widgets.dart';
+import '../../../core/config/app_config.dart';
+import '../../../data/repositories/providers.dart';
 import '../data/admob_service.dart';
 
-class MortBannerAd extends StatelessWidget {
+class MortBannerAd extends ConsumerStatefulWidget {
   const MortBannerAd({
     super.key,
     required this.placement,
@@ -16,35 +17,77 @@ class MortBannerAd extends StatelessWidget {
   final bool userAdFree;
 
   @override
-  Widget build(BuildContext context) {
-    final decision = const AdMobService().bannerDecision(
-      placement: placement,
-      userAdFree: userAdFree,
-    );
-    if (!decision.canShow) return const SizedBox.shrink();
-    return MortCard(
-      color: MortColors.cardAlt,
-      child: Row(
-        children: [
-          const TestAdBadge(),
-          const SizedBox(width: MortSpacing.sm),
-          Expanded(
-            child: Text(
-              'Native AdMob banner slot ready for $placement.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  ConsumerState<MortBannerAd> createState() => _MortBannerAdState();
 }
 
-class TestAdBadge extends StatelessWidget {
-  const TestAdBadge({super.key});
+class _MortBannerAdState extends ConsumerState<MortBannerAd> {
+  BannerAd? _ad;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (AppConfig.nativeAdsCompiledIn && AppConfig.adsEnabled) {
+      _loadRealAd();
+    }
+  }
+
+  Future<void> _loadRealAd() async {
+    final local = const AdMobService().bannerDecision(
+      placement: widget.placement,
+      userAdFree: widget.userAdFree,
+    );
+    final decision = await const AdMobService().confirmWithServer(
+      decision: local,
+      repository: ref.read(monetizationRepositoryProvider),
+      placement: widget.placement,
+      adFormat: 'banner',
+    );
+    if (!mounted || !decision.canShow || decision.adUnitId == null) return;
+
+    final ad = BannerAd(
+      adUnitId: decision.adUnitId!,
+      size: AdSize.banner,
+      request: AdRequest(nonPersonalizedAds: decision.requestNonPersonalized),
+      listener: BannerAdListener(
+        onAdLoaded: (_) {
+          if (!mounted) return;
+          setState(() => _loaded = true);
+          ref
+              .read(monetizationRepositoryProvider)
+              .recordAdImpression(
+                placement: widget.placement,
+                format: 'banner',
+                adUnitId: decision.adUnitId,
+                requestNonPersonalized: decision.requestNonPersonalized,
+              );
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          if (mounted) setState(() => _ad = null);
+        },
+      ),
+    );
+    _ad = ad;
+    ad.load();
+  }
+
+  @override
+  void dispose() {
+    _ad?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const MortBadge(label: 'Test ads first', color: MortColors.warning);
+    if (!AppConfig.nativeAdsCompiledIn || !AppConfig.adsEnabled) {
+      return const SizedBox.shrink();
+    }
+    if (!_loaded || _ad == null) return const SizedBox.shrink();
+    return SizedBox(
+      width: _ad!.size.width.toDouble(),
+      height: _ad!.size.height.toDouble(),
+      child: AdWidget(ad: _ad!),
+    );
   }
 }

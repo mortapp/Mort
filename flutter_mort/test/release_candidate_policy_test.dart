@@ -53,10 +53,7 @@ void main() {
     expect(AppConfig.nativeAdsCompiledIn, isTrue);
 
     final manifest = _read('android/app/src/main/AndroidManifest.xml');
-    expect(
-      manifest,
-      contains('com.google.android.gms.ads.APPLICATION_ID'),
-    );
+    expect(manifest, contains('com.google.android.gms.ads.APPLICATION_ID'));
 
     final service = _read('lib/features/ads/data/admob_service.dart');
     for (final placement in [
