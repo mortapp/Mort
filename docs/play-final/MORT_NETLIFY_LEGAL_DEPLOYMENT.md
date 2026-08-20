@@ -78,8 +78,33 @@ build (shows a visible blocker banner instead) until all six are set. Used:
 
 None of the 13 pages claim legal approval or public-production readiness --
 `release-status.json`'s `legalApprovalClaimed`/`publicDeploymentClaimed`
-both remain `false`, and every page still carries the "production-pilot
-publication candidate" banner and closed-pilot disclosures.
+both remain `false`, and every page still carries a closed-pilot disclosure.
+
+## Stale-wording fix and repo/live drift found (2026-08-20)
+
+Auditing the 13 live pages found the status badge and two body strings still
+read "Production-pilot publication candidate" -- accurate language for a
+package awaiting a publish decision, but stale now that the package has
+actually been deployed and is serving real traffic (including the real
+Supabase-backed account-deletion flow). Fixed in
+`scripts/build-public-legal-site.mjs`: the badge now reads "Published -
+closed-pilot draft, pending qualified legal review" (accurate on both
+fronts -- it is genuinely live, and the legal content is genuinely still
+unreviewed by counsel, matching the LEGAL row's status). The privacy page's
+"This publication candidate covers..." and the terms page's meta
+description ("...production-pilot candidate") were also updated to drop the
+stale "candidate" framing without changing scope or claims.
+
+Rebuilding also surfaced that the git-committed `web/public/` output had
+drifted from the actual live site: it was last committed in the
+`deploymentReady: false` state (built without the six `MORT_PUBLIC_*` env
+vars, showing the release-blocker banner and "pending - deployment blocked"
+placeholders), while the real live deployment was zip-uploaded directly to
+Vercel with real config and never committed back. Rebuilt with the same six
+real values documented above (unchanged) and committed, so the repo now
+matches what is actually live. **Not yet redeployed to Vercel** -- pushing
+new content to the live `mort-legal.vercel.app` project is a public-content
+change and needs the owner's go-ahead before uploading the new build.
 
 ## Also added this session
 
