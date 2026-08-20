@@ -38,6 +38,7 @@ class MortReleaseConfiguration {
     required this.supabaseProjectRef,
     required this.expectedSupabaseProjectRef,
     required this.googleAuthEnabled,
+    required this.appleAuthEnabled,
     required this.oauthCallback,
     required this.publicMarketplaceEnabled,
     required this.marketplacePaymentsEnabled,
@@ -70,6 +71,7 @@ class MortReleaseConfiguration {
   final String supabaseProjectRef;
   final String expectedSupabaseProjectRef;
   final bool googleAuthEnabled;
+  final bool appleAuthEnabled;
   final String oauthCallback;
   final bool publicMarketplaceEnabled;
   final bool marketplacePaymentsEnabled;
@@ -109,6 +111,10 @@ class MortReleaseConfiguration {
     if (googleAuthEnabled &&
         oauthCallback != 'com.mortapp.mobile://app/auth-callback') {
       errors.add('Google Auth must use the approved native PKCE callback');
+    }
+    if (appleAuthEnabled &&
+        oauthCallback != 'com.mortapp.mobile://app/auth-callback') {
+      errors.add('Apple Auth must use the approved native PKCE callback');
     }
     if (!_isSafeInternalRoute(supportRoute)) {
       errors.add('support route must be a non-secret internal app route');
@@ -246,6 +252,7 @@ class MortReleaseConfiguration {
     'Operational mode': operationalMode,
     'Hosted backend': _enabled(hostedBackendConfigured),
     'Google Auth': _enabled(googleAuthEnabled),
+    'Apple Auth': _enabled(appleAuthEnabled),
     'Public marketplace request': _enabled(publicMarketplaceEnabled),
     'Marketplace payments': _enabled(marketplacePaymentsEnabled),
     'Payment provider mode': paymentProviderMode,

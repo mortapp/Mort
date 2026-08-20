@@ -13,6 +13,7 @@ import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/onboarding_progress.dart';
 import '../../data/repositories/providers.dart';
 import '../../data/services/supabase_service.dart';
+import 'apple_auth_screens.dart';
 import 'google_auth_screens.dart';
 
 enum UnifiedAuthMode { signIn, signUp }
@@ -380,6 +381,7 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
         if (!_reviewerIdentifierEntered) ...[
           const SizedBox(height: MortSpacing.md),
           const GoogleAuthSection(),
+          const AppleAuthSection(),
         ],
         const SizedBox(height: MortSpacing.sm),
         Row(

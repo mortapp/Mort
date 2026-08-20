@@ -188,6 +188,10 @@ class AppConfig {
     'GOOGLE_AUTH_ENABLED',
     defaultValue: false,
   );
+  static const appleAuthEnabled = bool.fromEnvironment(
+    'APPLE_AUTH_ENABLED',
+    defaultValue: false,
+  );
   static const publicWebOrigin = String.fromEnvironment(
     'MORT_PUBLIC_WEB_ORIGIN',
     defaultValue: 'https://mort-web.vercel.app',
@@ -331,6 +335,7 @@ class AppConfig {
         supabaseProjectRef: supabaseProjectRef,
         expectedSupabaseProjectRef: expectedSupabaseProjectRef,
         googleAuthEnabled: googleAuthEnabled,
+        appleAuthEnabled: appleAuthEnabled,
         oauthCallback: authRedirectUrl,
         publicMarketplaceEnabled: publicMarketplaceEnabled,
         marketplacePaymentsEnabled: marketplacePaymentsEnabled,
@@ -417,6 +422,10 @@ class AppConfig {
       if (googleAuthEnabled &&
           authRedirectUrl != expectedNativeAuthRedirectUrl) {
         errors.add('Google Auth must use the approved native callback');
+      }
+      if (appleAuthEnabled &&
+          authRedirectUrl != expectedNativeAuthRedirectUrl) {
+        errors.add('Apple Auth must use the approved native callback');
       }
     }
 

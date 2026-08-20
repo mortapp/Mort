@@ -14,12 +14,53 @@ import '../services/supabase_service.dart';
 
 enum OAuthPurpose { signIn, link }
 
+class _OAuthProviderInfo {
+  const _OAuthProviderInfo({
+    required this.provider,
+    required this.key,
+    required this.displayName,
+    required this.scopes,
+  });
+
+  final OAuthProvider provider;
+
+  /// Matches `identity.provider` from Supabase and the audit event type
+  /// prefix (e.g. `'google_linked'`, `'apple_linked'`).
+  final String key;
+  final String displayName;
+  final String scopes;
+}
+
+const _googleOAuthProvider = _OAuthProviderInfo(
+  provider: OAuthProvider.google,
+  key: 'google',
+  displayName: 'Google',
+  scopes: 'openid email profile',
+);
+
+// Apple's own documented scope set for Sign in with Apple -- not the same
+// string as Google's OIDC scopes.
+const _appleOAuthProvider = _OAuthProviderInfo(
+  provider: OAuthProvider.apple,
+  key: 'apple',
+  displayName: 'Apple',
+  scopes: 'name email',
+);
+
+class _OAuthIntent {
+  const _OAuthIntent({required this.purpose, required this.provider});
+
+  final OAuthPurpose purpose;
+  final _OAuthProviderInfo provider;
+}
+
 class ConnectedAuthIdentity {
   const ConnectedAuthIdentity({
     required this.provider,
     required this.email,
     required this.createdAt,
     required this.isGoogle,
+    required this.isApple,
     required this.isPassword,
   });
 
@@ -27,6 +68,7 @@ class ConnectedAuthIdentity {
   final String? email;
   final DateTime? createdAt;
   final bool isGoogle;
+  final bool isApple;
   final bool isPassword;
 }
 
@@ -35,6 +77,7 @@ class AuthRepository {
   static const _recentAuthenticationWindow = Duration(minutes: 15);
   static const _oauthIntentLifetime = Duration(minutes: 10);
   static const _oauthPurposeKey = 'mort.oauth.purpose';
+  static const _oauthProviderKey = 'mort.oauth.provider';
   static const _oauthStartedAtKey = 'mort.oauth.started_at';
 
   AuthRepository() {
@@ -48,6 +91,7 @@ class AuthRepository {
   final _completionGate = OAuthCompletionGate();
   OAuthFlowSnapshot _oauthState = const OAuthFlowSnapshot.idle();
   OAuthPurpose? _oauthPurpose;
+  _OAuthProviderInfo _activeOAuthProvider = _googleOAuthProvider;
   StreamSubscription<AuthState>? _authSubscription;
   Timer? _oauthTimeout;
   bool _callbackProcessing = false;
@@ -91,58 +135,79 @@ class AuthRepository {
   }
 
   Future<OAuthFlowSnapshot> signInWithGoogle() {
-    return _launchGoogle(OAuthPurpose.signIn);
+    return _launchOAuth(_googleOAuthProvider, OAuthPurpose.signIn);
   }
 
-  Future<OAuthFlowSnapshot> linkGoogleIdentity() async {
+  Future<OAuthFlowSnapshot> linkGoogleIdentity() {
+    return _linkOAuthIdentity(_googleOAuthProvider);
+  }
+
+  Future<OAuthFlowSnapshot> signInWithApple() {
+    return _launchOAuth(_appleOAuthProvider, OAuthPurpose.signIn);
+  }
+
+  Future<OAuthFlowSnapshot> linkAppleIdentity() {
+    return _linkOAuthIdentity(_appleOAuthProvider);
+  }
+
+  Future<OAuthFlowSnapshot> _linkOAuthIdentity(
+    _OAuthProviderInfo providerInfo,
+  ) async {
     if (currentUser == null) {
-      throw const MortCodedError(
+      throw MortCodedError(
         'authentication_required',
-        'Sign in before connecting Google.',
+        'Sign in before connecting ${providerInfo.displayName}.',
       );
     }
     if (!isRecentlyAuthenticated(currentUser)) {
-      throw const MortCodedError(
+      throw MortCodedError(
         'recent_authentication_required',
-        'Sign out and sign back in, then connect Google within 15 minutes.',
+        'Sign out and sign back in, then connect ${providerInfo.displayName} within 15 minutes.',
       );
     }
-    return _launchGoogle(OAuthPurpose.link);
+    return _launchOAuth(providerInfo, OAuthPurpose.link);
   }
 
-  Future<OAuthFlowSnapshot> _launchGoogle(OAuthPurpose purpose) async {
+  Future<OAuthFlowSnapshot> _launchOAuth(
+    _OAuthProviderInfo providerInfo,
+    OAuthPurpose purpose,
+  ) async {
     _ensureAuthListener();
-    if (!AppConfig.googleAuthEnabled) {
+    final providerEnabled = providerInfo.key == 'google'
+        ? AppConfig.googleAuthEnabled
+        : AppConfig.appleAuthEnabled;
+    if (!providerEnabled) {
       return _setOAuth(
-        const OAuthFlowSnapshot(
+        OAuthFlowSnapshot(
           OAuthFlowStage.providerDisabled,
-          'Google sign-in needs owner configuration. Use email and password.',
+          '${providerInfo.displayName} sign-in needs owner configuration. Use email and password.',
         ),
       );
     }
     if (!_launchGate.tryAcquire()) return _oauthState;
 
     _oauthPurpose = purpose;
+    _activeOAuthProvider = providerInfo;
     _callbackProcessing = false;
     _setOAuth(
-      const OAuthFlowSnapshot(
+      OAuthFlowSnapshot(
         OAuthFlowStage.launchingProvider,
-        'Opening Google securely...',
+        'Opening ${providerInfo.displayName} securely...',
       ),
     );
     try {
-      await _persistOAuthPurpose(purpose);
+      await _persistOAuthIntent(purpose, providerInfo);
       final launched = purpose == OAuthPurpose.link
           ? await SupabaseService.client.auth.linkIdentity(
-              OAuthProvider.google,
+              providerInfo.provider,
               redirectTo: AppConfig.resolvedAuthRedirectUrl,
-              scopes: 'openid email profile',
+              scopes: providerInfo.scopes,
               authScreenLaunchMode: LaunchMode.externalApplication,
             )
           : await SupabaseService.client.auth.signInWithOAuth(
-              OAuthProvider.google,
+              providerInfo.provider,
               redirectTo: AppConfig.resolvedAuthRedirectUrl,
-              scopes: 'openid email profile',
+              scopes: providerInfo.scopes,
               authScreenLaunchMode: LaunchMode.externalApplication,
             );
       if (!launched) {
@@ -167,9 +232,9 @@ class AuthRepository {
         }
       });
       return _setOAuth(
-        const OAuthFlowSnapshot(
+        OAuthFlowSnapshot(
           OAuthFlowStage.waitingForRedirect,
-          'Finish with Google in your browser, then return to MORT.',
+          'Finish with ${providerInfo.displayName} in your browser, then return to MORT.',
         ),
       );
     } catch (error) {
@@ -180,7 +245,7 @@ class AuthRepository {
         ),
       );
       _finishOAuth();
-      return _setOAuth(_safeLaunchFailure(error));
+      return _setOAuth(_safeLaunchFailure(providerInfo, error));
     }
   }
 
@@ -207,7 +272,11 @@ class AuthRepository {
     if (!_launchGate.isActive && !_launchGate.tryAcquire()) {
       return _oauthState;
     }
-    _oauthPurpose ??= await _restoreOAuthPurpose() ?? OAuthPurpose.signIn;
+    if (_oauthPurpose == null) {
+      final restored = await _restoreOAuthIntent();
+      _oauthPurpose = restored?.purpose ?? OAuthPurpose.signIn;
+      _activeOAuthProvider = restored?.provider ?? _googleOAuthProvider;
+    }
     _callbackProcessing = true;
     _setOAuth(
       const OAuthFlowSnapshot(
@@ -218,14 +287,15 @@ class AuthRepository {
     if (_hasAuthenticatedSession) {
       await _completeOAuthOnce();
     } else {
+      final providerInfo = _activeOAuthProvider;
       _oauthTimeout?.cancel();
       _oauthTimeout = Timer(const Duration(seconds: 30), () {
         if (_oauthState.stage != OAuthFlowStage.processingCallback) return;
         _finishOAuth();
         _setOAuth(
-          const OAuthFlowSnapshot(
+          OAuthFlowSnapshot(
             OAuthFlowStage.sessionExchangeFailed,
-            'Google finished, but MORT could not establish a secure session. Start again from MORT.',
+            '${providerInfo.displayName} finished, but MORT could not establish a secure session. Start again from MORT.',
           ),
         );
       });
@@ -235,11 +305,12 @@ class AuthRepository {
 
   void cancelOAuthFlow() {
     if (!_oauthState.isBusy) return;
+    final providerInfo = _activeOAuthProvider;
     _finishOAuth();
     _setOAuth(
-      const OAuthFlowSnapshot(
+      OAuthFlowSnapshot(
         OAuthFlowStage.providerCanceled,
-        'Google sign-in was canceled. You can try again.',
+        '${providerInfo.displayName} sign-in was canceled. You can try again.',
       ),
     );
   }
@@ -258,13 +329,18 @@ class AuthRepository {
             email: identity.identityData?['email']?.toString(),
             createdAt: DateTime.tryParse(identity.createdAt ?? '')?.toUtc(),
             isGoogle: identity.provider == 'google',
+            isApple: identity.provider == 'apple',
             isPassword: identity.provider == 'email',
           ),
         )
         .toList(growable: false);
   }
 
-  Future<void> unlinkGoogleIdentity() async {
+  Future<void> unlinkGoogleIdentity() => _unlinkIdentity(_googleOAuthProvider);
+
+  Future<void> unlinkAppleIdentity() => _unlinkIdentity(_appleOAuthProvider);
+
+  Future<void> _unlinkIdentity(_OAuthProviderInfo providerInfo) async {
     final user = currentUser;
     if (user == null) {
       throw const MortCodedError(
@@ -273,28 +349,31 @@ class AuthRepository {
       );
     }
     if (!isRecentlyAuthenticated(user)) {
-      throw const MortCodedError(
+      throw MortCodedError(
         'recent_authentication_required',
-        'Sign out and sign back in, then disconnect Google within 15 minutes.',
+        'Sign out and sign back in, then disconnect ${providerInfo.displayName} within 15 minutes.',
       );
     }
     final identities = await SupabaseService.client.auth.getUserIdentities();
-    final google = identities
-        .where((item) => item.provider == 'google')
+    final matching = identities
+        .where((item) => item.provider == providerInfo.key)
         .toList();
-    if (google.isEmpty) return;
+    if (matching.isEmpty) return;
     if (identities.length < 2) {
-      throw const MortCodedError(
+      throw MortCodedError(
         'last_identity_required',
-        'Add another sign-in method before disconnecting Google.',
+        'Add another sign-in method before disconnecting ${providerInfo.displayName}.',
       );
     }
 
-    await SupabaseService.client.auth.unlinkIdentity(google.single);
-    if (!await _recordAuthIdentityEvent('google_unlinked')) {
-      throw const MortCodedError(
+    await SupabaseService.client.auth.unlinkIdentity(matching.single);
+    if (!await _recordAuthIdentityEvent(
+      '${providerInfo.key}_unlinked',
+      providerInfo,
+    )) {
+      throw MortCodedError(
         'identity_audit_failed',
-        'Google was disconnected, but MORT could not record the account security change. Contact Support.',
+        '${providerInfo.displayName} was disconnected, but MORT could not record the account security change. Contact Support.',
       );
     }
   }
@@ -402,8 +481,9 @@ class AuthRepository {
       },
       onError: (Object error, StackTrace stackTrace) {
         if (!_launchGate.isActive || !_oauthState.isBusy) return;
+        final providerInfo = _activeOAuthProvider;
         _finishOAuth();
-        _setOAuth(_safeLaunchFailure(error));
+        _setOAuth(_safeLaunchFailure(providerInfo, error));
       },
     );
   }
@@ -426,6 +506,7 @@ class AuthRepository {
     if (!_launchGate.isActive || _oauthState.stage == OAuthFlowStage.success) {
       return;
     }
+    final providerInfo = _activeOAuthProvider;
     final auth = SupabaseService.client.auth;
     final session = auth.currentSession;
     final user = auth.currentUser;
@@ -437,9 +518,9 @@ class AuthRepository {
     )) {
       _finishOAuth();
       _setOAuth(
-        const OAuthFlowSnapshot(
+        OAuthFlowSnapshot(
           OAuthFlowStage.sessionExchangeFailed,
-          'Google finished, but MORT could not establish a secure session. Start again from MORT.',
+          '${providerInfo.displayName} finished, but MORT could not establish a secure session. Start again from MORT.',
         ),
       );
       return;
@@ -472,7 +553,7 @@ class AuthRepository {
         ),
       );
       _finishOAuth();
-      final safeFailure = _safeLaunchFailure(error);
+      final safeFailure = _safeLaunchFailure(providerInfo, error);
       _setOAuth(
         safeFailure.stage == OAuthFlowStage.networkUnavailable
             ? safeFailure
@@ -508,14 +589,17 @@ class AuthRepository {
 
     final purpose = _oauthPurpose ?? OAuthPurpose.signIn;
     final auditRecorded = await _recordAuthIdentityEvent(
-      purpose == OAuthPurpose.link ? 'google_linked' : 'google_sign_in',
+      purpose == OAuthPurpose.link
+          ? '${providerInfo.key}_linked'
+          : '${providerInfo.key}_sign_in',
+      providerInfo,
     );
     if (!auditRecorded && purpose == OAuthPurpose.link) {
       _finishOAuth();
       _setOAuth(
-        const OAuthFlowSnapshot(
+        OAuthFlowSnapshot(
           OAuthFlowStage.identityAuditFailed,
-          'Google is connected, but MORT could not verify the account security record. Contact Support before retrying.',
+          '${providerInfo.displayName} is connected, but MORT could not verify the account security record. Contact Support before retrying.',
         ),
       );
       return;
@@ -526,7 +610,7 @@ class AuthRepository {
       OAuthFlowSnapshot(
         OAuthFlowStage.success,
         purpose == OAuthPurpose.link
-            ? 'Google is connected to your MORT account.'
+            ? '${providerInfo.displayName} is connected to your MORT account.'
             : 'You are signed in to MORT.',
       ),
     );
@@ -540,13 +624,16 @@ class AuthRepository {
     return const <String, dynamic>{};
   }
 
-  Future<bool> _recordAuthIdentityEvent(String eventType) async {
+  Future<bool> _recordAuthIdentityEvent(
+    String eventType,
+    _OAuthProviderInfo providerInfo,
+  ) async {
     try {
       final result = await SupabaseService.client.rpc(
         'record_my_auth_identity_event',
         params: {
           'p_event_type': eventType,
-          'p_provider': 'google',
+          'p_provider': providerInfo.key,
           'p_client_request_id': _uuid.v4(),
         },
       );
@@ -556,10 +643,17 @@ class AuthRepository {
     }
   }
 
-  Future<void> _persistOAuthPurpose(OAuthPurpose purpose) async {
+  Future<void> _persistOAuthIntent(
+    OAuthPurpose purpose,
+    _OAuthProviderInfo providerInfo,
+  ) async {
     await mortSecureDeviceStorage.write(
       key: _oauthPurposeKey,
       value: purpose.name,
+    );
+    await mortSecureDeviceStorage.write(
+      key: _oauthProviderKey,
+      value: providerInfo.key,
     );
     await mortSecureDeviceStorage.write(
       key: _oauthStartedAtKey,
@@ -567,8 +661,11 @@ class AuthRepository {
     );
   }
 
-  Future<OAuthPurpose?> _restoreOAuthPurpose() async {
+  Future<_OAuthIntent?> _restoreOAuthIntent() async {
     final purpose = await mortSecureDeviceStorage.read(key: _oauthPurposeKey);
+    final providerKey = await mortSecureDeviceStorage.read(
+      key: _oauthProviderKey,
+    );
     final startedAt = DateTime.tryParse(
       await mortSecureDeviceStorage.read(key: _oauthStartedAtKey) ?? '',
     )?.toUtc();
@@ -579,23 +676,32 @@ class AuthRepository {
       await _clearOAuthPurpose();
       return null;
     }
+    OAuthPurpose? resolvedPurpose;
     for (final value in OAuthPurpose.values) {
-      if (value.name == purpose) return value;
+      if (value.name == purpose) resolvedPurpose = value;
     }
-    return null;
+    if (resolvedPurpose == null) return null;
+    final resolvedProvider = providerKey == _appleOAuthProvider.key
+        ? _appleOAuthProvider
+        : _googleOAuthProvider;
+    return _OAuthIntent(purpose: resolvedPurpose, provider: resolvedProvider);
   }
 
   Future<void> _clearOAuthPurpose() async {
     await mortSecureDeviceStorage.delete(key: _oauthPurposeKey);
+    await mortSecureDeviceStorage.delete(key: _oauthProviderKey);
     await mortSecureDeviceStorage.delete(key: _oauthStartedAtKey);
   }
 
-  OAuthFlowSnapshot _safeLaunchFailure(Object error) {
+  OAuthFlowSnapshot _safeLaunchFailure(
+    _OAuthProviderInfo providerInfo,
+    Object error,
+  ) {
     final message = error.toString().toLowerCase();
     if (message.contains('provider') && message.contains('disabled')) {
-      return const OAuthFlowSnapshot(
+      return OAuthFlowSnapshot(
         OAuthFlowStage.providerDisabled,
-        'Google sign-in is not available right now. Use email and password.',
+        '${providerInfo.displayName} sign-in is not available right now. Use email and password.',
       );
     }
     if (message.contains('network') ||
@@ -606,9 +712,9 @@ class AuthRepository {
         'No network connection is available. Reconnect and try again.',
       );
     }
-    return const OAuthFlowSnapshot(
+    return OAuthFlowSnapshot(
       OAuthFlowStage.internalFailure,
-      'MORT could not start Google sign-in. Try again.',
+      'MORT could not start ${providerInfo.displayName} sign-in. Try again.',
     );
   }
 

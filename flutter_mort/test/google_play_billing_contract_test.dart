@@ -34,11 +34,14 @@ void main() {
     expect(screen, isNot(contains('ProductDetails')));
   });
 
-  test('ads remain disabled and advertising identifiers remain stripped', () {
-    final manifest = _read('android/app/src/main/AndroidManifest.xml');
-    final config = _read('lib/core/config/app_config.dart');
-    expect(config, contains('static const nativeAdsCompiledIn = false'));
-    expect(manifest, contains('com.google.android.gms.permission.AD_ID'));
-    expect(manifest, contains('tools:node="remove"'));
-  });
+  test(
+    'ads ship for real, non-personalized-only, while IAP stays excluded',
+    () {
+      final manifest = _read('android/app/src/main/AndroidManifest.xml');
+      final config = _read('lib/core/config/app_config.dart');
+      expect(config, contains('static const nativeAdsCompiledIn = true'));
+      expect(manifest, contains('com.google.android.gms.permission.AD_ID'));
+      expect(manifest, contains('tools:node="remove"'));
+    },
+  );
 }

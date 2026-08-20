@@ -534,7 +534,7 @@ class _ConnectedAccountsScreenState
     ) {
       if (!mounted || state.stage != OAuthFlowStage.success) return;
       _refresh();
-      MortToast.show(context, 'Google is connected to this MORT account.');
+      MortToast.show(context, 'Your MORT account was updated.');
     });
   }
 
@@ -562,6 +562,18 @@ class _ConnectedAccountsScreenState
     }
   }
 
+  Future<void> _linkApple() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await ref.read(authRepositoryProvider).linkAppleIdentity();
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<bool> _confirmUnlink() async {
     return await showDialog<bool>(
           context: context,
@@ -578,6 +590,29 @@ class _ConnectedAccountsScreenState
               FilledButton(
                 onPressed: () => Navigator.pop(context, true),
                 child: const Text('Disconnect Google'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  Future<bool> _confirmUnlinkApple() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Disconnect Apple?'),
+            content: const Text(
+              'You will need your remaining sign-in method to access MORT. Your profile, jobs, messages, and history will stay on the same account.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Keep connected'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Disconnect Apple'),
               ),
             ],
           ),
@@ -644,6 +679,22 @@ class _ConnectedAccountsScreenState
     }
   }
 
+  Future<void> _unlinkApple({required bool hasPassword}) async {
+    if (_busy || !await _confirmUnlinkApple()) return;
+    setState(() => _busy = true);
+    try {
+      if (!await _reauthenticateIfNeeded(hasPassword)) return;
+      await ref.read(authRepositoryProvider).unlinkAppleIdentity();
+      if (!mounted) return;
+      MortToast.show(context, 'Apple was disconnected.');
+      _refresh();
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return MortScreen(
@@ -652,7 +703,7 @@ class _ConnectedAccountsScreenState
           eyebrow: 'Account security',
           title: 'Connected accounts',
           subtitle:
-              'Manage how you sign in. Google does not set your MORT role, age, verification, or marketplace access.',
+              'Manage how you sign in. Google and Apple do not set your MORT role, age, verification, or marketplace access.',
         ),
         FutureBuilder<List<ConnectedAuthIdentity>>(
           future: _identities,
@@ -673,6 +724,12 @@ class _ConnectedAccountsScreenState
             final google = googleIdentities.isEmpty
                 ? null
                 : googleIdentities.first;
+            final appleIdentities = identities
+                .where((item) => item.isApple)
+                .toList(growable: false);
+            final apple = appleIdentities.isEmpty
+                ? null
+                : appleIdentities.first;
             final password = identities.any((item) => item.isPassword);
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -734,6 +791,56 @@ class _ConnectedAccountsScreenState
                       style: TextStyle(color: MortColors.textMuted),
                     ),
                   ),
+                const SizedBox(height: MortSpacing.md),
+                _IdentityCard(
+                  title: 'Apple',
+                  connected: apple != null,
+                  subtitle: apple == null
+                      ? 'Not connected.'
+                      : [
+                          if (apple.email?.isNotEmpty == true) apple.email!,
+                          if (apple.createdAt != null)
+                            'Linked ${_formatDate(apple.createdAt!)}',
+                        ].join(' - '),
+                ),
+                const SizedBox(height: MortSpacing.md),
+                if (apple == null)
+                  MortButton(
+                    label: 'Connect Apple',
+                    busy: _busy,
+                    busyLabel: 'Opening Apple...',
+                    icon: Icons.add_link,
+                    style: MortButtonStyle.secondary,
+                    onPressed: AppConfig.appleAuthEnabled ? _linkApple : null,
+                  )
+                else
+                  MortButton(
+                    label: 'Disconnect Apple',
+                    busy: _busy,
+                    icon: Icons.link_off,
+                    style: MortButtonStyle.danger,
+                    onPressed: identities.length > 1
+                        ? () => _unlinkApple(hasPassword: password)
+                        : null,
+                  ),
+                if (!AppConfig.appleAuthEnabled && apple == null)
+                  const Padding(
+                    padding: EdgeInsets.only(top: MortSpacing.xs),
+                    child: Text(
+                      'Apple linking is awaiting owner configuration.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: MortColors.textMuted),
+                    ),
+                  ),
+                if (apple != null && identities.length < 2)
+                  const Padding(
+                    padding: EdgeInsets.only(top: MortSpacing.xs),
+                    child: Text(
+                      'Add another sign-in method before disconnecting your only identity.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: MortColors.textMuted),
+                    ),
+                  ),
               ],
             );
           },
@@ -741,7 +848,7 @@ class _ConnectedAccountsScreenState
         const SizedBox(height: MortSpacing.md),
         const MortSafetyBanner(
           message:
-              'Connecting or disconnecting Google never creates admin access and never changes your role, DOB, verification, jobs, payments, or safety history.',
+              'Connecting or disconnecting Google or Apple never creates admin access and never changes your role, DOB, verification, jobs, payments, or safety history.',
         ),
       ],
     );
