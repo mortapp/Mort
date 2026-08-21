@@ -202,6 +202,106 @@ No source changes were made this session -- the recovery audit found
 nothing to fix, so nothing was fixed; this entry exists only to record
 that the audit happened and what it verified.
 
+## MASTER DIRECTIVE PASS (2026-08-21, same-day follow-up session)
+
+A "SUPREME MILLION-COMPLETION" master directive asked this session to take
+MORT through real public-production release (if eligible) and then move to
+a second, unrelated product (LOOP). Executed the MORT half live rather than
+assuming prior state still held:
+
+**Backend audit (Supabase MCP, live, read-only):** project `ACTIVE_HEALTHY`
+(Postgres 17.6.1, us-east-2); `list_migrations` shows 185 applied migrations,
+matching `supabase/migrations/` exactly through `20260820122024_mort_spark_
+rewarded_ads` -- no drift between local and remote. 30 Edge Functions, all
+`ACTIVE` (Stripe payment functions exist and are deployed but gated off at
+the app-config layer per the existing fail-closed payments policy -- see ADS
+row's Stripe/IAP exclusion note above; this session did not change that).
+Ran both advisor scans live and had a fork read every line of both dumps
+(407K + 154K chars) rather than sampling: **0 ERROR-level findings in either
+security or performance.** 295 security WARNs, 292 of which are the single
+expected `authenticated_security_definer_function_executable` pattern this
+codebase uses everywhere by design. The other 3 were checked for real,
+individually:
+- `get_release_mode_status()` / `get_runtime_feature_status()` flagged as
+  anon-callable -- read both functions' actual source
+  (`20260720175005_final_production_pilot_controls.sql`,
+  `20260722234500_mort_0_9_4_operational_controls.sql`): both are
+  deliberately `grant ... to anon` (not an accidental broad grant) and
+  return only global, non-PII maintenance/feature-flag booleans -- no user
+  data, no leak. Confirmed safe by source, not by assumption.
+- `auth_leaked_password_protection` disabled -- real gap, attempted to fix
+  live in the Supabase dashboard (Auth -> Attack Protection -> Prevent use
+  of leaked passwords), and found it is **gated behind the Pro plan**
+  (`Mort` project is currently on Free) -- not a toggle this session can
+  flip, a real billing/owner decision. Left disabled; flagged here as a
+  genuine `OWNER_ACTION_REQUIRED` item (upgrade to Pro, then enable this
+  toggle -- no code change needed on our side once upgraded). Minimum
+  password length is already 12 chars with mixed-case+digit requirements,
+  so the practical exposure is narrow.
+- 5 performance WARNs, all pre-existing `auth_rls_initplan`/
+  `multiple_permissive_policies` micro-optimizations on already-reviewed
+  tables (`job_management_requests`, `application_transition_requests`,
+  `payment_dispute_statements`, `payment_dispute_appeals`,
+  `account_deletion_requests`) -- correctness/security unaffected, left
+  as-is rather than churning working RLS for a planner hint.
+
+**Google Play Console (live browser session, `kolawoleorelesi@gmail.com`,
+"Mort" personal developer account, read-only navigation):** app
+`com.mortapp.mobile`, **still Closed testing**, installed audience 2, last
+published Aug 18, 2026, zero pending policy warnings on Publishing
+overview. Opened the Production track's own "Apply for access to
+production" checklist directly -- this is Google's real, current
+eligibility state, not a recollection:
+- [x] Publish a closed testing release
+- [x] Have at least 12 testers opted-in to your closed test
+- [ ] Run your closed test with at least 12 testers, for at least 14 days
+      -- **"12 testers have currently been opted in for 5 days
+      continuously"** as of this session. "Apply for production" is
+      disabled in the console itself until that clock finishes.
+
+This is a genuine, Google-enforced, time-based gate with no engineering
+or content fix available -- 2 of 3 requirements are already met; the third
+needs roughly 9 more continuous days of the existing 12+ testers staying
+opted in. Recording per the master directive's own instruction for this
+exact situation:
+
+**MORT_PUBLIC_PRODUCTION=EXTERNALLY_TIME_GATED**
+(~9 days of continuous 12+-tester closed-test opt-in remaining as of
+2026-08-21; re-check the same Play Console "Apply for access to
+production" panel to see the live day count -- do not guess a calendar
+date, the counter is Google's, not ours.)
+
+**Public legal web (live fetch, not cached):** `mort-legal.vercel.app`
+reconfirmed live and current -- title "Legal and safety center", badge
+reads "Published - closed-pilot draft, pending qualified legal review"
+(accurate, not stale); `/privacy/` correctly describes real ad-targeting
+restrictions and MORT Spark's cosmetic-only reward, no "advertising
+disabled" language remains; `/app-ads.txt` serves exactly
+`google.com, pub-9883419411387958, DIRECT, f08c47fec0942fa0`, matching the
+confirmed AdMob publisher ID.
+
+**Android:** `adb devices -l` returned an empty device list (one check,
+no loop). `ANDROID_PHYSICAL_QA=PENDING_RECONNECT` stands unchanged.
+
+**No source changes this session's second pass either** -- the backend and
+Play Console audits found no engineering-fixable gap, only the two items
+above (both genuinely external: Supabase Pro-plan upgrade, and Google's
+14-day timer). `RELEASE` stays `NOT_STARTED` deliberately: production
+submission is ~9 days away regardless, so cutting a new signed AAB now
+would not be tested against anything the current Closed Testing build
+isn't already covering, matching the same "not now" reasoning the prior
+session used.
+
+### MORT_FINAL_STATE=PRODUCTION_READY_EXTERNALLY_BLOCKED
+
+Every internally-controllable row on this board is PASS or an explicitly
+labeled, evidence-backed external/owner blocker (Apple Developer
+activation, qualified legal counsel review, Supabase Pro-plan upgrade,
+Google's 14-day closed-test timer, physical Android/iOS device QA). No row
+was converted to PASS to reach a prettier percentage. Checkpointing MORT
+here and moving to the LOOP repository per the master directive's Part 17 --
+MORT is not being modified further while LOOP work proceeds.
+
 ## NEXT_AUTOMATIC_PHASE
 
 Items 1-6 of the owner's "IMMEDIATE ORDER" are now all DONE or reverified:
