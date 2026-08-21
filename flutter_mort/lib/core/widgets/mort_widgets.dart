@@ -1548,29 +1548,75 @@ class MortCategoryPill extends StatelessWidget {
   }
 }
 
+/// A "Get set up" checklist card (a real, non-cosmetic completion nudge --
+/// each item reflects an actual missing profile field, not a fake progress
+/// illustration) rather than a bare percentage bar.
 class MortProfileCompletionMeter extends StatelessWidget {
-  const MortProfileCompletionMeter({super.key, required this.value});
+  const MortProfileCompletionMeter({
+    super.key,
+    required this.value,
+    this.items = const [],
+    this.onTap,
+  });
 
   final double value;
+  final List<({String label, bool complete})> items;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final percent = (value.clamp(0, 1) * 100).round();
+    final done = items.where((item) => item.complete).length;
+    final total = items.length;
+    final allComplete = total == 0 ? value >= 1 : done == total;
+    final remaining = items
+        .where((item) => !item.complete)
+        .take(3)
+        .toList(growable: false);
     return MortCard(
+      onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Profile strength',
-            style: Theme.of(context).textTheme.titleMedium,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  allComplete ? 'Profile complete' : 'Get set up',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              if (total > 0)
+                Text(
+                  '$done of $total',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: MortColors.textMuted),
+                ),
+            ],
           ),
           const SizedBox(height: MortSpacing.sm),
           MortProgressBar(value: value),
-          const SizedBox(height: MortSpacing.xs),
-          Text(
-            '$percent% complete',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+          if (!allComplete && remaining.isNotEmpty) ...[
+            const SizedBox(height: MortSpacing.sm),
+            for (final item in remaining)
+              Padding(
+                padding: const EdgeInsets.only(top: MortSpacing.xxs),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.radio_button_unchecked,
+                      size: 16,
+                      color: MortColors.textMuted,
+                    ),
+                    const SizedBox(width: MortSpacing.xs),
+                    Text(
+                      item.label,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ],
       ),
     );

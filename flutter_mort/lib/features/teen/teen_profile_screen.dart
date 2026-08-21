@@ -115,7 +115,13 @@ class _TeenProfileBody extends ConsumerWidget {
           ),
         ),
         const MortSectionLabel(label: 'Profile readiness'),
-        MortProfileCompletionMeter(value: profile.completionRatio),
+        MortProfileCompletionMeter(
+          value: profile.completionRatio,
+          items: [
+            for (final item in profile.completionChecklist)
+              (label: item.label, complete: item.complete),
+          ],
+        ),
         const SizedBox(height: MortSpacing.sm),
         MortGlassSoftSurface(
           child: Column(

@@ -90,19 +90,30 @@ class Profile {
   bool get isActive => accountStatus == 'active';
   bool get hasAvatar => avatarPath?.isNotEmpty == true;
 
-  double get completionRatio {
-    final items = <bool>[
+  List<ProfileCompletionItem> get completionChecklist => [
+    ProfileCompletionItem(
+      'Display name',
       displayName?.trim().isNotEmpty == true,
-      username?.trim().isNotEmpty == true,
-      hasAvatar,
-      bio?.trim().isNotEmpty == true,
+    ),
+    ProfileCompletionItem('Username', username?.trim().isNotEmpty == true),
+    ProfileCompletionItem('Profile photo', hasAvatar),
+    ProfileCompletionItem('Bio', bio?.trim().isNotEmpty == true),
+    ProfileCompletionItem(
+      'Availability',
       availability?.trim().isNotEmpty == true,
-      preferredJobCategories.isNotEmpty,
+    ),
+    ProfileCompletionItem('Interests', preferredJobCategories.isNotEmpty),
+    ProfileCompletionItem(
+      'Location',
       locationSetupMode != 'city_state' ||
           (city?.trim().isNotEmpty == true && state?.trim().isNotEmpty == true),
-      onboardingCompleted,
-    ];
-    return items.where((complete) => complete).length / items.length;
+    ),
+    ProfileCompletionItem('Onboarding', onboardingCompleted),
+  ];
+
+  double get completionRatio {
+    final items = completionChecklist;
+    return items.where((item) => item.complete).length / items.length;
   }
 
   factory Profile.fromMap(Map<String, dynamic> json) {
@@ -149,4 +160,11 @@ class Profile {
     if (value is! List) return const [];
     return value.map((item) => item.toString()).toList(growable: false);
   }
+}
+
+class ProfileCompletionItem {
+  const ProfileCompletionItem(this.label, this.complete);
+
+  final String label;
+  final bool complete;
 }

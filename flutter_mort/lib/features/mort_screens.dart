@@ -2281,7 +2281,14 @@ class RoleHomeScreen extends ConsumerWidget {
         ),
         const SizedBox(height: MortSpacing.md),
         if (role == UserRole.teen)
-          MortProfileCompletionMeter(value: profile?.completionRatio ?? 0),
+          MortProfileCompletionMeter(
+            value: profile?.completionRatio ?? 0,
+            items: [
+              for (final item in profile?.completionChecklist ?? const [])
+                (label: item.label, complete: item.complete),
+            ],
+            onTap: () => context.push('/teen/profile'),
+          ),
         if (role == UserRole.adult) const MortVerificationDisclaimer(),
         if (role == UserRole.guardian) const MortGuardianBanner(),
         if (role == UserRole.admin)
