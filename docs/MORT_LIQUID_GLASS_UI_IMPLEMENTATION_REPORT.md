@@ -1,12 +1,12 @@
 # MORT Liquid Glass UI Implementation Report
 
-> **PARTIALLY SUPERSEDED (2026-08-20)**: The liquid-glass mechanism
-> (`LiquidGlassContainer`, blur/accessibility/reduced-transparency
-> handling) described below is still current and was intentionally kept,
-> not replaced, by the Royal Rebrand. Any rose-gold color values or
-> examples in this report are historical -- see
-> `docs/MORT_DESIGN_SYSTEM.md` for the current Royal palette the same
-> glass components now render with.
+> **UPDATE (2026-08-20)**: The rose-gold palette this report describes is
+> still canonical (a same-night "Royal" rebrand was reverted after owner
+> feedback). Separately, real backdrop blur (`allowAndroidBlur`) was
+> enabled for `MortGlassHeader`/`MortGlassNavigationBar`/`MortGlassSheet`
+> this same night -- those chrome surfaces had been requesting blur since
+> this report but silently rendering flat translucency on Android instead.
+> See `docs/MORT_DESIGN_SYSTEM.md`.
 
 Updated: 2026-08-08
 

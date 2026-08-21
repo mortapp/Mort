@@ -1,10 +1,11 @@
 # MORT Rose-Gold and Light-Blue Redesign Report
 
-> **SUPERSEDED (2026-08-20)**: This rose-gold identity is retired. MORT's
-> canonical brand is now the Royal House system (Obsidian, Royal Blue,
-> Imperial Purple, Ruby, Antique Gold, Success Green, Parchment) --
-> see `docs/MORT_DESIGN_SYSTEM.md`. Kept here as a historical record, not
-> a current-state claim.
+> **CANONICAL (reaffirmed 2026-08-20)**: A same-night "Royal House"
+> rebrand (Obsidian/Royal Blue/Imperial Purple/Ruby/Antique Gold) briefly
+> replaced this palette and was reverted after the owner saw it on-device
+> and called it a mixed-color mess. Rose-gold, exactly as documented
+> below, is MORT's current and canonical brand -- see
+> `docs/MORT_DESIGN_SYSTEM.md` for the up-to-date summary.
 
 Date: 2026-07-28
 

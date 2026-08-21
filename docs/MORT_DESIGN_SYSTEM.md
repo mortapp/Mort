@@ -1,125 +1,78 @@
 # MORT Design System
 
-## Brand era: ROYAL
+## Brand era: ROSE GOLD (canonical)
 
-MORT's visual identity is the Royal House system: Obsidian foundations,
-Royal Blue, Imperial Purple, Ruby, Antique Gold (ceremonial only),
-required Success Green, and Parchment/Ivory text. This retires the prior
-rose-gold/modern-glass identity as of 2026-08-20.
-
-**OLD (superseded)**: Rose Gold primary brand color, generic liquid-glass
-translucency, 20-28px rounded corners.
-
-**NEW (canonical)**: Royal Blue primary CTA/navigation identity, Imperial
-Purple for rank/reputation/leaderboard, Ruby as accent ornament only,
-Antique Gold reserved for genuinely ceremonial moments (rank, verified
-prestige, leaderboard #1, section headings) -- never a full-surface fill.
-6-16px radii; ornament comes from frames, lines, and dividers rather than
-large rounding.
+MORT's visual identity is rose-gold and light-blue on a dark, glassy
+surface system. A same-night "Royal House" rebrand (Obsidian, Royal Blue,
+Imperial Purple, Ruby, Antique Gold) briefly replaced this on 2026-08-20
+and was reverted the same night after the owner saw it on a real device
+and called it a mixed-color mess -- see
+`docs/MORT_ROSE_GOLD_REDESIGN_REPORT.md` and
+`docs/MORT_LIQUID_GLASS_UI_IMPLEMENTATION_REPORT.md` for the original,
+still-canonical design work this system is built on.
 
 ## Colors
 
 All colors live in `flutter_mort/lib/core/theme/mort_colors.dart` as
-`MortColors` static constants. Do not hardcode hex literals in feature
-code -- reference the named constant so future palette changes cascade
-automatically.
+`MortColors` static constants. Reference the named constant, not a raw
+hex literal, so palette changes cascade automatically.
 
 | Token | Hex | Use |
 |---|---|---|
-| `bg` | `#08070A` | Main app background (Obsidian) |
-| `bgSecondary` | `#0D0A10` | Secondary background |
-| `card` | `#12101A` | Cards, sheets, large surfaces |
-| `cardAlt` / `bgElevated` | `#191522` | Raised cards, dialogs, floating content |
-| `chamber` | `#211A2C` | Selective elevated royal surfaces |
-| `royalBlue` family | `#172D70`-`#7896E8` | Primary CTA / navigation identity |
-| `imperialPurple` family | `#43205F`-`#B08BCB` | Rank, reputation, leaderboard |
-| `ruby` family | `#701B39`-`#E789A9` | Accent ornament, never a primary CTA |
-| `antiqueGold` family | `#8E722D`-`#F0DFA3` | Ceremonial only |
-| `success` family | `#1E6340`-`#8FD5AD` | Completed/verified/positive states (required, not removed) |
-| `danger` / `warning` / `lightBlue` (info) | -- | Semantic states |
-| `bronze` | `#A9754A` | Leaderboard rank 3 only |
-| `silver` | `#BFB29D` | Leaderboard rank 2 only |
-| `text` / `textSoft` / `textMuted` | Ivory/Parchment family | Text hierarchy |
+| `bg` | `#0A0A0C` | Main app background |
+| `bgSecondary` | `#101013` | Secondary background |
+| `card` / `bgElevated` | `#17171A` | Cards, dialogs, elevated surfaces |
+| `cardAlt` | `#222226` | Alternate elevated surface |
+| `roseGold` | `#C89686` | Primary brand / CTA identity |
+| `roseGoldLight` | `#F1CAB4` | Bright accent (medal/tier pills, headline accents) |
+| `roseGoldDark` / `roseGoldMid` / `roseGoldDeep` | -- | Gradient stops, chip-selected state |
+| `lightBlue` | `#7FC4EA` | Information, safety, location, verified state -- secondary to the rose-gold brand |
+| `success` | `#33C48A` | Completed/verified/positive states |
+| `warning` | `#FFC36A` | Warning states |
+| `danger` | `#FF5A52` | Danger/error states |
+| `premium` | `#C7A8FF` | Premium/paywall accents |
+| `silver` | `#CBCED3` | Neutral secondary accent |
+| `text` / `textSoft` / `textMuted` / `textDisabled` | -- | Text hierarchy |
 
-`roseGold`/`roseGoldLight`/`roseGoldDark`/`roseGoldMid`/`roseGoldDeep`/
-`neon`/`neonDeep` remain as **compatibility aliases** pointing at the
-`royalBlue` family so the app never renders old rose-gold anywhere while
-call sites are migrated to the direct new names over time. New code
-should reference `royalBlue`/`imperialPurple`/`antiqueGold` directly, not
-the aliases.
+`neon`/`neonDeep` are compatibility aliases for `roseGold`/`roseGoldDeep`
+kept from an earlier redesign pass, for the same reason: existing screens
+inherit palette changes without a second color language to maintain.
 
 ## Gradients (`mort_tokens.dart` -> `MortGradients`)
 
-- `metallic` (primary): Royal Blue -> Imperial Purple
-- `ceremonial`: Royal Blue -> Imperial Purple -> Ruby (rare, high-value moments)
-- `goldFoil`: Antique Gold family (ceremonial use only)
-- `success`: Success Green family
-- `ruby`: Ruby family
+- `metallic` (primary): rose-gold family, 4-stop
+- `background`: `bg -> bgSecondary -> #0C0B0E`
+- `glass` / `infoGlass`: dark translucent surface gradients
 
 ## Shape
 
-`MortRadii` (`mort_tokens.dart`): small 6, standard 10, card 12,
-container 14, sheet/modal 16, pill 999. Avoid 24px+ rounding without a
-functional reason -- royal styling relies on frames and dividers, not
-large corner radii.
+`MortRadii` (`mort_tokens.dart`): small 10, medium 14, card 20, sheet 28,
+pill 999.
 
-## Typography
+## Liquid glass -- real blur, not just translucency
 
-`mort_typography.dart`. Display/ceremonial styles (page titles, dashboard
-headers, leaderboard, auth hero, profile rank) use wider letter-spacing
-and weight on the existing font rather than a dedicated display serif --
-adding a new font dependency mid-rebrand carried build/licensing risk
-that wasn't verified this pass. Body text stays the existing clean
-sans-serif. A future pass may evaluate `google_fonts` (Cinzel/Cormorant
-Garamond, both SIL-licensed) for a true ceremonial serif if desired.
+`LiquidGlassContainer` (`core/widgets/mort_liquid_glass.dart`) supports
+real backdrop blur (`liveBlur`, `ImageFilter.blur` at `MortGlassTokens.blurSigma
+= 22.0`), gated by accessibility (`reducedTransparency`, high contrast)
+and, on Android specifically, a second `allowAndroidBlur` flag --
+`BackdropFilter` is expensive enough that it defaults off on Android
+unless a surface explicitly opts in, to protect scroll performance on
+lower-end hardware.
 
-## Components (reformed, not duplicated)
-
-Per the rebrand directive: existing shared widgets were retinted, not
-replaced with a parallel `MortRoyal*` family.
-
-- `MortButton` / `MortPrimaryButton` / `MortSecondaryButton`
-  (`core/widgets/mort_widgets.dart`): primary gradient is now Royal
-  Blue -> Imperial Purple.
-- `LiquidGlassContainer` / `MortGlassCard` / `MortGlassButton` /
-  `MortGlassHeader` / `MortGlassNavigationBar`
-  (`core/widgets/mort_liquid_glass.dart`): retinted to the royal
-  night/obsidian family via the token cascade; blur/accessibility/
-  reduced-transparency/Android-blur-gating logic unchanged.
-- `MortStatusChip`, `MortTimeline`, `MortStatusPill`, `MortChip`,
-  `MortJobStatusBadge`: reference `MortColors.success`/`.warning`/
-  `.danger` symbolically, so all 13 known success/verified-state call
-  sites across the app recolor automatically from the token change.
-- Leaderboard rank 1/2/3 use real medal colors (`antiqueGold`/`silver`/
-  `bronze`); all other ranks stay on the standard identity color.
+As of 2026-08-20, real blur is enabled (`allowAndroidBlur: true`) for the
+three chrome surfaces that already requested it: `MortGlassHeader`,
+`MortGlassNavigationBar`, and `MortGlassSheet` (bottom sheets/modals via
+`MortGlassCard(blur: true)`). These render once per screen rather than
+repeating inside a scrolling list, so real blur there doesn't risk the
+jank `BackdropFilter` causes when instantiated many times at once.
+`MortGlassCard` automatically passes `allowAndroidBlur: blur` through, so
+any caller that opts into blur gets it for real on Android without a new
+parameter -- scrolling card lists (job feed, messages, etc.) never
+requested blur and remain flat translucency by design.
 
 ## Safety-critical rule
 
 Safety overrides brand decoration. Emergency/danger controls, PIN entry,
-and safety actions must remain immediately legible and never compete
-visually with ornament. Ads never appear on Safety, Emergency, Report,
-Block, PIN, Identity, Evidence, Support, or Account Deletion surfaces.
-
-## Rollout status (2026-08-20)
-
-The token/theme layer is fully converted and verified (full test suite
-green, `flutter analyze` 0 issues, confirmed correct on a real Android
-device). Because the design system was already centralized before this
-rebrand (`MortColors`/`MortGradients`/`MortShadows` consumed almost
-everywhere), the token change alone cascades correctly across the large
-majority of the app's ~90 screen-level widgets without individual edits.
-
-Explicitly completed this pass beyond the token cascade: Leaderboard
-medal colors; a real, severe onboarding bug fix (legal acceptance was
-never actually being recorded by the reachable sign-up flow, likely
-blocking real users from completing onboarding at all) plus the required
-anti-grooming/anti-CSAE consent language.
-
-Not done this pass, left for a follow-up: consolidating the legacy
-11-screen onboarding chain into a literal 5-screen flow (the fix above
-addresses correctness and required content on the existing screens
-without changing screen count, since collapsing the flow safely requires
-verifying additional RPC contracts not yet confirmed); renaming the
-~30 files still referencing the `roseGold` compatibility alias to the
-direct new token names (cosmetic/code-clarity only -- visuals are
-already correct via the alias); a dedicated ceremonial display font.
+and safety actions must remain immediately legible. Ads never appear on
+Safety, Emergency, Report, Block, PIN, Identity, Evidence, Support, or
+Account Deletion surfaces.
