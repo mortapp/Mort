@@ -681,30 +681,41 @@ class _TeenJobCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: MortSpacing.sm),
-          if (distanceMiles != null)
-            _JobCardFact(
-              icon: Icons.near_me_rounded,
-              value:
-                  '${distanceMiles! < 0.1 ? 'Less than 0.1' : distanceMiles!.toStringAsFixed(1)} mi away',
-              emphasize: true,
-            ),
-          _JobCardFact(icon: Icons.place_outlined, value: job.locationText),
-          _JobCardFact(
-            icon: Icons.schedule_outlined,
-            value: job.scheduleDisplay,
+          // A compact wrapping meta-row scans far faster than a stack of
+          // full-width fact rows -- the same information, tightened.
+          Wrap(
+            spacing: MortSpacing.sm,
+            runSpacing: MortSpacing.xxs,
+            children: [
+              if (distanceMiles != null)
+                _JobCardMetaChip(
+                  icon: Icons.near_me_rounded,
+                  value:
+                      '${distanceMiles! < 0.1 ? 'Less than 0.1' : distanceMiles!.toStringAsFixed(1)} mi away',
+                  emphasize: true,
+                ),
+              _JobCardMetaChip(
+                icon: Icons.place_outlined,
+                value: job.locationText,
+              ),
+              _JobCardMetaChip(
+                icon: Icons.schedule_outlined,
+                value: job.scheduleDisplay,
+              ),
+              if (job.estimatedDurationMinutes != null)
+                _JobCardMetaChip(
+                  icon: Icons.hourglass_bottom_rounded,
+                  value: _durationDisplay(job.estimatedDurationMinutes!),
+                ),
+              if (job.acceptableTransportationMethods.isNotEmpty)
+                _JobCardMetaChip(
+                  icon: Icons.route_outlined,
+                  value: job.acceptableTransportationMethods
+                      .map((method) => method.replaceAll('_', ' '))
+                      .join(', '),
+                ),
+            ],
           ),
-          if (job.estimatedDurationMinutes != null)
-            _JobCardFact(
-              icon: Icons.hourglass_bottom_rounded,
-              value: _durationDisplay(job.estimatedDurationMinutes!),
-            ),
-          if (job.acceptableTransportationMethods.isNotEmpty) ...[
-            _JobCardFact(
-              icon: Icons.route_outlined,
-              value:
-                  'Travel: ${job.acceptableTransportationMethods.map((method) => method.replaceAll('_', ' ')).join(', ')}',
-            ),
-          ],
           if (distanceMiles == null &&
               job.matchExplanation?.isNotEmpty == true) ...[
             const SizedBox(height: MortSpacing.xs),
@@ -768,8 +779,11 @@ class _TeenJobCard extends StatelessWidget {
   }
 }
 
-class _JobCardFact extends StatelessWidget {
-  const _JobCardFact({
+/// Compact icon+text chip for a job card's meta-row (distance, location,
+/// schedule, duration, transportation) -- laid out in a [Wrap] instead of
+/// each fact claiming its own full-width row.
+class _JobCardMetaChip extends StatelessWidget {
+  const _JobCardMetaChip({
     required this.icon,
     required this.value,
     this.emphasize = false,
@@ -780,31 +794,23 @@ class _JobCardFact extends StatelessWidget {
   final bool emphasize;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: MortSpacing.xs),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) {
+    final color = emphasize ? MortColors.roseGoldLight : MortColors.lightBlue;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          size: 18,
-          color: emphasize ? MortColors.roseGoldLight : MortColors.lightBlue,
-        ),
-        const SizedBox(width: MortSpacing.xs),
-        Expanded(
-          child: Text(
-            value,
-            style: emphasize
-                ? Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: MortColors.roseGoldLight,
-                    fontWeight: FontWeight.w600,
-                  )
-                : Theme.of(context).textTheme.bodyMedium,
+        Icon(icon, size: 15, color: color),
+        const SizedBox(width: MortSpacing.xxs),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: emphasize ? MortColors.roseGoldLight : null,
+            fontWeight: emphasize ? FontWeight.w600 : null,
           ),
         ),
       ],
-    ),
-  );
+    );
+  }
 }
 
 class TeenJobDetailScreen extends ConsumerStatefulWidget {
