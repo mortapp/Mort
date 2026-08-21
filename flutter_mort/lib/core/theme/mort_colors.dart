@@ -6,10 +6,13 @@ class MortColors {
   const MortColors._();
 
   // -- Black family --
+  // Darkened one notch below the original Rose Gold 2.0 pass so God Black
+  // reads as the dominant surface across more of the app, not just the
+  // deepest corner of the gradient.
   static const godBlack = Color(0xFF020205);
-  static const black = Color(0xFF0A0A0D);
-  static const softBlack = Color(0xFF111116);
-  static const raisedBlack = Color(0xFF19191F);
+  static const black = Color(0xFF07070A);
+  static const softBlack = Color(0xFF0C0C10);
+  static const raisedBlack = Color(0xFF121217);
 
   // -- White family --
   static const white = Color(0xFFF5F5F7);
@@ -64,8 +67,8 @@ class MortColors {
   static const bgElevated = raisedBlack;
   static const card = softBlack;
   static const cardAlt = raisedBlack;
-  static const glass = Color(0xB3141419);
-  static const glassPressed = Color(0xE01D1D24);
+  static const glass = Color(0xB30E0E12);
+  static const glassPressed = Color(0xE0161619);
   static const line = Color(0x14FFFFFF);
   static const lineStrong = Color(0x38FFFFFF);
 
