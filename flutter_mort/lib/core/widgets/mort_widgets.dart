@@ -1705,6 +1705,69 @@ class MortActionRow extends StatelessWidget {
   }
 }
 
+/// A row of icon-in-circle quick actions (label under a badge, not a
+/// text button) -- the pattern real finance/marketplace apps (Klarna,
+/// Cash App) use for a compact "top actions" strip, rather than a bank
+/// of full-width buttons competing for attention with page content.
+class MortQuickActionGrid extends StatelessWidget {
+  const MortQuickActionGrid({super.key, required this.actions});
+
+  final List<MortAction> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: MortSpacing.md,
+      runSpacing: MortSpacing.md,
+      children: actions.map((action) {
+        final enabled = action.enabled;
+        final onTap = enabled
+            ? (action.onPressed ??
+                  (action.route == null
+                      ? null
+                      : () => context.go(action.route!)))
+            : null;
+        return SizedBox(
+          width: 74,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(MortRadii.pill),
+            child: Column(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: MortColors.card,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: MortColors.line),
+                  ),
+                  child: Icon(
+                    action.icon,
+                    color: enabled
+                        ? MortColors.roseGoldLight
+                        : MortColors.textDisabled,
+                  ),
+                ),
+                const SizedBox(height: MortSpacing.xxs),
+                Text(
+                  action.label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: enabled ? null : MortColors.textDisabled,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
 class MortNotificationBell extends StatelessWidget {
   const MortNotificationBell({super.key, this.count = 0, this.onPressed});
 

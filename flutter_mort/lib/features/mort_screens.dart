@@ -2315,7 +2315,7 @@ class RoleHomeScreen extends ConsumerWidget {
           const _TeenLeaderboardSection(),
           const SizedBox(height: MortSpacing.md),
           MortSectionLabel(label: 'Quick links'),
-          MortActionRow(actions: actions),
+          MortQuickActionGrid(actions: actions),
         ] else ...[
           MortGlassButton(
             label: dashboard.primary.label,
