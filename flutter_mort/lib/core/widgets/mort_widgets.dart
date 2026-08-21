@@ -434,6 +434,12 @@ class MortGlassCard extends StatelessWidget {
       padding: padding,
       tint: infoAccent ? MortColors.lightBlue : color,
       liveBlur: blur,
+      // Callers that explicitly opt into blur (MortGlassSheet, and any
+      // future caller passing blur: true) get real blur on Android too,
+      // not the flat-translucency fallback -- this stays scoped to
+      // surfaces that already chose blur, not every card app-wide, so
+      // scrolling lists of cards are untouched.
+      allowAndroidBlur: blur,
       onTap: onTap,
       semanticLabel: semanticLabel,
       child: child,

@@ -139,7 +139,7 @@ class MortBottomNavigation extends StatelessWidget {
         border: Border(top: BorderSide(color: MortColors.lineStrong)),
         boxShadow: [
           BoxShadow(color: Color(0xB8000000), blurRadius: 24),
-          BoxShadow(color: Color(0x1F3B64D9), blurRadius: 28),
+          BoxShadow(color: Color(0x1F78CAFF), blurRadius: 28),
         ],
       ),
       child: NavigationBar(

@@ -12,11 +12,11 @@ class MortTheme {
   static ThemeData dark() {
     final colorScheme = ColorScheme.fromSeed(
       brightness: Brightness.dark,
-      seedColor: MortColors.royalBlue,
-      primary: MortColors.royalBlue,
-      onPrimary: MortColors.text,
-      secondary: MortColors.imperialPurple,
-      onSecondary: MortColors.text,
+      seedColor: MortColors.roseGold,
+      primary: MortColors.roseGold,
+      onPrimary: MortColors.bg,
+      secondary: MortColors.lightBlue,
+      onSecondary: MortColors.bg,
       surface: MortColors.card,
       onSurface: MortColors.text,
       error: MortColors.danger,
@@ -29,10 +29,10 @@ class MortTheme {
       scaffoldBackgroundColor: MortColors.bg,
       textTheme: MortTypography.textTheme(),
       fontFamily: 'Roboto',
-      focusColor: MortColors.royalBlueSoft.withValues(alpha: 0.36),
-      hoverColor: MortColors.royalBlueSoft.withValues(alpha: 0.08),
-      highlightColor: MortColors.royalBlue.withValues(alpha: 0.08),
-      splashColor: MortColors.imperialPurple.withValues(alpha: 0.12),
+      focusColor: MortColors.lightBlue.withValues(alpha: 0.36),
+      hoverColor: MortColors.lightBlue.withValues(alpha: 0.08),
+      highlightColor: MortColors.roseGold.withValues(alpha: 0.08),
+      splashColor: MortColors.roseGold.withValues(alpha: 0.12),
       splashFactory: InkSparkle.splashFactory,
       visualDensity: VisualDensity.standard,
       materialTapTargetSize: MaterialTapTargetSize.padded,
@@ -66,10 +66,7 @@ class MortTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(MortRadii.medium),
-          borderSide: const BorderSide(
-            color: MortColors.royalBlueBright,
-            width: 1.4,
-          ),
+          borderSide: const BorderSide(color: MortColors.roseGold, width: 1.4),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(MortRadii.medium),
@@ -77,7 +74,7 @@ class MortTheme {
         ),
         labelStyle: const TextStyle(color: MortColors.textSoft),
         hintStyle: const TextStyle(color: MortColors.textMuted),
-        prefixIconColor: MortColors.royalBlueBright,
+        prefixIconColor: MortColors.roseGold,
         suffixIconColor: MortColors.textSoft,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -94,24 +91,24 @@ class MortTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: MortColors.glass,
-        selectedColor: MortColors.royalBlueDeep,
+        selectedColor: MortColors.roseGoldDeep,
         disabledColor: MortColors.bgElevated,
         side: const BorderSide(color: MortColors.line),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(MortRadii.pill),
         ),
         labelStyle: const TextStyle(color: MortColors.textSoft),
-        secondaryLabelStyle: const TextStyle(color: MortColors.royalBlueSoft),
+        secondaryLabelStyle: const TextStyle(color: MortColors.roseGoldLight),
       ),
       navigationBarTheme: NavigationBarThemeData(
         height: MortSpacing.navigationHeight,
         backgroundColor: MortColors.bgElevated.withValues(alpha: 0.94),
-        indicatorColor: MortColors.royalBlue.withValues(alpha: 0.22),
+        indicatorColor: MortColors.roseGold.withValues(alpha: 0.18),
         elevation: 0,
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => TextStyle(
             color: states.contains(WidgetState.selected)
-                ? MortColors.royalBlueSoft
+                ? MortColors.roseGoldLight
                 : MortColors.textMuted,
             fontSize: 11,
             fontWeight: FontWeight.w600,
@@ -120,7 +117,7 @@ class MortTheme {
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
             color: states.contains(WidgetState.selected)
-                ? MortColors.royalBlueBright
+                ? MortColors.roseGold
                 : MortColors.textMuted,
           ),
         ),
@@ -135,7 +132,7 @@ class MortTheme {
       ),
       dividerTheme: const DividerThemeData(color: MortColors.line, space: 1),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: MortColors.royalBlueBright,
+        color: MortColors.roseGold,
         linearTrackColor: MortColors.line,
       ),
       textSelectionTheme: TextSelectionThemeData(

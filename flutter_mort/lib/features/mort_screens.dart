@@ -2477,16 +2477,6 @@ class _TeenNearbyWorkSection extends ConsumerWidget {
   }
 }
 
-/// Ceremonial medal coloring for the top 3 leaderboard ranks only. Every
-/// other rank stays on the standard royal/imperial identity colors --
-/// gold, silver, and bronze are reserved for genuine podium positions.
-Color _medalColor(int rank) => switch (rank) {
-  1 => MortColors.antiqueGold,
-  2 => MortColors.silver,
-  3 => MortColors.bronze,
-  _ => MortColors.royalBlueSoft,
-};
-
 class _TeenLeaderboardSection extends ConsumerWidget {
   const _TeenLeaderboardSection();
 
@@ -2595,8 +2585,7 @@ class _TeenLeaderboardSection extends ConsumerWidget {
                           width: 28,
                           child: Text(
                             '#${entry.rank}',
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(color: _medalColor(entry.rank)),
+                            style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         ),
                         MortAvatar(label: entry.displayName, radius: 16),
@@ -2610,7 +2599,7 @@ class _TeenLeaderboardSection extends ConsumerWidget {
                         MortStatusPill(
                           label: entry.tierLabel,
                           icon: Icons.military_tech_outlined,
-                          color: _medalColor(entry.rank),
+                          color: MortColors.roseGoldLight,
                         ),
                       ],
                     ),

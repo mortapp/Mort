@@ -228,6 +228,7 @@ class MortGlassNavigationBar extends StatelessWidget {
       ),
       child: LiquidGlassContainer(
         liveBlur: true,
+        allowAndroidBlur: true,
         borderRadius: BorderRadius.circular(MortRadii.sheet),
         padding: const EdgeInsets.all(MortSpacing.xxs),
         child: Row(
@@ -330,6 +331,7 @@ class MortGlassHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return LiquidGlassContainer(
       liveBlur: true,
+      allowAndroidBlur: true,
       borderRadius: BorderRadius.circular(MortRadii.card),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
