@@ -440,7 +440,7 @@ void main() {
   });
 
   test(
-    'missing DOB routes restored accounts back through the age gate',
+    'missing DOB routes restored accounts to the one true onboarding screen',
     () async {
       final gateway = _FakeGateway(
         session: _session(),
@@ -457,13 +457,14 @@ void main() {
       await startup.start();
 
       expect(startup.snapshot.stage, MortAuthStartupStage.onboarding);
-      expect(startup.snapshot.destination, '/onboarding/age');
+      expect(startup.snapshot.destination, '/onboarding');
       startup.dispose();
       await gateway.close();
     },
   );
 
-  test('incomplete onboarding resumes at the persisted server step', () async {
+  test('incomplete onboarding always resumes through CompactOnboardingScreen, '
+      'which reads the persisted server step itself', () async {
     final gateway = _FakeGateway(
       session: _session(),
       profile: {
@@ -480,7 +481,7 @@ void main() {
     await startup.start();
 
     expect(startup.snapshot.stage, MortAuthStartupStage.onboarding);
-    expect(startup.snapshot.destination, '/onboarding/transportation');
+    expect(startup.snapshot.destination, '/onboarding');
     startup.dispose();
     await gateway.close();
   });

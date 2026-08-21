@@ -166,7 +166,7 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
         _switchMode(UnifiedAuthMode.signIn);
       } else {
         await _recordAcknowledgement();
-        if (mounted) context.go('/onboarding/age');
+        if (mounted) context.go('/onboarding');
       }
     } catch (error) {
       if (!mounted) return;

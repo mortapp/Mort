@@ -207,17 +207,13 @@ MortAuthStartupSnapshot routeAuthenticatedProfile({
   final onboardingComplete = profile['onboarding_completed'] == true;
   if (!onboardingComplete ||
       !const {'teen', 'adult', 'guardian', 'admin'}.contains(role)) {
-    final persistedResumePath = profile['onboarding_resume_path']?.toString();
-    final destination = persistedResumePath?.startsWith('/onboarding/') == true
-        ? persistedResumePath!
-        : profile['dob'] == null
-        ? '/onboarding/age'
-        : role == null || role.isEmpty
-        ? '/onboarding/role'
-        : '/onboarding';
+    // CompactOnboardingScreen resumes itself to the correct visual step
+    // from the server's real progress cursor, so every incomplete-onboarding
+    // user lands on the one true onboarding path rather than a legacy
+    // per-step route.
     return MortAuthStartupSnapshot(
       stage: MortAuthStartupStage.onboarding,
-      destination: destination,
+      destination: '/onboarding',
       userId: userId,
     );
   }
