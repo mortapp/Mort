@@ -29,8 +29,8 @@ void main() {
     expect(find.text('M O R T'), findsOneWidget);
     expect(find.text('Safety and location status'), findsOneWidget);
     expect(find.byType(Image), findsOneWidget);
-    expect(MortColors.roseGold, const Color(0xFFC89686));
-    expect(MortColors.lightBlue, const Color(0xFF7FC4EA));
+    expect(MortColors.roseGold, const Color(0xFFD98C8C));
+    expect(MortColors.lightBlue, const Color(0xFF75C7F7));
   });
 
   testWidgets('core controls honor reduced motion and remain focus visible', (

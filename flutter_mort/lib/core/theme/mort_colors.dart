@@ -1,53 +1,126 @@
 import 'package:flutter/material.dart';
 
+/// MORT Rose Gold 2.0: God Black, metallic Rose Gold, God White, Silver,
+/// Baby Blue, and God Pink as a rare signature accent.
 class MortColors {
   const MortColors._();
 
-  static const bg = Color(0xFF0A0A0C);
-  static const bgSecondary = Color(0xFF101013);
-  static const bgElevated = Color(0xFF17171A);
-  static const card = Color(0xFF17171A);
-  static const cardAlt = Color(0xFF222226);
-  static const glass = Color(0xB31B191C);
-  static const glassPressed = Color(0xE0242226);
-  static const line = Color(0x14FFFFFF);
-  static const lineStrong = Color(0x38FFFFFF);
+  // -- Black family --
+  static const godBlack = Color(0xFF020205);
+  static const black = Color(0xFF0A0A0D);
+  static const softBlack = Color(0xFF111116);
+  static const raisedBlack = Color(0xFF19191F);
 
-  static const text = Color(0xFFF5F3F1);
-  static const textSoft = Color(0xFFA9A7AB);
-  static const textMuted = Color(0xFF8B8D93);
-  static const textDisabled = Color(0xFF6C6A6E);
+  // -- White family --
+  static const white = Color(0xFFF5F5F7);
+  static const godWhite = Color(0xFFFFFDF9);
+  static const softWhite = Color(0xFFDADCE2);
 
-  static const roseGold = Color(0xFFC89686);
-  static const roseGoldLight = Color(0xFFF1CAB4);
-  static const roseGoldDark = Color(0xFF93685A);
-  static const roseGoldMid = Color(0xFFB98272);
-  static const roseGoldDeep = Color(0xFF38241F);
-  static const silver = Color(0xFFCBCED3);
+  // -- Silver family --
+  static const silver = Color(0xFFC6CBD3);
+  static const silverBright = Color(0xFFE4E7EC);
+  static const silverDark = Color(0xFF747B86);
 
-  // Kept as compatibility aliases so existing feature screens inherit the
-  // redesign without maintaining a second color language.
+  // -- Rose Gold family (primary brand) --
+  static const roseGold = Color(0xFFD98C8C);
+  static const roseGoldDeep = Color(0xFF8E4D56);
+  static const roseGoldBright = Color(0xFFF0AAA3);
+  static const roseGoldHighlight = Color(0xFFFFD4CC);
+  static const roseGoldShadow = Color(0xFF5A3037);
+
+  // Near-black rose tint used only at metallic-gradient extremes, so
+  // buttons read as reflective polished metal (dark edge -> bright
+  // narrow highlight -> dark edge) rather than a flat pink/salmon fill.
+  static const roseGoldVeryDark = Color(0xFF231014);
+
+  // Compatibility aliases so existing feature screens inherit the palette
+  // without maintaining a second color language.
+  static const roseGoldLight = roseGoldBright;
+  static const roseGoldDark = roseGoldDeep;
+  static const roseGoldMid = roseGoldBright;
   static const neon = roseGold;
   static const neonDeep = roseGoldDeep;
 
-  // Light blue is reserved for information, safety, location, and verified
+  // -- Baby Blue family (supporting identity color) --
+  static const babyBlue = Color(0xFFA7DFFF);
+  static const babyBlueDeep = Color(0xFF75C7F7);
+  static const babyBlueSoft = Color(0xFFD3F0FF);
+
+  // Baby Blue is reserved for information, safety, location, and verified
   // system state. It stays secondary to MORT's rose-gold brand.
-  static const lightBlue = Color(0xFF7FC4EA);
-  static const lightBlueSoft = Color(0xFFB9E5FF);
+  static const lightBlue = babyBlueDeep;
+  static const lightBlueSoft = babyBlueSoft;
   static const lightBlueDeep = Color(0xFF16384B);
   static const safetyBlue = lightBlue;
 
-  static const success = Color(0xFF33C48A);
-  static const warning = Color(0xFFFFC36A);
-  static const danger = Color(0xFFFF5A52);
-  static const premium = Color(0xFFC7A8FF);
+  // -- God Pink (rare, high-energy signature accent -- not the primary) --
+  static const godPink = Color(0xFFFF4FA3);
+  static const godPinkSoft = Color(0xFFFF8AC5);
+  static const godPinkDeep = Color(0xFF8A245B);
 
+  // -- Background / surface aliases used throughout the app --
+  static const bg = godBlack;
+  static const bgSecondary = black;
+  static const bgElevated = raisedBlack;
+  static const card = softBlack;
+  static const cardAlt = raisedBlack;
+  static const glass = Color(0xB3141419);
+  static const glassPressed = Color(0xE01D1D24);
+  static const line = Color(0x14FFFFFF);
+  static const lineStrong = Color(0x38FFFFFF);
+
+  // -- Text --
+  static const text = godWhite;
+  static const textSoft = softWhite;
+  static const textMuted = silverDark;
+  static const textDisabled = Color(0xFF52565E);
+
+  // -- Semantic states --
+  static const success = Color(0xFF35B779);
+  static const successDeep = Color(0xFF1E7A50);
+  static const successSoft = Color(0xFF85D9B1);
+  static const warning = Color(0xFFD59A42);
+  static const danger = Color(0xFFD44A5C);
+  static const dangerDeep = Color(0xFF912E3B);
+
+  // Premium/paywall accents use the soft God Pink tone -- God Pink itself
+  // stays rare, this keeps premium surfaces from tipping the app pink.
+  static const premium = godPinkSoft;
+
+  // -- Canonical gradients --
+  // Dark edge -> deep -> core -> narrow bright highlight -> core -> deep
+  // -> dark edge. A narrow, sharp highlight band reads as a specular
+  // reflection off polished metal; a broad even blend reads as flat
+  // pink. Pair with MortGradients.metallic's matching stop list.
   static const metallicGradient = <Color>[
-    roseGoldDark,
+    roseGoldVeryDark,
+    roseGoldDeep,
     roseGold,
-    roseGoldLight,
-    roseGoldMid,
+    roseGoldHighlight,
+    roseGold,
+    roseGoldDeep,
+    roseGoldVeryDark,
   ];
 
-  static const backgroundGradient = <Color>[bg, bgSecondary, Color(0xFF0C0B0E)];
+  static const darkRoseGoldGradient = <Color>[
+    godBlack,
+    roseGoldShadow,
+    roseGold,
+  ];
+
+  static const backgroundGradient = <Color>[godBlack, black, softBlack];
+
+  static const silverMetallicGradient = <Color>[
+    silverDark,
+    silverBright,
+    silver,
+    silverDark,
+  ];
+
+  static const babyBlueGradient = <Color>[babyBlueDeep, babyBlue, babyBlueSoft];
+
+  static const godPinkGradient = <Color>[godPinkDeep, godPink, godPinkSoft];
+
+  /// Very selective use only -- not the default CTA gradient.
+  static const signatureGradient = <Color>[roseGold, godPink, babyBlue];
 }

@@ -7,8 +7,8 @@ class MortRadii {
 
   static const small = 10.0;
   static const medium = 14.0;
-  static const card = 20.0;
-  static const sheet = 28.0;
+  static const card = 12.0;
+  static const sheet = 20.0;
   static const pill = 999.0;
 }
 
@@ -42,23 +42,33 @@ class MortShadows {
 
   static const card = <BoxShadow>[
     BoxShadow(color: Color(0x80000000), blurRadius: 26, offset: Offset(0, 12)),
-    BoxShadow(color: Color(0x16C89686), blurRadius: 18),
+    BoxShadow(color: Color(0x1CD98C8C), blurRadius: 18),
   ];
 
   static const glow = <BoxShadow>[
-    BoxShadow(color: Color(0x45F4A78F), blurRadius: 28),
-    BoxShadow(color: Color(0x2478CAFF), blurRadius: 42),
+    BoxShadow(color: Color(0x45F0AAA3), blurRadius: 28),
+    BoxShadow(color: Color(0x2475C7F7), blurRadius: 42),
   ];
 }
 
 class MortGradients {
   const MortGradients._();
 
+  /// Primary metallic Rose Gold: dark edge -> deep -> core -> a narrow
+  /// bright highlight band -> core -> deep -> dark edge. The narrow
+  /// highlight (tightly clustered stops around 0.5) is what reads as a
+  /// specular reflection off polished metal instead of a flat pink fill.
   static const metallic = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: MortColors.metallicGradient,
-    stops: [0, 0.38, 0.62, 1],
+    stops: [0, 0.18, 0.38, 0.5, 0.62, 0.82, 1],
+  );
+
+  static const darkRoseGold = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: MortColors.darkRoseGoldGradient,
   );
 
   static const background = LinearGradient(
@@ -67,15 +77,40 @@ class MortGradients {
     colors: MortColors.backgroundGradient,
   );
 
+  static const silverMetallic = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: MortColors.silverMetallicGradient,
+  );
+
+  static const babyBlue = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: MortColors.babyBlueGradient,
+  );
+
+  static const godPink = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: MortColors.godPinkGradient,
+  );
+
+  /// Use very selectively -- not the default CTA gradient.
+  static const signature = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: MortColors.signatureGradient,
+  );
+
   static const glass = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xD92A272B), Color(0xD917171A), Color(0xE01F1D21)],
+    colors: [Color(0xD9151217), Color(0xD9111116), Color(0xE00A0A0D)],
   );
 
   static const infoGlass = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xF20C1B24), Color(0xF2121010)],
+    colors: [Color(0xF20D2432), Color(0xF2111116)],
   );
 }

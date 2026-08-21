@@ -1,10 +1,14 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../core/errors/user_facing_error.dart';
+import '../../core/preferences/mort_experience_preferences.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/utils/date_of_birth.dart';
@@ -15,7 +19,14 @@ import '../../data/models/profile.dart';
 import '../../data/repositories/providers.dart';
 import '../../services/native_permissions_service.dart';
 import '../profile/profile_avatar_widgets.dart';
+import 'mort_rules_copy.dart';
 
+/// MORT's one real onboarding path: 5 pages that call the server's true
+/// 9-step checkpoint chain (profile, skills, availability, transportation,
+/// payment, guardian, preferences, safety, review) in the correct order
+/// underneath, plus the age/role RPCs and the real legal-acceptance RPCs
+/// -- so "5 steps" is genuine, not a relabeling that silently drops real
+/// server requirements. Reached from UnifiedAuthScreen after sign-up.
 class CompactOnboardingScreen extends ConsumerStatefulWidget {
   const CompactOnboardingScreen({super.key});
 
@@ -31,15 +42,15 @@ class _CompactOnboardingScreenState
     'Start with your age',
     'Make it yours',
     'Set your area',
-    'Interests and safety',
-    'Review and finish',
+    'Payment, guardian & interests',
+    'Rules, review & finish',
   ];
   static const _stepDescriptions = <String>[
     'Your age sets the right MORT experience. Your birthday is never shown publicly.',
     'Choose the name and username people will see in MORT.',
     'Give MORT enough detail to find relevant local work without exposing a private address.',
-    'Choose work you are interested in and review the rules that help keep MORT safer.',
-    'Check the essentials before MORT saves your completed setup.',
+    'A few quick choices before setup finishes.',
+    'Read the rules, confirm your setup, and finish.',
   ];
   static const _suggestedCategories = <String>[
     'Yard work',
@@ -63,13 +74,40 @@ class _CompactOnboardingScreenState
   final _transportMethods = <String>{};
   UserRole? _role;
   bool _adultWantsGuardianRole = false;
-  bool _safetyAcknowledged = false;
   bool _busy = false;
   bool _restoring = true;
   bool _legalAcceptanceRequired = false;
   final _dirtySteps = <int>{};
   String? _locationHint;
   String? _stepError;
+
+  // Step 3: payment, guardian, preferences.
+  String _paymentPreference = 'none';
+  final _guardianEmail = TextEditingController();
+  String? _guardianInviteCode;
+  bool _guardianDeclined = false;
+  bool _guardianBusy = false;
+  String _notificationChoice = 'ask_later';
+  bool _reducedMotion = false;
+  bool _largerText = false;
+  bool _highContrast = false;
+
+  // Step 4: rules acceptance (mirrors SafetyRulesScreen, same shared copy).
+  bool _pilotTermsNotice = false;
+  bool _privacyNotice = false;
+  bool _communityRules = false;
+  bool _prohibitedWork = false;
+  bool _safetyRulesAck = false;
+  bool _antiGroomingAcknowledged = false;
+  final _signature = TextEditingController();
+
+  bool get _allRulesAcknowledged =>
+      _pilotTermsNotice &&
+      _privacyNotice &&
+      _communityRules &&
+      _prohibitedWork &&
+      _safetyRulesAck &&
+      _antiGroomingAcknowledged;
 
   @override
   void initState() {
@@ -100,11 +138,6 @@ class _CompactOnboardingScreenState
 
   void _handleTextChanged() => _markStepDirty();
 
-  // A minor must never be able to select Guardian and have it silently
-  // ignored — _next() already ignores it for under-18 regardless, but
-  // the UI itself shouldn't offer the choice to someone it doesn't apply
-  // to in the first place, and any stale true value gets cleared the
-  // instant DOB no longer supports it, not left sitting around.
   bool get _dobIndicatesAdultEligible {
     final dob = DateOfBirthParser.tryParse(_dob.text);
     if (dob == null) return false;
@@ -127,11 +160,6 @@ class _CompactOnboardingScreenState
       final progress = await ref
           .read(profileRepositoryProvider)
           .getOnboardingProgress();
-      // .future, not .value — .value would silently be null if
-      // currentProfileProvider's own fetch hadn't resolved yet by this
-      // point (a real race, independent of the onboarding-progress
-      // fetch above), which would have made role/hydration randomly
-      // incomplete depending on timing rather than reliably correct.
       final profile = await ref.read(currentProfileProvider.future);
       _applyProgress(progress, profile);
     } catch (_) {
@@ -143,14 +171,6 @@ class _CompactOnboardingScreenState
     }
   }
 
-  // Single source of truth for step resolution. Previously this was two
-  // separate mappings (a currentStep->step map, then a resumePath
-  // substring check that could overwrite it) that had to be kept in sync
-  // by hand and had already drifted apart — 'review' mapped to step 3 in
-  // one and was grouped into step 2 in the other. resumePath is the more
-  // specific signal (it's the literal old URL), so it's authoritative;
-  // currentStep is only a fallback for when resumePath doesn't match any
-  // known pattern.
   static int _stepForProgress(OnboardingProgress progress) {
     final path = progress.resumePath;
     if (path.contains('/onboarding/age') || path.contains('/onboarding/role')) {
@@ -164,28 +184,26 @@ class _CompactOnboardingScreenState
         path.contains('/onboarding/transportation')) {
       return 2;
     }
-    if (path.contains('/onboarding/guardian') ||
-        path.contains('/onboarding/preferences') ||
-        path.contains('/onboarding/safety') ||
-        path.contains('/onboarding/payment')) {
+    if (path.contains('/onboarding/payment') ||
+        path.contains('/onboarding/guardian') ||
+        path.contains('/onboarding/preferences')) {
       return 3;
     }
-    if (path.contains('/onboarding/review')) {
+    if (path.contains('/onboarding/safety') ||
+        path.contains('/onboarding/review')) {
       return 4;
     }
     const currentStepFallback = {
       'age': 0,
       'role': 0,
       'profile': 1,
-      'profile_basics': 1,
       'skills': 2,
       'availability': 2,
       'transportation': 2,
       'payment': 3,
       'guardian': 3,
       'preferences': 3,
-      'safety': 3,
-      'interests_safety': 3,
+      'safety': 4,
       'review': 4,
       'complete': 4,
     };
@@ -198,17 +216,26 @@ class _CompactOnboardingScreenState
       _step = _stepForProgress(progress);
       _role = profile?.role;
       _adultWantsGuardianRole = profile?.role == UserRole.guardian;
-      if (profile != null) _hydrateControllersFrom(profile);
+      _notificationChoice = progress.notificationChoice;
+      _reducedMotion =
+          progress.accessibilityPreferences['reduced_motion'] ?? false;
+      _largerText = progress.accessibilityPreferences['larger_text'] ?? false;
+      _highContrast =
+          progress.accessibilityPreferences['high_contrast'] ?? false;
+      if (profile != null) {
+        _hydrateControllersFrom(profile);
+        _paymentPreference =
+            const {
+              'none',
+              'cash',
+              'flexible',
+            }.contains(profile.paymentPreference)
+            ? profile.paymentPreference
+            : 'none';
+      }
     });
   }
 
-  // Fixes the real bug: a returning user landed on the correct step
-  // number, but every controller/set was still blank — DOB, name,
-  // username, city/state/area, transport methods, interests — because
-  // only the step index was ever restored, never the actual field
-  // values already sitting in the database. Reads from the same
-  // Profile the rest of the app already uses; no second persistence
-  // mechanism.
   void _hydrateControllersFrom(Profile profile) {
     if (profile.dob != null) {
       _dob.text = DateOfBirthParser.display(profile.dob!);
@@ -253,6 +280,8 @@ class _CompactOnboardingScreenState
     _state.dispose();
     _zip.dispose();
     _interestController.dispose();
+    _guardianEmail.dispose();
+    _signature.dispose();
     super.dispose();
   }
 
@@ -286,6 +315,30 @@ class _CompactOnboardingScreenState
     }
   }
 
+  UserRole _resolvedRole() =>
+      _role ?? ref.read(currentProfileProvider).value?.role ?? UserRole.teen;
+
+  Future<void> _sendGuardianInvite() async {
+    if (_guardianBusy) return;
+    setState(() => _guardianBusy = true);
+    try {
+      final email = _guardianEmail.text.trim();
+      final result = await ref
+          .read(guardianRepositoryProvider)
+          .createInvite(email: email.isEmpty ? null : email);
+      if (!mounted) return;
+      setState(() {
+        _guardianInviteCode = result['invite_code'] as String?;
+        _guardianDeclined = false;
+      });
+      MortToast.show(context, 'Guardian invite created.');
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _guardianBusy = false);
+    }
+  }
+
   String? _validationMessage(DateTime now) {
     switch (_step) {
       case 0:
@@ -304,10 +357,7 @@ class _CompactOnboardingScreenState
         }
         break;
       case 2:
-        final role =
-            _role ??
-            ref.read(currentProfileProvider).value?.role ??
-            UserRole.teen;
+        final role = _resolvedRole();
         if (role == UserRole.teen) {
           if (_zip.text.trim().isEmpty && _transportMethods.isEmpty) {
             return 'Enter a ZIP or city, or choose how you usually get around.';
@@ -319,11 +369,11 @@ class _CompactOnboardingScreenState
         break;
       case 3:
         if (_categories.isEmpty) return 'Choose at least one interest.';
-        if (!_safetyAcknowledged) {
-          return 'Confirm that you reviewed the safety guidance.';
-        }
         break;
       case 4:
+        if (!_allRulesAcknowledged) {
+          return 'Review and check every rule before finishing.';
+        }
         break;
     }
     return null;
@@ -379,11 +429,6 @@ class _CompactOnboardingScreenState
           final dob = DateOfBirthParser.tryParse(_dob.text, today: now);
           if (dob == null) return;
           final age = DateOfBirthParser.ageOn(dob, now);
-          // Age determines teen vs. adult-eligible. Guardian is a real,
-          // explicit choice for adult-eligible users (RoleSelectionScreen,
-          // the old live /onboarding/role screen, offered Teen/Adult/
-          // Guardian as three distinct options — a plain age check alone
-          // would have silently dropped the Guardian path entirely).
           _role = age < 18
               ? UserRole.teen
               : (_adultWantsGuardianRole ? UserRole.guardian : UserRole.adult);
@@ -398,14 +443,17 @@ class _CompactOnboardingScreenState
             'display_name': displayName,
             'username': username,
           });
-          await repo.saveOnboardingProgress(completedStep: 'profile_basics');
+          // 'profile' unlocks 'skills' and 'availability' -- both are
+          // pure informational safety-guidance checkpoints server-side
+          // (no extra fields required), fired together here since this
+          // page already covers everything a user needs to see for them.
+          await repo.saveOnboardingProgress(completedStep: 'profile');
+          await repo.saveOnboardingProgress(completedStep: 'skills');
+          await repo.saveOnboardingProgress(completedStep: 'availability');
           ref.invalidate(currentProfileProvider);
           break;
         case 2:
-          final role =
-              _role ??
-              ref.read(currentProfileProvider).value?.role ??
-              UserRole.teen;
+          final role = _resolvedRole();
           if (role == UserRole.teen) {
             final approximateArea = _zip.text.trim();
             await repo.updateMyProfile({
@@ -448,11 +496,85 @@ class _CompactOnboardingScreenState
         case 3:
           await repo.updateMyProfile({
             'preferred_job_categories': _categories.toList(growable: false),
+            'payment_preference': _paymentPreference,
           });
-          await repo.saveOnboardingProgress(completedStep: 'interests_safety');
+          await repo.saveOnboardingProgress(completedStep: 'payment');
+          final role = _resolvedRole();
+          if (role == UserRole.teen) {
+            await repo.saveOnboardingProgress(
+              completedStep: 'guardian',
+              preferences: {
+                'safety_setup_choice': _guardianInviteCode != null
+                    ? 'configured'
+                    : 'declined_optional',
+              },
+            );
+          } else {
+            await repo.saveOnboardingProgress(
+              completedStep: 'guardian',
+              preferences: const {'safety_setup_choice': 'review_later'},
+            );
+          }
+          await repo.saveOnboardingProgress(
+            completedStep: 'preferences',
+            preferences: {
+              'notification_choice': _notificationChoice,
+              'accessibility_preferences': {
+                'reduced_motion': _reducedMotion,
+                'larger_text': _largerText,
+                'high_contrast': _highContrast,
+              },
+            },
+          );
+          await ref
+              .read(mortExperiencePreferencesProvider.notifier)
+              .applyOnboardingPreferences(
+                reducedMotion: _reducedMotion,
+                highContrast: _highContrast,
+              );
           ref.invalidate(currentProfileProvider);
           break;
         case 4:
+          // Record the exact-version, hash-bound legal acceptance before
+          // completing -- complete_my_onboarding() requires an active
+          // legal_acceptances row for every legal_role_requirements match.
+          final legalRepo = ref.read(legalContractRepositoryProvider);
+          final requirements =
+              (await legalRepo.legalRequirements())['requirements'] as List? ??
+              const [];
+          final outstanding = requirements
+              .map((item) => Map<String, dynamic>.from(item as Map))
+              .where((item) => item['acceptance_id'] == null)
+              .toList(growable: false);
+          final needsSignature = outstanding.any(
+            (item) => item['requires_electronic_signature'] == true,
+          );
+          if (needsSignature && _signature.text.trim().length < 3) {
+            _showStepError(
+              'Type your name to electronically sign the required document.',
+            );
+            return;
+          }
+          for (final item in outstanding) {
+            await legalRepo.acceptLegalVersion(
+              versionId: item['version_id'].toString(),
+              teenSummaryViewed: true,
+              signature: item['requires_electronic_signature'] == true
+                  ? _signature.text
+                  : null,
+            );
+          }
+          final package = await PackageInfo.fromPlatform();
+          final platform = kIsWeb
+              ? 'flutter_web'
+              : 'flutter_${defaultTargetPlatform.name}';
+          await repo.recordOnboardingAcknowledgement(
+            version: mortOnboardingAcknowledgementVersion,
+            platform: platform,
+            appVersion: '${package.version}+${package.buildNumber}',
+          );
+          await repo.saveOnboardingProgress(completedStep: 'safety');
+          await repo.saveOnboardingProgress(completedStep: 'review');
           await repo.completeOnboarding();
           ref.invalidate(currentProfileProvider);
           ref.invalidate(onboardingProgressProvider);
@@ -476,7 +598,7 @@ class _CompactOnboardingScreenState
           });
           MortToast.show(
             context,
-            'Accept the current published legal documents before finishing onboarding.',
+            'Accept every rule above, then try Finish setup again.',
           );
         } else {
           _showStepError(_saveFailureMessage(error));
@@ -722,6 +844,40 @@ class _CompactOnboardingScreenState
           const SizedBox(height: MortSpacing.sm),
           ProfileAvatarEditor(profile: liveProfile),
         ],
+        const SizedBox(height: MortSpacing.lg),
+        MortGlassCard(
+          infoAccent: true,
+          semanticLabel: 'MORT safety guidance',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.shield_outlined,
+                    color: MortColors.lightBlueSoft,
+                  ),
+                  const SizedBox(width: MortSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Before you continue',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: MortSpacing.sm),
+              const _SafetyRule(text: 'Keep job conversations inside MORT.'),
+              const _SafetyRule(
+                text: 'Never share passwords, login codes, or payment codes.',
+              ),
+              const _SafetyRule(
+                text:
+                    'Use check-ins and Safety Ping when something does not feel right.',
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -833,9 +989,10 @@ class _CompactOnboardingScreenState
     );
   }
 
-  Widget _buildInterestsStep() {
+  Widget _buildPaymentGuardianStep() {
+    final isTeen = _resolvedRole() == UserRole.teen;
     return Column(
-      key: const ValueKey('onboarding-interests'),
+      key: const ValueKey('onboarding-payment-guardian'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
@@ -867,56 +1024,103 @@ class _CompactOnboardingScreenState
           onChanged: _syncTypedCategories,
         ),
         const SizedBox(height: MortSpacing.lg),
+        const _OnboardingSectionLabel(label: 'Payments'),
+        const MortPaymentDisclaimer(),
+        const SizedBox(height: MortSpacing.sm),
+        MortDropdown<String>(
+          label: 'Off-platform payment preference',
+          value: _paymentPreference,
+          items: const {
+            'none': 'Decide with the other person later',
+            'cash': 'Cash after completed work',
+            'flexible': 'Flexible - no payment details stored',
+          },
+          onChanged: (value) =>
+              setState(() => _paymentPreference = value ?? 'none'),
+        ),
+        if (isTeen) ...[
+          const SizedBox(height: MortSpacing.lg),
+          const _OnboardingSectionLabel(label: 'Guardian (optional)'),
+          Text(
+            'Guardian Mode can share selected safety alerts and check-ins with someone you trust. Skip this and set it up later if you prefer.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          if (_guardianInviteCode != null)
+            MortGlassCard(
+              infoAccent: true,
+              child: Text(
+                'Guardian invite created. Share code $_guardianInviteCode with your guardian.',
+              ),
+            )
+          else ...[
+            MortTextField(
+              label: 'Guardian email (optional)',
+              hint: 'Leave blank to generate a shareable code instead',
+              controller: _guardianEmail,
+              enabled: !_guardianBusy,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.email],
+            ),
+            const SizedBox(height: MortSpacing.sm),
+            Wrap(
+              spacing: MortSpacing.sm,
+              runSpacing: MortSpacing.sm,
+              children: [
+                MortButton(
+                  label: 'Invite a guardian',
+                  icon: Icons.person_add_alt_1_outlined,
+                  style: MortButtonStyle.secondary,
+                  busy: _guardianBusy,
+                  onPressed: _sendGuardianInvite,
+                ),
+                ChoiceChip(
+                  label: const Text('Skip for now'),
+                  selected: _guardianDeclined,
+                  onSelected: (selected) =>
+                      setState(() => _guardianDeclined = selected),
+                ),
+              ],
+            ),
+          ],
+        ],
+        const SizedBox(height: MortSpacing.lg),
+        const _OnboardingSectionLabel(label: 'Preferences'),
+        MortDropdown<String>(
+          label: 'Notifications',
+          value: _notificationChoice,
+          items: const {
+            'ask_later': 'Ask me later',
+            'enabled': 'I want safety and job notifications',
+            'disabled': 'Do not ask right now',
+          },
+          onChanged: (value) =>
+              setState(() => _notificationChoice = value ?? 'ask_later'),
+        ),
+        const SizedBox(height: MortSpacing.sm),
         MortGlassCard(
           infoAccent: true,
-          semanticLabel: 'MORT safety guidance',
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.shield_outlined,
-                    color: MortColors.lightBlueSoft,
-                  ),
-                  const SizedBox(width: MortSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      'Safety comes first',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: MortSpacing.md),
-              const _SafetyRule(text: 'Keep job conversations inside MORT.'),
-              const _SafetyRule(
-                text: 'Never share passwords, login codes, or payment codes.',
-              ),
-              const _SafetyRule(
-                text:
-                    'Use check-ins and Safety Ping when something does not feel right.',
-              ),
-              const Divider(height: MortSpacing.lg),
-              CheckboxListTile(
+              SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                activeColor: MortColors.success,
-                title: const Text('I reviewed this safety guidance'),
-                subtitle: const Text(
-                  'Report and block tools remain free for every account.',
-                ),
-                value: _safetyAcknowledged,
-                onChanged: _busy
-                    ? null
-                    : (checked) {
-                        if (checked == null) return;
-                        setState(() {
-                          _safetyAcknowledged = checked;
-                          _dirtySteps.add(_step);
-                          _stepError = null;
-                        });
-                      },
+                title: const Text('Reduce MORT motion'),
+                value: _reducedMotion,
+                onChanged: (value) => setState(() => _reducedMotion = value),
+              ),
+              const Divider(),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Prefer larger text'),
+                value: _largerText,
+                onChanged: (value) => setState(() => _largerText = value),
+              ),
+              const Divider(),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Prefer higher contrast'),
+                value: _highContrast,
+                onChanged: (value) => setState(() => _highContrast = value),
               ),
             ],
           ),
@@ -925,14 +1129,110 @@ class _CompactOnboardingScreenState
     );
   }
 
-  Widget _buildReviewStep(Profile? liveProfile) {
+  Widget _buildRulesReviewStep(Profile? liveProfile) {
     final interests = _categories.isEmpty
         ? 'None selected'
         : _categories.join(', ');
     return Column(
-      key: const ValueKey('onboarding-review'),
+      key: const ValueKey('onboarding-rules-review'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        MortGlassCard(
+          infoAccent: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _pilotTermsNotice,
+                title: const Text(MortRulesCopy.pilotTermsTitle),
+                subtitle: const Text(MortRulesCopy.pilotTermsBody),
+                onChanged: (value) =>
+                    setState(() => _pilotTermsNotice = value ?? false),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _privacyNotice,
+                title: const Text(MortRulesCopy.privacyTitle),
+                subtitle: const Text(MortRulesCopy.privacyBody),
+                onChanged: (value) =>
+                    setState(() => _privacyNotice = value ?? false),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _communityRules,
+                title: const Text(MortRulesCopy.communityTitle),
+                subtitle: const Text(MortRulesCopy.communityBody),
+                onChanged: (value) =>
+                    setState(() => _communityRules = value ?? false),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _prohibitedWork,
+                title: const Text(MortRulesCopy.prohibitedTitle),
+                subtitle: const Text(MortRulesCopy.prohibitedBody),
+                onChanged: (value) =>
+                    setState(() => _prohibitedWork = value ?? false),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _safetyRulesAck,
+                title: const Text(MortRulesCopy.safetyRulesTitle),
+                subtitle: const Text(MortRulesCopy.safetyRulesBody),
+                onChanged: (value) =>
+                    setState(() => _safetyRulesAck = value ?? false),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        MortGlassCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.gpp_bad_outlined, color: MortColors.danger),
+                  const SizedBox(width: MortSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      MortRulesCopy.antiGroomingTitle,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: MortColors.danger,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: MortSpacing.xs),
+              SizedBox(
+                height: 180,
+                child: SingleChildScrollView(
+                  child: Text(
+                    MortRulesCopy.antiGroomingBody,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              ),
+              const SizedBox(height: MortSpacing.xs),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _antiGroomingAcknowledged,
+                title: const Text(MortRulesCopy.antiGroomingAcceptLabel),
+                subtitle: const Text(MortRulesCopy.antiGroomingAcceptSubtitle),
+                onChanged: (value) =>
+                    setState(() => _antiGroomingAcknowledged = value ?? false),
+              ),
+              const SizedBox(height: MortSpacing.xs),
+              MortTextField(
+                label: 'Signature (only if a document requires one)',
+                controller: _signature,
+                enabled: !_busy,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: MortSpacing.lg),
         Center(
           child: liveProfile == null
               ? const CircleAvatar(
@@ -975,7 +1275,14 @@ class _CompactOnboardingScreenState
               ),
               _ReviewRow(label: 'General area', value: _reviewArea),
               _ReviewRow(label: 'Interests', value: interests),
-              const _ReviewRow(label: 'Safety guidance', value: 'Reviewed'),
+              _ReviewRow(
+                label: 'Payment',
+                value: switch (_paymentPreference) {
+                  'cash' => 'Cash after completed work',
+                  'flexible' => 'Flexible - no details stored',
+                  _ => 'Decide later',
+                },
+              ),
             ],
           ),
         ),
@@ -995,7 +1302,7 @@ class _CompactOnboardingScreenState
               style: MortButtonStyle.ghost,
             ),
             MortAction(
-              label: 'Edit interests',
+              label: 'Edit interests & payment',
               icon: Icons.interests_outlined,
               onPressed: () => _goToStep(3),
               style: MortButtonStyle.ghost,
@@ -1003,33 +1310,9 @@ class _CompactOnboardingScreenState
           ],
         ),
         const SizedBox(height: MortSpacing.md),
-        MortGlassCard(
-          infoAccent: true,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'MORT verifies your current legal acknowledgements before setup can finish.',
-              ),
-              const SizedBox(height: MortSpacing.sm),
-              MortActionRow(
-                actions: [
-                  MortAction(
-                    label: 'Terms',
-                    icon: Icons.description_outlined,
-                    onPressed: () => context.push('/legal/terms'),
-                    style: MortButtonStyle.secondary,
-                  ),
-                  MortAction(
-                    label: 'Privacy',
-                    icon: Icons.privacy_tip_outlined,
-                    onPressed: () => context.push('/legal/privacy'),
-                    style: MortButtonStyle.secondary,
-                  ),
-                ],
-              ),
-            ],
-          ),
+        MortSafetyBanner(
+          message:
+              'Public marketplace access remains closed. Finishing setup does not mean identity verified, payment protected, or public-release approved.',
         ),
       ],
     );
@@ -1039,8 +1322,8 @@ class _CompactOnboardingScreenState
     0 => _buildAgeStep(),
     1 => _buildProfileStep(liveProfile),
     2 => _buildAreaStep(),
-    3 => _buildInterestsStep(),
-    _ => _buildReviewStep(liveProfile),
+    3 => _buildPaymentGuardianStep(),
+    _ => _buildRulesReviewStep(liveProfile),
   };
 
   Widget _buildBottomActions() {
@@ -1048,7 +1331,7 @@ class _CompactOnboardingScreenState
       'Choose account',
       'Save profile',
       'Save area',
-      'Review setup',
+      'Continue',
       'Finish setup',
     ];
     final busyLabel = _restoring
@@ -1183,8 +1466,7 @@ class _CompactOnboardingScreenState
             icon: Icons.gavel_outlined,
             color: MortColors.warning,
             title: 'Legal acknowledgement required',
-            message:
-                'Open Terms and Privacy above, accept the current published versions, then try Finish setup again.',
+            message: 'Check every rule above, then try Finish setup again.',
             liveRegion: true,
           ),
         ],
@@ -1257,6 +1539,23 @@ class _OnboardingDivider extends StatelessWidget {
       ],
     );
   }
+}
+
+class _OnboardingSectionLabel extends StatelessWidget {
+  const _OnboardingSectionLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: MortSpacing.sm),
+    child: Text(
+      label,
+      style: Theme.of(
+        context,
+      ).textTheme.titleMedium?.copyWith(color: MortColors.roseGoldLight),
+    ),
+  );
 }
 
 class _SafetyRule extends StatelessWidget {

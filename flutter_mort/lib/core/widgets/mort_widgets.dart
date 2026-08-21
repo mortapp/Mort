@@ -495,7 +495,7 @@ class MortButton extends StatelessWidget {
       MortButtonStyle.disabled => MortColors.line,
     };
     final fg = switch (style) {
-      MortButtonStyle.primary => Colors.black,
+      MortButtonStyle.primary => MortColors.godBlack,
       MortButtonStyle.secondary => MortColors.text,
       MortButtonStyle.danger => Colors.white,
       MortButtonStyle.ghost => MortColors.roseGold,
@@ -822,12 +822,19 @@ class MortDropdown<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     return DropdownButtonFormField<T>(
       value: value,
+      isExpanded: true,
       decoration: InputDecoration(labelText: label),
       dropdownColor: MortColors.cardAlt,
       items: items.entries
           .map(
-            (entry) =>
-                DropdownMenuItem<T>(value: entry.key, child: Text(entry.value)),
+            (entry) => DropdownMenuItem<T>(
+              value: entry.key,
+              child: Text(
+                entry.value,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
           )
           .toList(),
       onChanged: onChanged,

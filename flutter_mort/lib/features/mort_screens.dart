@@ -32,6 +32,7 @@ import '../data/repositories/uploads_repository.dart';
 import '../data/services/supabase_service.dart';
 import 'ads/widgets/mort_banner_ad.dart';
 import 'mission/partner_staff_screens.dart';
+import 'onboarding/mort_rules_copy.dart';
 import 'profile/profile_avatar_widgets.dart';
 import 'teen/teen_shell.dart';
 
@@ -73,7 +74,7 @@ class SplashScreen extends ConsumerWidget {
           textAlign: TextAlign.center,
           style: Theme.of(
             context,
-          ).textTheme.bodyLarge?.copyWith(color: MortColors.roseGoldLight),
+          ).textTheme.bodyLarge?.copyWith(color: MortColors.textSoft),
         ),
         const SizedBox(height: MortSpacing.xl),
         const MortSafetyBanner(
@@ -1941,50 +1942,40 @@ class _SafetyRulesScreenState extends ConsumerState<SafetyRulesScreen> {
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 value: _pilotTermsNotice,
-                title: const Text('Closed-pilot participation notice'),
-                subtitle: const Text(
-                  'I understand public marketplace access is closed and participation may be restricted or removed for safety.',
-                ),
+                title: const Text(MortRulesCopy.pilotTermsTitle),
+                subtitle: const Text(MortRulesCopy.pilotTermsBody),
                 onChanged: (value) =>
                     setState(() => _pilotTermsNotice = value ?? false),
               ),
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 value: _privacyNotice,
-                title: const Text('Privacy notice'),
-                subtitle: const Text(
-                  'I will not share exact addresses, payment credentials, government IDs, or private contact details in profiles, chat, proof, or support.',
-                ),
+                title: const Text(MortRulesCopy.privacyTitle),
+                subtitle: const Text(MortRulesCopy.privacyBody),
                 onChanged: (value) =>
                     setState(() => _privacyNotice = value ?? false),
               ),
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 value: _communityRules,
-                title: const Text('Community rules'),
-                subtitle: const Text(
-                  'I will communicate respectfully and use report, block, and Safety Ping when something is unsafe.',
-                ),
+                title: const Text(MortRulesCopy.communityTitle),
+                subtitle: const Text(MortRulesCopy.communityBody),
                 onChanged: (value) =>
                     setState(() => _communityRules = value ?? false),
               ),
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 value: _prohibitedWork,
-                title: const Text('Prohibited work'),
-                subtitle: const Text(
-                  'I understand unsafe tools, sexual services, controlled substances, weapons, overnight teen work, and unlawful work are prohibited.',
-                ),
+                title: const Text(MortRulesCopy.prohibitedTitle),
+                subtitle: const Text(MortRulesCopy.prohibitedBody),
                 onChanged: (value) =>
                     setState(() => _prohibitedWork = value ?? false),
               ),
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 value: _safetyRules,
-                title: const Text('Core safety rules'),
-                subtitle: const Text(
-                  'I will stop work, leave, and seek emergency help when necessary instead of relying on MORT as an emergency service.',
-                ),
+                title: const Text(MortRulesCopy.safetyRulesTitle),
+                subtitle: const Text(MortRulesCopy.safetyRulesBody),
                 onChanged: (value) =>
                     setState(() => _safetyRules = value ?? false),
               ),
@@ -2002,7 +1993,7 @@ class _SafetyRulesScreenState extends ConsumerState<SafetyRulesScreen> {
                   const SizedBox(width: MortSpacing.xs),
                   Expanded(
                     child: Text(
-                      'Zero tolerance for grooming and exploitation',
+                      MortRulesCopy.antiGroomingTitle,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: MortColors.danger,
                       ),
@@ -2015,22 +2006,7 @@ class _SafetyRulesScreenState extends ConsumerState<SafetyRulesScreen> {
                 height: 180,
                 child: SingleChildScrollView(
                   child: Text(
-                    'MORT has zero tolerance for adults who target, groom, '
-                    'or attempt sexual contact with a minor through this '
-                    'app. MORT does not support and will never protect '
-                    'predators, groomers, or anyone seeking sexual contact '
-                    'with a minor.\n\n'
-                    'If an adult account is found doing this, MORT will '
-                    'preserve account, device, and IP evidence and refer it '
-                    'to law enforcement. The adult may be permanently '
-                    'banned and, if the minor\'s family pursues civil or '
-                    'criminal action, may be held financially responsible '
-                    'for resulting legal costs. MORT is not liable for the '
-                    'actions of individual users but will cooperate fully '
-                    'with any resulting investigation.\n\n'
-                    'Report anything that feels wrong immediately using '
-                    'Report or Safety Ping -- reporting never requires '
-                    'proof and is never held against you.',
+                    MortRulesCopy.antiGroomingBody,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ),
@@ -2039,8 +2015,8 @@ class _SafetyRulesScreenState extends ConsumerState<SafetyRulesScreen> {
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 value: _antiGroomingAcknowledged,
-                title: const Text('I have read and agree to this rule'),
-                subtitle: const Text('Required to continue using MORT.'),
+                title: const Text(MortRulesCopy.antiGroomingAcceptLabel),
+                subtitle: const Text(MortRulesCopy.antiGroomingAcceptSubtitle),
                 onChanged: (value) =>
                     setState(() => _antiGroomingAcknowledged = value ?? false),
               ),
@@ -2477,6 +2453,16 @@ class _TeenNearbyWorkSection extends ConsumerWidget {
   }
 }
 
+/// Podium coloring for the top 3 leaderboard ranks only -- rose gold and
+/// silver, per MORT's brand (no yellow/gold). Every other rank stays on
+/// the standard rose-gold accent.
+Color _podiumColor(int rank) => switch (rank) {
+  1 => MortColors.roseGold,
+  2 => MortColors.silverBright,
+  3 => MortColors.roseGoldDeep,
+  _ => MortColors.roseGoldLight,
+};
+
 class _TeenLeaderboardSection extends ConsumerWidget {
   const _TeenLeaderboardSection();
 
@@ -2585,7 +2571,8 @@ class _TeenLeaderboardSection extends ConsumerWidget {
                           width: 28,
                           child: Text(
                             '#${entry.rank}',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: _podiumColor(entry.rank)),
                           ),
                         ),
                         MortAvatar(label: entry.displayName, radius: 16),
@@ -2599,7 +2586,7 @@ class _TeenLeaderboardSection extends ConsumerWidget {
                         MortStatusPill(
                           label: entry.tierLabel,
                           icon: Icons.military_tech_outlined,
-                          color: MortColors.roseGoldLight,
+                          color: _podiumColor(entry.rank),
                         ),
                       ],
                     ),

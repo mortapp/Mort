@@ -39,7 +39,7 @@ class MortBrandMark extends StatelessWidget {
         Text(
           'M O R T',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            color: MortColors.roseGoldLight,
+            color: MortColors.godWhite,
             letterSpacing: 7,
             fontWeight: FontWeight.w500,
           ),

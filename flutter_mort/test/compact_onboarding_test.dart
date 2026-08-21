@@ -5,12 +5,15 @@ import 'package:flutter_mort/core/theme/mort_theme.dart';
 import 'package:flutter_mort/core/utils/date_of_birth.dart';
 import 'package:flutter_mort/data/models/onboarding_progress.dart';
 import 'package:flutter_mort/data/models/profile.dart';
+import 'package:flutter_mort/data/repositories/legal_contract_repository.dart';
 import 'package:flutter_mort/data/repositories/profile_repository.dart';
 import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/features/auth/unified_auth_screen.dart';
 import 'package:flutter_mort/features/onboarding/compact_onboarding.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const _initialProgress = OnboardingProgress(
   currentStep: 'age',
@@ -39,6 +42,9 @@ class _FakeProfileRepository extends ProfileRepository {
   int ageSaves = 0;
   int roleSaves = 0;
   int profileUpdates = 0;
+  int acknowledgements = 0;
+  int completions = 0;
+  final completedStepsInOrder = <String>[];
 
   @override
   Future<OnboardingProgress> getOnboardingProgress() async => _initialProgress;
@@ -69,7 +75,33 @@ class _FakeProfileRepository extends ProfileRepository {
   Future<OnboardingProgress> saveOnboardingProgress({
     required String completedStep,
     Map<String, dynamic> preferences = const {},
-  }) async => _initialProgress;
+  }) async {
+    completedStepsInOrder.add(completedStep);
+    return _initialProgress;
+  }
+
+  @override
+  Future<OnboardingProgress> recordOnboardingAcknowledgement({
+    required String version,
+    required String platform,
+    required String appVersion,
+  }) async {
+    acknowledgements++;
+    return _initialProgress;
+  }
+
+  @override
+  Future<Profile> completeOnboarding() async {
+    completions++;
+    return _savedProfile;
+  }
+}
+
+class _FakeLegalContractRepository extends LegalContractRepository {
+  @override
+  Future<Map<String, dynamic>> legalRequirements() async => const {
+    'requirements': <Map<String, dynamic>>[],
+  };
 }
 
 Future<void> _pumpOnboarding(
@@ -84,6 +116,9 @@ Future<void> _pumpOnboarding(
       overrides: [
         profileRepositoryProvider.overrideWithValue(fakeRepository),
         currentProfileProvider.overrideWith((ref) async => null),
+        legalContractRepositoryProvider.overrideWithValue(
+          _FakeLegalContractRepository(),
+        ),
       ],
       child: MaterialApp(
         theme: MortTheme.dark(),
@@ -108,6 +143,17 @@ String _teenDob() {
 }
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    PackageInfo.setMockInitialValues(
+      appName: 'MORT',
+      packageName: 'com.mortapp.mobile',
+      version: '1.0.0',
+      buildNumber: '1',
+      buildSignature: '',
+    );
+  });
+
   test('compact onboarding never persists raw coordinates as profile area', () {
     final source = File(
       '${Directory.current.path}/lib/features/onboarding/compact_onboarding.dart',
@@ -160,29 +206,52 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Step 4 of 5'), findsOneWidget);
-      expect(find.text('Interests and safety'), findsOneWidget);
-      await tester.drag(
-        find.byType(SingleChildScrollView),
-        const Offset(0, -320),
-      );
-      await tester.pumpAndSettle();
+      expect(find.text('Payment, guardian & interests'), findsOneWidget);
+      await tester.ensureVisible(find.widgetWithText(FilterChip, 'Yard work'));
       await tester.tap(find.widgetWithText(FilterChip, 'Yard work'));
-      await tester.drag(
-        find.byType(SingleChildScrollView),
-        const Offset(0, -320),
-      );
       await tester.pumpAndSettle();
-      await tester.tap(find.byType(CheckboxListTile));
-      await tester.tap(find.text('Review setup'));
+      await tester.ensureVisible(find.text('Continue'));
+      await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
 
       expect(find.text('Step 5 of 5'), findsOneWidget);
-      expect(find.text('Review and finish'), findsOneWidget);
+      expect(find.text('Rules, review & finish'), findsOneWidget);
+      final checkboxCount = tester
+          .widgetList<CheckboxListTile>(find.byType(CheckboxListTile))
+          .length;
+      expect(checkboxCount, 6);
+      for (var i = 0; i < checkboxCount; i++) {
+        final finder = find.byType(CheckboxListTile).at(i);
+        await tester.ensureVisible(finder);
+        await tester.tap(finder);
+        await tester.pumpAndSettle();
+      }
+
+      await tester.ensureVisible(find.text('Teen account'));
       expect(find.text('Teen account'), findsOneWidget);
       expect(find.text('Indianapolis'), findsOneWidget);
       expect(find.text('Yard work'), findsOneWidget);
-      expect(find.text('Finish setup'), findsOneWidget);
+      await tester.ensureVisible(find.text('Finish setup'));
+      await tester.tap(find.text('Finish setup'));
+      await tester.pumpAndSettle();
+
       expect(repository.profileUpdates, 3);
+      expect(repository.acknowledgements, 1);
+      expect(repository.completions, 1);
+      expect(
+        repository.completedStepsInOrder,
+        containsAllInOrder(<String>[
+          'profile',
+          'skills',
+          'availability',
+          'transportation',
+          'payment',
+          'guardian',
+          'preferences',
+          'safety',
+          'review',
+        ]),
+      );
       expect(tester.takeException(), isNull);
     },
   );
