@@ -1820,13 +1820,22 @@ class _SafetyRulesScreenState extends ConsumerState<SafetyRulesScreen> {
   bool _communityRules = false;
   bool _prohibitedWork = false;
   bool _safetyRules = false;
+  bool _antiGroomingAcknowledged = false;
+  final _signature = TextEditingController();
 
   bool get _allAcknowledged =>
       _pilotTermsNotice &&
       _privacyNotice &&
       _communityRules &&
       _prohibitedWork &&
-      _safetyRules;
+      _safetyRules &&
+      _antiGroomingAcknowledged;
+
+  @override
+  void dispose() {
+    _signature.dispose();
+    super.dispose();
+  }
 
   Future<void> _finish() async {
     if (_busy) return;
@@ -1843,6 +1852,41 @@ class _SafetyRulesScreenState extends ConsumerState<SafetyRulesScreen> {
     }
     setState(() => _busy = true);
     try {
+      // Record the exact-version, hash-bound legal acceptance first --
+      // complete_my_onboarding() requires an active legal_acceptances row
+      // for every legal_role_requirements match, and nothing in this flow
+      // called that RPC before this fix.
+      final legalRepo = ref.read(legalContractRepositoryProvider);
+      final requirements =
+          (await legalRepo.legalRequirements())['requirements'] as List? ??
+          const [];
+      final outstanding = requirements
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .where((item) => item['acceptance_id'] == null)
+          .toList(growable: false);
+      final needsSignature = outstanding.any(
+        (item) => item['requires_electronic_signature'] == true,
+      );
+      if (needsSignature && _signature.text.trim().length < 3) {
+        setState(() => _busy = false);
+        if (mounted) {
+          MortToast.show(
+            context,
+            'Type your name to electronically sign the required document.',
+          );
+        }
+        return;
+      }
+      for (final item in outstanding) {
+        await legalRepo.acceptLegalVersion(
+          versionId: item['version_id'].toString(),
+          teenSummaryViewed: true,
+          signature: item['requires_electronic_signature'] == true
+              ? _signature.text
+              : null,
+        );
+      }
+
       final package = await PackageInfo.fromPlatform();
       final platform = kIsWeb
           ? 'flutter_web'
@@ -1943,6 +1987,70 @@ class _SafetyRulesScreenState extends ConsumerState<SafetyRulesScreen> {
                 ),
                 onChanged: (value) =>
                     setState(() => _safetyRules = value ?? false),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        MortGlassCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.gpp_bad_outlined, color: MortColors.danger),
+                  const SizedBox(width: MortSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      'Zero tolerance for grooming and exploitation',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: MortColors.danger,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: MortSpacing.xs),
+              SizedBox(
+                height: 180,
+                child: SingleChildScrollView(
+                  child: Text(
+                    'MORT has zero tolerance for adults who target, groom, '
+                    'or attempt sexual contact with a minor through this '
+                    'app. MORT does not support and will never protect '
+                    'predators, groomers, or anyone seeking sexual contact '
+                    'with a minor.\n\n'
+                    'If an adult account is found doing this, MORT will '
+                    'preserve account, device, and IP evidence and refer it '
+                    'to law enforcement. The adult may be permanently '
+                    'banned and, if the minor\'s family pursues civil or '
+                    'criminal action, may be held financially responsible '
+                    'for resulting legal costs. MORT is not liable for the '
+                    'actions of individual users but will cooperate fully '
+                    'with any resulting investigation.\n\n'
+                    'Report anything that feels wrong immediately using '
+                    'Report or Safety Ping -- reporting never requires '
+                    'proof and is never held against you.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              ),
+              const SizedBox(height: MortSpacing.xs),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _antiGroomingAcknowledged,
+                title: const Text('I have read and agree to this rule'),
+                subtitle: const Text('Required to continue using MORT.'),
+                onChanged: (value) =>
+                    setState(() => _antiGroomingAcknowledged = value ?? false),
+              ),
+              const SizedBox(height: MortSpacing.xs),
+              TextField(
+                controller: _signature,
+                decoration: const InputDecoration(
+                  labelText:
+                      'Signature (only if a document below requires one)',
+                ),
               ),
             ],
           ),
@@ -2369,6 +2477,16 @@ class _TeenNearbyWorkSection extends ConsumerWidget {
   }
 }
 
+/// Ceremonial medal coloring for the top 3 leaderboard ranks only. Every
+/// other rank stays on the standard royal/imperial identity colors --
+/// gold, silver, and bronze are reserved for genuine podium positions.
+Color _medalColor(int rank) => switch (rank) {
+  1 => MortColors.antiqueGold,
+  2 => MortColors.silver,
+  3 => MortColors.bronze,
+  _ => MortColors.royalBlueSoft,
+};
+
 class _TeenLeaderboardSection extends ConsumerWidget {
   const _TeenLeaderboardSection();
 
@@ -2477,7 +2595,8 @@ class _TeenLeaderboardSection extends ConsumerWidget {
                           width: 28,
                           child: Text(
                             '#${entry.rank}',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: _medalColor(entry.rank)),
                           ),
                         ),
                         MortAvatar(label: entry.displayName, radius: 16),
@@ -2491,7 +2610,7 @@ class _TeenLeaderboardSection extends ConsumerWidget {
                         MortStatusPill(
                           label: entry.tierLabel,
                           icon: Icons.military_tech_outlined,
-                          color: MortColors.roseGoldLight,
+                          color: _medalColor(entry.rank),
                         ),
                       ],
                     ),

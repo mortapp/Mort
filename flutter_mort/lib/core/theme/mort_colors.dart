@@ -84,6 +84,10 @@ class MortColors {
   static const goldBorder = Color(0xFF806A32);
   static const goldBorderBright = Color(0xFFB89A46);
 
+  // Leaderboard medal tones (1st/2nd/3rd only -- not a general-purpose
+  // palette entry).
+  static const bronze = Color(0xFFA9754A);
+
   static const metallicGradient = <Color>[
     royalBlueDeep,
     royalBlue,
