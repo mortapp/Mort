@@ -221,33 +221,31 @@ class _TeenProfileBody extends ConsumerWidget {
               },
             ),
         const MortSectionLabel(label: 'Account'),
-        Wrap(
-          spacing: MortSpacing.sm,
-          runSpacing: MortSpacing.sm,
-          children: [
-            MortGlassButton(
-              label: 'Edit profile',
-              icon: Icons.edit_outlined,
-              primary: true,
-              onPressed: () => context.push('/teen/profile/edit'),
-            ),
-            MortGlassButton(
+        MortButton(
+          label: 'Edit profile',
+          icon: Icons.edit_outlined,
+          onPressed: () => context.push('/teen/profile/edit'),
+        ),
+        const SizedBox(height: MortSpacing.md),
+        MortQuickActionGrid(
+          actions: [
+            MortAction(
               label: 'Saved jobs',
               icon: Icons.bookmark_outline_rounded,
               onPressed: () => context.push('/teen/saved'),
             ),
-            MortGlassButton(
+            MortAction(
               label: 'Activity',
               icon: Icons.history_rounded,
               onPressed: () => context.push('/settings/activity'),
             ),
-            MortGlassButton(
+            MortAction(
               label: 'Reviews',
               icon: Icons.star_outline_rounded,
               onPressed: () => context.push('/settings/reviews'),
             ),
-            MortGlassButton(
-              label: 'Security and sign out',
+            MortAction(
+              label: 'Security & sign out',
               icon: Icons.phonelink_lock_outlined,
               onPressed: () => context.push('/settings/security-sessions'),
             ),
