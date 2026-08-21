@@ -284,7 +284,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Call 911'), findsOneWidget);
-      expect(find.text('Urgent support and human review'), findsOneWidget);
+      expect(find.text('Urgent support'), findsOneWidget);
       expect(find.text('Test safety guidance message'), findsOneWidget);
 
       final emergencyButton = find.text('Call 911');
@@ -411,6 +411,6 @@ void main() {
     expect(find.text('Safety Ping is for Teen accounts'), findsOneWidget);
     expect(find.text('Optional Safety Ping note'), findsNothing);
     expect(find.text('Call 911'), findsOneWidget);
-    expect(find.text('Report a safety concern'), findsOneWidget);
+    expect(find.text('Report a concern'), findsOneWidget);
   });
 }

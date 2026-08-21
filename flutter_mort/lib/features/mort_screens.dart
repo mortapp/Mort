@@ -5269,25 +5269,39 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
               : () => _completeCheckin(currentCheckin['checkin_id'].toString()),
         ),
         const MortSectionLabel(label: 'Immediate help'),
+        // Call 911 stands alone as the one unmissable action -- everything
+        // else here is a lower-urgency tool and reads that way now,
+        // instead of five identically-weighted stacked buttons.
         MortButton(
           label: 'Call 911',
           icon: Icons.call,
           style: MortButtonStyle.danger,
           onPressed: _confirmEmergencyCall,
         ),
-        const SizedBox(height: MortSpacing.sm),
-        MortButton(
-          label: 'Urgent support and human review',
-          icon: Icons.support_agent,
-          style: MortButtonStyle.secondary,
-          onPressed: () => context.push('/support/chat'),
-        ),
-        const SizedBox(height: MortSpacing.sm),
-        MortButton(
-          label: 'Report a safety concern',
-          icon: Icons.report_outlined,
-          style: MortButtonStyle.secondary,
-          onPressed: () => context.push('/report'),
+        const SizedBox(height: MortSpacing.md),
+        MortQuickActionGrid(
+          actions: [
+            MortAction(
+              label: 'Urgent support',
+              icon: Icons.support_agent,
+              onPressed: () => context.push('/support/chat'),
+            ),
+            MortAction(
+              label: 'Report a concern',
+              icon: Icons.report_outlined,
+              onPressed: () => context.push('/report'),
+            ),
+            MortAction(
+              label: 'Safety Circle',
+              icon: Icons.group_outlined,
+              onPressed: () => context.push('/settings/safety-circle'),
+            ),
+            MortAction(
+              label: 'Case history',
+              icon: Icons.folder_shared_outlined,
+              onPressed: () => context.push('/settings/safety-cases'),
+            ),
+          ],
         ),
         if (isTeen && _checkins.isNotEmpty) ...[
           const SizedBox(height: MortSpacing.lg),
@@ -5399,20 +5413,6 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
             icon: Icons.shield_outlined,
           ),
         ],
-        const SizedBox(height: MortSpacing.sm),
-        MortButton(
-          label: 'Safety Circle',
-          icon: Icons.group_outlined,
-          style: MortButtonStyle.secondary,
-          onPressed: () => context.push('/settings/safety-circle'),
-        ),
-        const SizedBox(height: MortSpacing.sm),
-        MortButton(
-          label: 'Safety case history',
-          icon: Icons.folder_shared_outlined,
-          style: MortButtonStyle.secondary,
-          onPressed: () => context.push('/settings/safety-cases'),
-        ),
         const SizedBox(height: MortSpacing.md),
         const FeatureChecklist(
           items: [
