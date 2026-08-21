@@ -1,5 +1,13 @@
 # MORT Liquid Glass UI Implementation Report
 
+> **PARTIALLY SUPERSEDED (2026-08-20)**: The liquid-glass mechanism
+> (`LiquidGlassContainer`, blur/accessibility/reduced-transparency
+> handling) described below is still current and was intentionally kept,
+> not replaced, by the Royal Rebrand. Any rose-gold color values or
+> examples in this report are historical -- see
+> `docs/MORT_DESIGN_SYSTEM.md` for the current Royal palette the same
+> glass components now render with.
+
 Updated: 2026-08-08
 
 ## Result
