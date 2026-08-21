@@ -359,7 +359,7 @@ class MortButton extends StatelessWidget {
     final fg = switch (style) {
       MortButtonStyle.primary => MortColors.godBlack,
       MortButtonStyle.secondary => MortColors.text,
-      MortButtonStyle.danger => Colors.white,
+      MortButtonStyle.danger => MortColors.godWhite,
       MortButtonStyle.ghost => MortColors.roseGold,
       MortButtonStyle.disabled => MortColors.textMuted,
     };
@@ -1586,7 +1586,10 @@ class MortNotificationBell extends StatelessWidget {
               backgroundColor: MortColors.danger,
               child: Text(
                 '$count',
-                style: const TextStyle(fontSize: 10, color: Colors.white),
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: MortColors.godWhite,
+                ),
               ),
             ),
           ),

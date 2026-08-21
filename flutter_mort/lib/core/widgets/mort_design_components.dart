@@ -135,11 +135,14 @@ class MortBottomNavigation extends StatelessWidget {
   Widget build(BuildContext context) => SafeArea(
     top: false,
     child: Container(
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: MortColors.lineStrong)),
+      decoration: BoxDecoration(
+        border: const Border(top: BorderSide(color: MortColors.lineStrong)),
         boxShadow: [
-          BoxShadow(color: Color(0xB8000000), blurRadius: 24),
-          BoxShadow(color: Color(0x1F75C7F7), blurRadius: 28),
+          const BoxShadow(color: Color(0xB8000000), blurRadius: 24),
+          BoxShadow(
+            color: MortColors.babyBlueDeep.withValues(alpha: 0.12),
+            blurRadius: 28,
+          ),
         ],
       ),
       child: NavigationBar(

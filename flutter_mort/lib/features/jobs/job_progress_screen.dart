@@ -11,6 +11,7 @@ import '../../core/errors/user_facing_error.dart';
 import '../../core/preferences/mort_experience_preferences.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
+import '../../core/theme/mort_tokens.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/repositories/job_execution_repository.dart';
 import '../../data/repositories/providers.dart';
@@ -698,9 +699,7 @@ class _CompletionCard extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(color: MortColors.roseGoldLight),
-            boxShadow: const [
-              BoxShadow(color: Color(0x55F4A78F), blurRadius: 24),
-            ],
+            boxShadow: MortShadows.glow,
           ),
           child: const Icon(
             Icons.check_rounded,
