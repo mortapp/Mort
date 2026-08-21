@@ -4510,30 +4510,46 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          MortBadge(
-                            label: message.scannerStatus,
-                            icon: message.blocked
-                                ? Icons.block_rounded
-                                : Icons.shield_outlined,
-                            color: message.blocked
-                                ? MortColors.danger
-                                : message.flagged
-                                ? MortColors.warning
-                                : MortColors.lightBlue,
-                          ),
-                          const Spacer(),
-                          Text(
-                            formatDateTime(message.createdAt),
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: MortSpacing.xs),
+                      // The safety-scanner badge only earns its place on a
+                      // bubble when it actually flagged or blocked
+                      // something -- showing it on every clean message
+                      // both clutters the thread and dilutes the signal
+                      // for the messages that genuinely need attention.
+                      if (message.blocked || message.flagged) ...[
+                        Row(
+                          children: [
+                            MortBadge(
+                              label: message.scannerStatus,
+                              icon: message.blocked
+                                  ? Icons.block_rounded
+                                  : Icons.shield_outlined,
+                              color: message.blocked
+                                  ? MortColors.danger
+                                  : MortColors.warning,
+                            ),
+                            const Spacer(),
+                            Text(
+                              formatDateTime(message.createdAt),
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: MortSpacing.xs),
+                      ],
                       Text(
                         message.blocked ? 'Blocked by scanner' : message.body,
                       ),
+                      if (!message.blocked && !message.flagged) ...[
+                        const SizedBox(height: MortSpacing.xxs),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            formatDateTime(message.createdAt),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: MortColors.textMuted),
+                          ),
+                        ),
+                      ],
                       if (message.scannerReason != null) ...[
                         const SizedBox(height: MortSpacing.xs),
                         Text(
