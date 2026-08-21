@@ -801,11 +801,15 @@ class _JobCardMetaChip extends StatelessWidget {
       children: [
         Icon(icon, size: 15, color: color),
         const SizedBox(width: MortSpacing.xxs),
-        Text(
-          value,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: emphasize ? MortColors.roseGoldLight : null,
-            fontWeight: emphasize ? FontWeight.w600 : null,
+        Flexible(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: emphasize ? MortColors.roseGoldLight : null,
+              fontWeight: emphasize ? FontWeight.w600 : null,
+            ),
           ),
         ),
       ],

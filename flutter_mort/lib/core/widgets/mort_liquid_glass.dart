@@ -2,11 +2,13 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../preferences/mort_experience_preferences.dart';
 import '../theme/mort_colors.dart';
 import '../theme/mort_spacing.dart';
 import '../theme/mort_tokens.dart';
+import 'mort_back_navigation.dart';
 
 enum MortGlassVariant { regular, clear, soft }
 
@@ -316,19 +318,30 @@ class MortGlassHeader extends StatelessWidget {
     this.eyebrow,
     this.subtitle,
     this.trailing,
-    this.showBack = false,
+    this.showBack,
     this.onBack,
+    this.backFallbackRoute,
   });
 
   final String title;
   final String? eyebrow;
   final String? subtitle;
   final Widget? trailing;
-  final bool showBack;
+  // Null auto-detects (matching MortHeader): shown whenever there is
+  // something to pop, or this location isn't a known shell root. A screen
+  // that forgets to wire up an explicit back button no longer strands the
+  // user with no way out -- pass true/false to override when needed.
+  final bool? showBack;
   final VoidCallback? onBack;
+  final String? backFallbackRoute;
 
   @override
   Widget build(BuildContext context) {
+    final location = GoRouter.maybeOf(context)?.state.uri.path ?? '/';
+    final resolvedShowBack =
+        showBack ??
+        ((Navigator.maybeOf(context)?.canPop() ?? false) ||
+            !MortBackNavigation.isRootLocation(location));
     return LiquidGlassContainer(
       liveBlur: true,
       allowAndroidBlur: true,
@@ -336,16 +349,23 @@ class MortGlassHeader extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (showBack) ...[
-            IconButton(
-              tooltip: 'Back',
-              onPressed: onBack,
-              constraints: const BoxConstraints.tightFor(
-                width: MortSpacing.minTouchTarget,
-                height: MortSpacing.minTouchTarget,
+          if (resolvedShowBack) ...[
+            if (onBack != null)
+              IconButton(
+                tooltip: 'Back',
+                onPressed: onBack,
+                constraints: const BoxConstraints.tightFor(
+                  width: MortSpacing.minTouchTarget,
+                  height: MortSpacing.minTouchTarget,
+                ),
+                icon: const Icon(Icons.arrow_back_rounded),
+              )
+            else
+              MortBackButton(
+                fallbackRoute:
+                    backFallbackRoute ??
+                    MortBackNavigation.fallbackRoute(location),
               ),
-              icon: const Icon(Icons.arrow_back_rounded),
-            ),
             const SizedBox(width: MortSpacing.xs),
           ],
           Expanded(
