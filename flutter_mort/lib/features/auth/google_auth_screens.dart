@@ -27,6 +27,39 @@ class GoogleAuthSection extends ConsumerStatefulWidget {
 class _GoogleAuthSectionState extends ConsumerState<GoogleAuthSection> {
   StreamSubscription<OAuthFlowSnapshot>? _subscription;
   bool _navigated = false;
+  bool _lastCanCancel = false;
+  final _cancelSectionKey = GlobalKey();
+
+  // Physically confirmed on a real Samsung Galaxy A14 (Android 15,
+  // 3-button nav): the "Cancel Google sign-in" button only exists once
+  // an async flow starts, so it can appear below whatever fits the
+  // *unscrolled* viewport -- MortScreen's SafeArea reserves distance to
+  // scroll into, not a floor the un-scrolled viewport itself respects.
+  // Without an explicit scroll, the button rendered with its real,
+  // tappable bounds reaching to within 7px of the physical screen edge;
+  // taps landed on the OS nav bar instead of the app. Fixed locally
+  // (not by changing MortScreen, which every screen in the app shares
+  // and where two different structural fixes there broke unrelated,
+  // already-passing tests in ways not fully understood) by scrolling
+  // this button into view with real trailing clearance the moment it
+  // appears -- see the trailing SizedBox below.
+  static const _cancelScrollClearance = 64.0;
+
+  void _scrollCancelIntoViewIfNeeded(OAuthFlowSnapshot state) {
+    final justAppeared = state.canCancel && !_lastCanCancel;
+    _lastCanCancel = state.canCancel;
+    if (!justAppeared) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = _cancelSectionKey.currentContext;
+      if (context == null || !mounted) return;
+      Scrollable.ensureVisible(
+        context,
+        alignment: 1,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+      );
+    });
+  }
 
   @override
   void initState() {
@@ -68,6 +101,7 @@ class _GoogleAuthSectionState extends ConsumerState<GoogleAuthSection> {
           ),
         );
     final enabled = !state.isBusy;
+    _scrollCancelIntoViewIfNeeded(state);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -145,9 +179,15 @@ class _GoogleAuthSectionState extends ConsumerState<GoogleAuthSection> {
             ),
           ),
         if (state.canCancel)
-          TextButton(
-            onPressed: repository.cancelOAuthFlow,
-            child: const Text('Cancel Google sign-in'),
+          Column(
+            key: _cancelSectionKey,
+            children: [
+              TextButton(
+                onPressed: repository.cancelOAuthFlow,
+                child: const Text('Cancel Google sign-in'),
+              ),
+              const SizedBox(height: _cancelScrollClearance),
+            ],
           ),
       ],
     );
