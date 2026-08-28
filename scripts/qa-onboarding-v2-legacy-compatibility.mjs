@@ -69,13 +69,17 @@ await withQaUsers(
       await database.query("begin");
       try {
         await database.query("select set_config('mort.internal_update', 'true', true)");
+        for (const table of [
+          "private.onboarding_v2_requests",
+          "private.onboarding_v2_safety",
+          "public.onboarding_progress_events",
+          "public.onboarding_acknowledgements",
+          "public.onboarding_progress",
+        ]) {
+          await database.query(`delete from ${table} where user_id = $1`, [newUser.id]);
+        }
         await database.query(
-          `delete from private.onboarding_v2_requests where user_id = $1;
-           delete from private.onboarding_v2_safety where user_id = $1;
-           delete from public.onboarding_progress_events where user_id = $1;
-           delete from public.onboarding_acknowledgements where user_id = $1;
-           delete from public.onboarding_progress where user_id = $1;
-           update public.profiles
+          `update public.profiles
            set onboarding_completed = false, role = null, display_name = null,
                username = null, dob = null, city = null, state = null,
                availability = null, preferred_job_categories = '{}',
