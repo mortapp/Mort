@@ -152,8 +152,8 @@ try {
   for (const user of users) {
     await client.query(
       `
-        insert into public.profiles (id, role, display_name, dob, city, state, onboarding_completed, verification_status)
-        values ($1, $2::public.user_role, $3, $4::date, 'Carmel', 'IN', true, $5::public.verification_status)
+        insert into public.profiles (id, role, display_name, dob, city, state, onboarding_completed, verification_status, is_test_account)
+        values ($1, $2::public.user_role, $3, $4::date, 'Carmel', 'IN', true, $5::public.verification_status, true)
         on conflict (id) do update
         set role = excluded.role,
             display_name = excluded.display_name,
@@ -161,7 +161,8 @@ try {
             city = excluded.city,
             state = excluded.state,
             onboarding_completed = excluded.onboarding_completed,
-            verification_status = excluded.verification_status
+            verification_status = excluded.verification_status,
+            is_test_account = excluded.is_test_account
       `,
       [
         authUsers[user.key],
@@ -240,6 +241,50 @@ try {
     `,
     [ids.adult2VerificationId, authUsers.adult2]
   );
+
+  await client.query(
+    `delete from public.admin_role_assignments where user_id = $1 and revoked_at is null`,
+    [authUsers.admin]
+  );
+  await client.query(
+    `
+      insert into public.admin_role_assignments (user_id, role, grant_reason)
+      values ($1, 'super_admin', 'Local QA fixture: full admin coverage for RLS/admin-queue suites.')
+    `,
+    [authUsers.admin]
+  );
+
+  for (const marketplaceKey of ["teen", "teen2", "adult", "adult2"]) {
+    await client.query(
+      `delete from public.identity_verifications where user_id = $1 and environment = 'sandbox'`,
+      [authUsers[marketplaceKey]]
+    );
+    await client.query(
+      `
+        insert into public.identity_verifications (
+          user_id, account_role, evidence_route, provider,
+          provider_reference, environment, decision_source, status,
+          verification_level, age_band, identity_match_result,
+          liveness_result, email_verification_result,
+          address_validation_result, enhanced_screening_status,
+          submitted_at, reviewed_at, verified_at, risk_flags
+        ) values (
+          $1, $2::public.user_role, 'legacy_approved_record',
+          'mort_isolated_qa', 'qa-' || gen_random_uuid()::text,
+          'sandbox', 'sandbox_simulation', 'verified',
+          $3, $4, 'matched', 'passed', 'verified', 'validated_private',
+          'not_enabled', now(), now(), now(),
+          jsonb_build_object('isolated_qa', true, 'scope', 'create-local-test-users', 'production_eligible', false)
+        )
+      `,
+      [
+        authUsers[marketplaceKey],
+        marketplaceKey.startsWith("teen") ? "teen" : "adult",
+        marketplaceKey.startsWith("teen") ? 2 : 3,
+        marketplaceKey.startsWith("teen") ? "teen_13_17" : "adult_18_plus"
+      ]
+    );
+  }
 
   await client.query(
     `

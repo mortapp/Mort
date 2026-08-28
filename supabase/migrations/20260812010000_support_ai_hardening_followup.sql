@@ -257,3 +257,147 @@ begin
     v_classification->>'intent', (v_classification->>'level')::smallint,
     v_conversation.response_mode, p_client_request_id
   ) returning * into v_message;
+
+  update public.support_conversations
+  set last_message_at = now(),
+      highest_safety_level = greatest(highest_safety_level, v_message.safety_level),
+      retention_until = now() + make_interval(days => v_retention)
+  where id = v_conversation.id
+  returning * into v_conversation;
+
+  if v_message.safety_level >= 2 then
+    insert into public.support_ai_incidents (
+      owner_id, conversation_id, message_id, category, severity,
+      requires_human_review, redacted_excerpt, correlation_id
+    ) values (
+      v_user_id, v_conversation.id, v_message.id,
+      v_classification->>'category', v_message.safety_level, true,
+      '[content withheld; review the authorized conversation]', p_correlation_id
+    );
+  end if;
+
+  return jsonb_build_object(
+    'ok', true,
+    'replayed', false,
+    'conversation', to_jsonb(v_conversation),
+    'message', to_jsonb(v_message),
+    'classification', v_classification,
+    'assistant_enabled', coalesce(v_preferences.assistant_enabled, true) and not v_restricted,
+    'account_restricted', v_account_status <> 'active',
+    'deletion_pending', v_deletion_pending
+  );
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 2. Service-role-only wrapper around the real classifier, so the evaluation
+--    runner and the adversarial gauntlet script can grade the actual
+--    production classifier over the network instead of a hand-maintained
+--    TypeScript mirror that can silently drift from the SQL source of truth.
+-- ---------------------------------------------------------------------------
+
+create or replace function public.support_classify_message_internal(p_message text)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  if auth.role() <> 'service_role' then
+    return jsonb_build_object('ok', false, 'code', 'internal_authorization_required');
+  end if;
+  if char_length(btrim(coalesce(p_message, ''))) not between 1 and 4000 then
+    return jsonb_build_object('ok', false, 'code', 'invalid_support_message');
+  end if;
+  return jsonb_build_object(
+    'ok', true,
+    'classification', private.support_classify_message(p_message)
+  );
+end;
+$$;
+
+revoke all on function public.support_classify_message_internal(text) from public, anon, authenticated;
+grant execute on function public.support_classify_message_internal(text) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- 3. Database-backed provider circuit breaker. Anthropic call failures
+--    (timeout, non-2xx, malformed output) are recorded here; once failures
+--    cross a short-window threshold, new chat requests skip the provider and
+--    fall back to the deterministic path for the rest of that window. This is
+--    enforced in Postgres (not edge-function memory) so it holds across
+--    concurrently running function instances. It reuses the existing
+--    public.support_global_rate_limits ledger under a dedicated
+--    'provider_failure' scope rather than introducing a new table.
+-- ---------------------------------------------------------------------------
+
+create or replace function public.support_record_provider_failure()
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_window_seconds integer := 120;
+  v_window_started_at timestamptz;
+  v_count integer;
+begin
+  if auth.role() <> 'service_role' then
+    return jsonb_build_object('ok', false, 'code', 'internal_authorization_required');
+  end if;
+  v_window_started_at := to_timestamp(
+    floor(extract(epoch from now()) / v_window_seconds) * v_window_seconds
+  );
+  insert into public.support_global_rate_limits (
+    scope, window_started_at, window_seconds, request_count, expires_at
+  ) values (
+    'provider_failure', v_window_started_at, v_window_seconds, 1,
+    v_window_started_at + make_interval(secs => v_window_seconds)
+  )
+  on conflict (scope, window_started_at) do update
+  set request_count = least(public.support_global_rate_limits.request_count + 1, 1000000),
+      expires_at = excluded.expires_at
+  returning request_count into v_count;
+  return jsonb_build_object('ok', true, 'failure_count', v_count);
+end;
+$$;
+
+revoke all on function public.support_record_provider_failure() from public, anon, authenticated;
+grant execute on function public.support_record_provider_failure() to service_role;
+
+create or replace function public.support_provider_circuit_status()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_window_seconds integer := 120;
+  v_threshold integer := 5;
+  v_window_started_at timestamptz;
+  v_count integer := 0;
+begin
+  if auth.role() <> 'service_role' then
+    return jsonb_build_object('ok', false, 'code', 'internal_authorization_required');
+  end if;
+  v_window_started_at := to_timestamp(
+    floor(extract(epoch from now()) / v_window_seconds) * v_window_seconds
+  );
+  select request_count into v_count
+  from public.support_global_rate_limits
+  where scope = 'provider_failure'
+    and window_started_at = v_window_started_at
+    and expires_at > now();
+  return jsonb_build_object(
+    'ok', true,
+    'open', coalesce(v_count, 0) >= v_threshold,
+    'failure_count', coalesce(v_count, 0),
+    'threshold', v_threshold,
+    'window_seconds', v_window_seconds
+  );
+end;
+$$;
+
+revoke all on function public.support_provider_circuit_status() from public, anon, authenticated;
+grant execute on function public.support_provider_circuit_status() to service_role;

@@ -1,3 +1,15 @@
+// RETIRED (2026-08-28): this was a pre-deployment rehearsal harness that dry-runs
+// the compatibility migration's raw SQL inside a rolled-back transaction against
+// synthetic users, to validate the migration before it was applied to production.
+// It served that purpose and passed. The migration
+// (20260828111951_onboarding_v2_legacy_completion_compatibility.sql) is now
+// permanently applied to the hosted database, so replaying its `create table`
+// statement fails with "already exists" (42P07) in any environment that already
+// has the migration -- including a fresh Supabase branch, which replays full
+// migration history. This script cannot be re-run and is excluded from the
+// ongoing regression matrix. Ongoing legacy-completion compatibility regression
+// coverage lives in qa-onboarding-v2-legacy-compatibility.mjs, which runs against
+// the live hosted schema and is safe to re-run indefinitely.
 import { readdir, readFile } from "node:fs/promises";
 
 import {
