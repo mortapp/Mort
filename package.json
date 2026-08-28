@@ -14,6 +14,7 @@
     "lint": "expo lint",
     "qa:smoke": "node scripts/qa-smoke.mjs",
     "qa:rls": "node scripts/qa-rls.mjs",
+    "qa:onboarding-v2": "node scripts/qa-four-step-onboarding-v2.mjs",
     "qa:old-project-smoke": "node scripts/qa-old-project-smoke.mjs",
     "qa:old-project-rls": "node scripts/qa-old-project-rls.mjs",
     "qa:create-local-users": "node scripts/create-local-test-users.mjs",
