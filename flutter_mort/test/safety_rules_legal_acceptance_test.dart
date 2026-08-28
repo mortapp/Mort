@@ -40,19 +40,21 @@ void main() {
   );
 
   test(
-    'the same legal-acceptance fix exists on the consolidated 5-step onboarding path',
+    'four-step onboarding submits exact outstanding versions through the completion RPC',
     () {
-      // CompactOnboardingScreen is now also a real, reachable onboarding
-      // path (wired from UnifiedAuthScreen), so it must independently
-      // satisfy the same server-side legal-acceptance gate, not just the
-      // legacy SafetyRulesScreen.
+      // The v2 completion RPC owns the legal transaction. Flutter supplies
+      // exact current outstanding version IDs but cannot mark itself complete
+      // or infer acknowledgement from navigation.
       expect(compactOnboarding, contains('legalContractRepositoryProvider'));
       expect(compactOnboarding, contains('.legalRequirements()'));
-      expect(compactOnboarding, contains('.acceptLegalVersion('));
-      expect(compactOnboarding, contains('.recordOnboardingAcknowledgement('));
-      expect(compactOnboarding, contains("completedStep: 'safety'"));
-      expect(compactOnboarding, contains("completedStep: 'review'"));
-      expect(compactOnboarding, contains('.completeOnboarding()'));
+      expect(compactOnboarding, contains("item['acceptance_id'] == null"));
+      expect(compactOnboarding, contains("'legal_version_ids': outstanding"));
+      expect(compactOnboarding, contains('.completeOnboardingV2('));
+      expect(
+        compactOnboarding,
+        isNot(contains('.recordOnboardingAcknowledgement(')),
+      );
+      expect(compactOnboarding, isNot(contains('.completeOnboarding()')));
     },
   );
 

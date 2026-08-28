@@ -1,8 +1,11 @@
 import { randomUUID } from "node:crypto";
+import { createClient } from "@supabase/supabase-js";
 
 import {
   assertQa,
   qaLog,
+  anonKey,
+  supabaseUrl,
   withDatabase,
   withQaUsers,
 } from "./feature-qa-helpers.mjs";
@@ -129,6 +132,15 @@ await withQaUsers(
     );
     assertQa(savedAccount.active_step === "work_preferences", "account did not advance");
 
+    const deviceB = createClient(supabaseUrl, anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const deviceBSession = await deviceB.auth.signInWithPassword({
+      email: teen.email,
+      password: teen.password,
+    });
+    assertQa(!deviceBSession.error, `Device B sign-in failed: ${deviceBSession.error?.message}`);
+
     const replay = assertRpc(
       await save(teen, "save_my_onboarding_account_v2", teenAccount, requestId),
       "same-payload replay failed",
@@ -161,6 +173,44 @@ await withQaUsers(
       "completion trusted progress instead of canonical work data",
     );
 
+    const teenWork = {
+      availability: "Weekday evenings",
+      preferred_job_categories: ["Yard work"],
+      transportation_methods: ["walking"],
+      max_travel_distance_miles: null,
+      max_travel_minutes: null,
+      walking_distance_only: false,
+      guardian_transportation_possible: false,
+    };
+    const deviceBWork = assertRpc(
+      await save(
+        { client: deviceB },
+        "save_my_onboarding_work_v2",
+        teenWork,
+        randomUUID(),
+        savedAccount.revision,
+      ),
+      "Device B work save failed",
+    );
+    assertQa(deviceBWork.active_step === "safety_support", "Device B did not advance canonical work state");
+    const deviceAResume = assertRpc(
+      await teen.client.rpc("get_my_onboarding_progress_v2"),
+      "Device A resume failed",
+    );
+    assertQa(deviceAResume.active_step === "safety_support", "Device A overrode newer server progress");
+
+    const safety = assertRpc(
+      await save(
+        teen,
+        "save_my_onboarding_safety_v2",
+        { notification_intent: "ask_later", guardian_choice: "skip" },
+        randomUUID(),
+        deviceAResume.revision,
+      ),
+      "safety-support save failed",
+    );
+    assertQa(safety.active_step === "review", "safety-support did not advance to review");
+
     const directUpdate = await teen.client
       .from("profiles")
       .update({ onboarding_completed: true })
@@ -171,6 +221,62 @@ await withQaUsers(
       .from("profiles")
       .upsert({ id: teen.id, onboarding_completed: true });
     assertQa(directUpsert.error, "direct completion UPSERT was accepted");
-    qaLog(scope, "v2 contract, replay isolation, and direct completion boundary passed");
+
+    await withDatabase(async (database) => {
+      await database.query("begin");
+      try {
+        await database.query("select set_config('mort.onboarding_completion', 'malformed', true)");
+        await database.query(
+          "update public.profiles set onboarding_completed = true where id = $1",
+          [teen.id],
+        );
+        throw new Error("malformed completion session was accepted");
+      } catch (error) {
+        assertQa(
+          error.message.includes("onboarding_completion_rpc_required"),
+          `malformed completion session failed for the wrong reason: ${error.message}`,
+        );
+      } finally {
+        await database.query("rollback").catch(() => {});
+      }
+    });
+
+    const legal = assertRpc(
+      await teen.client.rpc("get_my_legal_requirements"),
+      "legal requirements lookup failed",
+    );
+    const legalVersionIds = (legal.requirements ?? [])
+      .filter((requirement) => requirement.required && !requirement.acceptance_id)
+      .map((requirement) => requirement.version_id);
+    const completionPayload = {
+      legal_version_ids: legalVersionIds,
+      teen_summary_viewed: true,
+      signature: "QA Teen Person",
+      platform: "qa_node",
+      app_version: "four-step-contract",
+    };
+    const doubleFinish = await Promise.all([
+      save(teen, "complete_my_onboarding_v2", completionPayload),
+      save({ client: deviceB }, "complete_my_onboarding_v2", completionPayload),
+    ]);
+    for (const [index, result] of doubleFinish.entries()) {
+      const completed = assertRpc(result, `concurrent Finish ${index + 1} failed`);
+      assertQa(completed.completed === true, `concurrent Finish ${index + 1} did not complete`);
+      assertQa(completed.active_step === "complete", `concurrent Finish ${index + 1} returned a nonterminal step`);
+    }
+
+    const afterCompletion = assertRpc(
+      await teen.client.rpc("get_my_onboarding_progress_v2"),
+      "post-completion progress failed",
+    );
+    assertQa(afterCompletion.completed === true, "valid complete_my_onboarding_v2 was not durable");
+    assertQa(
+      JSON.stringify(afterCompletion.primary_steps) === JSON.stringify(steps),
+      "terminal completion changed the four-step primary contract",
+    );
+    qaLog(
+      scope,
+      "v2 projection, two-device resume, replay isolation, completion guard, legal versions, and concurrent Finish passed",
+    );
   },
 );

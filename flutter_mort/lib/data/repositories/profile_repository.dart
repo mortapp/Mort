@@ -81,6 +81,87 @@ class ProfileRepository extends RepositoryBase {
     return _onboardingProgressFromRpc(result);
   }
 
+  Future<OnboardingProgressV2> getOnboardingProgressV2() async {
+    requireUserId();
+    return _onboardingProgressV2FromRpc(
+      await client.rpc('get_my_onboarding_progress_v2'),
+    );
+  }
+
+  Future<OnboardingProgressV2> saveOnboardingAccountV2({
+    required Map<String, dynamic> payload,
+    required String clientRequestId,
+  }) async {
+    requireUserId();
+    return _onboardingProgressV2FromRpc(
+      await client.rpc(
+        'save_my_onboarding_account_v2',
+        params: {
+          'p_payload': payload,
+          'p_client_request_id': clientRequestId,
+          'p_payload_version': 1,
+        },
+      ),
+    );
+  }
+
+  Future<OnboardingProgressV2> saveOnboardingWorkV2({
+    required Map<String, dynamic> payload,
+    required String clientRequestId,
+    DateTime? expectedRevision,
+  }) async {
+    requireUserId();
+    return _onboardingProgressV2FromRpc(
+      await client.rpc(
+        'save_my_onboarding_work_v2',
+        params: {
+          'p_payload': payload,
+          'p_client_request_id': clientRequestId,
+          'p_payload_version': 1,
+          'p_expected_revision': expectedRevision?.toUtc().toIso8601String(),
+        },
+      ),
+    );
+  }
+
+  Future<OnboardingProgressV2> saveOnboardingSafetyV2({
+    required Map<String, dynamic> payload,
+    required String clientRequestId,
+    DateTime? expectedRevision,
+  }) async {
+    requireUserId();
+    return _onboardingProgressV2FromRpc(
+      await client.rpc(
+        'save_my_onboarding_safety_v2',
+        params: {
+          'p_payload': payload,
+          'p_client_request_id': clientRequestId,
+          'p_payload_version': 1,
+          'p_expected_revision': expectedRevision?.toUtc().toIso8601String(),
+        },
+      ),
+    );
+  }
+
+  Future<OnboardingProgressV2> completeOnboardingV2({
+    required Map<String, dynamic> payload,
+    required String clientRequestId,
+    DateTime? expectedRevision,
+  }) async {
+    requireUserId();
+    return _onboardingProgressV2FromRpc(
+      await client.rpc(
+        'complete_my_onboarding_v2',
+        params: {
+          'p_payload': payload,
+          'p_client_request_id': clientRequestId,
+          'p_payload_version': 1,
+          'p_expected_revision': expectedRevision?.toUtc().toIso8601String(),
+        },
+      ),
+    );
+  }
+
   Future<OnboardingProgress> saveOnboardingAge(DateTime dob) async {
     requireUserId();
     final result = await client.rpc(
@@ -295,6 +376,29 @@ class ProfileRepository extends RepositoryBase {
     return OnboardingProgress.fromMap(result);
   }
 
+  OnboardingProgressV2 _onboardingProgressV2FromRpc(Object? response) {
+    if (response is! Map) {
+      throw const MortCodedError(
+        'onboarding_response_invalid',
+        'The onboarding server returned an invalid response.',
+      );
+    }
+    final result = Map<String, dynamic>.from(response);
+    if (result['ok'] != true) {
+      final code = result['code']?.toString() ?? 'onboarding_update_failed';
+      final field = result['field']?.toString();
+      if (field != null && field.isNotEmpty) {
+        throw MortFieldCodedError(
+          code,
+          _profileErrorMessage(code),
+          field: field,
+        );
+      }
+      throw MortCodedError(code, _profileErrorMessage(code));
+    }
+    return OnboardingProgressV2.fromMap(result);
+  }
+
   String _profileErrorMessage(String code) {
     return switch (code) {
       'profile_conflict_detected' =>
@@ -355,6 +459,16 @@ class ProfileRepository extends RepositoryBase {
         'Transportation matching preferences are available for teen profiles.',
       'onboarding_steps_incomplete' =>
         'Finish every required setup step before completing onboarding.',
+      'onboarding_revision_conflict' =>
+        'Your setup changed in another session. Reload the latest saved progress before continuing.',
+      'onboarding_request_payload_mismatch' =>
+        'This retry no longer matches the original save. Reload your saved progress and try again.',
+      'onboarding_account_required' =>
+        'Finish Your account before completing setup.',
+      'onboarding_work_preferences_required' =>
+        'Finish Work preferences before completing setup.',
+      'onboarding_safety_support_required' =>
+        'Finish Safety & support before completing setup.',
       'onboarding_acknowledgement_required' =>
         'Review and acknowledge the closed-pilot safety notices first.',
       'profile_identity_fields_required' =>

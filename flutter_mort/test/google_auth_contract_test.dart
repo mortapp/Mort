@@ -131,7 +131,7 @@ void main() {
       "UserRole.adult => '/adult/home'",
       "UserRole.guardian => '/guardian/home'",
       "UserRole.admin => '/admin/home'",
-      "null => '/onboarding/role'",
+      "null => '/onboarding'",
     ]) {
       expect(accountStatusUi, contains(route));
     }

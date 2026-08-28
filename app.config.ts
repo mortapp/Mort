@@ -1,5 +1,16 @@
 import type { ExpoConfig } from "expo/config";
 
+import { expoProductionSupport } from "./lib/production-client.cjs";
+
+if (process.env.EAS_BUILD_PROFILE === "production") {
+  const support = expoProductionSupport();
+  if (!support.supported) {
+    throw new Error(
+      "The Expo client is reference-only and cannot be built as a supported production MORT client. Use flutter_mort.",
+    );
+  }
+}
+
 const iosBundleIdentifier = process.env.IOS_BUNDLE_IDENTIFIER || "com.mortapp.mobile";
 const androidPackageName = process.env.ANDROID_PACKAGE_NAME || "com.mortapp.mobile";
 const easProjectId = process.env.EXPO_PUBLIC_PROJECT_ID || "00000000-0000-0000-0000-000000000000";
@@ -39,6 +50,7 @@ const config: ExpoConfig = {
   },
   extra: {
     appEnv,
+    productionClientSupport: expoProductionSupport(),
     eas: {
       projectId: easProjectId
     }

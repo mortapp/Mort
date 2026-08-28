@@ -38,16 +38,77 @@ const _savedProfile = Profile(
   paymentPreference: 'none',
 );
 
+OnboardingProgressV2 _v2Progress(
+  OnboardingStepV2 active, {
+  bool completed = false,
+}) => OnboardingProgressV2(
+  completed: completed,
+  activeStep: active,
+  primarySteps: OnboardingProgressV2.contractSteps,
+  completedSteps: OnboardingProgressV2.contractSteps
+      .take(active == OnboardingStepV2.complete ? 4 : active.index)
+      .toList(growable: false),
+  missingRequirements: completed ? const [] : const ['next_step'],
+  role: UserRole.teen,
+  revision: DateTime.utc(2026, 8, 28, 2, 30),
+);
+
 class _FakeProfileRepository extends ProfileRepository {
   int ageSaves = 0;
   int roleSaves = 0;
   int profileUpdates = 0;
   int acknowledgements = 0;
   int completions = 0;
+  int accountSaves = 0;
+  int workSaves = 0;
+  int safetySaves = 0;
   final completedStepsInOrder = <String>[];
 
   @override
   Future<OnboardingProgress> getOnboardingProgress() async => _initialProgress;
+
+  @override
+  Future<OnboardingProgressV2> getOnboardingProgressV2() async =>
+      _v2Progress(OnboardingStepV2.account);
+
+  @override
+  Future<OnboardingProgressV2> saveOnboardingAccountV2({
+    required Map<String, dynamic> payload,
+    required String clientRequestId,
+  }) async {
+    accountSaves++;
+    return _v2Progress(OnboardingStepV2.workPreferences);
+  }
+
+  @override
+  Future<OnboardingProgressV2> saveOnboardingWorkV2({
+    required Map<String, dynamic> payload,
+    required String clientRequestId,
+    DateTime? expectedRevision,
+  }) async {
+    workSaves++;
+    return _v2Progress(OnboardingStepV2.safetySupport);
+  }
+
+  @override
+  Future<OnboardingProgressV2> saveOnboardingSafetyV2({
+    required Map<String, dynamic> payload,
+    required String clientRequestId,
+    DateTime? expectedRevision,
+  }) async {
+    safetySaves++;
+    return _v2Progress(OnboardingStepV2.review);
+  }
+
+  @override
+  Future<OnboardingProgressV2> completeOnboardingV2({
+    required Map<String, dynamic> payload,
+    required String clientRequestId,
+    DateTime? expectedRevision,
+  }) async {
+    completions++;
+    return _v2Progress(OnboardingStepV2.complete, completed: true);
+  }
 
   @override
   Future<OnboardingProgress> saveOnboardingAge(DateTime dob) async {
@@ -167,7 +228,7 @@ void main() {
   });
 
   testWidgets(
-    'compact onboarding completes the canonical five-step teen flow',
+    'compact onboarding exposes exactly four primary production steps',
     (WidgetTester tester) async {
       // A real phone-sized viewport, not the default tiny headless test
       // surface -- this flow's later steps (e.g. skill chips) need
@@ -181,41 +242,67 @@ void main() {
       final repository = _FakeProfileRepository();
       await _pumpOnboarding(tester, repository: repository);
 
-      expect(find.text('Step 1 of 5'), findsOneWidget);
-      expect(find.text('Start with your age'), findsOneWidget);
-      expect(find.text('Choose account'), findsOneWidget);
+      expect(find.text('Step 1 of 4'), findsOneWidget);
+      expect(find.text('Your account'), findsOneWidget);
+      expect(find.text('Save account'), findsOneWidget);
 
-      await tester.enterText(find.byType(TextFormField), _teenDob());
-      await tester.tap(find.text('Choose account'));
+      await tester.enterText(find.byType(TextFormField).at(0), _teenDob());
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).at(1), 'Alex');
+      await tester.enterText(find.byType(TextFormField).at(2), 'alex_local');
+      await tester.enterText(find.byType(TextFormField).at(3), 'Indianapolis');
+      await tester.ensureVisible(find.text('Save account'));
+      await tester.tap(find.text('Save account'));
       await tester.pumpAndSettle();
 
-      expect(repository.ageSaves, 1);
-      expect(repository.roleSaves, 1);
-      expect(find.text('Step 2 of 5'), findsOneWidget);
-      expect(find.text('Make it yours'), findsOneWidget);
-
-      await tester.enterText(find.byType(TextFormField).at(0), 'Alex');
-      await tester.enterText(find.byType(TextFormField).at(1), 'alex_local');
-      await tester.tap(find.text('Save profile'));
+      expect(find.text('Confirm birthday and account'), findsOneWidget);
+      await tester.tap(find.text('Save account').last);
       await tester.pumpAndSettle();
 
-      expect(find.text('Step 3 of 5'), findsOneWidget);
-      expect(find.text('Set your area'), findsOneWidget);
-      await tester.enterText(find.byType(TextFormField), 'Indianapolis');
-      await tester.tap(find.text('Save area'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Step 4 of 5'), findsOneWidget);
-      expect(find.text('Payment, guardian & interests'), findsOneWidget);
+      expect(repository.accountSaves, 1);
+      expect(find.text('Step 2 of 4'), findsOneWidget);
+      expect(find.text('Work preferences'), findsOneWidget);
       await tester.ensureVisible(find.widgetWithText(FilterChip, 'Yard work'));
       await tester.tap(find.widgetWithText(FilterChip, 'Yard work'));
       await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField), 'Weekday evenings');
+      await tester.tap(find.widgetWithText(FilterChip, 'Walking'));
+      await tester.ensureVisible(find.text('Save work preferences'));
+      await tester.tap(find.text('Save work preferences'));
+      await tester.pumpAndSettle();
+
+      expect(repository.workSaves, 1);
+      expect(find.text('Step 3 of 4'), findsOneWidget);
+      expect(find.text('Safety & support'), findsOneWidget);
+      await tester.ensureVisible(
+        find.widgetWithText(ChoiceChip, 'Skip for now'),
+      );
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Skip for now'));
       await tester.ensureVisible(find.text('Continue'));
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Step 5 of 5'), findsOneWidget);
-      expect(find.text('Rules, review & finish'), findsOneWidget);
+      expect(repository.safetySaves, 1);
+      expect(find.text('Step 4 of 4'), findsOneWidget);
+      expect(find.text('Review & finish'), findsOneWidget);
+      expect(find.text('Device notification permission'), findsOneWidget);
+      for (final prohibitedCopy in const [
+        'Closed Pilot',
+        'Closed test',
+        'Server-controlled access',
+        'Approved participants only',
+        'public-release approved',
+        'privileged role',
+        'attorney-approved',
+        'not_started',
+      ]) {
+        expect(
+          find.textContaining(prohibitedCopy, findRichText: true),
+          findsNothing,
+          reason:
+              'Production onboarding exposed internal copy: $prohibitedCopy',
+        );
+      }
       final checkboxCount = tester
           .widgetList<CheckboxListTile>(find.byType(CheckboxListTile))
           .length;
@@ -235,23 +322,7 @@ void main() {
       await tester.tap(find.text('Finish setup'));
       await tester.pumpAndSettle();
 
-      expect(repository.profileUpdates, 3);
-      expect(repository.acknowledgements, 1);
       expect(repository.completions, 1);
-      expect(
-        repository.completedStepsInOrder,
-        containsAllInOrder(<String>[
-          'profile',
-          'skills',
-          'availability',
-          'transportation',
-          'payment',
-          'guardian',
-          'preferences',
-          'safety',
-          'review',
-        ]),
-      );
       expect(tester.takeException(), isNull);
     },
   );
@@ -270,10 +341,10 @@ void main() {
         disableAnimations: true,
       );
 
-      expect(find.text('Start with your age'), findsOneWidget);
-      expect(find.text('Choose account'), findsOneWidget);
+      expect(find.text('Your account'), findsOneWidget);
+      expect(find.text('Save account'), findsOneWidget);
       final actionButton = find.ancestor(
-        of: find.text('Choose account'),
+        of: find.text('Save account'),
         matching: find.byType(ElevatedButton),
       );
       expect(actionButton, findsOneWidget);
@@ -294,7 +365,7 @@ void main() {
   ) async {
     await _pumpOnboarding(tester);
 
-    await tester.enterText(find.byType(TextFormField), _teenDob());
+    await tester.enterText(find.byType(TextFormField).at(0), _teenDob());
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 

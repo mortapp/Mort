@@ -332,7 +332,7 @@ class AccountStatusScreen extends ConsumerWidget {
           return MortScreen(
             children: [
               MortHeader(
-                eyebrow: profile.accountStatus,
+                eyebrow: _statusLabel(profile.accountStatus),
                 title: 'Account restricted',
                 subtitle:
                     'This account cannot continue into MORT right now. Contact support for next steps.',
@@ -361,15 +361,15 @@ class AccountStatusScreen extends ConsumerWidget {
           UserRole.adult => '/adult/home',
           UserRole.guardian => '/guardian/home',
           UserRole.admin => '/admin/home',
-          null => '/onboarding/role',
+          null => '/onboarding',
         };
         return MortScreen(
           children: [
             MortHeader(
-              eyebrow: profile.accountStatus,
+              eyebrow: _statusLabel(profile.accountStatus),
               title: profile.displayName ?? 'MORT account',
               subtitle:
-                  'Role: ${userRoleToString(profile.role) ?? 'not set'} · Verification: ${profile.verificationStatus}',
+                  'Role: ${userRoleToString(profile.role) ?? 'Not set'} · Verification: ${_statusLabel(profile.verificationStatus)}',
             ),
             const SizedBox(height: MortSpacing.md),
             _ReleaseModeCard(status: releaseMode),
@@ -487,7 +487,7 @@ class _ReleaseModeCard extends StatelessWidget {
       loading: () => const MortSkeletonCard(),
       error: (_, _) => const MortSafetyBanner(
         message:
-            'MORT is operating as a closed pilot. Marketplace access stays restricted while the server status is unavailable.',
+            'Marketplace availability cannot be confirmed right now. Try again before posting or accepting work.',
       ),
       data: (data) {
         final release = data['release_mode']?.toString() ?? 'closed_test';
@@ -508,7 +508,7 @@ class _ReleaseModeCard extends StatelessWidget {
                   const SizedBox(width: MortSpacing.xs),
                   Expanded(
                     child: Text(
-                      'Server-controlled access',
+                      'Marketplace availability',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                   ),
@@ -524,7 +524,7 @@ class _ReleaseModeCard extends StatelessWidget {
                   MortBadge(
                     label: publicEnabled
                         ? 'Public marketplace enabled'
-                        : 'Approved participants only',
+                        : 'Marketplace access limited',
                     color: publicEnabled
                         ? MortColors.warning
                         : MortColors.safetyBlue,
@@ -544,8 +544,8 @@ class _ReleaseModeCard extends StatelessWidget {
                     ),
                   MortBadge(
                     label: paymentsDisabled
-                        ? 'Payments disabled'
-                        : 'Payment controls available',
+                        ? 'Job payment processing unavailable'
+                        : 'Job payment controls available',
                     color: paymentsDisabled
                         ? MortColors.safetyBlue
                         : MortColors.warning,
@@ -567,7 +567,10 @@ class _ReleaseModeCard extends StatelessWidget {
 
 String _statusLabel(String value) {
   final clean = value.trim().replaceAll('_', ' ');
-  if (clean.isEmpty) return 'Closed pilot';
+  if (clean.isEmpty) return 'Not available';
+  if (clean == 'closed test' || clean == 'closed pilot') {
+    return 'Limited access';
+  }
   return '${clean[0].toUpperCase()}${clean.substring(1)}';
 }
 
@@ -576,28 +579,20 @@ class OnboardingRequiredScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final progress = ref.watch(onboardingProgressProvider);
-    return progress.when(
-      loading: () => const MortLoading(),
-      error: (error, _) => MortErrorStateScreen(
-        title: 'Onboarding status error',
-        message: userFacingError(error),
-      ),
-      data: (progress) => MortScreen(
-        children: [
-          const MortHeader(
-            eyebrow: 'Onboarding',
-            title: 'Finish setup',
-            subtitle:
-                'MORT needs age, role, city/state, safety acknowledgement, and payment preference.',
-          ),
-          MortButton(
-            label: 'Continue onboarding',
-            icon: Icons.flag,
-            onPressed: () => context.go(progress.resumePath),
-          ),
-        ],
-      ),
+    return MortScreen(
+      children: [
+        const MortHeader(
+          eyebrow: 'Onboarding',
+          title: 'Finish setup',
+          subtitle:
+              'MORT will restore the next required account, work, safety, or review step from the server.',
+        ),
+        MortButton(
+          label: 'Continue onboarding',
+          icon: Icons.flag,
+          onPressed: () => context.go('/onboarding'),
+        ),
+      ],
     );
   }
 }

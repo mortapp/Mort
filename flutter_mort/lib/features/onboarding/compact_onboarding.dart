@@ -8,7 +8,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/errors/user_facing_error.dart';
-import '../../core/preferences/mort_experience_preferences.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/utils/date_of_birth.dart';
@@ -21,12 +20,8 @@ import '../../services/native_permissions_service.dart';
 import '../profile/profile_avatar_widgets.dart';
 import 'mort_rules_copy.dart';
 
-/// MORT's one real onboarding path: 5 pages that call the server's true
-/// 9-step checkpoint chain (profile, skills, availability, transportation,
-/// payment, guardian, preferences, safety, review) in the correct order
-/// underneath, plus the age/role RPCs and the real legal-acceptance RPCs
-/// -- so "5 steps" is genuine, not a relabeling that silently drops real
-/// server requirements. Reached from UnifiedAuthScreen after sign-up.
+/// MORT's production onboarding path. Four primary screens render the v2
+/// server projection; `complete` is a terminal server state, never a fifth UI.
 class CompactOnboardingScreen extends ConsumerStatefulWidget {
   const CompactOnboardingScreen({super.key});
 
@@ -37,20 +32,18 @@ class CompactOnboardingScreen extends ConsumerStatefulWidget {
 
 class _CompactOnboardingScreenState
     extends ConsumerState<CompactOnboardingScreen> {
-  static const _totalSteps = 5;
+  static const _totalSteps = 4;
   static const _stepTitles = <String>[
-    'Start with your age',
-    'Make it yours',
-    'Set your area',
-    'Payment, guardian & interests',
-    'Rules, review & finish',
+    'Your account',
+    'Work preferences',
+    'Safety & support',
+    'Review & finish',
   ];
   static const _stepDescriptions = <String>[
-    'Your age sets the right MORT experience. Your birthday is never shown publicly.',
-    'Choose the name and username people will see in MORT.',
-    'Give MORT enough detail to find relevant local work without exposing a private address.',
-    'A few quick choices before setup finishes.',
-    'Read the rules, confirm your setup, and finish.',
+    'Set the account details MORT uses for age, role, and local matching.',
+    'Save only the preferences your account role actually uses.',
+    'Choose optional support and notification preferences. Safety stays free.',
+    'Review current policies and finish from one final screen.',
   ];
   static const _suggestedCategories = <String>[
     'Yard work',
@@ -69,7 +62,7 @@ class _CompactOnboardingScreenState
   final _city = TextEditingController();
   final _state = TextEditingController();
   final _zip = TextEditingController();
-  final _interestController = TextEditingController();
+  final _availability = TextEditingController();
   final _categories = <String>{};
   final _transportMethods = <String>{};
   UserRole? _role;
@@ -80,17 +73,15 @@ class _CompactOnboardingScreenState
   final _dirtySteps = <int>{};
   String? _locationHint;
   String? _stepError;
+  OnboardingProgressV2? _serverProgress;
+  final _requestIds = <int, String>{};
 
-  // Step 3: payment, guardian, preferences.
-  String _paymentPreference = 'none';
+  // Step 3: guardian and notification intent. Native permission remains OS truth.
   final _guardianEmail = TextEditingController();
   String? _guardianInviteCode;
   bool _guardianDeclined = false;
   bool _guardianBusy = false;
   String _notificationChoice = 'ask_later';
-  bool _reducedMotion = false;
-  bool _largerText = false;
-  bool _highContrast = false;
 
   // Step 4: rules acceptance (mirrors SafetyRulesScreen, same shared copy).
   bool _pilotTermsNotice = false;
@@ -125,7 +116,7 @@ class _CompactOnboardingScreenState
     _city,
     _state,
     _zip,
-    _interestController,
+    _availability,
   ];
 
   void _markStepDirty() {
@@ -159,7 +150,7 @@ class _CompactOnboardingScreenState
     try {
       final progress = await ref
           .read(profileRepositoryProvider)
-          .getOnboardingProgress();
+          .getOnboardingProgressV2();
       final profile = await ref.read(currentProfileProvider.future);
       _applyProgress(progress, profile);
     } catch (_) {
@@ -171,67 +162,24 @@ class _CompactOnboardingScreenState
     }
   }
 
-  static int _stepForProgress(OnboardingProgress progress) {
-    final path = progress.resumePath;
-    if (path.contains('/onboarding/age') || path.contains('/onboarding/role')) {
-      return 0;
-    }
-    if (path.contains('/onboarding/profile')) {
-      return 1;
-    }
-    if (path.contains('/onboarding/skills') ||
-        path.contains('/onboarding/availability') ||
-        path.contains('/onboarding/transportation')) {
-      return 2;
-    }
-    if (path.contains('/onboarding/payment') ||
-        path.contains('/onboarding/guardian') ||
-        path.contains('/onboarding/preferences')) {
-      return 3;
-    }
-    if (path.contains('/onboarding/safety') ||
-        path.contains('/onboarding/review')) {
-      return 4;
-    }
-    const currentStepFallback = {
-      'age': 0,
-      'role': 0,
-      'profile': 1,
-      'skills': 2,
-      'availability': 2,
-      'transportation': 2,
-      'payment': 3,
-      'guardian': 3,
-      'preferences': 3,
-      'safety': 4,
-      'review': 4,
-      'complete': 4,
-    };
-    return currentStepFallback[progress.currentStep] ?? 0;
-  }
+  static int _stepForProgress(OnboardingProgressV2 progress) =>
+      switch (progress.activeStep) {
+        OnboardingStepV2.account => 0,
+        OnboardingStepV2.workPreferences => 1,
+        OnboardingStepV2.safetySupport => 2,
+        OnboardingStepV2.review || OnboardingStepV2.complete => 3,
+      };
 
-  void _applyProgress(OnboardingProgress progress, Profile? profile) {
+  void _applyProgress(OnboardingProgressV2 progress, Profile? profile) {
     if (!mounted) return;
     setState(() {
       _step = _stepForProgress(progress);
+      _serverProgress = progress;
       _role = profile?.role;
       _adultWantsGuardianRole = profile?.role == UserRole.guardian;
-      _notificationChoice = progress.notificationChoice;
-      _reducedMotion =
-          progress.accessibilityPreferences['reduced_motion'] ?? false;
-      _largerText = progress.accessibilityPreferences['larger_text'] ?? false;
-      _highContrast =
-          progress.accessibilityPreferences['high_contrast'] ?? false;
       if (profile != null) {
         _hydrateControllersFrom(profile);
-        _paymentPreference =
-            const {
-              'none',
-              'cash',
-              'flexible',
-            }.contains(profile.paymentPreference)
-            ? profile.paymentPreference
-            : 'none';
+        _availability.text = profile.availability ?? '';
       }
     });
   }
@@ -261,9 +209,6 @@ class _CompactOnboardingScreenState
     _categories
       ..clear()
       ..addAll(profile.preferredJobCategories);
-    if (profile.preferredJobCategories.isNotEmpty) {
-      _interestController.text = profile.preferredJobCategories.join(', ');
-    }
   }
 
   @override
@@ -279,7 +224,7 @@ class _CompactOnboardingScreenState
     _city.dispose();
     _state.dispose();
     _zip.dispose();
-    _interestController.dispose();
+    _availability.dispose();
     _guardianEmail.dispose();
     _signature.dispose();
     super.dispose();
@@ -347,30 +292,43 @@ class _CompactOnboardingScreenState
         if (DateOfBirthParser.ageOn(dob, now) < 13) {
           return 'MORT is only available to people ages 13 and older.';
         }
-        break;
-      case 1:
         if (_displayName.text.trim().isEmpty) {
           return 'Enter a display name to continue.';
         }
         if (_username.text.trim().isEmpty) {
           return 'Enter a username to continue.';
         }
-        break;
-      case 2:
-        final role = _resolvedRole();
+        final role = DateOfBirthParser.ageOn(dob, now) < 18
+            ? UserRole.teen
+            : (_adultWantsGuardianRole ? UserRole.guardian : UserRole.adult);
         if (role == UserRole.teen) {
-          if (_zip.text.trim().isEmpty && _transportMethods.isEmpty) {
-            return 'Enter a ZIP or city, or choose how you usually get around.';
+          if (_zip.text.trim().isEmpty) {
+            return 'Enter a ZIP or city for general-area matching.';
           }
         } else if (_city.text.trim().isEmpty ||
             _state.text.trim().length != 2) {
           return 'Enter a city and two-letter state.';
         }
         break;
-      case 3:
-        if (_categories.isEmpty) return 'Choose at least one interest.';
+      case 1:
+        if (_resolvedRole() == UserRole.teen) {
+          if (_categories.isEmpty) return 'Choose at least one work category.';
+          if (_availability.text.trim().isEmpty) {
+            return 'Add a short availability description.';
+          }
+          if (_transportMethods.isEmpty) {
+            return 'Choose at least one transportation method.';
+          }
+        }
         break;
-      case 4:
+      case 2:
+        if (_resolvedRole() == UserRole.teen &&
+            _guardianInviteCode == null &&
+            !_guardianDeclined) {
+          return 'Invite a guardian or choose Skip for now.';
+        }
+        break;
+      case 3:
         if (!_allRulesAcknowledged) {
           return 'Review and check every rule before finishing.';
         }
@@ -417,6 +375,22 @@ class _CompactOnboardingScreenState
       _showStepError(validationMessage);
       return;
     }
+    if (_step == 0) {
+      final dob = DateOfBirthParser.tryParse(_dob.text, today: now);
+      if (dob == null) return;
+      final age = DateOfBirthParser.ageOn(dob, now);
+      final role = age < 18
+          ? UserRole.teen
+          : (_adultWantsGuardianRole ? UserRole.guardian : UserRole.adult);
+      final confirmed = await MortConfirmSheet.show(
+        context,
+        title: 'Confirm birthday and account',
+        message:
+            '${_dob.text.trim()} · ${userRoleToString(role)} account\n\nYour birthday and account type cannot be changed after this save. Review them now before continuing.',
+        confirmLabel: 'Save account',
+      );
+      if (!confirmed || !mounted) return;
+    }
     setState(() {
       _busy = true;
       _legalAcceptanceRequired = false;
@@ -424,6 +398,8 @@ class _CompactOnboardingScreenState
     });
     try {
       final repo = ref.read(profileRepositoryProvider);
+      final requestId = _requestIds.putIfAbsent(_step, () => const Uuid().v4());
+      late OnboardingProgressV2 progress;
       switch (_step) {
         case 0:
           final dob = DateOfBirthParser.tryParse(_dob.text, today: now);
@@ -432,112 +408,68 @@ class _CompactOnboardingScreenState
           _role = age < 18
               ? UserRole.teen
               : (_adultWantsGuardianRole ? UserRole.guardian : UserRole.adult);
-          await repo.saveOnboardingAge(dob);
-          await repo.saveOnboardingRole(_role!);
+          final isTeen = _role == UserRole.teen;
+          progress = await repo.saveOnboardingAccountV2(
+            clientRequestId: requestId,
+            payload: {
+              'role': userRoleToString(_role),
+              'display_name': _displayName.text.trim(),
+              'username': _username.text.trim().toLowerCase(),
+              'dob': DateOfBirthParser.toIsoDate(dob),
+              'city': isTeen ? '' : _city.text.trim(),
+              'state': isTeen ? '' : _state.text.trim().toUpperCase(),
+              'location_setup_mode': isTeen
+                  ? 'location_deferred'
+                  : 'city_state',
+              'approximate_area': isTeen ? _zip.text.trim() : null,
+              'adult_account_type': _role == UserRole.adult
+                  ? 'individual'
+                  : null,
+              'business_name': null,
+            },
+          );
           ref.invalidate(currentProfileProvider);
           break;
         case 1:
-          final displayName = _displayName.text.trim();
-          final username = _username.text.trim().toLowerCase();
-          await repo.updateMyProfile({
-            'display_name': displayName,
-            'username': username,
-          });
-          // 'profile' unlocks 'skills' and 'availability' -- both are
-          // pure informational safety-guidance checkpoints server-side
-          // (no extra fields required), fired together here since this
-          // page already covers everything a user needs to see for them.
-          await repo.saveOnboardingProgress(completedStep: 'profile');
-          await repo.saveOnboardingProgress(completedStep: 'skills');
-          await repo.saveOnboardingProgress(completedStep: 'availability');
+          progress = await repo.saveOnboardingWorkV2(
+            clientRequestId: requestId,
+            expectedRevision: _serverProgress?.revision,
+            payload: _resolvedRole() == UserRole.teen
+                ? {
+                    'availability': _availability.text.trim(),
+                    'preferred_job_categories': _categories.toList(
+                      growable: false,
+                    ),
+                    'transportation_methods': _transportMethods.toList(
+                      growable: false,
+                    ),
+                    'max_travel_distance_miles': null,
+                    'max_travel_minutes': null,
+                    'walking_distance_only': false,
+                    'guardian_transportation_possible': false,
+                  }
+                : <String, dynamic>{},
+          );
           ref.invalidate(currentProfileProvider);
           break;
         case 2:
-          final role = _resolvedRole();
-          if (role == UserRole.teen) {
-            final approximateArea = _zip.text.trim();
-            await repo.updateMyProfile({
-              'location_setup_mode': 'location_deferred',
-              'approximate_area': approximateArea.isEmpty
-                  ? 'near current location'
-                  : approximateArea,
-              'transportation_methods': _transportMethods.toList(
-                growable: false,
-              ),
-            });
-            await repo.saveOnboardingProgress(completedStep: 'transportation');
-          } else {
-            final city = _city.text.trim();
-            final state = _state.text.trim().toUpperCase();
-            final dob = DateOfBirthParser.tryParse(_dob.text, today: now);
-            if (dob == null) return;
-            await repo.saveProfileSetup(
-              role: role,
-              displayName: _displayName.text.trim(),
-              username: _username.text.trim().toLowerCase(),
-              dob: dob,
-              city: city,
-              state: state,
-              locationSetupMode: 'city_state',
-              bio: '',
-              availability: '',
-              preferredJobCategories: _categories.toList(growable: false),
-              approximateArea: _zip.text.trim(),
-              goals: '',
-              adultAccountType: 'individual',
-              businessName: '',
-              editExisting: false,
-              clientRequestId: const Uuid().v4(),
-            );
-            await repo.saveOnboardingProgress(completedStep: 'transportation');
-          }
+          progress = await repo.saveOnboardingSafetyV2(
+            clientRequestId: requestId,
+            expectedRevision: _serverProgress?.revision,
+            payload: {
+              'notification_intent': switch (_notificationChoice) {
+                'enabled' => 'preferred',
+                'disabled' => 'not_preferred',
+                _ => 'ask_later',
+              },
+              'guardian_choice': _resolvedRole() == UserRole.teen
+                  ? (_guardianInviteCode != null ? 'existing' : 'skip')
+                  : 'not_applicable',
+            },
+          );
           ref.invalidate(currentProfileProvider);
           break;
         case 3:
-          await repo.updateMyProfile({
-            'preferred_job_categories': _categories.toList(growable: false),
-            'payment_preference': _paymentPreference,
-          });
-          await repo.saveOnboardingProgress(completedStep: 'payment');
-          final role = _resolvedRole();
-          if (role == UserRole.teen) {
-            await repo.saveOnboardingProgress(
-              completedStep: 'guardian',
-              preferences: {
-                'safety_setup_choice': _guardianInviteCode != null
-                    ? 'configured'
-                    : 'declined_optional',
-              },
-            );
-          } else {
-            await repo.saveOnboardingProgress(
-              completedStep: 'guardian',
-              preferences: const {'safety_setup_choice': 'review_later'},
-            );
-          }
-          await repo.saveOnboardingProgress(
-            completedStep: 'preferences',
-            preferences: {
-              'notification_choice': _notificationChoice,
-              'accessibility_preferences': {
-                'reduced_motion': _reducedMotion,
-                'larger_text': _largerText,
-                'high_contrast': _highContrast,
-              },
-            },
-          );
-          await ref
-              .read(mortExperiencePreferencesProvider.notifier)
-              .applyOnboardingPreferences(
-                reducedMotion: _reducedMotion,
-                highContrast: _highContrast,
-              );
-          ref.invalidate(currentProfileProvider);
-          break;
-        case 4:
-          // Record the exact-version, hash-bound legal acceptance before
-          // completing -- complete_my_onboarding() requires an active
-          // legal_acceptances row for every legal_role_requirements match.
           final legalRepo = ref.read(legalContractRepositoryProvider);
           final requirements =
               (await legalRepo.legalRequirements())['requirements'] as List? ??
@@ -555,35 +487,33 @@ class _CompactOnboardingScreenState
             );
             return;
           }
-          for (final item in outstanding) {
-            await legalRepo.acceptLegalVersion(
-              versionId: item['version_id'].toString(),
-              teenSummaryViewed: true,
-              signature: item['requires_electronic_signature'] == true
-                  ? _signature.text
-                  : null,
-            );
-          }
           final package = await PackageInfo.fromPlatform();
           final platform = kIsWeb
               ? 'flutter_web'
               : 'flutter_${defaultTargetPlatform.name}';
-          await repo.recordOnboardingAcknowledgement(
-            version: mortOnboardingAcknowledgementVersion,
-            platform: platform,
-            appVersion: '${package.version}+${package.buildNumber}',
+          progress = await repo.completeOnboardingV2(
+            clientRequestId: requestId,
+            expectedRevision: _serverProgress?.revision,
+            payload: {
+              'legal_version_ids': outstanding
+                  .map((item) => item['version_id'].toString())
+                  .toList(growable: false),
+              'teen_summary_viewed': _resolvedRole() == UserRole.teen,
+              'signature': _signature.text.trim(),
+              'platform': platform,
+              'app_version': '${package.version}+${package.buildNumber}',
+            },
           );
-          await repo.saveOnboardingProgress(completedStep: 'safety');
-          await repo.saveOnboardingProgress(completedStep: 'review');
-          await repo.completeOnboarding();
           ref.invalidate(currentProfileProvider);
           ref.invalidate(onboardingProgressProvider);
           break;
       }
       if (!mounted) return;
       _dirtySteps.remove(_step);
-      if (_step < 4) {
-        setState(() => _step++);
+      _requestIds.remove(_step);
+      _serverProgress = progress;
+      if (!progress.completed) {
+        setState(() => _step = _stepForProgress(progress));
         _scrollToStepStart();
       } else {
         context.go('/account-status');
@@ -647,21 +577,6 @@ class _CompactOnboardingScreenState
     });
   }
 
-  void _syncTypedCategories(String value) {
-    setState(() {
-      _categories
-        ..clear()
-        ..addAll(
-          value
-              .split(',')
-              .map((entry) => entry.trim())
-              .where((entry) => entry.isNotEmpty),
-        );
-      _dirtySteps.add(_step);
-      _stepError = null;
-    });
-  }
-
   void _toggleCategory(String category, bool selected) {
     setState(() {
       if (selected) {
@@ -672,11 +587,6 @@ class _CompactOnboardingScreenState
       _dirtySteps.add(_step);
       _stepError = null;
     });
-    final text = _categories.join(', ');
-    _interestController.value = TextEditingValue(
-      text: text,
-      selection: TextSelection.collapsed(offset: text.length),
-    );
   }
 
   Widget _buildTravelMethodChip(String key, String label, IconData icon) {
@@ -883,7 +793,7 @@ class _CompactOnboardingScreenState
   }
 
   Widget _buildAreaStep() {
-    final isTeen = _role == UserRole.teen;
+    final isTeen = (_enteredAge ?? 18) < 18;
     return Column(
       key: const ValueKey('onboarding-area'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -989,77 +899,116 @@ class _CompactOnboardingScreenState
     );
   }
 
-  Widget _buildPaymentGuardianStep() {
-    final isTeen = _resolvedRole() == UserRole.teen;
+  Widget _buildAccountStep(Profile? liveProfile) {
     return Column(
-      key: const ValueKey('onboarding-payment-guardian'),
+      key: const ValueKey('onboarding-account'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'What kind of work interests you?',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        _buildAgeStep(),
+        const SizedBox(height: MortSpacing.xl),
+        _buildProfileStep(liveProfile),
+        const SizedBox(height: MortSpacing.xl),
+        _buildAreaStep(),
+      ],
+    );
+  }
+
+  Widget _buildWorkPreferencesStep() {
+    if (_resolvedRole() != UserRole.teen) {
+      return const _OnboardingNotice(
+        icon: Icons.check_circle_outline_rounded,
+        color: MortColors.success,
+        title: 'No extra work preferences required',
+        message:
+            'Adults add schedule, service, and payment details when posting a job. Guardians do not need teen work preferences.',
+      );
+    }
+    return Column(
+      key: const ValueKey('onboarding-work-preferences'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Work categories', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: MortSpacing.sm),
         Wrap(
           spacing: MortSpacing.sm,
           runSpacing: MortSpacing.sm,
           children: _suggestedCategories
-              .map((category) {
-                return FilterChip(
+              .map(
+                (category) => FilterChip(
                   label: Text(category),
                   selected: _categories.contains(category),
                   onSelected: (selected) => _toggleCategory(category, selected),
-                );
-              })
+                ),
+              )
               .toList(growable: false),
         ),
         const SizedBox(height: MortSpacing.md),
         MortTextField(
-          label: 'Other interests',
-          hint: 'Separate multiple interests with commas',
-          controller: _interestController,
+          label: 'Availability',
+          hint: 'For example, weekday evenings and Saturday mornings',
+          controller: _availability,
           enabled: !_busy,
-          textInputAction: TextInputAction.done,
+          maxLength: 240,
           textCapitalization: TextCapitalization.sentences,
-          onChanged: _syncTypedCategories,
         ),
         const SizedBox(height: MortSpacing.lg),
-        const _OnboardingSectionLabel(label: 'Payments'),
-        const MortPaymentDisclaimer(),
+        Text('Transportation', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: MortSpacing.xs),
+        Text(
+          'Choose how you can usually reach a job. This is a preference, not a guarantee.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
         const SizedBox(height: MortSpacing.sm),
-        MortDropdown<String>(
-          label: 'Off-platform payment preference',
-          value: _paymentPreference,
-          items: const {
-            'none': 'Decide with the other person later',
-            'cash': 'Cash after completed work',
-            'flexible': 'Flexible - no payment details stored',
-          },
-          onChanged: (value) =>
-              setState(() => _paymentPreference = value ?? 'none'),
+        Wrap(
+          spacing: MortSpacing.sm,
+          runSpacing: MortSpacing.sm,
+          children: [
+            _buildTravelMethodChip('walking', 'Walking', Icons.directions_walk),
+            _buildTravelMethodChip('bicycle', 'Bicycle', Icons.pedal_bike),
+            _buildTravelMethodChip('car', 'Car', Icons.directions_car),
+            _buildTravelMethodChip(
+              'public_transit',
+              'Transit',
+              Icons.directions_bus,
+            ),
+            _buildTravelMethodChip('rideshare', 'Rideshare', Icons.local_taxi),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSafetySupportStep() {
+    final isTeen = _resolvedRole() == UserRole.teen;
+    return Column(
+      key: const ValueKey('onboarding-safety-support'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _OnboardingNotice(
+          icon: Icons.shield_outlined,
+          color: MortColors.success,
+          title: 'Safety stays available on every plan',
+          message:
+              'Reporting, blocking, Safety Ping, and basic Guardian support are never premium requirements.',
         ),
         if (isTeen) ...[
           const SizedBox(height: MortSpacing.lg),
-          const _OnboardingSectionLabel(label: 'Guardian (optional)'),
+          const _OnboardingSectionLabel(label: 'Guardian Mode (optional)'),
           Text(
-            'Guardian Mode can share selected safety alerts and check-ins with someone you trust. Skip this and set it up later if you prefer.',
+            'Invite someone you trust or skip for now. A specific job may still require guardian approval.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: MortSpacing.sm),
           if (_guardianInviteCode != null)
             MortGlassCard(
               infoAccent: true,
-              child: Text(
-                'Guardian invite created. Share code $_guardianInviteCode with your guardian.',
-              ),
+              child: Text('Guardian invite created: $_guardianInviteCode'),
             )
           else ...[
             MortTextField(
               label: 'Guardian email (optional)',
-              hint: 'Leave blank to generate a shareable code instead',
               controller: _guardianEmail,
               enabled: !_guardianBusy,
-              textInputAction: TextInputAction.done,
               autofillHints: const [AutofillHints.email],
             ),
             const SizedBox(height: MortSpacing.sm),
@@ -1069,7 +1018,6 @@ class _CompactOnboardingScreenState
               children: [
                 MortButton(
                   label: 'Invite a guardian',
-                  icon: Icons.person_add_alt_1_outlined,
                   style: MortButtonStyle.secondary,
                   busy: _guardianBusy,
                   onPressed: _sendGuardianInvite,
@@ -1085,9 +1033,8 @@ class _CompactOnboardingScreenState
           ],
         ],
         const SizedBox(height: MortSpacing.lg),
-        const _OnboardingSectionLabel(label: 'Preferences'),
         MortDropdown<String>(
-          label: 'Notifications',
+          label: 'Notification preference',
           value: _notificationChoice,
           items: const {
             'ask_later': 'Ask me later',
@@ -1097,35 +1044,26 @@ class _CompactOnboardingScreenState
           onChanged: (value) =>
               setState(() => _notificationChoice = value ?? 'ask_later'),
         ),
-        const SizedBox(height: MortSpacing.sm),
-        MortGlassCard(
-          infoAccent: true,
-          child: Column(
-            children: [
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Reduce MORT motion'),
-                value: _reducedMotion,
-                onChanged: (value) => setState(() => _reducedMotion = value),
-              ),
-              const Divider(),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Prefer larger text'),
-                value: _largerText,
-                onChanged: (value) => setState(() => _largerText = value),
-              ),
-              const Divider(),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Prefer higher contrast'),
-                value: _highContrast,
-                onChanged: (value) => setState(() => _highContrast = value),
-              ),
-            ],
-          ),
+        const SizedBox(height: MortSpacing.xs),
+        const Text(
+          'This saves your preference only. Your device controls notification permission.',
         ),
       ],
+    );
+  }
+
+  Widget _buildNotificationPermissionStatus() {
+    return FutureBuilder<NativePermissionSnapshot>(
+      future: const NativePermissionsService().snapshot(),
+      builder: (context, snapshot) {
+        final label = snapshot.hasData
+            ? notificationPermissionLabel(snapshot.data!.notifications)
+            : 'Not enabled yet';
+        return _ReviewRow(
+          label: 'Device notification permission',
+          value: label,
+        );
+      },
     );
   }
 
@@ -1275,14 +1213,7 @@ class _CompactOnboardingScreenState
               ),
               _ReviewRow(label: 'General area', value: _reviewArea),
               _ReviewRow(label: 'Interests', value: interests),
-              _ReviewRow(
-                label: 'Payment',
-                value: switch (_paymentPreference) {
-                  'cash' => 'Cash after completed work',
-                  'flexible' => 'Flexible - no details stored',
-                  _ => 'Decide later',
-                },
-              ),
+              _buildNotificationPermissionStatus(),
             ],
           ),
         ),
@@ -1292,19 +1223,19 @@ class _CompactOnboardingScreenState
             MortAction(
               label: 'Edit profile',
               icon: Icons.edit_outlined,
+              onPressed: () => _goToStep(0),
+              style: MortButtonStyle.ghost,
+            ),
+            MortAction(
+              label: 'Edit work preferences',
+              icon: Icons.interests_outlined,
               onPressed: () => _goToStep(1),
               style: MortButtonStyle.ghost,
             ),
             MortAction(
-              label: 'Edit area',
-              icon: Icons.location_on_outlined,
+              label: 'Edit safety & support',
+              icon: Icons.shield_outlined,
               onPressed: () => _goToStep(2),
-              style: MortButtonStyle.ghost,
-            ),
-            MortAction(
-              label: 'Edit interests & payment',
-              icon: Icons.interests_outlined,
-              onPressed: () => _goToStep(3),
               style: MortButtonStyle.ghost,
             ),
           ],
@@ -1312,25 +1243,31 @@ class _CompactOnboardingScreenState
         const SizedBox(height: MortSpacing.md),
         MortSafetyBanner(
           message:
-              'Public marketplace access remains closed. Finishing setup does not mean identity verified, payment protected, or public-release approved.',
+              'Finishing setup does not verify identity or guarantee job payment. Safety controls remain available to every plan.',
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        const _OnboardingNotice(
+          icon: Icons.payments_outlined,
+          color: MortColors.lightBlue,
+          title: 'Job payment and digital purchases are different',
+          message:
+              'MORT does not process or escrow payment for local jobs. Optional MORT subscriptions and digital upgrades may be billed through Google Play.',
         ),
       ],
     );
   }
 
   Widget _buildStepContent(Profile? liveProfile) => switch (_step) {
-    0 => _buildAgeStep(),
-    1 => _buildProfileStep(liveProfile),
-    2 => _buildAreaStep(),
-    3 => _buildPaymentGuardianStep(),
+    0 => _buildAccountStep(liveProfile),
+    1 => _buildWorkPreferencesStep(),
+    2 => _buildSafetySupportStep(),
     _ => _buildRulesReviewStep(liveProfile),
   };
 
   Widget _buildBottomActions() {
     const primaryLabels = [
-      'Choose account',
-      'Save profile',
-      'Save area',
+      'Save account',
+      'Save work preferences',
       'Continue',
       'Finish setup',
     ];

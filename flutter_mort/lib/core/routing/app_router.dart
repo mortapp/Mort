@@ -30,8 +30,6 @@ import '../../features/profile/review_screens.dart';
 import '../../features/reviewer/reviewer_screens.dart';
 import '../../features/profile/activity_history_screen.dart';
 import '../../features/notifications/notification_center_screen.dart';
-import '../../features/onboarding/transportation_screen.dart';
-import '../../features/onboarding/onboarding_preferences_screens.dart';
 import '../../features/onboarding/compact_onboarding.dart';
 import '../../features/payments/stripe_marketplace_screens.dart';
 import '../../features/payments/admin_payment_operations_screen.dart';
@@ -54,6 +52,23 @@ import '../../services/screen_security_service.dart';
 import '../widgets/mort_widgets.dart';
 import '../reviewer/reviewer_session.dart';
 import 'route_access.dart';
+
+const legacyOnboardingPaths = <String>[
+  '/onboarding/age',
+  '/onboarding/role',
+  '/onboarding/profile',
+  '/onboarding/skills',
+  '/onboarding/availability',
+  '/onboarding/transportation',
+  '/onboarding/payment',
+  '/onboarding/guardian',
+  '/onboarding/safety',
+  '/onboarding/preferences',
+  '/onboarding/review',
+];
+
+String canonicalOnboardingPath(String path) =>
+    legacyOnboardingPaths.contains(path) ? '/onboarding' : path;
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -108,67 +123,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         const CompactOnboardingScreen(),
         allowIncompleteOnboarding: true,
       ),
-      _guarded(
-        '/onboarding/age',
-        const AgeGateScreen(),
-        allowIncompleteOnboarding: true,
-      ),
-      GoRoute(
-        path: '/onboarding/role',
-        builder: (_, state) => GuardedRoute(
-          allowIncompleteOnboarding: true,
-          child: RoleSelectionScreen(ageBand: state.uri.queryParameters['age']),
+      for (final legacyPath in legacyOnboardingPaths)
+        GoRoute(
+          path: legacyPath,
+          redirect: (_, state) => canonicalOnboardingPath(state.uri.path),
         ),
-      ),
-      GoRoute(
-        path: '/onboarding/profile',
-        builder: (_, state) => GuardedRoute(
-          allowIncompleteOnboarding: true,
-          child: ProfileSetupScreen(
-            initialRole: userRoleFromString(state.uri.queryParameters['role']),
-          ),
-        ),
-      ),
-      _guarded(
-        '/onboarding/skills',
-        const SkillsScreen(),
-        allowIncompleteOnboarding: true,
-      ),
-      _guarded(
-        '/onboarding/availability',
-        const AvailabilityScreen(),
-        allowIncompleteOnboarding: true,
-      ),
-      _guarded(
-        '/onboarding/transportation',
-        const TransportationScreen(),
-        allowIncompleteOnboarding: true,
-      ),
-      _guarded(
-        '/onboarding/payment',
-        const PaymentPreferenceScreen(),
-        allowIncompleteOnboarding: true,
-      ),
-      _guarded(
-        '/onboarding/guardian',
-        const GuardianOptionalOnboardingScreen(),
-        allowIncompleteOnboarding: true,
-      ),
-      _guarded(
-        '/onboarding/safety',
-        const SafetyRulesScreen(),
-        allowIncompleteOnboarding: true,
-      ),
-      _guarded(
-        '/onboarding/preferences',
-        const OnboardingPreferencesScreen(),
-        allowIncompleteOnboarding: true,
-      ),
-      _guarded(
-        '/onboarding/review',
-        const OnboardingReviewScreen(),
-        allowIncompleteOnboarding: true,
-      ),
       _guarded('/account-status', const AccountStatusScreen()),
       StatefulShellRoute.indexedStack(
         builder: (_, _, navigationShell) => GuardedRoute(

@@ -3,6 +3,13 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+String notificationPermissionLabel(PermissionStatus status) {
+  if (status.isGranted) return 'Enabled';
+  if (status.isPermanentlyDenied) return 'Needs Settings';
+  if (status.isRestricted) return 'Denied';
+  return 'Not enabled yet';
+}
+
 class NativePermissionSnapshot {
   const NativePermissionSnapshot({
     required this.notifications,

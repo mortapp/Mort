@@ -100,6 +100,8 @@ void main() {
     expect(find.text('Verification'), findsOneWidget);
     expect(find.text('Partner workspace'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Post a job'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Post a job'));
     await tester.pumpAndSettle();
     expect(find.text('Post job destination'), findsOneWidget);

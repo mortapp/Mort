@@ -1,15 +1,14 @@
 /// Shared, single-source copy for MORT's mandatory rules/safety
-/// acknowledgement content. Both the legacy reachable `SafetyRulesScreen`
-/// (lib/features/mort_screens.dart) and `CompactOnboardingScreen`'s rules
-/// step reference these constants so the required legal-adjacent wording
-/// can never drift between the two surfaces.
+/// acknowledgement content. The production `CompactOnboardingScreen` and
+/// legacy reference screens share these constants so legal-adjacent wording
+/// cannot drift while old deployed clients remain supported server-side.
 class MortRulesCopy {
   const MortRulesCopy._();
 
-  static const pilotTermsTitle = 'Closed-pilot participation notice';
+  static const pilotTermsTitle = 'Marketplace participation notice';
   static const pilotTermsBody =
-      'I understand public marketplace access is closed and participation '
-      'may be restricted or removed for safety.';
+      'I understand marketplace access depends on account, role, job, and '
+      'safety requirements and may be restricted when those requirements are not met.';
 
   static const privacyTitle = 'Privacy notice';
   static const privacyBody =
