@@ -63,8 +63,12 @@ await withQaUsers(
            set onboarding_completed = false, display_name = null, username = null,
                dob = null, role = null, availability = null,
                preferred_job_categories = '{}', transportation_methods = '{}'
-           where id in ($1, $2)`,
-          [incomplete.id, future.id],
+           where id = $1`,
+          [incomplete.id],
+        );
+        await database.query(
+          "update public.profiles set onboarding_completed = false where id = $1",
+          [future.id],
         );
 
         const protectedBefore = (
