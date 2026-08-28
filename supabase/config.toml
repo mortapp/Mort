@@ -1,0 +1,109 @@
+project_id = "mort-mobile"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "mort://"
+additional_redirect_urls = ["mort://", "http://localhost:8081", "exp://127.0.0.1:8081"]
+jwt_expiry = 3600
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"
+
+[edge_runtime]
+enabled = true
+policy = "per_worker"
+
+[functions.send-push]
+verify_jwt = true
+
+[functions.identity-verification-webhook]
+verify_jwt = false
+
+[functions.identity-verification-session]
+verify_jwt = true
+
+[functions.revenuecat-webhook]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.google-play-rtdn]
+verify_jwt = false
+
+[functions.account-deletion-processor]
+verify_jwt = false
+
+[functions.avatar-url]
+verify_jwt = true
+
+[functions.support-evidence-url]
+verify_jwt = true
+
+[functions.ai-support]
+verify_jwt = true
+
+[functions.stripe-resolve-job-payment]
+verify_jwt = true
+
+[functions.support-chat]
+verify_jwt = true
+
+[functions.support-intent-classify]
+verify_jwt = true
+
+[functions.support-kb-search]
+verify_jwt = true
+
+[functions.support-create-ticket]
+verify_jwt = true
+
+[functions.support-escalate]
+verify_jwt = true
+
+[functions.support-tool-execute]
+verify_jwt = true
+
+[functions.support-upload-authorize]
+verify_jwt = true
+
+[functions.support-feedback]
+verify_jwt = true
+
+[functions.support-report-ai-response]
+verify_jwt = true
+
+[functions.support-admin-copilot]
+verify_jwt = true
+
+[functions.support-safety-triage]
+verify_jwt = true
+
+[functions.support-retention-cleanup]
+verify_jwt = true
+
+[functions.support-evaluation-runner]
+verify_jwt = true

@@ -1,0 +1,538 @@
+# MORT Supreme Changed Files
+
+Branch: `mort-supreme-production-readiness`  
+Baseline commit: `f566885453786f1fbdea08291b1b646a5cabe1bc`  
+Dirty paths at snapshot: 454
+
+> Local branch note: this workspace also contains an in-progress companion pass on `feature/compact-onboarding-and-screen-polish`.
+
+The repository already contained a large inherited dirty working tree. No
+pre-existing work was reverted. The first list is the exact Phase 14-16 set
+created or intentionally edited in this continuation. The second list is the
+complete Git working-tree inventory and therefore also includes inherited
+changes from earlier MORT phases.
+
+## Phase 14-16 Files
+
+- `.github/workflows/mort-backup-metadata.yml`
+- `.github/workflows/mort-ci.yml`
+- `.github/workflows/mort-signed-closed-test.yml`
+- `docs/MORT_SUPREME_ACCESSIBILITY_REVIEW.md`
+- `docs/MORT_SUPREME_ANDROID_EMULATOR_REPORT.md`
+- `docs/MORT_SUPREME_ARCHITECTURE.md`
+- `docs/MORT_SUPREME_CHANGED_FILES.md`
+- `docs/MORT_SUPREME_CONTINUATION_PROMPT.md`
+- `docs/MORT_SUPREME_FINAL_READINESS_REPORT.md`
+- `docs/MORT_SUPREME_OWNER_ACTIONS.md`
+- `docs/MORT_SUPREME_PERFORMANCE_REPORT.md`
+- `docs/MORT_SUPREME_PRIVACY_REVIEW.md`
+- `docs/MORT_SUPREME_PRODUCTION_GATES.md`
+- `docs/MORT_SUPREME_PROGRESS_LEDGER.md`
+- `docs/MORT_SUPREME_RELEASE_CHECKLIST.md`
+- `docs/MORT_SUPREME_SECURITY_REVIEW.md`
+- `docs/MORT_SUPREME_TEST_REPORT.md`
+- `docs/ios/MORT_APP_STORE_SUBMISSION_PACKET.md`
+- `docs/ios/MORT_MAC_BUILD_AND_TEST_TASK.md`
+- `docs/ios/MORT_TESTFLIGHT_RELEASE_CHECKLIST.md`
+- `docs/operations/MORT_BACKUP_AND_DR_REPORT.md`
+- `docs/operations/MORT_BREACH_NOTIFICATION_CHECKLIST.md`
+- `docs/operations/MORT_COMPROMISED_KEY_PROCEDURE.md`
+- `docs/operations/MORT_DATABASE_RESTORE_DRILL.md`
+- `docs/operations/MORT_INCIDENT_RESPONSE_PLAN.md`
+- `docs/operations/MORT_OUTAGE_COMMUNICATION_TEMPLATES.md`
+- `docs/operations/MORT_RELEASE_ROLLBACK_RUNBOOK.md`
+- `docs/qa/MORT_ANDROID_E2E_RESULTS.md`
+- `docs/qa/MORT_ANDROID_EMULATOR_MATRIX.md`
+- `docs/qa/MORT_PERFORMANCE_BASELINES.md`
+- `flutter_mort/android/app/src/main/AndroidManifest.xml`
+- `flutter_mort/integration_test/android_native_smoke_test.dart`
+- `flutter_mort/ios/Runner/Info.plist`
+- `flutter_mort/l10n.yaml`
+- `flutter_mort/lib/app.dart`
+- `flutter_mort/lib/core/utils/formatters.dart`
+- `flutter_mort/lib/core/widgets/auth_startup_gate.dart`
+- `flutter_mort/lib/core/widgets/mort_design_components.dart`
+- `flutter_mort/lib/l10n/app_en.arb`
+- `flutter_mort/lib/l10n/app_es.arb`
+- `flutter_mort/lib/l10n/app_localizations.dart`
+- `flutter_mort/lib/l10n/app_localizations_en.dart`
+- `flutter_mort/lib/l10n/app_localizations_es.dart`
+- `flutter_mort/lib/l10n/mort_l10n.dart`
+- `flutter_mort/pubspec.lock`
+- `flutter_mort/pubspec.yaml`
+- `flutter_mort/test/accessibility_localization_reliability_test.dart`
+- `package.json`
+- `pnpm-lock.yaml`
+- `scripts/build-public-legal-site.mjs`
+- `scripts/generate-release-sbom.mjs`
+- `scripts/package-supreme-release.ps1`
+- `scripts/qa-android-16kb-alignment.ps1`
+- `scripts/qa-android-api36-launch.ps1`
+- `scripts/qa-android-permission-minimization.mjs`
+- `scripts/qa-release-network-security.mjs`
+- `scripts/run-android-native-integration.ps1`
+- `scripts/validate-public-legal-site.mjs`
+- `scripts/verify-play-aab.ps1`
+- `scripts/write-supreme-changed-files.mjs`
+- `web/public/_headers`
+- `web/public/account-deletion/index.html`
+- `web/public/assets/account-deletion.js`
+- `web/public/assets/supabase.js`
+- `web/public/release-status.json`
+
+## Complete Working-Tree Inventory
+
+- `??` `.github/`
+- `??` `config/`
+- `??` `deno.lock`
+- `??` `docs/ios/MORT_APP_STORE_SUBMISSION_PACKET.md`
+- `??` `docs/ios/MORT_MAC_BUILD_AND_TEST_TASK.md`
+- `??` `docs/ios/MORT_TESTFLIGHT_RELEASE_CHECKLIST.md`
+- `??` `docs/legal/MORT_COMMUNITY_GUIDELINES_DRAFT.md`
+- `??` `docs/legal/MORT_GUARDIAN_TERMS_DRAFT.md`
+- `??` `docs/legal/MORT_LEGAL_REVIEW_PACKET.md`
+- `??` `docs/legal/MORT_SAFETY_RULES_DRAFT.md`
+- `??` `docs/MORT_0_9_6_FINAL_REPORT.md`
+- `??` `docs/MORT_ANDROID_API36_LAUNCH_EVIDENCE_0_9_7.md`
+- `??` `docs/MORT_ANDROID_EMULATOR_EVIDENCE_0_9_6.md`
+- `??` `docs/MORT_DATA_RETENTION_AND_DELETION_MATRIX.md`
+- `??` `docs/MORT_DESIGN_SYSTEM.md`
+- `??` `docs/MORT_EXTERNAL_AI_ACTIVATION_GUIDE.md`
+- `??` `docs/MORT_FIREBASE_PUSH_OWNER_SETUP.md`
+- `??` `docs/MORT_GOOGLE_POST_LOGIN_FIX_0_9_9_REPORT.md`
+- `??` `docs/MORT_GOOGLE_SIGN_IN_0_9_8_REPORT.md`
+- `??` `docs/MORT_IDENTITY_PROVIDER_COMPARISON.md`
+- `??` `docs/MORT_IDENTITY_VERIFICATION_ARCHITECTURE.md`
+- `??` `docs/MORT_IDENTITY_VERIFICATION_OWNER_ACTION_PLAN.md`
+- `??` `docs/MORT_INCIDENT_RUNBOOK.md`
+- `??` `docs/MORT_MARKETPLACE_CORE_REPORT.md`
+- `??` `docs/MORT_MARKETPLACE_STATE_MACHINE.md`
+- `??` `docs/MORT_MESSAGING_PIN_EVIDENCE_DISPUTE_STATE_MACHINE.md`
+- `??` `docs/MORT_MODERATION_OPERATIONS.md`
+- `??` `docs/MORT_OBSERVABILITY_ARCHITECTURE.md`
+- ` M` `docs/MORT_PAYMENT_ARCHITECTURE_DECISION.md`
+- `??` `docs/MORT_PAYMENT_OWNER_SETUP_GUIDE.md`
+- `??` `docs/MORT_PAYMENT_PRODUCTION_ACTIVATION_CHECKLIST.md`
+- ` M` `docs/MORT_PAYMENT_TEST_REPORT.md`
+- `??` `docs/MORT_PHASE_10_REPORT.md`
+- `??` `docs/MORT_PHASE_11_REPORT.md`
+- `??` `docs/MORT_PHASE_12_REPORT.md`
+- `??` `docs/MORT_PHASE_13_REPORT.md`
+- `??` `docs/MORT_PHASE_6_REPORT.md`
+- `??` `docs/MORT_PHASE_7_REPORT.md`
+- `??` `docs/MORT_PHASE_8_REPORT.md`
+- `??` `docs/MORT_PHASE_9_REPORT.md`
+- `??` `docs/MORT_PLAY_POLICY_AUDIT_2026_08_01.md`
+- `??` `docs/MORT_PLAY_REVIEWER_SECURITY_ARCHITECTURE_0_9_6.md`
+- `??` `docs/MORT_PRODUCTION_READINESS_CHANGED_FILES_0_9_7.md`
+- `??` `docs/MORT_PRODUCTION_READINESS_REPORT.md`
+- `??` `docs/MORT_RELEASE_PROFILE_MATRIX.md`
+- `??` `docs/MORT_RELEASE_RUNBOOK.md`
+- `??` `docs/MORT_REMOTE_PUSH_ARCHITECTURE.md`
+- `??` `docs/MORT_ROSE_GOLD_REDESIGN_REPORT.md`
+- `??` `docs/MORT_SAFETY_GUARDIAN_STATE_MACHINE.md`
+- `??` `docs/MORT_SECURE_SESSION_PERSISTENCE_0_9_10_REPORT.md`
+- `??` `docs/MORT_SENTRY_OWNER_SETUP.md`
+- `??` `docs/MORT_SERVER_AUTHORITATIVE_ONBOARDING_REPORT.md`
+- `??` `docs/MORT_SUPPORT_CHATBOT_AI_EVALUATION_REPORT.md`
+- `??` `docs/MORT_SUPPORT_CHATBOT_BASELINE.md`
+- `??` `docs/MORT_SUPPORT_CHATBOT_CHANGED_FILES.md`
+- `??` `docs/MORT_SUPPORT_CHATBOT_IMPLEMENTATION_REPORT.md`
+- `??` `docs/MORT_SUPPORT_CHATBOT_PRIVACY_REVIEW.md`
+- `??` `docs/MORT_SUPPORT_CHATBOT_RELEASE_CHECKLIST.md`
+- `??` `docs/MORT_SUPPORT_CHATBOT_SECURITY_REVIEW.md`
+- `??` `docs/MORT_SUPPORT_OPERATIONS_RUNBOOK.md`
+- `??` `docs/MORT_SUPPORT_STAFFING_READINESS_CHECKLIST.md`
+- ` M` `docs/MORT_SUPPORT_SYSTEM.md`
+- `??` `docs/MORT_SUPREME_ACCESSIBILITY_REVIEW.md`
+- `??` `docs/MORT_SUPREME_ANDROID_EMULATOR_REPORT.md`
+- `??` `docs/MORT_SUPREME_ARCHITECTURE.md`
+- `??` `docs/MORT_SUPREME_BASELINE_AUDIT.md`
+- `??` `docs/MORT_SUPREME_CHANGED_FILES.md`
+- `??` `docs/MORT_SUPREME_CONTINUATION_PROMPT.md`
+- `??` `docs/MORT_SUPREME_DIRTY_INVENTORY.md`
+- `??` `docs/MORT_SUPREME_FINAL_READINESS_REPORT.md`
+- `??` `docs/MORT_SUPREME_OWNER_ACTIONS.md`
+- `??` `docs/MORT_SUPREME_PERFORMANCE_REPORT.md`
+- `??` `docs/MORT_SUPREME_PRIVACY_REVIEW.md`
+- `??` `docs/MORT_SUPREME_PRODUCTION_GATES.md`
+- `??` `docs/MORT_SUPREME_PROGRESS_LEDGER.md`
+- `??` `docs/MORT_SUPREME_RELEASE_CHECKLIST.md`
+- `??` `docs/MORT_SUPREME_SECURITY_REVIEW.md`
+- `??` `docs/MORT_SUPREME_TEST_REPORT.md`
+- `??` `docs/MORT_UI_CLAUDE_CHANGED_FILES.md`
+- `??` `docs/MORT_UI_CLAUDE_CURRENT_STATE.md`
+- `??` `docs/MORT_UI_CLAUDE_MASTER_LEDGER.md`
+- `??` `docs/MORT_UI_CLAUDE_NEXT_PROMPT.md`
+- `??` `docs/MORT_UI_CLAUDE_TEST_RESULTS.md`
+- `??` `docs/operations/MORT_BACKUP_AND_DR_REPORT.md`
+- `??` `docs/operations/MORT_BREACH_NOTIFICATION_CHECKLIST.md`
+- `??` `docs/operations/MORT_COMPROMISED_KEY_PROCEDURE.md`
+- `??` `docs/operations/MORT_DATABASE_RESTORE_DRILL.md`
+- `??` `docs/operations/MORT_INCIDENT_RESPONSE_PLAN.md`
+- `??` `docs/operations/MORT_OUTAGE_COMMUNICATION_TEMPLATES.md`
+- `??` `docs/operations/MORT_RELEASE_ROLLBACK_RUNBOOK.md`
+- ` M` `docs/payments/MORT_STRIPE_EXISTING_CODE_AUDIT.md`
+- ` M` `docs/payments/MORT_STRIPE_IMPLEMENTATION_RESULTS.md`
+- ` M` `docs/payments/MORT_STRIPE_LIVE_READINESS.md`
+- ` M` `docs/payments/MORT_STRIPE_PAYMENT_SHEET.md`
+- ` M` `docs/play-final/MORT_APP_ACCESS_COPY_PASTE.md`
+- ` M` `docs/play-final/MORT_APP_ACCESS_FINAL.md`
+- `??` `docs/play-final/MORT_COMMAND_RESULTS_0_9_6.md`
+- `??` `docs/play-final/MORT_FINAL_CHANGED_FILES_0_9_6.md`
+- `??` `docs/play-final/MORT_PLAY_REVIEWER_ACCESS_0_9_6.md`
+- ` M` `docs/play-final/MORT_REVIEW_ACCOUNT_MAINTENANCE.md`
+- ` M` `docs/play-final/MORT_REVIEWER_WALKTHROUGH.md`
+- ` M` `docs/PRIVACY_DISCLOSURES_DRAFT.md`
+- `??` `docs/PRODUCTION_BASELINE.md`
+- `??` `docs/qa/`
+- `??` `docs/release/MORT_ROUTE_ACTION_INVENTORY_0_9_11_101.csv`
+- `??` `docs/release/MORT_ROUTE_ACTION_INVENTORY_0_9_11_101.json`
+- `??` `docs/release/MORT_ROUTE_ACTION_INVENTORY_0_9_11_101.md`
+- `??` `docs/release/MORT_ROUTE_ACTION_INVENTORY_0_9_6.csv`
+- `??` `docs/release/MORT_ROUTE_ACTION_INVENTORY_0_9_6.json`
+- `??` `docs/release/MORT_ROUTE_ACTION_INVENTORY_0_9_6.md`
+- ` M` `docs/WEB_BUILD_CONFIG_STATUS.md`
+- ` M` `flutter_mort/.env.example`
+- `??` `flutter_mort/android/app/proguard-rules.pro`
+- ` M` `flutter_mort/android/app/src/main/AndroidManifest.xml`
+- `??` `flutter_mort/android/app/src/main/res/drawable-hdpi/`
+- `??` `flutter_mort/android/app/src/main/res/drawable-mdpi/`
+- `??` `flutter_mort/android/app/src/main/res/drawable-xhdpi/`
+- `??` `flutter_mort/android/app/src/main/res/drawable-xxhdpi/`
+- `??` `flutter_mort/android/app/src/main/res/drawable-xxxhdpi/`
+- `??` `flutter_mort/android/app/src/main/res/mipmap-anydpi-v26/`
+- ` M` `flutter_mort/android/app/src/main/res/mipmap-hdpi/ic_launcher.png`
+- ` M` `flutter_mort/android/app/src/main/res/mipmap-mdpi/ic_launcher.png`
+- ` M` `flutter_mort/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png`
+- ` M` `flutter_mort/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png`
+- ` M` `flutter_mort/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png`
+- `??` `flutter_mort/android/app/src/main/res/values/colors.xml`
+- `??` `flutter_mort/assets/branding/mort_arrow_adaptive_foreground.png`
+- `??` `flutter_mort/assets/branding/mort_arrow_adaptive_monochrome.png`
+- `??` `flutter_mort/assets/branding/mort_arrow_rose_gold.png`
+- ` M` `flutter_mort/integration_test/android_native_smoke_test.dart`
+- ` M` `flutter_mort/ios/Runner.xcodeproj/project.pbxproj`
+- ` M` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json`
+- ` M` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png`
+- ` M` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@1x.png`
+- ` M` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@2x.png`
+- ` M` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@3x.png`
+- ` M` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@1x.png`
+- ` M` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@2x.png`
+- ` M` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@3x.png`
+- ` M` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@1x.png`
+- ` M` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@2x.png`
+- ` M` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@3x.png`
+- `??` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-50x50@1x.png`
+- `??` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-50x50@2x.png`
+- `??` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-57x57@1x.png`
+- `??` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-57x57@2x.png`
+- ` M` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@2x.png`
+- ` M` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@3x.png`
+- `??` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-72x72@1x.png`
+- `??` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-72x72@2x.png`
+- ` M` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@1x.png`
+- ` M` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@2x.png`
+- ` M` `flutter_mort/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-83.5x83.5@2x.png`
+- ` M` `flutter_mort/ios/Runner/Info.plist`
+- `??` `flutter_mort/l10n.yaml`
+- ` M` `flutter_mort/lib/app.dart`
+- `??` `flutter_mort/lib/core/auth/auth_startup.dart`
+- ` M` `flutter_mort/lib/core/auth/oauth_flow.dart`
+- ` M` `flutter_mort/lib/core/config/app_config.dart`
+- `??` `flutter_mort/lib/core/config/release_profile.dart`
+- ` M` `flutter_mort/lib/core/errors/user_facing_error.dart`
+- `??` `flutter_mort/lib/core/money/`
+- ` M` `flutter_mort/lib/core/observability/crash_reporting.dart`
+- `??` `flutter_mort/lib/core/observability/diagnostics_export.dart`
+- `??` `flutter_mort/lib/core/observability/operational_telemetry.dart`
+- `??` `flutter_mort/lib/core/observability/product_analytics.dart`
+- `??` `flutter_mort/lib/core/observability/sentry_crash_provider.dart`
+- `??` `flutter_mort/lib/core/observability/structured_log.dart`
+- `??` `flutter_mort/lib/core/reviewer/`
+- ` M` `flutter_mort/lib/core/routing/app_router.dart`
+- ` M` `flutter_mort/lib/core/routing/notification_destination.dart`
+- ` M` `flutter_mort/lib/core/theme/mort_colors.dart`
+- ` M` `flutter_mort/lib/core/theme/mort_spacing.dart`
+- ` M` `flutter_mort/lib/core/theme/mort_theme.dart`
+- `??` `flutter_mort/lib/core/theme/mort_tokens.dart`
+- ` M` `flutter_mort/lib/core/theme/mort_typography.dart`
+- ` M` `flutter_mort/lib/core/utils/formatters.dart`
+- ` M` `flutter_mort/lib/core/utils/validators.dart`
+- `??` `flutter_mort/lib/core/widgets/auth_startup_gate.dart`
+- `??` `flutter_mort/lib/core/widgets/mort_brand.dart`
+- `??` `flutter_mort/lib/core/widgets/mort_design_components.dart`
+- ` M` `flutter_mort/lib/core/widgets/mort_widgets.dart`
+- ` M` `flutter_mort/lib/data/models/application.dart`
+- ` M` `flutter_mort/lib/data/models/job.dart`
+- ` M` `flutter_mort/lib/data/models/message.dart`
+- `??` `flutter_mort/lib/data/models/onboarding_progress.dart`
+- ` M` `flutter_mort/lib/data/models/profile.dart`
+- ` M` `flutter_mort/lib/data/models/trust_safety.dart`
+- ` M` `flutter_mort/lib/data/repositories/account_deletion_repository.dart`
+- ` M` `flutter_mort/lib/data/repositories/admin_repository.dart`
+- ` M` `flutter_mort/lib/data/repositories/applications_repository.dart`
+- ` M` `flutter_mort/lib/data/repositories/auth_repository.dart`
+- ` M` `flutter_mort/lib/data/repositories/job_execution_repository.dart`
+- ` M` `flutter_mort/lib/data/repositories/jobs_repository.dart`
+- ` M` `flutter_mort/lib/data/repositories/legal_contract_repository.dart`
+- ` M` `flutter_mort/lib/data/repositories/messaging_repository.dart`
+- ` M` `flutter_mort/lib/data/repositories/notifications_repository.dart`
+- `??` `flutter_mort/lib/data/repositories/observability_repository.dart`
+- ` M` `flutter_mort/lib/data/repositories/profile_repository.dart`
+- ` M` `flutter_mort/lib/data/repositories/providers.dart`
+- ` M` `flutter_mort/lib/data/repositories/repository_base.dart`
+- ` M` `flutter_mort/lib/data/repositories/safety_repository.dart`
+- `??` `flutter_mort/lib/data/repositories/support_assistant_repository.dart`
+- ` M` `flutter_mort/lib/data/repositories/support_repository.dart`
+- ` M` `flutter_mort/lib/data/repositories/trust_safety_repository.dart`
+- ` M` `flutter_mort/lib/data/repositories/uploads_repository.dart`
+- ` M` `flutter_mort/lib/data/services/secure_device_storage.dart`
+- ` M` `flutter_mort/lib/data/services/secure_session_storage.dart`
+- ` M` `flutter_mort/lib/data/services/supabase_service.dart`
+- ` M` `flutter_mort/lib/features/admin/admin_moderation_detail_screen.dart`
+- ` M` `flutter_mort/lib/features/auth/google_auth_screens.dart`
+- ` M` `flutter_mort/lib/features/guardian/guardian_mode_screens.dart`
+- ` M` `flutter_mort/lib/features/jobs/application_screens.dart`
+- ` M` `flutter_mort/lib/features/jobs/job_progress_screen.dart`
+- ` M` `flutter_mort/lib/features/jobs/job_screens.dart`
+- ` M` `flutter_mort/lib/features/jobs/teen_job_screens.dart`
+- ` M` `flutter_mort/lib/features/legal/contract_payment_screens.dart`
+- ` D` `flutter_mort/lib/features/monetization/data/google_play_billing.dart`
+- ` M` `flutter_mort/lib/features/monetization/screens/google_play_billing_screens.dart`
+- ` M` `flutter_mort/lib/features/mort_screens.dart`
+- ` M` `flutter_mort/lib/features/notifications/notification_center_screen.dart`
+- `??` `flutter_mort/lib/features/onboarding/`
+- ` M` `flutter_mort/lib/features/payments/admin_payment_operations_screen.dart`
+- ` M` `flutter_mort/lib/features/payments/stripe_marketplace_screens.dart`
+- ` M` `flutter_mort/lib/features/payments/stripe_payment_sheet_service.dart`
+- `??` `flutter_mort/lib/features/reviewer/`
+- ` M` `flutter_mort/lib/features/safety/trust_safety_screens.dart`
+- ` M` `flutter_mort/lib/features/settings/account_management_screens.dart`
+- `??` `flutter_mort/lib/features/settings/release_diagnostics_screen.dart`
+- `??` `flutter_mort/lib/features/support/support_assistant_screen.dart`
+- ` M` `flutter_mort/lib/features/support/support_screens.dart`
+- `??` `flutter_mort/lib/l10n/`
+- ` M` `flutter_mort/lib/main.dart`
+- ` M` `flutter_mort/lib/services/identity_verification_provider.dart`
+- `??` `flutter_mort/lib/services/push/`
+- ` M` `flutter_mort/pubspec.lock`
+- ` M` `flutter_mort/pubspec.yaml`
+- `??` `flutter_mort/test/accessibility_localization_reliability_test.dart`
+- ` M` `flutter_mort/test/android_native_parity_test.dart`
+- `??` `flutter_mort/test/auth_startup_test.dart`
+- ` M` `flutter_mort/test/bootstrap_and_button_test.dart`
+- ` M` `flutter_mort/test/crash_reporting_test.dart`
+- ` M` `flutter_mort/test/edge_observability_contract_test.dart`
+- `??` `flutter_mort/test/google_auth_activation_test.dart`
+- ` M` `flutter_mort/test/google_auth_contract_test.dart`
+- ` M` `flutter_mort/test/google_play_billing_contract_test.dart`
+- ` M` `flutter_mort/test/identity_verification_provider_test.dart`
+- ` M` `flutter_mort/test/job_progress_widget_test.dart`
+- `??` `flutter_mort/test/logout_security_contract_test.dart`
+- `??` `flutter_mort/test/marketplace_pagination_test.dart`
+- `??` `flutter_mort/test/moderation_legal_completion_test.dart`
+- ` M` `flutter_mort/test/mort_0_9_3_security_contract_test.dart`
+- ` M` `flutter_mort/test/mort_0_9_4_admin_moderation_contract_test.dart`
+- `??` `flutter_mort/test/mort_redesign_test.dart`
+- `??` `flutter_mort/test/mort_service_fee_test.dart`
+- ` M` `flutter_mort/test/notification_destination_test.dart`
+- ` M` `flutter_mort/test/oauth_flow_test.dart`
+- `??` `flutter_mort/test/observability_privacy_test.dart`
+- `??` `flutter_mort/test/onboarding_persistence_test.dart`
+- `??` `flutter_mort/test/play_reviewer_mode_test.dart`
+- `??` `flutter_mort/test/production_readiness_contract_test.dart`
+- ` M` `flutter_mort/test/release_candidate_policy_test.dart`
+- `??` `flutter_mort/test/release_profile_test.dart`
+- `??` `flutter_mort/test/remote_push_contract_test.dart`
+- ` M` `flutter_mort/test/route_access_test.dart`
+- `??` `flutter_mort/test/secure_session_storage_test.dart`
+- ` M` `flutter_mort/test/stripe_marketplace_contract_test.dart`
+- `??` `flutter_mort/test/support_assistant_contract_test.dart`
+- `??` `flutter_mort/test/support_assistant_widget_test.dart`
+- `??` `flutter_mort/test/support_operations_contract_test.dart`
+- `??` `flutter_mort/test/transportation_preferences_test.dart`
+- ` M` `flutter_mort/test/widget_test.dart`
+- ` M` `flutter_mort/web/favicon.png`
+- ` M` `flutter_mort/web/icons/Icon-192.png`
+- ` M` `flutter_mort/web/icons/Icon-512.png`
+- ` M` `flutter_mort/web/icons/Icon-maskable-192.png`
+- ` M` `flutter_mort/web/icons/Icon-maskable-512.png`
+- ` D` `flutter_mort/web/icons/mort-mark.svg`
+- ` M` `flutter_mort/web/index.html`
+- ` M` `flutter_mort/web/manifest.json`
+- `??` `lib/models/`
+- `??` `lib/screens/`
+- `??` `lib/services/`
+- `??` `MORT_EXISTING_UI_COMPONENTS.txt`
+- `??` `MORT_SUPREME_POST_CHATBOT_100_PERCENT_CODEX_PROMPT.md`
+- ` M` `package.json`
+- ` M` `pnpm-lock.yaml`
+- ` M` `pnpm-workspace.yaml`
+- ` M` `README.md`
+- `??` `RorkIOSManualCopy/`
+- `??` `scripts/android-release-profile-common.ps1`
+- `??` `scripts/audit-support-chatbot-remote.mjs`
+- `??` `scripts/audit-support-evaluation.mjs`
+- ` M` `scripts/build-android-release.ps1`
+- `??` `scripts/build-closed-test-aab.ps1`
+- ` M` `scripts/build-closed-test-apk.ps1`
+- ` M` `scripts/build-final-play-docs.mjs`
+- ` M` `scripts/build-final-play-release.ps1`
+- ` M` `scripts/build-play-aab.ps1`
+- `??` `scripts/build-production-pilot-aab.ps1`
+- `??` `scripts/build-production-public-aab.ps1`
+- ` M` `scripts/build-public-legal-site.mjs`
+- ` M` `scripts/build-route-action-inventory.mjs`
+- `??` `scripts/build-standard-closed-test-aab.ps1`
+- `??` `scripts/build-standard-closed-test-apk.ps1`
+- ` M` `scripts/create-local-test-users.mjs`
+- ` M` `scripts/create-old-project-test-users.mjs`
+- ` M` `scripts/create-play-review-fixtures.mjs`
+- ` M` `scripts/feature-qa-helpers.mjs`
+- ` M` `scripts/feature-registry-core.mjs`
+- `??` `scripts/generate-release-sbom.mjs`
+- ` M` `scripts/legal-trust-qa-suites.mjs`
+- ` M` `scripts/mutual-trust-qa-suites.mjs`
+- `??` `scripts/package-google-sign-in-0.9.8.ps1`
+- `??` `scripts/package-mort-0.9.6.ps1`
+- `??` `scripts/package-production-readiness-0.9.7.ps1`
+- `??` `scripts/package-rose-gold-redesign.ps1`
+- `??` `scripts/package-secure-session-persistence-0.9.10.ps1`
+- `??` `scripts/package-support-chatbot-0.9.11.ps1`
+- `??` `scripts/package-supreme-release.ps1`
+- ` M` `scripts/qa-aab-secret-scan.mjs`
+- ` M` `scripts/qa-aab-signing.mjs`
+- `??` `scripts/qa-account-deletion-processor.mjs`
+- `??` `scripts/qa-android-16kb-alignment.ps1`
+- `??` `scripts/qa-android-api36-launch.ps1`
+- ` M` `scripts/qa-android-apk.ps1`
+- ` M` `scripts/qa-android-permission-minimization.mjs`
+- ` M` `scripts/qa-business-verification.mjs`
+- ` M` `scripts/qa-complete-multi-user-isolation.mjs`
+- `??` `scripts/qa-design-navigation.mjs`
+- ` M` `scripts/qa-feature-expansion.mjs`
+- `??` `scripts/qa-financial-operations-completion.mjs`
+- ` M` `scripts/qa-google-auth-controls.mjs`
+- `??` `scripts/qa-google-oauth-browser-launch.ps1`
+- ` M` `scripts/qa-guardian-optional.mjs`
+- `??` `scripts/qa-identity-provider-neutral.mjs`
+- ` M` `scripts/qa-job-applications.mjs`
+- ` M` `scripts/qa-job-lifecycle.mjs`
+- `??` `scripts/qa-job-pin-concurrency.mjs`
+- `??` `scripts/qa-marketplace-state-machine.mjs`
+- `??` `scripts/qa-messaging-safety-state-machine.mjs`
+- `??` `scripts/qa-moderation-legal-completion.mjs`
+- ` M` `scripts/qa-mort-0.9.4-operational-controls.mjs`
+- `??` `scripts/qa-payment-dispute-appeal.mjs`
+- ` M` `scripts/qa-play-release-mode.mjs`
+- `??` `scripts/qa-play-reviewer-isolation.mjs`
+- `??` `scripts/qa-privacy-observability.mjs`
+- ` M` `scripts/qa-production-feature-flags.mjs`
+- `??` `scripts/qa-redesign-backend.mjs`
+- ` M` `scripts/qa-release-deep-links.mjs`
+- ` M` `scripts/qa-release-network-security.mjs`
+- `??` `scripts/qa-remote-push-foundation.mjs`
+- `??` `scripts/qa-resumable-onboarding.mjs`
+- ` M` `scripts/qa-reviews.mjs`
+- `??` `scripts/qa-safety-action-rate-limits.mjs`
+- ` M` `scripts/qa-saved-jobs.mjs`
+- `??` `scripts/qa-support-chatbot.mjs`
+- `??` `scripts/qa-support-evidence-lifecycle.mjs`
+- `??` `scripts/qa-support-global-budget.mjs`
+- `??` `scripts/qa-support-human-operations.mjs`
+- ` M` `scripts/qa-ugc-report-block.mjs`
+- `??` `scripts/run-android-native-integration.ps1`
+- ` M` `scripts/run-final-supabase-regression.ps1`
+- `??` `scripts/run-node-qa-with-transport-retry.mjs`
+- ` M` `scripts/run-play-release-qa.ps1`
+- ` M` `scripts/sensitive-file-scan.ps1`
+- ` M` `scripts/stripe-qa-suites.mjs`
+- ` M` `scripts/update-legal-trust-feature-registry.mjs`
+- ` M` `scripts/validate-public-legal-site.mjs`
+- `??` `scripts/validate-release-profile-server.mjs`
+- `??` `scripts/validate-release-profile.mjs`
+- `??` `scripts/verify-google-auth-release.ps1`
+- ` M` `scripts/verify-play-aab.ps1`
+- `??` `scripts/write-production-readiness-changed-files.mjs`
+- `??` `scripts/write-supreme-changed-files.mjs`
+- ` M` `supabase/config.toml`
+- `??` `supabase/functions/_shared/support_eval_cases.ts`
+- `??` `supabase/functions/_shared/support_runtime.ts`
+- `??` `supabase/functions/account-deletion-processor/`
+- `??` `supabase/functions/identity-verification-session/`
+- ` M` `supabase/functions/identity-verification-webhook/contract.mjs`
+- ` M` `supabase/functions/identity-verification-webhook/index.ts`
+- ` M` `supabase/functions/send-push/index.ts`
+- `??` `supabase/functions/support-admin-copilot/`
+- `??` `supabase/functions/support-chat/`
+- `??` `supabase/functions/support-create-ticket/`
+- `??` `supabase/functions/support-escalate/`
+- `??` `supabase/functions/support-evaluation-runner/`
+- `??` `supabase/functions/support-feedback/`
+- `??` `supabase/functions/support-intent-classify/`
+- `??` `supabase/functions/support-kb-search/`
+- `??` `supabase/functions/support-report-ai-response/`
+- `??` `supabase/functions/support-retention-cleanup/`
+- `??` `supabase/functions/support-safety-triage/`
+- `??` `supabase/functions/support-tool-execute/`
+- `??` `supabase/functions/support-upload-authorize/`
+- `??` `supabase/migrations/20260726024327_reserve_play_reviewer_identifier.sql`
+- `??` `supabase/migrations/20260728183833_teen_transportation_preferences.sql`
+- `??` `supabase/migrations/20260728184631_mort_fixed_service_fee.sql`
+- `??` `supabase/migrations/20260728185618_job_transportation_matching.sql`
+- `??` `supabase/migrations/20260728220236_mort_payments_disabled_zero_fee.sql`
+- `??` `supabase/migrations/20260728221118_fix_payment_disabled_transportation_wrapper.sql`
+- `??` `supabase/migrations/20260728222202_account_deletion_processor_state_machine.sql`
+- `??` `supabase/migrations/20260728223111_account_deletion_storage_listing_rpc.sql`
+- `??` `supabase/migrations/20260729050735_mort_0_9_9_google_profile_bootstrap.sql`
+- `??` `supabase/migrations/20260729195632_mort_support_chatbot_foundation.sql`
+- `??` `supabase/migrations/20260729201015_mort_support_chatbot_rpc_hardening.sql`
+- `??` `supabase/migrations/20260729211932_mort_support_provider_rate_limit.sql`
+- `??` `supabase/migrations/20260729212144_mort_support_internal_auth_probe.sql`
+- `??` `supabase/migrations/20260729212722_mort_support_safety_priority_hardening.sql`
+- `??` `supabase/migrations/20260729214636_mort_support_adversarial_triage.sql`
+- `??` `supabase/migrations/20260729215533_mort_support_evaluation_classifier_fixes.sql`
+- `??` `supabase/migrations/20260729215937_mort_support_postgres_word_boundaries.sql`
+- `??` `supabase/migrations/20260729224551_mort_support_global_provider_budget.sql`
+- `??` `supabase/migrations/20260729235830_release_profile_regression_lint_repairs.sql`
+- `??` `supabase/migrations/20260730003000_server_authoritative_resumable_onboarding.sql`
+- `??` `supabase/migrations/20260730010800_fix_onboarding_completion_definer_bypass.sql`
+- `??` `supabase/migrations/20260730011600_require_explicit_onboarding_completion_flag.sql`
+- `??` `supabase/migrations/20260730012200_fix_null_onboarding_completion_guard.sql`
+- `??` `supabase/migrations/20260730023000_add_application_canceled_state.sql`
+- `??` `supabase/migrations/20260730023100_marketplace_feed_and_job_lifecycle_hardening.sql`
+- `??` `supabase/migrations/20260730031000_idempotent_application_transition_requests.sql`
+- `??` `supabase/migrations/20260730043000_messaging_lifecycle_privacy_and_reliability.sql`
+- `??` `supabase/migrations/20260730050000_job_pin_confirmation_idempotency.sql`
+- `??` `supabase/migrations/20260730060000_dispute_statements_and_appeals.sql`
+- `??` `supabase/migrations/20260730061000_capture_initial_dispute_statement.sql`
+- `??` `supabase/migrations/20260730062000_fix_support_evidence_path_validation.sql`
+- `??` `supabase/migrations/20260730063000_evidence_registration_idempotency_and_lint.sql`
+- `??` `supabase/migrations/20260730070000_safety_actions_checkins_and_triage.sql`
+- `??` `supabase/migrations/20260730071000_guardian_age_audit_and_pilot_review_boundary.sql`
+- `??` `supabase/migrations/20260730072000_support_safety_triage_bands.sql`
+- `??` `supabase/migrations/20260730073000_default_active_job_checkin_cadence.sql`
+- `??` `supabase/migrations/20260730074000_guardian_minor_policy_helper_execute.sql`
+- `??` `supabase/migrations/20260730075000_contextual_weapon_triage_coverage.sql`
+- `??` `supabase/migrations/20260730076000_fix_guardian_profile_policy_recursion.sql`
+- `??` `supabase/migrations/20260730080000_support_human_operations.sql`
+- `??` `supabase/migrations/20260730081000_structured_support_handoff_summary.sql`
+- `??` `supabase/migrations/20260730090000_fcm_remote_push_foundation.sql`
+- `??` `supabase/migrations/20260730091000_fcm_device_limit_hardening.sql`
+- `??` `supabase/migrations/20260730100000_privacy_observability_foundation.sql`
+- `??` `supabase/migrations/20260730101000_fix_push_sanitizer_volatility.sql`
+- `??` `supabase/migrations/20260730110000_identity_provider_neutral_completion.sql`
+- `??` `supabase/migrations/20260730111500_identity_fail_closed_lint_hardening.sql`
+- `??` `supabase/migrations/20260730120000_financial_operations_completion.sql`
+- `??` `supabase/migrations/20260730203047_fix_identity_storage_policy_execution.sql`
+- `??` `supabase/migrations/20260801233508_moderation_legal_activation_completion.sql`
+- `??` `supabase/snippets/`
+- `??` `temp_old_zip/`
+- `??` `temp_zip/`
+- ` M` `web/public/_headers`
+- ` M` `web/public/account-deletion/index.html`
+- ` M` `web/public/assets/account-deletion.js`
+- `??` `web/public/assets/supabase.js`
+- ` M` `web/public/release-status.json`

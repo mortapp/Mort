@@ -1,0 +1,586 @@
+# MORT Public-Production Completion Board
+
+Tracks the public-production master run (78-section directive, 2026-08-18
+onward). Status values: NOT_STARTED, IN_PROGRESS, PASS, BLOCKED_EXTERNAL.
+Never faked -- a PASS here means the specific claim after it was actually
+verified with tool output, not assumed.
+
+TIMELINE: August 21, 2026 is a target, not a deadline. There is no
+session time limit and no artificial stop condition. Work continues
+across however many sessions it takes until every engineering-controlled
+requirement below is implemented, tested, security-verified, device-
+verified where possible, and documented. This board (plus
+`docs/CLAUDE_DIVINE_COMPLETION_PROGRESS.md` and git history) is the
+recovery mechanism if a session is interrupted -- checkpoint frequently,
+never leave more than one atomic unit of work uncommitted.
+
+LOCATION ARCHITECTURE (current, corrected 2026-08-18):
+PRECISE ON-DEMAND LOCATION REQUIRED for location-dependent marketplace
+functionality (both Adult job-site capture and Teen nearby-job/Quick-
+Accept/navigation use). JOB SITE CAPTURED PRIVATELY via the Adult's own
+precise device location at job-creation time (not free-form address
+text). NAVIGATION AUTHORIZED TEMPORARILY -- only while an authorized,
+active job relationship justifies it, revoked on completion/cancellation/
+block/serious safety restriction. NO CONTINUOUS BACKGROUND TRACKING of
+either party. NO PERSISTENT TEEN-VISIBLE EXACT ADDRESS at any stage --
+Teens get distance/area/transportation pre-acceptance and turn-by-
+turn-style navigation (not a copyable street address) post-authorization.
+See the EXACT_LOCATION / JOB_SITE_CAPTURE / NAVIGATION rows below for
+current implementation status.
+
+| AREA | STATUS | NOTE |
+|---|---|---|
+| PRODUCT | IN_PROGRESS | See per-area rows below. |
+| UI_UX | PASS (Rose Gold 2.0 canonical -- see 2026-08-21 section below) | **UPDATE 2026-08-21**: the simple rose-gold system this row originally described has itself been superseded by "Rose Gold 2.0" (God Black/Rose Gold/God White/Silver/Baby Blue/Success Green/God Pink), owner-directed and refined twice more the same window, plus a genuine screen-by-screen structural audit (not just recoloring) across onboarding, dashboard, jobs, messages, safety, and profile. Full detail in the dedicated section below and in `docs/MORT_DESIGN_SYSTEM.md` (rewritten to match). Original Royal-rebrand history preserved unedited below in this same cell. **A full "Royal House" rebrand (Obsidian/Royal Blue/Imperial Purple/Ruby/Antique Gold) was attempted, shipped, then reverted the same night (2026-08-20)** after the owner saw it on the real Galaxy A14 device and called it a mixed-color mess -- correctly reverted in full rather than defended: `mort_colors.dart`/`mort_tokens.dart`/`mort_theme.dart`/`mort_typography.dart`/the leaderboard medal-color addition all restored byte-for-byte to the original rose-gold system (`docs/MORT_DESIGN_SYSTEM.md`, reaffirmed canonical). Confirmed via a fresh device screenshot: the Welcome screen's primary button is back to the correct single-palette rose-gold gradient. **What was kept from that pass, because it was a genuine improvement independent of the color question**: real backdrop blur (`allowAndroidBlur: true`) enabled for `MortGlassHeader`/`MortGlassNavigationBar`/`MortGlassSheet` -- those had been requesting blur (`liveBlur: true`) all along but silently rendering flat translucency on Android due to a second gate nothing had opted into; scrolling card lists were left untouched to protect scroll performance. **Two real, load-bearing bugs found and fixed during this same pass**: (1) an XML comment in `AndroidManifest.xml` (added when ads shipped) used this codebase's `--` em-dash style, illegal inside XML comments, silently blocking every `flutter build` since that change -- undetected because neither `flutter analyze` nor `flutter test` validates native manifest XML; (2) the actual reachable sign-up flow never called the legal-acceptance RPC at all, meaning real new users likely could not finish onboarding -- fixed on `SafetyRulesScreen`, which now also carries the owner-specified explicit anti-grooming/anti-CSAE consent language as a required checkbox. Both fixes are independent of the color reversion and remain in place. Full suite 417/417 passing, `flutter analyze` 0 issues, confirmed clean install/launch/zero-crash on the real device after the revert. |
+| AUTH | PASS (pre-existing, reverified) | Email/password + Google OAuth both live in `UnifiedAuthScreen`; Apple OAuth engineering-complete and wired in alongside it (behind its own flag, off by default) -- see GOOGLE_AUTH and APPLE_AUTH rows for detail. |
+| GOOGLE_AUTH | **PASS_REAL_E2E -- VERIFIED LIVE with a real completed login, twice** | The owner pasted the new client's secret into Supabase and saved (Client ID confirmed persisted after reload). Ran a real end-to-end login test via `mort-web.vercel.app` -> Continue with Google -> real Google consent -> real Supabase token exchange -> real session -> `/app/onboarding`, then signed out cleanly. Passed. Also, before the swap, ran the same real test against the *original* client that was actually still saved at the time (an earlier edit had been typed but never saved) -- that also fully succeeded, proving Google Sign-In had been live and working the whole session, correcting an earlier mistaken "broken" assumption. Android/iOS use this exact same Supabase-side config (PKCE browser flow, no native per-platform SDK), confirmed in docs. | Engineering side unchanged and already comprehensively built (see prior note in git history). External side actually completed live via browser control tonight, not just documented: found the Client ID already saved in Supabase (`621016064579-...`) belonged to a GCP project neither available Google account (`kolawoleorelesi@gmail.com`, `nikkikurta@gmail.com`) could access -- rather than leave Google Sign-In on an unmanageable client, created a new, fully-owned GCP project (`mort-506011`), configured the OAuth consent screen (App name MORT, support email `mortapp@googlegroups.com` -- the existing canonical MORT Google Group, External audience), created the Web application OAuth client (`382105285546-g863...`) with the exact Supabase redirect URI, and created two defensive Android OAuth clients covering both distinct classical certificates found in the Play Console App Signing export (extracted via `openssl x509`, not the UI's copy-only buttons, since clipboard isn't readable by this session). Updated Supabase's Google provider Client ID to the new client. Did NOT and will not paste the Client Secret into Supabase myself -- entering an API credential into any field is an absolute rule for this session, not a permission gate, so it stands even under explicit owner authorization to "do everything." The owner copied the secret directly from Google's one-time creation dialog (never shown to or read by the agent) and pasted it into Supabase's Client Secret field themselves -- confirmed done, not just requested, by the real completed end-to-end login test recorded in the STATUS column above (Client ID persisted after reload, real Google consent, real Supabase session). Full detail in `docs/MORT_GOOGLE_AUTH_EXTERNAL_SETUP.md`. **Also flagging**: a `client_secret_382105285546-....json` file was auto-downloaded to the local Downloads folder by Google Cloud Console during client creation and contains the real secret in plaintext -- the owner should move or delete it once the secret is safely in Supabase. Separately, also completed the OAuth consent screen's branding fields (previously blank): Application home page (`https://mort-web.vercel.app`), Privacy policy link and Terms of service link (`https://mort-legal.vercel.app/privacy/` and `/terms/`, the newly-deployed public legal site -- see PUBLIC_LEGAL_WEB), and added `mort-legal.vercel.app` to Authorized domains. Saved successfully ("Branding changes saved!"). |
+| APPLE_AUTH | ENGINEERING_SERVER_COMPLETE -- BLOCKED_EXTERNAL_APPLE_DEVELOPER (no Apple Developer account accessible from this session) | Generalized `AuthRepository`'s Google-only OAuth implementation into a shared, provider-parameterized implementation (`_OAuthProviderInfo`) supporting both Google and Apple, reusing the identical browser-based Supabase PKCE flow already verified live for Google -- no native `sign_in_with_apple`/`AuthenticationServices` SDK, same reasoning that kept `google_sign_in` out of the Google path. Added `signInWithApple()`/`linkAppleIdentity()`/`unlinkAppleIdentity()`, `AppConfig.appleAuthEnabled` (`APPLE_AUTH_ENABLED` dart-define, defaults false) with a matching `MortReleaseConfiguration` validation gate mirroring Google's exactly, an `AppleAuthSection` "Continue with Apple" button wired into `UnifiedAuthScreen` alongside Google's, and an Apple identity card + Connect/Disconnect actions added to `ConnectedAccountsScreen`. New `test/apple_auth_contract_test.dart` (8 assertions) plus full reverification of `test/google_auth_contract_test.dart` (all 13 original assertions still pass unchanged -- the Google implementation's exact strings/behavior were preserved byte-for-byte during the generalization). **Server-side gate applied to production, owner-authorized**: `record_my_auth_identity_event` (the identity-link/unlink audit RPC) previously hard-rejected any provider except `'google'`, which would have made Apple linking/unlinking fail server-side with `provider_not_allowed` even once the OAuth provider itself is configured. Migration `supabase/migrations/20260820000000_apple_identity_controls.sql` (recorded in production as `20260820113638_apple_identity_controls`) made the function and its supporting unique index provider-agnostic across `google`/`apple`, preserving the identical per-provider validation logic (own-caller-only via `auth.uid()`, rate-limited, requires a prior linked event before an unlink event, idempotent via `client_request_id`). Applied directly to `rakjydmgwwgtdislanbt` via `apply_migration` after explicit owner re-approval (the first attempt had been correctly blocked by Claude Code's own safety classifier as a production schema change, and was not routed around). Verified post-apply: migration present in `list_migrations`; function source confirms `google`/`apple` accepted and all others rejected as `provider_not_allowed`; `EXECUTE` grants confirmed limited to `authenticated`/`service_role` only (`anon`/`public` cannot call it); `get_advisors` shows only the same pre-existing, intentional `SECURITY DEFINER`-callable-by-authenticated-users advisory the original Google-only function already carried, no new findings. Full reverification after the apply: `dart format --set-exit-if-changed` clean, `flutter analyze` 0 issues, `flutter test` 407/407 passing (2 skipped, 0 failed). **OAuth provider activation itself remains genuinely blocked, not faked**: `https://developer.apple.com/account` redirected to a real sign-in page with an empty email field, no cached identity -- not typed into, per the standing rule against typing into external account logins with no session. Requires the owner's own Apple ID + paid Apple Developer Program membership (App ID Sign In with Apple capability, a Services ID, a Sign In with Apple key, Team ID/Key ID/private key pasted into Supabase's Apple provider config -- Supabase generates the JWT client secret itself, no manual JWT signing needed). Full external handoff in `docs/MORT_APPLE_AUTH_EXTERNAL_SETUP.md`, including why the iOS `com.apple.developer.applesignin` entitlement was deliberately NOT hand-added this session (not required by the browser-based flow that was actually built; hand-editing `project.pbxproj` without Xcode to verify it risked silently breaking the iOS build in a way undetectable from Windows). |
+| DASHBOARD | PASS | Teen Dashboard is now the primary bottom-nav destination (index 0), reusing the existing role-aware `RoleHomeScreen`, enriched with real active/upcoming-job, nearby-work-preview, and safety sections. 5 destinations total (Dashboard, Jobs, Safety, Messages, Profile), no duplicate tabs. `flutter analyze`/`format` clean, full suite green throughout. Physical smoke: fresh profile build (with all location/nav changes) installed and boots clean on the Galaxy A14, zero FATAL/crash lines, reaches Welcome screen. Deeper authenticated screens (Dashboard/Jobs feed/job creation content itself) remain HARNESS_VERIFIED only -- same standing policy against injecting real credentials via `adb shell input text`. |
+| EXACT_LOCATION | PASS (backend + UI, interim navigation shipped) | Corrected architecture implemented end-to-end: Adult job-site capture takes precise GPS coordinates directly, `get_nearby_job_distances_v1` computes real server-side distance for Teens pre-acceptance (zero raw-coordinate leakage), `get_released_job_location` releases coordinates only once genuinely authorized (block-check added). 18-check live adversarial suite, 0 findings. Flutter UI: Adult "Job site" capture section, Teen job-feed real distance, and an interim "Navigate to job site" action on the active-job screen (launches the device's default maps app via the same lifecycle-gated RPC -- see `docs/MORT_NAVIGATION_SDK_RESEARCH.md`). Full in-app turn-by-turn (Google `google_navigation_flutter`, researched and recommended) deferred pending the owner's Google Cloud billing/API-key decision. Physical smoke: profile build boots clean, 0 crashes, twice this session. Authenticated-screen verification remains HARNESS_VERIFIED only (standing credential-injection policy). |
+| LEADERBOARD | PASS | Server-authoritative by construction (no stored/mutable score -- computed live from already-hardened applications.completed + reviews data). 14-check live adversarial suite, 0 findings: forgery/replay/cross-user-tamper structurally denied, opt-out works, no PII leakage. UI inside Dashboard (not a 6th tab): own rank/tier always visible, top-5 public preview, opt-out toggle. Physical device verification pending (unreachable this pass). |
+| QUICK_ACCEPT | PASS (backend + UI) | Both migrations applied to production, owner-authorized. Live 25-simultaneous-claimant concurrency test: exactly 1 success, 24 clean `offer_taken` denials, 0 transport errors. `QuickAcceptButton` implements the full AVAILABLE/CLAIMING/ACCEPTED/OFFER_TAKEN/NOT_ELIGIBLE/EXPIRED/NETWORK_ERROR state machine, integrated into both job feed cards and job detail. 6 widget tests, all pass. |
+| TRANSPORTATION | PASS (pre-existing, reverified end-to-end) | Full loop confirmed already built, not just the schema columns: `TransportationScreen` (onboarding step 6/12, Teen-only, skippable) collects `transportationMethods`/`maxTravelDistanceMiles`/`maxTravelMinutes`/`walkingDistanceOnly`/`guardianTransportationPossible` via `profileRepository.saveTransportationPreferences`; `save_job_draft_or_publish` (see `20260728185618_job_transportation_matching.sql`) validates and stores the Adult's `acceptable_transportation_methods`/`transportation_considerations` on the job (regex-blocked against embedded emails/phone numbers/handles); the Teen job feed query (`teen_job_screens.dart:184-190`) filters `transportationMethods` from the Teen's saved profile (walking-distance-only collapses to `['walking']`) when calling `listOpenJobsPage`; job detail renders the job's accepted travel options and considerations text. Item 5 of the owner's immediate order is complete -- board previously understated this as schema-only. |
+| JOBS | PASS (pre-existing, reverified) | `update_application_status_v2`'s accept branch already locks the job row FOR UPDATE before checking `applications_open` -- the same atomic pattern reused for Quick Accept. |
+| APPLICATIONS | PASS (pre-existing, reverified) | Covered by the 30-check isolation suite rerun tonight. |
+| PIN | PASS (pre-existing, prior session) | See `docs/CLAUDE_DIVINE_COMPLETION_PROGRESS.md` "JOB/APPLICATION/PIN LIFECYCLE CODE REVIEW" -- not re-touched tonight, no source changed. |
+| MESSAGES | PASS (pre-existing, reverified) | Covered by the 30-check isolation suite rerun tonight. |
+| SAFETY | PASS (pre-existing, reverified live) | Reinspected rather than rebuilt -- Safety Center (`trust_safety_screens.dart`, `safety_repository.dart`, Safety Circle guardian-delivery flow) already exists and is extensive. Reran 5 live adversarial suites tonight: `qa-safety-action-rate-limits` (report/ping replay dedupe + separate urgent budget + payload-bound block/unblock + no exact-location in ping notes), `qa-safety-cancellation` (workflow pause + incident creation + no automatic reputation penalty), `qa-child-safety-standards` (public CSAE escalation docs), `qa-harassment-controls` (flag/block/preserve-evidence), `qa-remote-push-foundation` (safety-bypass quiet hours, payload privacy, deletion revokes push). `qa-safety-circle-permissions` initially failed with a genuine finding -- **not a production bug**: the QA script itself was stale, doing a raw `.from('safety_pings').insert(...)` that current RLS correctly rejects (`permission denied for table safety_pings`) because the real app (`safety_repository.dart:107-126`) has always written through the audited, rate-limited `create_safety_ping_v2` RPC, never a direct table insert. Fixed the QA script to call the real RPC (`scripts/mutual-trust-qa-suites.mjs`); reran, now PASS. 0 findings against production code. |
+| SUPPORT | PASS (pre-existing, prior session) | SQL/TS parity reverified 2026-08-18 earlier today: 542/543, no safety-direction regression. |
+| PROFILE | PASS (pre-existing, reverified live) | Reinspected rather than rebuilt -- `activity_history_screen.dart`, `review_screens.dart`, `profile_avatar_widgets.dart`, plus `settings/` (account management, experience settings, native permissions, release diagnostics) already exist. Reran 3 live adversarial suites tonight: `qa-profile-cross-user-isolation` (direct + RPC writes cannot target another user), `qa-profile-update-forgery` and `qa-profile-protected-fields` (role/DOB/verification/moderation/account/onboarding fields reject client forgery). 0 findings. |
+| GUARDIAN | PASS (pre-existing, reverified) | Covered by the 30-check isolation suite rerun tonight. |
+| NOTIFICATIONS | PASS (pre-existing, reverified live) | `notification_center_screen.dart` + `notifications_repository.dart` already exist. Reran `qa-remote-push-foundation` live tonight: response-minimized/replay-safe registration, raw-token reads/writes denied to owners and outsiders, server-authoritative rotation, exact category/quiet-hours validation, safety-bypass preserved through quiet hours, account deletion immediately revokes push. Hosted FCM runtime remains correctly disabled pending real provider verification (owner action, matches `MORT_REMOTE_PUSH_ENABLED` gate in `app_config.dart`). 0 findings. |
+| ADS | BANNER_ADS=IMPLEMENTED_RELEASE_READY / REWARDED_ADS=IMPLEMENTED_RELEASE_READY -- implemented and server-verified; not yet through final physical QA or production rollout, so not described as shipping/live until that happens | **AdMob account work done live tonight via browser control**, under `kolawoleorelesi@gmail.com`'s AdMob account (publisher `pub-9883419411387958`) -- explicitly NOT the `nikkikurta@gmail.com` AdMob account per owner instruction, even though that account has its own pre-existing MORT app registration; left untouched. Created the MORT app registration (App ID `ca-app-pub-9883419411387958~1048817736`, Android, unlisted since Play listing is still Closed Testing so store-linking isn't possible yet), one Banner ad unit (`ca-app-pub-9883419411387958/8216077490`) and one Rewarded ad unit (`ca-app-pub-9883419411387958/1877899853`, reward item deliberately non-financial). **Then attempted real `google_mobile_ads` SDK integration and had to fully revert it**: adding the package to `pubspec.yaml` broke two genuine, deliberate, pre-existing contract tests (`test/stripe_marketplace_contract_test.dart` and `test/release_candidate_policy_test.dart`) that assert `google_mobile_ads` must be absent from `pubspec.yaml` and from `GeneratedPluginRegistrant.java` entirely -- not merely gated off at runtime by `nativeAdsCompiledIn`. This is a deliberate, tested architectural boundary from prior engineering (matching Stripe/RevenueCat treatment) and was correctly respected rather than routed around: reverted the dependency, the new `ad_consent_service.dart` (UMP), the real `BannerAd`/`RewardedAd` widget rendering, the `MobileAds.instance.initialize()` call in `main.dart`, and the `AndroidManifest.xml` `APPLICATION_ID` meta-data -- confirmed via `git diff` that all of those are back to their exact original byte-identical state. Full suite reverified clean after reverting: 398 passed / 0 failed / 2 skipped. **Genuine, valuable discovery preserved**: a complete, already-tested, already-built server-side ad-eligibility backend exists and is currently entirely unused by the client -- `get_ad_eligibility`/`record_ad_impression` RPCs (`supabase/migrations/20260708151850_add_monetization_tables.sql`) and `MonetizationRepository.adEligibility`/`recordAdImpression`/`getAdPreferences`/`saveAdPreferences` (`lib/data/repositories/monetization_repository.dart`) are real, correct, and ready to be wired into real ad widgets the moment the SDK-exclusion policy is deliberately lifted for a real release. Fixed one small, real, independent bug found along the way: `recordAdImpression` never passed `request_non_personalized` to the RPC, silently defaulting every audit record to `true` regardless of what was actually requested -- fixed with a backward-compatible optional parameter, kept in this commit since it's RPC-only and unrelated to the SDK question. Rewarded-ad reward-granting was also found to be a real latent bug in the current stub (`onReward` fires instantly on tap, no ad ever involved) -- documented here rather than silently shipped, to be fixed for real once the SDK is legitimately added. app-ads.txt line for whenever it's needed: `google.com, pub-9883419411387958, DIRECT, f08c47fec0942fa0` (standard AdMob format, this publisher ID confirmed live in the AdMob console). **UPDATE (same night): the owner made that exact policy call.** Explicitly authorized shipping real Banner/Rewarded ads, so the SDK-absence policy was deliberately, not accidentally, lifted: `nativeAdsCompiledIn` flipped to `true`, `google_mobile_ads` re-added to `pubspec.yaml`, and the two contract tests updated to match the new, real contract (ads SDK present and correctly gated, not absent -- billing/Stripe exclusions untouched). Implemented for real this time:
+- `AndroidManifest.xml` carries the real AdMob `APPLICATION_ID` meta-data; `main.dart` calls `AdConsentService.ensureConsent()` (real UMP flow) then `MobileAds.instance.initialize()` at startup, wrapped so any failure only logs a warning and never blocks core app functionality.
+- `MortBannerAd`/`MortNativeRewardedAdButton` now render real `BannerAd`/`RewardedAd` objects (not placeholders), gated through TWO layers: the existing local `sensitivePlacements` check, then a new `AdMobService.confirmWithServer()` call to the real, previously-unused `get_ad_eligibility` RPC before ever loading an ad -- server can only narrow a local "yes," never widen a local "no," and any RPC error fails closed to no-ad.
+- **Fixed the real reward-granting bug this time, not just documented it**: the reward now fires only inside the SDK's own `onUserEarnedReward` callback, after the ad has actually played -- never on tap.
+- Test/production ad unit selection is wired through the existing `USE_TEST_ADS` flag (defaults true): Google's own official public test ad unit IDs are used whenever true; the real, confirmed MORT production IDs (`ca-app-pub-9883419411387958~1048817736` app, `.../8216077490` banner, `.../1877899853` rewarded) are baked in as the dart-define defaults for when it's false. Added a new release-validation check: a release build with `ADS_ENABLED=true` and `USE_TEST_ADS` still true (or missing platform ids) now fails startup validation outright, rather than silently shipping test ads to real users.
+- Verified clean: `flutter analyze` 0 issues, full `flutter test` suite 398/0/2 (a transient 1-test flake on one run reproduced as a pre-existing, unrelated timing issue on rerun, not a regression -- confirmed by an isolated rerun of the same file coming back clean).
+- **Known real gap, left honest rather than invented**: `MortNativeRewardedAdButton` is fully implemented and tested but not yet placed on any actual screen -- there is no live UI entry point for rewarded ads yet, since the reward mechanic itself (what a user actually receives) is a product decision not yet made, and inventing one (the ad unit's placeholder reward name "BonusPerk" has no backing database column/mechanic) would be fabricating functionality. Banner ads are implemented and render on the real Dashboard/Jobs surfaces (`mort_screens.dart:2250`, `job_feed`/`adult_dashboard` placements) since that wiring already existed.
+- iOS ad unit ids remain unconfigured (empty dart-define, no default) since no iOS AdMob app was created this session -- correctly inert on iOS rather than guessed.
+- **Found and fixed a real, missed contract-test regression from this ads work, tonight**: a third contract test, `test/google_play_billing_contract_test.dart` (separate from the two already updated when the SDK was re-added), still asserted `nativeAdsCompiledIn = false` under a test named "ads remain disabled and advertising identifiers remain stripped" -- it was never touched during the ads reversal and was failing the full suite for real (confirmed with a genuine `[E]` failure and diff, not assumed). Fixed to assert `nativeAdsCompiledIn = true` under a renamed test, "ads ship for real, non-personalized-only, while IAP stays excluded" -- the AD_ID-stripping and IAP-exclusion assertions in the same test were still correct and left unchanged. Full suite reverified green afterward.
+- **REWARDED_ADS gap closed**: `MortNativeRewardedAdButton` previously had no screen and no reward mechanic behind it. Built **MORT Spark** -- a purely cosmetic, 24h profile accent with zero effect on jobs, Quick Accept, the leaderboard, safety, moderation, or marketplace eligibility. New `MortSparkSection` wires the existing button into Teen Profile (a non-sensitive personalization surface, kept out of Safety/Messages/Support/PIN/job-completion flows); the reward is granted only from inside `onReward`, which the button itself only calls from the ad SDK's real `onUserEarnedReward` -- never on tap -- and a failed server call never fabricates the entitlement locally. Server-authoritative via a new migration (`supabase/migrations/20260820120000_mort_spark_rewarded_ads.sql`): `grant_mort_spark_reward()` is idempotent (`client_request_id`), cooldown-limited to one new grant per 24h, rate-limited as defense in depth, security-definer/`search_path=''`-hardened matching the codebase's existing identity-event RPC pattern; `mort_spark_grants` has RLS enabled with a select-own-row policy only -- no insert/update/delete policy for any role, so the ledger can only be written through the RPC, never forged client-side. 7 new contract tests in `test/mort_spark_contract_test.dart` verify the reward-on-tap-never / fail-closed / cosmetic-only / idempotent-cooldown properties from source. Full suite 414/414 passing (2 skipped), `flutter analyze` 0 issues, `dart format` clean. **Migration applied to production, owner-approved** (recorded as `20260820122024_mort_spark_rewarded_ads`) after the first attempt was correctly blocked by Claude Code's own safety classifier, the same pattern as the Apple identity migration earlier tonight. Verified live: migration present in Supabase's migration history; RLS enabled on `mort_spark_grants` with exactly one policy (select-own-row, `'r'` command only -- no insert/update/delete policy exists for any role, confirmed via `pg_policies`); `EXECUTE` on `grant_mort_spark_reward` granted only to `authenticated` (confirmed via `has_function_privilege` -- not even the elevated Supabase-MCP SQL connection could call it, itself good evidence of correct lockdown); the deployed function's source was re-fetched and matches the reviewed source byte-for-byte. **Honest limit on this verification**: attempting a live authenticated RPC call to check replay/cooldown/expiry behavior end-to-end was blocked by that same correct lockdown (the MCP SQL connection lacks `EXECUTE`), and rather than temporarily loosen production grants or handle real JWT-signing material to force it, those three properties were verified by code review of the exact deployed source instead of a live invocation. Full reverification after the apply: `dart format --set-exit-if-changed` clean, `flutter analyze` 0 issues, `flutter test` 414/414 passing (2 skipped). |
+| BACKEND | PASS (reverified live tonight) | 30/30 existing adversarial isolation checks + 2 new adversarial checks (job_private_locations direct access, get_released_job_location leakage), all against live production via real anon-key + session calls, zero findings. |
+| RLS | PASS (reverified live tonight) | Same as BACKEND row. |
+| EXPLOIT_PREVENTION | PASS (reverified live tonight) | Same as BACKEND row. |
+| MODERATION | PASS (pre-existing, reverified live) | Reran `qa-moderation-legal-completion` live tonight: legal controls/inactive drafts/direct-write removal/hard activation trigger, coded job/review moderation with reason allowlists, access logging, ban-appeal isolation, assignment expiry, independent reversal. 0 findings. |
+| LEGAL | PASS (drafts) / OWNER_ACTION_REQUIRED (counsel approval) | Reinspected rather than rebuilt -- `docs/legal/` already holds a comprehensive draft package (Terms of Service, Terms of Use, Privacy Policy, Community Guidelines, Child Safety Standards, Acceptable Use, Prohibited Work, Payment/Cancellation/Dispute policies, Data Retention and Deletion, Guardian Terms, Business Account Agreement, Evidence and Dispute Policy, Moderation and Appeals Policy, Location and Meeting Policy, Marketplace Risk Disclosure, Limitation of Liability, plus a dedicated `MORT_LEGAL_REVIEW_PACKET.md` counsel handoff) and `lib/features/legal/legal_screens.dart` renders/gates them with version-and-hash-bound clickwrap. Reran `qa-legal-clickwrap` live tonight (affirmative, teen-summary-first, version/hash-bound acceptance) -- PASS. These remain drafts pending qualified attorney/adult review before public-production launch, as they always have been; Claude is not a lawyer and this session does not claim legal compliance. |
+| PLAY | PASS (prior session) | 0.9.16+107 approved on Closed testing - Alpha, 2026-08-18. Not re-touched tonight. |
+| ACCOUNT_DELETION | PASS (pre-existing, reverified live) | Reran `qa-account-deletion` (remote create/status/cancel, cross-account read denied) and `qa-account-deletion-in-app` (easy to locate, reauthenticated, dedicated, status-aware) live tonight -- both PASS. `qa-account-deletion-processor` requires server-only/service-role environment variables not present in this session (correct -- this session does not handle service-role or database-password secrets) and was not run; the in-app + remote-request paths that engineering controls were verified instead. |
+| REVIEWER_ACCESS | PASS (pre-existing, reverified live) | Reran `qa-play-reviewer-isolation` live tonight: reservation trigger enabled with no public execute grant, Auth Admin creation of the exact reviewer identifier denied, ordinary email/password auth unaffected, anonymous access cannot read profiles/messages/proof evidence, demo PINs rejected by production job-verification, destructive administration denied without a real authorized session. 0 findings. |
+| DATA_SAFETY | PASS (pre-existing, reverified live) | Reran `qa-data-safety-inventory` live tonight: declared data categories and detected privacy-relevant Flutter SDKs are inventoried and consistent. |
+| PUBLIC_LEGAL_WEB | LIVE_VERCEL / COPY_UPDATED_AND_REDEPLOYED -- https://mort-legal.vercel.app/ | Corrected from an earlier, stale Netlify-oriented note: canonical hosting is Vercel, per explicit owner correction, not Netlify. Deployed live tonight via browser control (Vercel Drop, zip upload) to a new dedicated project, `mort-legal`, under the `mortapphelp-7067s-projects` team -- not connected to any Git repo (none exists for this content). All 13 routes verified live (200, no login, mobile-usable, correct branding), plus `/app-ads.txt` serving the real confirmed AdMob publisher line. Used real, non-fabricated config for the six required publisher/contact values (`MORT_PUBLIC_PUBLISHER_NAME=MORT` matching the actual registered Play Console developer name; `mortapp@googlegroups.com`, the real existing MORT contact group, reused across support/privacy/child-safety; the real `mort-web.vercel.app` as the website URL) -- `deploymentReady: true`, no blocker banner, and neither `legalApprovalClaimed` nor `publicDeploymentClaimed` is set to true anywhere. **Found and fixed a real, previously-undetected bug by actually testing the deployed site**: the account-deletion page's JS used a top-level `await` in a non-module `<script>` tag, throwing a `SyntaxError` that silently broke the entire real Supabase-backed deletion flow -- never caught before because the site had never been deployed and opened in a browser. Fixed, redeployed, reverified via console (no exceptions, form renders and is enabled). Added `vercel.json` header generation (replacing the Netlify-only `_headers` format) to the build script. Wired the real Privacy/Terms links (`/privacy/`, `/terms/`) plus the real home page (`mort-web.vercel.app`) into the Google OAuth consent screen branding (see GOOGLE_AUTH row) and added `mort-legal.vercel.app` to its authorized domains -- saved successfully. **Still owner-only**: entering these URLs into Play Console's actual Privacy Policy / account-deletion declaration fields (a real Play Store submission action, correctly not done unilaterally); optional custom domain; optionally splitting the three reused contact-email purposes into dedicated mailboxes; deleting two unused/abandoned Vercel projects from earlier attempts (`mort-legal-site`, `mort-legal-site-1`) -- deletion requires typing the project name to confirm, which the session's own destructive-action safety classifier correctly blocked when attempted, so this one cleanup step is left for the owner. Full detail in `docs/play-final/MORT_NETLIFY_LEGAL_DEPLOYMENT.md` (kept at its old filename/location for continuity, content fully rewritten). **Stale-wording audit tonight**: all 13 live pages still read "Production-pilot publication candidate" -- accurate while the package awaited a publish decision, stale now that it is actually live and serving real traffic. Fixed to "Published - closed-pilot draft, pending qualified legal review" (true on both fronts). Also found the git-committed `web/public/` output had drifted from the real live site -- it was last committed in the `deploymentReady:false` state (built without the six `MORT_PUBLIC_*` env vars), while the real deployment was zip-uploaded to Vercel with real config and never committed back; rebuilt with the same already-documented real values so the repo now matches what is live. **Privacy/ads copy also fixed tonight**: the privacy page listed "advertising" under disabled collection and promised "future SDK activation" review -- both stale now that real AdMob ads ship. Replaced with an Advertising section whose every claim was verified against the actual implementation first, not asserted from intent: ads only on eligible non-sensitive screens (checked against `AdMobService.sensitivePlacements` and the server-side `get_ad_eligibility` RPC's independent placement blocklist); ads never appear on or gate safety, reporting, Guardian approval, identity/proof evidence, messages, support, payment preferences, PIN verification, job completion, or legal information (confirmed by grepping every `MortBannerAd`/`MortNativeRewardedAdButton` placement site in the codebase -- exactly two exist: Dashboard/Jobs banner, Profile MORT Spark); ad requests never carry location, message, report, evidence, Guardian, Safety, or Support data (no such field is ever passed to `AdRequest()` or the eligibility RPC); every Teen account gets non-personalized ads unconditionally (`get_ad_eligibility`'s formula forces this when `role = 'teen'`, independent of any preference). Owner authorized redeploying the existing `mort-legal` Vercel project with this corrected build (not a new project). **Redeploy itself is genuinely blocked by tooling, not policy**: Vercel's redeploy-via-Drop page only accepts a real OS-level file drag onto the page -- there is no `<input type=file>` in the DOM for any browser-automation tool to target, confirmed by directly inspecting the page. The Vercel CLI is an alternative, but authenticating it requires generating and handling a real Vercel API token, which falls under this session's absolute rule against handling real credentials/secrets (the same rule that has kept the Google OAuth Client Secret untouched all session) -- correctly not done. **Owner redeployed it.** The corrected build was rebuilt, verified (zero forbidden strings, all 13 routes present), zipped, and the owner dragged it onto the Vercel Production Deployment page directly (the one step this session's tools genuinely could not perform). Reverified live afterward: `/`, `/privacy/`, `/terms/`, `/account-deletion/`, `/child-safety-standards/`, `/support/`, and `/app-ads.txt` all return 200; the stale "publication candidate" badge and "advertising disabled" privacy claim are gone from the live site; the new Advertising section and MORT Spark disclosure render correctly on `/privacy/`; the account-deletion page loads with zero console errors and its sign-in-link form is enabled, not broken. |
+| ANDROID | ANDROID_PHYSICAL_QA=PARTIAL (2026-08-22 -- real device reconnected, see dated section below for full detail) | **UPDATE 2026-08-22**: device reconnected. Reproduced the `reviewer_demo`/`PLAY_REVIEW_MODE_ENABLED=true` build physically -- **did not reproduce** the previously-documented "Connecting securely" startup hang (`PLAY_REVIEW_MODE_ANDROID_PHYSICAL=PASS_NOT_REPRODUCED`, exact build/commit recorded below). Found and fixed a different real bug on the same pass: the "Cancel Google sign-in" button rendered almost entirely behind the system nav bar (confirmed via `uiautomator` touch bounds, not just a screenshot), fixed and re-verified on-device, 419/419 tests passing, committed locally. Authenticated-route screens still not reached (requires a real login this session won't perform). Full detail, exact bounds, and exact commit in the "2026-08-22" section near the end of this file. **UPDATE 2026-08-21 (third continuation session)**: no reconnect attempted this session, per standing instruction not to loop on ADB with no device present -- device-independent work continued instead (see POWER-LOSS RECOVERY section above). **UPDATE 2026-08-21 (second continuation session)**: device owner was away from the physical Galaxy A14 for that session -- wireless ADB genuinely unreachable (mDNS discovery empty even after `adb kill-server`/restart, direct `adb connect` to the last-known IP:port times out). Not retried in a loop per explicit instruction; device-independent engineering continued instead (see 2026-08-21 section below), with an exact device-QA checklist left ready for when the owner returns. The partial pass recorded below (pre-login only, same device) remains the last real physical verification and is not superseded, only extended. **Device became reachable [prior session]** (Galaxy A14, Android 15) via mDNS discovery (`adb mdns services`) after the previously-used wireless IP kept timing out; a mid-session reconnect was needed once (wireless ADB dropped, rediscovered via mDNS in seconds, not repeatedly hammered). **Found and fixed a real, load-bearing bug this enabled**: `flutter build apk --debug` failed outright with `MergeFailureException: Error parsing AndroidManifest.xml` -- the AdMob `APPLICATION_ID` comment added earlier tonight used this codebase's usual ` -- ` em-dash style inside a real XML comment for the first time, which XML forbids. Invisible to `flutter analyze`/`flutter test` (neither validates native manifest XML); only actually building the app caught it, and no build had been attempted since the comment was added. Fixed (swapped `--` for `:`); confirmed via a full scan across every Android manifest/resource XML file that this was the only instance. After the fix: real debug build succeeded, installed, and launched clean. **Physical verification performed**: fresh cold launch clean (zero FATAL/crash lines across the whole session, confirmed via a final full logcat scan); backend connectivity confirmed live (\"Connected securely\" banner); auth screen renders both \"Continue with Google\" and \"Continue with Apple\" buttons correctly side by side (first real on-device visual confirmation of tonight's Apple Sign-In UI); tapping \"Continue with Google\" correctly launched a real external Chrome tab to `accounts.google.com` (confirms the shared browser-based PKCE OAuth launch mechanism works physically, not just in tests); app correctly falls back to the logged-out Welcome state with no session restored when no real login occurs (no leaked/fabricated session). **Still not done**: authenticated-screen verification (Dashboard, Jobs, Safety, Messages, Profile/MORT Spark, Apple's own OAuth completion) remains out of scope for this pass -- reaching those requires a real login, and this session does not inject credentials via `adb shell input text` (standing policy). Dynamic performance profiling (frame timing, cold-start time, memory) also not yet done this pass. |
+| IOS | PASS (source parity audited and reverified live) | `ios/Runner/Info.plist` permission-usage descriptions checked against `AndroidManifest.xml` runtime permissions -- exact match (camera/notifications/biometric-FaceID/location, no unused entries either side); deep-link callback identity already covered by `google_auth_contract_test.dart` (`<string>com.mortapp.mobile</string>` in Info.plist). Reran `qa-ios-android-feature-parity` live: found and fixed a genuine stale check (script asserted the removed legacy `android:scheme="mort"` still existed, contradicting the deliberate hardening already verified by `google_auth_contract_test.dart`'s `isNot(contains('android:scheme="mort"'))` -- fixed to assert the current exact `com.mortapp.mobile` scheme and the legacy scheme's absence). Also found the 34-capability `MORT_PLATFORM_CAPABILITY_MATRIX.json` predated tonight's Leaderboard feature; added a MOB-035 record (pure shared Dart/RPC, no native code on either platform, so parity is exact by construction) and the matching required-capability entry in the QA script. Suite now passes at 35 records. No Xcode/TestFlight/App Store claim made -- physical iPhone verification remains explicitly pending on both new and pre-existing records, as the matrix already stated for every row. |
+| PERFORMANCE | IN_PROGRESS (static pass clean; dynamic profiling device-gated) | Static audit performed since no device/profiler was reachable: no raw `ListView(children:...)` misuse found for dynamic data (all use `.builder`/`.separated`); all 3 `Image.network` call sites (`proof_review_screen.dart`, `profile_avatar_widgets.dart`, `support_screens.dart`) already bound decode size via a shared `imageDecodePixelsForContext` helper (`cacheWidth`/`cacheHeight`) and deliberately do NOT use `cached_network_image`'s persistent disk cache -- correct, since all three load privacy-sensitive signed URLs (proof photos, avatars, support attachments) that should not be persisted to disk beyond the signed link's lifetime; `cached_network_image` remains a dependency for other, non-sensitive uses. `analysis_options.yaml` already includes `package:flutter_lints/flutter.yaml` (covers `prefer_const_constructors`, `sized_box_for_whitespace`, etc.), and `flutter analyze` is already clean, so a manual const-audit would be redundant. No anti-patterns found; nothing changed. Genuine dynamic performance work (frame timing/jank, cold-start time, memory profiling under load) still requires a reachable physical device or attached DevTools session -- neither available this pass. |
+| RELEASE | NOT_STARTED (config now consistent) | No new artifacts built tonight -- per explicit instruction, source/config work stays the priority until it is stable, not a new signed build. **Release-configuration audit found and fixed a real, load-bearing gap**: three independent layers still assumed the pre-reversal no-ads policy and would have blocked or silently neutered any real-ads production build -- `release_profile.dart`'s `validationErrors` hard-failed (`StateError` at app startup) for *any* release profile with `adsEnabled` true, including production; `validate-release-profile.mjs` carried the identical blanket block; and `android-release-profile-common.ps1` hardcoded `ADS_ENABLED='false'` unconditionally in the actual dart-define generator, completely disconnected from the profile matrix. Owner decision: real ads scoped to `production_candidate`/`production` only -- `closed_test` and `reviewer_demo` (including the current live Closed Testing/Alpha channel, day 4 of its period) keep `adsEnabled` false, so current Alpha testers are not moved to real ad traffic. Fixed all three layers plus the JSON matrix and all 5 build-wrapper scripts (`-AdsEnabled` now a real, cross-validated parameter matching every other flag, not hardcoded); `USE_TEST_ADS` deliberately stays hardcoded `true` in the shared build script so a real (non-test) ads rollout still requires its own separate, deliberate change -- `AppConfig` already fails closed if ads are ever enabled with `USE_TEST_ADS` still true. Verified: full matrix validator PASS across all 6 profiles, a live negative test (temporarily flipping `closed_test`'s `adsEnabled` to `true` correctly fails the validator, restored after confirming), PowerShell syntax-parsed all 6 touched `.ps1` files clean, `qa-play-release-mode.mjs` PASS, new Dart test covering both the newly-valid and still-invalid cases, full suite 415/415 passing, `flutter analyze`/`dart format` clean. Server-side Teen ad-eligibility restrictions untouched. |
+
+## BLOCKERS
+
+- No P0, no P1 currently open. Quick Accept's opt-in migration was
+  owner-authorized and applied; the 25-simultaneous-claimant concurrency
+  test passed live (exactly 1 success, 24 clean denials). The location
+  architecture's backend is fully implemented and adversarially tested.
+- Remaining external/owner-decision gates (not P0/P1 engineering
+  blockers -- explicit product/business decisions): in-app routing/
+  navigation SDK provider choice (Google Maps Platform vs Mapbox vs
+  other -- pricing/ToS/API-key-security research still needed before
+  picking one); AdMob account setup requiring adult publisher
+  attestation; Google OAuth provider activation requiring the owner's
+  Google Cloud Console (Web client + secret entered into the Supabase
+  Auth provider dashboard -- see `docs/MORT_GOOGLE_AUTH_EXTERNAL_SETUP.md`,
+  engineering side is 100% complete and tested); Apple OAuth provider
+  activation requiring the owner's own Apple Developer Program membership
+  (App ID capability, Services ID, Sign In with Apple key, Team ID/Key ID/
+  private key entered into the Supabase Auth provider dashboard -- see
+  `docs/MORT_APPLE_AUTH_EXTERNAL_SETUP.md`; engineering AND server-side
+  (production migration `20260820113638_apple_identity_controls`, owner-
+  approved and applied) are both 100% complete and tested -- this is now
+  purely BLOCKED_EXTERNAL_APPLE_DEVELOPER_ACCOUNT, not an engineering gap);
+  any Play/legal step requiring the owner's own identity or payment action.
+- Both items flagged earlier tonight are now resolved: (1) the MORT Spark
+  migration was owner-approved and applied to production, verified live
+  (see ADS row); (2) the owner redeployed the corrected public-legal-site
+  build to the existing `mort-legal` Vercel project themselves (the drag-
+  and-drop step this session could not perform), reverified live afterward
+  -- all 13 routes plus `/app-ads.txt` return 200, the stale "publication
+  candidate"/"advertising disabled" wording is gone, the new Advertising
+  section and MORT Spark disclosure render correctly, the account-deletion
+  page loads with no console errors and its form is enabled.
+
+## COMPLETED_TODAY (2026-08-18 evening session)
+
+- **Real bug fix, owner-reported and root-caused on-device**: Welcome
+  screen's "I already have an account" was rendered behind, and had its
+  touches intercepted by, the system navigation bar -- untappable in
+  practice, making "Enter MORT" appear to always lead to sign-up.
+  Root cause: primary CTAs lived in scrollable `children` rather than
+  the safe-area-respecting pinned `bottom:` slot used elsewhere in the
+  app; diagnosed with a temporary on-device MediaQuery debug readout,
+  not guessed. Fixed by moving both CTAs to `bottom:`; verified via a
+  real tap on-device that Sign In now opens correctly. Also added
+  app-wide defense-in-depth (explicit edge-to-edge opt-in, SafeArea
+  minimum floor) though the pinned-CTA restructure is what actually
+  fixed it.
+- Fresh adversarial re-verification: existing 30-check multi-user isolation
+  suite, 30/30 PASS, zero regressions. Plus 2 new adversarial checks
+  (`job_private_locations` direct access, `get_released_job_location`
+  leakage to non-participants) -- 0 findings.
+- `quick_accept_job_v1` (atomic, job-row-locked, self-serve single-worker
+  claim RPC) applied to production, owner-authorized. First concurrency
+  run surfaced a real gap (jobs has zero UPDATE RLS policies -- no way to
+  set the opt-in column); fixed via a second migration extending
+  `save_job_draft_or_publish`, currently pending the owner's apply action.
+- Dashboard made the primary Teen bottom-nav destination, reusing the
+  existing `RoleHomeScreen`, enriched with real active-job/nearby-work/
+  safety sections. 5-destination nav (Dashboard, Jobs, Safety, Messages,
+  Profile), no duplicate tabs. Found and fixed one genuine pre-existing
+  test coupling this surfaced (verified as real, not a flake, by isolating
+  the one-line change). Full suite green throughout.
+- Precise on-demand location: full client-side service + UI gate built,
+  13 new tests covering every requested scenario. Backend distance/
+  matching found to be genuinely blocked on a real architectural gap (no
+  coordinates anywhere in the schema -- needs a geocoding provider, a
+  product/vendor decision) rather than built with a shortcut.
+
+## POWER-LOSS RECOVERY (2026-08-19, continuation session)
+
+Laptop lost power again. Recovery verified, not assumed: `git status --short`
+was clean, HEAD was `341ad7e` (9 commits ahead of the last checkpoint noted
+in the recovery directive, `adec690`) -- every commit in between (Leaderboard
+backend+UI, Google Auth reverification, Transportation/Safety/Profile/
+Notifications reverification, Ads/Legal/Account Deletion/Reviewer Access/
+Data Safety/Moderation reverification, and the two QA-script bug fixes) was
+already present and intact. No dirty files, nothing to recover, nothing
+re-done. Wireless ADB retried again (`adb connect 192.168.1.1:5555` and
+`adb devices -l`): still unreachable (error 10060, ADB daemon itself had to
+restart, consistent with the fresh boot after power loss). Found and
+reverified one more genuinely-already-built item not yet itemized on this
+board: public legal/web resources deployment package (see PUBLIC_LEGAL_WEB
+row, new tonight) -- item 16/19 of the owner's queue, engineering-complete,
+blocked only on owner-provided contact emails and Netlify hosting
+credentials.
+
+## POWER-LOSS RECOVERY (2026-08-21, third continuation session)
+
+Laptop lost power again during the prior continuation session. Recovery
+verified, not assumed: `git status`/`git diff --stat` were clean on
+`feature/compact-onboarding-and-screen-polish`, HEAD was `398065d`
+("docs: record 2026-08-21 continuation session, device-QA checklist") --
+every commit from the same-day continuation session (onboarding rebuild,
+Rose Gold 2.0 structural audit, the sitewide `MortGlassHeader` back-button
+fix, the design-token consistency sweep, and this doc rewrite) was already
+present and intact. No dirty files, nothing partially written, nothing
+re-done.
+
+Reran the full validation chain live rather than trusting the prior
+session's recorded numbers: `flutter pub get` clean; `flutter analyze`
+**0 issues** (281s); `flutter test` **419/419 passing, 2 legitimately
+gated skips** (`google_auth_activation_test.dart`, skipped when not
+running under the activation profile -- not a hidden failure);
+`dart format --set-exit-if-changed lib test` **0 files changed**. All
+four numbers match what the prior session's commit messages claimed,
+confirmed by actually running them, not by reading the doc.
+
+Additional independent verification swept for regressions the prior
+session might have missed: grepped all of `flutter_mort/` for any
+remaining Royal-rebrand color literals (`Royal Blue`, `Imperial Purple`,
+`Antique Gold`, `royalBlue`, `imperialPurple`) -- zero matches anywhere,
+confirming the same-night revert really did leave no trace. Grepped
+`lib/` for `TODO`/`FIXME`/`XXX`/`HACK:` -- zero matches. Confirmed
+`godPink` (the "rare signature accent" token) is referenced only via
+its `premium` alias (`premium_badge.dart`) and the deliberately-selective
+`signature` gradient (`mort_widgets.dart`/`mort_screens.dart`), never
+used as a general-purpose color anywhere in `lib/` -- the palette
+hierarchy's "God Pink must remain rare" rule is actually true in the
+code, not just asserted in the doc.
+
+`ANDROID_PHYSICAL_QA=PENDING_RECONNECT` -- no attempt made to reach a
+physical device this session per standing instruction not to loop on
+ADB; the exact reconnect + verification checklist from the prior
+session (bottom of the 2026-08-21 section above) still applies unchanged.
+No source changes were made this session -- the recovery audit found
+nothing to fix, so nothing was fixed; this entry exists only to record
+that the audit happened and what it verified.
+
+## MASTER DIRECTIVE PASS (2026-08-21, same-day follow-up session)
+
+A "SUPREME MILLION-COMPLETION" master directive asked this session to take
+MORT through real public-production release (if eligible) and then move to
+a second, unrelated product (LOOP). Executed the MORT half live rather than
+assuming prior state still held:
+
+**Backend audit (Supabase MCP, live, read-only):** project `ACTIVE_HEALTHY`
+(Postgres 17.6.1, us-east-2); `list_migrations` shows 185 applied migrations,
+matching `supabase/migrations/` exactly through `20260820122024_mort_spark_
+rewarded_ads` -- no drift between local and remote. 30 Edge Functions, all
+`ACTIVE` (Stripe payment functions exist and are deployed but gated off at
+the app-config layer per the existing fail-closed payments policy -- see ADS
+row's Stripe/IAP exclusion note above; this session did not change that).
+Ran both advisor scans live and had a fork read every line of both dumps
+(407K + 154K chars) rather than sampling: **0 ERROR-level findings in either
+security or performance.** 295 security WARNs, 292 of which are the single
+expected `authenticated_security_definer_function_executable` pattern this
+codebase uses everywhere by design. The other 3 were checked for real,
+individually:
+- `get_release_mode_status()` / `get_runtime_feature_status()` flagged as
+  anon-callable -- read both functions' actual source
+  (`20260720175005_final_production_pilot_controls.sql`,
+  `20260722234500_mort_0_9_4_operational_controls.sql`): both are
+  deliberately `grant ... to anon` (not an accidental broad grant) and
+  return only global, non-PII maintenance/feature-flag booleans -- no user
+  data, no leak. Confirmed safe by source, not by assumption.
+- `auth_leaked_password_protection` disabled -- real gap, attempted to fix
+  live in the Supabase dashboard (Auth -> Attack Protection -> Prevent use
+  of leaked passwords), and found it is **gated behind the Pro plan**
+  (`Mort` project is currently on Free) -- not a toggle this session can
+  flip, a real billing/owner decision. Left disabled; flagged here as a
+  genuine `OWNER_ACTION_REQUIRED` item (upgrade to Pro, then enable this
+  toggle -- no code change needed on our side once upgraded). Minimum
+  password length is already 12 chars with mixed-case+digit requirements,
+  so the practical exposure is narrow.
+- 5 performance WARNs, all pre-existing `auth_rls_initplan`/
+  `multiple_permissive_policies` micro-optimizations on already-reviewed
+  tables (`job_management_requests`, `application_transition_requests`,
+  `payment_dispute_statements`, `payment_dispute_appeals`,
+  `account_deletion_requests`) -- correctness/security unaffected, left
+  as-is rather than churning working RLS for a planner hint.
+
+**Google Play Console (live browser session, `kolawoleorelesi@gmail.com`,
+"Mort" personal developer account, read-only navigation):** app
+`com.mortapp.mobile`, **still Closed testing**, installed audience 2, last
+published Aug 18, 2026, zero pending policy warnings on Publishing
+overview. Opened the Production track's own "Apply for access to
+production" checklist directly -- this is Google's real, current
+eligibility state, not a recollection:
+- [x] Publish a closed testing release
+- [x] Have at least 12 testers opted-in to your closed test
+- [ ] Run your closed test with at least 12 testers, for at least 14 days
+      -- **"12 testers have currently been opted in for 5 days
+      continuously"** as of this session. "Apply for production" is
+      disabled in the console itself until that clock finishes.
+
+This is a genuine, Google-enforced, time-based gate with no engineering
+or content fix available -- 2 of 3 requirements are already met; the third
+needs roughly 9 more continuous days of the existing 12+ testers staying
+opted in. Recording per the master directive's own instruction for this
+exact situation:
+
+**MORT_PUBLIC_PRODUCTION=EXTERNALLY_TIME_GATED**
+(~9 days of continuous 12+-tester closed-test opt-in remaining as of
+2026-08-21; re-check the same Play Console "Apply for access to
+production" panel to see the live day count -- do not guess a calendar
+date, the counter is Google's, not ours.)
+
+**Public legal web (live fetch, not cached):** `mort-legal.vercel.app`
+reconfirmed live and current -- title "Legal and safety center", badge
+reads "Published - closed-pilot draft, pending qualified legal review"
+(accurate, not stale); `/privacy/` correctly describes real ad-targeting
+restrictions and MORT Spark's cosmetic-only reward, no "advertising
+disabled" language remains; `/app-ads.txt` serves exactly
+`google.com, pub-9883419411387958, DIRECT, f08c47fec0942fa0`, matching the
+confirmed AdMob publisher ID.
+
+**Android:** `adb devices -l` returned an empty device list (one check,
+no loop). `ANDROID_PHYSICAL_QA=PENDING_RECONNECT` stands unchanged.
+
+**No source changes this session's second pass either** -- the backend and
+Play Console audits found no engineering-fixable gap, only the two items
+above (both genuinely external: Supabase Pro-plan upgrade, and Google's
+14-day timer). `RELEASE` stays `NOT_STARTED` deliberately: production
+submission is ~9 days away regardless, so cutting a new signed AAB now
+would not be tested against anything the current Closed Testing build
+isn't already covering, matching the same "not now" reasoning the prior
+session used.
+
+### MORT_FINAL_STATE=PRODUCTION_READY_EXTERNALLY_BLOCKED
+
+Every internally-controllable row on this board is PASS or an explicitly
+labeled, evidence-backed external/owner blocker (Apple Developer
+activation, qualified legal counsel review, Supabase Pro-plan upgrade,
+Google's 14-day closed-test timer, physical Android/iOS device QA). No row
+was converted to PASS to reach a prettier percentage. Checkpointing MORT
+here and moving to the LOOP repository per the master directive's Part 17 --
+MORT is not being modified further while LOOP work proceeds.
+
+## NEXT_AUTOMATIC_PHASE
+
+Items 1-6 of the owner's "IMMEDIATE ORDER" are now all DONE or reverified:
+job cards, Quick Accept UI, post-authorized navigation (JOBS/QUICK_ACCEPT/
+EXACT_LOCATION), Leaderboard (LEADERBOARD), Transportation end-to-end
+(TRANSPORTATION -- found already fully wired onboarding-to-job-feed, not
+schema-only as previously noted), and Google Login + Google Sign-Up
+(GOOGLE_AUTH -- found already fully engineered; only the owner's external
+Google Cloud/Supabase provider activation remains). Messages, Safety
+Center, Support, Profile/Settings, and Guardian (items 8-12) were also
+found already built in prior sessions and reverified live tonight with
+0 findings (one stale QA script bug found and fixed along the way -- see
+SAFETY row). Notifications (item 13) likewise reverified live. Onboarding
+polish (item 7) was audited: `CompactOnboardingScreen` is already mature
+(pinned bottom CTAs, full resumability with field hydration, dirty-step
+leave-confirmation, accessible reduced-motion transitions, legal
+acceptance gating) -- no changes made without physical-device evidence of
+a real problem. Physical smoke-verified twice on the Galaxy A14 (clean
+boot, 0 crashes) across all changes so far; device unreachable again
+tonight (wireless ADB down), retry continues.
+
+Items 14-19 were also audited rather than assumed and found already built:
+Ads/AdMob (item 14 -- engineering PASS, live serving OWNER_ACTION_REQUIRED),
+account deletion (item 16), reviewer access (item 17), data safety
+(item 18) all reverified live with 0 findings tonight. Legal/Play
+production (item 15, item 19) found to already have a comprehensive draft
+package (`docs/legal/`) plus a dedicated counsel-handoff packet -- these
+remain drafts pending qualified attorney review, as intended; nothing
+here claims legal compliance. Moderation was also reverified live
+(0 findings) though not explicitly itemized in the original 25-item list.
+
+Items 16/19 (public legal/web resources) and 20 (iOS source parity) are now
+also DONE -- see PUBLIC_LEGAL_WEB and IOS rows above, both completed and
+committed (`341ad7e` for iOS; PUBLIC_LEGAL_WEB reverified this recovery
+session).
+
+Genuinely remaining work, all requiring either a reachable physical
+device or a new build/release action (cannot be faked or skipped):
+1. **Full Android physical QA** (item 21/18): blocked again this session
+   on wireless ADB reachability (`adb connect`/`adb devices -l` both came
+   back empty, ADB daemon had to restart after the power loss). Retry
+   continues; do not fake PHYSICAL_VERIFIED without a real device session.
+2. **Performance profiling**: also genuinely NOT_STARTED -- requires a
+   reachable device or a profiler, neither available yet.
+3. **Final production regression** (item 22/19): full flutter test suite
+   has been reverified clean at every checkpoint so far, but the true
+   "final" pass belongs right before build/release, not now, since further
+   changes are still expected.
+4. **Final signed AAB/APK** (items 23-24/20) and **artifact verification**
+   (item 25): hold until items 21/18 (device QA) and 22/19 (final
+   regression) are genuinely done -- a new signed build today would not
+   reflect a meaningfully different app than the already-approved
+   0.9.16+107 Closed Testing build.
+5. Owner decisions still pending (not engineering blockers): navigation
+   SDK billing/API-key setup (Google Cloud), AdMob account setup
+   (+ app-ads.txt hosting + consent/UMP flow), Google OAuth provider
+   activation (Google Cloud + Supabase dashboard), qualified legal
+   counsel review of the drafted documents, public legal/web site hosting
+   (owner contact emails + Netlify credentials).
+
+## COMPLETED (2026-08-21 continuation session)
+
+`ANDROID_PHYSICAL_QA=PENDING_DEVICE_OWNER_AWAY` -- owner is away from the
+physical device for this session; not faked, not looped on. Continued
+every device-independent engineering task instead. Real device gate
+checklist is at the bottom of this section for when the owner returns.
+
+**Onboarding -- rebuilt into a real, reachable, tested 5-step flow.**
+`CompactOnboardingScreen` (previously unreachable dead code, per prior
+session's audit note above) is now the one true onboarding path, wired
+from `UnifiedAuthScreen` and `auth_startup.dart`'s resume logic (both
+previously routed to the legacy 11-screen `/onboarding/age` chain
+instead). Each of its 5 visual steps now fires the server's real
+checkpoint names in the real required order (previously used invalid
+step names like `'profile_basics'`/`'interests_safety'` that the
+`save_my_onboarding_progress` RPC would have rejected) -- step 2 fires
+`profile`+`skills`+`availability` together, step 3 fires
+`transportation`, step 4 fires `payment`+`guardian`+`preferences`
+(payment-preference dropdown, optional guardian invite/skip,
+notification/accessibility preferences -- previously never collected
+by this screen at all), step 5 performs real legal acceptance via
+`legalContractRepositoryProvider` before recording the safety
+acknowledgement and calling `completeOnboarding()`, closing the same
+`published_legal_acceptance_required` gate gap already fixed on
+`SafetyRulesScreen` in the prior session. Rules/anti-grooming copy
+extracted to `mort_rules_copy.dart`, shared by both screens so it
+cannot drift. New `test/compact_onboarding_test.dart` widget test
+exercises the full real flow end-to-end, including tapping all 6 rules
+checkboxes. Verified on the real Galaxy A14 before it went offline:
+clean boot, real Supabase connection, correct env-var mapping found
+(`.env.local` at repo root uses `EXPO_PUBLIC_SUPABASE_*` names, not
+the `SUPABASE_*` names the Flutter dart-defines expect -- documented
+here so the next build doesn't hit the same "MORT cannot start
+securely" dead end).
+
+**Rose Gold 2.0 -- palette darkened, and a genuine structural
+audit, not a reskin.** Black surface family (`black`/`softBlack`/
+`raisedBlack`) darkened ~20% per owner request, `godBlack` unchanged as
+the anchor. Then a real screen-by-screen structural pass, informed by
+real Mobbin.com pattern research (not guessed): Teen Dashboard's bare
+profile-percent bar replaced with a real "Get Set Up" checklist
+(`Profile.completionChecklist`, Plum-inspired) and its quick-links row
+converted to an icon-grid (`MortQuickActionGrid`, Klarna/Cash-App-
+inspired); the job feed card's 5 stacked full-width fact rows
+tightened into one wrapping meta-row; message bubbles stopped showing
+the safety-scanner badge on every clean message (real signal dilution
+-- now only flagged/blocked messages carry it); Safety Center's six
+identically-weighted stacked buttons restructured so Call 911 stands
+alone with real visual priority; Teen Profile's Account section given
+the same primary-action-plus-icon-grid treatment. Settings, the
+Adult/Guardian/Admin dashboards, Applications/Active Job, Notifications,
+and Guardian Mode were each explicitly audited and left unchanged --
+already using the correct grouped description-list or contextual-
+action-row pattern for their content, not the "wall of buttons"
+problem the other screens had. Full detail and the current canonical
+token table: `docs/MORT_DESIGN_SYSTEM.md` (rewritten this session --
+the version referenced elsewhere on this board was for the original,
+simpler rose-gold system and predates Rose Gold 2.0 entirely).
+
+**Real, sitewide navigation bug found and fixed.** `MortGlassHeader`'s
+`showBack` defaulted to `false` with no auto-detection, unlike
+`MortHeader` (which already computed visibility from route state).
+Settings and its five sub-screens (Appearance, Accessibility, Privacy,
+Safety, Data controls, About) rendered with no visible way back --
+only the undiscoverable system back gesture worked. Root-caused via
+owner report ("how are they supposed to get out of settings??").
+Fixed at the shared-widget level (`MortGlassHeader` now mirrors
+`MortHeader`'s auto-detect) rather than patched at each of the 6
+affected call sites, so any future screen using `MortGlassHeader`
+without explicit back-button wiring is safe by default.
+`MortBackNavigation`/`MortBackButton` extracted to a new
+`mort_back_navigation.dart` (still exported from `mort_widgets.dart`)
+to avoid a circular import between it and `mort_liquid_glass.dart`.
+
+**Design-token consistency audit (device-independent, autonomous).**
+Swept all of `lib/` for raw hex color literals and generic Material
+`Colors.*` usage outside the `MortColors` token system, and read every
+`ThemeData` surface (inputs, chips, nav bar, dialogs, sheets,
+snackbars) against the current palette. Found and fixed the only
+genuine stale/conflicting values: a job-completion-card glow using an
+old pre-token-system rose-gold hex (now `MortShadows.glow`, the
+canonical signature glow); a bottom-nav shadow that happened to match
+the current Baby Blue token by coincidence rather than reference (now
+tokenized); a danger button and a notification-count badge using raw
+`Colors.white` instead of `MortColors.godWhite`. Everything else --
+Loading/Empty/Error states, dashboard tiles, Quick Accept, MORT Spark,
+the AdMob banner widget -- was already fully tokenized. Google's and
+Apple's own sign-in button colors are the one deliberate, correct
+exception (brand-mandated, not MORT's palette). No Royal-era leftovers
+found anywhere in `lib/`.
+
+Full `flutter test` suite (419/419) and `flutter analyze` (0 issues)
+green after every commit this session; each unit committed separately,
+no destructive git operations.
+
+### Exact device-QA checklist for when the owner returns
+
+Reconnect: `adb mdns services` to discover the current wireless-debug
+endpoint (the IP:port rotates), or re-pair via **Settings -> Developer
+options -> Wireless debugging -> Pair device with pairing code** if
+mDNS comes back empty. Then, from `flutter_mort/`:
+
+```
+flutter build apk --debug \
+  --dart-define=SUPABASE_URL=<from .env.local's EXPO_PUBLIC_SUPABASE_URL> \
+  --dart-define=SUPABASE_ANON_KEY=<from .env.local's EXPO_PUBLIC_SUPABASE_ANON_KEY> \
+  --dart-define=MORT_SUPABASE_PROJECT_REF=rakjydmgwwgtdislanbt \
+  --dart-define=APPLE_AUTH_ENABLED=true \
+  --dart-define=GOOGLE_AUTH_ENABLED=true
+adb install -r build/app/outputs/flutter-apk/app-debug.apk
+```
+
+Verify, in order:
+1. Clean cold boot, zero FATAL/crash lines in logcat.
+2. Welcome screen renders with the darkened God Black background and
+   the metallic Rose Gold CTA gradient.
+3. Sign up a real test account through the full 5-step onboarding flow
+   (age -> profile -> area -> payment/guardian/interests -> rules
+   review), confirming all 6 rules checkboxes gate "Finish setup" and
+   the flow actually completes and lands on the Teen (or Adult, if
+   tested with an 18+ DOB) dashboard -- this is the one thing this
+   session could not visually confirm end-to-end on-device once the
+   phone went offline, though it is covered by an automated widget
+   test.
+4. Teen Dashboard: confirm the new "Get Set Up" checklist and
+   icon-grid quick links render correctly, not just in the simulator.
+5. Settings (and at least one sub-screen, e.g. Appearance): confirm a
+   visible back arrow is now present and functional -- this was the
+   specific bug reported this session.
+6. Job feed: confirm a card's meta-row (distance/location/schedule)
+   wraps cleanly with no overflow, including a job with several
+   transportation methods listed.
+7. Safety Center: confirm Call 911 reads as visually distinct from the
+   grouped secondary-tools icon grid below it.
+8. `PLAY_REVIEW_MODE_ENABLED=true` builds failed to get past
+   "Connecting securely" during this session for reasons not yet
+   root-caused (unrelated to the UI changes -- the same known-good
+   flag set without reviewer mode boots fine). Worth a quick retry
+   with reviewer mode next time a device is available, since it would
+   let dashboard/role screens be checked without a full manual sign-up
+   each time.
+
+## 2026-08-22 -- ANDROID_PHYSICAL_QA=PARTIAL, real device session, priority bug not reproduced, different real bug found and fixed
+
+The Galaxy A14 reconnected mid-session (wireless ADB, `adb devices -l`
+showed a real `device` state, not `unauthorized`/`offline`). Device
+baseline confirmed: `samsung SM-A146U`, Android 15 (API 35), 1080x2408
+@450dpi, 13.3GB free. `flutter devices` confirmed Flutter saw the same
+physical device.
+
+**Item 8 above, resolved**: built the real `reviewer_demo`/`closed_test`
+profile (`scripts/build-closed-test-apk.ps1`, `PLAY_REVIEW_MODE_ENABLED=
+true`, signed with the real MORT upload key, built from clean HEAD
+`04cd69a`) and installed it fresh (the phone's existing install was a
+stale local "Development"-stage sideload, not the Play build --
+confirmed via `installerPackageName=null`/`initiatingPackageName=
+com.android.shell` and the visible "Development" badge on its splash
+screen, so replacing it did not touch anything Play-related; owner
+explicitly approved the uninstall before it happened). Cold-launched,
+cleared logcat first: first Flutter frame committed ~1.0s after launch,
+by 3s the app already showed the fully-loaded "Connected securely"
+state (past tense, checkmark) with working "Enter MORT"/"Sign in"
+buttons -- confirmed stable at 11s too. Full pid-filtered logcat across
+the launch: zero FATAL EXCEPTION/AndroidRuntime/ANR/SecurityException/
+PlatformException/FlutterError/Unhandled Exception lines. The
+`FlutterSecureStorage` "Algorithm changed" migration sequence that
+appears is the expected, harmless fresh-install 0-items migration, not
+an error.
+**`PLAY_REVIEW_MODE_ANDROID_PHYSICAL=PASS_NOT_REPRODUCED`** -- exact
+build tested: `reviewer_demo`/`closed_test`, `PLAY_REVIEW_MODE_ENABLED=
+true`, version `0.9.16+107`, commit `04cd69a`, signed with the real
+upload cert (`04:42:C2:...`).
+
+**Visual/Rose Gold 2.0 spot check** (welcome + sign-in screens): warm
+near-black background, correct rose-gold gradient CTA and wordmark
+glow, baby-blue safety callout, crisp text, no clipping, no purple/blue
+remnants, good touch targets. Not a full screen-by-screen pass -- only
+the unauthenticated welcome/sign-in screens were reachable without a
+real login (see below).
+
+**A different real bug found and fixed on this pass**: the "Cancel
+Google sign-in" button (only rendered once the OAuth flow starts)
+rendered with its actual tappable bounds at `[45,2266][1035,2401]` --
+almost entirely inside the system nav bar's own reserved region
+`[0,2273][1080,2408]`, confirmed via `uiautomator dump` bounds, not
+just a screenshot guess. A tap on the visible label landed on the OS
+nav bar instead of the app (backgrounded MORT to the home screen).
+Root-caused (SafeArea inside a scrollable only reserves distance to
+scroll *into*, not a floor the unscrolled viewport respects) and fixed
+locally in `GoogleAuthSection` (auto-scrolls the button into view with
+real trailing clearance the moment it appears) after two different
+fixes to the shared `MortScreen` widget broke 3 unrelated,
+already-passing tests and were reverted rather than shipped. Re-verified
+on-device: button now at `[309,2093][771,2228]`, safely clear of the
+nav bar; tapped a real Cancel and confirmed the app returns cleanly to
+"Continue with Google" with "Google sign-in was canceled. You can try
+again." `flutter test`: 419/419 passing, matching the clean baseline
+exactly (0 regressions). Committed locally (`0758c87`); this branch has
+no upstream configured and has never been pushed, so left as a local
+checkpoint per existing convention rather than pushed unilaterally.
+
+**Google Android OAuth handoff, verified real**: tapped "Continue with
+Google" -> Chrome opened -> real `accounts.google.com` account chooser,
+correctly targeting `rakjydmgwwgtdislanbt.supabase.co`. Did not select
+an account or complete a real login -- picking one of the real Google
+accounts on this device is the owner's choice, not this session's, per
+standing policy. Backed out cleanly instead (exercising the Cancel path
+above).
+
+**Still not done, honestly**: authenticated-route verification (Teen
+Dashboard/Jobs/Safety/Messages/Profile/MORT Spark, Adult/Guardian
+screens, AdMob behavior, performance profiling) was not reached this
+pass -- it requires a real completed login, and this session does not
+inject credentials via `adb shell input text` (standing policy) or
+select a real person's Google account on the owner's behalf. Formal
+responsive/breakpoint QA and a dedicated performance pass were also not
+done this session (time went to the priority reviewer-mode
+reproduction and the Cancel-button bug it led to finding). Not called
+`PASS` for those areas -- `ANDROID_PHYSICAL_QA=PARTIAL` for this
+session: real device, real reviewer-mode reproduction attempt (didn't
+reproduce), real bug found and fixed and re-verified, but the
+authenticated surface remains unverified on this exact build.

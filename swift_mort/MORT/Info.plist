@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>$(DEVELOPMENT_LANGUAGE)</string>
+    <key>CFBundleDisplayName</key>
+    <string>MORT</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>$(MARKETING_VERSION)</string>
+    <key>CFBundleVersion</key>
+    <string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLName</key>
+            <string>com.mortapp.mobile.auth</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>mort</string>
+            </array>
+        </dict>
+    </array>
+    <key>GADApplicationIdentifier</key>
+    <string>$(MORT_ADMOB_APP_ID)</string>
+    <key>GADDelayAppMeasurementInit</key>
+    <true/>
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
+    <key>MORTAdMobBannerID</key>
+    <string>$(MORT_ADMOB_BANNER_ID)</string>
+    <key>MORTAdMobRewardedID</key>
+    <string>$(MORT_ADMOB_REWARDED_ID)</string>
+    <key>MORTAdsEnabled</key>
+    <string>$(MORT_ADS_ENABLED)</string>
+    <key>MORTRevenueCatIOSAPIKey</key>
+    <string>$(MORT_REVENUECAT_IOS_API_KEY)</string>
+    <key>MORTSupabaseAnonKey</key>
+    <string>$(MORT_SUPABASE_ANON_KEY)</string>
+    <key>MORTSupabaseURL</key>
+    <string>$(MORT_SUPABASE_URL)</string>
+    <key>MORTUseTestAds</key>
+    <string>$(MORT_USE_TEST_ADS)</string>
+    <key>NSCameraUsageDescription</key>
+    <string>MORT uses the camera when you choose to take a profile photo or work proof. Identity-document capture remains disabled until an approved future workflow is enabled.</string>
+    <key>NSFaceIDUsageDescription</key>
+    <string>MORT uses Face ID or Touch ID to protect private information on this device. It does not verify your legal identity.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>MORT uses photos you select for profile pictures and work proof. Identity-document collection is currently disabled.</string>
+    <key>NSUserTrackingUsageDescription</key>
+    <string>MORT may request permission before eligible personalized advertising. Core jobs and safety features do not require tracking.</string>
+    <key>SKAdNetworkItems</key>
+    <array>
+        <dict>
+            <key>SKAdNetworkIdentifier</key>
+            <string>cstr6suwn9.skadnetwork</string>
+        </dict>
+    </array>
+    <key>UIApplicationSupportsIndirectInputEvents</key>
+    <true/>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>remote-notification</string>
+    </array>
+    <key>UILaunchScreen</key>
+    <dict>
+        <key>UIColorName</key>
+        <string>LaunchBackground</string>
+    </dict>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+</dict>
+</plist>

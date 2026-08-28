@@ -1,0 +1,34 @@
+{
+  "@@locale": "en",
+  "appTitle": "MORT",
+  "sessionProtected": "Session protected",
+  "offlineTitle": "MORT is offline",
+  "offlineSessionPreserved": "MORT will not delete your saved session because the network is unavailable.",
+  "reconnectAndRetry": "Reconnect, then retry the secure account check.",
+  "retryAccountCheck": "Retry account check",
+  "configurationRequired": "Configuration required",
+  "secureStartupFailed": "MORT cannot start securely",
+  "publicBackendConfigurationInvalid": "The public backend configuration is missing or invalid.",
+  "installConfiguredBuild": "Install a correctly configured MORT build and try again.",
+  "refreshingSession": "Refreshing your session...",
+  "restoringSession": "Restoring your session...",
+  "startingSecurely": "Starting MORT securely...",
+  "secureStartup": "Secure startup",
+  "checkingDevice": "Checking this device before opening your account.",
+  "secureJobPinEntry": "Secure {digits}-digit job PIN entry",
+  "@secureJobPinEntry": {
+    "placeholders": { "digits": { "type": "int" } }
+  },
+  "pinDigitsEntered": "{entered} of {total} digits entered",
+  "@pinDigitsEntered": {
+    "placeholders": {
+      "entered": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "deleteLastPinDigit": "Delete last PIN digit",
+  "pinDigit": "PIN digit {digit}",
+  "@pinDigit": {
+    "placeholders": { "digit": { "type": "String" } }
+  }
+}

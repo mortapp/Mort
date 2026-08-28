@@ -1,0 +1,7 @@
+-- MIGRATION_HISTORY_COMPATIBILITY_ALIAS
+-- HOSTED_TIMESTAMP=20260820113638
+-- CANONICAL_LOCAL_MIGRATION=20260820000000_apple_identity_controls.sql
+-- SEMANTIC_SHA256=d5e6943fb89f76596d75016e2e5c8d217c0b727871d52fb0b6fe0486202680d6
+-- COMPARISON_RESULT=SEMANTICALLY_EQUIVALENT
+-- This migration intentionally contains no executable SQL. The hosted
+-- timestamp already executed the canonical migration's exact SQL semantics.

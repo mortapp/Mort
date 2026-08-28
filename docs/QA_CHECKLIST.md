@@ -1,0 +1,21 @@
+# QA Checklist
+
+- Sign up, sign in, sign out, session restore.
+- Under-13 DOB blocked.
+- Teen DOB allows teen only.
+- Adult/guardian DOB requires 18+.
+- Teen feed loads jobs from Supabase.
+- Adult verification can submit private upload path.
+- Verified adult can post a job.
+- Teen applies; duplicate application is blocked by DB unique constraint.
+- Guardian invite, accept, approve, reject, pause, resume.
+- Adult accepts/rejects, reviews proof, marks complete/disputed.
+- Chat blocks phone, email, social handles, payment tags, secrecy pressure, and off-platform coordination.
+- Report and block user.
+- Safety ping notifies guardian or queues admin event.
+- Support ticket create/list and admin resolve.
+- Notification list and mark-read.
+- Push token registration on real iPhone.
+- Private proof preview opens via signed URL.
+- Admin queues: reports, users, jobs, verification, support.
+- No real payment processing, escrow, payouts, card entry, or card storage.

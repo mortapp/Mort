@@ -1,0 +1,20 @@
+[build]
+  base = "flutter_mort"
+  command = "bash ../scripts/netlify-build.sh"
+  publish = "build/web"
+
+[build.environment]
+  FLUTTER_VERSION = "3.41.2"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(self), microphone=(), geolocation=(), payment=()"
+    X-Frame-Options = "DENY"

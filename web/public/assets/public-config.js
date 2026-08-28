@@ -1,0 +1,1 @@
+window.MORT_PUBLIC_CONFIG = Object.freeze({"supabaseUrl":"https://rakjydmgwwgtdislanbt.supabase.co","supabaseAnonKey":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJha2p5ZG1nd3dndGRpc2xhbmJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4NzExNzUsImV4cCI6MjA5NzQ0NzE3NX0.DorOgj6jdPTrPX45Vi0O1dYgx-e3zgO6_S39JDcL2Ww"});

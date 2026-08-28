@@ -1,0 +1,45 @@
+name: MORT Encrypted Metadata Backup
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 7 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  metadata-backup:
+    environment: backend-operations
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Create metadata-only snapshot
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: node scripts/backup-feature-schema.mjs
+      - name: Encrypt backup before artifact upload
+        env:
+          BACKUP_ARCHIVE_PASSPHRASE: ${{ secrets.BACKUP_ARCHIVE_PASSPHRASE }}
+        run: |
+          test -n "$BACKUP_ARCHIVE_PASSPHRASE"
+          tar -czf "$RUNNER_TEMP/mort-metadata-backup.tar.gz" backups/ supabase/migrations/ supabase/functions/ supabase/config.toml
+          openssl enc -aes-256-cbc -salt -pbkdf2 -iter 200000 -pass env:BACKUP_ARCHIVE_PASSPHRASE -in "$RUNNER_TEMP/mort-metadata-backup.tar.gz" -out "$RUNNER_TEMP/mort-metadata-backup.tar.gz.enc"
+          sha256sum "$RUNNER_TEMP/mort-metadata-backup.tar.gz.enc" > "$RUNNER_TEMP/mort-metadata-backup.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mort-encrypted-metadata-backup
+          path: |
+            ${{ runner.temp }}/mort-metadata-backup.tar.gz.enc
+            ${{ runner.temp }}/mort-metadata-backup.sha256
+          if-no-files-found: error
+          retention-days: 30

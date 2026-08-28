@@ -1,0 +1,22 @@
+{
+  "@@locale": "es",
+  "appTitle": "MORT",
+  "sessionProtected": "Sesion protegida",
+  "offlineTitle": "MORT esta sin conexion",
+  "offlineSessionPreserved": "MORT no eliminara la sesion guardada cuando la red no este disponible.",
+  "reconnectAndRetry": "Vuelve a conectarte e intenta otra vez la comprobacion segura de la cuenta.",
+  "retryAccountCheck": "Reintentar comprobacion de cuenta",
+  "configurationRequired": "Configuracion necesaria",
+  "secureStartupFailed": "MORT no puede iniciar de forma segura",
+  "publicBackendConfigurationInvalid": "La configuracion publica del servidor falta o no es valida.",
+  "installConfiguredBuild": "Instala una version de MORT configurada correctamente e intenta de nuevo.",
+  "refreshingSession": "Actualizando tu sesion...",
+  "restoringSession": "Restaurando tu sesion...",
+  "startingSecurely": "Iniciando MORT de forma segura...",
+  "secureStartup": "Inicio seguro",
+  "checkingDevice": "Comprobando este dispositivo antes de abrir tu cuenta.",
+  "secureJobPinEntry": "Entrada segura del PIN de trabajo de {digits} digitos",
+  "pinDigitsEntered": "{entered} de {total} digitos ingresados",
+  "deleteLastPinDigit": "Borrar el ultimo digito del PIN",
+  "pinDigit": "Digito {digit} del PIN"
+}

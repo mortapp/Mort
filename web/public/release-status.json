@@ -1,0 +1,24 @@
+{
+  "generatedAt": "2026-08-20T12:02:21.792Z",
+  "projectRef": "rakjydmgwwgtdislanbt",
+  "packageStatus": "built",
+  "deploymentReady": true,
+  "missingConfiguration": [],
+  "requiredRoutes": [
+    "/",
+    "/privacy/",
+    "/terms/",
+    "/terms-of-use/",
+    "/community-guidelines/",
+    "/safety/",
+    "/child-safety-standards/",
+    "/prohibited-jobs/",
+    "/payment-disputes/",
+    "/account-deletion/",
+    "/support/",
+    "/contact/",
+    "/accessibility/"
+  ],
+  "legalApprovalClaimed": false,
+  "publicDeploymentClaimed": false
+}

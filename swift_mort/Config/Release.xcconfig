@@ -1,0 +1,7 @@
+#include "Base.xcconfig"
+#include? "Secrets.xcconfig"
+
+SWIFT_COMPILATION_MODE = wholemodule
+APS_ENVIRONMENT = production
+MORT_ADS_ENABLED = NO
+MORT_USE_TEST_ADS = YES
