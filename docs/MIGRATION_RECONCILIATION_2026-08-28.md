@@ -67,7 +67,7 @@ This is the expected pre-repair set: seven verified canonical timestamp aliases 
 
 ## Authorized repair commands
 
-Status before execution: not yet executed.
+Status: executed successfully exactly once.
 
 ```powershell
 pnpm exec supabase migration repair --status applied 20260818200000 20260818210000 20260819000000 20260819000100 20260819010000 20260820000000 20260820120000
@@ -77,4 +77,35 @@ No `reverted` repair is authorized. No repair is authorized for `20260817120000`
 
 ## After repair and deployment
 
-Pending execution. This section will record the after-history hash, both post-repair dry runs, migrations actually applied, hosted verification, and final parity state.
+- Repair result: the seven listed canonical timestamps were marked `applied`; no row was reverted or deleted.
+- Hosted rows after repair: `191`
+- `HOSTED_HISTORY_AFTER_REPAIR_SHA256=aca21fee63568d95fa50a0e7d85e1249d4e75861553af01ffaf3917086163cbc`
+- Post-repair dry run: exactly `20260817120000_support_ai_account_wording_coverage_fix.sql` and `20260828023033_four_step_onboarding_v2.sql`.
+- Immediate pre-deployment dry run: exactly the same two migrations.
+- Deployment command: `pnpm exec supabase db push --include-all --yes`
+- Applied in order: `20260817120000_support_ai_account_wording_coverage_fix.sql`, then `20260828023033_four_step_onboarding_v2.sql`.
+- Hosted rows after deployment: `193`
+- `HOSTED_HISTORY_AFTER_DEPLOY_SHA256=6ad1e68c3a5c6ce38b8074afe47c1292838aae1d849d292f989fe02543a3de77`
+- Final dry run: `Remote database is up to date.`
+- Migration parity: all `193` local timestamps match hosted history.
+- Hosted database reset: none.
+- Destructive hosted data change: none.
+
+## Verification stop condition
+
+`pnpm qa:onboarding-v2` passed isolated-user creation/cleanup and reached concurrent Finish, then failed because every role currently lacks effective published required policy versions. Both Finish calls fail closed with `published_legal_acceptance_required`; no legal version was changed or bypassed.
+
+The required existing-user compatibility audit then found a release-critical contradiction:
+
+```text
+Existing profiles with onboarding_completed=true: 24
+Returned active_step=account: 19
+Returned active_step=work_preferences: 3
+Returned active_step=review: 2
+Returned completed=true: 0
+Affected non-test profiles: 7
+```
+
+The non-test missing requirements are historical username gaps, teen work-preference gaps, and unavailable current legal acceptances. No profile data was modified during this audit.
+
+Further hosted changes and the remaining regression suite stopped here. Resolving this requires an explicit product/security choice between grandfathering trusted historical completion and enforcing canonical prerequisites on historically completed profiles. Those requirements cannot both be satisfied for the seven affected non-test profiles without an approved compatibility rule.

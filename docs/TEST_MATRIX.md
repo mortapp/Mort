@@ -15,8 +15,10 @@
 | Same-payload replay / changed-payload rejection | Rollback-only backend harness | Pass |
 | Malformed completion session | Rollback-only backend harness | Denied as required |
 | Direct completion UPDATE/UPSERT guard | Rollback-only backend harness | Denied as required |
-| Authenticated PostgREST UPDATE/UPSERT | `pnpm qa:onboarding-v2` after deployment | Pending safe migration deployment |
-| Two-device resume / concurrent Finish | `pnpm qa:onboarding-v2` after deployment | Pending safe migration deployment |
+| Authenticated PostgREST UPDATE/UPSERT | Deployed `pnpm qa:onboarding-v2` | Denied as required before suite stop |
+| Two-device resume / concurrent Finish | Deployed `pnpm qa:onboarding-v2` | Resume passed; Finish failed closed on unavailable legal versions, so successful completion concurrency remains unverified |
+| Existing completed-user compatibility | Hosted canonical evaluator audit | Fail: 24 historical completed profiles reopen; 7 are non-test profiles |
+| Migration reconciliation parity | `pnpm qa:migration-reconciliation-parity` plus final CLI dry run | Pass: 193 local/hosted timestamps match; remote up to date |
 | Current legal versions | Rollback-only backend harness | Completion correctly blocked: 10 required teen policy versions unpublished |
 | Full Flutter suite | `flutter test` | Pass: 424 tests, 2 skipped |
 | Flutter analyzer | `flutter analyze --no-pub` | Pass: no issues found |
