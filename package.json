@@ -14,6 +14,7 @@
     "lint": "expo lint",
     "qa:smoke": "node scripts/qa-smoke.mjs",
     "qa:rls": "node scripts/qa-rls.mjs",
+    "qa:migration-reconciliation-parity": "node scripts/qa-migration-reconciliation-parity.mjs",
     "qa:onboarding-v2": "node scripts/qa-four-step-onboarding-v2.mjs",
     "qa:onboarding-v2:transaction": "node scripts/qa-four-step-onboarding-v2-transaction.mjs",
     "qa:production-client": "node scripts/qa-production-client-contract.mjs",

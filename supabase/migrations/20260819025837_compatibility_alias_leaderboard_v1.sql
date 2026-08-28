@@ -1,0 +1,7 @@
+-- MIGRATION_HISTORY_COMPATIBILITY_ALIAS
+-- HOSTED_TIMESTAMP=20260819025837
+-- CANONICAL_LOCAL_MIGRATION=20260819010000_leaderboard_v1.sql
+-- SEMANTIC_SHA256=b4c843a01d79f3ed2e4513ec23d0580674505c632dc85a8fa90038bfc9dedac4
+-- COMPARISON_RESULT=SEMANTICALLY_EQUIVALENT
+-- This migration intentionally contains no executable SQL. The hosted
+-- timestamp already executed the canonical migration's exact SQL semantics.

@@ -1,0 +1,7 @@
+-- MIGRATION_HISTORY_COMPATIBILITY_ALIAS
+-- HOSTED_TIMESTAMP=20260820122024
+-- CANONICAL_LOCAL_MIGRATION=20260820120000_mort_spark_rewarded_ads.sql
+-- SEMANTIC_SHA256=b99c7b0c6eb615a2234711c801a2ed5c749a0aabc0a4d71c37312046caa900c0
+-- COMPARISON_RESULT=SEMANTICALLY_EQUIVALENT
+-- This migration intentionally contains no executable SQL. The hosted
+-- timestamp already executed the canonical migration's exact SQL semantics.
