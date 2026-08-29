@@ -60,7 +60,8 @@ class _PilotEligibilityScreenState
         const MortHeader(
           eyebrow: 'Marketplace access',
           title: 'Account eligibility',
-          subtitle: 'Approved organization support and hosted server rules control protected marketplace access.',
+          subtitle:
+              'Approved organization support and hosted server rules control protected marketplace access.',
         ),
         FutureBuilder<MissionPilotDashboard>(
           future: _future,
@@ -194,7 +195,8 @@ class PartnerInvitationScreen extends StatelessWidget {
         const MortHeader(
           eyebrow: 'Invitation only',
           title: 'Join through an approved partner',
-          subtitle: 'Marketplace access requires organization-supported enrollment and server approval.',
+          subtitle:
+              'Marketplace access requires organization-supported enrollment and server approval.',
         ),
         MortCard(
           child: Column(
@@ -220,7 +222,8 @@ class PartnerInvitationScreen extends StatelessWidget {
         ),
         const SizedBox(height: MortSpacing.md),
         const MortSafetyBanner(
-          message: 'A school, program, shelter, or partner relationship does not establish government identity. MORT keeps those trust labels separate.',
+          message:
+              'A school, program, shelter, or partner relationship does not establish government identity. MORT keeps those trust labels separate.',
         ),
       ],
     );
@@ -237,7 +240,8 @@ class PartnerAffiliationScreen extends ConsumerWidget {
         const MortHeader(
           eyebrow: 'Private trust signals',
           title: 'Partner affiliation',
-          subtitle: 'See exactly what was attested and what the attestation did not establish.',
+          subtitle:
+              'See exactly what was attested and what the attestation did not establish.',
         ),
         FutureBuilder<List<PartnerAttestation>>(
           future: ref
@@ -257,7 +261,8 @@ class PartnerAffiliationScreen extends ConsumerWidget {
             if (rows.isEmpty) {
               return const MortEmptyState(
                 title: 'No partner attestations',
-                message: 'No approved partner fact has been recorded for this account.',
+                message:
+                    'No approved partner fact has been recorded for this account.',
               );
             }
             return Column(
@@ -290,7 +295,8 @@ class PartnerAffiliationScreen extends ConsumerWidget {
         ),
         const SizedBox(height: MortSpacing.md),
         const MortSafetyBanner(
-          message: 'School or program affiliation never grants a Government identity verified label.',
+          message:
+              'School or program affiliation never grants a Government identity verified label.',
         ),
       ],
     );
@@ -364,7 +370,8 @@ class _DiscreetModeScreenState extends ConsumerState<DiscreetModeScreen> {
         const MortHeader(
           eyebrow: 'Privacy',
           title: 'Discreet Mode',
-          subtitle: 'Hide sensitive notification content and keep private resource activity out of public surfaces.',
+          subtitle:
+              'Hide sensitive notification content and keep private resource activity out of public surfaces.',
         ),
         if (_loading)
           const MortSkeletonCard()
@@ -526,7 +533,8 @@ class _SupportCircleScreenState extends ConsumerState<SupportCircleScreen> {
         const MortHeader(
           eyebrow: 'Teen controlled',
           title: 'Optional Support Circle',
-          subtitle: 'Choose whether trusted adults receive narrowly granted safety alerts. Guardian Mode stays optional.',
+          subtitle:
+              'Choose whether trusted adults receive narrowly granted safety alerts. Guardian Mode stays optional.',
         ),
         if (_loading)
           const MortSkeletonCard()
@@ -564,7 +572,8 @@ class _SupportCircleScreenState extends ConsumerState<SupportCircleScreen> {
         ),
         const SizedBox(height: MortSpacing.md),
         const MortSafetyBanner(
-          message: 'Members cannot read unrestricted messages, control earnings, impersonate the teen, or access identity documents.',
+          message:
+              'Members cannot read unrestricted messages, control earnings, impersonate the teen, or access identity documents.',
         ),
       ],
     );
@@ -642,7 +651,8 @@ class _EarningsGoalsScreenState extends ConsumerState<EarningsGoalsScreen> {
         const MortHeader(
           eyebrow: 'Private by default',
           title: 'Earnings and goals',
-          subtitle: 'Track self-recorded work history and plan savings without exposing goals publicly.',
+          subtitle:
+              'Track self-recorded work history and plan savings without exposing goals publicly.',
         ),
         FutureBuilder<Map<String, dynamic>>(
           future: _summary,
@@ -802,10 +812,12 @@ class _FutureIndependenceScreenState
         const MortHeader(
           eyebrow: 'Lawful adulthood preparation',
           title: 'Future Independence Plan',
-          subtitle: 'Plan education, employment, savings, transportation, references, and trusted support.',
+          subtitle:
+              'Plan education, employment, savings, transportation, references, and trusted support.',
         ),
         const MortSafetyBanner(
-          message: 'MORT does not provide instructions for minors to evade lawful protections or secretly run away. For immediate danger, contact emergency services or a qualified crisis resource.',
+          message:
+              'MORT does not provide instructions for minors to evade lawful protections or secretly run away. For immediate danger, contact emergency services or a qualified crisis resource.',
         ),
         const SizedBox(height: MortSpacing.md),
         MortTextArea(
@@ -861,10 +873,12 @@ class ResourceDirectoryScreen extends ConsumerWidget {
         const MortHeader(
           eyebrow: 'Private use',
           title: 'Reviewed resources',
-          subtitle: 'MORT lists official or reviewed sources and does not invent availability claims.',
+          subtitle:
+              'MORT lists official or reviewed sources and does not invent availability claims.',
         ),
         const MortSafetyBanner(
-          message: 'Confirm services directly. Listings do not replace emergency services, legal counsel, healthcare, or qualified crisis support.',
+          message:
+              'Confirm services directly. Listings do not replace emergency services, legal counsel, healthcare, or qualified crisis support.',
         ),
         const SizedBox(height: MortSpacing.md),
         FutureBuilder<List<ResourceDirectoryEntry>>(
@@ -997,7 +1011,8 @@ class PilotJobSafetyScreen extends StatelessWidget {
         const MortHeader(
           eyebrow: 'Server enforced',
           title: 'Job safety',
-          subtitle: 'MORT controls job eligibility. Browser controls cannot grant marketplace access.',
+          subtitle:
+              'MORT controls job eligibility. Browser controls cannot grant marketplace access.',
         ),
         _BulletCard(
           title: 'Initially allowed settings',
@@ -1014,7 +1029,8 @@ class PilotJobSafetyScreen extends StatelessWidget {
         ),
         const SizedBox(height: MortSpacing.md),
         const MortSafetyBanner(
-          message: 'A safety cancellation does not automatically damage a teen reputation. Report, block, and Safety Ping remain free.',
+          message:
+              'A safety cancellation does not automatically damage a teen reputation. Report, block, and Safety Ping remain free.',
         ),
       ],
     );
@@ -1031,10 +1047,12 @@ class VerificationExplanationScreen extends StatelessWidget {
           'The user controlled a confirmation link sent to that email.',
       'Phone ownership confirmed':
           'The user controlled a confirmation challenge sent to that phone.',
-      'School affiliation confirmed': 'An approved school signal supports affiliation, not government identity.',
+      'School affiliation confirmed':
+          'An approved school signal supports affiliation, not government identity.',
       'Partner organization confirmed':
           'An authorized organization relationship was recorded.',
-      'MORT document reviewed': 'A reviewer inspected evidence. Authenticity and legal identity are not automatically established.',
+      'MORT document reviewed':
+          'A reviewer inspected evidence. Authenticity and legal identity are not automatically established.',
       'Age evidence reviewed':
           'Evidence supported an age decision under the documented standard.',
       'Business registration matched':
@@ -1047,7 +1065,8 @@ class VerificationExplanationScreen extends StatelessWidget {
         const MortHeader(
           eyebrow: 'Truthful labels',
           title: 'What verification means',
-          subtitle: 'MORT displays precise trust signals instead of one vague Verified badge.',
+          subtitle:
+              'MORT displays precise trust signals instead of one vague Verified badge.',
         ),
         for (final item in labels.entries) ...[
           MortCard(
@@ -1079,7 +1098,8 @@ class DocumentReviewStatusScreen extends ConsumerWidget {
         const MortHeader(
           eyebrow: 'Collection disabled',
           title: 'Document review status',
-          subtitle: 'Real identity-document collection stays off until every server-owned operational gate passes.',
+          subtitle:
+              'Real identity-document collection stays off until every server-owned operational gate passes.',
         ),
         FutureBuilder<DocumentCollectionReadiness>(
           future: repository.documentReadiness(),
@@ -1127,7 +1147,8 @@ class DocumentReviewStatusScreen extends ConsumerWidget {
             if (cases.isEmpty) {
               return const MortEmptyState(
                 title: 'No document review cases',
-                message: 'MORT is not collecting real identity documents in this foundation phase.',
+                message:
+                    'MORT is not collecting real identity documents in this foundation phase.',
               );
             }
             return Column(

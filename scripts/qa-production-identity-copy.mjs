@@ -6,7 +6,9 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 
 const scannedRoots = [
   "flutter_mort/lib/features",
+  "flutter_mort/lib/core/errors",
   "flutter_mort/lib/core/routing",
+  "flutter_mort/lib/core/widgets",
   "flutter_mort/assets",
   "app",
   "components",
@@ -19,6 +21,7 @@ const scannedFiles = [
   "docs/play/MORT_PLAY_RELEASE_NOTES.txt",
   "docs/play/MORT_PLAY_SHORT_DESCRIPTION.txt",
   "flutter_mort/lib/data/repositories/profile_repository.dart",
+  "flutter_mort/lib/data/models/job.dart",
   "scripts/build-public-legal-site.mjs",
   "app.config.ts",
 ];
@@ -51,16 +54,23 @@ const forbidden = [
   ["free pilot", /\bfree\s+pilot\b/giu],
   ["pilot identity", /\bpilot\s+(?:job|user|marketplace|participant|guardian|notification|safety|rules?|release|access|review)\b/giu],
   ["pilot route/policy", /\bpilot\s+(?:route|policy|approval|eligibility|enrollment|workflow)\b/giu],
+  ["standalone pilot copy", /(['"])[^'"\n]*\bpilot\b(?![-_/])[^'"\n]*\1/giu],
   ["during/after pilot", /\b(?:during|after)\s+the\s+pilot\b/giu],
   ["approved participants", /\bapproved\s+participants(?:\s+only)?\b/giu],
   ["test participant", /\btest\s+participant\b/giu],
   ["tester-only", /\btester[- ]only\b/giu],
   ["test build/application/version", /\btest(?:ing)?\s+(?:build|application|version)\b/giu],
+  ["test account/user", /\btest\s+(?:account|user)\b/giu],
+  ["minor tester", /\bminor\s+tester\b/giu],
+  ["temporary pilot", /\btemporary\s+pilot\b/giu],
   ["server-controlled access", /\bserver[- ]controlled\s+access\b/giu],
   ["public-release approved", /\bpublic[- ]release\s+approved\b/giu],
   ["public marketplace closed", /\bpublic\s+marketplace(?:\s+access\s+remains)?\s+closed\b/giu],
   ["real ID collection disabled", /\breal\s+id\s+collection\s+disabled\b/giu],
   ["payments disabled", /\bpayments\s+disabled\b/giu],
+  ["identity verification disabled", /\bidentity\s+verification\s+disabled\b/giu],
+  ["provider disabled", /\bprovider\s+disabled\b/giu],
+  ["production unavailable", /\bproduction\s+unavailable\b/giu],
 ];
 
 async function exists(path) {
@@ -117,10 +127,11 @@ const appConfigSource = await readFile(
   resolve(root, "flutter_mort/lib/core/config/app_config.dart"),
   "utf8",
 );
-if (/['"]Closed Pilot['"]/u.test(appConfigSource)) {
+const forbiddenReleaseLabel = /['"](?:Closed Pilot|Production Pilot|Internal Test)['"]/u;
+if (forbiddenReleaseLabel.test(appConfigSource)) {
   findings.push({
     file: "flutter_mort/lib/core/config/app_config.dart",
-    line: appConfigSource.slice(0, appConfigSource.search(/['"]Closed Pilot['"]/u)).split(/\r?\n/u).length,
+    line: appConfigSource.slice(0, appConfigSource.search(forbiddenReleaseLabel)).split(/\r?\n/u).length,
     label: "user-facing release label",
   });
 }

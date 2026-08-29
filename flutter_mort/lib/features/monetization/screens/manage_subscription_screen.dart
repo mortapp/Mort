@@ -18,7 +18,8 @@ class ManageSubscriptionScreen extends StatelessWidget {
               'Subscriptions and in-app purchases are not available right now.',
         ),
         const MortSafetyBanner(
-          message: 'MORT does not process, hold, guarantee, or escrow job payments. Job payment preferences are separate from app-store purchases.',
+          message:
+              'MORT does not process, hold, guarantee, or escrow job payments. Job payment preferences are separate from app-store purchases.',
         ),
         const SizedBox(height: MortSpacing.md),
         MortButton(

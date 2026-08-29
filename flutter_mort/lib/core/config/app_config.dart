@@ -161,13 +161,13 @@ class AppConfig {
   static bool get hasKnownReleaseStage =>
       supportedReleaseStages.contains(releaseStage);
   static String get stageName => switch (releaseStage) {
-    'internal_test' => 'Internal Test',
+    'internal_test' => 'Debug',
     'closed_test' => 'MORT',
-    'production_pilot' => 'Production Pilot',
-    'production_public' => 'Public Marketplace',
+    'production_pilot' || 'production_public' => 'MORT',
     _ => 'Development',
   };
-  static bool get showReleaseStageLabel => releaseStage != 'production_public';
+  static bool get showReleaseStageLabel => kDebugMode;
+  static bool get showReleaseDiagnostics => kDebugMode;
   static const iOSBundleId = 'com.mortapp.mobile';
   static const androidPackage = 'com.mortapp.mobile';
   static const expectedNativeAuthRedirectUrl =

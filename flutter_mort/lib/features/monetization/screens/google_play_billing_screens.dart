@@ -46,7 +46,8 @@ class _PurchasesDisabledScreen extends StatelessWidget {
       MortHeader(
         eyebrow: 'Free experience',
         title: 'Purchases are not offered',
-        subtitle: 'MORT jobs, applications, messaging, reports, blocking, Safety Ping, and basic Guardian Mode remain available without an upgrade.',
+        subtitle:
+            'MORT jobs, applications, messaging, reports, blocking, Safety Ping, and basic Guardian Mode remain available without an upgrade.',
       ),
       MortCard(
         child: Text(

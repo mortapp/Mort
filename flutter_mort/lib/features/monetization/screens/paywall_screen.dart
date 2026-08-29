@@ -16,7 +16,8 @@ class RevenueCatPaywallScreen extends ConsumerWidget {
     super.key,
     this.placement = 'main',
     this.title = 'Optional MORT perks',
-    this.subtitle = 'The free experience remains available. Optional purchases are not available right now.',
+    this.subtitle =
+        'The free experience remains available. Optional purchases are not available right now.',
   });
 
   final String placement;
@@ -38,7 +39,8 @@ class RevenueCatPaywallScreen extends ConsumerWidget {
         _PaywallValueCard(placement: placement),
         const SizedBox(height: MortSpacing.md),
         const MortSafetyBanner(
-          message: 'Purchases and paid subscriptions are disabled for this release. No safety, applying, messaging, reporting, blocking, or basic Guardian Mode feature requires payment.',
+          message:
+              'Purchases and paid subscriptions are disabled for this release. No safety, applying, messaging, reporting, blocking, or basic Guardian Mode feature requires payment.',
         ),
         if (placement == 'username-change') ...[
           const SizedBox(height: MortSpacing.md),

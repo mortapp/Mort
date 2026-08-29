@@ -401,10 +401,12 @@ class ProfileRepository extends RepositoryBase {
 
   String _profileErrorMessage(String code) {
     return switch (code) {
-      'profile_conflict_detected' => 'Your profile changed in another session. Refresh, review the latest version, and save again.',
+      'profile_conflict_detected' =>
+        'Your profile changed in another session. Refresh, review the latest version, and save again.',
       'protected_or_unknown_profile_field' =>
         'That profile field is controlled by MORT and cannot be changed here.',
-      'role_immutable' || 'dob_immutable' => 'Account role and date of birth cannot be changed from profile settings. Contact support if they are incorrect.',
+      'role_immutable' || 'dob_immutable' =>
+        'Account role and date of birth cannot be changed from profile settings. Contact support if they are incorrect.',
       'under_13_not_eligible' =>
         'MORT is available only to users age 13 and older.',
       'display_name_invalid' =>
@@ -413,7 +415,8 @@ class ProfileRepository extends RepositoryBase {
         'Use 3-24 lowercase letters, numbers, or underscores.',
       'username_taken' =>
         'That username is already in use. Choose another username.',
-      'username_change_unavailable' => 'That username change is not available. Keep your current username or contact support.',
+      'username_change_unavailable' =>
+        'That username change is not available. Keep your current username or contact support.',
       'dob_invalid' ||
       'future_dob_rejected' ||
       'dob_out_of_range' => 'Enter a valid date of birth.',
@@ -427,7 +430,8 @@ class ProfileRepository extends RepositoryBase {
       'bio_invalid' => 'Keep the bio under 500 characters.',
       'availability_invalid' =>
         'Keep availability or scheduling preferences under 240 characters.',
-      'approximate_area_invalid' => 'Keep the approximate area under 120 characters and do not enter an exact address.',
+      'approximate_area_invalid' =>
+        'Keep the approximate area under 120 characters and do not enter an exact address.',
       'goals_invalid' => 'Keep goals under 500 characters.',
       'preferred_job_categories_invalid' =>
         'Choose up to 12 job categories using 2-50 characters each.',
@@ -435,9 +439,12 @@ class ProfileRepository extends RepositoryBase {
         'Choose whether you are posting as an individual or business.',
       'business_name_invalid' =>
         'Enter a business name between 2 and 120 characters.',
-      'profile_setup_request_payload_mismatch' => 'This saved request no longer matches the form. Close this screen, reopen it, and try again.',
-      'onboarding_already_completed' => 'This account already finished setup. Reopen Profile from Settings and save there.',
-      'profile_setup_failed' => 'MORT could not save the profile consistently. Your edits are still on this device; retry when connected.',
+      'profile_setup_request_payload_mismatch' =>
+        'This saved request no longer matches the form. Close this screen, reopen it, and try again.',
+      'onboarding_already_completed' =>
+        'This account already finished setup. Reopen Profile from Settings and save there.',
+      'profile_setup_failed' =>
+        'MORT could not save the profile consistently. Your edits are still on this device; retry when connected.',
       'profile_not_found' =>
         'Finish account setup before editing your profile.',
       'transportation_methods_invalid' =>
@@ -452,8 +459,10 @@ class ProfileRepository extends RepositoryBase {
         'Transportation matching preferences are available for teen profiles.',
       'onboarding_steps_incomplete' =>
         'Finish every required setup step before completing onboarding.',
-      'onboarding_revision_conflict' => 'Your setup changed in another session. Reload the latest saved progress before continuing.',
-      'onboarding_request_payload_mismatch' => 'This retry no longer matches the original save. Reload your saved progress and try again.',
+      'onboarding_revision_conflict' =>
+        'Your setup changed in another session. Reload the latest saved progress before continuing.',
+      'onboarding_request_payload_mismatch' =>
+        'This retry no longer matches the original save. Reload your saved progress and try again.',
       'onboarding_account_required' =>
         'Finish Your account before completing setup.',
       'onboarding_work_preferences_required' =>

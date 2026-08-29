@@ -396,7 +396,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         const FeatureScaffoldScreen(
           eyebrow: 'Least privilege',
           title: 'Restricted safety queues',
-          description: 'Identity, child-safety, incident, preservation, and lawful-request records are separated by specialized backend roles.',
+          description:
+              'Identity, child-safety, incident, preservation, and lawful-request records are separated by specialized backend roles.',
           actions: [
             MortAction(
               label: 'Account trust review',
@@ -511,8 +512,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         const AdminQueueScreen(
           title: 'Identity verification review',
           table: 'identity_verifications',
-          subtitle: 'Only verification reviewers and senior safety moderators can read this queue. Raw evidence requires a separate logged grant.',
-          orFilter: 'status.eq.verification_pending,status.eq.manual_review,status.eq.additional_information_required,status.eq.appeal_pending',
+          subtitle:
+              'Only verification reviewers and senior safety moderators can read this queue. Raw evidence requires a separate logged grant.',
+          orFilter:
+              'status.eq.verification_pending,status.eq.manual_review,status.eq.additional_information_required,status.eq.appeal_pending',
           detailRoutePrefix: '/admin/verifications',
         ),
         role: UserRole.admin,
@@ -595,7 +598,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         const AdminQueueScreen(
           title: 'Sexual-safety reports',
           table: 'safety_incidents',
-          orFilter: 'category.eq.sexual_harassment,category.eq.sexual_conduct,category.eq.inappropriate_touching,category.eq.inappropriate_images',
+          orFilter:
+              'category.eq.sexual_harassment,category.eq.sexual_conduct,category.eq.inappropriate_touching,category.eq.inappropriate_images',
           sensitiveAction: AdminSensitiveQueueAction.incident,
         ),
         role: UserRole.admin,
@@ -605,7 +609,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         const AdminQueueScreen(
           title: 'Grooming signals',
           table: 'safety_incidents',
-          orFilter: 'category.eq.child_safety_concern,category.eq.off_platform_pressure,category.eq.personal_information_request',
+          orFilter:
+              'category.eq.child_safety_concern,category.eq.off_platform_pressure,category.eq.personal_information_request',
           sensitiveAction: AdminSensitiveQueueAction.incident,
         ),
         role: UserRole.admin,
@@ -625,7 +630,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         const AdminQueueScreen(
           title: 'Threats and violence',
           table: 'safety_incidents',
-          orFilter: 'category.eq.threats,category.eq.assault,category.eq.attempted_assault,category.eq.weapons',
+          orFilter:
+              'category.eq.threats,category.eq.assault,category.eq.attempted_assault,category.eq.weapons',
           sensitiveAction: AdminSensitiveQueueAction.incident,
         ),
         role: UserRole.admin,
@@ -645,7 +651,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         const AdminQueueScreen(
           title: 'Account sharing and impersonation',
           table: 'safety_incidents',
-          orFilter: 'category.eq.account_sharing,category.eq.impersonation,category.eq.fake_document',
+          orFilter:
+              'category.eq.account_sharing,category.eq.impersonation,category.eq.fake_document',
           sensitiveAction: AdminSensitiveQueueAction.incident,
         ),
         role: UserRole.admin,
@@ -655,7 +662,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         const AdminQueueScreen(
           title: 'Evidence preservation',
           table: 'safety_incidents',
-          orFilter: 'legal_hold.eq.true,preservation_status.eq.preserve_relevant_records',
+          orFilter:
+              'legal_hold.eq.true,preservation_status.eq.preserve_relevant_records',
           sensitiveAction: AdminSensitiveQueueAction.incident,
         ),
         role: UserRole.admin,
@@ -665,7 +673,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         const AdminQueueScreen(
           title: 'Lawful requests',
           table: 'incident_law_enforcement_requests',
-          subtitle: 'Visible only to the specialized legal-request reviewer role. This is not a legal approval workflow.',
+          subtitle:
+              'Visible only to the specialized legal-request reviewer role. This is not a legal approval workflow.',
         ),
         role: UserRole.admin,
       ),
@@ -856,10 +865,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         const DeviceSecuritySettingsScreen(),
       ),
       _guarded('/settings/native-permissions', const NativePermissionsScreen()),
-      _guarded(
-        '/settings/release-diagnostics',
-        const ReleaseDiagnosticsScreen(),
-      ),
+      if (AppConfig.showReleaseDiagnostics)
+        _guarded(
+          '/settings/release-diagnostics',
+          const ReleaseDiagnosticsScreen(),
+        ),
       _guarded('/settings/passkeys', const PasskeySettingsScreen()),
       _guarded(
         '/settings/school-affiliation',
@@ -1245,7 +1255,8 @@ class GuardedRoute extends ConsumerWidget {
         if (runtimeStatus.hasError) {
           return MortErrorStateScreen(
             title: 'Safety controls unavailable',
-            message: 'MORT could not verify its server safety controls. Check your connection and retry.',
+            message:
+                'MORT could not verify its server safety controls. Check your connection and retry.',
           );
         }
         if (runtimeStatus.isLoading) return const MortLoading();
@@ -1290,7 +1301,8 @@ Widget _academy() {
   return const FeatureScaffoldScreen(
     eyebrow: 'Hustle Academy',
     title: 'Learn safe earning',
-    description: 'Safety basics, proposals, scams, payment MVP, teen-safe jobs, and unsafe-situation guidance.',
+    description:
+        'Safety basics, proposals, scams, payment MVP, teen-safe jobs, and unsafe-situation guidance.',
     children: [
       FeatureChecklist(
         items: [
@@ -1308,7 +1320,8 @@ Widget _legalIndex() {
   return const FeatureScaffoldScreen(
     eyebrow: 'Legal',
     title: 'Disclosures and rules',
-    description: 'Review MORT rules, privacy practices, safety standards, and current disclosures. Independent legal and teen-safety review is still required before broader release.',
+    description:
+        'Review MORT rules, privacy practices, safety standards, and current disclosures. Independent legal and teen-safety review is still required before broader release.',
     actions: [
       MortAction(label: 'Terms', icon: Icons.article, route: '/legal/terms'),
       MortAction(

@@ -50,8 +50,34 @@ const status = existsSync(statusPath)
   : { deploymentReady: false, missingConfiguration: ['unknown'] };
 const publicConfigPath = resolve(output, 'assets', 'public-config.js');
 if (!existsSync(publicConfigPath)) failures.push('public-config.js is missing');
-if (existsSync(publicConfigPath) && /service_role|SUPABASE_SERVICE_ROLE_KEY/i.test(readFileSync(publicConfigPath, 'utf8'))) {
-  failures.push('public-config.js contains a privileged-key marker');
+if (existsSync(publicConfigPath)) {
+  const source = readFileSync(publicConfigPath, 'utf8');
+  if (/service_role|SUPABASE_SERVICE_ROLE_KEY/i.test(source)) {
+    failures.push('public-config.js contains a privileged-key marker');
+  }
+  const match = source.match(/Object\.freeze\((\{.*\})\);/);
+  if (!match) {
+    failures.push('public-config.js is malformed');
+  } else {
+    try {
+      const config = JSON.parse(match[1]);
+      if (config.supabaseUrl !== 'https://rakjydmgwwgtdislanbt.supabase.co') {
+        failures.push('public-config.js points to the wrong Supabase project');
+      }
+      if (!config.supabaseAnonKey) {
+        failures.push('public-config.js is missing the Supabase anon key');
+      } else {
+        const payload = JSON.parse(
+          Buffer.from(config.supabaseAnonKey.split('.')[1], 'base64url').toString('utf8'),
+        );
+        if (payload.role !== 'anon' || payload.ref !== 'rakjydmgwwgtdislanbt') {
+          failures.push('public-config.js does not contain the expected anon key');
+        }
+      }
+    } catch {
+      failures.push('public-config.js contains an invalid public configuration');
+    }
+  }
 }
 
 const deletionScriptPath = resolve(output, 'assets', 'account-deletion.js');

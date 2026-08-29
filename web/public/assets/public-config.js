@@ -1,1 +1,1 @@
-window.MORT_PUBLIC_CONFIG = Object.freeze({"supabaseUrl":"https://rakjydmgwwgtdislanbt.supabase.co","supabaseAnonKey":""});
+window.MORT_PUBLIC_CONFIG = Object.freeze({"supabaseUrl":"https://rakjydmgwwgtdislanbt.supabase.co","supabaseAnonKey":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYXNlIiwicmVmIjoicmFranlkbWd3d2d0ZGlzbGFuYnQiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc4MTg3MTE3NSwiZXhwIjoyMDk3NDQ3MTc1fQ.DorOgj6jdPTrPX45Vi0O1dYgx-e3zgO6_S39JDcL2Ww"});

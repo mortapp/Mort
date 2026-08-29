@@ -72,12 +72,14 @@ class SplashScreen extends ConsumerWidget {
         Text(
           AppConfig.slogan,
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyLarge
-              ?.copyWith(color: MortColors.textSoft),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: MortColors.textSoft),
         ),
         const SizedBox(height: MortSpacing.xl),
         const MortSafetyBanner(
-          message: 'Real local work, protected messages, PIN check-in, and free safety tools.',
+          message:
+              'Real local work, protected messages, PIN check-in, and free safety tools.',
         ),
         const SizedBox(height: MortSpacing.xl),
         MortButton(
@@ -190,7 +192,8 @@ class WelcomeScreen extends StatelessWidget {
         const MortHeader(
           eyebrow: 'Earn nearby. Move smart.',
           title: 'Welcome to MORT',
-          subtitle: 'Safe neighborhood jobs for teens, supported by adults, guardians, and accountable moderation.',
+          subtitle:
+              'Safe neighborhood jobs for teens, supported by adults, guardians, and accountable moderation.',
         ),
         const _WelcomeFeature(
           icon: Icons.schedule_rounded,
@@ -201,13 +204,15 @@ class WelcomeScreen extends StatelessWidget {
         const _WelcomeFeature(
           icon: Icons.shield_outlined,
           title: 'Safety stays free',
-          body: 'Report, block, Safety Ping, and core Guardian Mode are never paywalled.',
+          body:
+              'Report, block, Safety Ping, and core Guardian Mode are never paywalled.',
         ),
         const SizedBox(height: MortSpacing.sm),
         const _WelcomeFeature(
           icon: Icons.pin_outlined,
           title: 'Verified job handoff',
-          body: 'Separate secure start and finish PINs protect the work timeline.',
+          body:
+              'Separate secure start and finish PINs protect the work timeline.',
         ),
         const SizedBox(height: MortSpacing.lg),
         Center(
@@ -235,11 +240,13 @@ class SetupRequiredScreen extends StatelessWidget {
         MortHeader(
           eyebrow: 'Service unavailable',
           title: 'MORT cannot connect right now',
-          subtitle: 'Close and reopen the app, then try again. Contact MORT Support if the problem continues.',
+          subtitle:
+              'Close and reopen the app, then try again. Contact MORT Support if the problem continues.',
         ),
         MortErrorState(
           title: 'Connection required',
-          message: 'Sign-in and account features are unavailable until MORT reconnects securely.',
+          message:
+              'Sign-in and account features are unavailable until MORT reconnects securely.',
         ),
       ],
     );
@@ -256,10 +263,12 @@ class MaintenanceModeScreen extends ConsumerWidget {
         const MortHeader(
           eyebrow: 'Temporary maintenance',
           title: 'MORT is paused safely',
-          subtitle: 'Marketplace and account actions are temporarily unavailable while safety or reliability work is completed.',
+          subtitle:
+              'Marketplace and account actions are temporarily unavailable while safety or reliability work is completed.',
         ),
         const MortSafetyBanner(
-          message: 'Do not retry job, payment, or upload actions repeatedly. Existing provider events can still reconcile on the server.',
+          message:
+              'Do not retry job, payment, or upload actions repeatedly. Existing provider events can still reconcile on the server.',
         ),
         const SizedBox(height: MortSpacing.md),
         MortButton(
@@ -325,7 +334,8 @@ class AccountStatusScreen extends ConsumerWidget {
               MortHeader(
                 eyebrow: _statusLabel(profile.accountStatus),
                 title: 'Account restricted',
-                subtitle: 'This account cannot continue into MORT right now. Contact support for next steps.',
+                subtitle:
+                    'This account cannot continue into MORT right now. Contact support for next steps.',
               ),
               const MortActionRow(
                 actions: [
@@ -367,7 +377,8 @@ class AccountStatusScreen extends ConsumerWidget {
             if (!profile.isActive)
               const MortErrorState(
                 title: 'Account restricted',
-                message: 'This account is suspended or banned. Use support for next steps.',
+                message:
+                    'This account is suspended or banned. Use support for next steps.',
               )
             else
               MortButton(
@@ -440,7 +451,8 @@ class _AccountBanAppealCardState extends ConsumerState<_AccountBanAppealCard> {
           const SizedBox(height: MortSpacing.sm),
           if (_submitted)
             const MortSafetyBanner(
-              message: 'Your appeal is queued. MORT does not promise 24/7 review coverage.',
+              message:
+                  'Your appeal is queued. MORT does not promise 24/7 review coverage.',
             )
           else ...[
             MortTextArea(
@@ -474,11 +486,10 @@ class _ReleaseModeCard extends StatelessWidget {
     return status.when(
       loading: () => const MortSkeletonCard(),
       error: (_, _) => const MortSafetyBanner(
-        message: 'Marketplace availability cannot be confirmed right now. Try again before posting or accepting work.',
+        message:
+            'Marketplace availability cannot be confirmed right now. Try again before posting or accepting work.',
       ),
       data: (data) {
-        final release = data['release_mode']?.toString() ?? '';
-        final marketplace = data['marketplace_mode']?.toString() ?? '';
         final publicEnabled = data['public_marketplace_enabled'] == true;
         final documentsEnabled = data['real_document_collection'] == true;
         final maintenance = data['maintenance_mode'] == true;
@@ -505,8 +516,6 @@ class _ReleaseModeCard extends StatelessWidget {
                 spacing: MortSpacing.xs,
                 runSpacing: MortSpacing.xs,
                 children: [
-                  MortBadge(label: _statusLabel(release)),
-                  MortBadge(label: _statusLabel(marketplace)),
                   MortBadge(
                     label: publicEnabled
                         ? 'Public marketplace enabled'
@@ -553,11 +562,15 @@ class _ReleaseModeCard extends StatelessWidget {
 
 String _statusLabel(String value) {
   final clean = value.trim().replaceAll('_', ' ');
-  if (clean.isEmpty) return 'Not available';
-  if (clean.startsWith('closed ')) {
-    return 'Limited access';
-  }
-  return '${clean[0].toUpperCase()}${clean.substring(1)}';
+  return switch (clean) {
+    'active' => 'Active',
+    'not started' => 'Not started',
+    'pending' => 'Pending review',
+    'approved' => 'Approved',
+    'rejected' => 'Not approved',
+    'suspended' || 'banned' => 'Restricted',
+    _ => 'Status unavailable',
+  };
 }
 
 class OnboardingRequiredScreen extends ConsumerWidget {
@@ -570,7 +583,8 @@ class OnboardingRequiredScreen extends ConsumerWidget {
         const MortHeader(
           eyebrow: 'Onboarding',
           title: 'Finish setup',
-          subtitle: 'MORT will restore the next required account, work, safety, or review step from the server.',
+          subtitle:
+              'MORT will restore the next required account, work, safety, or review step from the server.',
         ),
         MortButton(
           label: 'Continue onboarding',
@@ -697,7 +711,8 @@ class OnboardingHubScreen extends ConsumerWidget {
         const MortHeader(
           eyebrow: 'Setup',
           title: 'Build your MORT account',
-          subtitle: 'Finish age, role, profile, preferences, and the safety agreement. Marketplace access depends on server-verified account eligibility.',
+          subtitle:
+              'Finish age, role, profile, preferences, and the safety agreement. Marketplace access depends on server-verified account eligibility.',
         ),
         const MortStepper(current: 0, total: 12),
         const SizedBox(height: MortSpacing.md),
@@ -875,7 +890,8 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
         const MortHeader(
           eyebrow: 'Role',
           title: 'Choose your lane',
-          subtitle: 'Admins cannot self-select. Admin access must already exist on the backend.',
+          subtitle:
+              'Admins cannot self-select. Admin access must already exist on the backend.',
         ),
         const MortStepper(current: 2, total: 12),
         const SizedBox(height: MortSpacing.md),
@@ -1440,7 +1456,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 maxLength: 500,
                 focusNode: _focusNodes['bio'],
                 errorText: _fieldErrors['bio'],
-                hint: 'Share safe experience and interests without contact details.',
+                hint:
+                    'Share safe experience and interests without contact details.',
               ),
               const SizedBox(height: MortSpacing.sm),
               if (_role == UserRole.teen) ...[
@@ -1497,7 +1514,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 ),
               ] else if (_role == UserRole.guardian) ...[
                 const MortSafetyBanner(
-                  message: 'Guardian Mode is optional. Teen linking and safety notification choices are handled in the next private setup steps.',
+                  message:
+                      'Guardian Mode is optional. Teen linking and safety notification choices are handled in the next private setup steps.',
                 ),
               ],
               const SizedBox(height: MortSpacing.md),
@@ -1555,7 +1573,8 @@ class _SkillsScreenState extends ConsumerState<SkillsScreen> {
         'Review what adults and businesses must provide before posting a job.',
       UserRole.guardian =>
         'Guardian Mode is optional and limited to linked safety information.',
-      _ => 'Start with common, safe local categories. You can update interests later.',
+      _ =>
+        'Start with common, safe local categories. You can update interests later.',
     };
     final checklist = switch (role) {
       UserRole.adult => const [
@@ -1649,7 +1668,8 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
         _ => 'Pick safe time windows',
       },
       description: switch (role) {
-        UserRole.adult => 'Jobs need clear start, end, flexibility, and supervision expectations.',
+        UserRole.adult =>
+          'Jobs need clear start, end, flexibility, and supervision expectations.',
         UserRole.guardian =>
           'Safety alerts and approvals can be adjusted after optional linking.',
         _ => 'Use daylight-first windows that fit school and local rules.',
@@ -1745,7 +1765,8 @@ class _PaymentPreferenceScreenState
         const MortHeader(
           eyebrow: 'Job payments',
           title: 'Payments are not handled by MORT',
-          subtitle: 'This build does not collect payment handles, process money, hold escrow, guarantee payment, or charge a service fee.',
+          subtitle:
+              'This build does not collect payment handles, process money, hold escrow, guarantee payment, or charge a service fee.',
         ),
         const MortStepper(current: 7, total: 12),
         const SizedBox(height: MortSpacing.md),
@@ -1891,7 +1912,8 @@ class _SafetyRulesScreenState extends ConsumerState<SafetyRulesScreen> {
         const MortHeader(
           eyebrow: 'Safety',
           title: 'Review MORT safety rules',
-          subtitle: 'These product and safety notices are required for MORT. They are not a substitute for published legal terms.',
+          subtitle:
+              'These product and safety notices are required for MORT. They are not a substitute for published legal terms.',
         ),
         const MortStepper(current: 10, total: 12),
         const SizedBox(height: MortSpacing.md),
@@ -1966,8 +1988,9 @@ class _SafetyRulesScreenState extends ConsumerState<SafetyRulesScreen> {
                   Expanded(
                     child: Text(
                       MortRulesCopy.antiGroomingTitle,
-                      style: Theme.of(context).textTheme.titleMedium
-                          ?.copyWith(color: MortColors.danger),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: MortColors.danger,
+                      ),
                     ),
                   ),
                 ],
@@ -2244,7 +2267,8 @@ class RoleHomeScreen extends ConsumerWidget {
         MortGlassHeader(
           eyebrow: profile?.displayName ?? userRoleToString(role) ?? 'MORT',
           title: title,
-          subtitle: 'Safety-first workflows and optional perks without paywalling core safety.',
+          subtitle:
+              'Safety-first workflows and optional perks without paywalling core safety.',
           trailing: MortNotificationBell(
             onPressed: () => context.push('/notifications'),
           ),
@@ -2631,7 +2655,8 @@ _RoleDashboardDefinition _roleDashboardDefinition(
         actions: [
           _DashboardActionDefinition(
             label: 'My jobs',
-            description: 'Manage drafts, open listings, assignments, and completed work.',
+            description:
+                'Manage drafts, open listings, assignments, and completed work.',
             icon: Icons.work_outline_rounded,
             route: '/adult/jobs',
           ),
@@ -2662,7 +2687,8 @@ _RoleDashboardDefinition _roleDashboardDefinition(
         actions: [
           _DashboardActionDefinition(
             label: 'Verification',
-            description: 'Review the current internal verification state and requirements.',
+            description:
+                'Review the current internal verification state and requirements.',
             icon: Icons.verified_user_outlined,
             route: '/adult/verification',
           ),
@@ -2940,7 +2966,8 @@ class _JobFeedScreenState extends ConsumerState<JobFeedScreen> {
         const MortHeader(
           eyebrow: 'Teen-safe feed',
           title: 'Nearby jobs',
-          subtitle: 'General area only. Use reports and Safety Ping if anything feels off.',
+          subtitle:
+              'General area only. Use reports and Safety Ping if anything feels off.',
         ),
         Wrap(
           spacing: MortSpacing.xs,
@@ -3235,7 +3262,8 @@ class ApplicationsScreen extends ConsumerWidget {
             if (apps.isEmpty)
               return const MortEmptyState(
                 title: 'Nothing here yet',
-                message: 'Applications will appear after a teen applies or an adult posts jobs.',
+                message:
+                    'Applications will appear after a teen applies or an adult posts jobs.',
               );
             return Column(
               children: [
@@ -3436,7 +3464,8 @@ class _PostJobScreenState extends ConsumerState<PostJobScreen> {
         const MortHeader(
           eyebrow: 'Post safely',
           title: 'Create a teen-safe job',
-          subtitle: 'No hazardous work, no private contact pressure, no exact-location sharing in chat.',
+          subtitle:
+              'No hazardous work, no private contact pressure, no exact-location sharing in chat.',
         ),
         const MortVerificationDisclaimer(),
         const SizedBox(height: MortSpacing.md),
@@ -3616,10 +3645,12 @@ class _ProofUploadScreenState extends ConsumerState<ProofUploadScreen> {
         const MortHeader(
           eyebrow: 'Private storage',
           title: 'Upload proof',
-          subtitle: 'Choose one clear completion photo. MORT re-encodes it as a private JPEG before upload.',
+          subtitle:
+              'Choose one clear completion photo. MORT re-encodes it as a private JPEG before upload.',
         ),
         const MortSafetyBanner(
-          message: 'Proof should show job completion only. Do not upload private IDs, exact addresses, or unrelated people.',
+          message:
+              'Proof should show job completion only. Do not upload private IDs, exact addresses, or unrelated people.',
         ),
         const SizedBox(height: MortSpacing.md),
         MortCard(
@@ -3737,7 +3768,8 @@ class VerificationScreen extends ConsumerWidget {
         MortHeader(
           eyebrow: 'Adult/business trust',
           title: 'Verification',
-          subtitle: 'Business checks will use an approved provider workflow. Verification does not guarantee another user or job.',
+          subtitle:
+              'Business checks will use an approved provider workflow. Verification does not guarantee another user or job.',
           trailing: MortBadge(
             label: (profile?.verificationStatus ?? 'not_started').replaceAll(
               '_',
@@ -3749,7 +3781,8 @@ class VerificationScreen extends ConsumerWidget {
           ),
         ),
         const MortSafetyBanner(
-          message: 'Do not upload an ID, tax document, bank record, or business document to MORT. New submissions are closed until provider, privacy, legal, and reviewer controls are approved.',
+          message:
+              'Do not upload an ID, tax document, bank record, or business document to MORT. New submissions are closed until provider, privacy, legal, and reviewer controls are approved.',
         ),
         const SizedBox(height: MortSpacing.md),
         const MortCard(
@@ -3926,8 +3959,9 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                     jobTitle!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyMedium
-                        ?.copyWith(color: MortColors.lightBlue),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: MortColors.lightBlue,
+                    ),
                   ),
                 if (preview?.isNotEmpty == true) ...[
                   const SizedBox(height: MortSpacing.xxs),
@@ -4012,7 +4046,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
         header,
         if (inTeenShell) const SizedBox(height: MortSpacing.md),
         const MortSafetyBanner(
-          message: 'Protected chat blocks unsafe contact sharing and keeps report tools close by.',
+          message:
+              'Protected chat blocks unsafe contact sharing and keeps report tools close by.',
         ),
         const SizedBox(height: MortSpacing.md),
         MortSearchField(
@@ -4340,10 +4375,13 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
           title: counterpartyName?.isNotEmpty == true
               ? counterpartyName!
               : 'Protected conversation',
-          subtitle: jobTitle?.isNotEmpty == true ? 'Job: $jobTitle' : 'Phone numbers, social handles, exact addresses, and off-platform pressure can be blocked.',
+          subtitle: jobTitle?.isNotEmpty == true
+              ? 'Job: $jobTitle'
+              : 'Phone numbers, social handles, exact addresses, and off-platform pressure can be blocked.',
         ),
         const MortSafetyBanner(
-          message: 'Use quick replies and report anything unsafe. No ads appear in messages.',
+          message:
+              'Use quick replies and report anything unsafe. No ads appear in messages.',
         ),
         const SizedBox(height: MortSpacing.md),
         if (thread != null) ...[
@@ -4534,7 +4572,8 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
         ],
         if (_lifecycleStatus != 'active') ...[
           const MortSafetyBanner(
-            message: 'This job conversation is read-only. Use the structured dispute or Support flow for any next step.',
+            message:
+                'This job conversation is read-only. Use the structured dispute or Support flow for any next step.',
           ),
           const SizedBox(height: MortSpacing.sm),
         ],
@@ -4708,7 +4747,8 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
           const MortHeader(
             eyebrow: 'Report received',
             title: 'Thanks for speaking up',
-            subtitle: 'MORT records the report for moderation. Immediate danger still requires local emergency services.',
+            subtitle:
+                'MORT records the report for moderation. Immediate danger still requires local emergency services.',
           ),
           if (_result?['report_id'] != null) ...[
             MortCard(
@@ -4721,7 +4761,8 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
           ],
           if (_immediateDanger) ...[
             const MortSafetyBanner(
-              message: 'MORT created an urgent human-review case but did not dispatch physical help. Contact local emergency services now.',
+              message:
+                  'MORT created an urgent human-review case but did not dispatch physical help. Contact local emergency services now.',
             ),
             const SizedBox(height: MortSpacing.md),
           ],
@@ -4741,10 +4782,12 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         const MortHeader(
           eyebrow: 'Free safety tool',
           title: 'Send a report',
-          subtitle: 'Reports are reviewed without blaming the reporter. MORT is not an emergency service.',
+          subtitle:
+              'Reports are reviewed without blaming the reporter. MORT is not an emergency service.',
         ),
         const MortSafetyBanner(
-          message: 'For immediate danger, contact local emergency services and a trusted adult.',
+          message:
+              'For immediate danger, contact local emergency services and a trusted adult.',
         ),
         const SizedBox(height: MortSpacing.md),
         MortDropdown<String>(
@@ -4849,7 +4892,8 @@ class _BlockUserScreenState extends ConsumerState<BlockUserScreen> {
           )
         else ...[
           const MortSafetyBanner(
-            message: 'Blocking does not contact emergency services. Report urgent safety concerns too.',
+            message:
+                'Blocking does not contact emergency services. Report urgent safety concerns too.',
           ),
           const SizedBox(height: MortSpacing.md),
           MortButton(
@@ -4935,7 +4979,8 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
         const MortHeader(
           eyebrow: 'Privacy and safety',
           title: 'Blocked accounts',
-          subtitle: 'Blocking limits normal interaction. Reports and preserved safety evidence remain separate.',
+          subtitle:
+              'Blocking limits normal interaction. Reports and preserved safety evidence remain separate.',
         ),
         if (_loading)
           const Center(child: CircularProgressIndicator())
@@ -5062,7 +5107,8 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
     final confirmed = await MortConfirmSheet.show(
       context,
       title: 'Open the emergency dialer?',
-      message: 'Use this only for immediate danger. MORT will open the Phone app with 911 ready, but will not place the call for you.',
+      message:
+          'Use this only for immediate danger. MORT will open the Phone app with 911 ready, but will not place the call for you.',
       confirmLabel: 'Open dialer',
     );
     if (confirmed && mounted) await _callEmergencyServices();
@@ -5073,7 +5119,8 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
     final confirmed = await MortConfirmSheet.show(
       context,
       title: 'Send Safety Ping?',
-      message: 'This alerts enabled Guardian or Safety Circle contacts and authorized safety staff where configured. MORT does not dispatch physical help.',
+      message:
+          'This alerts enabled Guardian or Safety Circle contacts and authorized safety staff where configured. MORT does not dispatch physical help.',
       confirmLabel: 'Send Safety Ping',
     );
     if (!confirmed || !mounted) return;
@@ -5156,7 +5203,8 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
         ? MortTeenDestinationHeader(
             eyebrow: 'Free safety tools',
             title: 'Safety',
-            subtitle: 'Check in, reach trusted support, or send a Safety Ping without a paywall.',
+            subtitle:
+                'Check in, reach trusted support, or send a Safety Ping without a paywall.',
             trailing: MortIconButton(
               icon: Icons.refresh_rounded,
               tooltip: 'Refresh Safety Center',
@@ -5166,20 +5214,24 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
         : const MortHeader(
             eyebrow: 'Safety Center',
             title: 'Get help inside MORT',
-            subtitle: 'Safety Ping is not an emergency service. Call local emergency services for immediate danger.',
+            subtitle:
+                'Safety Ping is not an emergency service. Call local emergency services for immediate danger.',
           );
     return MortScreen(
       children: [
         header,
         if (inTeenShell) const SizedBox(height: MortSpacing.md),
         MortSafetyBanner(
-          message: _config?['emergency_guidance']?.toString() ?? 'Report, block, and Safety Ping stay free. Contact local emergency services for immediate danger.',
+          message:
+              _config?['emergency_guidance']?.toString() ??
+              'Report, block, and Safety Ping stay free. Contact local emergency services for immediate danger.',
         ),
         const SizedBox(height: MortSpacing.md),
         if (_loadError != null) ...[
           MortErrorState(
             title: 'Safety status unavailable',
-            message: 'MORT could not refresh active check-ins. Emergency calling, reporting, and support remain available.',
+            message:
+                'MORT could not refresh active check-ins. Emergency calling, reporting, and support remain available.',
             action: MortButton(
               label: 'Retry safety status',
               icon: Icons.refresh_rounded,
@@ -5349,7 +5401,8 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
           const SizedBox(height: MortSpacing.md),
           const MortEmptyState(
             title: 'Safety Ping is for Teen accounts',
-            message: 'Adults, Guardians, and staff can still call emergency services, report concerns, contact Support, and use role-authorized safety tools.',
+            message:
+                'Adults, Guardians, and staff can still call emergency services, report concerns, contact Support, and use role-authorized safety tools.',
             icon: Icons.shield_outlined,
           ),
         ],
@@ -5379,7 +5432,8 @@ class NotificationsScreen extends ConsumerWidget {
         MortHeader(
           eyebrow: 'Push queue',
           title: 'Notifications',
-          subtitle: 'Review account and job activity in one place. Device alerts require notification permission.',
+          subtitle:
+              'Review account and job activity in one place. Device alerts require notification permission.',
           trailing: MortIconButton(
             icon: Icons.done_all,
             tooltip: 'Mark all read',
@@ -5674,7 +5728,8 @@ class _AdminBanAppealsScreenState extends ConsumerState<AdminBanAppealsScreen> {
         MortHeader(
           eyebrow: 'Independent review',
           title: 'Account ban appeals',
-          subtitle: 'A reviewer cannot reverse their own enforcement. Claims expire after two hours and every action is audited.',
+          subtitle:
+              'A reviewer cannot reverse their own enforcement. Claims expire after two hours and every action is audited.',
           trailing: MortIconButton(
             icon: Icons.refresh,
             tooltip: 'Refresh account ban appeals',
@@ -5962,7 +6017,8 @@ class _AdminRowCardState extends ConsumerState<_AdminRowCard> {
       'triage' => 'A restricted safety reviewer began triage.',
       'investigating' =>
         'The safety team is reviewing the available information.',
-      _ => 'The current safety review is resolved. Appeal options remain available where applicable.',
+      _ =>
+        'The current safety review is resolved. Appeal options remain available where applicable.',
     };
     final confirmed = await _confirm(
       'Update restricted incident?',
@@ -6179,7 +6235,8 @@ class _UsernameSettingsScreenState
         const MortHeader(
           eyebrow: 'Username',
           title: 'Change username',
-          subtitle: 'Three free lifetime changes, then Plus allowance, token, or admin credit.',
+          subtitle:
+              'Three free lifetime changes, then Plus allowance, token, or admin credit.',
         ),
         FutureBuilder<Map<String, dynamic>>(
           future: _backendReady
@@ -6307,7 +6364,8 @@ class SettingsScreen extends StatelessWidget {
       const MortGlassHeader(
         eyebrow: 'Settings',
         title: 'Control your account',
-        subtitle: 'Privacy, safety, accessibility, security, support, and legal controls in one place.',
+        subtitle:
+            'Privacy, safety, accessibility, security, support, and legal controls in one place.',
       ),
       for (final group in _settingsGroups) ...[
         MortSectionLabel(label: group.label),
@@ -6330,13 +6388,14 @@ class SettingsScreen extends StatelessWidget {
       ),
       const SizedBox(height: MortSpacing.md),
       const MortSafetyBanner(
-        message: 'Report, block, Safety Ping, Guardian Mode basics, and account security are never paywalled.',
+        message:
+            'Report, block, Safety Ping, Guardian Mode basics, and account security are never paywalled.',
       ),
     ],
   );
 }
 
-const _settingsGroups = <_SettingsGroup>[
+final _settingsGroups = <_SettingsGroup>[
   _SettingsGroup(
     label: 'Account',
     actions: [
@@ -6385,7 +6444,8 @@ const _settingsGroups = <_SettingsGroup>[
       ),
       _SettingsAction(
         label: 'Safety',
-        description: 'Open Safety Center, Safety Circle, cases, reporting, and standards.',
+        description:
+            'Open Safety Center, Safety Circle, cases, reporting, and standards.',
         icon: Icons.health_and_safety_outlined,
         route: '/settings/safety',
       ),
@@ -6495,15 +6555,16 @@ const _settingsGroups = <_SettingsGroup>[
         icon: Icons.verified_user_outlined,
         route: '/legal/teen-safety',
       ),
-      _SettingsAction(
-        label: 'Release diagnostics',
-        description: 'Review release configuration without exposing secrets.',
-        icon: Icons.monitor_heart_outlined,
-        route: '/settings/release-diagnostics',
-      ),
+      if (AppConfig.showReleaseDiagnostics)
+        const _SettingsAction(
+          label: 'Release diagnostics',
+          description: 'Review release configuration without exposing secrets.',
+          icon: Icons.monitor_heart_outlined,
+          route: '/settings/release-diagnostics',
+        ),
       _SettingsAction(
         label: 'About MORT',
-        description: 'Review version, build, environment, and licenses.',
+        description: 'Review version details and open-source licenses.',
         icon: Icons.info_outline_rounded,
         route: '/settings/about',
       ),
@@ -6542,7 +6603,8 @@ class LegalDocScreen extends StatelessWidget {
     return FeatureScaffoldScreen(
       eyebrow: 'Legal draft',
       title: title,
-      description: 'Review MORT policies, safety standards, and support options. Account access does not replace legal or safety review.',
+      description:
+          'Review MORT policies, safety standards, and support options. Account access does not replace legal or safety review.',
       children: const [
         MortPaymentDisclaimer(),
         SizedBox(height: MortSpacing.sm),
@@ -6666,7 +6728,8 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
         ] else if (!signedIn) ...[
           const MortEmptyState(
             title: 'Sign in to open a ticket',
-            message: 'Support tickets are tied to your MORT account and are not public.',
+            message:
+                'Support tickets are tied to your MORT account and are not public.',
           ),
           const SizedBox(height: MortSpacing.md),
           MortButton(
@@ -6704,9 +6767,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
                                 Text(
                                   ticket['subject']?.toString() ??
                                       'Support ticket',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
                                 ),
                                 Text(
                                   'Created ${ticket['created_at']?.toString() ?? 'time unavailable'}',
@@ -6829,7 +6892,8 @@ class FeatureScaffoldScreen extends StatelessWidget {
         if (actions.isEmpty) ...[
           const MortEmptyState(
             title: 'Unavailable in this release',
-            message: 'This area is not available for your account. Core account and safety tools remain available.',
+            message:
+                'This area is not available for your account. Core account and safety tools remain available.',
           ),
           const SizedBox(height: MortSpacing.md),
           const MortActionRow(

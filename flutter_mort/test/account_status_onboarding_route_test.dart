@@ -116,7 +116,8 @@ void main() {
       ]) {
         expect(find.textContaining(prohibited), findsNothing);
       }
-      expect(find.text('Limited access'), findsWidgets);
+      expect(find.text('Limited access'), findsNothing);
+      expect(find.text('Marketplace access limited'), findsOneWidget);
       expect(find.text('Identity verification unavailable'), findsOneWidget);
       expect(find.textContaining('Not started'), findsOneWidget);
     },

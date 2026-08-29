@@ -23,7 +23,12 @@ const requiredConfigNames = [
 const publicConfig = Object.fromEntries(
   requiredConfigNames.map((name) => [name, process.env[name]?.trim() ?? '']),
 );
-const missingConfig = requiredConfigNames.filter((name) => !publicConfig[name]);
+const missingMetadataConfig = requiredConfigNames.filter((name) => !publicConfig[name]);
+const supabase = readSupabasePublicConfig();
+const missingConfig = [
+  ...missingMetadataConfig,
+  ...(!supabase.key ? ['EXPO_PUBLIC_SUPABASE_ANON_KEY'] : []),
+];
 const deploymentReady = missingConfig.length === 0;
 
 rmSync(output, { recursive: true, force: true });
@@ -52,16 +57,16 @@ function display(name, pending) {
 
 function readSupabasePublicConfig() {
   const envPath = resolve(root, '.env.local');
-  let url = '';
-  let key = '';
+  let url = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim() ?? '';
+  let key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim() ?? '';
   try {
     for (const raw of readFileSync(envPath, 'utf8').split(/\r?\n/)) {
       const match = raw.match(/^\s*([^#=]+?)\s*=\s*(.*?)\s*$/);
       if (!match) continue;
       const name = match[1];
       const value = match[2].replace(/^['"]|['"]$/g, '');
-      if (name === 'EXPO_PUBLIC_SUPABASE_URL') url = value;
-      if (name === 'EXPO_PUBLIC_SUPABASE_ANON_KEY') key = value;
+      if (name === 'EXPO_PUBLIC_SUPABASE_URL' && !url) url = value;
+      if (name === 'EXPO_PUBLIC_SUPABASE_ANON_KEY' && !key) key = value;
     }
   } catch {
     // Account deletion remains visibly unavailable until public config exists.
@@ -243,7 +248,6 @@ pages['account-deletion/index.html'] = page({
 for (const [relative, content] of Object.entries(pages)) write(relative, content);
 write('assets/supabase.js', readFileSync(supabaseBrowserBundle, 'utf8'));
 
-const supabase = readSupabasePublicConfig();
 write(
   'assets/public-config.js',
   `window.MORT_PUBLIC_CONFIG = Object.freeze(${JSON.stringify({

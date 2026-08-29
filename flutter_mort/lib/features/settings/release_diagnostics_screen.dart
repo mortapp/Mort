@@ -27,7 +27,8 @@ class ReleaseDiagnosticsScreen extends ConsumerWidget {
         const MortHeader(
           eyebrow: 'Non-secret diagnostics',
           title: 'Release status',
-          subtitle: 'Build capabilities and server safety gates. Credentials, tokens, URLs, and user data are never shown.',
+          subtitle:
+              'Build capabilities and server safety gates. Credentials, tokens, URLs, and user data are never shown.',
         ),
         const SizedBox(height: MortSpacing.md),
         MortCard(
@@ -48,7 +49,8 @@ class ReleaseDiagnosticsScreen extends ConsumerWidget {
         serverStatus.when(
           loading: () => const MortSkeletonCard(),
           error: (_, _) => const MortSafetyBanner(
-            message: 'Server safety controls could not be verified. Protected app routes remain fail closed.',
+            message:
+                'Server safety controls could not be verified. Protected app routes remain fail closed.',
           ),
           data: (status) => MortCard(
             child: Column(

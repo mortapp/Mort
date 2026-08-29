@@ -18,7 +18,8 @@ class RevenueCatRestorePurchasesScreen extends StatelessWidget {
         ),
         const MortEmptyState(
           title: 'Nothing to restore in this release',
-          message: 'Your account and all core safety features continue to work without a purchase.',
+          message:
+              'Your account and all core safety features continue to work without a purchase.',
         ),
         const SizedBox(height: MortSpacing.md),
         MortButton(

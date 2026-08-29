@@ -40,7 +40,8 @@ class AccountTrustScreen extends ConsumerWidget {
                 ? 'TEST MODE'
                 : 'Account trust',
             title: 'Your trust profile',
-            subtitle: 'Signals are precise and server-derived. No badge guarantees identity, behavior, or safety.',
+            subtitle:
+                'Signals are precise and server-derived. No badge guarantees identity, behavior, or safety.',
             trailing: MortIconButton(
               icon: Icons.refresh,
               tooltip: 'Refresh trust profile',
@@ -318,7 +319,8 @@ class _DeviceSecuritySettingsScreenState
         const MortHeader(
           eyebrow: 'Account security',
           title: 'Device authentication',
-          subtitle: 'Face ID, Touch ID, or a device passcode can protect sensitive actions. They do not verify legal identity.',
+          subtitle:
+              'Face ID, Touch ID, or a device passcode can protect sensitive actions. They do not verify legal identity.',
         ),
         MortCard(
           child: Column(
@@ -438,7 +440,8 @@ class PasskeySettingsScreen extends ConsumerWidget {
         const MortHeader(
           eyebrow: 'Account security',
           title: 'Passkeys',
-          subtitle: 'Passkeys can protect sign-in. They do not prove legal identity, age, address, or safety.',
+          subtitle:
+              'Passkeys can protect sign-in. They do not prove legal identity, age, address, or safety.',
         ),
         FutureBuilder<PasskeyCapability>(
           future: detectPasskeyCapability(),
@@ -475,7 +478,8 @@ class PasskeySettingsScreen extends ConsumerWidget {
         const VerificationUnavailableScreen(
           embedded: true,
           title: 'Enrollment is not active',
-          detail: 'Passkeys remain disabled until account recovery and cross-platform testing are complete. No sign-in credential is simulated.',
+          detail:
+              'Passkeys remain disabled until account recovery and cross-platform testing are complete. No sign-in credential is simulated.',
         ),
       ],
     );
@@ -534,7 +538,8 @@ class _SchoolEmailVerificationScreenState
         const MortHeader(
           eyebrow: 'Affiliation',
           title: 'School email',
-          subtitle: 'An approved school domain can confirm affiliation. It does not verify government identity, age, enrollment status, or safety.',
+          subtitle:
+              'An approved school domain can confirm affiliation. It does not verify government identity, age, enrollment status, or safety.',
         ),
         MortTextField(
           label: 'Confirmed account email',
@@ -612,7 +617,8 @@ class _PartnerCodeVerificationScreenState
         const MortHeader(
           eyebrow: 'Affiliation',
           title: 'Partner program code',
-          subtitle: 'A valid code confirms membership in an approved program. It does not verify legal identity or guarantee safety.',
+          subtitle:
+              'A valid code confirms membership in an approved program. It does not verify legal identity or guarantee safety.',
         ),
         MortTextField(
           label: 'One-time or limited-use code',
@@ -733,7 +739,8 @@ class _BusinessRegistryMatchScreenState
         const MortHeader(
           eyebrow: 'Business trust',
           title: 'Official registry match',
-          subtitle: 'MORT accepts allowlisted official government registry sources for manual review. People-search and data-broker sources are rejected.',
+          subtitle:
+              'MORT accepts allowlisted official government registry sources for manual review. People-search and data-broker sources are rejected.',
         ),
         MortTextField(label: 'Jurisdiction code', controller: _jurisdiction),
         const SizedBox(height: MortSpacing.sm),
@@ -789,24 +796,28 @@ class DigitalIDAvailabilityScreen extends ConsumerWidget {
         const MortHeader(
           eyebrow: 'Future identity route',
           title: 'Government digital credentials',
-          subtitle: 'MORT does not collect physical ID images. Digital credential support is prepared but disabled.',
+          subtitle:
+              'MORT does not collect physical ID images. Digital credential support is prepared but disabled.',
         ),
         _AvailabilityCard(
           title: 'Apple Verify with Wallet',
           enabled: profile?.appleWalletEnabled == true,
-          detail: 'Requires Apple approval, the correct entitlement, an approved bundle, and server-side signed-response validation.',
+          detail:
+              'Requires Apple approval, the correct entitlement, an approved bundle, and server-side signed-response validation.',
         ),
         const SizedBox(height: MortSpacing.sm),
         _AvailabilityCard(
           title: 'Android digital credentials',
           enabled: profile?.androidDigitalCredentialsEnabled == true,
-          detail: 'Requires Android Credential Manager integration, issuer/type policy, nonce binding, signature validation, and real-device QA.',
+          detail:
+              'Requires Android Credential Manager integration, issuer/type policy, nonce binding, signature validation, and real-device QA.',
         ),
         const SizedBox(height: MortSpacing.md),
         const VerificationUnavailableScreen(
           embedded: true,
           title: 'Digital ID verification unavailable',
-          detail: 'No wallet request is sent, no document is uploaded, and no identity result is granted. Invalid, expired, mismatched, unknown, and reused credential events are rejected.',
+          detail:
+              'No wallet request is sent, no document is uploaded, and no identity result is granted. Invalid, expired, mismatched, unknown, and reused credential events are rejected.',
         ),
       ],
     );
@@ -897,7 +908,8 @@ class _VerificationAppealScreenState
         const MortHeader(
           eyebrow: 'Review',
           title: 'Appeal a trust decision',
-          subtitle: 'Appeals enter a restricted human-review queue. Submitting one does not automatically change trust level or marketplace access.',
+          subtitle:
+              'Appeals enter a restricted human-review queue. Submitting one does not automatically change trust level or marketplace access.',
         ),
         MortTextArea(
           label: 'Reason for review',
@@ -1028,7 +1040,8 @@ class _TrustAdminReviewScreenState
         const MortHeader(
           eyebrow: 'Restricted admin',
           title: 'Account trust review',
-          subtitle: 'Queue access is role-scoped and logged with a reason and case ID. This screen never requests raw identity evidence.',
+          subtitle:
+              'Queue access is role-scoped and logged with a reason and case ID. This screen never requests raw identity evidence.',
         ),
         MortDropdown<String>(
           label: 'Review queue',

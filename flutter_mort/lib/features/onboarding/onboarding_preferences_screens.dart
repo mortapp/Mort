@@ -94,7 +94,8 @@ class _OnboardingPreferencesScreenState
         const MortHeader(
           eyebrow: 'Preferences',
           title: 'Choose how MORT should feel',
-          subtitle: 'These choices are private. Notification permission is requested by the operating system later and can be changed in Settings.',
+          subtitle:
+              'These choices are private. Notification permission is requested by the operating system later and can be changed in Settings.',
         ),
         const MortStepper(current: 9, total: 12),
         const SizedBox(height: MortSpacing.md),
@@ -220,7 +221,8 @@ class _OnboardingReviewScreenState
         const MortHeader(
           eyebrow: 'Final review',
           title: 'Check your saved setup',
-          subtitle: 'MORT will ask you to fix any missing mandatory step. Completion never grants verification or a privileged role.',
+          subtitle:
+              'MORT will ask you to fix any missing mandatory step. Completion never grants verification or a privileged role.',
         ),
         const MortStepper(current: 11, total: 12),
         const SizedBox(height: MortSpacing.md),
@@ -262,7 +264,8 @@ class _OnboardingReviewScreenState
         ),
         const SizedBox(height: MortSpacing.md),
         const MortSafetyBanner(
-          message: 'Finishing setup does not mean your identity is verified, payment is protected, or every marketplace action is available.',
+          message:
+              'Finishing setup does not mean your identity is verified, payment is protected, or every marketplace action is available.',
         ),
         const SizedBox(height: MortSpacing.md),
         MortButton(
