@@ -1100,7 +1100,7 @@ class _MarketplaceEligibilityCard extends StatelessWidget {
               : 'Eligible under current policy'
         : eligibility.productionMarketplaceEnabled
         ? 'Requirements incomplete'
-        : 'Public marketplace closed';
+        : 'Marketplace access unavailable';
     return MortCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

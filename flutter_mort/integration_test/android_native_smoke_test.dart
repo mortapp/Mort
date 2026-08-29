@@ -71,7 +71,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Review the closed-pilot rules'), findsOneWidget);
+      expect(find.text('Review MORT safety rules'), findsOneWidget);
       expect(find.byType(CheckboxListTile), findsNWidgets(5));
       final finishButton = find.widgetWithText(
         ElevatedButton,

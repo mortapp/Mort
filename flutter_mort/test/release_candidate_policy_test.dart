@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_mort/core/config/app_config.dart';
+import 'package:flutter_mort/data/models/job.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 String _read(String relativePath) => File(relativePath).readAsStringSync();
@@ -132,9 +133,30 @@ void main() {
 
   test('store-facing jobs do not expose fixture implementation labels', () {
     final model = _read('lib/data/models/job.dart');
+    final fixture = Job.fromMap({
+      'id': 'synthetic-listing',
+      'poster_id': 'synthetic-poster',
+      'is_test': true,
+    });
 
-    expect(model, contains('Approved pilot participant'));
+    expect(fixture.verificationDisplay, 'Eligible poster');
+    expect(model, isNot(contains('Approved pilot participant')));
     expect(model, isNot(contains('Sandbox test account')));
+  });
+
+  test('release diagnostics stay debug-only and About hides environment', () {
+    final config = _read('lib/core/config/app_config.dart');
+    final router = _read('lib/core/routing/app_router.dart');
+    final settings = _read('lib/features/mort_screens.dart');
+    final about = _read(
+      'lib/features/settings/experience_settings_screen.dart',
+    );
+
+    expect(config, contains('showReleaseDiagnostics => kDebugMode'));
+    expect(router, contains('if (AppConfig.showReleaseDiagnostics)'));
+    expect(settings, contains('if (AppConfig.showReleaseDiagnostics)'));
+    expect(about, isNot(contains('Environment:')));
+    expect(about, isNot(contains('Package:')));
   });
 
   test('saved jobs use the owner-scoped server contract', () {

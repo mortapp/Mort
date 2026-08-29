@@ -22,7 +22,7 @@ class TeenVerificationOptionsScreen extends StatelessWidget {
       ),
       const MortSafetyBanner(
         message:
-            'Real document collection is disabled. Closed-test routes use synthetic material only and do not establish legal identity or guarantee safety.',
+            'This screen uses synthetic examples only. It does not establish legal identity or guarantee safety.',
       ),
       const SizedBox(height: MortSpacing.md),
       const _VerificationOption(
@@ -55,9 +55,9 @@ class TeenVerificationOptionsScreen extends StatelessWidget {
       ),
       const SizedBox(height: MortSpacing.sm),
       const _VerificationOption(
-        title: 'Manual exception or no-document pilot route',
+        title: 'Manual exception or no-document review',
         description:
-            'For homeschool, online-school, transitional, dual-enrollment, or other eligible teens without a traditional school ID. Access requires a reviewed pilot policy decision.',
+            'For homeschool, online-school, transitional, dual-enrollment, or other eligible teens without a traditional school ID. Access requires a reviewed policy decision.',
         icon: Icons.support_agent,
       ),
       const SizedBox(height: MortSpacing.md),

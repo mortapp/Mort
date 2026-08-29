@@ -482,7 +482,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
               return MortEmptyState(
                 title: 'No jobs in this area yet',
                 message:
-                    'When approved pilot adults post matching jobs for this city, state, and travel method, they will appear here.',
+                    'When eligible adults post matching jobs for this city, state, and travel method, they will appear here.',
                 action: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [

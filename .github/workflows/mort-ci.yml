@@ -26,6 +26,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm qa:production-identity-copy
       - run: pnpm check
       - run: pnpm lint
       - run: pnpm build
@@ -87,5 +88,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: node scripts/build-public-legal-site.mjs
+        env:
+          # This is the project's public browser anon key, never a privileged
+          # service-role credential. The validator decodes and verifies it.
+          EXPO_PUBLIC_SUPABASE_URL: https://rakjydmgwwgtdislanbt.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYXNlIiwicmVmIjoicmFranlkbWd3d2d0ZGlzbGFuYnQiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc4MTg3MTE3NSwiZXhwIjoyMDk3NDQ3MTc1fQ.DorOgj6jdPTrPX45Vi0O1dYgx-e3zgO6_S39JDcL2Ww
       - run: node scripts/validate-public-legal-site.mjs
-

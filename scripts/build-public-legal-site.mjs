@@ -23,7 +23,12 @@ const requiredConfigNames = [
 const publicConfig = Object.fromEntries(
   requiredConfigNames.map((name) => [name, process.env[name]?.trim() ?? '']),
 );
-const missingConfig = requiredConfigNames.filter((name) => !publicConfig[name]);
+const missingMetadataConfig = requiredConfigNames.filter((name) => !publicConfig[name]);
+const supabase = readSupabasePublicConfig();
+const missingConfig = [
+  ...missingMetadataConfig,
+  ...(!supabase.key ? ['EXPO_PUBLIC_SUPABASE_ANON_KEY'] : []),
+];
 const deploymentReady = missingConfig.length === 0;
 
 rmSync(output, { recursive: true, force: true });
@@ -52,16 +57,16 @@ function display(name, pending) {
 
 function readSupabasePublicConfig() {
   const envPath = resolve(root, '.env.local');
-  let url = '';
-  let key = '';
+  let url = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim() ?? '';
+  let key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim() ?? '';
   try {
     for (const raw of readFileSync(envPath, 'utf8').split(/\r?\n/)) {
       const match = raw.match(/^\s*([^#=]+?)\s*=\s*(.*?)\s*$/);
       if (!match) continue;
       const name = match[1];
       const value = match[2].replace(/^['"]|['"]$/g, '');
-      if (name === 'EXPO_PUBLIC_SUPABASE_URL') url = value;
-      if (name === 'EXPO_PUBLIC_SUPABASE_ANON_KEY') key = value;
+      if (name === 'EXPO_PUBLIC_SUPABASE_URL' && !url) url = value;
+      if (name === 'EXPO_PUBLIC_SUPABASE_ANON_KEY' && !key) key = value;
     }
   } catch {
     // Account deletion remains visibly unavailable until public config exists.
@@ -149,13 +154,13 @@ function page({ title, description, body, scripts = '' }) {
 </head>
 <body>
   <a class="skip" href="#content">Skip to content</a>
-  <header><a class="brand" href="/">MORT <span>Closed pilot</span></a><nav aria-label="Legal and support">${nav}</nav></header>
+  <header><a class="brand" href="/">MORT</a><nav aria-label="Legal and support">${nav}</nav></header>
   <main id="content">
-    <p class="status">Published - closed-pilot draft, pending qualified legal review</p>
+    <p class="status">Draft — pending qualified legal review</p>
     <h1>${escapeHtml(title)}</h1>
     <p class="lede">${escapeHtml(description)}</p>
     ${blocker}
-    <div class="notice"><strong>Current limits:</strong> MORT is a restricted 13+ pilot. It does not guarantee identity, safety, jobs, or payment; it does not process payments; and real identity-document collection is disabled.</div>
+    <div class="notice"><strong>Current limits:</strong> MORT is a 13+ local-work coordination service with account eligibility restrictions. It does not guarantee identity, safety, jobs, or payment; it does not process real-world job payments; and identity verification is not currently available.</div>
     ${body}
   </main>
   <footer><p><strong>MORT</strong> | Publisher: ${publisher}</p><p>Support: ${supportEmail} | Effective: ${effectiveDate}</p><p>Website: ${websiteUrl}</p></footer>
@@ -172,22 +177,22 @@ write('assets/site.css', `
 const pages = {
   'index.html': page({
     title: 'Legal and safety center',
-    description: 'Public privacy, safety, support, accessibility, and account-control information for the MORT closed pilot.',
-    body: `<section class="panel"><h2>What MORT is today</h2><p>MORT is a controlled 13+ pilot for local work coordination. Public accounts can learn about the mission and safety model, but jobs, participant messaging, private locations, contracts, and active-job workflows require server-approved pilot enrollment.</p><ul>${routes.slice(1).map(([href, label]) => `<li><a href="${href}">${label}</a></li>`).join('')}</ul></section>`,
+    description: 'Public privacy, safety, support, accessibility, and account-control information for MORT.',
+    body: `<section class="panel"><h2>What MORT is today</h2><p>MORT is a 13+ service for local work coordination. Public visitors can learn about the mission and safety model, but jobs, participant messaging, private locations, contracts, and active-job workflows require server-approved account eligibility.</p><ul>${routes.slice(1).map(([href, label]) => `<li><a href="${href}">${label}</a></li>`).join('')}</ul></section>`,
   }),
   'privacy/index.html': page({
     title: 'Privacy policy',
-    description: 'How the MORT pilot collects, uses, protects, retains, and deletes information.',
-    body: `<h2>Scope</h2><p>This policy covers the MORT app, hosted Supabase backend, and public support pages. Accounts are restricted to people age 13 or older.</p><h2>Signing in</h2><p>Accounts can be created and accessed with an email and password, or with Google Sign-In. Choosing Google Sign-In shares your Google account email and basic profile information with MORT through Google's and Supabase's authentication systems; MORT does not receive your Google password.</p><h2>Information handled</h2><ul><li>Account ID, email, private date of birth, age band, role, profile name, and optional profile image.</li><li>Jobs, applications, contracts, job-context messages, reviews, reports, blocks, proofs, support requests, and work history.</li><li>Approximate area and optional foreground location when a user invokes a location feature. Background location is not collected.</li><li>Optional Guardian Mode and Support Circle links, security events, session data, rate-limit data, and diagnostics.</li><li>Payment preferences and obligation records. MORT does not hold, transfer, or guarantee money.</li></ul><h2>Disabled collection</h2><p>Real government-ID images, face templates, provider identity verification, and in-app billing are disabled in this release.</p><h2>Advertising</h2><p>MORT may display advertising, including an optional rewarded-ad cosmetic feature, on eligible non-sensitive screens only. Ads never appear on, and never gate access to, safety tools, incident reporting, Guardian approval, identity or work-proof evidence, messages, support conversations, payment preferences, PIN verification, job completion, or legal information -- these stay ad-free by server-enforced rule, not app design alone. Ad requests do not include a Teen's precise location, a job site's private location, message content, report content, identity or proof evidence, Guardian data, Safety Center data, or Support conversation content. Every Teen account is served non-personalized ads regardless of any other setting. The optional rewarded-ad feature ("MORT Spark") may grant a temporary, purely cosmetic profile accent with no effect on jobs, Quick Accept, the leaderboard, safety, moderation, or marketplace eligibility; the reward is granted only after an ad is watched to completion, never on tap. Google's own privacy disclosures describe how it processes ad-serving data.</p><h2>Use and sharing</h2><p>Data is used for authentication, pilot eligibility, job workflows, safety, moderation, support, security, legal compliance, and eligible non-sensitive advertising as described above. Supabase provides hosted infrastructure and Google serves advertising on eligible screens under the restrictions above. MORT does not sell personal information.</p><h2>Retention and deletion</h2><p>Ordinary account data is removed through the deletion workflow. Narrow safety, fraud, dispute, audit, evidence-preservation, and legal records may be retained with restricted access when legitimately necessary. See <a href="/account-deletion/">account deletion</a>.</p><h2>Teen privacy</h2><p>A minor's exact birth date, exact age, school, housing status, residential address, private messages, and precise live location are not public participant-directory fields.</p><h2>Contact</h2><p>Privacy contact: ${privacyEmail}</p>`,
+    description: 'How MORT collects, uses, protects, retains, and deletes information.',
+    body: `<h2>Scope</h2><p>This policy covers the MORT app, hosted Supabase backend, and public support pages. Accounts are restricted to people age 13 or older.</p><h2>Signing in</h2><p>Accounts can be created and accessed with an email and password, or with Google Sign-In. Choosing Google Sign-In shares your Google account email and basic profile information with MORT through Google's and Supabase's authentication systems; MORT does not receive your Google password.</p><h2>Information handled</h2><ul><li>Account ID, email, private date of birth, age band, role, profile name, and optional profile image.</li><li>Jobs, applications, contracts, job-context messages, reviews, reports, blocks, proofs, support requests, and work history.</li><li>Approximate area and optional foreground location when a user invokes a location feature. Background location is not collected.</li><li>Optional Guardian Mode and Support Circle links, security events, session data, rate-limit data, and diagnostics.</li><li>Payment preferences and obligation records. MORT does not hold, transfer, or guarantee money.</li></ul><h2>Disabled collection</h2><p>Government-ID images, face templates, and provider identity verification are not currently collected. Optional digital-purchase availability is shown in the app and is separate from job payment.</p><h2>Advertising</h2><p>MORT may display advertising, including an optional rewarded-ad cosmetic feature, on eligible non-sensitive screens only. Ads never appear on, and never gate access to, safety tools, incident reporting, Guardian approval, identity or work-proof evidence, messages, support conversations, payment preferences, PIN verification, job completion, or legal information -- these stay ad-free by server-enforced rule, not app design alone. Ad requests do not include a Teen's precise location, a job site's private location, message content, report content, identity or proof evidence, Guardian data, Safety Center data, or Support conversation content. Every Teen account is served non-personalized ads regardless of any other setting. The optional rewarded-ad feature ("MORT Spark") may grant a temporary, purely cosmetic profile accent with no effect on jobs, Quick Accept, the leaderboard, safety, moderation, or marketplace eligibility; the reward is granted only after an ad is watched to completion, never on tap. Google's own privacy disclosures describe how it processes ad-serving data.</p><h2>Use and sharing</h2><p>Data is used for authentication, account eligibility, job workflows, safety, moderation, support, security, legal compliance, and eligible non-sensitive advertising as described above. Supabase provides hosted infrastructure and Google serves advertising on eligible screens under the restrictions above. MORT does not sell personal information.</p><h2>Retention and deletion</h2><p>Ordinary account data is removed through the deletion workflow. Narrow safety, fraud, dispute, audit, evidence-preservation, and legal records may be retained with restricted access when legitimately necessary. See <a href="/account-deletion/">account deletion</a>.</p><h2>Teen privacy</h2><p>A minor's exact birth date, exact age, school, housing status, residential address, private messages, and precise live location are not public participant-directory fields.</p><h2>Contact</h2><p>Privacy contact: ${privacyEmail}</p>`,
   }),
   'terms/index.html': page({
     title: 'Terms',
-    description: 'Core service terms for the restricted MORT closed-pilot service.',
+    description: 'Core service terms for MORT.',
     body: `<h2>Eligibility and access</h2><p>Users must be at least 13, use their own account, accept current agreements, and follow role and jurisdiction rules. Downloading MORT does not grant marketplace eligibility.</p><h2>Service limits</h2><p>MORT provides coordination tools, not employment, legal, tax, insurance, emergency, background-check, or payment services. Users remain responsible for lawful work, wages, supervision, tools, transportation, and taxes.</p><h2>Enforcement</h2><p>MORT may remove content, restrict accounts, preserve narrow evidence, and refer serious safety matters to trained adults or lawful authorities. Appeals do not automatically restore access.</p><p>These terms require adult publisher and qualified legal review before broader release.</p>`,
   }),
   'terms-of-use/index.html': page({
     title: 'Terms of use',
-    description: 'Rules for using MORT accounts, jobs, messages, and pilot workflows.',
+    description: 'Rules for using MORT accounts, jobs, messages, and work coordination.',
     body: `<h2>Acceptable use</h2><p>Use MORT only for lawful, age-appropriate, job-related activity. Do not impersonate others, evade blocks, scrape participant data, expose private addresses, pressure users off-platform, or misuse reporting tools.</p><h2>Messaging</h2><p>Messaging is job-contextual and subject to eligibility, block, restriction, rate-limit, and safety checks. Automated scanning can miss harmful content and is not a safety guarantee.</p><h2>Guardian Mode</h2><p>Guardian Mode is optional. It does not create universal legal consent, continuous monitoring, or emergency response.</p><h2>Account controls</h2><p>Users may manage privacy, sessions, reports, blocks, support, and account deletion. Continued use after a material terms change may require fresh acceptance.</p>`,
   }),
   'community-guidelines/index.html': page({
@@ -207,8 +212,8 @@ const pages = {
   }),
   'prohibited-jobs/index.html': page({
     title: 'Prohibited jobs',
-    description: 'Work categories and conditions that are not allowed in the MORT pilot.',
-    body: `<h2>Always prohibited</h2><ul><li>Sexual, romantic, escort, modeling-with-undressing, massage, trafficking, or exploitative services.</li><li>Illegal activity, weapons, controlled substances, gambling, fraud, theft, surveillance, or evasion of authorities.</li><li>Age-restricted equipment, hazardous chemicals, roofing, demolition, heavy machinery, driving, or other unlawful youth work.</li><li>Unknown private-bedroom work, overnight stays, secret locations, requests to hide the job, or isolation designed to bypass safety controls.</li><li>Unpaid trial work presented as paid work, deceptive compensation, or requests for money, gift cards, bank credentials, or account access.</li></ul><h2>Review</h2><p>Jobs may be rejected, paused, or removed. Pilot eligibility never overrides labor, licensing, wage, safety, or supervision law.</p>`,
+    description: 'Work categories and conditions that are not allowed in MORT.',
+    body: `<h2>Always prohibited</h2><ul><li>Sexual, romantic, escort, modeling-with-undressing, massage, trafficking, or exploitative services.</li><li>Illegal activity, weapons, controlled substances, gambling, fraud, theft, surveillance, or evasion of authorities.</li><li>Age-restricted equipment, hazardous chemicals, roofing, demolition, heavy machinery, driving, or other unlawful youth work.</li><li>Unknown private-bedroom work, overnight stays, secret locations, requests to hide the job, or isolation designed to bypass safety controls.</li><li>Unpaid trial work presented as paid work, deceptive compensation, or requests for money, gift cards, bank credentials, or account access.</li></ul><h2>Review</h2><p>Jobs may be rejected, paused, or removed. Account eligibility never overrides labor, licensing, wage, safety, or supervision law.</p>`,
   }),
   'payment-disputes/index.html': page({
     title: 'Payment disputes',
@@ -217,7 +222,7 @@ const pages = {
   }),
   'support/index.html': page({
     title: 'Support',
-    description: 'Account, privacy, safety, and pilot support routes for MORT users and reviewers.',
+    description: 'Account, privacy, and safety support routes for MORT users and reviewers.',
     body: `<h2>Account-linked help</h2><p>Signed-in users should use the in-app Support Center so requests carry authorized account context.</p><h2>Other routes</h2><p>Delete an account through <a href="/account-deletion/">account deletion</a>. Review safety guidance in the <a href="/safety/">Safety Center</a>. For urgent danger, contact local emergency services.</p><h2>Support contact</h2><p>${supportEmail}</p>`,
   }),
   'contact/index.html': page({
@@ -243,7 +248,6 @@ pages['account-deletion/index.html'] = page({
 for (const [relative, content] of Object.entries(pages)) write(relative, content);
 write('assets/supabase.js', readFileSync(supabaseBrowserBundle, 'utf8'));
 
-const supabase = readSupabasePublicConfig();
 write(
   'assets/public-config.js',
   `window.MORT_PUBLIC_CONFIG = Object.freeze(${JSON.stringify({

@@ -13,7 +13,7 @@ Credentials are intentionally excluded from source, Git, ZIPs, logs, screenshots
 
 1. Install the closed-test build and open MORT.
 2. Sign in with the synthetic reviewer credential supplied in Play Console.
-3. Confirm the visible Closed Pilot label.
+3. Confirm the app presents itself as MORT without test-track branding.
 4. Review the synthetic profile, test jobs, applications, job-context messages, report/block controls, Safety Center, payment-preference-only copy, and Settings → Account → Delete account.
 5. Use only records labelled Play Review or synthetic. No real minor, address, identity document, incident, or production participant is present.
 

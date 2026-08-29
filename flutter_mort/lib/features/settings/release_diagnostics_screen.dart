@@ -79,7 +79,7 @@ class ReleaseDiagnosticsScreen extends ConsumerWidget {
                   value: _enabled(status['real_document_collection'] == true),
                 ),
                 _DiagnosticRow(
-                  label: 'Payments disabled',
+                  label: 'Job payments not processed',
                   value: _enabled(status['payments_disabled'] != false),
                 ),
                 _DiagnosticRow(

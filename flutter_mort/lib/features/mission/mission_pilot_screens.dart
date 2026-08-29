@@ -43,7 +43,7 @@ class _PilotEligibilityScreenState
       if (!mounted) return;
       MortToast.show(
         context,
-        'Current teen pilot acknowledgements saved. Partner enrollment and all server requirements still apply.',
+        'Current teen acknowledgements saved. Partner enrollment and all server requirements still apply.',
       );
       setState(() => _future = _load());
     } catch (error) {
@@ -58,8 +58,8 @@ class _PilotEligibilityScreenState
     return MortScreen(
       children: [
         const MortHeader(
-          eyebrow: 'Closed pilot',
-          title: 'Pilot eligibility',
+          eyebrow: 'Marketplace access',
+          title: 'Account eligibility',
           subtitle:
               'Approved organization support and hosted server rules control protected marketplace access.',
         ),
@@ -71,7 +71,7 @@ class _PilotEligibilityScreenState
             }
             if (snapshot.hasError) {
               return MortErrorState(
-                title: 'Pilot access unavailable',
+                title: 'Marketplace access unavailable',
                 message: userFacingError(snapshot.error),
                 action: MortButton(
                   label: 'Try again',
@@ -86,8 +86,8 @@ class _PilotEligibilityScreenState
               children: [
                 MortSafetyBanner(
                   message: eligibility.allowed
-                      ? 'Hosted pilot access is active for this account. Every job still needs a server-owned safety decision.'
-                      : 'Hosted pilot access is not active. ${eligibility.missingRequirements.length} requirement(s) remain.',
+                      ? 'Marketplace access is active for this account. Every job still needs a server-owned safety decision.'
+                      : 'Marketplace access is not active. ${eligibility.missingRequirements.length} requirement(s) remain.',
                 ),
                 const SizedBox(height: MortSpacing.md),
                 MortCard(
@@ -187,7 +187,7 @@ class PartnerInvitationScreen extends StatelessWidget {
           'The organization relationship must already be approved.',
       'Partner staff attestation':
           'Staff may attest only to specifically authorized facts.',
-      'Manual pilot enrollment':
+      'Manual enrollment review':
           'An authorized reviewer records the decision and reason.',
     };
     return MortScreen(
@@ -196,7 +196,7 @@ class PartnerInvitationScreen extends StatelessWidget {
           eyebrow: 'Invitation only',
           title: 'Join through an approved partner',
           subtitle:
-              'Unrestricted random adult enrollment is closed during the organization-supported pilot.',
+              'Marketplace access requires organization-supported enrollment and server approval.',
         ),
         MortCard(
           child: Column(
@@ -1010,9 +1010,9 @@ class PilotJobSafetyScreen extends StatelessWidget {
       children: [
         const MortHeader(
           eyebrow: 'Server enforced',
-          title: 'Pilot job safety',
+          title: 'Job safety',
           subtitle:
-              'MORT controls pilot-job eligibility. Browser controls cannot grant marketplace access.',
+              'MORT controls job eligibility. Browser controls cannot grant marketplace access.',
         ),
         _BulletCard(
           title: 'Initially allowed settings',
@@ -1022,7 +1022,7 @@ class PilotJobSafetyScreen extends StatelessWidget {
         ),
         const SizedBox(height: MortSpacing.md),
         _BulletCard(
-          title: 'Blocked during the pilot',
+          title: 'Not permitted',
           items: blocked,
           icon: Icons.block,
           color: MortColors.danger,

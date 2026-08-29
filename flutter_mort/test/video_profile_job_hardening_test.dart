@@ -73,7 +73,7 @@ void main() {
     expect(source, contains('Job opened for applications.'));
     expect(
       source,
-      contains('Saved for closed-pilot review. Applications remain closed.'),
+      contains('Saved for review. Applications remain unavailable.'),
     );
     expect(source, isNot(contains("publish ? 'Job published.'")));
   });

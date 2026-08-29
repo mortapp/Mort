@@ -303,7 +303,7 @@ Credentials are intentionally excluded from source, Git, ZIPs, logs, screenshots
 
 1. Install the closed-test build and open MORT.
 2. Sign in with the synthetic reviewer credential supplied in Play Console.
-3. Confirm the visible Closed Pilot label.
+3. Confirm the app presents itself as MORT without test-track branding.
 4. Review the synthetic profile, test jobs, applications, job-context messages, report/block controls, Safety Center, payment-preference-only copy, and Settings → Account → Delete account.
 5. Use only records labelled Play Review or synthetic. No real minor, address, identity document, incident, or production participant is present.
 
@@ -328,14 +328,14 @@ ${status}
 Do not claim guaranteed safety or payment, verified/background-checked users, insurance, emergency response, legal approval, public availability, or worldwide support. Screenshots must use synthetic Play Review fixtures only.
 `);
 
-write('docs/play/MORT_PLAY_SHORT_DESCRIPTION.txt', `Teen-safe local work tools for approved MORT closed-pilot participants.`);
+write('docs/play/MORT_PLAY_SHORT_DESCRIPTION.txt', `Safer local work tools for teens, adults, and guardians.`);
 
 write('docs/play/MORT_PLAY_FULL_DESCRIPTION.txt', `
-MORT is a closed-pilot platform helping eligible teenagers age 13 and older explore approved local work, build experience, and coordinate with participating job posters and organizations.
+MORT helps eligible teenagers age 13 and older explore local work, build experience, and coordinate with job posters and organizations.
 
-Closed-pilot tools include role-based onboarding, a synthetic or approved job feed, applications, optional Guardian Mode, job-context messaging, reporting and blocking, proof workflows, payment-preference records, and safety controls.
+MORT tools include role-based onboarding, a job feed, applications, optional Guardian Mode, job-context messaging, reporting and blocking, proof workflows, payment-preference records, and safety controls.
 
-MORT is not publicly launched. Participation and job eligibility vary. Public marketplace access and real identity-document verification are disabled. MORT does not process payments, hold escrow, guarantee jobs or payment, provide insurance, background-check every adult, guarantee safety, or provide emergency response.
+Job availability and marketplace actions depend on account, role, and server-verified eligibility. Identity verification is not currently available. MORT does not process or escrow real-world job payments, guarantee jobs or payment, provide insurance, background-check every adult, guarantee safety, or provide emergency response.
 
 Guardian Mode is optional. Messaging is not anonymous or random; it is restricted to eligible job context and server safety checks. Users can report and block profiles, jobs, and messages through supported in-app controls.
 
@@ -343,13 +343,13 @@ In immediate danger, leave the situation and contact local emergency services. M
 `);
 
 write('docs/play/MORT_PLAY_RELEASE_NOTES.txt', `
-MORT 0.9.0 closed-pilot candidate
+MORT 0.9.0
 
-- Adds release-signed Android closed-test packaging.
-- Keeps public marketplace and real identity-document verification disabled.
+- Adds release-signed Android packaging.
+- Keeps marketplace actions subject to account eligibility and identity verification availability.
 - Adds reauthenticated in-app account deletion requests and external deletion support.
-- Includes synthetic reviewer access, report/block controls, contextual location permissions, and closed-pilot safety disclosures.
-- Ads, purchases, payment processing, escrow, and background location remain disabled.
+- Includes synthetic reviewer access, report/block controls, contextual location permissions, and safety disclosures.
+- MORT does not process or escrow real-world job payments.
 `);
 
 write('docs/play/MORT_PLAY_CONTENT_RATING_WORKBOOK.md', `
@@ -429,7 +429,7 @@ ${status}
 | Asset | Required target | Status / rule |
 |---|---|---|
 | Play icon | 512×512 PNG, no transparency rules violated | Existing source icon must be exported and visually inspected |
-| Feature graphic | 1024×500 JPG/PNG | Not yet approved; create with MORT name and closed-pilot positioning |
+| Feature graphic | 1024×500 JPG/PNG | Not yet approved; create with MORT public-product positioning |
 | Phone screenshots | At least 2, recommended polished set | Capture only synthetic Play Review data on physical/emulated approved devices |
 | Tablet screenshots | Only if tablet support is claimed | Do not claim until tablet QA passes |
 | App name/descriptions | Docs in this package | Draft complete, adult review required |
@@ -476,7 +476,7 @@ Target coverage: Android 10-16 where available; Samsung, Pixel, Motorola, low-me
 
 | Day | Focus | Evidence |
 |---|---|---|
-| 1 | Play install, launch, sign-in, closed-pilot label, consent | Device/version/install notes |
+| 1 | Play install, launch, sign-in, production identity, consent | Device/version/install notes |
 | 2 | Registration, under-13 denial, password reset, role onboarding | Age and auth outcomes |
 | 3 | Job feed, manual area, denied/approximate/precise location | Permission screenshots without addresses |
 | 4 | Synthetic posting/application and Guardian Mode paths | Workflow IDs only |
@@ -502,7 +502,7 @@ ${status}
 1. Join only through the Play opt-in URL using the invited Google account and remain opted in continuously for the requested 14 days.
 2. Install and update through Google Play, not a shared APK, for the formal closed-test evidence.
 3. Use only supplied synthetic accounts/data. Do not enter a real minor's identity, address, incident, school, government ID, or payment card.
-4. Confirm the app shows Closed Pilot and that public marketplace and real ID features are unavailable.
+4. Confirm the app presents itself as MORT and truthfully explains unavailable marketplace or identity-verification actions.
 5. Report device model, Android version, app version, steps, expected/actual behavior, and a sanitized screenshot when safe.
 6. Never capture credentials, private messages, addresses, or safety cases. Send urgent real-world danger to emergency services, not the tester group.
 7. Testers do not get Play Console, Supabase, moderation, or key access.

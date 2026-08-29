@@ -142,7 +142,7 @@ class Job {
       ? 'Flexible schedule'
       : '${formatDateTime(startsAt)}${endsAt == null ? '' : ' to ${formatDateTime(endsAt)}'}';
   String get verificationDisplay => isTest
-      ? 'Approved pilot participant'
+      ? 'Eligible poster'
       : switch (posterVerificationStatus) {
           'approved' => 'Verified poster',
           'pending' => 'Poster verification pending',

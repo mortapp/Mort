@@ -24,6 +24,7 @@
     "qa:onboarding-v2:legacy-compat": "node scripts/qa-onboarding-v2-legacy-compatibility.mjs",
     "qa:onboarding-v2:legacy-compat:transaction": "node scripts/qa-onboarding-v2-legacy-compatibility-transaction.mjs",
     "qa:production-client": "node scripts/qa-production-client-contract.mjs",
+    "qa:production-identity-copy": "node scripts/qa-production-identity-copy.mjs",
     "qa:old-project-smoke": "node scripts/qa-old-project-smoke.mjs",
     "qa:old-project-rls": "node scripts/qa-old-project-rls.mjs",
     "qa:create-local-users": "node scripts/create-local-test-users.mjs",
