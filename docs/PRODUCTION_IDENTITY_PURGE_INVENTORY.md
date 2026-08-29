@@ -142,3 +142,7 @@ packaging records. They are classified as follows:
   debug-only, raw server modes are never rendered as friendly status, and the
   public account-deletion form requires validated project-scoped anon
   configuration.
+- Reconciliation with integration tip `c8ad084` preserved its Google Sign-In
+  privacy disclosure and account-deletion work while regenerating all public
+  routes from the production-neutral source. Deployment readiness remains
+  false until the six external publisher/contact metadata inputs are supplied.

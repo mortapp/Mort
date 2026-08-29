@@ -6,6 +6,8 @@ BASE_BRANCH=origin/feature/compact-onboarding-and-screen-polish
 
 BASE_COMMIT=cebcc426d1d100cabbe099c656e7254af5db2b87
 
+RECONCILED_INTEGRATION_TIP=c8ad084593292fd96221f8c24f91b161c04e876c
+
 CODEX_BRANCH=codex/production-identity-purge
 
 CODEX_WORKTREE=C:\Users\micha\Mort\.worktrees\codex-production-identity-purge
@@ -84,8 +86,9 @@ They are not rendered as normal-user product identity.
 - `flutter analyze`: PASS, no issues.
 - Focused Flutter tests: PASS, 24 tests after review-gap corrections.
 - Full `flutter test`: PASS, 425 tests; 2 pre-existing intentional skips.
-- Public site build: PASS, 13 routes, using the exact already-committed public
-  metadata values; no deployment was performed.
+- Public site build: PASS, 13 routes. Deployment readiness remains truthfully
+  false because the six publisher/contact metadata inputs are not configured;
+  no deployment was performed.
 - Public site validator: PASS, 13 routes. It rejects a missing or malformed
   public Supabase configuration and requires the expected project-scoped anon
   JWT; it never accepts a service-role key.
@@ -119,13 +122,14 @@ existing public anon configuration.
 
 ## Potential conflicts and integration
 
-POTENTIAL_CONFLICTS=Flutter onboarding/account-status files and
-`scripts/build-public-legal-site.mjs` may overlap if Claude changed them after
-base commit `cebcc42`. Resolve semantically: keep Claude's server/security/legal
-work and retain the production-neutral strings plus the copy contract.
+POTENTIAL_CONFLICTS=RESOLVED through integration tip `c8ad084`. The public-site
+generator now contains both Claude's Google Sign-In privacy disclosure and the
+production-neutral identity copy. Generated routes were rebuilt from that
+combined source. Claude's account-deletion migration and audit docs were
+preserved unchanged.
 
-INTEGRATION_INSTRUCTIONS=Fetch `codex/production-identity-purge`, compare it to
-the latest pushed integration tip, then cherry-pick the coherent commits or
-merge the branch in a clean integration worktree. Do not choose ours/theirs for
-overlapping backend-aware UI files wholesale. Run the copy contract, public
-site validator, `flutter analyze`, and full Flutter tests after resolution.
+INTEGRATION_INSTRUCTIONS=Fetch and merge `codex/production-identity-purge` in a
+clean integration worktree. The branch already contains integration tip
+`c8ad084`; do not repeat the resolved generated-site conflict by cherry-picking
+only selected web commits. Run the copy contract, public-site validator,
+`flutter analyze`, and full Flutter tests after any later integration changes.
