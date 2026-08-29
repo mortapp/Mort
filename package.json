@@ -18,6 +18,7 @@
     "qa:migration-file-encoding": "node scripts/qa-migration-file-encoding.mjs",
     "qa:account-deletion-fk-contract": "node scripts/qa-account-deletion-fk-contract.mjs",
     "qa:account-deletion-functional": "node scripts/qa-account-deletion-functional.mjs",
+    "qa:account-deletion-hosted-e2e": "node scripts/qa-account-deletion-hosted-e2e.mjs",
     "qa:account-deletion-worker-state": "node scripts/qa-account-deletion-worker-state.mjs",
     "qa:onboarding-v2": "node scripts/qa-four-step-onboarding-v2.mjs",
     "qa:onboarding-v2:transaction": "node scripts/qa-four-step-onboarding-v2-transaction.mjs",

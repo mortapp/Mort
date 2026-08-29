@@ -136,13 +136,46 @@ legitimate safety/dispute evidence" requirement: nothing in the fix deletes
 evidence — it only removes the now-orphaned identity pointer on records that
 must survive for legal/safety/financial reasons.
 
-## Not yet deployed to hosted
+## Deployed to hosted (2026-08-29) — ACCOUNT_DELETION_P0=CLOSED
 
-This migration has been validated **locally only**. Per explicit instruction
-during this session, it has not been pushed to the hosted project
-(`rakjydmgwwgtdislanbt`) and no `supabase db push` / hosted mutation has been
-performed. Hosted deployment requires a separate, explicit authorization step
-(see the continuation ledger).
+`20260829010000_account_deletion_retention_deidentification.sql` was applied
+to the hosted project (`rakjydmgwwgtdislanbt`) via standard forward migration
+tooling (`supabase db push --linked`) after every precondition below was
+independently verified green: clean/pushed HEAD, fresh local reset from
+empty, FK contract, full functional deletion E2E, RLS, database lint, secret
+scan, and a dry run confirming this was the *only* pending migration. No
+migration repair, no hosted reset, no manual SQL fragments.
+
+Post-deploy verification, all against the live hosted database:
+
+- `supabase db push --linked --dry-run` → `"upToDate": true, "Remote database is up to date."`
+- `qa:account-deletion-fk-contract` (hosted): 336 foreign keys checked, 0
+  RESTRICT/NO ACTION, 0 SET-NULL/NOT-NULL contradictions, 99/99 classified
+  relationships match the matrix.
+- `qa:account-deletion-hosted-e2e`: a disposable QA account (created and
+  cleaned up via the existing hosted-safe QA harness) with a real
+  `account_ban_appeals` row (the same previously-RESTRICT table proven
+  locally) is deleted via the real `auth.admin.deleteUser()` API on
+  production. The profile is gone; the appeal row survives with `user_id`
+  genuinely `NULL`.
+- A duplicate `deleteUser()` call against a nonexistent/already-deleted user
+  returns a clean `"User not found"` error on hosted, not a crash.
+- `qa:migration-reconciliation-parity` (hosted): still passes — untouched by
+  this migration.
+- `supabase db lint --linked`: no schema errors.
+- Supabase security and performance advisors: 0 ERROR-level findings on
+  either; identical WARN/INFO counts to the pre-migration baseline (85
+  security INFO / 300 WARN, 206 performance INFO / 5 WARN) — this migration
+  introduced zero new advisor findings.
+- `qa:account-deletion-worker-state` (local only — this logic predates and
+  is untouched by the FK migration; hosted schema is now identical): claim
+  exclusivity, malformed-lock denial, replay safety, and reclaim denial all
+  still pass.
+
+No real or non-test account was touched. No hosted RLS-suite run was
+possible (`qa-rls.mjs` refuses non-local targets by design); RLS policies
+are independent of FK actions and were already verified against the
+identical post-migration schema locally.
 
 ## Remaining external legal determination
 
