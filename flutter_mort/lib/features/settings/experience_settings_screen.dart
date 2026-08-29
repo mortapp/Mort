@@ -34,8 +34,7 @@ class ExperienceSettingsScreen extends ConsumerWidget {
         MortGlassHeader(
           eyebrow: appearanceFirst ? 'Appearance' : 'Accessibility',
           title: appearanceFirst ? 'How MORT looks' : 'How MORT feels',
-          subtitle:
-              'These private preferences stay on this device and take effect immediately.',
+          subtitle: 'These private preferences stay on this device and take effect immediately.',
         ),
         const SizedBox(height: MortSpacing.md),
         preferences.when(
@@ -140,8 +139,7 @@ class ExperienceSettingsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: MortSpacing.md),
               const MortSafetyBanner(
-                message:
-                    'Accessibility preferences never change role checks, safety controls, verification, or marketplace access.',
+                message: 'Accessibility preferences never change role checks, safety controls, verification, or marketplace access.',
               ),
             ],
           ),
@@ -160,8 +158,7 @@ class PrivacySettingsScreen extends StatelessWidget {
       const MortGlassHeader(
         eyebrow: 'Privacy',
         title: 'Control what MORT can use',
-        subtitle:
-            'MORT uses approximate areas for discovery and keeps exact teen location, messages, and evidence private.',
+        subtitle: 'MORT uses approximate areas for discovery and keeps exact teen location, messages, and evidence private.',
       ),
       const MortSectionLabel(label: 'Location and visibility'),
       MortDashboardActionTile(
@@ -174,8 +171,7 @@ class PrivacySettingsScreen extends StatelessWidget {
       const SizedBox(height: MortSpacing.sm),
       MortDashboardActionTile(
         label: 'Edit public-safe profile',
-        description:
-            'Change your display information and approximate area. Exact addresses are not accepted.',
+        description: 'Change your display information and approximate area. Exact addresses are not accepted.',
         icon: Icons.visibility_outlined,
         onPressed: () => context.push('/settings/profile'),
       ),
@@ -196,8 +192,7 @@ class PrivacySettingsScreen extends StatelessWidget {
       ),
       const SizedBox(height: MortSpacing.md),
       const MortSafetyBanner(
-        message:
-            'MORT does not expose a teen\'s exact location to job posters. Guardian Mode does not grant unrestricted message access.',
+        message: 'MORT does not expose a teen\'s exact location to job posters. Guardian Mode does not grant unrestricted message access.',
       ),
     ],
   );
@@ -212,13 +207,11 @@ class SafetySettingsScreen extends StatelessWidget {
       const MortGlassHeader(
         eyebrow: 'Safety',
         title: 'Safety controls stay free',
-        subtitle:
-            'Reporting, blocking, Safety Ping, and core Guardian Mode do not require a purchase.',
+        subtitle: 'Reporting, blocking, Safety Ping, and core Guardian Mode do not require a purchase.',
       ),
       MortDashboardActionTile(
         label: 'Safety Center',
-        description:
-            'Open check-ins, Safety Ping, active-job tools, and emergency guidance.',
+        description: 'Open check-ins, Safety Ping, active-job tools, and emergency guidance.',
         icon: Icons.health_and_safety_outlined,
         onPressed: () => context.push('/safety'),
       ),
@@ -252,8 +245,7 @@ class SafetySettingsScreen extends StatelessWidget {
       ),
       const SizedBox(height: MortSpacing.md),
       const MortSafetyBanner(
-        message:
-            'MORT is not an emergency service. In immediate danger, move to safety and contact local emergency services.',
+        message: 'MORT is not an emergency service. In immediate danger, move to safety and contact local emergency services.',
       ),
     ],
   );
@@ -268,8 +260,7 @@ class DataControlsScreen extends StatelessWidget {
       const MortGlassHeader(
         eyebrow: 'Data controls',
         title: 'Your account data',
-        subtitle:
-            'Deletion is available in-app. A self-service full account export is not active in this closed-test build.',
+        subtitle: 'Deletion is available in-app. Self-service full account export is not available yet.',
       ),
       MortDashboardActionTile(
         label: 'Activity history',
@@ -280,8 +271,7 @@ class DataControlsScreen extends StatelessWidget {
       const SizedBox(height: MortSpacing.sm),
       MortDashboardActionTile(
         label: 'Request account deletion',
-        description:
-            'Reconfirm your identity and submit or cancel a server-tracked deletion request.',
+        description: 'Reconfirm your identity and submit or cancel a server-tracked deletion request.',
         icon: Icons.delete_outline,
         onPressed: () => context.push('/settings/account-deletion'),
       ),
@@ -292,7 +282,7 @@ class DataControlsScreen extends StatelessWidget {
           leading: Icon(Icons.download_outlined, color: MortColors.silver),
           title: Text('Full account export'),
           subtitle: Text(
-            'Unavailable in this closed-test build while export scope, retention, and teen privacy handling await legal approval. Contact Support for a privacy request.',
+            'Self-service export is not available yet. Contact Support to make a privacy request.',
           ),
           trailing: MortBadge(label: 'Unavailable'),
         ),
@@ -347,7 +337,7 @@ class AboutMortScreen extends StatelessWidget {
         onPressed: () => showLicensePage(
           context: context,
           applicationName: 'MORT',
-          applicationLegalese: 'Closed-test build. All rights reserved.',
+          applicationLegalese: 'MORT. All rights reserved.',
         ),
       ),
       const SizedBox(height: MortSpacing.sm),

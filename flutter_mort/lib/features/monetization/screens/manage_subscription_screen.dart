@@ -15,11 +15,10 @@ class ManageSubscriptionScreen extends StatelessWidget {
           eyebrow: 'Optional perks',
           title: 'Subscriptions unavailable',
           subtitle:
-              'This closed-pilot release does not include subscriptions or in-app purchases.',
+              'Subscriptions and in-app purchases are not available right now.',
         ),
         const MortSafetyBanner(
-          message:
-              'MORT does not process, hold, guarantee, or escrow job payments. Job payment preferences are separate from app-store purchases.',
+          message: 'MORT does not process, hold, guarantee, or escrow job payments. Job payment preferences are separate from app-store purchases.',
         ),
         const SizedBox(height: MortSpacing.md),
         MortButton(

@@ -16,8 +16,7 @@ class RevenueCatPaywallScreen extends ConsumerWidget {
     super.key,
     this.placement = 'main',
     this.title = 'Optional MORT perks',
-    this.subtitle =
-        'The free experience remains available. Purchases are not included in this closed-pilot release.',
+    this.subtitle = 'The free experience remains available. Optional purchases are not available right now.',
   });
 
   final String placement;
@@ -39,8 +38,7 @@ class RevenueCatPaywallScreen extends ConsumerWidget {
         _PaywallValueCard(placement: placement),
         const SizedBox(height: MortSpacing.md),
         const MortSafetyBanner(
-          message:
-              'Purchases and paid subscriptions are disabled for this release. No safety, applying, messaging, reporting, blocking, or basic Guardian Mode feature requires payment.',
+          message: 'Purchases and paid subscriptions are disabled for this release. No safety, applying, messaging, reporting, blocking, or basic Guardian Mode feature requires payment.',
         ),
         if (placement == 'username-change') ...[
           const SizedBox(height: MortSpacing.md),
@@ -79,7 +77,7 @@ class _PaywallValueCard extends StatelessWidget {
         'Paid username credits cannot be purchased in this release.',
       ],
       'job-boost' => const [
-        'Job boosts never bypass pilot approval, moderation, or safety review.',
+        'Job boosts never bypass account eligibility, moderation, or safety review.',
         'Paid job boosts cannot be purchased in this release.',
       ],
       _ => const [

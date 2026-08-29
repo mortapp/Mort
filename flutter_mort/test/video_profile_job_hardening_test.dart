@@ -46,9 +46,8 @@ void main() {
   );
 
   test('profile setup uses the atomic RPC and encrypted recovery', () {
-    final repository = File(
-      'lib/data/repositories/profile_repository.dart',
-    ).readAsStringSync();
+    final repository = File('lib/data/repositories/profile_repository.dart')
+        .readAsStringSync();
     final screen = File('lib/features/mort_screens.dart').readAsStringSync();
     final start = screen.indexOf('class _ProfileSetupScreenState');
     final end = screen.indexOf('class SkillsScreen', start);
@@ -63,9 +62,8 @@ void main() {
   });
 
   test('job composer reports real server publication state', () {
-    final source = File(
-      'lib/features/jobs/job_screens.dart',
-    ).readAsStringSync();
+    final source = File('lib/features/jobs/job_screens.dart')
+        .readAsStringSync();
 
     expect(source, contains('MortSearchableDropdown<String>'));
     expect(source, contains('writeJobDraft'));
@@ -73,7 +71,7 @@ void main() {
     expect(source, contains('Job opened for applications.'));
     expect(
       source,
-      contains('Saved for closed-pilot review. Applications remain closed.'),
+      contains('Saved for review. Applications remain unavailable.'),
     );
     expect(source, isNot(contains("publish ? 'Job published.'")));
   });
@@ -97,12 +95,10 @@ void main() {
   test(
     'avatar editor previews processed bytes and maps permission failures',
     () {
-      final repository = File(
-        'lib/data/repositories/avatar_repository.dart',
-      ).readAsStringSync();
-      final editor = File(
-        'lib/features/profile/profile_avatar_widgets.dart',
-      ).readAsStringSync();
+      final repository = File('lib/data/repositories/avatar_repository.dart')
+          .readAsStringSync();
+      final editor = File('lib/features/profile/profile_avatar_widgets.dart')
+          .readAsStringSync();
 
       expect(repository, contains('avatar_camera_permission_denied'));
       expect(repository, contains('avatar_photo_permission_denied'));

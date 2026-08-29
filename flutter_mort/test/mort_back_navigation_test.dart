@@ -268,7 +268,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(router.state.uri.path, '/onboarding/safety');
-        expect(find.text('Review the closed-pilot rules'), findsOneWidget);
+        expect(find.text('Review MORT safety rules'), findsOneWidget);
       }
     },
   );

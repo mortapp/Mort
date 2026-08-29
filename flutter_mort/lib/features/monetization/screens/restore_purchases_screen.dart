@@ -14,13 +14,11 @@ class RevenueCatRestorePurchasesScreen extends StatelessWidget {
         const MortHeader(
           eyebrow: 'Optional perks',
           title: 'Purchases unavailable',
-          subtitle:
-              'This closed-pilot release cannot make or restore app-store purchases.',
+          subtitle: 'App-store purchases cannot be made or restored right now.',
         ),
         const MortEmptyState(
           title: 'Nothing to restore in this release',
-          message:
-              'Your account and all core safety features continue to work without a purchase.',
+          message: 'Your account and all core safety features continue to work without a purchase.',
         ),
         const SizedBox(height: MortSpacing.md),
         MortButton(

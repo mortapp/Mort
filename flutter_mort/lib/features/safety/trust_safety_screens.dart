@@ -48,8 +48,7 @@ class _IdentityVerificationScreenState
         MortHeader(
           eyebrow: 'PRIVATE TRUST CHECK',
           title: 'Identity verification',
-          subtitle:
-              'Public marketplace participation stays closed until secure production verification is available. Guardian Mode remains optional.',
+          subtitle: 'Some marketplace actions remain unavailable until secure identity verification is available. Guardian Mode remains optional.',
           trailing: MortIconButton(
             icon: Icons.refresh,
             tooltip: 'Refresh status',
@@ -78,8 +77,7 @@ class _IdentityVerificationScreenState
         const SizedBox(height: MortSpacing.lg),
         const _SafetyNotice(
           title: 'Verification is not a safety guarantee',
-          message:
-              'MORT is not collecting identity documents in disabled or sandbox mode. Reporting, blocking, Safety Ping, support, and emergency guidance stay available.',
+          message: 'MORT is not collecting identity documents in disabled or sandbox mode. Reporting, blocking, Safety Ping, support, and emergency guidance stay available.',
           color: MortColors.safetyBlue,
         ),
       ],
@@ -145,8 +143,7 @@ class _IdentityVerificationScreenState
     if (status.verificationMode == 'disabled') {
       return const _SafetyNotice(
         title: 'Identity verification is not accepting public submissions yet.',
-        message:
-            'MORT is still preparing its secure verification system. Do not upload an ID or personal document.',
+        message: 'MORT is still preparing its secure verification system. Do not upload an ID or personal document.',
         color: MortColors.warning,
       );
     }
@@ -154,8 +151,7 @@ class _IdentityVerificationScreenState
       if (!status.sandboxEligible) {
         return const _SafetyNotice(
           title: 'Sandbox restricted',
-          message:
-              'Test verification is available only to explicitly isolated QA accounts.',
+          message: 'Test verification is available only to explicitly isolated QA accounts.',
           color: MortColors.warning,
         );
       }
@@ -164,8 +160,7 @@ class _IdentityVerificationScreenState
         children: [
           const _SafetyNotice(
             title: 'TEST MODE',
-            message:
-                'Test verification - do not use real documents. Sandbox results never grant production eligibility.',
+            message: 'Test verification - do not use real documents. Sandbox results never grant production eligibility.',
             color: MortColors.warning,
           ),
           if (status.id == null || status.status == 'unverified') ...[
@@ -183,8 +178,7 @@ class _IdentityVerificationScreenState
     if (!status.productionProviderAvailable) {
       return const _SafetyNotice(
         title: 'Production provider unavailable',
-        message:
-            'Production verification fails closed until an approved provider, signed webhook, legal approval, retention policy, and trained operations are ready.',
+        message: 'Production verification fails closed until an approved provider, signed webhook, legal approval, retention policy, and trained operations are ready.',
         color: MortColors.warning,
       );
     }
@@ -193,8 +187,7 @@ class _IdentityVerificationScreenState
       children: [
         const _SafetyNotice(
           title: 'Secure provider handoff',
-          message:
-              'An approved provider collects identity information on its own secure page. MORT stores only references, status, and a limited audit trail.',
+          message: 'An approved provider collects identity information on its own secure page. MORT stores only references, status, and a limited audit trail.',
           color: MortColors.safetyBlue,
         ),
         const SizedBox(height: MortSpacing.md),
@@ -343,8 +336,7 @@ class _SafetyCasesScreenState extends ConsumerState<SafetyCasesScreen> {
         const MortHeader(
           eyebrow: 'RESTRICTED STATUS',
           title: 'Safety cases',
-          subtitle:
-              'Only case status and approved public notes are shown here. Restricted evidence and internal notes stay isolated.',
+          subtitle: 'Only case status and approved public notes are shown here. Restricted evidence and internal notes stay isolated.',
         ),
         if (_cases == null && _error == null)
           const MortLoading(fullScreen: false),
@@ -357,8 +349,7 @@ class _SafetyCasesScreenState extends ConsumerState<SafetyCasesScreen> {
         if (_cases != null && _cases!.isEmpty)
           const MortEmptyState(
             title: 'No safety cases',
-            message:
-                'Reports and preserved incidents you are allowed to see will appear here.',
+            message: 'Reports and preserved incidents you are allowed to see will appear here.',
           ),
         for (final incident in _cases ?? const <SafetyIncidentSummary>[]) ...[
           MortCard(
@@ -498,8 +489,7 @@ class _SafetyCircleScreenState extends ConsumerState<SafetyCircleScreen> {
         const MortHeader(
           eyebrow: 'OPTIONAL AND CONSENTED',
           title: 'Safety Circle',
-          subtitle:
-              'Trusted contacts receive only permissions granted by the teen. They do not receive account control, raw ID evidence, or unrestricted messages.',
+          subtitle: 'Trusted contacts receive only permissions granted by the teen. They do not receive account control, raw ID evidence, or unrestricted messages.',
         ),
         if (_role == UserRole.teen) _teenInvite() else _acceptInvite(),
         const MortSectionTitle(title: 'Linked contacts'),
@@ -548,8 +538,7 @@ class _SafetyCircleScreenState extends ConsumerState<SafetyCircleScreen> {
         const SizedBox(height: MortSpacing.md),
         const _SafetyNotice(
           title: 'Teen privacy remains in force',
-          message:
-              'Either person can unlink. Safety Circle does not introduce a global guardian requirement and never replaces emergency services.',
+          message: 'Either person can unlink. Safety Circle does not introduce a global guardian requirement and never replaces emergency services.',
           color: MortColors.safetyBlue,
         ),
       ],
@@ -755,14 +744,12 @@ class _JobSafetyWorkspaceScreenState
         const MortHeader(
           eyebrow: 'TWO-SIDED JOB SAFETY',
           title: 'Mutual Safety Agreement',
-          subtitle:
-              'Both participants confirm the same current terms. Material changes clear prior confirmations.',
+          subtitle: 'Both participants confirm the same current terms. Material changes clear prior confirmations.',
         ),
         if (_agreement == null)
           const _SafetyNotice(
             title: 'Agreement not available yet',
-            message:
-                'The restricted agreement is created after the poster accepts an application.',
+            message: 'The restricted agreement is created after the poster accepts an application.',
             color: MortColors.warning,
           )
         else ...[
@@ -776,8 +763,7 @@ class _JobSafetyWorkspaceScreenState
         const SizedBox(height: MortSpacing.md),
         const _SafetyNotice(
           title: 'Right to leave',
-          message:
-              'Verification and arrival confirmation do not guarantee safety. Leave when the person, location, scope, or conditions differ. Contact emergency services for immediate danger.',
+          message: 'Verification and arrival confirmation do not guarantee safety. Leave when the person, location, scope, or conditions differ. Contact emergency services for immediate danger.',
           color: MortColors.safetyBlue,
         ),
       ],
@@ -836,8 +822,7 @@ class _JobSafetyWorkspaceScreenState
       children: [
         const MortSectionTitle(
           title: 'Safe First Meeting',
-          subtitle:
-              'Record people present, visibility, daylight, transportation, and check-ins before work starts.',
+          subtitle: 'Record people present, visibility, daylight, transportation, and check-ins before work starts.',
         ),
         MortTextField(
           label: 'Who will be present',
@@ -874,8 +859,7 @@ class _JobSafetyWorkspaceScreenState
       children: [
         const MortSectionTitle(
           title: 'Staged exact location',
-          subtitle:
-              'Only a general area is public. Exact location is released after acceptance and both confirmations.',
+          subtitle: 'Only a general area is public. Exact location is released after acceptance and both confirmations.',
         ),
         if (_role == UserRole.adult) ...[
           MortTextField(
@@ -920,8 +904,7 @@ class _JobSafetyWorkspaceScreenState
       children: [
         const MortSectionTitle(
           title: 'Temporary location sharing',
-          subtitle:
-              'Optional, explicit, visible, job-bound, and expires after two hours. Web preview shares a coarse area only.',
+          subtitle: 'Optional, explicit, visible, job-bound, and expires after two hours. Web preview shares a coarse area only.',
         ),
         MortTextField(label: 'Coarse area', controller: _coarseController),
         const SizedBox(height: MortSpacing.sm),
@@ -963,8 +946,7 @@ class _JobSafetyWorkspaceScreenState
       children: [
         const MortSectionTitle(
           title: 'Arrival handshake',
-          subtitle:
-              'The poster generates a short-lived code. The assigned teen confirms the code and person match. Codes are single-use.',
+          subtitle: 'The poster generates a short-lived code. The assigned teen confirms the code and person match. Codes are single-use.',
         ),
         if (_role == UserRole.adult)
           MortButton(
@@ -1013,8 +995,7 @@ class _JobSafetyWorkspaceScreenState
       children: [
         const MortSectionTitle(
           title: 'Leave without retaliation',
-          subtitle:
-              'Safety cancellations do not automatically reduce reputation. Serious reasons open the restricted incident workflow.',
+          subtitle: 'Safety cancellations do not automatically reduce reputation. Serious reasons open the restricted incident workflow.',
         ),
         DropdownButtonFormField<String>(
           initialValue: _cancelReason,
@@ -1228,8 +1209,7 @@ class _AccountSessionsScreenState extends ConsumerState<AccountSessionsScreen> {
         const MortHeader(
           eyebrow: 'ACCOUNT SECURITY',
           title: 'Active sessions',
-          subtitle:
-              'Review privacy-safe session references and report devices you do not recognize.',
+          subtitle: 'Review privacy-safe session references and report devices you do not recognize.',
         ),
         if (_sessions == null) const MortLoading(fullScreen: false),
         for (final session in _sessions ?? const <AccountSessionSummary>[]) ...[

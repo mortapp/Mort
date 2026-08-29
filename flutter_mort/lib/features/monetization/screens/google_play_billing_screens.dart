@@ -44,10 +44,9 @@ class _PurchasesDisabledScreen extends StatelessWidget {
   Widget build(BuildContext context) => const MortScreen(
     children: [
       MortHeader(
-        eyebrow: 'Free pilot',
+        eyebrow: 'Free experience',
         title: 'Purchases are not offered',
-        subtitle:
-            'MORT jobs, applications, messaging, reports, blocking, Safety Ping, and basic Guardian Mode remain available without an upgrade.',
+        subtitle: 'MORT jobs, applications, messaging, reports, blocking, Safety Ping, and basic Guardian Mode remain available without an upgrade.',
       ),
       MortCard(
         child: Text(

@@ -17,47 +17,40 @@ class TeenVerificationOptionsScreen extends StatelessWidget {
       const MortHeader(
         eyebrow: 'Teen trust options',
         title: 'Choose an evidence route',
-        subtitle:
-            'A current middle-school or high-school ID review is recommended when available, but it is not mandatory.',
+        subtitle: 'A current middle-school or high-school ID review is recommended when available, but it is not mandatory.',
       ),
       const MortSafetyBanner(
-        message:
-            'Real document collection is disabled. Closed-test routes use synthetic material only and do not establish legal identity or guarantee safety.',
+        message: 'This screen uses synthetic examples only. It does not establish legal identity or guarantee safety.',
       ),
       const SizedBox(height: MortSpacing.md),
       const _VerificationOption(
         title: 'Current school ID review',
         badge: 'Recommended',
-        description:
-            'Middle school, junior high, high school, secondary school, or a vocational secondary program. Visual review can support the label “School document reviewed”; it does not prove current enrollment, attendance, legal identity, age, or account ownership.',
+        description: 'Middle school, junior high, high school, secondary school, or a vocational secondary program. Visual review can support the label “School document reviewed”; it does not prove current enrollment, attendance, legal identity, age, or account ownership.',
         icon: Icons.school_outlined,
       ),
       const SizedBox(height: MortSpacing.sm),
       const _VerificationOption(
         title: 'Verified school email',
-        description:
-            'Where an approved school domain is available, a confirmed account email may support “School affiliation confirmed.”',
+        description: 'Where an approved school domain is available, a confirmed account email may support “School affiliation confirmed.”',
         icon: Icons.alternate_email,
       ),
       const SizedBox(height: MortSpacing.sm),
       const _VerificationOption(
         title: 'Partner or youth-program attestation',
-        description:
-            'An approved organization may provide a current, auditable affiliation signal without giving that organization access to private job activity.',
+        description: 'An approved organization may provide a current, auditable affiliation signal without giving that organization access to private job activity.',
         icon: Icons.groups_outlined,
       ),
       const SizedBox(height: MortSpacing.sm),
       const _VerificationOption(
         title: 'Government or youth-program ID',
-        description:
-            'A future reviewed route. MORT is not accepting real government, school, or youth-program documents in this release.',
+        description: 'A future reviewed route. MORT is not accepting real government, school, or youth-program documents in this release.',
         icon: Icons.badge_outlined,
       ),
       const SizedBox(height: MortSpacing.sm),
       const _VerificationOption(
-        title: 'Manual exception or no-document pilot route',
-        description:
-            'For homeschool, online-school, transitional, dual-enrollment, or other eligible teens without a traditional school ID. Access requires a reviewed pilot policy decision.',
+        title: 'Manual exception or no-document review',
+        description: 'For homeschool, online-school, transitional, dual-enrollment, or other eligible teens without a traditional school ID. Access requires a reviewed policy decision.',
         icon: Icons.support_agent,
       ),
       const SizedBox(height: MortSpacing.md),
@@ -157,8 +150,7 @@ class _TeenVerificationCapturePreparationScreenState
       const MortHeader(
         eyebrow: 'Before capture',
         title: 'Document capture and privacy',
-        subtitle:
-            'MORT requests camera access only after you choose a permitted document route and tap Use camera.',
+        subtitle: 'MORT requests camera access only after you choose a permitted document route and tap Use camera.',
       ),
       const MortCard(
         child: Text(
@@ -195,8 +187,7 @@ class _TeenVerificationCapturePreparationScreenState
       if (!AppConfig.identityVerificationEnabled) ...[
         const SizedBox(height: MortSpacing.md),
         const MortSafetyBanner(
-          message:
-              'This release collects no real ID or face media. Synthetic QA is controlled by server-only test routes.',
+          message: 'This release collects no real ID or face media. Synthetic QA is controlled by server-only test routes.',
         ),
       ],
     ],

@@ -18,8 +18,7 @@ class LegalCenterScreen extends ConsumerWidget {
         const MortHeader(
           eyebrow: 'Legal center',
           title: 'Exact versions, affirmative choices',
-          subtitle:
-              'Browsing MORT never creates acceptance. Only a published, effective, exact-hash version can be accepted.',
+          subtitle: 'Browsing MORT never creates acceptance. Only a published, effective, exact-hash version can be accepted.',
         ),
         const _LegalDraftWarning(),
         const SizedBox(height: MortSpacing.md),
@@ -42,8 +41,7 @@ class LegalCenterScreen extends ConsumerWidget {
             if (requirements.isEmpty) {
               return const MortEmptyState(
                 title: 'No approved clickwrap is published',
-                message:
-                    'These documents remain publication candidates and have not been approved by an attorney. MORT will not treat a draft as user consent.',
+                message: 'These documents remain publication candidates and have not been approved by an attorney. MORT will not treat a draft as user consent.',
               );
             }
             return Column(
@@ -132,8 +130,7 @@ class TeenTermsSummaryScreen extends StatelessWidget {
         MortHeader(
           eyebrow: 'Plain language',
           title: 'Teen terms summary',
-          subtitle:
-              'This draft summary helps with understanding. It does not replace the full agreement or attorney review.',
+          subtitle: 'This draft summary helps with understanding. It does not replace the full agreement or attorney review.',
         ),
         _SummaryCard(
           'Use MORT honestly',
@@ -161,7 +158,7 @@ class TeenTermsSummaryScreen extends StatelessWidget {
         ),
         _SummaryCard(
           'Guardian Mode is optional',
-          'Guardian Mode is separate from any jurisdiction-specific legal requirement or closed-pilot eligibility rule.',
+          'Guardian Mode is separate from jurisdiction-specific legal requirements and account eligibility rules.',
         ),
         MortSafetyBanner(),
       ],
@@ -256,8 +253,7 @@ class _LegalClickwrapScreenState extends ConsumerState<LegalClickwrapScreen> {
         MortHeader(
           eyebrow: 'Affirmative clickwrap',
           title: widget.title,
-          subtitle:
-              'Acceptance is never inferred from opening, scrolling, or using MORT.',
+          subtitle: 'Acceptance is never inferred from opening, scrolling, or using MORT.',
         ),
         const _LegalDraftWarning(),
         const SizedBox(height: MortSpacing.md),

@@ -263,8 +263,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
         MortTeenDestinationHeader(
           eyebrow: 'Teen-safe feed',
           title: 'Jobs',
-          subtitle:
-              'Open jobs in your selected area. Exact addresses never appear in the feed.',
+          subtitle: 'Open jobs in your selected area. Exact addresses never appear in the feed.',
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -481,8 +480,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
             if (items.isEmpty) {
               return MortEmptyState(
                 title: 'No jobs in this area yet',
-                message:
-                    'When approved pilot adults post matching jobs for this city, state, and travel method, they will appear here.',
+                message: 'When eligible adults post matching jobs for this city, state, and travel method, they will appear here.',
                 action: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -531,8 +529,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
               children: [
                 if (feed.servedFromSessionCache) ...[
                   const MortSafetyBanner(
-                    message:
-                        'Showing job results loaded earlier in this session. Refresh when your connection returns.',
+                    message: 'Showing job results loaded earlier in this session. Refresh when your connection returns.',
                   ),
                   const SizedBox(height: MortSpacing.sm),
                 ],
@@ -1178,8 +1175,7 @@ class _TeenJobDetailScreenState extends ConsumerState<TeenJobDetailScreen> {
             ],
             const SizedBox(height: MortSpacing.md),
             const MortSafetyBanner(
-              message:
-                  'Keep communication on MORT. Do not send private contact details, payment handles, access codes, or an exact address in your proposal.',
+              message: 'Keep communication on MORT. Do not send private contact details, payment handles, access codes, or an exact address in your proposal.',
             ),
             const SizedBox(height: MortSpacing.md),
             const MortPaymentDisclaimer(),
@@ -1219,8 +1215,7 @@ class _TeenJobDetailScreenState extends ConsumerState<TeenJobDetailScreen> {
             MortTextArea(
               label: 'Proposal (optional)',
               controller: _proposal,
-              hint:
-                  'Tell the poster why you are a good fit, what experience you have, and when you are available.',
+              hint: 'Tell the poster why you are a good fit, what experience you have, and when you are available.',
               maxLines: 6,
               maxLength: 500,
             ),

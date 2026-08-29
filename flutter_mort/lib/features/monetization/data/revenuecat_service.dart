@@ -42,7 +42,7 @@ class RevenueCatEntitlementState {
       has(AppConfig.revenueCatEntitlementProfileStylePack) || isPlus;
 }
 
-/// Closed-pilot purchase facade. Native billing is deliberately not linked into
+/// Purchase facade for builds where native billing is deliberately not linked.
 /// this release, so every operation fails closed without invoking platform code.
 class RevenueCatService {
   RevenueCatService._();
@@ -50,7 +50,7 @@ class RevenueCatService {
   static final RevenueCatService instance = RevenueCatService._();
 
   static const _disabledMessage =
-      'Optional purchases are not included in this closed-pilot release.';
+      'Optional purchases are not available right now.';
 
   RevenueCatStatus status({String? supabaseUserId}) =>
       const RevenueCatStatus(available: false, message: _disabledMessage);

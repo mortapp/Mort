@@ -24,12 +24,10 @@ class PartnerStaffHomeScreen extends ConsumerWidget {
         const MortHeader(
           eyebrow: 'Approved organizations',
           title: 'Partner workspace',
-          subtitle:
-              'Access is limited to organization-bound participants and expressly granted staff permissions.',
+          subtitle: 'Access is limited to organization-bound participants and expressly granted staff permissions.',
         ),
         const MortSafetyBanner(
-          message:
-              'Partner access never includes unrestricted messages, raw identity documents, earnings, housing status, or unrelated users.',
+          message: 'Partner access never includes unrestricted messages, raw identity documents, earnings, housing status, or unrelated users.',
         ),
         const SizedBox(height: MortSpacing.md),
         contexts.when(
@@ -47,8 +45,7 @@ class PartnerStaffHomeScreen extends ConsumerWidget {
             if (items.isEmpty) {
               return const MortEmptyState(
                 title: 'No active partner assignment',
-                message:
-                    'This account has no active organization staff assignment. Contact an authorized MORT administrator if that is unexpected.',
+                message: 'This account has no active organization staff assignment. Contact an authorized MORT administrator if that is unexpected.',
                 action: MortActionRow(
                   actions: [
                     MortAction(
@@ -302,8 +299,7 @@ class _PartnerParticipantsScreenState
         const MortHeader(
           eyebrow: 'Partner workspace',
           title: 'Connected participants',
-          subtitle:
-              'Only participants linked to this organization are shown. Private job messages and financial details are excluded.',
+          subtitle: 'Only participants linked to this organization are shown. Private job messages and financial details are excluded.',
         ),
         FutureBuilder<_PartnerParticipantData>(
           future: _future,
@@ -326,8 +322,7 @@ class _PartnerParticipantsScreenState
             if (data.participants.isEmpty) {
               return MortEmptyState(
                 title: 'No connected participants',
-                message:
-                    'This organization has no pending or approved pilot participants.',
+                message: 'This organization has no pending or authorized participants.',
                 action: MortButton(
                   label: 'Refresh',
                   icon: Icons.refresh,
@@ -467,7 +462,7 @@ class _PartnerInvitesScreenState extends ConsumerState<PartnerInvitesScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Create one-use teen invitation?'),
         content: const Text(
-          'The code expires in 7 days, can be used once, and only establishes an organization relationship. It does not verify identity or guarantee pilot approval.',
+          'The code expires in 7 days, can be used once, and only establishes an organization relationship. It does not verify identity or guarantee account eligibility.',
         ),
         actions: [
           TextButton(
@@ -577,12 +572,10 @@ class _PartnerInvitesScreenState extends ConsumerState<PartnerInvitesScreen> {
         const MortHeader(
           eyebrow: 'Partner workspace',
           title: 'Scoped invitations',
-          subtitle:
-              'Create short-lived, limited-use teen invitations for this approved organization.',
+          subtitle: 'Create short-lived, limited-use teen invitations for this approved organization.',
         ),
         const MortSafetyBanner(
-          message:
-              'An invitation confirms only an organization relationship. It does not verify legal identity, approve a job, or guarantee marketplace access.',
+          message: 'An invitation confirms only an organization relationship. It does not verify legal identity, approve a job, or guarantee marketplace access.',
         ),
         const SizedBox(height: MortSpacing.md),
         MortButton(
@@ -614,8 +607,7 @@ class _PartnerInvitesScreenState extends ConsumerState<PartnerInvitesScreen> {
             if (items.isEmpty) {
               return const MortEmptyState(
                 title: 'No invitations yet',
-                message:
-                    'Create an invitation only when an approved participant needs one.',
+                message: 'Create an invitation only when an approved participant needs one.',
               );
             }
             return Column(

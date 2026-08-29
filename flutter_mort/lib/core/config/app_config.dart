@@ -162,7 +162,7 @@ class AppConfig {
       supportedReleaseStages.contains(releaseStage);
   static String get stageName => switch (releaseStage) {
     'internal_test' => 'Internal Test',
-    'closed_test' => 'Closed Pilot',
+    'closed_test' => 'MORT',
     'production_pilot' => 'Production Pilot',
     'production_public' => 'Public Marketplace',
     _ => 'Development',

@@ -690,7 +690,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
       final message = switch (result.publicationState) {
         'open' => 'Job opened for applications.',
         'pending_review' =>
-          'Saved for closed-pilot review. Applications remain closed.',
+          'Saved for review. Applications remain unavailable.',
         'draft' => 'Draft saved to MORT.',
         _ =>
           publish
@@ -809,15 +809,13 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
         MortHeader(
           eyebrow: 'Step ${_step + 1} of ${jobCreationSteps.length}',
           title: jobCreationStepAt(_step).title,
-          subtitle:
-              'Create a job listing. Exact addresses and private contact details do not belong in public fields.',
+          subtitle: 'Create a job listing. Exact addresses and private contact details do not belong in public fields.',
         ),
         MortStepper(current: _step, total: jobCreationSteps.length),
         if (_recoveredLocalDraft) ...[
           const SizedBox(height: MortSpacing.sm),
           const MortSafetyBanner(
-            message:
-                'Recovered your encrypted draft from this account on this device. Review it before saving or publishing.',
+            message: 'Recovered your encrypted draft from this account on this device. Review it before saving or publishing.',
           ),
         ],
         const SizedBox(height: MortSpacing.md),
@@ -1224,8 +1222,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
         label: 'Transportation considerations (optional)',
         controller: _transportationNotes,
         maxLength: 500,
-        hint:
-            'General access guidance only, such as near a bus stop. Do not enter a street address.',
+        hint: 'General access guidance only, such as near a bus stop. Do not enter a street address.',
         focusNode: _focusNodes['transportation_considerations'],
         errorText: _fieldErrors['transportation_considerations'],
       ),
@@ -1257,8 +1254,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
       ),
       const SizedBox(height: MortSpacing.sm),
       const MortSafetyBanner(
-        message:
-            'Only the approximate area appears publicly. Do not put a street address, access code, or teen location in these fields.',
+        message: 'Only the approximate area appears publicly. Do not put a street address, access code, or teen location in these fields.',
       ),
     ],
   );
@@ -1422,8 +1418,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       const MortSafetyBanner(
-        message:
-            'MORT will validate every section, run the server safety rules, enforce the posting limit, and publish one idempotent job record.',
+        message: 'MORT will validate every section, run the server safety rules, enforce the posting limit, and publish one idempotent job record.',
       ),
       const SizedBox(height: MortSpacing.md),
       _JobChecklist(
@@ -1495,8 +1490,7 @@ class AdultJobsScreen extends ConsumerWidget {
         MortHeader(
           eyebrow: 'Adult jobs',
           title: 'Manage jobs',
-          subtitle:
-              'Drafts, open jobs, assignments, proof, and completion use tracked workflow states.',
+          subtitle: 'Drafts, open jobs, assignments, proof, and completion use tracked workflow states.',
           trailing: MortIconButton(
             icon: Icons.refresh,
             tooltip: 'Refresh jobs',
@@ -1528,8 +1522,7 @@ class AdultJobsScreen extends ConsumerWidget {
             if (jobs.isEmpty) {
               return const MortEmptyState(
                 title: 'No jobs yet',
-                message:
-                    'Create a draft, preview it, then publish when it is ready.',
+                message: 'Create a draft, preview it, then publish when it is ready.',
               );
             }
             return Column(
@@ -1891,8 +1884,7 @@ class _SavedJobsScreenState extends ConsumerState<SavedJobsScreen> {
         const MortHeader(
           eyebrow: 'Saved jobs',
           title: 'Jobs to revisit',
-          subtitle:
-              'Saved jobs stay with your account and show their current availability.',
+          subtitle: 'Saved jobs stay with your account and show their current availability.',
         ),
         FutureBuilder<List<Job>>(
           future: _jobsFuture,
@@ -1919,8 +1911,7 @@ class _SavedJobsScreenState extends ConsumerState<SavedJobsScreen> {
             if (jobs.isEmpty)
               return MortEmptyState(
                 title: 'No saved jobs',
-                message:
-                    'Save a job from its detail screen to find it here. You can return when a poster updates availability.',
+                message: 'Save a job from its detail screen to find it here. You can return when a poster updates availability.',
                 action: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
