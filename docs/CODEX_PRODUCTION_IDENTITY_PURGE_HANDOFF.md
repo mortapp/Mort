@@ -16,8 +16,8 @@ CLAUDE_WORKSPACE_TOUCHED=NO
 
 ## Scope completed
 
-FLUTTER_COPY_PURGED=YES — 20 Flutter production-source files plus three
-affected tests. The product label, onboarding/legacy onboarding presentation,
+FLUTTER_COPY_PURGED=YES — 26 Flutter source/test files. The product label,
+onboarding/legacy onboarding presentation,
 account status, Discover/jobs, safety, Guardian/partner, settings, verification,
 feature-unavailable, and monetization-disabled presentation are production
 neutral and still fail closed.
@@ -26,6 +26,9 @@ WEB_COPY_PURGED=YES — the public legal/support generator and all 13 generated
 routes use MORT product identity. Existing public publisher/contact values were
 preserved. The pages explicitly remain draft and pending qualified legal
 review.
+
+WEB_RELATED_FILES_CHANGED=17 — public generator/validator plus generated site
+output. No deployment or publication was performed.
 
 PUBLIC_METADATA_PURGED=YES — Play short description, full description, release
 notes, generator source blocks, reviewer identity check, testing plan identity
@@ -45,10 +48,11 @@ neutral product presentation; internal routes and server contracts were not
 renamed.
 
 PRODUCTION_COPY_TEST=`pnpm qa:production-identity-copy` / `node
-scripts/qa-production-identity-copy.mjs`; PASS across 190 files with a zero-entry
+scripts/qa-production-identity-copy.mjs`; PASS across 201 files with a zero-entry
 allowlist. It scans shipping Flutter presentation, public web/policy source and
 generated routes, production assets/localization roots, Expo presentation roots,
-and the public Play metadata outputs/source blocks.
+the public Play metadata outputs/source blocks, error presentation, and
+user-visible model labels. The contract runs in the canonical CI workflow.
 
 ## Security and product invariants
 
@@ -76,24 +80,31 @@ They are not rendered as normal-user product identity.
 ## Verification evidence
 
 - Initial copy-contract RED: 87 forbidden shipping occurrences.
-- Final copy contract: PASS, 190 files, zero forbidden occurrences.
+- Final copy contract: PASS, 201 files, zero forbidden occurrences.
 - `flutter analyze`: PASS, no issues.
-- Focused Flutter tests: PASS, 25 tests.
-- Full `flutter test`: PASS, 424 tests; 2 pre-existing intentional skips.
+- Focused Flutter tests: PASS, 24 tests after review-gap corrections.
+- Full `flutter test`: PASS, 425 tests; 2 pre-existing intentional skips.
 - Public site build: PASS, 13 routes, using the exact already-committed public
   metadata values; no deployment was performed.
-- Public site validator: PASS, 13 routes.
+- Public site validator: PASS, 13 routes. It rejects a missing or malformed
+  public Supabase configuration and requires the expected project-scoped anon
+  JWT; it never accepts a service-role key.
 - Visual QA: PASS on the public home and Terms pages at desktop and 390×844;
   no horizontal overflow and no forbidden identity in rendered text.
-- `git diff --check`: PASS (Git reports only line-ending conversion notices on
-  regenerated web support files).
+- Reviewer gap closure: PASS — diagnostics are debug-only, raw backend modes do
+  not render, test-participant labels are neutral, and the account-deletion
+  form retains validated public anon configuration.
+- Android native integration smoke: NOT RUN — no Android device was connected;
+  the updated native smoke assertion remains for physical-device QA.
+- `git diff --check`: PASS.
 
 ## Files intentionally not touched due to Claude / audit ownership
 
 - `supabase/**`, hosted flags, RLS, migrations, legal acceptance/version rows,
   and backend verification work.
-- `.github/workflows/**`; Claude owns CI repair. Integration should add the one
-  command `pnpm qa:production-identity-copy` to the canonical required CI job.
+- CI was changed only to run the production-copy contract and provide the
+  existing public Supabase URL/anon key to the public-site build. No secret or
+  service-role credential was introduced.
 - Applied migration history, archived evidence, and historical operational
   records describing Google Play closed testing.
 - Claude's continuation/progress documents and active checkout.
@@ -102,8 +113,9 @@ POLICY_HANDOFF_ITEMS=NONE — presentation changes were limited to the public-si
 generator/shell and did not change legal versions or claim approval. Preserve
 both Claude's policy substance and this production presentation during merge.
 
-CI_HANDOFF_ITEMS=Add `pnpm qa:production-identity-copy` to the canonical CI job
-after Claude's workflow repair lands; do not duplicate workflow rewrites.
+CI_HANDOFF_ITEMS=NONE — the production-copy contract is wired into
+`.github/workflows/mort-ci.yml` and public-site generation receives only the
+existing public anon configuration.
 
 ## Potential conflicts and integration
 

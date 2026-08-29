@@ -123,7 +123,7 @@ packaging records. They are classified as follows:
 ## Resolution status
 
 - The production copy contract first failed with 87 forbidden occurrences and
-  now passes across 190 shipping source/public-metadata files with no allowlist.
+  now passes across 201 shipping source/public-metadata files with no allowlist.
 - All listed shipping Flutter presentation occurrences were replaced with
   neutral, actionable product language. Internal release values, route names,
   acknowledgement versions, model names, and deployed RPC identifiers remain.
@@ -137,3 +137,8 @@ packaging records. They are classified as follows:
 - No asset or localization match required a file change. No hosted service,
   release flag, RLS rule, payment provider, legal version, or security gate was
   changed.
+- Final review expanded the contract to cover user-visible model labels,
+  presentation errors, and diagnostics access. Release diagnostics are now
+  debug-only, raw server modes are never rendered as friendly status, and the
+  public account-deletion form requires validated project-scoped anon
+  configuration.
