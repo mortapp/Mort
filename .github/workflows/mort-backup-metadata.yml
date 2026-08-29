@@ -14,11 +14,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.28.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -35,7 +35,7 @@ jobs:
           tar -czf "$RUNNER_TEMP/mort-metadata-backup.tar.gz" backups/ supabase/migrations/ supabase/functions/ supabase/config.toml
           openssl enc -aes-256-cbc -salt -pbkdf2 -iter 200000 -pass env:BACKUP_ARCHIVE_PASSPHRASE -in "$RUNNER_TEMP/mort-metadata-backup.tar.gz" -out "$RUNNER_TEMP/mort-metadata-backup.tar.gz.enc"
           sha256sum "$RUNNER_TEMP/mort-metadata-backup.tar.gz.enc" > "$RUNNER_TEMP/mort-metadata-backup.sha256"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: mort-encrypted-metadata-backup
           path: |

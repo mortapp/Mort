@@ -490,9 +490,6 @@ class _ReleaseModeCard extends StatelessWidget {
             'Marketplace availability cannot be confirmed right now. Try again before posting or accepting work.',
       ),
       data: (data) {
-        final release = data['release_mode']?.toString() ?? 'closed_test';
-        final marketplace =
-            data['marketplace_mode']?.toString() ?? 'closed_pilot';
         final publicEnabled = data['public_marketplace_enabled'] == true;
         final documentsEnabled = data['real_document_collection'] == true;
         final maintenance = data['maintenance_mode'] == true;
@@ -519,8 +516,6 @@ class _ReleaseModeCard extends StatelessWidget {
                 spacing: MortSpacing.xs,
                 runSpacing: MortSpacing.xs,
                 children: [
-                  MortBadge(label: _statusLabel(release)),
-                  MortBadge(label: _statusLabel(marketplace)),
                   MortBadge(
                     label: publicEnabled
                         ? 'Public marketplace enabled'
@@ -532,7 +527,7 @@ class _ReleaseModeCard extends StatelessWidget {
                   MortBadge(
                     label: documentsEnabled
                         ? 'Document collection enabled'
-                        : 'Real ID collection disabled',
+                        : 'Identity verification unavailable',
                     color: documentsEnabled
                         ? MortColors.warning
                         : MortColors.safetyBlue,
@@ -567,11 +562,15 @@ class _ReleaseModeCard extends StatelessWidget {
 
 String _statusLabel(String value) {
   final clean = value.trim().replaceAll('_', ' ');
-  if (clean.isEmpty) return 'Not available';
-  if (clean == 'closed test' || clean == 'closed pilot') {
-    return 'Limited access';
-  }
-  return '${clean[0].toUpperCase()}${clean.substring(1)}';
+  return switch (clean) {
+    'active' => 'Active',
+    'not started' => 'Not started',
+    'pending' => 'Pending review',
+    'approved' => 'Approved',
+    'rejected' => 'Not approved',
+    'suspended' || 'banned' => 'Restricted',
+    _ => 'Status unavailable',
+  };
 }
 
 class OnboardingRequiredScreen extends ConsumerWidget {
@@ -713,7 +712,7 @@ class OnboardingHubScreen extends ConsumerWidget {
           eyebrow: 'Setup',
           title: 'Build your MORT account',
           subtitle:
-              'Finish age, role, profile, preferences, and the safety agreement. Marketplace access stays limited to approved closed-pilot participants.',
+              'Finish age, role, profile, preferences, and the safety agreement. Marketplace access depends on server-verified account eligibility.',
         ),
         const MortStepper(current: 0, total: 12),
         const SizedBox(height: MortSpacing.md),
@@ -1581,7 +1580,7 @@ class _SkillsScreenState extends ConsumerState<SkillsScreen> {
       UserRole.adult => const [
         'Describe the work, schedule, offered compensation, equipment, and supervision clearly.',
         'Never ask a teen to move off-platform, pay an upfront fee, or share private contact details.',
-        'Verification and closed-pilot review remain required before applications can open.',
+        'Verification and account review remain required before applications can open.',
       ],
       UserRole.guardian => const [
         'Teen linking is optional and requires a valid invitation or approval flow.',
@@ -1617,7 +1616,7 @@ class _SkillsScreenState extends ConsumerState<SkillsScreen> {
           ),
         ],
         const MortAction(
-          label: 'Pilot job safety',
+          label: 'Job safety',
           icon: Icons.work_outline,
           route: '/mission/pilot-job-safety',
         ),
@@ -1764,7 +1763,7 @@ class _PaymentPreferenceScreenState
     return MortScreen(
       children: [
         const MortHeader(
-          eyebrow: 'Free pilot',
+          eyebrow: 'Job payments',
           title: 'Payments are not handled by MORT',
           subtitle:
               'This build does not collect payment handles, process money, hold escrow, guarantee payment, or charge a service fee.',
@@ -1912,9 +1911,9 @@ class _SafetyRulesScreenState extends ConsumerState<SafetyRulesScreen> {
       children: [
         const MortHeader(
           eyebrow: 'Safety',
-          title: 'Review the closed-pilot rules',
+          title: 'Review MORT safety rules',
           subtitle:
-              'These product and safety notices are required for this closed pilot. They are not a substitute for attorney-approved public legal terms.',
+              'These product and safety notices are required for MORT. They are not a substitute for published legal terms.',
         ),
         const MortStepper(current: 10, total: 12),
         const SizedBox(height: MortSpacing.md),
@@ -2733,8 +2732,7 @@ _RoleDashboardDefinition _roleDashboardDefinition(
           if (hasPartnerWorkspace)
             const _DashboardActionDefinition(
               label: 'Partner workspace',
-              description:
-                  'Manage authorized closed-pilot organization participants.',
+              description: 'Manage authorized organization participants.',
               icon: Icons.account_balance_outlined,
               route: '/partner/home',
             ),
@@ -6397,7 +6395,7 @@ class SettingsScreen extends StatelessWidget {
   );
 }
 
-const _settingsGroups = <_SettingsGroup>[
+final _settingsGroups = <_SettingsGroup>[
   _SettingsGroup(
     label: 'Account',
     actions: [
@@ -6557,16 +6555,16 @@ const _settingsGroups = <_SettingsGroup>[
         icon: Icons.verified_user_outlined,
         route: '/legal/teen-safety',
       ),
-      _SettingsAction(
-        label: 'Release diagnostics',
-        description:
-            'Review closed-test configuration without exposing secrets.',
-        icon: Icons.monitor_heart_outlined,
-        route: '/settings/release-diagnostics',
-      ),
+      if (AppConfig.showReleaseDiagnostics)
+        const _SettingsAction(
+          label: 'Release diagnostics',
+          description: 'Review release configuration without exposing secrets.',
+          icon: Icons.monitor_heart_outlined,
+          route: '/settings/release-diagnostics',
+        ),
       _SettingsAction(
         label: 'About MORT',
-        description: 'Review version, build, environment, and licenses.',
+        description: 'Review version details and open-source licenses.',
         icon: Icons.info_outline_rounded,
         route: '/settings/about',
       ),
@@ -6606,7 +6604,7 @@ class LegalDocScreen extends StatelessWidget {
       eyebrow: 'Legal draft',
       title: title,
       description:
-          'Review MORT policies, safety standards, and support options. Closed-pilot access does not replace legal or safety review.',
+          'Review MORT policies, safety standards, and support options. Account access does not replace legal or safety review.',
       children: const [
         MortPaymentDisclaimer(),
         SizedBox(height: MortSpacing.sm),
@@ -6895,7 +6893,7 @@ class FeatureScaffoldScreen extends StatelessWidget {
           const MortEmptyState(
             title: 'Unavailable in this release',
             message:
-                'This area is not enabled for the closed pilot. Core account and safety tools remain available.',
+                'This area is not available for your account. Core account and safety tools remain available.',
           ),
           const SizedBox(height: MortSpacing.md),
           const MortActionRow(
@@ -6968,7 +6966,7 @@ class _BackendStatusCard extends ConsumerWidget {
               children: [
                 Text(
                   connected
-                      ? 'Connected securely. Marketplace access remains limited to approved closed-pilot participants.'
+                      ? 'Connected securely. Marketplace actions may still require account eligibility or verification.'
                       : checking
                       ? 'Checking the secure service connection...'
                       : 'MORT cannot connect right now. Account features remain unavailable until service returns.',

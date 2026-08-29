@@ -1,9 +1,16 @@
 {
-  "generatedAt": "2026-08-20T12:02:21.792Z",
+  "generatedAt": "2026-08-29T11:07:35.426Z",
   "projectRef": "rakjydmgwwgtdislanbt",
   "packageStatus": "built",
-  "deploymentReady": true,
-  "missingConfiguration": [],
+  "deploymentReady": false,
+  "missingConfiguration": [
+    "MORT_PUBLIC_PUBLISHER_NAME",
+    "MORT_PUBLIC_SUPPORT_EMAIL",
+    "MORT_PUBLIC_PRIVACY_EMAIL",
+    "MORT_PUBLIC_CHILD_SAFETY_EMAIL",
+    "MORT_PUBLIC_WEBSITE_URL",
+    "MORT_PUBLIC_EFFECTIVE_DATE"
+  ],
   "requiredRoutes": [
     "/",
     "/privacy/",

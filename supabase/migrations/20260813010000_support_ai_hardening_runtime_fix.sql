@@ -1,4 +1,4 @@
-﻿-- Follow-up support AI runtime fix: normalize obfuscated prompt payloads and
+-- Follow-up support AI runtime fix: normalize obfuscated prompt payloads and
 -- block prompt-boundary override attempts before the provider is allowed to run.
 --
 -- This is intentionally a forward-only migration: the already-applied historical

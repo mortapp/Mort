@@ -47,6 +47,22 @@ function assertEmpty(label, data, error) {
   log(`PASS: ${label}`);
 }
 
+// Some tables deny non-owners at the GRANT layer (hard "permission denied")
+// on top of RLS, rather than relying solely on RLS to silently return zero
+// rows. Either outcome is a correct denial.
+function assertDenied(label, data, error) {
+  if (error) {
+    const denied = error.code === "42501" || /permission denied|row-level security/i.test(error.message || "");
+    if (!denied) fail(`${label}: ${error.message || JSON.stringify(error)}`);
+    log(`PASS: ${label}`);
+    return;
+  }
+  if ((data ?? []).length !== 0) {
+    fail(`${label}: expected no rows, got ${data.length}.`);
+  }
+  log(`PASS: ${label}`);
+}
+
 function assertOne(label, data, error) {
   assertNoError(label, error);
   if ((data ?? []).length !== 1) {
@@ -206,10 +222,17 @@ if (adultJobAfter.title !== adultJobBefore) {
 const guardianUnrelatedTeen = await guardian.client.from("teen_profiles").select("user_id").eq("user_id", teen2.id);
 assertEmpty("guardian cannot access unrelated teen", guardianUnrelatedTeen.data, guardianUnrelatedTeen.error);
 
-for (const actor of [teen, adult, guardian]) {
+for (const actor of [teen, adult]) {
   const ownThread = await actor.client.from("message_threads").select("id").eq("id", thread.id);
   assertOne(`${actor.email} can read own conversation`, ownThread.data, ownThread.error);
 }
+
+// Guardian Mode may approve/supervise the job (thread.guardian_id is set),
+// but public.is_thread_participant() deliberately excludes guardian_id
+// (messaging_lifecycle_privacy_and_reliability, 2026-07-30): guardians do not
+// get broad access to teen/adult message content.
+const guardianThread = await guardian.client.from("message_threads").select("id").eq("id", thread.id);
+assertEmpty("guardian cannot read supervised teen's conversation content", guardianThread.data, guardianThread.error);
 
 for (const actor of [teen2, adult2]) {
   const outsiderThread = await actor.client.from("message_threads").select("id").eq("id", thread.id);
@@ -221,7 +244,7 @@ const nonAdminVerificationUpdate = await adult2.client
   .update({ status: "approved" })
   .eq("id", pendingVerification.id)
   .select("id,status");
-assertEmpty("non-admin cannot approve verification", nonAdminVerificationUpdate.data, nonAdminVerificationUpdate.error);
+assertDenied("non-admin cannot approve verification", nonAdminVerificationUpdate.data, nonAdminVerificationUpdate.error);
 
 const verificationAfter = await latestOne(
   "verify adult2 verification unchanged",

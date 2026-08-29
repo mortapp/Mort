@@ -17,7 +17,7 @@ class RevenueCatPaywallScreen extends ConsumerWidget {
     this.placement = 'main',
     this.title = 'Optional MORT perks',
     this.subtitle =
-        'The free experience remains available. Purchases are not included in this closed-pilot release.',
+        'The free experience remains available. Optional purchases are not available right now.',
   });
 
   final String placement;
@@ -79,7 +79,7 @@ class _PaywallValueCard extends StatelessWidget {
         'Paid username credits cannot be purchased in this release.',
       ],
       'job-boost' => const [
-        'Job boosts never bypass pilot approval, moderation, or safety review.',
+        'Job boosts never bypass account eligibility, moderation, or safety review.',
         'Paid job boosts cannot be purchased in this release.',
       ],
       _ => const [

@@ -265,7 +265,7 @@ class _OnboardingReviewScreenState
         const SizedBox(height: MortSpacing.md),
         const MortSafetyBanner(
           message:
-              'Public marketplace access remains closed. Finishing setup does not mean identity verified, payment protected, or public-release approved.',
+              'Finishing setup does not mean your identity is verified, payment is protected, or every marketplace action is available.',
         ),
         const SizedBox(height: MortSpacing.md),
         MortButton(

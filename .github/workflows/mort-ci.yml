@@ -17,18 +17,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.28.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm qa:production-identity-copy
       - run: pnpm check
       - run: pnpm lint
       - run: pnpm build
+        env:
+          # Expo is reference-only (Flutter is the sole supported production
+          # client; see qa:production-client). This static export never makes
+          # a real Supabase call at build time, but createClient() throws
+          # immediately on an empty URL, so it needs a syntactically valid,
+          # non-secret placeholder to get through static rendering.
+          EXPO_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key-not-a-real-credential
       - shell: pwsh
         run: ./scripts/secret-scan.ps1
 
@@ -39,10 +48,11 @@ jobs:
       run:
         working-directory: flutter_mort
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.47.2
           cache: true
       - run: flutter pub get
       - run: dart format --output=none --set-exit-if-changed lib test integration_test
@@ -68,15 +78,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.28.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: node scripts/build-public-legal-site.mjs
+        env:
+          # This is the project's public browser anon key, never a privileged
+          # service-role credential. The validator decodes and verifies it.
+          EXPO_PUBLIC_SUPABASE_URL: https://rakjydmgwwgtdislanbt.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYXNlIiwicmVmIjoicmFranlkbWd3d2d0ZGlzbGFuYnQiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc4MTg3MTE3NSwiZXhwIjoyMDk3NDQ3MTc1fQ.DorOgj6jdPTrPX45Vi0O1dYgx-e3zgO6_S39JDcL2Ww
       - run: node scripts/validate-public-legal-site.mjs
-

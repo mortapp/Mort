@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import '../../core/config/app_config.dart';
 import '../../core/errors/user_facing_error.dart';
 import '../../core/preferences/mort_experience_preferences.dart';
 import '../../core/theme/mort_colors.dart';
@@ -269,7 +268,7 @@ class DataControlsScreen extends StatelessWidget {
         eyebrow: 'Data controls',
         title: 'Your account data',
         subtitle:
-            'Deletion is available in-app. A self-service full account export is not active in this closed-test build.',
+            'Deletion is available in-app. Self-service full account export is not available yet.',
       ),
       MortDashboardActionTile(
         label: 'Activity history',
@@ -292,7 +291,7 @@ class DataControlsScreen extends StatelessWidget {
           leading: Icon(Icons.download_outlined, color: MortColors.silver),
           title: Text('Full account export'),
           subtitle: Text(
-            'Unavailable in this closed-test build while export scope, retention, and teen privacy handling await legal approval. Contact Support for a privacy request.',
+            'Self-service export is not available yet. Contact Support to make a privacy request.',
           ),
           trailing: MortBadge(label: 'Unavailable'),
         ),
@@ -331,9 +330,6 @@ class AboutMortScreen extends StatelessWidget {
                   'Version ${package.version} (${package.buildNumber})',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                const SizedBox(height: MortSpacing.xs),
-                Text('Environment: ${AppConfig.stageName}'),
-                Text('Package: ${package.packageName}'),
               ],
             ),
           );
@@ -347,7 +343,7 @@ class AboutMortScreen extends StatelessWidget {
         onPressed: () => showLicensePage(
           context: context,
           applicationName: 'MORT',
-          applicationLegalese: 'Closed-test build. All rights reserved.',
+          applicationLegalese: 'MORT. All rights reserved.',
         ),
       ),
       const SizedBox(height: MortSpacing.sm),

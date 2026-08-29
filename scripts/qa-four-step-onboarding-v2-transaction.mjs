@@ -1,3 +1,16 @@
+// RETIRED (2026-08-28): same pattern as
+// qa-onboarding-v2-legacy-compatibility-transaction.mjs -- this dry-runs the
+// four_step_onboarding_v2 migration's raw SQL inside a rolled-back
+// transaction to rehearse it before it went live. It served that purpose.
+// 20260828023033_four_step_onboarding_v2.sql is now permanently applied to
+// the hosted database, so replaying its `create table` statements fails with
+// "already exists" (42P07) in any environment that already has the
+// migration. It cannot be re-run and is excluded from the ongoing regression
+// matrix. Ongoing onboarding-v2 regression coverage lives in
+// qa-four-step-onboarding-v2.mjs (hosted; fails closed on the external
+// unpublished-legal-policy blocker, HOSTED_V2_FINISH_BLOCKER=LEGAL_POLICY_PUBLICATION)
+// and in the local Supabase stack exercised via `supabase db reset` +
+// scripts/create-local-test-users.mjs, where legal policies can be seeded.
 import { readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 

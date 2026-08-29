@@ -1,8 +1,8 @@
-MORT is a closed-pilot platform helping eligible teenagers age 13 and older explore approved local work, build experience, and coordinate with participating job posters and organizations.
+MORT helps eligible teenagers age 13 and older explore local work, build experience, and coordinate with job posters and organizations.
 
-Closed-pilot tools include role-based onboarding, a synthetic or approved job feed, applications, optional Guardian Mode, job-context messaging, reporting and blocking, proof workflows, payment-preference records, and safety controls.
+MORT tools include role-based onboarding, a job feed, applications, optional Guardian Mode, job-context messaging, reporting and blocking, proof workflows, payment-preference records, and safety controls.
 
-MORT is not publicly launched. Participation and job eligibility vary. Public marketplace access and real identity-document verification are disabled. MORT does not process payments, hold escrow, guarantee jobs or payment, provide insurance, background-check every adult, guarantee safety, or provide emergency response.
+Job availability and marketplace actions depend on account, role, and server-verified eligibility. Identity verification is not currently available. MORT does not process or escrow real-world job payments, guarantee jobs or payment, provide insurance, background-check every adult, guarantee safety, or provide emergency response.
 
 Guardian Mode is optional. Messaging is not anonymous or random; it is restricted to eligible job context and server safety checks. Users can report and block profiles, jobs, and messages through supported in-app controls.
 

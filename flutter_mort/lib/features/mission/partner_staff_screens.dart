@@ -327,7 +327,7 @@ class _PartnerParticipantsScreenState
               return MortEmptyState(
                 title: 'No connected participants',
                 message:
-                    'This organization has no pending or approved pilot participants.',
+                    'This organization has no pending or authorized participants.',
                 action: MortButton(
                   label: 'Refresh',
                   icon: Icons.refresh,
@@ -467,7 +467,7 @@ class _PartnerInvitesScreenState extends ConsumerState<PartnerInvitesScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Create one-use teen invitation?'),
         content: const Text(
-          'The code expires in 7 days, can be used once, and only establishes an organization relationship. It does not verify identity or guarantee pilot approval.',
+          'The code expires in 7 days, can be used once, and only establishes an organization relationship. It does not verify identity or guarantee account eligibility.',
         ),
         actions: [
           TextButton(

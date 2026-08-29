@@ -470,7 +470,7 @@ class ProfileRepository extends RepositoryBase {
       'onboarding_safety_support_required' =>
         'Finish Safety & support before completing setup.',
       'onboarding_acknowledgement_required' =>
-        'Review and acknowledge the closed-pilot safety notices first.',
+        'Review and acknowledge the MORT safety notices first.',
       'profile_identity_fields_required' =>
         'Add a display name and username before completing setup.',
       'published_legal_acceptance_required' =>

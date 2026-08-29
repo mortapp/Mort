@@ -31,5 +31,16 @@ using (
   )
 );
 
-comment on policy storage_mort_owner_select on storage.objects is
-  'Owner/participant access for proof and report files plus the RLS-safe current-user reviewer wrapper for retained legacy verification files.';
+-- COMMENT ON POLICY requires literal ownership of storage.objects. Hosted
+-- Supabase grants that; local Supabase CLI's Postgres image does not (it only
+-- grants policy CREATE/DROP), so make this metadata-only annotation tolerant
+-- of that local-only ownership gap instead of aborting the whole replay.
+do $$
+begin
+  execute $ddl$comment on policy storage_mort_owner_select on storage.objects is
+    'Owner/participant access for proof and report files plus the RLS-safe current-user reviewer wrapper for retained legacy verification files.'$ddl$;
+exception
+  when insufficient_privilege then
+    null;
+end;
+$$;

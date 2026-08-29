@@ -49,7 +49,7 @@ class _IdentityVerificationScreenState
           eyebrow: 'PRIVATE TRUST CHECK',
           title: 'Identity verification',
           subtitle:
-              'Public marketplace participation stays closed until secure production verification is available. Guardian Mode remains optional.',
+              'Some marketplace actions remain unavailable until secure identity verification is available. Guardian Mode remains optional.',
           trailing: MortIconButton(
             icon: Icons.refresh,
             tooltip: 'Refresh status',

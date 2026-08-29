@@ -1,10 +1,14 @@
 # Known Issues and Release Blockers
 
-## Database migration history is divergent
+## Existing completed-user compatibility is unresolved
 
-The linked hosted project and repository disagree on migration history beginning August 17, 2026. There are both local-only migrations and remote-only versions, including remote-only `20260818233800`, `20260819003851`, `20260819004344`, `20260819004628`, `20260819025837`, `20260820113638`, and `20260820122024`.
+After deployment, the v2 evaluator classified all 24 profiles with `onboarding_completed=true` as incomplete. Seven are non-test profiles. Their earliest v2 steps are based on actual persisted gaps: historical usernames, teen work preferences, or unavailable current legal acceptances.
 
-`20260828023033_four_step_onboarding_v2.sql` has therefore not been pushed. No history repair, reset, or destructive reconciliation was attempted. Resolve parity from authoritative migration artifacts before a normal forward-only deployment.
+This exposes a product/security contradiction: grandfathering historical server completion preserves existing access, while canonical revalidation sends historically completed users back to missing prerequisites. No compatibility override or user data mutation was improvised. A separately approved forward migration is required after choosing the intended rule.
+
+## Migration parity is resolved
+
+Seven local/hosted timestamp pairs were proven semantically equivalent and reconciled append-only using SQL no-op compatibility aliases. No hosted history row was reverted, deleted, renamed, or rewritten. After deploying the two genuine pending migrations, all 193 local timestamps match hosted history and the final dry run reports the database is up to date. See `MIGRATION_RECONCILIATION_2026-08-28.md`.
 
 ## Required public legal versions are unavailable
 
@@ -27,6 +31,7 @@ Publication requires the existing legal approval workflow. This implementation d
 
 ## Verification still required
 
-- Run the hosted PostgREST hostile-client and concurrency suite after a safe migration deployment.
+- Resolve completed-user compatibility with an approved forward migration.
+- Rerun the hosted PostgREST hostile-client and concurrency suite. Its first deployed run stopped at the unavailable-legal-version Finish gate.
 - Complete physical Android QA on the supported Samsung target and record evidence.
-- Do not publish a production build while either release blocker above remains.
+- Do not publish a production build while either release blocker remains.

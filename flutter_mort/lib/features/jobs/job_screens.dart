@@ -690,7 +690,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
       final message = switch (result.publicationState) {
         'open' => 'Job opened for applications.',
         'pending_review' =>
-          'Saved for closed-pilot review. Applications remain closed.',
+          'Saved for review. Applications remain unavailable.',
         'draft' => 'Draft saved to MORT.',
         _ =>
           publish

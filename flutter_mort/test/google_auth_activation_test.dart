@@ -10,39 +10,28 @@ const _activationProfileUnderTest = bool.fromEnvironment(
 );
 
 void main() {
-  test(
-    'closed-test compile configuration activates approved Google Auth',
-    () {
-      expect(AppConfig.releaseStage, 'closed_test');
-      expect(AppConfig.googleAuthEnabled, isTrue);
-      expect(
-        AppConfig.authRedirectUrl,
-        'com.mortapp.mobile://app/auth-callback',
-      );
-      expect(AppConfig.validationErrors, isEmpty);
-      expect(AppConfig.publicMarketplaceEnabled, isFalse);
-      expect(AppConfig.marketplacePaymentsEnabled, isFalse);
-      expect(AppConfig.adsEnabled, isFalse);
-      expect(AppConfig.iapEnabled, isFalse);
-      expect(AppConfig.remotePushEnabled, isFalse);
-    },
-    skip: !_activationProfileUnderTest,
-  );
+  test('closed-test compile configuration activates approved Google Auth', () {
+    expect(AppConfig.releaseStage, 'closed_test');
+    expect(AppConfig.googleAuthEnabled, isTrue);
+    expect(AppConfig.authRedirectUrl, 'com.mortapp.mobile://app/auth-callback');
+    expect(AppConfig.validationErrors, isEmpty);
+    expect(AppConfig.publicMarketplaceEnabled, isFalse);
+    expect(AppConfig.marketplacePaymentsEnabled, isFalse);
+    expect(AppConfig.adsEnabled, isFalse);
+    expect(AppConfig.iapEnabled, isFalse);
+    expect(AppConfig.remotePushEnabled, isFalse);
+  }, skip: !_activationProfileUnderTest);
 
-  testWidgets(
-    'Continue with Google is visible and enabled',
-    (tester) async {
-      await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(home: Scaffold(body: GoogleAuthSection())),
-        ),
-      );
-      await tester.pump();
+  testWidgets('Continue with Google is visible and enabled', (tester) async {
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(home: Scaffold(body: GoogleAuthSection())),
+      ),
+    );
+    await tester.pump();
 
-      expect(find.text('Continue with Google'), findsOneWidget);
-      final button = tester.widget<OutlinedButton>(find.byType(OutlinedButton));
-      expect(button.onPressed, isNotNull);
-    },
-    skip: !_activationProfileUnderTest,
-  );
+    expect(find.text('Continue with Google'), findsOneWidget);
+    final button = tester.widget<OutlinedButton>(find.byType(OutlinedButton));
+    expect(button.onPressed, isNotNull);
+  }, skip: !_activationProfileUnderTest);
 }

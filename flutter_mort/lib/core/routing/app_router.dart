@@ -242,7 +242,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         '/teen/portfolio',
         _pilotUnavailable(
           'Portfolio',
-          'Public portfolio publishing is not available in this closed pilot. Your completed work still appears in private activity history.',
+          'Public portfolio publishing is not available for this account. Your completed work still appears in private activity history.',
         ),
         role: UserRole.teen,
       ),
@@ -326,7 +326,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         '/adult/business',
         _pilotUnavailable(
           'Business profile',
-          'Public business profiles are not available in this closed pilot. Approved posters can still manage eligible jobs.',
+          'Public business profiles are not available for this account. Eligible posters can still manage their jobs.',
         ),
         role: UserRole.adult,
       ),
@@ -382,7 +382,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         '/guardian/emergency-contacts',
         _pilotUnavailable(
           'Emergency contacts',
-          'The optional emergency-contact bundle is not enabled in this pilot. Safety Ping and reporting remain available without payment.',
+          'The optional emergency-contact bundle is not available. Safety Ping and reporting remain available without payment.',
         ),
         role: UserRole.guardian,
       ),
@@ -865,10 +865,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         const DeviceSecuritySettingsScreen(),
       ),
       _guarded('/settings/native-permissions', const NativePermissionsScreen()),
-      _guarded(
-        '/settings/release-diagnostics',
-        const ReleaseDiagnosticsScreen(),
-      ),
+      if (AppConfig.showReleaseDiagnostics)
+        _guarded(
+          '/settings/release-diagnostics',
+          const ReleaseDiagnosticsScreen(),
+        ),
       _guarded('/settings/passkeys', const PasskeySettingsScreen()),
       _guarded(
         '/settings/school-affiliation',
@@ -1283,7 +1284,7 @@ class GuardedRoute extends ConsumerWidget {
 
 Widget _pilotUnavailable(String title, String description) {
   return FeatureScaffoldScreen(
-    eyebrow: 'Not available in this pilot',
+    eyebrow: 'Not available',
     title: title,
     description: description,
     actions: const [

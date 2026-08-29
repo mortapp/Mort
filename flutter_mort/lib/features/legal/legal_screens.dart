@@ -161,7 +161,7 @@ class TeenTermsSummaryScreen extends StatelessWidget {
         ),
         _SummaryCard(
           'Guardian Mode is optional',
-          'Guardian Mode is separate from any jurisdiction-specific legal requirement or closed-pilot eligibility rule.',
+          'Guardian Mode is separate from jurisdiction-specific legal requirements and account eligibility rules.',
         ),
         MortSafetyBanner(),
       ],
