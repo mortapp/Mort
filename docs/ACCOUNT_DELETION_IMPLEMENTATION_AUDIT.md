@@ -61,8 +61,10 @@ or `failed` status hosted (only `requested`/`cancelled`) — no real deletion
 has ever actually been attempted against a populated account.
 
 **Fix**: `supabase/migrations/20260829010000_account_deletion_retention_deidentification.sql`
-converts all 87 to `ON DELETE SET NULL` (relaxing `NOT NULL` first where
-needed) — matching the deletion worker's own summary text, which already
+classifies all 87 individually. It converts 86 to `ON DELETE SET NULL`
+(relaxing `NOT NULL` first where needed) and converts the active holder edge
+`team_role_assignments.user_id` to CASCADE. This matches the deletion
+worker's own summary text, which already
 claimed this behavior: *"Legally required safety, fraud, and audit records
 may remain de-identified under the retention matrix."* The financial
 retention hold (above) is unaffected — it still runs first and still pauses
@@ -76,28 +78,41 @@ already cover every Stripe table: it only checks `stripe_connected_accounts`,
 `stripe_financial_role_assignments`, `stripe_job_payment_attempts`,
 `stripe_payment_resolutions`, and `support_staff_assignments` were **not**
 covered by the hold and would have hit the RESTRICT wall unprotected — so all
-eight needed the same fix, not just the three the hold checks.
+eight needed explicit classification, not just the three the hold checks.
+
+The end-to-end test also exposed three pre-existing CASCADE edges that did
+not block deletion but destroyed shared history: `jobs.poster_id`,
+`applications.teen_id`, and `guardian_connection_audit_events.teen_id`.
+They now SET NULL. Unfinished poster-owned jobs are closed and their
+non-terminal applications terminalized before deidentification; completed
+evidence is preserved. Active `guardian_connections` still CASCADE when
+either participant disappears, so guardian authorization cannot survive.
+The marketplace identity trigger permits nulling only in the exact
+UUID-bound `supabase_auth_admin` deletion transaction. Direct PostgREST
+UPDATE/UPSERT remains denied, including with a service key.
 
 ### Verification (local Docker stack, not hosted)
 
-- Fresh `supabase db reset` replayed all 195 migrations (194 existing + the
-  new one) from an empty database with no ordering/dependency failures.
-- Post-reset FK audit: `CASCADE` count unchanged (151 — nothing accidentally
-  converted), `SET NULL` count went from 98 → 185 (exactly +87), `RESTRICT`
-  count is now **0**.
-- Functional test: created a synthetic local test profile, inserted a row
-  into `account_ban_appeals` referencing it (one of the previously-RESTRICT
-  tables), then called the actual `auth.admin.deleteUser()` API the worker
-  uses.
-  - **Before the fix** this would have thrown a foreign-key-violation error
-    and left the account permanently stuck retrying (5 attempts) then
-    `status='failed'`.
-  - **After the fix**: delete succeeded, `public.profiles` row is gone
-    (`profile_remains: 0`), and the `account_ban_appeals` row **survives**
-    with its factual content (`reason` text) intact but `user_id` genuinely
-    `NULL` — deidentified, not destroyed, not blocking.
-  - A second, unrelated test profile was confirmed completely untouched by
-    the first profile's deletion (no cross-user corruption).
+- Fresh `supabase db reset --local --yes` replayed all 195 migrations from
+  an empty database with no ordering/dependency failures.
+- Post-reset direct-user FK audit: 336 links checked; 149 CASCADE, 187 SET
+  NULL, 0 RESTRICT/NO ACTION, and 0 SET-NULL/NOT-NULL contradictions. The
+  exact disposition contract passes for all 99 pinned relationships.
+- The real `auth.admin.deleteUser()` functional regression passes for active
+  team authorization, historical team audit, active incident assignment
+  close-out, legal acceptance, ban appeal, shared job/application history,
+  active guardian authorization removal, guardian audit retention, duplicate
+  deletion behavior, and unrelated-user isolation.
+- Hostile service-key PostgREST attempts to write `jobs.poster_id=NULL` and
+  `applications.teen_id=NULL` are denied at the database boundary.
+- Worker-state regression proves authenticated callers cannot claim jobs,
+  concurrent claims have exactly one winner, malformed locks are denied,
+  valid completion occurs once, replay cannot produce a second transition,
+  and a completed request cannot be reclaimed.
+- Deleting a poster closes the unfinished job, terminalizes the pending
+  application, preserves both rows, and nulls only the poster identity.
+  Deleting the surviving applicant afterward preserves the same application
+  and nulls only the applicant identity.
 - `qa:migration-reconciliation-parity` (hosted, read-only) still passes —
   this migration doesn't touch any of the seven hash-tracked canonical
   migrations.
@@ -108,8 +123,9 @@ eight needed the same fix, not just the three the hold checks.
 
 | Class | Behavior | Mechanism |
 |---|---|---|
-| Purely personal/owned records with no independent retention need (e.g. `account_security_events`, `account_security_preferences`, `account_trust_appeals`, most `*_preferences` tables, ad frequency caps) | **DELETE** (cascades away with the profile) | Pre-existing `ON DELETE CASCADE` (151 constraints, unchanged by this work) |
-| Legal acceptance/decline records, safety/trust/moderation evidence and decisions, payment disputes and their evidence/timeline, staff role/training/conflict records, Stripe identity links | **RETAIN, DEIDENTIFY** (record survives, person-link severed) | `ON DELETE SET NULL`, now 185 constraints (98 pre-existing + 87 fixed this session) |
+| Purely personal/owned records with no independent retention need (e.g. `account_security_events`, `account_security_preferences`, `account_trust_appeals`, most `*_preferences` tables, ad frequency caps) | **DELETE** (cascades away with the profile) | Direct-user `ON DELETE CASCADE` (149 after the three shared-history corrections) |
+| Legal acceptance/decline records, shared marketplace history, safety/trust/moderation evidence and decisions, payment disputes and their evidence/timeline, historical staff records, Stripe identity links | **RETAIN, DEIDENTIFY** (record survives, person-link severed) | Direct-user `ON DELETE SET NULL` (187 after the 86 blocker fixes and three shared-history corrections) |
+| Active staff/team/partner/guardian authorization | **DELETE** | Holder/link CASCADE, pinned by the exact FK contract; audit/actor rows are separate and deidentified |
 | Any Stripe-linked account with a connected account, customer record, or job payment intent | **HOLD** (deletion paused, not attempted) until financial review clears it | `private.stripe_financial_retention_required` gate in the worker, ahead of any DB-level action |
 | Storage objects owned by the user (avatars, proof uploads, evidence) | **DELETE** | `service_list_account_deletion_storage_objects` + `storage.remove()` in the worker, before `deleteUser()` |
 | Legacy onboarding compatibility snapshot (`private.onboarding_v2_legacy_completion_compatibility`) | **DELETE** (cascades away with the profile) | `ON DELETE CASCADE` on `user_id → profiles(id)`, set in the compatibility migration itself; verified via a two-hop cascade check (`auth.users → profiles → compatibility table`) during the 2026-08-28 Stage 1 pass |
@@ -128,16 +144,12 @@ during this session, it has not been pushed to the hosted project
 performed. Hosted deployment requires a separate, explicit authorization step
 (see the continuation ledger).
 
-## Known gap not addressed in this pass
+## Remaining external legal determination
 
-`team_role_assignments` and other staff-tooling tables use a check-constrained
-`role_key`/`environment_scope` shape that a synthetic test fixture in this
-session's verification script did not fully satisfy (a schema detail, not a
-finding about the FK fix itself) — the `account_ban_appeals` test is the
-proof-of-concept; the same `ON DELETE SET NULL` mechanism applies uniformly
-to all 87 constraints and does not depend on any table's specific check
-constraints, but a full per-table functional test (one insert per all 87
-tables) was not performed given time constraints. The structural verification
-(FK action audit showing exactly +87 SET NULL, 0 remaining RESTRICT, CASCADE
-unchanged) covers all 87 by construction; the functional test covers one
-representative table end-to-end through the real deletion API.
+The migration implements privacy-minimizing SET NULL semantics for legal
+acceptance and payment-dispute identity links so deletion works without
+retaining an ordinary user pointer. The decision matrix marks those rows
+`LEGAL_REVIEW_REQUIRED`: qualified counsel may later require a private
+pseudonymous continuity key for post-deletion evidentiary needs. No such key
+was invented here, no public legal version was published, and this unresolved
+external decision does not reintroduce a deletion blocker.
