@@ -5,7 +5,7 @@
 | Asset | Required target | Status / rule |
 |---|---|---|
 | Play icon | 512×512 PNG, no transparency rules violated | Existing source icon must be exported and visually inspected |
-| Feature graphic | 1024×500 JPG/PNG | Not yet approved; create with MORT name and closed-pilot positioning |
+| Feature graphic | 1024×500 JPG/PNG | Not yet approved; create with MORT public-product positioning |
 | Phone screenshots | At least 2, recommended polished set | Capture only synthetic Play Review data on physical/emulated approved devices |
 | Tablet screenshots | Only if tablet support is claimed | Do not claim until tablet QA passes |
 | App name/descriptions | Docs in this package | Draft complete, adult review required |

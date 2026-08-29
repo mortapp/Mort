@@ -8,7 +8,7 @@ Target coverage: Android 10-16 where available; Samsung, Pixel, Motorola, low-me
 
 | Day | Focus | Evidence |
 |---|---|---|
-| 1 | Play install, launch, sign-in, closed-pilot label, consent | Device/version/install notes |
+| 1 | Play install, launch, sign-in, production identity, consent | Device/version/install notes |
 | 2 | Registration, under-13 denial, password reset, role onboarding | Age and auth outcomes |
 | 3 | Job feed, manual area, denied/approximate/precise location | Permission screenshots without addresses |
 | 4 | Synthetic posting/application and Guardian Mode paths | Workflow IDs only |
