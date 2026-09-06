@@ -6,6 +6,8 @@ import 'package:flutter_mort/features/auth/unified_auth_screen.dart';
 import 'package:flutter_mort/features/mort_screens.dart';
 import 'package:go_router/go_router.dart';
 
+import 'helpers/mort_widget_harness.dart';
+
 GoRouter _publicRouter({required String initialLocation}) {
   return GoRouter(
     initialLocation: initialLocation,
@@ -71,7 +73,12 @@ GoRouter _onboardingRouter({required String initialLocation}) {
 
 Future<void> _pumpPublicRouter(WidgetTester tester, GoRouter router) async {
   await tester.pumpWidget(
-    ProviderScope(child: MaterialApp.router(routerConfig: router)),
+    ProviderScope(
+      child: MaterialApp.router(
+        theme: mortTestTheme(ThemeData()),
+        routerConfig: router,
+      ),
+    ),
   );
   await tester.pumpAndSettle();
 }
@@ -213,7 +220,7 @@ void main() {
     });
   });
 
-  testWidgets(
+  testMortWidgets(
     'system back repeatedly follows server-authoritative onboarding order',
     (tester) async {
       final router = _onboardingRouter(initialLocation: '/onboarding/skills');
@@ -238,7 +245,7 @@ void main() {
     },
   );
 
-  testWidgets(
+  testMortWidgets(
     'Safety legal references return to the invoking onboarding step',
     (tester) async {
       final router = _onboardingRouter(initialLocation: '/onboarding/safety');
@@ -289,7 +296,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('MortHeader shows Back for a pushed canonical root', (
+    testMortWidgets('MortHeader shows Back for a pushed canonical root', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -318,7 +325,7 @@ void main() {
       expect(find.text('Open saved jobs'), findsOneWidget);
     });
 
-    testWidgets('falls back to route when navigation stack is not poppable', (
+    testMortWidgets('falls back to route when navigation stack is not poppable', (
       WidgetTester tester,
     ) async {
       final router = GoRouter(
@@ -350,7 +357,7 @@ void main() {
       expect(find.byKey(const ValueKey('home')), findsOneWidget);
     });
 
-    testWidgets('pushes back when the navigator can pop', (
+    testMortWidgets('pushes back when the navigator can pop', (
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(

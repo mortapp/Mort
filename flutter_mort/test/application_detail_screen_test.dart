@@ -8,6 +8,8 @@ import 'package:flutter_mort/data/repositories/applications_repository.dart';
 import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/features/jobs/application_screens.dart';
 
+import 'helpers/mort_widget_harness.dart';
+
 class _FakeApplicationsRepository extends ApplicationsRepository {
   final List<Map<String, Object?>> recordedCalls = [];
   final List<String> statusEventCalls = [];
@@ -115,7 +117,7 @@ void main() {
     expect(find.text('Test job'), findsOneWidget);
   });
 
-  testWidgets('loads the status timeline only when it is first expanded', (
+  testMortWidgets('loads the status timeline only when it is first expanded', (
     tester,
   ) async {
     final repository = _FakeApplicationsRepository();

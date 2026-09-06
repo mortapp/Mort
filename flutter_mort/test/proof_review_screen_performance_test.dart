@@ -7,6 +7,8 @@ import 'package:flutter_mort/features/jobs/proof_review_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/mort_widget_harness.dart';
+
 class _FakeApplicationsRepository extends ApplicationsRepository {
   @override
   Future<List<ProofUpload>> listProofs(String applicationId) async {
@@ -51,7 +53,7 @@ Widget _app({
 }
 
 void main() {
-  testWidgets('rebuilds do not request duplicate signed proof URLs', (
+  testMortWidgets('rebuilds do not request duplicate signed proof URLs', (
     tester,
   ) async {
     final applications = _FakeApplicationsRepository();

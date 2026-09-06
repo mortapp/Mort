@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_mort/services/screen_security_service.dart';
 
+import 'helpers/mort_widget_harness.dart';
+
 void main() {
   const channel = MethodChannel('mort/native_security');
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -35,6 +37,7 @@ void main() {
       StatefulBuilder(
         builder: (c, setState) {
           return MaterialApp(
+            theme: mortTestTheme(ThemeData()),
             home: Column(
               children: [
                 if (show)
@@ -78,6 +81,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: mortTestTheme(ThemeData()),
         home: Builder(
           builder: (context) {
             return Center(
@@ -127,6 +131,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: mortTestTheme(ThemeData()),
         home: Builder(
           builder: (context) {
             return Column(
@@ -185,6 +190,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: mortTestTheme(ThemeData()),
         home: StatefulBuilder(
           builder: (context, setState) {
             int counter = 0;
@@ -243,6 +249,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: mortTestTheme(ThemeData()),
         home: SensitiveScreenProtection(
           child: Column(
             children: [
@@ -276,6 +283,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          theme: mortTestTheme(ThemeData()),
           home: SensitiveScreenProtection(
             child: SensitiveScreenProtection(child: const _ProtectedBox()),
           ),
@@ -301,6 +309,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: mortTestTheme(ThemeData()),
         home: Builder(
           builder: (context) {
             return Column(

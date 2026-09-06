@@ -9,6 +9,8 @@ import 'package:flutter_mort/features/safety/trust_safety_screens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/mort_widget_harness.dart';
+
 class _DeferredSafetyCircleRepository extends TrustSafetyRepository {
   final acceptCompleter = Completer<void>();
   int listCalls = 0;
@@ -40,7 +42,7 @@ Profile _guardianProfile() => Profile(
 );
 
 void main() {
-  testWidgets('leaving Safety Circle during invite acceptance is safe', (
+  testMortWidgets('leaving Safety Circle during invite acceptance is safe', (
     tester,
   ) async {
     final repository = _DeferredSafetyCircleRepository();

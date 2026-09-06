@@ -4,8 +4,10 @@ import 'package:flutter_mort/features/mort_screens.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import 'helpers/mort_widget_harness.dart';
+
 void main() {
-  testWidgets('legal document action returns to its invoking route', (
+  testMortWidgets('legal document action returns to its invoking route', (
     tester,
   ) async {
     final router = GoRouter(
@@ -50,7 +52,7 @@ void main() {
     expect(find.text('Open terms'), findsOneWidget);
   });
 
-  testWidgets('direct legal document action falls back to legal center', (
+  testMortWidgets('direct legal document action falls back to legal center', (
     tester,
   ) async {
     final router = GoRouter(
