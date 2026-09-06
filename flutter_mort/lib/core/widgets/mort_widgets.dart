@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +11,7 @@ export 'mort_liquid_glass.dart';
 
 import '../config/app_config.dart';
 import '../constants/app_constants.dart';
+import '../preferences/mort_experience_preferences.dart';
 import '../theme/mort_colors.dart';
 import '../theme/mort_spacing.dart';
 import '../theme/mort_tokens.dart';
@@ -364,8 +367,15 @@ class MortButton extends StatelessWidget {
       MortButtonStyle.disabled => MortColors.textMuted,
     };
 
+    // Canonical press feedback: one preference-gated selection tick per
+    // activated button across the entire product (law: single haptic layer).
     final button = ElevatedButton.icon(
-      onPressed: enabled ? onPressed : null,
+      onPressed: enabled
+          ? () {
+              unawaited(MortHaptics.selectionClick(context));
+              onPressed!();
+            }
+          : null,
       icon: busy
           ? const SizedBox.square(
               dimension: 18,
@@ -471,7 +481,12 @@ class MortIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton.filledTonal(
       tooltip: tooltip,
-      onPressed: onPressed,
+      onPressed: onPressed == null
+          ? null
+          : () {
+              unawaited(MortHaptics.selectionClick(context));
+              onPressed!();
+            },
       icon: Icon(icon),
       style: IconButton.styleFrom(
         backgroundColor: MortColors.glass,
