@@ -1,5 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { createRequire } from 'node:module';
+import { renderArchive } from '../web/legal-archive/shell.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const output = resolve(root, 'web', 'public');
@@ -31,9 +33,15 @@ const missingConfig = [
 ];
 const deploymentReady = missingConfig.length === 0;
 
-rmSync(output, { recursive: true, force: true });
 if (!existsSync(supabaseBrowserBundle)) {
   throw new Error('The pinned local Supabase browser bundle is missing. Run pnpm install first.');
+}
+// Keep the output directory itself: Windows preview servers may hold its handle.
+mkdirSync(output, { recursive: true });
+for (const entry of readdirSync(output)) {
+  const target = resolve(output, entry);
+  if (dirname(target) !== output) throw new Error('Invalid output path');
+  rmSync(target, { recursive: true, force: true });
 }
 
 function write(relative, content) {
@@ -142,31 +150,7 @@ const blocker = deploymentReady
   : `<div class="blocker" role="status"><strong>Release blocker:</strong> This preview package is not authorized for public deployment. Required publisher and contact configuration is incomplete.</div>`;
 
 function page({ title, description, body, scripts = '' }) {
-  return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#08110d">
-  <meta name="description" content="${escapeHtml(description)}">
-  <title>${escapeHtml(title)} | MORT</title>
-  <link rel="stylesheet" href="/assets/site.css">
-</head>
-<body>
-  <a class="skip" href="#content">Skip to content</a>
-  <header><a class="brand" href="/">MORT</a><nav aria-label="Legal and support">${nav}</nav></header>
-  <main id="content">
-    <p class="status">Draft — pending qualified legal review</p>
-    <h1>${escapeHtml(title)}</h1>
-    <p class="lede">${escapeHtml(description)}</p>
-    ${blocker}
-    <div class="notice"><strong>Current limits:</strong> MORT is a 13+ local-work coordination service with account eligibility restrictions. It does not guarantee identity, safety, jobs, or payment; it does not process real-world job payments; and identity verification is not currently available.</div>
-    ${body}
-  </main>
-  <footer><p><strong>MORT</strong> | Publisher: ${publisher}</p><p>Support: ${supportEmail} | Effective: ${effectiveDate}</p><p>Website: ${websiteUrl}</p></footer>
-  ${scripts}
-</body>
-</html>`;
+  return renderArchive({ title, description, body, scripts, routes, publisher, supportEmail, effectiveDate, websiteUrl, blocker });
 }
 
 write('assets/site.css', `
@@ -335,6 +319,13 @@ write('_headers', `
   Content-Security-Policy: default-src 'self'; script-src 'self'; connect-src 'self' https://rakjydmgwwgtdislanbt.supabase.co; style-src 'self'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; worker-src 'none'; upgrade-insecure-requests
 `);
 write('_redirects', '/* /index.html 404');
+// The existing deployment is Vercel; apply the same policy there as on Netlify.
+write('vercel.json', JSON.stringify({ headers: [{ source: '/(.*)', headers:
+  readFileSync(resolve(output, '_headers'), 'utf8').trim().split('\n').slice(1).map(line => {
+    const colon = line.indexOf(':');
+    return { key: line.slice(0, colon).trim(), value: line.slice(colon + 1).trim() };
+  })
+}] }, null, 2));
 // Real, confirmed AdMob publisher ID (pub-9883419411387958), standard
 // AdMob app-ads.txt authorized-seller line -- not a placeholder.
 write('app-ads.txt', 'google.com, pub-9883419411387958, DIRECT, f08c47fec0942fa0');
@@ -374,3 +365,13 @@ write(
 process.stdout.write(
   `Built MORT public legal/support package with ${routes.length} routes. Deployment ready: ${deploymentReady}.\n`,
 );
+
+// Self-host the procedural world without broadening the existing CSP.
+const archiveRequire = createRequire(resolve(root, 'web/legal-archive/package.json'));
+archiveRequire('esbuild').buildSync({
+  entryPoints: [resolve(root, 'web/legal-archive/archive.js')],
+  bundle: true, minify: true, format: 'esm', target: 'es2020',
+  supported: { 'template-literal': false },
+  outfile: resolve(output, 'assets/archive.js'), legalComments: 'eof',
+});
+write('assets/archive.css', readFileSync(resolve(root, 'web/legal-archive/archive.css'), 'utf8'));
