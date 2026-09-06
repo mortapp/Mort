@@ -236,7 +236,9 @@ void main() {
     },
   );
 
-  testMortWidgets('SavedJobsScreen allows removing a saved job', (tester) async {
+  testMortWidgets('SavedJobsScreen allows removing a saved job', (
+    tester,
+  ) async {
     final repository = _FakeJobsRepository(
       savedJobs: [_job(id: 'job-1', title: 'Saved Test Job')],
     );

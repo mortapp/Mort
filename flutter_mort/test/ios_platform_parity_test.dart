@@ -171,22 +171,25 @@ void main() {
   });
 
   group('iOS OAuth callback policy edge cases', () {
-    test('cold-start callback without query still requires the exact route', () {
-      expect(
-        MortOAuthCallbackPolicy.isApproved(
-          Uri.parse('com.mortapp.mobile://app/auth-callback'),
-          isWeb: false,
-        ),
-        isTrue,
-      );
-      expect(
-        MortOAuthCallbackPolicy.isApproved(
-          Uri.parse('com.mortapp.mobile://app/auth-callback/extra'),
-          isWeb: false,
-        ),
-        isFalse,
-      );
-    });
+    test(
+      'cold-start callback without query still requires the exact route',
+      () {
+        expect(
+          MortOAuthCallbackPolicy.isApproved(
+            Uri.parse('com.mortapp.mobile://app/auth-callback'),
+            isWeb: false,
+          ),
+          isTrue,
+        );
+        expect(
+          MortOAuthCallbackPolicy.isApproved(
+            Uri.parse('com.mortapp.mobile://app/auth-callback/extra'),
+            isWeb: false,
+          ),
+          isFalse,
+        );
+      },
+    );
 
     test('fragment-encoded state is preserved through normalization', () {
       final normalized = MortOAuthCallbackPolicy.normalize(
@@ -197,15 +200,18 @@ void main() {
       expect(normalized.queryParameters['code'], 'opaque');
     });
 
-    test('truncated percent-escapes in fragments are hostile, never trusted', () {
-      expect(
-        MortOAuthCallbackPolicy.isApproved(
-          Uri.parse('com.mortapp.mobile://app/auth-callback#%E0%80'),
-          isWeb: false,
-        ),
-        isFalse,
-      );
-    });
+    test(
+      'truncated percent-escapes in fragments are hostile, never trusted',
+      () {
+        expect(
+          MortOAuthCallbackPolicy.isApproved(
+            Uri.parse('com.mortapp.mobile://app/auth-callback#%E0%80'),
+            isWeb: false,
+          ),
+          isFalse,
+        );
+      },
+    );
 
     test('hostile fragments can never crash the approval check', () {
       for (final fragment in ['%=', '%%', '%E0%80', '%=broken']) {
