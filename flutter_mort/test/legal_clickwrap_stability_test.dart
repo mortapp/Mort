@@ -5,6 +5,8 @@ import 'package:flutter_mort/features/legal/legal_screens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/mort_widget_harness.dart';
+
 class _CountingLegalRepository extends LegalContractRepository {
   int versionLoads = 0;
 
@@ -21,7 +23,7 @@ class _CountingLegalRepository extends LegalContractRepository {
 }
 
 void main() {
-  testWidgets('consent form edits do not refetch the exact legal version', (
+  testMortWidgets('consent form edits do not refetch the exact legal version', (
     tester,
   ) async {
     final repository = _CountingLegalRepository();

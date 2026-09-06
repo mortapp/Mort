@@ -10,6 +10,8 @@ import 'package:flutter_mort/features/jobs/job_screens.dart';
 import 'package:flutter_mort/features/jobs/teen_job_screens.dart';
 import 'package:flutter_mort/features/mort_screens.dart';
 
+import 'helpers/mort_widget_harness.dart';
+
 class _FakeJobsRepository extends JobsRepository {
   _FakeJobsRepository({List<Job>? savedJobs, JobPage? openJobsPage})
     : savedJobs = List<Job>.from(savedJobs ?? const []),
@@ -83,7 +85,7 @@ class _FakeSafetyRepository extends SafetyRepository {
 Widget _app({required Widget child, List overrides = const []}) {
   return ProviderScope(
     overrides: overrides.cast(),
-    child: MaterialApp(home: child),
+    child: MaterialApp(theme: mortTestTheme(ThemeData()), home: child),
   );
 }
 
@@ -118,7 +120,7 @@ Job _job({required String id, String title = 'Test Job'}) {
 }
 
 void main() {
-  testWidgets(
+  testMortWidgets(
     'TeenJobFeedScreen shows clear filters when empty results and filters are active',
     (tester) async {
       final repository = _FakeJobsRepository(
@@ -177,7 +179,7 @@ void main() {
     },
   );
 
-  testWidgets('TeenJobFeedScreen saves a real feed job', (tester) async {
+  testMortWidgets('TeenJobFeedScreen saves a real feed job', (tester) async {
     final job = _job(id: 'job-1', title: 'Yard cleanup');
     final repository = _FakeJobsRepository(
       openJobsPage: JobPage(items: [job], hasMore: false),
@@ -234,7 +236,7 @@ void main() {
     },
   );
 
-  testWidgets('SavedJobsScreen allows removing a saved job', (tester) async {
+  testMortWidgets('SavedJobsScreen allows removing a saved job', (tester) async {
     final repository = _FakeJobsRepository(
       savedJobs: [_job(id: 'job-1', title: 'Saved Test Job')],
     );
@@ -258,7 +260,7 @@ void main() {
     expect(find.text('No saved jobs'), findsOneWidget);
   });
 
-  testWidgets(
+  testMortWidgets(
     'SafetyCenterScreen renders emergency actions and a safety banner',
     (tester) async {
       final repository = _FakeSafetyRepository(

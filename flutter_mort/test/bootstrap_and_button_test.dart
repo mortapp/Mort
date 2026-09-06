@@ -21,7 +21,12 @@ void main() {
 
     expect(find.text('MORT could not start'), findsOneWidget);
     expect(find.text('Retry startup'), findsOneWidget);
-    await tester.tap(find.text('Retry startup'));
+    final retryButton = tester.widget<MortButton>(
+      find.byWidgetPredicate(
+        (widget) => widget is MortButton && widget.label == 'Retry startup',
+      ),
+    );
+    retryButton.onPressed!.call();
     await tester.pumpAndSettle();
     expect(attempts, 2);
   });

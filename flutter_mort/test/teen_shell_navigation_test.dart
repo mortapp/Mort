@@ -5,8 +5,10 @@ import 'package:flutter_mort/features/teen/teen_shell.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import 'helpers/mort_widget_harness.dart';
+
 void main() {
-  testWidgets(
+  testMortWidgets(
     'Teen shell preserves branch state and gives visible and system Back parity',
     (tester) async {
       tester.view.physicalSize = const Size(1080, 2408);
@@ -20,7 +22,7 @@ void main() {
       addTearDown(router.dispose);
       await tester.pumpWidget(
         MaterialApp.router(
-          theme: MortTheme.dark(),
+          theme: mortTestTheme(MortTheme.dark()),
           routerConfig: router,
           builder: (context, child) => MediaQuery(
             data: MediaQuery.of(
@@ -70,7 +72,10 @@ void main() {
       final router = _teenRouter();
       addTearDown(router.dispose);
       await tester.pumpWidget(
-        MaterialApp.router(theme: MortTheme.dark(), routerConfig: router),
+        MaterialApp.router(
+          theme: mortTestTheme(MortTheme.dark()),
+          routerConfig: router,
+        ),
       );
       await tester.pumpAndSettle();
 

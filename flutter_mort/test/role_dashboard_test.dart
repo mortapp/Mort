@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import 'helpers/mort_widget_harness.dart';
+
 const _closedPilotStatus = <String, dynamic>{
   'release_mode': 'closed_test',
   'marketplace_mode': 'closed_pilot',
@@ -78,34 +80,35 @@ Future<GoRouter> _pumpDashboard(
 }
 
 void main() {
-  testWidgets('Adult dashboard groups real work, account, and safety routes', (
-    tester,
-  ) async {
-    final router = await _pumpDashboard(
-      tester,
-      UserRole.adult,
-      partnerContexts: const [
-        {'organization_id': 'qa-organization'},
-      ],
-    );
-    addTearDown(router.dispose);
+  testMortWidgets(
+    'Adult dashboard groups real work, account, and safety routes',
+    (tester) async {
+      final router = await _pumpDashboard(
+        tester,
+        UserRole.adult,
+        partnerContexts: const [
+          {'organization_id': 'qa-organization'},
+        ],
+      );
+      addTearDown(router.dispose);
 
-    expect(find.text('Adult dashboard'), findsOneWidget);
-    expect(find.text('WORK'), findsOneWidget);
-    expect(find.text('BUSINESS AND ACCOUNT'), findsOneWidget);
-    expect(find.text('SAFETY AND SUPPORT'), findsOneWidget);
-    expect(find.text('Post a job'), findsOneWidget);
-    expect(find.text('My jobs'), findsOneWidget);
-    expect(find.text('Applicants'), findsOneWidget);
-    expect(find.text('Verification'), findsOneWidget);
-    expect(find.text('Partner workspace'), findsOneWidget);
+      expect(find.text('Adult dashboard'), findsOneWidget);
+      expect(find.text('WORK'), findsOneWidget);
+      expect(find.text('BUSINESS AND ACCOUNT'), findsOneWidget);
+      expect(find.text('SAFETY AND SUPPORT'), findsOneWidget);
+      expect(find.text('Post a job'), findsOneWidget);
+      expect(find.text('My jobs'), findsOneWidget);
+      expect(find.text('Applicants'), findsOneWidget);
+      expect(find.text('Verification'), findsOneWidget);
+      expect(find.text('Partner workspace'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Post a job'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Post a job'));
-    await tester.pumpAndSettle();
-    expect(find.text('Post job destination'), findsOneWidget);
-  });
+      await tester.ensureVisible(find.text('Post a job'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Post a job'));
+      await tester.pumpAndSettle();
+      expect(find.text('Post job destination'), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'Guardian dashboard keeps free safety and privacy controls visible',

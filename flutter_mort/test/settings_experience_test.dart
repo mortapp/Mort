@@ -8,6 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'helpers/mort_widget_harness.dart';
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -41,7 +43,7 @@ void main() {
     expect(storage.getBool('mort.preference.haptics_enabled'), isFalse);
   });
 
-  testWidgets('Settings groups controls and opens working accessibility', (
+  testMortWidgets('Settings groups controls and opens working accessibility', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 3;

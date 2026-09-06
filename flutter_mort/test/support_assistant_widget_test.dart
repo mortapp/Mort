@@ -7,6 +7,8 @@ import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/data/repositories/support_assistant_repository.dart';
 import 'package:flutter_mort/features/support/support_assistant_screen.dart';
 
+import 'helpers/mort_widget_harness.dart';
+
 class _FakeSupportAssistantRepository extends SupportAssistantRepository {
   _FakeSupportAssistantRepository({
     this.configError,
@@ -104,7 +106,9 @@ void main() {
     expect(find.text('Reload'), findsOneWidget);
   });
 
-  testWidgets('shows typing then renders answer and citation', (tester) async {
+  testMortWidgets('shows typing then renders answer and citation', (
+    tester,
+  ) async {
     final pending = Completer<SupportAssistantReply>();
     final repository = _FakeSupportAssistantRepository(sendCompleter: pending);
     await tester.pumpWidget(_app(repository));

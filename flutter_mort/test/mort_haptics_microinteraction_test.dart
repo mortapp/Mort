@@ -4,6 +4,8 @@ import 'package:flutter_mort/core/preferences/mort_experience_preferences.dart';
 import 'package:flutter_mort/core/widgets/mort_widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/mort_widget_harness.dart';
+
 /// Canonical microinteraction contract: every canonical button activation
 /// fires exactly one preference-gated selection haptic. Disabled controls and
 /// a disabled haptics preference remain silent while actions stay usable.
@@ -52,7 +54,7 @@ void main() {
     );
   }
 
-  testWidgets('canonical button fires one selection haptic and activates', (
+  testMortWidgets('canonical button fires one selection haptic and activates', (
     tester,
   ) async {
     captureHaptics(tester);
@@ -68,7 +70,7 @@ void main() {
     expectSingleSelectionClick();
   });
 
-  testWidgets('disabled haptics preference suppresses the haptic only', (
+  testMortWidgets('disabled haptics preference suppresses the haptic only', (
     tester,
   ) async {
     captureHaptics(tester);
@@ -85,7 +87,7 @@ void main() {
     expect(calls, isEmpty);
   });
 
-  testWidgets('disabled canonical button neither activates nor buzzes', (
+  testMortWidgets('disabled canonical button neither activates nor buzzes', (
     tester,
   ) async {
     captureHaptics(tester);
@@ -101,7 +103,7 @@ void main() {
     expect(calls, isEmpty);
   });
 
-  testWidgets(
+  testMortWidgets(
     'canonical icon button fires one selection haptic and activates',
     (tester) async {
       captureHaptics(tester);

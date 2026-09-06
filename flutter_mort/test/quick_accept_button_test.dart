@@ -8,6 +8,8 @@ import 'package:flutter_mort/data/repositories/applications_repository.dart';
 import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/features/jobs/quick_accept_button.dart';
 
+import 'helpers/mort_widget_harness.dart';
+
 class _FakeApplicationsRepository extends ApplicationsRepository {
   _FakeApplicationsRepository({this.onQuickAccept});
 
@@ -83,7 +85,7 @@ void main() {
     expect(find.text('Accept'), findsNothing);
   });
 
-  testWidgets(
+  testMortWidgets(
     'AVAILABLE -> CLAIMING -> ACCEPTED never shows success before the server confirms',
     (tester) async {
       MortApplication? accepted;
@@ -112,7 +114,7 @@ void main() {
     },
   );
 
-  testWidgets('OFFER_TAKEN shows a clean state, not a raw error', (
+  testMortWidgets('OFFER_TAKEN shows a clean state, not a raw error', (
     tester,
   ) async {
     final repository = _FakeApplicationsRepository(
@@ -130,7 +132,7 @@ void main() {
     expect(find.textContaining('Exception'), findsNothing);
   });
 
-  testWidgets(
+  testMortWidgets(
     'NOT_ELIGIBLE (e.g. age mismatch) shows a disabled state with the reason',
     (tester) async {
       final repository = _FakeApplicationsRepository(
@@ -149,7 +151,7 @@ void main() {
     },
   );
 
-  testWidgets('NETWORK_ERROR offers Retry, and retry can still succeed', (
+  testMortWidgets('NETWORK_ERROR offers Retry, and retry can still succeed', (
     tester,
   ) async {
     var attempt = 0;

@@ -4,14 +4,16 @@ import 'package:flutter_mort/features/auth/unified_auth_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/mort_widget_harness.dart';
+
 void main() {
-  testWidgets('unified auth switches modes without losing entered email', (
+  testMortWidgets('unified auth switches modes without losing entered email', (
     tester,
   ) async {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
-          theme: MortTheme.dark(),
+          theme: mortTestTheme(MortTheme.dark()),
           home: const UnifiedAuthScreen(),
         ),
       ),
@@ -69,7 +71,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
-          theme: MortTheme.dark(),
+          theme: mortTestTheme(MortTheme.dark()),
           home: MediaQuery(
             data: const MediaQueryData(textScaler: TextScaler.linear(1.3)),
             child: const UnifiedAuthScreen(initialMode: UnifiedAuthMode.signUp),

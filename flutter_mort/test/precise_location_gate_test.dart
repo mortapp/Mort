@@ -7,6 +7,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geolocator_platform_interface/geolocator_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
+import 'helpers/mort_widget_harness.dart';
+
 class _FakeGeolocatorPlatform extends GeolocatorPlatform
     with MockPlatformInterfaceMixin {
   bool servicesEnabled = true;
@@ -69,7 +71,7 @@ void main() {
   });
 
   Widget harness() => MaterialApp(
-    theme: MortTheme.dark(),
+    theme: mortTestTheme(MortTheme.dark()),
     home: Scaffold(
       body: PreciseLocationGate(
         service: const PreciseLocationService(),
@@ -87,7 +89,7 @@ void main() {
     expect(find.text('Precise location required'), findsNothing);
   });
 
-  testWidgets(
+  testMortWidgets(
     'shows the required card and offers Open settings for approximate-only',
     (tester) async {
       fake.accuracyStatus = LocationAccuracyStatus.reduced;

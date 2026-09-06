@@ -3,6 +3,8 @@ import 'package:flutter_mort/core/utils/date_of_birth.dart';
 import 'package:flutter_mort/core/widgets/date_of_birth_field.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/mort_widget_harness.dart';
+
 Widget dobForm({
   required TextEditingController controller,
   required GlobalKey<FormState> formKey,
@@ -69,7 +71,9 @@ void main() {
     expect(controller.text, '06/29/2011');
   });
 
-  testWidgets('partial input does not validate as complete', (tester) async {
+  testMortWidgets('partial input does not validate as complete', (
+    tester,
+  ) async {
     final controller = TextEditingController();
     final formKey = GlobalKey<FormState>();
     addTearDown(controller.dispose);
@@ -83,7 +87,9 @@ void main() {
     expect(find.text('Enter your full date of birth.'), findsOneWidget);
   });
 
-  testWidgets('invalid calendar date displays friendly error', (tester) async {
+  testMortWidgets('invalid calendar date displays friendly error', (
+    tester,
+  ) async {
     final controller = TextEditingController();
     final formKey = GlobalKey<FormState>();
     addTearDown(controller.dispose);
@@ -97,7 +103,7 @@ void main() {
     expect(find.text('Enter a real calendar date.'), findsOneWidget);
   });
 
-  testWidgets('valid DOB allows continuation and normalizes to ISO', (
+  testMortWidgets('valid DOB allows continuation and normalizes to ISO', (
     tester,
   ) async {
     final controller = TextEditingController();

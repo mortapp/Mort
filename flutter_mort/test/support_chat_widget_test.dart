@@ -7,6 +7,8 @@ import 'package:flutter_mort/features/support/support_screens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/mort_widget_harness.dart';
+
 class _FakeSupportRepository extends SupportRepository {
   @override
   Future<SupportThread> getThread(String ticketId) async => SupportThread(
@@ -56,7 +58,7 @@ class _DeferredSupportRepository extends _FakeSupportRepository {
 }
 
 void main() {
-  testWidgets(
+  testMortWidgets(
     'new support conversation includes categories and quick replies',
     (tester) async {
       await tester.pumpWidget(
@@ -100,7 +102,7 @@ void main() {
     expect(find.text('Email fallback'), findsOneWidget);
   });
 
-  testWidgets(
+  testMortWidgets(
     'leaving a support case during send does not update disposed UI',
     (tester) async {
       final repository = _DeferredSupportRepository();

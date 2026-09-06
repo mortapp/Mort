@@ -10,6 +10,8 @@ import 'package:flutter_mort/data/repositories/profile_repository.dart';
 import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/features/auth/unified_auth_screen.dart';
 import 'package:flutter_mort/features/onboarding/compact_onboarding.dart';
+
+import 'helpers/mort_widget_harness.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -182,7 +184,7 @@ Future<void> _pumpOnboarding(
         ),
       ],
       child: MaterialApp(
-        theme: MortTheme.dark(),
+        theme: mortTestTheme(MortTheme.dark()),
         home: MediaQuery(
           data: MediaQueryData(
             textScaler: textScaler,
@@ -227,7 +229,7 @@ void main() {
     expect(source, isNot(contains('toStringAsFixed')));
   });
 
-  testWidgets(
+  testMortWidgets(
     'compact onboarding exposes exactly four primary production steps',
     (WidgetTester tester) async {
       // A real phone-sized viewport, not the default tiny headless test

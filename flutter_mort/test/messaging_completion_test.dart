@@ -10,6 +10,8 @@ import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/features/mort_screens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'helpers/mort_widget_harness.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class _FakeMessageSubscription implements MortMessageSubscription {
@@ -222,44 +224,45 @@ void main() {
     expect(page.nextCursor?.id, 'thread-1');
   });
 
-  testWidgets('conversation list renders context, searches, and paginates', (
-    tester,
-  ) async {
-    final repository = _FakeMessagingRepository();
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          supabaseReadyProvider.overrideWithValue(true),
-          messagingRepositoryProvider.overrideWithValue(repository),
-        ],
-        child: const MaterialApp(home: MessagesScreen()),
-      ),
-    );
-    await tester.pumpAndSettle();
+  testMortWidgets(
+    'conversation list renders context, searches, and paginates',
+    (tester) async {
+      final repository = _FakeMessagingRepository();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            supabaseReadyProvider.overrideWithValue(true),
+            messagingRepositoryProvider.overrideWithValue(repository),
+          ],
+          child: const MaterialApp(home: MessagesScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Jamie S.'), findsOneWidget);
-    expect(find.text('Lawn mowing'), findsOneWidget);
-    expect(find.text('Can we confirm the schedule?'), findsOneWidget);
-    expect(find.text('3 unread'), findsOneWidget);
+      expect(find.text('Jamie S.'), findsOneWidget);
+      expect(find.text('Lawn mowing'), findsOneWidget);
+      expect(find.text('Can we confirm the schedule?'), findsOneWidget);
+      expect(find.text('3 unread'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Load more conversations'));
-    await tester.tap(find.text('Load more conversations'));
-    await tester.pumpAndSettle();
-    expect(find.text('Morgan T.'), findsOneWidget);
-    expect(find.text('Leaf cleanup'), findsOneWidget);
+      await tester.ensureVisible(find.text('Load more conversations'));
+      await tester.tap(find.text('Load more conversations'));
+      await tester.pumpAndSettle();
+      expect(find.text('Morgan T.'), findsOneWidget);
+      expect(find.text('Leaf cleanup'), findsOneWidget);
 
-    final search = find.byWidgetPredicate(
-      (widget) =>
-          widget is TextField &&
-          widget.decoration?.hintText == 'Search by participant or job',
-    );
-    await tester.enterText(search, 'mowing');
-    await tester.tap(find.text('Search conversations'));
-    await tester.pumpAndSettle();
-    expect(repository.requestedQueries.last, 'mowing');
-  });
+      final search = find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField &&
+            widget.decoration?.hintText == 'Search by participant or job',
+      );
+      await tester.enterText(search, 'mowing');
+      await tester.tap(find.text('Search conversations'));
+      await tester.pumpAndSettle();
+      expect(repository.requestedQueries.last, 'mowing');
+    },
+  );
 
-  testWidgets('new search ignores an older pagination response', (
+  testMortWidgets('new search ignores an older pagination response', (
     tester,
   ) async {
     final repository = _OutOfOrderThreadRepository();
@@ -323,7 +326,7 @@ void main() {
     expect(find.text('Initial Person'), findsNothing);
   });
 
-  testWidgets('thread exposes safety context and retries one failed send', (
+  testMortWidgets('thread exposes safety context and retries one failed send', (
     tester,
   ) async {
     final repository = _FakeMessagingRepository();
@@ -372,7 +375,7 @@ void main() {
     expect(repository.sendRequestIds[1], repository.sendRequestIds[0]);
   });
 
-  testWidgets('leaving a thread during send does not update disposed UI', (
+  testMortWidgets('leaving a thread during send does not update disposed UI', (
     tester,
   ) async {
     final repository = _DeferredMessageSendRepository();

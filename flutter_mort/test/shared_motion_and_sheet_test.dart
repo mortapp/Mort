@@ -3,6 +3,8 @@ import 'package:flutter_mort/core/routing/mort_page_transitions.dart';
 import 'package:flutter_mort/core/widgets/mort_widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/mort_widget_harness.dart';
+
 void main() {
   testWidgets('route builders omit motion when reduced motion is active', (
     tester,
@@ -42,7 +44,7 @@ void main() {
     }
   });
 
-  testWidgets('confirmation sheets protect the bottom safe area', (
+  testMortWidgets('confirmation sheets protect the bottom safe area', (
     tester,
   ) async {
     await tester.pumpWidget(
