@@ -56,7 +56,9 @@ dependencies:
   firebase_core: ^4.12.1
   firebase_messaging: ^16.4.3
   flutter_timezone: ^5.1.0
-  sentry_flutter: 9.25.0
+  # 9.7.0+ pins Sentry/HybridSDK 8.56+, whose Swift API bridge hides
+  # configureScope and fails the native plugin build. 9.6.0 uses 8.52.1.
+  sentry_flutter: 9.6.0
   # 7.1.0+ references NWPath.isUltraConstrained for satellite reporting.
   # Xcode 16.2's iOS SDK does not declare that member, so pin the last
   # compatible v7 release until upstream ships a compile-safe guard.
