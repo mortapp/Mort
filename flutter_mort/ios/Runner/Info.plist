@@ -28,6 +28,21 @@
 	<string>MORT sends safety, guardian approval, application, and message notifications.</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
+	<!-- Google Mobile Ads SDK (google_mobile_ads, compiled in via
+	     AppConfig.nativeAdsCompiledIn) hard-requires this key to be present
+	     at process launch -- it crashes with GADInvalidInitializationException
+	     ("initialized without an application ID") on every real device
+	     otherwise, regardless of the ADS_ENABLED dart-define, because the
+	     native SDK's own launch-time check runs independent of whether Dart
+	     ever calls MobileAds.instance.initialize(). No real iOS AdMob app has
+	     been created yet (see .env.example / MORT_EXTERNAL_RELEASE_GATES.md),
+	     so this uses Google's own official public sample App ID -- the same
+	     placeholder Google publishes for pre-launch integration testing, not
+	     a fabricated identifier -- exactly mirroring this codebase's existing
+	     use of Google's sample ad-unit IDs when USE_TEST_ADS is true. Replace
+	     with the real MORT iOS AdMob App ID once one is created. -->
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-3940256099942544~1458002511</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

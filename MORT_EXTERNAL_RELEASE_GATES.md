@@ -110,3 +110,15 @@ CREDENTIAL_REQUIRED=NO
 PROVIDER=N/A
 LAUNCH_IMPACT=None remaining for this branch.
 FAIL_CLOSED_BEHAVIOR=N/A
+
+---
+
+GATE=Real iOS AdMob app (dedicated App ID for MORT's iOS bundle)
+STATUS=NOT CREATED — genuine internal defect found and fixed around this gap this session
+WHY=`.env.example` already documented "No iOS AdMob app has been created yet"; `AppConfig.admobIosAppId` has no default (empty string) unlike Android's real, hardcoded `ca-app-pub-9883419411387958~1048817736`. This was previously believed harmless because `ADS_ENABLED=false` in every QA/CI build. It is not harmless: `google_mobile_ads` is compiled into every iOS build unconditionally (`AppConfig.nativeAdsCompiledIn = true`), and the native Google Mobile Ads SDK enforces a hard `GADApplicationIdentifier` Info.plist requirement at process launch *independent of the ADS_ENABLED dart-define* — it crashes with `GADInvalidInitializationException` before any Dart code gets a chance to gate it. This was caught by a real BrowserStack real-device session (session `3070c49d...`, device "iPhone 15" iOS 17, run 34145579365/34147137707): the device log showed `Terminating app due to uncaught exception 'GADInvalidInitializationException'` ~1s after launch, on every attempt.
+TECHNICAL_WORK_COMPLETE=YES — fixed by adding `GADApplicationIdentifier` to `flutter_mort/ios/Runner/Info.plist` using Google's own official public sample iOS App ID (`ca-app-pub-3940256099942544~1458002511`, the same publisher used for this codebase's existing test ad-unit IDs in `admob_service.dart`) as a non-fabricated placeholder, with a regression test added to `test/ios_platform_parity_test.dart` (`declares a GADApplicationIdentifier for the compiled-in AdMob SDK`) so the key cannot silently disappear again. Full regression suite reverified green (488 passed/2 skipped/0 failed) and Android debug build reverified unaffected.
+HUMAN_ACTION_REQUIRED=Create a real iOS app entry under the existing AdMob publisher account (`pub-9883419411387958`, same one already used for Android) — a few minutes in the AdMob console, no new account or approval wait needed — then set `ADMOB_IOS_APP_ID`/`ADMOB_IOS_*_AD_UNIT_ID` env vars and swap the sample value in Info.plist for the real one before ads are ever enabled for real iOS users.
+CREDENTIAL_REQUIRED=NO to keep the app from crashing (already fixed with Google's public sample ID); YES (AdMob console access) only before real iOS ads can be served.
+PROVIDER=Google AdMob
+LAUNCH_IMPACT=Without this fix, MORT crashed on launch on every real iPhone, regardless of ADS_ENABLED — this was a P0 correctness defect, not merely an ads-feature gap.
+FAIL_CLOSED_BEHAVIOR=N/A (this was a gap in the fail-closed design, now corrected; ads themselves remain fully gated behind ADS_ENABLED and assertValidReleaseConfiguration's ad-unit-configured check)
