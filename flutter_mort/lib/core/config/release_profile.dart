@@ -61,6 +61,7 @@ class MortReleaseConfiguration {
     required this.minimumSupportedAppVersion,
     required this.maintenanceMode,
     required this.debugEndpointsEnabled,
+    required this.browserStackQaMode,
   });
 
   final MortReleaseProfile profile;
@@ -94,6 +95,7 @@ class MortReleaseConfiguration {
   final String minimumSupportedAppVersion;
   final bool maintenanceMode;
   final bool debugEndpointsEnabled;
+  final bool browserStackQaMode;
 
   bool get hostedBackendConfigured =>
       supabaseUrl == 'https://$expectedSupabaseProjectRef.supabase.co' &&
@@ -107,6 +109,13 @@ class MortReleaseConfiguration {
     }
     if (profile.requiresHostedBackend && !hostedBackendConfigured) {
       errors.add('hosted Supabase public configuration is missing or wrong');
+    }
+    if (browserStackQaMode &&
+        (profile != MortReleaseProfile.automatedTest ||
+            releaseStage != 'internal_test')) {
+      errors.add(
+        'BrowserStack QA mode is valid only for internal automated tests',
+      );
     }
     if (googleAuthEnabled &&
         oauthCallback != 'com.mortapp.mobile://app/auth-callback') {
@@ -186,6 +195,23 @@ class MortReleaseConfiguration {
         }
         break;
       case MortReleaseProfile.automatedTest:
+        if (browserStackQaMode &&
+            (googleAuthEnabled ||
+                appleAuthEnabled ||
+                publicMarketplaceEnabled ||
+                marketplacePaymentsEnabled ||
+                identityVerificationEnabled ||
+                remotePushEnabled ||
+                crashReportingEnabled ||
+                chatbotAiEnabled ||
+                adsEnabled ||
+                iapEnabled ||
+                reviewerModeEnabled ||
+                productionActivationApproved)) {
+          errors.add(
+            'BrowserStack QA mode cannot enable external production systems',
+          );
+        }
         if (publicMarketplaceEnabled ||
             productionActivationApproved ||
             identityVerificationEnabled ||
