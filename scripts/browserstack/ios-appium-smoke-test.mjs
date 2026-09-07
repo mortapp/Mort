@@ -52,6 +52,60 @@ const opts = {
   },
 };
 
+const basicAuth = Buffer.from(
+  `${process.env.BROWSERSTACK_USERNAME}:${process.env.BROWSERSTACK_ACCESS_KEY}`,
+).toString("base64");
+
+// Fetches this session's real status/reason and crash/device logs from
+// BrowserStack's own API -- so a failure is diagnosed from BrowserStack's
+// authoritative record, not guessed at from the Appium client's error alone.
+async function reportSessionDiagnostics(sessionId) {
+  try {
+    const res = await fetch(
+      `https://api-cloud.browserstack.com/app-automate/sessions/${sessionId}.json`,
+      { headers: { Authorization: `Basic ${basicAuth}` } },
+    );
+    const body = await res.json();
+    const session = body.automation_session ?? body;
+    console.log(`BROWSERSTACK_SESSION_STATUS=${session.status}`);
+    console.log(`BROWSERSTACK_SESSION_REASON=${session.reason ?? "(none)"}`);
+    if (session.crash_logs_url) {
+      const crashRes = await fetch(session.crash_logs_url, {
+        headers: { Authorization: `Basic ${basicAuth}` },
+      });
+      const crashText = await crashRes.text();
+      await writeFile("browserstack-crash-log.txt", crashText);
+      console.log(
+        `Saved browserstack-crash-log.txt (${crashText.length} bytes)`,
+      );
+    }
+    if (session.device_logs_url) {
+      const deviceRes = await fetch(session.device_logs_url, {
+        headers: { Authorization: `Basic ${basicAuth}` },
+      });
+      const deviceText = await deviceRes.text();
+      await writeFile("browserstack-device-log.txt", deviceText);
+      // Print only lines that look launch/crash-relevant so this doesn't
+      // dump the entire device syslog into CI output.
+      const relevant = deviceText
+        .split("\n")
+        .filter((line) =>
+          /mortapp|crash|SIGABRT|SIGSEGV|Fatal|terminat|launchd|CrashReporter/i.test(
+            line,
+          ),
+        )
+        .slice(0, 60);
+      console.log(
+        `Saved browserstack-device-log.txt (${deviceText.length} bytes). Relevant lines:`,
+      );
+      for (const line of relevant) console.log("  " + line);
+    }
+  } catch (diagError) {
+    console.error("Could not fetch BrowserStack session diagnostics:");
+    console.error(diagError);
+  }
+}
+
 async function main() {
   console.log(
     `Starting BrowserStack session: device="${process.env.BS_DEVICE_NAME}" iOS ${process.env.BS_OS_VERSION}`,
@@ -63,9 +117,11 @@ async function main() {
     `BROWSERSTACK_SESSION_URL=https://app-automate.browserstack.com/dashboard/v2/sessions/${sessionId}`,
   );
 
+  let passed = false;
   try {
     // Give the app time to finish launching before checking it's alive.
-    await driver.pause(8000);
+    // Real-device cold starts can be slower than the earlier 8s guess.
+    await driver.pause(15000);
 
     // A session that can still report window/page source is a session whose
     // app process did not crash on launch. This is a real, if narrow, signal
@@ -84,14 +140,22 @@ async function main() {
     if (!stillAlive) {
       throw new Error("App did not report a live page source after launch.");
     }
+    passed = true;
     console.log("RESULT=PASS");
   } catch (error) {
     console.error("RESULT=FAIL");
     console.error(error);
     process.exitCode = 1;
   } finally {
-    await driver.deleteSession();
+    try {
+      await driver.deleteSession();
+    } catch {
+      // Session may already be dead if the app crashed; that's fine, we
+      // still want the diagnostics fetch below.
+    }
+    await reportSessionDiagnostics(sessionId);
   }
+  if (!passed) process.exitCode = 1;
 }
 
 main();
