@@ -37,6 +37,18 @@ jobs:
           flutter-version: 3.47.2
           cache: true
 
+      # On a completely fresh checkout, build/ios/SourcePackages doesn't exist
+      # yet. `flutter pub get`'s Swift Package Manager plugin-vendoring step
+      # rsyncs each SPM-compatible plugin (e.g. firebase_messaging) into that
+      # directory, and macOS's bundled rsync (an old BSD fork, not a modern
+      # one with --mkpath) cannot create more than one missing parent level
+      # at once -- it fails with "mkdir ... No such file or directory".
+      # Normally a prior `flutter build`/`flutter run` creates this tree as a
+      # side effect; on CI, pub get is the very first Flutter command ever
+      # run, so nothing has created it yet. Pre-create it explicitly.
+      - name: Prepare iOS Swift Package Manager plugin directory
+        run: mkdir -p build/ios/SourcePackages
+
       - run: flutter pub get
 
       - name: Verify formatting
