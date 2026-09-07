@@ -11,7 +11,16 @@ import '../../services/native_permissions_service.dart';
 import '../../services/push/push_notification_coordinator.dart';
 
 class NativePermissionsScreen extends StatefulWidget {
-  const NativePermissionsScreen({super.key});
+  const NativePermissionsScreen({
+    super.key,
+    this.permissionsService = const NativePermissionsService(),
+    this.nativeActionsEnabled = true,
+    this.nativeActionsDisabledMessage,
+  });
+
+  final NativePermissionsService permissionsService;
+  final bool nativeActionsEnabled;
+  final String? nativeActionsDisabledMessage;
 
   @override
   State<NativePermissionsScreen> createState() =>
@@ -19,7 +28,6 @@ class NativePermissionsScreen extends StatefulWidget {
 }
 
 class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
-  final _service = const NativePermissionsService();
   final _pushCoordinator = PushNotificationCoordinator.instance;
   late Future<NativePermissionSnapshot> _future;
   bool _busy = false;
@@ -32,7 +40,7 @@ class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
   }
 
   void _refresh() {
-    _future = _service.snapshot();
+    _future = widget.permissionsService.snapshot();
   }
 
   Future<void> _run(Future<void> Function() action) async {
@@ -54,7 +62,7 @@ class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
 
   Future<void> _resolveArea() async {
     await _run(() async {
-      final area = await _service.resolveCurrentGeneralArea();
+      final area = await widget.permissionsService.resolveCurrentGeneralArea();
       if (!mounted) return;
       setState(() {
         _areaMessage =
@@ -76,6 +84,10 @@ class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
                 'MORT asks only when you use a related feature. Background location is not requested.',
           ),
         ),
+        if (widget.nativeActionsDisabledMessage != null) ...[
+          const SizedBox(height: MortSpacing.sm),
+          MortCard(child: Text(widget.nativeActionsDisabledMessage!)),
+        ],
         FutureBuilder<NativePermissionSnapshot>(
           future: _future,
           builder: (context, snapshot) {
@@ -106,7 +118,10 @@ class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
                   detail: _pushCoordinator.configured
                       ? 'Permission enables remote alerts on this device. After approval, MORT securely registers this signed-in installation.'
                       : 'Remote push is disabled in this build, so MORT will not request notification permission. The in-app notification inbox still works.',
-                  onRequest: _busy || !_pushCoordinator.configured
+                  onRequest:
+                      !widget.nativeActionsEnabled ||
+                          _busy ||
+                          !_pushCoordinator.configured
                       ? null
                       : () => _run(() async {
                           await _pushCoordinator.requestPermissionAndRegister();
@@ -119,10 +134,10 @@ class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
                   status: _permissionLabel(status.camera),
                   detail:
                       'Used only after you choose camera capture for job proof, profile images, or report evidence. Real ID collection remains disabled.',
-                  onRequest: _busy
+                  onRequest: !widget.nativeActionsEnabled || _busy
                       ? null
                       : () => _run(() async {
-                          await _service.requestCamera();
+                          await widget.permissionsService.requestCamera();
                         }),
                 ),
                 const SizedBox(height: MortSpacing.sm),
@@ -135,10 +150,13 @@ class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
                   detail: status.photoPickerNeedsBroadPermission
                       ? 'iOS can grant selected-photo or full-library access. MORT uses only the item you choose.'
                       : 'Android uses the system photo picker so MORT does not request broad media-library access.',
-                  onRequest: _busy || !status.photoPickerNeedsBroadPermission
+                  onRequest:
+                      !widget.nativeActionsEnabled ||
+                          _busy ||
+                          !status.photoPickerNeedsBroadPermission
                       ? null
                       : () => _run(() async {
-                          await _service.requestPhotos();
+                          await widget.permissionsService.requestPhotos();
                         }),
                 ),
                 const SizedBox(height: MortSpacing.sm),
@@ -149,7 +167,9 @@ class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
                       '${status.location.name.replaceAll('_', ' ')}; ${locationAccuracyLabel(status.locationAccuracy)}; services ${status.locationServicesEnabled ? 'on' : 'off'}',
                   detail:
                       'A user-initiated lookup may resolve the current position to city/state for general-area job search. MORT reports whether device accuracy is precise or reduced, then discards the raw coordinates. Manual city/state search always remains available.',
-                  onRequest: _busy || kIsWeb ? null : _resolveArea,
+                  onRequest: !widget.nativeActionsEnabled || _busy || kIsWeb
+                      ? null
+                      : _resolveArea,
                 ),
               ],
             );
@@ -167,7 +187,9 @@ class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
           label: 'Open device settings',
           icon: Icons.settings_outlined,
           style: MortButtonStyle.ghost,
-          onPressed: kIsWeb ? null : _service.openSettings,
+          onPressed: !widget.nativeActionsEnabled || kIsWeb
+              ? null
+              : widget.permissionsService.openSettings,
         ),
         const SizedBox(height: MortSpacing.md),
         const MortSafetyBanner(

@@ -24,11 +24,17 @@ class BrowserStackQaApp extends StatelessWidget {
         GoRoute(path: '/qa', builder: (_, _) => const _BrowserStackQaHome()),
         GoRoute(
           path: '/qa/onboarding',
-          builder: (_, _) => const CompactOnboardingScreen(),
+          builder: (_, _) => const CompactOnboardingScreen(
+            permissionsService: BrowserStackQaNativePermissionsService(),
+            nativeLocationLookupEnabled: false,
+            nativeLocationDisabledMessage:
+                'Current-location lookup is disabled in BrowserStack QA. Enter a ZIP or city manually.',
+          ),
         ),
         GoRoute(
           path: '/qa/safety',
-          builder: (_, _) => const SafetyCenterScreen(),
+          builder: (_, _) =>
+              const SafetyCenterScreen(emergencyDialerEnabled: false),
         ),
         GoRoute(
           path: '/qa/financial',
@@ -40,7 +46,12 @@ class BrowserStackQaApp extends StatelessWidget {
         ),
         GoRoute(
           path: '/qa/permissions',
-          builder: (_, _) => const NativePermissionsScreen(),
+          builder: (_, _) => const NativePermissionsScreen(
+            permissionsService: BrowserStackQaNativePermissionsService(),
+            nativeActionsEnabled: false,
+            nativeActionsDisabledMessage:
+                'Permission requests are disabled in BrowserStack QA. No device permission or setting can be changed.',
+          ),
         ),
         GoRoute(
           path: '/qa/legal',

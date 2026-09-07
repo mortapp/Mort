@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_mort/data/models/financial_safety.dart';
 import 'package:flutter_mort/data/models/onboarding_progress.dart';
+import 'package:flutter_mort/data/models/profile.dart';
+import 'package:flutter_mort/core/widgets/mort_widgets.dart';
 import 'package:flutter_mort/features/qa/browserstack_qa_app.dart';
 import 'package:flutter_mort/features/qa/browserstack_qa_fixtures.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -80,6 +82,12 @@ void main() {
     await tester.tap(find.bySemanticsLabel('qa-open-safety'));
     await tester.pumpAndSettle();
     expect(find.text('MORT does not dispatch physical help'), findsOneWidget);
+    expect(
+      tester
+          .widget<MortButton>(find.widgetWithText(MortButton, 'Call 911'))
+          .onPressed,
+      isNull,
+    );
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
@@ -92,6 +100,66 @@ void main() {
     await tester.tap(find.bySemanticsLabel('qa-open-settings'));
     await tester.pumpAndSettle();
     expect(find.text('Control your account'), findsOneWidget);
+  });
+
+  testWidgets('QA permissions use local status and expose no native actions', (
+    tester,
+  ) async {
+    await _pumpQaApp(tester);
+
+    final route = find.bySemanticsLabel('qa-open-permissions');
+    await tester.ensureVisible(route);
+    await tester.tap(route);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Permission requests are disabled in BrowserStack QA. No device permission or setting can be changed.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Request when needed'), findsNothing);
+    expect(
+      tester
+          .widget<MortButton>(
+            find.widgetWithText(MortButton, 'Open device settings'),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(find.text('denied'), findsNWidgets(3));
+    expect(
+      find.text('denied; accuracy unavailable; services off'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('QA onboarding disables native general-area lookup', (
+    tester,
+  ) async {
+    await _pumpQaApp(tester);
+
+    await tester.tap(find.bySemanticsLabel('qa-open-onboarding'));
+    await tester.pumpAndSettle();
+    final today = DateTime.now();
+    final teenBirthday =
+        '${today.month.toString().padLeft(2, '0')}/'
+        '${today.day.toString().padLeft(2, '0')}/${today.year - 16}';
+    await tester.enterText(find.byType(TextFormField).first, teenBirthday);
+    await tester.pumpAndSettle();
+
+    final lookup = find.widgetWithText(
+      MortButton,
+      'Use my current general area',
+    );
+    await tester.ensureVisible(lookup);
+    expect(tester.widget<MortButton>(lookup).onPressed, isNull);
+    expect(
+      find.text(
+        'Current-location lookup is disabled in BrowserStack QA. Enter a ZIP or city manually.',
+      ),
+      findsOneWidget,
+    );
   });
 
   test('financial fixture rejects every mounted-screen mutation', () async {
@@ -142,6 +210,19 @@ void main() {
       repository.setPreferences(alertsEnabled: false),
       _rejectsQaMutation,
     );
+    await expectLater(repository.chooseReceiptPhoto(), _rejectsQaMutation);
+    await expectLater(repository.deleteTarget(2026), _rejectsQaMutation);
+    await expectLater(
+      repository.recordUploadFailure(uploadKind: 'qa', safeCode: 'qa_blocked'),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.recordOperationalFailure(
+        eventType: 'qa',
+        safeCode: 'qa_blocked',
+      ),
+      _rejectsQaMutation,
+    );
   });
 
   test(
@@ -165,6 +246,20 @@ void main() {
       );
       await expectLater(
         repository.completeActiveJobCheckin(checkinId: 'qa-checkin'),
+        _rejectsQaMutation,
+      );
+      await expectLater(
+        repository.recordUploadFailure(
+          uploadKind: 'qa',
+          safeCode: 'qa_blocked',
+        ),
+        _rejectsQaMutation,
+      );
+      await expectLater(
+        repository.recordOperationalFailure(
+          eventType: 'qa',
+          safeCode: 'qa_blocked',
+        ),
         _rejectsQaMutation,
       );
     },
@@ -192,4 +287,191 @@ void main() {
       _rejectsQaMutation,
     );
   });
+
+  test('profile fixture rejects inherited Supabase-backed mutations', () async {
+    final repository = BrowserStackQaProfileRepository();
+
+    await expectLater(
+      repository.saveProfile(
+        role: UserRole.teen,
+        displayName: 'QA',
+        dob: DateTime(2010),
+      ),
+      _rejectsQaMutation,
+    );
+    await expectLater(repository.completeOnboarding(), _rejectsQaMutation);
+    await expectLater(
+      repository.saveOnboardingAge(DateTime(2010)),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.requestUsernameChange('qa_user'),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.saveOnboardingRole(UserRole.teen),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.saveOnboardingProgress(completedStep: 'account'),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.recordOnboardingAcknowledgement(
+        version: 'qa',
+        platform: 'qa',
+        appVersion: 'qa',
+      ),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.saveProfileDetails(
+        displayName: 'QA',
+        bio: '',
+        availability: '',
+        preferredJobCategories: const [],
+        approximateArea: '',
+        goals: '',
+      ),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.saveProfileSetup(
+        role: UserRole.teen,
+        displayName: 'QA',
+        username: 'qa_user',
+        dob: DateTime(2010),
+        city: '',
+        state: '',
+        locationSetupMode: 'location_deferred',
+        bio: '',
+        availability: '',
+        preferredJobCategories: const [],
+        approximateArea: 'Indianapolis',
+        goals: '',
+        adultAccountType: '',
+        businessName: '',
+        editExisting: false,
+        clientRequestId: 'qa-profile-setup',
+      ),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.saveTransportationPreferences(methods: const ['walking']),
+      _rejectsQaMutation,
+    );
+    await expectLater(repository.setAvatarPath(null), _rejectsQaMutation);
+    await expectLater(
+      repository.updateMyProfile(const {'display_name': 'QA'}),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.saveOnboardingSafetyV2(
+        payload: const {},
+        clientRequestId: 'qa-safety-save',
+      ),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.completeOnboardingV2(
+        payload: const {},
+        clientRequestId: 'qa-complete',
+      ),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.recordUploadFailure(uploadKind: 'qa', safeCode: 'qa_blocked'),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.recordOperationalFailure(
+        eventType: 'qa',
+        safeCode: 'qa_blocked',
+      ),
+      _rejectsQaMutation,
+    );
+  });
+
+  test('legal fixture rejects inherited contract mutations', () async {
+    final repository = BrowserStackQaLegalContractRepository();
+
+    await expectLater(
+      repository.confirmContractVersion(
+        versionId: 'qa-version',
+        confirmation: 'agree',
+      ),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.requestContractChange(
+        contractId: 'qa-contract',
+        patch: const {},
+        reason: 'qa',
+      ),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.respondContractChange(changeId: 'qa-change', accept: true),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.reportNonpayment(
+        obligationId: 'qa-obligation',
+        statement: 'qa',
+      ),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.submitDisputeStatement(
+        disputeId: 'qa-dispute',
+        statement: 'qa',
+      ),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.submitDisputeAppeal(disputeId: 'qa-dispute', reason: 'qa'),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.evidenceExport('qa-dispute'),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.acceptLegalVersion(
+        versionId: 'qa-version',
+        teenSummaryViewed: true,
+      ),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.recordUploadFailure(uploadKind: 'qa', safeCode: 'qa_blocked'),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.recordOperationalFailure(
+        eventType: 'qa',
+        safeCode: 'qa_blocked',
+      ),
+      _rejectsQaMutation,
+    );
+  });
+
+  test(
+    'QA native service rejects every mutation without platform calls',
+    () async {
+      const service = BrowserStackQaNativePermissionsService();
+
+      await expectLater(service.requestCamera(), _rejectsQaMutation);
+      await expectLater(service.requestPhotos(), _rejectsQaMutation);
+      await expectLater(
+        service.requestForegroundLocation(),
+        _rejectsQaMutation,
+      );
+      await expectLater(
+        service.resolveCurrentGeneralArea(),
+        _rejectsQaMutation,
+      );
+      await expectLater(service.openSettings(), _rejectsQaMutation);
+    },
+  );
 }

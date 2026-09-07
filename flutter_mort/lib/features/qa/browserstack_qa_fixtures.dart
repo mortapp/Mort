@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/misc.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../data/models/financial_safety.dart';
 import '../../data/models/onboarding_progress.dart';
@@ -10,14 +12,62 @@ import '../../data/repositories/financial_repository.dart';
 import '../../data/repositories/legal_contract_repository.dart';
 import '../../data/repositories/profile_repository.dart';
 import '../../data/repositories/providers.dart';
+import '../../data/repositories/repository_base.dart';
 import '../../data/repositories/safety_repository.dart';
+import '../../services/native_permissions_service.dart';
 
 const browserStackQaMutationMessage =
     'BrowserStack QA mode does not permit mutations.';
 
 Never _mutate() => throw StateError(browserStackQaMutationMessage);
 
-class BrowserStackQaFinancialRepository extends FinancialRepository {
+class BrowserStackQaNativePermissionsService extends NativePermissionsService {
+  const BrowserStackQaNativePermissionsService();
+
+  @override
+  Future<NativePermissionSnapshot> snapshot() async =>
+      const NativePermissionSnapshot(
+        notifications: PermissionStatus.denied,
+        camera: PermissionStatus.denied,
+        photos: PermissionStatus.denied,
+        location: LocationPermission.denied,
+        locationAccuracy: null,
+        locationServicesEnabled: false,
+        photoPickerNeedsBroadPermission: true,
+      );
+
+  @override
+  Future<PermissionStatus> requestCamera() async => _mutate();
+
+  @override
+  Future<PermissionStatus> requestPhotos() async => _mutate();
+
+  @override
+  Future<LocationPermission> requestForegroundLocation() async => _mutate();
+
+  @override
+  Future<GeneralSearchArea> resolveCurrentGeneralArea() async => _mutate();
+
+  @override
+  Future<bool> openSettings() async => _mutate();
+}
+
+mixin _BrowserStackQaMutationGuard on RepositoryBase {
+  @override
+  Future<void> recordUploadFailure({
+    required String uploadKind,
+    required String safeCode,
+  }) async => _mutate();
+
+  @override
+  Future<void> recordOperationalFailure({
+    required String eventType,
+    required String safeCode,
+  }) async => _mutate();
+}
+
+class BrowserStackQaFinancialRepository extends FinancialRepository
+    with _BrowserStackQaMutationGuard {
   @override
   Future<FinancialSummary> getFinancialSummary(int year) async =>
       FinancialSummary(
@@ -133,7 +183,8 @@ class BrowserStackQaFinancialRepository extends FinancialRepository {
   Future<void> deleteTarget(int year) async => _mutate();
 }
 
-class BrowserStackQaProfileRepository extends ProfileRepository {
+class BrowserStackQaProfileRepository extends ProfileRepository
+    with _BrowserStackQaMutationGuard {
   static final DateTime _revision = DateTime.utc(2026, 9, 7, 12);
 
   OnboardingProgressV2 _progress = _progressFor(OnboardingStepV2.account);
@@ -160,6 +211,10 @@ class BrowserStackQaProfileRepository extends ProfileRepository {
   Future<Profile?> getCurrentProfile() async => _profile;
 
   @override
+  Future<Profile?> getProfile(String profileId) async =>
+      _profile?.id == profileId ? _profile : null;
+
+  @override
   Future<OnboardingProgress> getOnboardingProgress() async =>
       const OnboardingProgress(
         currentStep: 'account',
@@ -172,6 +227,21 @@ class BrowserStackQaProfileRepository extends ProfileRepository {
 
   @override
   Future<OnboardingProgressV2> getOnboardingProgressV2() async => _progress;
+
+  @override
+  Future<Profile> saveProfile({
+    required UserRole role,
+    required String displayName,
+    required DateTime dob,
+    String? city,
+    String? state,
+    String locationSetupMode = 'city_state',
+    bool completeOnboarding = true,
+    String paymentPreference = 'none',
+  }) async => _mutate();
+
+  @override
+  Future<Profile> completeOnboarding() async => _mutate();
 
   @override
   Future<OnboardingProgressV2> saveOnboardingAccountV2({
@@ -222,14 +292,93 @@ class BrowserStackQaProfileRepository extends ProfileRepository {
   }) async => _mutate();
 
   @override
+  Future<OnboardingProgress> saveOnboardingAge(DateTime dob) async => _mutate();
+
+  @override
+  Future<OnboardingProgress> saveOnboardingRole(UserRole role) async =>
+      _mutate();
+
+  @override
+  Future<OnboardingProgress> saveOnboardingProgress({
+    required String completedStep,
+    Map<String, dynamic> preferences = const {},
+  }) async => _mutate();
+
+  @override
+  Future<OnboardingProgress> recordOnboardingAcknowledgement({
+    required String version,
+    required String platform,
+    required String appVersion,
+  }) async => _mutate();
+
+  @override
+  Future<Profile> saveProfileDetails({
+    required String displayName,
+    required String bio,
+    required String availability,
+    required List<String> preferredJobCategories,
+    required String approximateArea,
+    required String goals,
+  }) async => _mutate();
+
+  @override
+  Future<Profile> saveProfileSetup({
+    required UserRole role,
+    required String displayName,
+    required String username,
+    required DateTime dob,
+    required String city,
+    required String state,
+    required String locationSetupMode,
+    required String bio,
+    required String availability,
+    required List<String> preferredJobCategories,
+    required String approximateArea,
+    required String goals,
+    required String adultAccountType,
+    required String businessName,
+    required bool editExisting,
+    required String clientRequestId,
+  }) async => _mutate();
+
+  @override
+  Future<Profile> saveTransportationPreferences({
+    required List<String> methods,
+    int? maxDistanceMiles,
+    int? maxTravelMinutes,
+    bool walkingDistanceOnly = false,
+    bool guardianTransportationPossible = false,
+  }) async => _mutate();
+
+  @override
+  Future<Profile> setAvatarPath(String? path) async => _mutate();
+
+  @override
   Future<Profile> updateMyProfile(
     Map<String, dynamic> patch, {
     DateTime? expectedUpdatedAt,
     String? clientRequestId,
   }) async => _mutate();
+
+  @override
+  Future<Map<String, dynamic>> getUsernameChangeStatus() async => const {
+    'current_username': null,
+    'free_changes_used': 0,
+    'free_changes_remaining': 0,
+    'token_credits': 0,
+    'admin_credits': 0,
+    'plus_allowance_available': false,
+    'plus_changes_used': 0,
+    'plus_period_start': null,
+  };
+
+  @override
+  Future<Map<String, dynamic>> requestUsernameChange(String username) async =>
+      _mutate();
 }
 
-class BrowserStackQaSafetyRepository extends SafetyRepository {
+class BrowserStackQaSafetyRepository extends SafetyRepository
+    with _BrowserStackQaMutationGuard {
   @override
   Future<Map<String, dynamic>> getSafetyCenterConfig() async => const {
     'ok': true,
@@ -293,11 +442,29 @@ class BrowserStackQaSafetyRepository extends SafetyRepository {
   }) async => _mutate();
 }
 
-class BrowserStackQaLegalContractRepository extends LegalContractRepository {
+class BrowserStackQaLegalContractRepository extends LegalContractRepository
+    with _BrowserStackQaMutationGuard {
   @override
   Future<Map<String, dynamic>> legalRequirements() async => const {
     'requirements': <Map<String, dynamic>>[],
   };
+
+  @override
+  Future<Map<String, dynamic>> publishedLegalVersion(String versionId) async =>
+      const {};
+
+  @override
+  Future<List<Map<String, dynamic>>> contracts() async => const [];
+
+  @override
+  Future<List<Map<String, dynamic>>> contractVersions(
+    String contractId,
+  ) async => const [];
+
+  @override
+  Future<List<Map<String, dynamic>>> contractAcceptances(
+    String contractId,
+  ) async => const [];
 
   @override
   Future<Map<String, dynamic>> acceptLegalVersion({
@@ -305,6 +472,82 @@ class BrowserStackQaLegalContractRepository extends LegalContractRepository {
     required bool teenSummaryViewed,
     String? signature,
   }) async => _mutate();
+
+  @override
+  Future<Map<String, dynamic>> confirmContractVersion({
+    required String versionId,
+    required String confirmation,
+  }) async => _mutate();
+
+  @override
+  Future<List<Map<String, dynamic>>> contractChanges(String contractId) async =>
+      const [];
+
+  @override
+  Future<Map<String, dynamic>> requestContractChange({
+    required String contractId,
+    required Map<String, dynamic> patch,
+    required String reason,
+  }) async => _mutate();
+
+  @override
+  Future<Map<String, dynamic>> respondContractChange({
+    required String changeId,
+    required bool accept,
+  }) async => _mutate();
+
+  @override
+  Future<List<Map<String, dynamic>>> paymentObligations(
+    String contractId,
+  ) async => const [];
+
+  @override
+  Future<List<Map<String, dynamic>>> paymentDisputes(String contractId) async =>
+      const [];
+
+  @override
+  Future<Map<String, dynamic>> paymentDispute(String disputeId) async =>
+      const {};
+
+  @override
+  Future<List<Map<String, dynamic>>> disputeTimeline(String disputeId) async =>
+      const [];
+
+  @override
+  Future<List<Map<String, dynamic>>> disputeStatements(
+    String disputeId,
+  ) async => const [];
+
+  @override
+  Future<List<Map<String, dynamic>>> disputeAppeals(String disputeId) async =>
+      const [];
+
+  @override
+  Future<Map<String, dynamic>> reportNonpayment({
+    required String obligationId,
+    required String statement,
+  }) async => _mutate();
+
+  @override
+  Future<Map<String, dynamic>> submitDisputeStatement({
+    required String disputeId,
+    required String statement,
+    String? clientRequestId,
+  }) async => _mutate();
+
+  @override
+  Future<Map<String, dynamic>> submitDisputeAppeal({
+    required String disputeId,
+    required String reason,
+    String? clientRequestId,
+  }) async => _mutate();
+
+  @override
+  Future<Map<String, dynamic>> evidenceExport(String disputeId) async =>
+      _mutate();
+
+  @override
+  Future<Map<String, dynamic>> firstPartyTrustStatus() async => const {};
 }
 
 List<Override> browserStackQaFixtureOverrides() {

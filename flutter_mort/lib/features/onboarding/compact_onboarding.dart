@@ -23,7 +23,16 @@ import 'mort_rules_copy.dart';
 /// MORT's production onboarding path. Four primary screens render the v2
 /// server projection; `complete` is a terminal server state, never a fifth UI.
 class CompactOnboardingScreen extends ConsumerStatefulWidget {
-  const CompactOnboardingScreen({super.key});
+  const CompactOnboardingScreen({
+    super.key,
+    this.permissionsService = const NativePermissionsService(),
+    this.nativeLocationLookupEnabled = true,
+    this.nativeLocationDisabledMessage,
+  });
+
+  final NativePermissionsService permissionsService;
+  final bool nativeLocationLookupEnabled;
+  final String? nativeLocationDisabledMessage;
 
   @override
   ConsumerState<CompactOnboardingScreen> createState() =>
@@ -234,8 +243,7 @@ class _CompactOnboardingScreenState
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final area = await const NativePermissionsService()
-          .resolveCurrentGeneralArea();
+      final area = await widget.permissionsService.resolveCurrentGeneralArea();
       if (!mounted) return;
       _zip.text = '${area.city}, ${area.state}';
       setState(() {
@@ -823,8 +831,17 @@ class _CompactOnboardingScreenState
             style: MortButtonStyle.secondary,
             busy: _busy,
             busyLabel: 'Finding general area',
-            onPressed: _requestApproximateLocation,
+            onPressed: widget.nativeLocationLookupEnabled
+                ? _requestApproximateLocation
+                : null,
           ),
+          if (widget.nativeLocationDisabledMessage != null) ...[
+            const SizedBox(height: MortSpacing.sm),
+            Text(
+              widget.nativeLocationDisabledMessage!,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
           if (_locationHint != null) ...[
             const SizedBox(height: MortSpacing.sm),
             Semantics(
@@ -1063,7 +1080,7 @@ class _CompactOnboardingScreenState
 
   Widget _buildNotificationPermissionStatus() {
     return FutureBuilder<NativePermissionSnapshot>(
-      future: const NativePermissionsService().snapshot(),
+      future: widget.permissionsService.snapshot(),
       builder: (context, snapshot) {
         final label = snapshot.hasData
             ? notificationPermissionLabel(snapshot.data!.notifications)

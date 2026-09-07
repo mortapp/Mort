@@ -4657,7 +4657,9 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
 }
 
 class SafetyCenterScreen extends ConsumerStatefulWidget {
-  const SafetyCenterScreen({super.key});
+  const SafetyCenterScreen({super.key, this.emergencyDialerEnabled = true});
+
+  final bool emergencyDialerEnabled;
 
   @override
   ConsumerState<SafetyCenterScreen> createState() => _SafetyCenterScreenState();
@@ -5272,7 +5274,9 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
           label: 'Call 911',
           icon: Icons.call,
           style: MortButtonStyle.danger,
-          onPressed: _confirmEmergencyCall,
+          onPressed: widget.emergencyDialerEnabled
+              ? _confirmEmergencyCall
+              : null,
         ),
         const SizedBox(height: MortSpacing.md),
         MortQuickActionGrid(
