@@ -167,6 +167,30 @@ final jobExecutionRepositoryProvider = Provider<JobExecutionRepository>(
 final legalContractRepositoryProvider = Provider<LegalContractRepository>(
   (ref) => LegalContractRepository(),
 );
+// A material revision to a required legal document (Terms, Privacy, Safety
+// Rules) creates a server-side reacceptance requirement, but nothing
+// previously prompted an already-onboarded user to actually go re-accept it
+// -- it only surfaced if they happened to open the Legal Center themselves.
+// This mirrors the get_my_legal_requirements() shape (required + null
+// acceptance_id = outstanding) and fails open (false) on any error, since a
+// network hiccup here must never block app startup.
+final pendingRequiredLegalReacceptanceProvider = FutureProvider<bool>((
+  ref,
+) async {
+  try {
+    final result = await ref
+        .read(legalContractRepositoryProvider)
+        .legalRequirements();
+    final requirements = (result['requirements'] as List? ?? const []).map(
+      (item) => Map<String, dynamic>.from(item as Map),
+    );
+    return requirements.any(
+      (item) => item['required'] == true && item['acceptance_id'] == null,
+    );
+  } catch (_) {
+    return false;
+  }
+});
 final applicationsRepositoryProvider = Provider<ApplicationsRepository>(
   (ref) => ApplicationsRepository(),
 );

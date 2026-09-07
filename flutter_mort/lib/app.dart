@@ -27,6 +27,7 @@ class MortApp extends ConsumerStatefulWidget {
 
 class _MortAppState extends ConsumerState<MortApp> with WidgetsBindingObserver {
   String? _lastStartupNavigationKey;
+  String? _promptedLegalReacceptanceForUserId;
   StreamSubscription? _foregroundPushSubscription;
   StreamSubscription? _openedPushSubscription;
   late final _router = ref.read(appRouterProvider);
@@ -100,6 +101,19 @@ class _MortAppState extends ConsumerState<MortApp> with WidgetsBindingObserver {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) router.go(snapshot.destination!);
       });
+    }
+    if (snapshot.stage == MortAuthStartupStage.authenticated &&
+        snapshot.userId != null &&
+        snapshot.userId != _promptedLegalReacceptanceForUserId) {
+      final pendingReacceptance = ref.watch(
+        pendingRequiredLegalReacceptanceProvider,
+      );
+      if (pendingReacceptance.asData?.value == true) {
+        _promptedLegalReacceptanceForUserId = snapshot.userId;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) router.go('/legal-center');
+        });
+      }
     }
     return MaterialApp.router(
       onGenerateTitle: (context) => MortLocalizations.of(context).appTitle,
