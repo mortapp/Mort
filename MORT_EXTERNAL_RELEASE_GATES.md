@@ -8,7 +8,7 @@ credential/account this session does not have and should not fabricate.
 GATE=BrowserStack account/credentials
 STATUS=NOT_CONFIGURED
 WHY=No BROWSERSTACK_USERNAME/BROWSERSTACK_ACCESS_KEY in this environment; `gh secret list --repo mortapp/Mort` returns empty; no BrowserStack MCP connection active.
-TECHNICAL_WORK_COMPLETE=NO — scaffolding (CI workflow, upload/poll scripts) not yet built (Track 10, in progress)
+TECHNICAL_WORK_COMPLETE=YES — scaffolding built this session: `.github/workflows/mort-ios-browserstack.yml` (macOS CI: build/test/pod install/unsigned iOS artifact, conditional BrowserStack upload) and `scripts/browserstack/*.ps1` (verify-env, upload-ios-app, upload-android-app, poll-build, download-results), built against BrowserStack's documented App Automate REST API. Cannot be exercised end-to-end without credentials.
 HUMAN_ACTION_REQUIRED=Create/sign into a BrowserStack account with App Live + App Automate access; get Username + Access Key from Account Settings; set as env vars or complete BrowserStack MCP OAuth; never paste the key into source or chat.
 CREDENTIAL_REQUIRED=YES (BROWSERSTACK_USERNAME, BROWSERSTACK_ACCESS_KEY)
 PROVIDER=BrowserStack
@@ -18,13 +18,13 @@ FAIL_CLOSED_BEHAVIOR=N/A (test infrastructure, not a production runtime gate)
 ---
 
 GATE=Android upload/release signing keystore
-STATUS=NOT_CONFIGURED
-WHY=No `android/key.properties` and no MORT_UPLOAD_* env vars present. `android/app/build.gradle.kts:60-64` intentionally raises `Release signing is required. Debug-signing fallback is intentionally disabled.` when a release build is requested without them — verified live this session (`flutter build apk --release` fails with exactly this message).
-TECHNICAL_WORK_COMPLETE=YES — the fail-closed gate itself is correctly implemented and was not weakened.
-HUMAN_ACTION_REQUIRED=Provide the real MORT upload keystore file + MORT_UPLOAD_KEYSTORE_PATH/STORE_PASSWORD/KEY_ALIAS/KEY_PASSWORD (or an android/key.properties file, kept out of git).
+STATUS=NOT_CONFIGURED (repo secrets), BUT CI PIPELINE ALREADY BUILT
+WHY=No `android/key.properties` and no MORT_UPLOAD_* env vars present locally; `gh secret list --repo mortapp/Mort` returns empty, so `MORT_UPLOAD_KEYSTORE_BASE64`/`MORT_UPLOAD_KEY_ALIAS`/`MORT_UPLOAD_STORE_PASSWORD`/`MORT_UPLOAD_KEY_PASSWORD`/`SUPABASE_SERVICE_ROLE_KEY` are not set in GitHub either. `android/app/build.gradle.kts:60-64` intentionally raises `Release signing is required. Debug-signing fallback is intentionally disabled.` when a release build is requested without them — verified live this session (`flutter build apk --release` fails with exactly this message with no signing configured). A complete, ready-to-run signed-build workflow already exists at `.github/workflows/mort-signed-closed-test.yml` (`workflow_dispatch`, materializes the keystore from the base64 secret, runs `scripts/build-standard-closed-test-apk.ps1`/`.aab.ps1`) — it is simply missing its secrets.
+TECHNICAL_WORK_COMPLETE=YES — both the fail-closed gate and the CI automation to produce a real signed build the moment secrets exist are already implemented; this session additionally verified the R8/shrink pipeline itself works by building and runtime-testing a release APK with a throwaway local-only key (never committed, deleted after use) on the `MORT_QA_Pixel6` emulator — launched and stayed resumed with no crash in logcat.
+HUMAN_ACTION_REQUIRED=Add the five GitHub Actions secrets `mort-signed-closed-test.yml` already expects (`MORT_UPLOAD_KEYSTORE_BASE64`, `MORT_UPLOAD_KEY_ALIAS`, `MORT_UPLOAD_STORE_PASSWORD`, `MORT_UPLOAD_KEY_PASSWORD`, plus `SUPABASE_SERVICE_ROLE_KEY`/`SUPABASE_URL` var) via `gh secret set` or the repo Settings UI, using the real MORT upload keystore.
 CREDENTIAL_REQUIRED=YES (owner keystore + passwords)
 PROVIDER=Google Play (app signing)
-LAUNCH_IMPACT=Blocks `flutter build apk --release` / `--appbundle --release` and therefore Play Store submission
+LAUNCH_IMPACT=Blocks `flutter build apk --release` / `--appbundle --release` locally and the already-built `mort-signed-closed-test` CI workflow, and therefore Play Store submission
 FAIL_CLOSED_BEHAVIOR=Correct — build hard-fails rather than silently falling back to debug signing.
 
 ---
