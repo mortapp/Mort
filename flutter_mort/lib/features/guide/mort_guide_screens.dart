@@ -258,6 +258,9 @@ class MortGuideSuggestedQuestions extends StatelessWidget {
   static const questions = [
     'How do I apply for a job?',
     'How do completion checks work?',
+    'Why did I get an earnings alert?',
+    'My mom says I need to stop working because we get SNAP.',
+    'How do I record an expense or receipt?',
     'How do I report or block someone?',
     'How do I delete my account?',
     'What stays free without MORT Plus?',

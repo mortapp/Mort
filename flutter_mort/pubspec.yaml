@@ -60,6 +60,8 @@ dependencies:
   sentry_flutter: 9.25.0
   connectivity_plus: ^7.3.1
   google_mobile_ads: ^5.3.1
+  pdf: ^3.13.0
+  share_plus: ^13.3.0
 
 dev_dependencies:
   flutter_test:

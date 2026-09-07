@@ -13,6 +13,8 @@ import '../../features/monetization/screens/monetization_home_screen.dart';
 import '../../features/monetization/screens/google_play_billing_screens.dart';
 import '../../features/monetization/screens/username_change_paywall_screen.dart';
 import '../../features/guardian/guardian_mode_screens.dart';
+import '../../features/financial/financial_safety_center.dart';
+import '../../features/financial/financial_section_screens.dart';
 import '../../features/guardian/guardian_safety_pings_screen.dart';
 import '../../features/guide/mort_guide_screens.dart';
 import '../../features/jobs/job_screens.dart';
@@ -253,6 +255,46 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         role: UserRole.teen,
       ),
       _guarded('/teen/goals', const EarningsGoalsScreen(), role: UserRole.teen),
+      _guarded(
+        '/financial',
+        const FinancialSafetyCenterScreen(),
+        role: UserRole.teen,
+      ),
+      _guarded(
+        '/financial/expenses',
+        const FinancialExpensesScreen(),
+        role: UserRole.teen,
+      ),
+      _guarded(
+        '/financial/check',
+        const FinancialCheckScreen(),
+        role: UserRole.teen,
+      ),
+      _guarded(
+        '/financial/keep-earning',
+        const FinancialKeepEarningScreen(),
+        role: UserRole.teen,
+      ),
+      _guarded(
+        '/financial/benefits',
+        const FinancialBenefitsScreen(),
+        role: UserRole.teen,
+      ),
+      _guarded(
+        '/financial/targets',
+        const FinancialTargetsScreen(),
+        role: UserRole.teen,
+      ),
+      _guarded(
+        '/financial/records',
+        const FinancialRecordsScreen(),
+        role: UserRole.teen,
+      ),
+      _guarded(
+        '/financial/learn',
+        const FinancialLearnScreen(),
+        role: UserRole.teen,
+      ),
       _guarded('/teen/hustle-academy', _academy(), role: UserRole.teen),
       _guarded(
         '/adult/home',
