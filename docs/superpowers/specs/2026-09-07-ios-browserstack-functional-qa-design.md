@@ -19,15 +19,19 @@ ordinary development builds.
 
 The QA mode will:
 
-1. Enable the existing local Google Play reviewer experience for role-specific
-   synthetic workflow coverage.
-2. Provide a deterministic local QA navigation/session surface for the real
+1. Provide a deterministic local QA navigation/session surface for the real
    onboarding, safety, financial safety, settings, legal, and native-permission
    views. It uses fixed in-memory data and disabled-provider responses only;
    it makes no network, account, payment, safety-ping, or permission-changing
    mutations.
-3. Preserve the normal startup, routing, repository, and release-gate behavior
+2. Preserve the normal startup, routing, repository, and release-gate behavior
    for every non-QA build.
+
+The existing Google Play reviewer mode is deliberately excluded. The
+`automated_test` release profile rejects it as an external production system,
+and enabling it would correctly fail release-configuration validation. The QA
+fixture instead drives actual onboarding role controls and gives those screens
+the deterministic data they need.
 
 ## Testability contract
 
@@ -53,10 +57,9 @@ deep or reduced profile:
 * `deep` (iPhone 15 / iOS 17): boot and QA entry; onboarding account role
   choices, step back, and legal navigation/back; local teen navigation to
   Safety, Financial Safety, and Settings; provider-disabled and empty-record
-  assertions; permission-denial explanation; reviewer synthetic role and PIN
-  interaction.
+  assertions; and permission-denial explanation.
 * `limited` (iPhone 17 / iOS 26): boot, QA entry, onboarding/legal back path,
-  safety boundary, and a reviewer role-selection check.
+  safety boundary, and a compact role-choice check.
 * `floor` (iPhone SE 2022 / iOS 15): boot, QA entry, narrow-layout landmark
   checks, and navigation to safety/financial/settings.
 
