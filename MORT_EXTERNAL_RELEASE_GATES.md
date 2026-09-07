@@ -8,7 +8,7 @@ credential/account this session does not have and should not fabricate.
 GATE=BrowserStack account/credentials
 STATUS=NOT_CONFIGURED
 WHY=No BROWSERSTACK_USERNAME/BROWSERSTACK_ACCESS_KEY in this environment; `gh secret list --repo mortapp/Mort` returns empty; no BrowserStack MCP connection active.
-TECHNICAL_WORK_COMPLETE=YES — scaffolding built this session: `.github/workflows/mort-ios-browserstack.yml` (macOS CI: build/test/pod install/unsigned iOS artifact, conditional BrowserStack upload) and `scripts/browserstack/*.ps1` (verify-env, upload-ios-app, upload-android-app, poll-build, download-results), built against BrowserStack's documented App Automate REST API. Cannot be exercised end-to-end without credentials.
+TECHNICAL_WORK_COMPLETE=YES — [GitHub Actions run 34131627976](https://github.com/mortapp/Mort/actions/runs/34131627976) passed its macOS iOS build/test/pod-install/unsigned-IPA artifact pipeline and uploaded `mort-ios-browserstack-qa`. Its BrowserStack credential check correctly skipped the App Automate upload because credentials are absent. The workflow and `scripts/browserstack/*.ps1` (verify-env, upload-ios-app, upload-android-app, poll-build, download-results) are ready but cannot be exercised end-to-end without credentials.
 HUMAN_ACTION_REQUIRED=Create/sign into a BrowserStack account with App Live + App Automate access; get Username + Access Key from Account Settings; set as env vars or complete BrowserStack MCP OAuth; never paste the key into source or chat.
 CREDENTIAL_REQUIRED=YES (BROWSERSTACK_USERNAME, BROWSERSTACK_ACCESS_KEY)
 PROVIDER=BrowserStack
@@ -30,10 +30,10 @@ FAIL_CLOSED_BEHAVIOR=Correct — build hard-fails rather than silently falling b
 ---
 
 GATE=Apple Developer account / signing certificates
-STATUS=UNAVAILABLE (Windows host; macOS CI workflow built but not yet executed)
-WHY=This program runs on a Windows host; Xcode cannot run here directly. `.github/workflows/mort-ios-browserstack.yml` (macOS runner) now exists to produce real build evidence, but has not yet been triggered — no GitHub Actions run has executed it. Separately, `test/ios_platform_parity_test.dart` already deliberately asserts the Xcode project has no APNs/Sign-in-with-Apple entitlement "until provider configuration and legal gates actually exist" — confirmed this is intentional, not an oversight, when a fix attempt was caught and reverted this session (see `MORT_IOS_NATIVE_SOURCE_AUDIT.md`).
-TECHNICAL_WORK_COMPLETE=YES for what's controllable pre-Apple-account (macOS CI workflow, native source audit); NO real build has executed yet — that requires actually running the workflow.
-HUMAN_ACTION_REQUIRED=Provide Apple Developer Program membership + signing certificates/provisioning profiles once App Store distribution (not BrowserStack testing) is needed. BrowserStack App Live/App Automate testing may not require full Apple distribution signing — to be confirmed once the macOS CI artifact pipeline actually runs.
+STATUS=UNAVAILABLE for App Store distribution; macOS CI build PASS
+WHY=This program runs on a Windows host, but [GitHub Actions run 34131627976](https://github.com/mortapp/Mort/actions/runs/34131627976) supplied the missing macOS/Xcode 16.2 evidence: pub get, format, analyze, 487 tests, CocoaPods, `xcodebuild -list`, unsigned `flutter build ios --release --no-codesign`, IPA packaging, and artifact upload all passed for `62b48fd`. The build intentionally has no signing. Separately, `test/ios_platform_parity_test.dart` deliberately asserts the Xcode project has no APNs/Sign-in-with-Apple entitlement until provider configuration and legal gates actually exist; this is intentional, not an oversight (see `MORT_IOS_NATIVE_SOURCE_AUDIT.md`).
+TECHNICAL_WORK_COMPLETE=YES for every pre-account technical check, including the real macOS build. Distribution signing remains intentionally unverified without Apple credentials.
+HUMAN_ACTION_REQUIRED=Provide Apple Developer Program membership plus signing certificates/provisioning profiles once TestFlight/App Store distribution is needed. BrowserStack App Live/App Automate testing may not require full Apple distribution signing, but that remains unverified until credentials allow a real device-cloud upload.
 CREDENTIAL_REQUIRED=YES, for App Store distribution specifically
 PROVIDER=Apple
 LAUNCH_IMPACT=Blocks TestFlight/App Store submission. Does not necessarily block BrowserStack device testing (BrowserStack can often re-sign uploaded apps for its own devices) — needs verification once a build artifact exists.
