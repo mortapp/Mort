@@ -63,17 +63,20 @@ void main() {
       expect(infoPlist, contains('UISceneDelegateClassName'));
     });
 
-    test('declares a GADApplicationIdentifier for the compiled-in AdMob SDK', () {
-      // google_mobile_ads is compiled in unconditionally
-      // (AppConfig.nativeAdsCompiledIn), and its native SDK crashes with
-      // GADInvalidInitializationException at process launch on every real
-      // device if this key is absent -- independent of the ADS_ENABLED
-      // dart-define, since the SDK's own launch check runs regardless of
-      // whether Dart ever calls MobileAds.instance.initialize(). Confirmed
-      // via a real BrowserStack device crash before this key was added.
-      expect(infoPlist, contains('GADApplicationIdentifier'));
-      expect(infoPlist, contains('ca-app-pub-'));
-    });
+    test(
+      'declares a GADApplicationIdentifier for the compiled-in AdMob SDK',
+      () {
+        // google_mobile_ads is compiled in unconditionally
+        // (AppConfig.nativeAdsCompiledIn), and its native SDK crashes with
+        // GADInvalidInitializationException at process launch on every real
+        // device if this key is absent -- independent of the ADS_ENABLED
+        // dart-define, since the SDK's own launch check runs regardless of
+        // whether Dart ever calls MobileAds.instance.initialize(). Confirmed
+        // via a real BrowserStack device crash before this key was added.
+        expect(infoPlist, contains('GADApplicationIdentifier'));
+        expect(infoPlist, contains('ca-app-pub-'));
+      },
+    );
   });
 
   group('iOS Xcode project contract', () {
