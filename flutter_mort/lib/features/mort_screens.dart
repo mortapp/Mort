@@ -5473,6 +5473,7 @@ class NotificationsScreen extends ConsumerWidget {
                       trailing: item.isUnread
                           ? IconButton(
                               icon: const Icon(Icons.mark_email_read),
+                              tooltip: 'Mark as read',
                               onPressed: () async {
                                 await ref
                                     .read(notificationsRepositoryProvider)
