@@ -89,6 +89,18 @@ FAIL_CLOSED_BEHAVIOR=N/A
 
 ---
 
+GATE=Live Supabase Auth dashboard settings verification (email confirmation, login rate limits)
+STATUS=CANNOT_VERIFY_FROM_REPOSITORY
+WHY=`supabase/config.toml` (local CLI dev config only) shows `enable_confirmations = false`, but this does not necessarily reflect the hosted project's actual Dashboard setting, which is not stored in git. Auth login rate-limiting is likewise Dashboard-managed, not expressed in migrations. This session's Supabase MCP is bound to an unrelated project ("Loop"), so neither could be checked live.
+TECHNICAL_WORK_COMPLETE=N/A — not a code defect, a live-configuration unknown.
+HUMAN_ACTION_REQUIRED=Someone with access to the `rakjydmgwwgtdislanbt` Supabase project dashboard should confirm Authentication → Providers → Email confirmation is enabled, and that login rate limits are configured, for production.
+CREDENTIAL_REQUIRED=NO (just dashboard access, already held by the project owner)
+PROVIDER=Supabase
+LAUNCH_IMPACT=If confirmations are actually disabled in production, anyone could sign up with an unowned email address.
+FAIL_CLOSED_BEHAVIOR=Unknown until verified.
+
+---
+
 GATE=Financial Safety (teen earnings/tax feature) branch reconciliation
 STATUS=NOT ON MAIN
 WHY=The feature exists only as uncommitted work on `feature/compact-onboarding-and-screen-polish` (open PR #4, currently CONFLICTING against main). This program was explicitly instructed not to touch that branch/PR.
