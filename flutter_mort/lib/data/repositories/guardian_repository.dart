@@ -24,6 +24,14 @@ class GuardianRepository extends RepositoryBase {
           'That guardian invite code is invalid or expired.',
         );
       }
+      if (error.toString().contains(
+        'guardian_invite_accept_rate_limit_reached',
+      )) {
+        throw const MortCodedError(
+          'guardian_invite_accept_rate_limit_reached',
+          'Too many attempts. Please wait a while before trying again.',
+        );
+      }
       rethrow;
     }
   }
