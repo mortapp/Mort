@@ -30,10 +30,10 @@ FAIL_CLOSED_BEHAVIOR=Correct — build hard-fails rather than silently falling b
 ---
 
 GATE=Apple Developer account / signing certificates
-STATUS=UNAVAILABLE (not evaluated — no macOS environment)
-WHY=This program runs on a Windows host; Xcode cannot run here. No macOS CI workflow exists in `.github/workflows` yet (being built in Track 9).
-TECHNICAL_WORK_COMPLETE=NO — macOS CI workflow not yet created this session
-HUMAN_ACTION_REQUIRED=Provide Apple Developer Program membership + signing certificates/provisioning profiles once App Store distribution (not BrowserStack testing) is needed. BrowserStack App Live/App Automate testing may not require full Apple distribution signing — to be confirmed once the macOS CI artifact pipeline exists.
+STATUS=UNAVAILABLE (Windows host; macOS CI workflow built but not yet executed)
+WHY=This program runs on a Windows host; Xcode cannot run here directly. `.github/workflows/mort-ios-browserstack.yml` (macOS runner) now exists to produce real build evidence, but has not yet been triggered — no GitHub Actions run has executed it. Separately, `test/ios_platform_parity_test.dart` already deliberately asserts the Xcode project has no APNs/Sign-in-with-Apple entitlement "until provider configuration and legal gates actually exist" — confirmed this is intentional, not an oversight, when a fix attempt was caught and reverted this session (see `MORT_IOS_NATIVE_SOURCE_AUDIT.md`).
+TECHNICAL_WORK_COMPLETE=YES for what's controllable pre-Apple-account (macOS CI workflow, native source audit); NO real build has executed yet — that requires actually running the workflow.
+HUMAN_ACTION_REQUIRED=Provide Apple Developer Program membership + signing certificates/provisioning profiles once App Store distribution (not BrowserStack testing) is needed. BrowserStack App Live/App Automate testing may not require full Apple distribution signing — to be confirmed once the macOS CI artifact pipeline actually runs.
 CREDENTIAL_REQUIRED=YES, for App Store distribution specifically
 PROVIDER=Apple
 LAUNCH_IMPACT=Blocks TestFlight/App Store submission. Does not necessarily block BrowserStack device testing (BrowserStack can often re-sign uploaded apps for its own devices) — needs verification once a build artifact exists.
@@ -67,8 +67,8 @@ FAIL_CLOSED_BEHAVIOR=Correct.
 
 GATE=Legal final approval (attorney sign-off)
 STATUS=NOT CLAIMED
-WHY=Public legal site build+validate scripts pass technically (13 routes), which confirms the delivery pipeline works, not that counsel has approved the content.
-TECHNICAL_WORK_COMPLETE=PARTIAL — delivery/versioning/build pipeline verified; full acceptance/re-consent flow audit still open.
+WHY=Public legal site build+validate scripts pass technically (13 routes), which confirms the delivery pipeline works, not that counsel has approved the content. Every legal document in the catalog is `publication_status = 'draft_attorney_review'`, and both `LegalCenterScreen`/`LegalClickwrapScreen` render an explicit "DRAFT — NOT ATTORNEY REVIEWED" banner — no approval is claimed anywhere in the client.
+TECHNICAL_WORK_COMPLETE=YES for everything engineering-controllable — see `MORT_LEGAL_RECONSENT_AUDIT.md`: server-authoritative hash-bound acceptance, role/age-specific requirements, decline handling, and the re-consent-after-revision flow (a real gap found and fixed this session) are all verified/implemented. Only the actual attorney review of the document *text* remains, which is not an engineering task.
 HUMAN_ACTION_REQUIRED=Attorney review and sign-off on Terms/Privacy/Community Rules content.
 CREDENTIAL_REQUIRED=NO
 PROVIDER=N/A (legal counsel)
