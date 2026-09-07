@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   profileCheckpoints,
   isForbiddenQaAction,
+  iosTextFieldPredicate,
 } from "./ios-appium-functional-test.mjs";
 
 test("deep profile covers every QA checkpoint", () => {
@@ -58,4 +59,22 @@ test("ordinary navigation actions are never forbidden", () => {
   assert.equal(isForbiddenQaAction("Back"), false);
   assert.equal(isForbiddenQaAction("Save account"), false);
   assert.equal(isForbiddenQaAction("Financial"), false);
+});
+
+test("iOS text field predicate matches the field by type plus label/value/placeholder", () => {
+  assert.equal(
+    iosTextFieldPredicate("Date of birth"),
+    '-ios predicate string:type == "XCUIElementTypeTextField" AND ' +
+      '(label == "Date of birth" OR value == "Date of birth" OR ' +
+      'placeholderValue == "Date of birth")',
+  );
+});
+
+test("iOS text field predicate escapes embedded double quotes", () => {
+  assert.equal(
+    iosTextFieldPredicate('Say "hi"'),
+    '-ios predicate string:type == "XCUIElementTypeTextField" AND ' +
+      '(label == "Say \\"hi\\"" OR value == "Say \\"hi\\"" OR ' +
+      'placeholderValue == "Say \\"hi\\"")',
+  );
 });

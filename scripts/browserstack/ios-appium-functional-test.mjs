@@ -200,8 +200,26 @@ async function tapByAccessibleName(driver, name, timeoutMs = 20000) {
   await el.click();
 }
 
+// A plain accessibility-id lookup ("~label") for a Material TextField's
+// InputDecoration.labelText finds a real semantics node on iOS, but that
+// node isn't reliably the settable XCUIElementTypeTextField itself --
+// elementSendKeys then fails with "element wasn't found" even though
+// waitForExist just succeeded on the same selector (confirmed against a
+// real device: BrowserStack session 6a02d2dcea33cebf9fe9895c7f9a840269bd0811,
+// run 34167940220, "Date of birth"). Target the actual text field by an
+// iOS predicate on its type plus label/value/placeholderValue instead,
+// which is the documented, reliable way to hit a Flutter decorated
+// TextField's input control under XCUITest.
+export function iosTextFieldPredicate(label) {
+  const escaped = label.replace(/"/g, '\\"');
+  return (
+    `-ios predicate string:type == "XCUIElementTypeTextField" AND ` +
+    `(label == "${escaped}" OR value == "${escaped}" OR placeholderValue == "${escaped}")`
+  );
+}
+
 async function typeIntoField(driver, label, value, timeoutMs = 20000) {
-  const el = await driver.$(`~${label}`);
+  const el = await driver.$(iosTextFieldPredicate(label));
   await el.waitForExist({ timeout: timeoutMs });
   await el.setValue(value);
 }
