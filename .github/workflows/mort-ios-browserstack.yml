@@ -104,6 +104,7 @@ jobs:
           --dart-define=MORT_RELEASE_STAGE=internal_test
           --dart-define=MORT_RELEASE_PROFILE=automated_test
           --dart-define=MORT_OPERATIONAL_MODE=automated_test
+          --dart-define=MORT_BROWSERSTACK_QA_MODE=true
           --dart-define=MORT_PUBLIC_MARKETPLACE_ENABLED=false
           --dart-define=MORT_IDENTITY_VERIFICATION_ENABLED=false
           --dart-define=MORT_MARKETPLACE_PAYMENTS_ENABLED=false
@@ -185,21 +186,21 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install Appium client (webdriverio)
+      - name: Install Appium client (pinned, reproducible)
         if: steps.upload.outputs.app_url != ''
         working-directory: scripts/browserstack
-        run: npm install webdriverio@9 --no-save
+        run: npm ci --ignore-scripts
 
-      # Narrow, real smoke test: launches the uploaded app on real iPhones and
-      # confirms each session stays alive (no crash) after launch. Not the
-      # full flow-by-flow QA matrix -- driving individual screens needs
-      # accessibility identifiers wired up consistently first (see
-      # ios-appium-smoke-test.mjs). Device/OS pairs are chosen from
-      # BrowserStack's own live inventory (browserstack-ios-devices.json,
-      # previous step), not a hardcoded/outdated guess: one current-generation
-      # high-tier device, one older/smaller device, and the original pairing
-      # kept for continuity with prior runs' evidence.
-      - name: Real-device smoke test matrix (launch/crash check)
+      # Authoritative functional matrix: drives the real onboarding, legal,
+      # safety, financial, settings, and permissions screens (mounted by
+      # BrowserStackQaApp) through their stable accessibility identifiers --
+      # not just a launch/crash check (see ios-appium-functional-test.mjs).
+      # Device/OS pairs are chosen from BrowserStack's own live inventory
+      # (browserstack-ios-devices.json, previous step): one current-generation
+      # high-tier device (deep coverage), one current device on an alternate
+      # OS version (limited coverage), and one older/smaller device (floor
+      # coverage, narrow-layout only).
+      - name: Real-device functional QA matrix
         if: steps.upload.outputs.app_url != ''
         working-directory: scripts/browserstack
         env:
@@ -209,22 +210,25 @@ jobs:
         run: |
           set -uo pipefail
           devices=(
-            "iPhone 15|17"
-            "iPhone 17|26"
-            "iPhone SE 2022|15"
+            "iPhone 15|17|deep"
+            "iPhone 17|26|limited"
+            "iPhone SE 2022|15|floor"
           )
           overall=0
           for entry in "${devices[@]}"; do
-            IFS='|' read -r device os <<< "$entry"
-            echo "::group::Smoke test: $device / iOS $os"
+            IFS='|' read -r device os qa_profile <<< "$entry"
+            echo "::group::Functional QA ($qa_profile): $device / iOS $os"
             slug=$(echo "$device" | tr ' ' '_')
-            BS_DEVICE_NAME="$device" BS_OS_VERSION="$os" node ios-appium-smoke-test.mjs
+            BS_DEVICE_NAME="$device" BS_OS_VERSION="$os" BS_QA_PROFILE="$qa_profile" node ios-appium-functional-test.mjs
             rc=$?
-            [ -f browserstack-launch-screenshot.png ] && mv browserstack-launch-screenshot.png "browserstack-launch-screenshot-${slug}-${os}.png"
-            [ -f browserstack-crash-log.txt ] && mv browserstack-crash-log.txt "browserstack-crash-log-${slug}-${os}.txt"
-            [ -f browserstack-device-log.txt ] && mv browserstack-device-log.txt "browserstack-device-log-${slug}-${os}.txt"
+            for f in browserstack-"$qa_profile"-*.png; do
+              [ -e "$f" ] || continue
+              mv "$f" "${f%.png}-${slug}-${os}.png"
+            done
+            [ -f "browserstack-crash-log-${qa_profile}.txt" ] && mv "browserstack-crash-log-${qa_profile}.txt" "browserstack-crash-log-${qa_profile}-${slug}-${os}.txt"
+            [ -f "browserstack-device-log-${qa_profile}.txt" ] && mv "browserstack-device-log-${qa_profile}.txt" "browserstack-device-log-${qa_profile}-${slug}-${os}.txt"
             if [ $rc -ne 0 ]; then
-              echo "FAILED: $device / iOS $os"
+              echo "FAILED ($qa_profile): $device / iOS $os"
               overall=1
             fi
             echo "::endgroup::"
@@ -237,7 +241,7 @@ jobs:
           name: mort-ios-browserstack-evidence
           path: |
             browserstack-ios-devices.json
-            scripts/browserstack/browserstack-launch-screenshot-*.png
+            scripts/browserstack/browserstack-*-*.png
             scripts/browserstack/browserstack-crash-log-*.txt
             scripts/browserstack/browserstack-device-log-*.txt
           if-no-files-found: warn

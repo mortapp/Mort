@@ -21,6 +21,9 @@ void main() {
   final sceneDelegate = File(
     'ios/Runner/SceneDelegate.swift',
   ).readAsStringSync();
+  final browserStackWorkflow = File(
+    '../.github/workflows/mort-ios-browserstack.yml',
+  ).readAsStringSync();
 
   group('iOS Info.plist contract', () {
     test('registers the exact MORT URL scheme used by the OAuth callback', () {
@@ -245,5 +248,20 @@ void main() {
     const channel = MethodChannel('mort/native_security');
     expect(channel.name, 'mort/native_security');
     expect(appDelegate, contains('mort/native_security'));
+  });
+
+  group('MORT iOS BrowserStack workflow contract', () {
+    test('runs the deep/limited/floor functional QA matrix, not the old '
+        'launch-only setup', () {
+      expect(
+        browserStackWorkflow,
+        contains('--dart-define=MORT_BROWSERSTACK_QA_MODE=true'),
+      );
+      expect(browserStackWorkflow, contains('npm ci --ignore-scripts'));
+      expect(browserStackWorkflow, contains('ios-appium-functional-test.mjs'));
+      expect(browserStackWorkflow, contains('iPhone 15|17|deep'));
+      expect(browserStackWorkflow, contains('iPhone 17|26|limited'));
+      expect(browserStackWorkflow, contains('iPhone SE 2022|15|floor'));
+    });
   });
 }
