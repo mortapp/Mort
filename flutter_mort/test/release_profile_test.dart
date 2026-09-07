@@ -12,6 +12,7 @@ MortReleaseConfiguration configuration({
   bool identityVerificationEnabled = false,
   bool remotePushEnabled = false,
   bool crashReportingEnabled = false,
+  bool productAnalyticsEnabled = false,
   bool chatbotAiEnabled = false,
   bool deterministicChatbotFallbackEnabled = true,
   bool adsEnabled = false,
@@ -43,6 +44,7 @@ MortReleaseConfiguration configuration({
     identityVerificationEnabled: identityVerificationEnabled,
     remotePushEnabled: remotePushEnabled,
     crashReportingEnabled: crashReportingEnabled,
+    productAnalyticsEnabled: productAnalyticsEnabled,
     chatbotAiEnabled: chatbotAiEnabled,
     deterministicChatbotFallbackEnabled: deterministicChatbotFallbackEnabled,
     adsEnabled: adsEnabled,
@@ -124,6 +126,34 @@ void main() {
       );
     },
   );
+
+  test('BrowserStack QA mode rejects analytics and payment-provider modes', () {
+    final analyticsEnabled = configuration(
+      profile: MortReleaseProfile.automatedTest,
+      releaseStage: 'internal_test',
+      browserStackQaMode: true,
+      productAnalyticsEnabled: true,
+    );
+    final paymentProviderEnabled = configuration(
+      profile: MortReleaseProfile.automatedTest,
+      releaseStage: 'internal_test',
+      browserStackQaMode: true,
+      paymentProviderMode: 'preference_only',
+    );
+
+    expect(
+      analyticsEnabled.validationErrors,
+      contains(
+        'BrowserStack QA mode cannot enable external production systems',
+      ),
+    );
+    expect(
+      paymentProviderEnabled.validationErrors,
+      contains(
+        'BrowserStack QA mode cannot enable external production systems',
+      ),
+    );
+  });
 
   test('reviewer demo is isolated from production capabilities', () {
     expect(

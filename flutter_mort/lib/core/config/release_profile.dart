@@ -46,6 +46,7 @@ class MortReleaseConfiguration {
     required this.identityVerificationEnabled,
     required this.remotePushEnabled,
     required this.crashReportingEnabled,
+    required this.productAnalyticsEnabled,
     required this.chatbotAiEnabled,
     required this.deterministicChatbotFallbackEnabled,
     required this.adsEnabled,
@@ -80,6 +81,7 @@ class MortReleaseConfiguration {
   final bool identityVerificationEnabled;
   final bool remotePushEnabled;
   final bool crashReportingEnabled;
+  final bool productAnalyticsEnabled;
   final bool chatbotAiEnabled;
   final bool deterministicChatbotFallbackEnabled;
   final bool adsEnabled;
@@ -203,11 +205,13 @@ class MortReleaseConfiguration {
                 identityVerificationEnabled ||
                 remotePushEnabled ||
                 crashReportingEnabled ||
+                productAnalyticsEnabled ||
                 chatbotAiEnabled ||
                 adsEnabled ||
                 iapEnabled ||
                 reviewerModeEnabled ||
-                productionActivationApproved)) {
+                productionActivationApproved ||
+                paymentProviderMode != 'disabled')) {
           errors.add(
             'BrowserStack QA mode cannot enable external production systems',
           );
@@ -294,6 +298,7 @@ class MortReleaseConfiguration {
     'Identity verification': _enabled(identityVerificationEnabled),
     'Remote push': _enabled(remotePushEnabled),
     'Crash reporting': _enabled(crashReportingEnabled),
+    'Product analytics': _enabled(productAnalyticsEnabled),
     'External support AI': _enabled(chatbotAiEnabled),
     'Deterministic support': _enabled(deterministicChatbotFallbackEnabled),
     'Ads': _enabled(adsEnabled),

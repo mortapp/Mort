@@ -347,6 +347,7 @@ class AppConfig {
         identityVerificationEnabled: identityVerificationEnabled,
         remotePushEnabled: remotePushEnabled,
         crashReportingEnabled: crashReportingEnabled,
+        productAnalyticsEnabled: productAnalyticsEnabled,
         chatbotAiEnabled: chatbotAiEnabled,
         deterministicChatbotFallbackEnabled:
             deterministicChatbotFallbackEnabled,

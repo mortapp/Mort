@@ -21,6 +21,10 @@ import 'services/push/remote_push_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (AppConfig.browserStackQaMode) {
+    _runApp();
+    return;
+  }
   // Android 15+ (targetSdk 35+, which MORT uses) enforces edge-to-edge
   // display regardless of app preference -- content draws behind system
   // bars whether or not the app asks for it. Without explicitly opting
