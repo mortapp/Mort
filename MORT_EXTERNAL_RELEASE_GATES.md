@@ -102,11 +102,11 @@ FAIL_CLOSED_BEHAVIOR=Unknown until verified.
 ---
 
 GATE=Financial Safety (teen earnings/tax feature) branch reconciliation
-STATUS=NOT ON MAIN
-WHY=The feature exists only as uncommitted work on `feature/compact-onboarding-and-screen-polish` (open PR #4, currently CONFLICTING against main). This program was explicitly instructed not to touch that branch/PR.
-TECHNICAL_WORK_COMPLETE=UNKNOWN — cannot be audited from this branch.
-HUMAN_ACTION_REQUIRED=Decide how/when to reconcile PR #4 against the new main; only then can this feature be audited and scored.
+STATUS=RESOLVED — transferred to integration/mort-final-100-readiness (commits e82d664, 7484ff1)
+WHY=Previously existed only as uncommitted work on `feature/compact-onboarding-and-screen-polish` (PR #4). Forensically inventoried read-only (PR #4 itself never touched) and surgically transferred — see MORT_FINANCIAL_SAFETY_TRANSFER.md.
+TECHNICAL_WORK_COMPLETE=YES — full regression green (487 passed/2 skipped/0 failed); one real bug found and fixed during transfer (guardian financial summary identity).
+HUMAN_ACTION_REQUIRED=None to use this branch. Separately, PR #4 itself still exists as its own open PR with its own unrelated (atmosphere-redesign, onboarding) work — its disposition (merge, close, rebase) is the user's decision and out of scope for this program, which only needed the Financial Safety substance.
 CREDENTIAL_REQUIRED=NO
 PROVIDER=N/A
-LAUNCH_IMPACT=The Financial Safety UX feature is simply absent from any build produced off this branch until that reconciliation happens.
+LAUNCH_IMPACT=None remaining for this branch.
 FAIL_CLOSED_BEHAVIOR=N/A
