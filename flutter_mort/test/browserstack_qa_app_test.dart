@@ -5,8 +5,11 @@ import 'package:flutter_mort/data/models/financial_safety.dart';
 import 'package:flutter_mort/data/models/onboarding_progress.dart';
 import 'package:flutter_mort/data/models/profile.dart';
 import 'package:flutter_mort/core/widgets/mort_widgets.dart';
+import 'package:flutter_mort/data/repositories/avatar_repository.dart';
+import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/features/qa/browserstack_qa_app.dart';
 import 'package:flutter_mort/features/qa/browserstack_qa_fixtures.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -472,6 +475,124 @@ void main() {
         _rejectsQaMutation,
       );
       await expectLater(service.openSettings(), _rejectsQaMutation);
+    },
+  );
+
+  test('avatar fixture rejects gallery, camera, upload, and removal without '
+      'reaching ImagePicker or Supabase Storage', () async {
+    final repository = BrowserStackQaAvatarRepository();
+    final file = XFile.fromData(
+      Uint8List.fromList(const [1]),
+      name: 'avatar.jpg',
+    );
+
+    await expectLater(
+      repository.choosePhoto(),
+      _rejectsQaMutation,
+      reason: 'gallery selection must never reach ImagePicker',
+    );
+    await expectLater(
+      repository.choosePhoto(source: ImageSource.camera),
+      _rejectsQaMutation,
+      reason: 'camera capture must never reach ImagePicker',
+    );
+    await expectLater(repository.prepareAvatar(file), _rejectsQaMutation);
+    await expectLater(
+      repository.uploadAvatar(file),
+      _rejectsQaMutation,
+      reason: 'must never reach ImagePicker or Supabase Storage',
+    );
+    await expectLater(
+      repository.uploadPreparedAvatar(Uint8List.fromList(const [1])),
+      _rejectsQaMutation,
+      reason: 'must never reach Supabase Storage',
+    );
+    await expectLater(
+      repository.removeAvatar('qa/avatar.jpg'),
+      _rejectsQaMutation,
+    );
+    expect(
+      await repository.signedAvatarUrl(
+        profileId: 'qa-profile',
+        avatarPath: 'qa/avatar.jpg',
+      ),
+      isNull,
+      reason: 'must never call the hosted avatar-url function',
+    );
+    await expectLater(
+      repository.recordUploadFailure(uploadKind: 'qa', safeCode: 'qa'),
+      _rejectsQaMutation,
+    );
+    await expectLater(
+      repository.recordOperationalFailure(eventType: 'qa', safeCode: 'qa'),
+      _rejectsQaMutation,
+    );
+  });
+
+  test(
+    'production avatar repository is unaffected by BrowserStack QA overrides',
+    () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final repository = container.read(avatarRepositoryProvider);
+
+      expect(repository, isA<AvatarRepository>());
+      expect(repository, isNot(isA<BrowserStackQaAvatarRepository>()));
+    },
+  );
+
+  testWidgets(
+    'post-save onboarding back-navigation renders the real avatar editor '
+    'but blocks every ImagePicker, camera, and upload path',
+    (tester) async {
+      await _pumpQaApp(tester);
+
+      await tester.tap(find.bySemanticsLabel('qa-open-onboarding'));
+      await tester.pumpAndSettle();
+
+      final today = DateTime.now();
+      final teenBirthday =
+          '${today.month.toString().padLeft(2, '0')}/'
+          '${today.day.toString().padLeft(2, '0')}/${today.year - 16}';
+      final fields = find.byType(TextFormField);
+      await tester.enterText(fields.at(0), teenBirthday);
+      await tester.pumpAndSettle();
+      await tester.enterText(fields.at(1), 'QA Tester');
+      await tester.enterText(fields.at(2), 'qa_tester');
+      await tester.enterText(fields.at(3), '46204');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(MortButton, 'Save account'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(MortButton, 'Save account').last);
+      await tester.pumpAndSettle();
+
+      // Saving advances past the account step -- back-navigate to reach the
+      // exact post-save path the reviewer found real avatar controls on.
+      await tester.tap(find.widgetWithText(MortButton, 'Back'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Profile photo (optional)'), findsOneWidget);
+      final choosePhoto = find.widgetWithText(MortButton, 'Choose photo');
+      expect(
+        choosePhoto,
+        findsOneWidget,
+        reason: 'the real production avatar editor must still be mounted',
+      );
+
+      await tester.ensureVisible(choosePhoto);
+      await tester.tap(choosePhoto);
+      await tester.pumpAndSettle();
+
+      // No uncaught exception (an unblocked ImagePicker call would surface
+      // as a MissingPluginException in this test harness) and the widget's
+      // own generic failure toast, not a native picker sheet.
+      expect(tester.takeException(), isNull);
+      expect(
+        find.text('Something went wrong. Please try again.'),
+        findsOneWidget,
+      );
     },
   );
 }

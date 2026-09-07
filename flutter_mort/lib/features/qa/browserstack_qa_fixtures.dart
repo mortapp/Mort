@@ -8,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../data/models/financial_safety.dart';
 import '../../data/models/onboarding_progress.dart';
 import '../../data/models/profile.dart';
+import '../../data/repositories/avatar_repository.dart';
 import '../../data/repositories/financial_repository.dart';
 import '../../data/repositories/legal_contract_repository.dart';
 import '../../data/repositories/profile_repository.dart';
@@ -377,6 +378,47 @@ class BrowserStackQaProfileRepository extends ProfileRepository
       _mutate();
 }
 
+// The real onboarding "Save account" -> Back navigation path (and the
+// settings profile screen) mount ProfileAvatarEditor, which calls
+// avatarRepositoryProvider directly rather than profileRepositoryProvider.
+// Without this override, that widget's "Choose photo"/"Take photo" buttons
+// would invoke the real ImagePicker (real camera/gallery permission
+// prompts) and, on a selected photo, real Supabase Storage uploads -- none
+// of which BrowserStack QA mode may ever trigger. Every entry point is
+// blocked before it reaches ImagePicker or the network, never merely
+// after.
+class BrowserStackQaAvatarRepository extends AvatarRepository
+    with _BrowserStackQaMutationGuard {
+  @override
+  Future<XFile?> choosePhoto({
+    ImageSource source = ImageSource.gallery,
+  }) async => _mutate();
+
+  @override
+  Future<Uint8List> prepareAvatar(XFile file) async => _mutate();
+
+  @override
+  Future<String> uploadAvatar(XFile file, {String? previousPath}) async =>
+      _mutate();
+
+  @override
+  Future<String> uploadPreparedAvatar(
+    Uint8List processed, {
+    String? previousPath,
+  }) async => _mutate();
+
+  @override
+  Future<void> removeAvatar(String? currentPath) async => _mutate();
+
+  @override
+  Future<String?> signedAvatarUrl({
+    required String profileId,
+    required String? avatarPath,
+    DateTime? avatarUpdatedAt,
+    bool forceRefresh = false,
+  }) async => null;
+}
+
 class BrowserStackQaSafetyRepository extends SafetyRepository
     with _BrowserStackQaMutationGuard {
   @override
@@ -557,6 +599,9 @@ List<Override> browserStackQaFixtureOverrides() {
       (ref) => profileRepository.getCurrentProfile(),
     ),
     profileRepositoryProvider.overrideWithValue(profileRepository),
+    avatarRepositoryProvider.overrideWithValue(
+      BrowserStackQaAvatarRepository(),
+    ),
     financialRepositoryProvider.overrideWithValue(
       BrowserStackQaFinancialRepository(),
     ),
