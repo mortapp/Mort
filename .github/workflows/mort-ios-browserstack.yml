@@ -1,0 +1,138 @@
+name: MORT iOS BrowserStack QA
+
+# This workflow is deliberately NOT run on every PR: it needs a macOS runner
+# (expensive, slow) and, for the BrowserStack upload/run steps, real
+# BROWSERSTACK_USERNAME/BROWSERSTACK_ACCESS_KEY repo secrets that may not be
+# configured yet. Trigger it manually or on a release tag once BrowserStack
+# is ready. The fast, deterministic checks in mort-ci.yml still run on every
+# PR and are not affected by this file.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "ios-qa-*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mort-ios-browserstack-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios-build:
+    runs-on: macos-14
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: flutter_mort
+    outputs:
+      artifact-built: ${{ steps.package.outputs.built }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed lib test integration_test
+
+      - run: flutter analyze --no-pub
+
+      - name: Flutter unit/widget tests (macOS runner)
+        run: flutter test --no-pub
+
+      - name: Install CocoaPods dependencies
+        working-directory: flutter_mort/ios
+        run: pod install --repo-update
+
+      - name: Validate iOS project (xcodebuild -list)
+        working-directory: flutter_mort/ios
+        run: xcodebuild -list -workspace Runner.xcworkspace
+
+      # No Apple signing certificate is available to this program (external
+      # gate — see MORT_EXTERNAL_RELEASE_GATES.md). --no-codesign produces an
+      # unsigned Runner.app that proves the source/build/CocoaPods graph is
+      # sound, but BrowserStack real-device testing (App Live / App Automate)
+      # requires an app actually signed for on-device installation. Whether
+      # BrowserStack will accept this unsigned artifact for this project is
+      # unverified — do not assume it will work; the upload step in
+      # scripts/browserstack/upload-ios-app.ps1 will report the real
+      # BrowserStack response rather than assuming success.
+      - name: Build unsigned iOS release (no codesign)
+        run: >-
+          flutter build ios --release --no-codesign
+          --dart-define=MORT_RELEASE_STAGE=internal_test
+          --dart-define=MORT_RELEASE_PROFILE=automated_test
+          --dart-define=MORT_OPERATIONAL_MODE=automated_test
+          --dart-define=MORT_PUBLIC_MARKETPLACE_ENABLED=false
+          --dart-define=MORT_IDENTITY_VERIFICATION_ENABLED=false
+          --dart-define=MORT_MARKETPLACE_PAYMENTS_ENABLED=false
+          --dart-define=MORT_REMOTE_PUSH_ENABLED=false
+          --dart-define=MORT_CRASH_REPORTING_ENABLED=false
+          --dart-define=MORT_SUPPORT_AI_ENABLED=false
+          --dart-define=MORT_DETERMINISTIC_SUPPORT_ENABLED=true
+          --dart-define=ADS_ENABLED=false
+          --dart-define=IAP_ENABLED=false
+
+      - name: Package Runner.app into a BrowserStack-shaped .ipa (UNSIGNED)
+        id: package
+        run: |
+          set -euo pipefail
+          APP_PATH="build/ios/iphoneos/Runner.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Runner.app not found at $APP_PATH" >&2
+            exit 1
+          fi
+          mkdir -p build/ios/browserstack/Payload
+          cp -R "$APP_PATH" build/ios/browserstack/Payload/
+          (cd build/ios/browserstack && zip -qr ../mort-ios-qa-unsigned.ipa Payload)
+          echo "built=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mort-ios-browserstack-qa
+          path: |
+            flutter_mort/build/ios/mort-ios-qa-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+  browserstack-app-live-smoke:
+    needs: ios-build
+    runs-on: ubuntu-latest
+    if: needs.ios-build.outputs.artifact-built == 'true'
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          name: mort-ios-browserstack-qa
+          path: ios-qa-artifact
+
+      - name: Check BrowserStack credentials are configured
+        id: creds
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:BROWSERSTACK_USERNAME) -or [string]::IsNullOrWhiteSpace($env:BROWSERSTACK_ACCESS_KEY)) {
+            Write-Host "BrowserStack credentials are not configured (BLOCKED_EXTERNAL) — skipping upload."
+            "configured=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          } else {
+            "configured=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          }
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+
+      - name: Upload to BrowserStack App Automate
+        if: steps.creds.outputs.configured == 'true'
+        shell: pwsh
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        run: |
+          ./scripts/browserstack/upload-ios-app.ps1 -IpaPath "ios-qa-artifact/mort-ios-qa-unsigned.ipa"
