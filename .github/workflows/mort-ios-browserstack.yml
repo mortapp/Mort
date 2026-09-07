@@ -163,6 +163,7 @@ jobs:
           BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
 
       - name: Upload to BrowserStack App Automate
+        id: upload
         if: steps.creds.outputs.configured == 'true'
         shell: pwsh
         env:
@@ -170,3 +171,49 @@ jobs:
           BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
         run: |
           ./scripts/browserstack/upload-ios-app.ps1 -IpaPath "ios-qa-artifact/mort-ios-qa-unsigned.ipa"
+
+      - name: List currently available real iOS devices
+        if: steps.upload.outputs.app_url != ''
+        shell: pwsh
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        run: ./scripts/browserstack/list-ios-devices.ps1
+
+      - uses: actions/setup-node@v7
+        if: steps.upload.outputs.app_url != ''
+        with:
+          node-version: 22
+
+      - name: Install Appium client (webdriverio)
+        if: steps.upload.outputs.app_url != ''
+        working-directory: scripts/browserstack
+        run: npm install webdriverio@9 --no-save
+
+      # Narrow, real smoke test: launches the uploaded app on one real iPhone
+      # and confirms the session stays alive (no crash) after launch. Not the
+      # full flow-by-flow QA matrix -- driving individual screens needs
+      # accessibility identifiers wired up consistently first. iPhone 15 / iOS
+      # 17 is a reasonable current-generation starting guess; the device-list
+      # step above prints BrowserStack's actual live inventory so this can be
+      # corrected to a real, current device/OS pairing if this guess is wrong.
+      - name: Real-device smoke test (iPhone 15, iOS 17)
+        if: steps.upload.outputs.app_url != ''
+        working-directory: scripts/browserstack
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+          BROWSERSTACK_APP_URL: ${{ steps.upload.outputs.app_url }}
+          BS_DEVICE_NAME: "iPhone 15"
+          BS_OS_VERSION: "17"
+        run: node ios-appium-smoke-test.mjs
+
+      - uses: actions/upload-artifact@v7
+        if: always() && steps.upload.outputs.app_url != ''
+        with:
+          name: mort-ios-browserstack-evidence
+          path: |
+            browserstack-ios-devices.json
+            scripts/browserstack/browserstack-launch-screenshot.png
+          if-no-files-found: warn
+          retention-days: 14
