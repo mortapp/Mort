@@ -1,0 +1,7 @@
+{
+  "name": "mort-browserstack-qa",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22 <23" },
+  "dependencies": { "webdriverio": "9.31.6" }
+}

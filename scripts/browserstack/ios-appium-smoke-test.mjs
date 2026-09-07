@@ -3,10 +3,12 @@
 // launch), captures a screenshot as evidence, and ends the session cleanly.
 //
 // This is deliberately narrow in scope -- a launch/no-crash check, not the
-// full flow-by-flow QA matrix. Driving specific screens (auth, onboarding,
-// marketplace, etc.) via Appium element-finding needs semantics/accessibility
-// identifiers wired up consistently across those screens first; that is real
-// follow-up engineering work, not something to fake here.
+// full flow-by-flow QA matrix. `ios-appium-functional-test.mjs` is the
+// authoritative behavioral suite: it drives the real onboarding, legal,
+// safety, financial, settings, and permissions screens (mounted by
+// BrowserStackQaApp) through their stable accessibility identifiers, across
+// deep/limited/floor device profiles. Keep this script around only as a
+// fast, narrow launch diagnostic.
 //
 // Required env vars: BROWSERSTACK_USERNAME, BROWSERSTACK_ACCESS_KEY,
 // BROWSERSTACK_APP_URL (the bs://<id> from the upload step),
