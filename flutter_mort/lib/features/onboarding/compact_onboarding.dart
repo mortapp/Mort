@@ -690,17 +690,26 @@ class _CompactOnboardingScreenState
             spacing: MortSpacing.sm,
             runSpacing: MortSpacing.sm,
             children: [
-              ChoiceChip(
-                avatar: const Icon(Icons.work_outline_rounded, size: 18),
-                label: const Text('Post or hire'),
-                selected: !_adultWantsGuardianRole,
-                onSelected: (_) => _setAdultGuardianChoice(false),
+              Semantics(
+                identifier: 'qa-onboarding-account-adult',
+                child: ChoiceChip(
+                  avatar: const Icon(Icons.work_outline_rounded, size: 18),
+                  label: const Text('Post or hire'),
+                  selected: !_adultWantsGuardianRole,
+                  onSelected: (_) => _setAdultGuardianChoice(false),
+                ),
               ),
-              ChoiceChip(
-                avatar: const Icon(Icons.supervisor_account_outlined, size: 18),
-                label: const Text('Supervise as guardian'),
-                selected: _adultWantsGuardianRole,
-                onSelected: (_) => _setAdultGuardianChoice(true),
+              Semantics(
+                identifier: 'qa-onboarding-account-guardian',
+                child: ChoiceChip(
+                  avatar: const Icon(
+                    Icons.supervisor_account_outlined,
+                    size: 18,
+                  ),
+                  label: const Text('Supervise as guardian'),
+                  selected: _adultWantsGuardianRole,
+                  onSelected: (_) => _setAdultGuardianChoice(true),
+                ),
               ),
             ],
           ),

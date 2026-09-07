@@ -5221,10 +5221,13 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
       children: [
         header,
         if (inTeenShell) const SizedBox(height: MortSpacing.md),
-        MortSafetyBanner(
-          message:
-              _config?['emergency_guidance']?.toString() ??
-              'Report, block, and Safety Ping stay free. Contact local emergency services for immediate danger.',
+        Semantics(
+          identifier: 'qa-safety-no-dispatch',
+          child: MortSafetyBanner(
+            message:
+                _config?['emergency_guidance']?.toString() ??
+                'Report, block, and Safety Ping stay free. Contact local emergency services for immediate danger.',
+          ),
         ),
         const SizedBox(height: MortSpacing.md),
         if (_loadError != null) ...[
@@ -6362,11 +6365,14 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MortScreen(
     children: [
-      const MortGlassHeader(
-        eyebrow: 'Settings',
-        title: 'Control your account',
-        subtitle:
-            'Privacy, safety, accessibility, security, support, and legal controls in one place.',
+      Semantics(
+        identifier: 'qa-settings-header',
+        child: const MortGlassHeader(
+          eyebrow: 'Settings',
+          title: 'Control your account',
+          subtitle:
+              'Privacy, safety, accessibility, security, support, and legal controls in one place.',
+        ),
       ),
       for (final group in _settingsGroups) ...[
         MortSectionLabel(label: group.label),

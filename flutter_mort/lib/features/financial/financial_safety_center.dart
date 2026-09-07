@@ -252,22 +252,25 @@ class _FinancialSafetyCenterScreenState
     AsyncValue<FinancialEvaluation> alerts,
   ) {
     if (data.isEmpty) {
-      return MortEmptyState(
-        title: '$_year records',
-        message: 'Your financial record starts when you complete work.',
-        action: MortActionRow(
-          actions: [
-            const MortAction(
-              label: 'Learn how earnings tracking works',
-              icon: Icons.menu_book_outlined,
-              route: '/financial/learn',
-            ),
-            const MortAction(
-              label: 'Add an expense',
-              icon: Icons.receipt_long,
-              route: '/financial/expenses',
-            ),
-          ],
+      return Semantics(
+        identifier: 'qa-financial-zero-state',
+        child: MortEmptyState(
+          title: '$_year records',
+          message: 'Your financial record starts when you complete work.',
+          action: MortActionRow(
+            actions: [
+              const MortAction(
+                label: 'Learn how earnings tracking works',
+                icon: Icons.menu_book_outlined,
+                route: '/financial/learn',
+              ),
+              const MortAction(
+                label: 'Add an expense',
+                icon: Icons.receipt_long,
+                route: '/financial/expenses',
+              ),
+            ],
+          ),
         ),
       );
     }

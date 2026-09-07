@@ -67,11 +67,14 @@ class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
   Widget build(BuildContext context) {
     return MortScreen(
       children: [
-        const MortHeader(
-          eyebrow: 'Device controls',
-          title: 'Permissions',
-          subtitle:
-              'MORT asks only when you use a related feature. Background location is not requested.',
+        Semantics(
+          identifier: 'qa-permissions-explanation',
+          child: const MortHeader(
+            eyebrow: 'Device controls',
+            title: 'Permissions',
+            subtitle:
+                'MORT asks only when you use a related feature. Background location is not requested.',
+          ),
         ),
         FutureBuilder<NativePermissionSnapshot>(
           future: _future,
