@@ -325,37 +325,39 @@ void main() {
       expect(find.text('Open saved jobs'), findsOneWidget);
     });
 
-    testMortWidgets('falls back to route when navigation stack is not poppable', (
-      WidgetTester tester,
-    ) async {
-      final router = GoRouter(
-        initialLocation: '/details',
-        routes: [
-          GoRoute(
-            path: '/',
-            builder: (context, state) => const SizedBox(key: ValueKey('home')),
-          ),
-          GoRoute(
-            path: '/details',
-            builder: (context, state) {
-              return Center(child: MortBackButton(fallbackRoute: '/'));
-            },
-          ),
-        ],
-      );
+    testMortWidgets(
+      'falls back to route when navigation stack is not poppable',
+      (WidgetTester tester) async {
+        final router = GoRouter(
+          initialLocation: '/details',
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (context, state) =>
+                  const SizedBox(key: ValueKey('home')),
+            ),
+            GoRoute(
+              path: '/details',
+              builder: (context, state) {
+                return Center(child: MortBackButton(fallbackRoute: '/'));
+              },
+            ),
+          ],
+        );
 
-      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+        await tester.pumpAndSettle();
 
-      expect(router.state.uri.path, '/details');
-      expect(find.byTooltip('Back'), findsOneWidget);
+        expect(router.state.uri.path, '/details');
+        expect(find.byTooltip('Back'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Back'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Back'));
+        await tester.pumpAndSettle();
 
-      expect(router.state.uri.path, '/');
-      expect(find.byKey(const ValueKey('home')), findsOneWidget);
-    });
+        expect(router.state.uri.path, '/');
+        expect(find.byKey(const ValueKey('home')), findsOneWidget);
+      },
+    );
 
     testMortWidgets('pushes back when the navigator can pop', (
       WidgetTester tester,

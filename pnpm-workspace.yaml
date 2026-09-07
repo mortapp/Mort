@@ -1,3 +1,6 @@
+packages:
+  - web/legal-archive
+
 allowBuilds:
   unrs-resolver: true
 overrides:
