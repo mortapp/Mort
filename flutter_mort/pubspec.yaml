@@ -60,6 +60,16 @@ dependencies:
   sentry_flutter: 9.25.0
   connectivity_plus: ^7.3.1
   google_mobile_ads: ^5.3.1
+  # Direct dependency required for iOS: google_mobile_ads' iOS podspec hard-
+  # declares a CocoaPods dependency on webview_flutter_wkwebview, but that
+  # package only resolves via Flutter's local plugin-symlink mechanism (it
+  # is not a published CocoaPods trunk pod). Flutter only generates that
+  # local pod registration for plugins that are direct dependencies, not
+  # merely transitive ones -- without this, `pod install` fails with
+  # "Unable to find a specification for `webview_flutter_wkwebview`".
+  # Known upstream issue, closed as not planned:
+  # https://github.com/googleads/googleads-mobile-flutter/issues/1222
+  webview_flutter_wkwebview: ^3.25.1
   pdf: ^3.13.0
   share_plus: ^13.3.0
 
