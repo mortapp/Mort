@@ -28,6 +28,19 @@ jobs:
         working-directory: flutter_mort
     outputs:
       artifact-built: ${{ steps.package.outputs.built }}
+    env:
+      # google_mobile_ads' iOS podspec hard-declares a CocoaPods-level
+      # `s.dependency 'webview_flutter_wkwebview'`, but that plugin ships a
+      # Package.swift. Flutter's Swift Package Manager support is enabled by
+      # default on the stable channel (flutter_tools Feature.enabledByDefault),
+      # and podhelper.rb deliberately skips registering an SPM-compatible
+      # plugin as a local CocoaPods pod when SPM is enabled -- leaving
+      # google_mobile_ads' hard CocoaPods dependency on it unsatisfiable, so
+      # `pod install` falls through to the public trunk, where it was never
+      # published, and fails with "Unable to find a specification". Disabling
+      # SPM for this job forces Flutter back to registering every plugin via
+      # the traditional CocoaPods symlink mechanism instead.
+      FLUTTER_SWIFT_PACKAGE_MANAGER: "false"
     steps:
       - uses: actions/checkout@v7
 
