@@ -57,7 +57,10 @@ dependencies:
   firebase_messaging: ^16.4.3
   flutter_timezone: ^5.1.0
   sentry_flutter: 9.25.0
-  connectivity_plus: ^7.3.1
+  # 7.1.0+ references NWPath.isUltraConstrained for satellite reporting.
+  # Xcode 16.2's iOS SDK does not declare that member, so pin the last
+  # compatible v7 release until upstream ships a compile-safe guard.
+  connectivity_plus: 7.0.0
   google_mobile_ads: ^5.3.1
   # Direct dependencies required for iOS: google_mobile_ads' iOS podspec
   # hard-declares a CocoaPods dependency on webview_flutter_wkwebview, but
