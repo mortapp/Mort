@@ -2,6 +2,15 @@ platform :ios, '15.0'
 
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
+# Firebase's Swift pods (e.g. FirebaseCoreInternal) depend on GoogleUtilities,
+# which does not define Swift modules by default. Building as static
+# libraries (the CocoaPods default, and required by google_mobile_ads'
+# `s.static_framework = true`) needs module maps to import them from Swift --
+# without this, `pod install` fails with "The following Swift pods cannot yet
+# be integrated as static libraries". This is CocoaPods' own documented
+# remedy for that exact error, not a project-specific workaround.
+use_modular_headers!
+
 project 'Runner', {
   'Debug' => :debug,
   'Profile' => :release,
