@@ -44,6 +44,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # macos-14 runners default to Xcode 15.4, whose iOS SDK does not yet
+      # declare NSProcessInfo.isiOSAppOnVision -- device_info_plus 13.2.0
+      # references it directly (not behind a respondsToSelector: guard),
+      # so compilation fails with "No visible @interface for 'NSProcessInfo'
+      # declares the selector 'isiOSAppOnVision'". Xcode 16.2 is also
+      # preinstalled on this runner image and its newer SDK declares it.
+      - name: Select Xcode 16.2 (newer iOS SDK than the macos-14 default)
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
