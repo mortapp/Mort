@@ -372,12 +372,13 @@ async function goHome(driver) {
 async function swipeFromLeftEdgeToPop(driver) {
   const { width, height } = await driver.getWindowSize();
   const y = Math.round(height / 2);
-  await driver.execute("mobile: dragFromToForDuration", {
+  await driver.execute("mobile: swipe", {
+    direction: "right",
     fromX: 2,
     fromY: y,
-    toX: Math.round(width * 0.85),
+    toX: Math.round(width * 0.9),
     toY: y,
-    duration: 0.3,
+    duration: 1000,
   });
 }
 
