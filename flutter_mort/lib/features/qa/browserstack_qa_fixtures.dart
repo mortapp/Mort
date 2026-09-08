@@ -595,6 +595,7 @@ class BrowserStackQaLegalContractRepository extends LegalContractRepository
 
 List<Override> browserStackQaFixtureOverrides() {
   final profileRepository = BrowserStackQaProfileRepository();
+  final financialRepository = BrowserStackQaFinancialRepository();
   return [
     authStateProvider.overrideWith(
       (ref) => Stream<AuthState>.value(
@@ -609,7 +610,13 @@ List<Override> browserStackQaFixtureOverrides() {
       BrowserStackQaAvatarRepository(),
     ),
     financialRepositoryProvider.overrideWithValue(
-      BrowserStackQaFinancialRepository(),
+      financialRepository,
+    ),
+    financialSummaryProvider.overrideWith(
+      (ref, year) => financialRepository.getFinancialSummary(year),
+    ),
+    financialAlertsProvider.overrideWith(
+      (ref, year) => financialRepository.evaluateAlerts(year),
     ),
     safetyRepositoryProvider.overrideWithValue(
       BrowserStackQaSafetyRepository(),

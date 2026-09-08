@@ -404,6 +404,7 @@ async function checkpointOnboarding(driver) {
   await typeIntoField(driver, "City", "Indianapolis");
   await typeIntoField(driver, "State", "IN");
 
+  await driver.hideKeyboard();
   await screenshotCheckpoint(driver, "onboarding-account-filled");
 
   // The bottom bar's primary button and the confirm-sheet's confirm button
