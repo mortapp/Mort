@@ -333,7 +333,16 @@ async function typeIntoField(driver, label, value, timeoutMs = 20000) {
   activeSelector = iosTextFieldPredicate(label);
   const el = await driver.$(activeSelector);
   await el.waitForExist({ timeout: timeoutMs });
+  await el.waitForDisplayed({ timeout: timeoutMs });
+  await el.click();
+  await el.clearValue();
   await el.setValue(value);
+  const entered = String(await el.getValue());
+  if (entered !== value) {
+    await el.clearValue();
+    await el.setValue(value);
+  }
+  assert.equal(await el.getValue(), value, `Unable to enter ${label}`);
 }
 
 async function assertTextVisible(driver, text, timeoutMs = 20000) {
