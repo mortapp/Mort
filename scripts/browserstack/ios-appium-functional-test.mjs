@@ -404,16 +404,12 @@ async function checkpointOnboarding(driver) {
   await typeIntoField(driver, "City", "Indianapolis");
   await typeIntoField(driver, "State", "IN");
 
-  await driver.hideKeyboard();
+  await tapByAccessibleName(driver, "Done");
   await screenshotCheckpoint(driver, "onboarding-account-filled");
 
-  // The bottom bar's primary button and the confirm-sheet's confirm button
-  // are both literally labeled "Save account" (MortConfirmSheet's
-  // confirmLabel), so the second tap must target the sheet specifically.
+  // Saving the account advances directly to the work-preferences step. The
+  // production flow does not show a confirmation sheet here.
   await tapByAccessibleName(driver, "Save account");
-  const confirmButtons = await driver.$$("~Save account");
-  await confirmButtons[confirmButtons.length - 1].click();
-
   await assertTextVisible(driver, "Back");
   await screenshotCheckpoint(driver, "onboarding-post-save");
 
