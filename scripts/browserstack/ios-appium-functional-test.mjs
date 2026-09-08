@@ -14,6 +14,7 @@
 // (one of "deep", "limited", "floor").
 
 import { remote } from "webdriverio";
+import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 
 const CHECKPOINTS = Object.freeze({
