@@ -375,7 +375,6 @@ async function swipeFromLeftEdgeToPop(driver) {
       ],
     },
   ]);
-  await driver.releaseActions();
 }
 
 async function leaveToHome(driver, { viaHeaderBack }) {
@@ -404,7 +403,13 @@ async function checkpointOnboarding(driver) {
   await typeIntoField(driver, "City", "Indianapolis");
   await typeIntoField(driver, "State", "IN");
 
-  await tapByAccessibleName(driver, "Done");
+  // BrowserStack exposes the iOS keyboard's Done button on some OS/device
+  // combinations but not others. Save account remains a native button, so
+  // dismiss the keyboard opportunistically and continue when it is absent.
+  const done = await driver.$("~Done");
+  if (await done.isExisting()) {
+    await done.click();
+  }
   await screenshotCheckpoint(driver, "onboarding-account-filled");
 
   // Saving the account advances directly to the work-preferences step. The
