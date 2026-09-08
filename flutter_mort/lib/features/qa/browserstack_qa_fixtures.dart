@@ -609,9 +609,7 @@ List<Override> browserStackQaFixtureOverrides() {
     avatarRepositoryProvider.overrideWithValue(
       BrowserStackQaAvatarRepository(),
     ),
-    financialRepositoryProvider.overrideWithValue(
-      financialRepository,
-    ),
+    financialRepositoryProvider.overrideWithValue(financialRepository),
     financialSummaryProvider.overrideWith(
       (ref, year) => financialRepository.getFinancialSummary(year),
     ),
