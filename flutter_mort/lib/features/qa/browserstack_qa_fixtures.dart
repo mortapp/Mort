@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/misc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/models/financial_safety.dart';
 import '../../data/models/onboarding_progress.dart';
@@ -595,6 +596,11 @@ class BrowserStackQaLegalContractRepository extends LegalContractRepository
 List<Override> browserStackQaFixtureOverrides() {
   final profileRepository = BrowserStackQaProfileRepository();
   return [
+    authStateProvider.overrideWith(
+      (ref) => Stream<AuthState>.value(
+        const AuthState(AuthChangeEvent.initialSession, null),
+      ),
+    ),
     currentProfileProvider.overrideWith(
       (ref) => profileRepository.getCurrentProfile(),
     ),

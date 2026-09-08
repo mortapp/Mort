@@ -324,7 +324,8 @@ export function iosTextFieldPredicate(label) {
   const escaped = label.replace(/"/g, '\\"');
   return (
     `-ios predicate string:type == "XCUIElementTypeTextField" AND ` +
-    `(label == "${escaped}" OR value == "${escaped}" OR placeholderValue == "${escaped}")`
+    `(label CONTAINS "${escaped}" OR value CONTAINS "${escaped}" OR ` +
+      `placeholderValue CONTAINS "${escaped}")`
   );
 }
 

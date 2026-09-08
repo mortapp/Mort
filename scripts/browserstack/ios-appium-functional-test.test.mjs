@@ -205,12 +205,12 @@ test("ordinary navigation actions are never forbidden", () => {
   assert.equal(isForbiddenQaAction("Financial"), false);
 });
 
-test("iOS text field predicate matches the field by type plus label/value/placeholder", () => {
+test("iOS text field predicate matches decorated labels containing the field name", () => {
   assert.equal(
     iosTextFieldPredicate("Date of birth"),
     '-ios predicate string:type == "XCUIElementTypeTextField" AND ' +
-      '(label == "Date of birth" OR value == "Date of birth" OR ' +
-      'placeholderValue == "Date of birth")',
+      '(label CONTAINS "Date of birth" OR value CONTAINS "Date of birth" OR ' +
+      'placeholderValue CONTAINS "Date of birth")',
   );
 });
 
@@ -218,7 +218,7 @@ test("iOS text field predicate escapes embedded double quotes", () => {
   assert.equal(
     iosTextFieldPredicate('Say "hi"'),
     '-ios predicate string:type == "XCUIElementTypeTextField" AND ' +
-      '(label == "Say \\"hi\\"" OR value == "Say \\"hi\\"" OR ' +
-      'placeholderValue == "Say \\"hi\\"")',
+      '(label CONTAINS "Say \\"hi\\"" OR value CONTAINS "Say \\"hi\\"" OR ' +
+      'placeholderValue CONTAINS "Say \\"hi\\"")',
   );
 });
