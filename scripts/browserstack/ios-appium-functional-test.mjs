@@ -90,6 +90,31 @@ const required = [
 // without BrowserStack env vars ever being set.
 let profile;
 let basicAuth;
+let activeCheckpoint = "session-start";
+let activeSelector = null;
+
+export function redactDiagnosticText(value, secrets = []) {
+  let safe = String(value ?? "");
+  safe = safe.replace(/\b((?:Proxy-)?Authorization\s*:\s*Basic)\s+[^\s,;]+/gi, "$1 [REDACTED]");
+  safe = safe.replace(/\bBasic\s+[A-Za-z0-9+/=_-]+/gi, "Basic [REDACTED]");
+  safe = safe.replace(/https?:\/\/[^\s"'<>]+/gi, (raw) => {
+    try {
+      const url = new URL(raw);
+      url.username = "";
+      url.password = "";
+      if (url.search) url.search = "?[REDACTED]";
+      return url.toString();
+    } catch { return "[REDACTED_URL]"; }
+  });
+  for (const secret of secrets.filter(Boolean)) {
+    safe = safe.split(String(secret)).join("[REDACTED]");
+  }
+  return safe;
+}
+
+function diagnosticSecrets() {
+  return [process.env.BROWSERSTACK_USERNAME, process.env.BROWSERSTACK_ACCESS_KEY, basicAuth];
+}
 
 function initializeFromEnv() {
   for (const name of required) {
@@ -134,49 +159,132 @@ function initializeFromEnv() {
 // BrowserStack's own API -- a failure is diagnosed from BrowserStack's
 // authoritative record, not guessed at from the Appium client's error
 // alone.
-async function reportSessionDiagnostics(sessionId) {
+export async function downloadSessionDiagnostics({
+  sessionId,
+  qaProfile,
+  fetchImpl = fetch,
+  authorization = basicAuth ? `Basic ${basicAuth}` : undefined,
+  writeFileImpl = writeFile,
+}) {
   try {
-    const res = await fetch(
+    const res = await fetchImpl(
       `https://api-cloud.browserstack.com/app-automate/sessions/${sessionId}.json`,
-      { headers: { Authorization: `Basic ${basicAuth}` } },
+      { headers: authorization ? { Authorization: authorization } : {} },
     );
+    if (!res.ok) throw new Error(`session metadata HTTP ${res.status}`);
     const body = await res.json();
     const session = body.automation_session ?? body;
     console.log(`BROWSERSTACK_SESSION_STATUS=${session.status}`);
-    console.log(`BROWSERSTACK_SESSION_REASON=${session.reason ?? "(none)"}`);
-    if (session.crash_logs_url) {
-      const crashRes = await fetch(session.crash_logs_url, {
-        headers: { Authorization: `Basic ${basicAuth}` },
-      });
-      const crashText = await crashRes.text();
-      await writeFile(`browserstack-crash-log-${profile}.txt`, crashText);
-      console.log(
-        `Saved browserstack-crash-log-${profile}.txt (${crashText.length} bytes)`,
-      );
-    }
-    if (session.device_logs_url) {
-      const deviceRes = await fetch(session.device_logs_url, {
-        headers: { Authorization: `Basic ${basicAuth}` },
-      });
-      const deviceText = await deviceRes.text();
-      await writeFile(`browserstack-device-log-${profile}.txt`, deviceText);
-      const relevant = deviceText
-        .split("\n")
-        .filter((line) =>
-          /mortapp|crash|SIGABRT|SIGSEGV|Fatal|terminat|launchd|CrashReporter/i.test(
-            line,
-          ),
-        )
-        .slice(0, 60);
-      console.log(
-        `Saved browserstack-device-log-${profile}.txt (${deviceText.length} bytes). Relevant lines:`,
-      );
+    console.log(`BROWSERSTACK_SESSION_REASON=${redactDiagnosticText(session.reason ?? "(none)", diagnosticSecrets())}`);
+    const safeSession = {
+      sessionId,
+      status: session.status ?? null,
+      reason: session.reason == null ? null : redactDiagnosticText(session.reason, diagnosticSecrets()),
+      name: session.name == null ? null : redactDiagnosticText(session.name, diagnosticSecrets()),
+      device: session.device ?? null,
+      os: session.os ?? null,
+      osVersion: session.os_version ?? null,
+      duration: session.duration ?? null,
+    };
+    await isolatedDiagnostic("session metadata write", async () => {
+      await writeFileImpl(`browserstack-session-${qaProfile}.json`, `${JSON.stringify(safeSession, null, 2)}\n`);
+    });
+    await isolatedDiagnostic("crash log", async () => {
+      if (!session.crash_logs_url) return;
+      const response = await fetchImpl(session.crash_logs_url, { headers: authorization ? { Authorization: authorization } : {} });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const text = await response.text();
+      await writeFileImpl(`browserstack-crash-log-${qaProfile}.txt`, redactDiagnosticText(text, diagnosticSecrets()));
+    });
+    await isolatedDiagnostic("device log", async () => {
+      if (!session.device_logs_url) return;
+      const response = await fetchImpl(session.device_logs_url, { headers: authorization ? { Authorization: authorization } : {} });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const text = await response.text();
+      const safeText = redactDiagnosticText(text, diagnosticSecrets());
+      await writeFileImpl(`browserstack-device-log-${qaProfile}.txt`, safeText);
+      const relevant = safeText.split("\n").filter((line) => /mortapp|crash|SIGABRT|SIGSEGV|Fatal|terminat|launchd|CrashReporter/i.test(line)).slice(0, 60);
       for (const line of relevant) console.log("  " + line);
-    }
+    });
+    await isolatedDiagnostic("Appium log", async () => {
+      if (!session.appium_logs_url) return;
+      const response = await fetchImpl(session.appium_logs_url, { headers: authorization ? { Authorization: authorization } : {} });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const text = await response.text();
+      await writeFileImpl(`browserstack-appium-log-${qaProfile}.txt`, redactDiagnosticText(text, diagnosticSecrets()));
+    });
   } catch (diagError) {
     console.error("Could not fetch BrowserStack session diagnostics:");
-    console.error(diagError);
+    console.error(redactDiagnosticText(diagError?.message ?? diagError, diagnosticSecrets()));
   }
+}
+
+async function isolatedDiagnostic(label, operation) {
+  try {
+    await operation();
+  } catch (error) {
+    console.error(`Diagnostic ${label} failed: ${redactDiagnosticText(error?.message ?? error, diagnosticSecrets())}`);
+  }
+}
+
+export async function captureFailureDiagnostics({
+  driver,
+  checkpoint,
+  error,
+  qaProfile,
+  deviceName,
+  osVersion,
+  selector = null,
+  sensitiveValues = diagnosticSecrets(),
+  writeFileImpl = writeFile,
+}) {
+  const stem = `browserstack-${qaProfile}-${checkpoint}`;
+  const metadata = {
+    checkpoint,
+    selector: selector == null ? null : redactDiagnosticText(selector, sensitiveValues),
+    error: {
+      name: error?.name ?? "Error",
+      message: redactDiagnosticText(error?.message ?? String(error), sensitiveValues),
+      stack: error?.stack == null ? null : redactDiagnosticText(error.stack, sensitiveValues),
+    },
+    device: {
+      name: redactDiagnosticText(deviceName, sensitiveValues),
+      os: "iOS",
+      osVersion: redactDiagnosticText(osVersion, sensitiveValues),
+    },
+    session: { id: driver.sessionId ?? null },
+    contexts: [],
+    nativeInputs: [],
+  };
+  await isolatedDiagnostic("failure screenshot", async () => {
+    const png = await driver.takeScreenshot();
+    await writeFileImpl(`${stem}-failure.png`, Buffer.from(png, "base64"));
+  });
+  await isolatedDiagnostic("page source", async () => {
+    await writeFileImpl(`${stem}-page-source.xml`, redactDiagnosticText(await driver.getPageSource(), sensitiveValues));
+  });
+  await isolatedDiagnostic("contexts", async () => {
+    metadata.contexts = await driver.getContexts();
+  });
+  await isolatedDiagnostic("native input metadata", async () => {
+    const elements = (await driver.$$(
+      '-ios predicate string:type == "XCUIElementTypeTextField" OR type == "XCUIElementTypeTextView"',
+    )).slice(0, 10);
+    for (const element of elements) {
+      const item = {};
+      for (const attribute of ["type", "label", "name", "value", "placeholderValue", "enabled", "visible", "accessible"]) {
+        try {
+          const value = await element.getAttribute(attribute);
+          item[attribute] = value == null ? null : redactDiagnosticText(value, sensitiveValues);
+        } catch { item[attribute] = null; }
+      }
+      try { item.rect = await element.getRect(); } catch { item.rect = null; }
+      metadata.nativeInputs.push(item);
+    }
+  });
+  await isolatedDiagnostic("metadata", async () => {
+    await writeFileImpl(`${stem}-diagnostics.json`, `${JSON.stringify(metadata, null, 2)}\n`);
+  });
 }
 
 async function screenshotCheckpoint(driver, checkpoint) {
@@ -187,6 +295,7 @@ async function screenshotCheckpoint(driver, checkpoint) {
 }
 
 async function waitForLandmark(driver, accessibilityId, timeoutMs = 20000) {
+  activeSelector = `~${accessibilityId}`;
   const el = await driver.$(`~${accessibilityId}`);
   await el.waitForExist({ timeout: timeoutMs });
   return el;
@@ -194,6 +303,7 @@ async function waitForLandmark(driver, accessibilityId, timeoutMs = 20000) {
 
 async function tapByAccessibleName(driver, name, timeoutMs = 20000) {
   assertAllowed(name);
+  activeSelector = `~${name}`;
   const el = await driver.$(`~${name}`);
   await el.waitForExist({ timeout: timeoutMs });
   await el.waitForDisplayed({ timeout: timeoutMs });
@@ -219,12 +329,14 @@ export function iosTextFieldPredicate(label) {
 }
 
 async function typeIntoField(driver, label, value, timeoutMs = 20000) {
-  const el = await driver.$(iosTextFieldPredicate(label));
+  activeSelector = iosTextFieldPredicate(label);
+  const el = await driver.$(activeSelector);
   await el.waitForExist({ timeout: timeoutMs });
   await el.setValue(value);
 }
 
 async function assertTextVisible(driver, text, timeoutMs = 20000) {
+  activeSelector = `~${text}`;
   const el = await driver.$(`~${text}`);
   await el.waitForExist({ timeout: timeoutMs });
   return el;
@@ -359,6 +471,7 @@ const CHECKPOINT_RUNNERS = {
 
 export async function runFunctionalProfile(driver, qaProfile) {
   for (const checkpoint of profileCheckpoints(qaProfile)) {
+    activeCheckpoint = checkpoint;
     console.log(`Running checkpoint: ${checkpoint}`);
     await CHECKPOINT_RUNNERS[checkpoint](driver);
     console.log(`RESULT_${checkpoint.toUpperCase()}=PASS`);
@@ -386,7 +499,16 @@ async function main() {
     console.log("RESULT=PASS");
   } catch (error) {
     console.error("RESULT=FAIL");
-    console.error(error);
+    console.error(redactDiagnosticText(error?.stack ?? error?.message ?? error, diagnosticSecrets()));
+    await captureFailureDiagnostics({
+      driver,
+      checkpoint: activeCheckpoint,
+      error,
+      qaProfile: profile,
+      deviceName: process.env.BS_DEVICE_NAME,
+      osVersion: process.env.BS_OS_VERSION,
+      selector: activeSelector,
+    });
     process.exitCode = 1;
   } finally {
     try {
@@ -394,7 +516,7 @@ async function main() {
     } catch {
       // Session may already be dead; still fetch diagnostics below.
     }
-    await reportSessionDiagnostics(sessionId);
+    await downloadSessionDiagnostics({ sessionId, qaProfile: profile });
   }
   if (!passed) process.exitCode = 1;
 }

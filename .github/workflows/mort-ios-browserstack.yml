@@ -219,14 +219,24 @@ jobs:
             IFS='|' read -r device os qa_profile <<< "$entry"
             echo "::group::Functional QA ($qa_profile): $device / iOS $os"
             slug=$(echo "$device" | tr ' ' '_')
-            BS_DEVICE_NAME="$device" BS_OS_VERSION="$os" BS_QA_PROFILE="$qa_profile" node ios-appium-functional-test.mjs
-            rc=$?
+            if BS_DEVICE_NAME="$device" BS_OS_VERSION="$os" BS_QA_PROFILE="$qa_profile" node ios-appium-functional-test.mjs; then
+              rc=0
+            else
+              rc=$?
+            fi
             for f in browserstack-"$qa_profile"-*.png; do
               [ -e "$f" ] || continue
               mv "$f" "${f%.png}-${slug}-${os}.png"
             done
             [ -f "browserstack-crash-log-${qa_profile}.txt" ] && mv "browserstack-crash-log-${qa_profile}.txt" "browserstack-crash-log-${qa_profile}-${slug}-${os}.txt"
             [ -f "browserstack-device-log-${qa_profile}.txt" ] && mv "browserstack-device-log-${qa_profile}.txt" "browserstack-device-log-${qa_profile}-${slug}-${os}.txt"
+            [ -f "browserstack-appium-log-${qa_profile}.txt" ] && mv "browserstack-appium-log-${qa_profile}.txt" "browserstack-appium-log-${qa_profile}-${slug}-${os}.txt"
+            [ -f "browserstack-session-${qa_profile}.json" ] && mv "browserstack-session-${qa_profile}.json" "browserstack-session-${qa_profile}-${slug}-${os}.json"
+            for f in browserstack-"$qa_profile"-*-page-source.xml browserstack-"$qa_profile"-*-diagnostics.json; do
+              [ -e "$f" ] || continue
+              extension="${f##*.}"
+              mv "$f" "${f%.*}-${slug}-${os}.${extension}"
+            done
             if [ $rc -ne 0 ]; then
               echo "FAILED ($qa_profile): $device / iOS $os"
               overall=1
@@ -244,5 +254,9 @@ jobs:
             scripts/browserstack/browserstack-*-*.png
             scripts/browserstack/browserstack-crash-log-*.txt
             scripts/browserstack/browserstack-device-log-*.txt
+            scripts/browserstack/browserstack-appium-log-*.txt
+            scripts/browserstack/browserstack-*.xml
+            scripts/browserstack/browserstack-*.json
+            scripts/browserstack/browserstack-session-*.json
           if-no-files-found: warn
           retention-days: 14
