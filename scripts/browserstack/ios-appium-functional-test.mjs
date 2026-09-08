@@ -373,18 +373,10 @@ async function goHome(driver) {
 async function swipeFromLeftEdgeToPop(driver) {
   const { width, height } = await driver.getWindowSize();
   const y = Math.round(height / 2);
-  await driver.performActions([
-    {
-      type: "pointer",
-      id: "finger1",
-      parameters: { pointerType: "touch" },
-      actions: [
-        { type: "pointerMove", duration: 0, x: 2, y },
-        { type: "pointerDown", button: 0 },
-        { type: "pointerMove", duration: 300, x: Math.round(width * 0.85), y },
-        { type: "pointerUp", button: 0 },
-      ],
-    },
+  await driver.touchAction([
+    { action: "press", x: 2, y },
+    { action: "moveTo", x: Math.round(width * 0.85), y },
+    "release",
   ]);
 }
 
