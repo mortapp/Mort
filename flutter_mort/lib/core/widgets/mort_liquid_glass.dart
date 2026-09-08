@@ -153,8 +153,8 @@ class LiquidGlassContainer extends StatelessWidget {
         child: InkWell(
           borderRadius: radius,
           onTap: onTap,
-          splashColor: MortColors.roseGold.withValues(alpha: 0.12),
-          highlightColor: MortColors.roseGoldLight.withValues(alpha: 0.06),
+          splashColor: MortColors.accent.withValues(alpha: 0.12),
+          highlightColor: MortColors.accent.withValues(alpha: 0.06),
           child: surface,
         ),
       );
@@ -634,9 +634,8 @@ class MortStatusPill extends StatelessWidget {
           Flexible(
             child: Text(
               label,
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: color),
+              style: Theme.of(context).textTheme.labelMedium
+                  ?.copyWith(color: color),
             ),
           ),
         ],
@@ -655,10 +654,8 @@ class MortSectionLabel extends StatelessWidget {
     padding: const EdgeInsets.only(top: MortSpacing.lg, bottom: MortSpacing.sm),
     child: Text(
       label.toUpperCase(),
-      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-        color: MortColors.textDisabled,
-        letterSpacing: 1.1,
-      ),
+      style: Theme.of(context).textTheme.labelMedium
+          ?.copyWith(color: MortColors.textDisabled, letterSpacing: 1.1),
     ),
   );
 }

@@ -42,11 +42,11 @@ class MortShadows {
 
   static const card = <BoxShadow>[
     BoxShadow(color: Color(0x80000000), blurRadius: 26, offset: Offset(0, 12)),
-    BoxShadow(color: Color(0x1CD98C8C), blurRadius: 18),
+    BoxShadow(color: Color(0x243A4652), blurRadius: 18),
   ];
 
   static const glow = <BoxShadow>[
-    BoxShadow(color: Color(0x45F0AAA3), blurRadius: 28),
+    BoxShadow(color: Color(0x45B8C1CB), blurRadius: 28),
     BoxShadow(color: Color(0x2475C7F7), blurRadius: 42),
   ];
 }
@@ -54,10 +54,7 @@ class MortShadows {
 class MortGradients {
   const MortGradients._();
 
-  /// Primary metallic Rose Gold: dark edge -> deep -> core -> a narrow
-  /// bright highlight band -> core -> deep -> dark edge. The narrow
-  /// highlight (tightly clustered stops around 0.5) is what reads as a
-  /// specular reflection off polished metal instead of a flat pink fill.
+  /// Primary neutral metallic treatment.
   static const metallic = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,

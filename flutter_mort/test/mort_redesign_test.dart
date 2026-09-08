@@ -29,7 +29,8 @@ void main() {
     expect(find.text('M O R T'), findsOneWidget);
     expect(find.text('Safety and location status'), findsOneWidget);
     expect(find.byType(Image), findsOneWidget);
-    expect(MortColors.roseGold, const Color(0xFFD98C8C));
+    expect(MortColors.accent, const Color(0xFFDCE7F2));
+    expect(MortColors.bg, const Color(0xFF030507));
     expect(MortColors.lightBlue, const Color(0xFF75C7F7));
   });
 

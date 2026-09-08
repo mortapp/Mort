@@ -110,12 +110,12 @@ flutter:
 
   assets:
     - assets/branding/google_g.svg
-    - assets/branding/mort_arrow_rose_gold.png
+    - assets/branding/mort_arrow_adaptive_monochrome.png
 
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/branding/mort_arrow_rose_gold.png
+  image_path: assets/branding/mort_arrow_adaptive_monochrome.png
   adaptive_icon_background: "#050505"
   adaptive_icon_foreground: assets/branding/mort_arrow_adaptive_foreground.png
   adaptive_icon_monochrome: assets/branding/mort_arrow_adaptive_monochrome.png
@@ -123,7 +123,7 @@ flutter_launcher_icons:
   remove_alpha_ios: true
   web:
     generate: true
-    image_path: assets/branding/mort_arrow_rose_gold.png
+    image_path: assets/branding/mort_arrow_adaptive_monochrome.png
     background_color: "#050505"
     theme_color: "#050505"
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// MORT Rose Gold 2.0: God Black, metallic Rose Gold, God White, Silver,
-/// Baby Blue, and God Pink as a rare signature accent.
+/// MORT monochrome palette: space black, graphite, silver, white, and a
+/// restrained cool-blue signal accent.
 class MortColors {
   const MortColors._();
 
@@ -9,57 +9,51 @@ class MortColors {
   // Darkened one notch below the original Rose Gold 2.0 pass so God Black
   // reads as the dominant surface across more of the app, not just the
   // deepest corner of the gradient.
-  static const godBlack = Color(0xFF020205);
-  static const black = Color(0xFF07070A);
-  static const softBlack = Color(0xFF0C0C10);
-  static const raisedBlack = Color(0xFF121217);
+  static const godBlack = Color(0xFF030507);
+  static const black = Color(0xFF0A0D11);
+  static const softBlack = Color(0xFF10141A);
+  static const raisedBlack = Color(0xFF151B22);
 
   // -- White family --
-  static const white = Color(0xFFF5F5F7);
-  static const godWhite = Color(0xFFFFFDF9);
-  static const softWhite = Color(0xFFDADCE2);
+  static const white = Color(0xFFF4F7FB);
+  static const godWhite = Color(0xFFF4F7FB);
+  static const softWhite = Color(0xFFDCE2E8);
 
   // -- Silver family --
-  static const silver = Color(0xFFC6CBD3);
-  static const silverBright = Color(0xFFE4E7EC);
-  static const silverDark = Color(0xFF747B86);
+  static const silver = Color(0xFFB8C1CB);
+  static const silverBright = Color(0xFFE7EDF3);
+  static const silverDark = Color(0xFF89939F);
 
-  // -- Rose Gold family (primary brand) --
-  static const roseGold = Color(0xFFD98C8C);
-  static const roseGoldDeep = Color(0xFF8E4D56);
-  static const roseGoldBright = Color(0xFFF0AAA3);
-  static const roseGoldHighlight = Color(0xFFFFD4CC);
-  static const roseGoldShadow = Color(0xFF5A3037);
-
-  // Near-black rose tint used only at metallic-gradient extremes, so
-  // buttons read as reflective polished metal (dark edge -> bright
-  // narrow highlight -> dark edge) rather than a flat pink/salmon fill.
-  static const roseGoldVeryDark = Color(0xFF231014);
-
-  // Compatibility aliases so existing feature screens inherit the palette
-  // without maintaining a second color language.
-  static const roseGoldLight = roseGoldBright;
-  static const roseGoldDark = roseGoldDeep;
-  static const roseGoldMid = roseGoldBright;
-  static const neon = roseGold;
-  static const neonDeep = roseGoldDeep;
+  // Compatibility aliases retained while feature screens migrate to the
+  // canonical monochrome names.
+  static const roseGold = silver;
+  static const roseGoldDeep = silverDark;
+  static const roseGoldBright = silverBright;
+  static const roseGoldHighlight = white;
+  static const roseGoldShadow = Color(0xFF3B4652);
+  static const roseGoldVeryDark = black;
+  static const roseGoldLight = silverBright;
+  static const roseGoldDark = silverDark;
+  static const roseGoldMid = silver;
+  static const neon = accent;
+  static const neonDeep = lightBlueDeep;
 
   // -- Baby Blue family (supporting identity color) --
   static const babyBlue = Color(0xFFA7DFFF);
   static const babyBlueDeep = Color(0xFF75C7F7);
   static const babyBlueSoft = Color(0xFFD3F0FF);
 
-  // Baby Blue is reserved for information, safety, location, and verified
-  // system state. It stays secondary to MORT's rose-gold brand.
+  // Cool blue is reserved for information, safety, location, and verified
+  // system state.
   static const lightBlue = babyBlueDeep;
   static const lightBlueSoft = babyBlueSoft;
   static const lightBlueDeep = Color(0xFF16384B);
   static const safetyBlue = lightBlue;
 
-  // -- God Pink (rare, high-energy signature accent -- not the primary) --
-  static const godPink = Color(0xFFFF4FA3);
-  static const godPinkSoft = Color(0xFFFF8AC5);
-  static const godPinkDeep = Color(0xFF8A245B);
+  // Legacy aliases kept source-compatible while feature surfaces migrate.
+  static const godPink = silverBright;
+  static const godPinkSoft = silver;
+  static const godPinkDeep = silverDark;
 
   // -- Background / surface aliases used throughout the app --
   static const bg = godBlack;
@@ -67,10 +61,10 @@ class MortColors {
   static const bgElevated = raisedBlack;
   static const card = softBlack;
   static const cardAlt = raisedBlack;
-  static const glass = Color(0xB30E0E12);
-  static const glassPressed = Color(0xE0161619);
-  static const line = Color(0x14FFFFFF);
-  static const lineStrong = Color(0x38FFFFFF);
+  static const glass = Color(0xCC10141A);
+  static const glassPressed = Color(0xE01A222B);
+  static const line = Color(0xFF27303A);
+  static const lineStrong = Color(0xFF3A4652);
 
   // -- Text --
   static const text = godWhite;
@@ -86,23 +80,18 @@ class MortColors {
   static const danger = Color(0xFFD44A5C);
   static const dangerDeep = Color(0xFF912E3B);
 
-  // Premium/paywall accents use the soft God Pink tone -- God Pink itself
-  // stays rare, this keeps premium surfaces from tipping the app pink.
-  static const premium = godPinkSoft;
+  static const premium = accent;
 
   // -- Canonical gradients --
-  // Dark edge -> deep -> core -> narrow bright highlight -> core -> deep
-  // -> dark edge. A narrow, sharp highlight band reads as a specular
-  // reflection off polished metal; a broad even blend reads as flat
-  // pink. Pair with MortGradients.metallic's matching stop list.
+  // Neutral metallic silver used by legacy gradient call sites.
   static const metallicGradient = <Color>[
-    roseGoldVeryDark,
-    roseGoldDeep,
-    roseGold,
-    roseGoldHighlight,
-    roseGold,
-    roseGoldDeep,
-    roseGoldVeryDark,
+    silverDark,
+    silver,
+    silverBright,
+    white,
+    silverBright,
+    silver,
+    silverDark,
   ];
 
   static const darkRoseGoldGradient = <Color>[
@@ -122,8 +111,9 @@ class MortColors {
 
   static const babyBlueGradient = <Color>[babyBlueDeep, babyBlue, babyBlueSoft];
 
-  static const godPinkGradient = <Color>[godPinkDeep, godPink, godPinkSoft];
+  static const godPinkGradient = <Color>[black, silver, white];
 
-  /// Very selective use only -- not the default CTA gradient.
-  static const signatureGradient = <Color>[roseGold, godPink, babyBlue];
+  static const signatureGradient = <Color>[silverDark, silverBright, accent];
+
+  static const accent = Color(0xFFDCE7F2);
 }
