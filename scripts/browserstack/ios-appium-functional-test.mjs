@@ -334,14 +334,8 @@ async function typeIntoField(driver, label, value, timeoutMs = 20000) {
   activeSelector = iosTextFieldPredicate(label);
   const el = await driver.$(activeSelector);
   await el.waitForExist({ timeout: timeoutMs });
-  for (let attempt = 0; attempt < 4 && !(await el.isDisplayed()); attempt += 1) {
-    await driver.execute("mobile: scroll", {
-      direction: "down",
-      distance: 450,
-    });
-  }
-  await el.waitForDisplayed({ timeout: timeoutMs });
   await el.click();
+  await el.waitForDisplayed({ timeout: timeoutMs });
   await el.clearValue();
   await el.setValue(value);
   const entered = String(await el.getValue());
