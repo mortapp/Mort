@@ -202,7 +202,7 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
     final eyebrow = _isSignIn ? 'Welcome back' : 'Age-gated';
     return MortScreen(
       children: [
-        const Center(child: MortBrandMark(size: 72, showWordmark: true)),
+        const Center(child: MortLogo(size: 72, showWordmark: true)),
         const SizedBox(height: MortSpacing.md),
         MortGlassHeader(
           eyebrow: eyebrow,

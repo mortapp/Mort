@@ -1,8 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_mort/core/theme/mort_colors.dart';
 import 'package:flutter_mort/core/theme/mort_theme.dart';
 import 'package:flutter_mort/core/utils/date_of_birth.dart';
+import 'package:flutter_mort/core/widgets/mort_widgets.dart';
 import 'package:flutter_mort/data/models/onboarding_progress.dart';
 import 'package:flutter_mort/data/models/profile.dart';
 import 'package:flutter_mort/data/repositories/legal_contract_repository.dart';
@@ -56,6 +58,9 @@ OnboardingProgressV2 _v2Progress(
 );
 
 class _FakeProfileRepository extends ProfileRepository {
+  _FakeProfileRepository({this.initialStep = OnboardingStepV2.account});
+
+  final OnboardingStepV2 initialStep;
   int ageSaves = 0;
   int roleSaves = 0;
   int profileUpdates = 0;
@@ -71,7 +76,7 @@ class _FakeProfileRepository extends ProfileRepository {
 
   @override
   Future<OnboardingProgressV2> getOnboardingProgressV2() async =>
-      _v2Progress(OnboardingStepV2.account);
+      _v2Progress(initialStep);
 
   @override
   Future<OnboardingProgressV2> saveOnboardingAccountV2({
@@ -172,6 +177,8 @@ Future<void> _pumpOnboarding(
   _FakeProfileRepository? repository,
   TextScaler textScaler = TextScaler.noScaling,
   bool disableAnimations = false,
+  double keyboardInset = 0,
+  Key? onboardingKey,
 }) async {
   final fakeRepository = repository ?? _FakeProfileRepository();
   await tester.pumpWidget(
@@ -187,10 +194,12 @@ Future<void> _pumpOnboarding(
         theme: mortTestTheme(MortTheme.dark()),
         home: MediaQuery(
           data: MediaQueryData(
+            size: tester.view.physicalSize / tester.view.devicePixelRatio,
             textScaler: textScaler,
             disableAnimations: disableAnimations,
+            viewInsets: EdgeInsets.only(bottom: keyboardInset),
           ),
-          child: const CompactOnboardingScreen(),
+          child: CompactOnboardingScreen(key: onboardingKey),
         ),
       ),
     ),
@@ -203,6 +212,27 @@ String _teenDob() {
   return DateOfBirthParser.display(
     DateTime(today.year - 16, today.month, today.day),
   );
+}
+
+String _adultDob() {
+  final today = DateTime.now();
+  return DateOfBirthParser.display(
+    DateTime(today.year - 30, today.month, today.day),
+  );
+}
+
+List<Color?> _stepSegmentColors(WidgetTester tester) {
+  final segments = find.descendant(
+    of: find.byType(MortStepper),
+    matching: find.byType(Container),
+  );
+  return tester
+      .widgetList<Container>(segments)
+      .map((segment) {
+        final decoration = segment.decoration;
+        return decoration is BoxDecoration ? decoration.color : null;
+      })
+      .toList(growable: false);
 }
 
 void main() {
@@ -228,6 +258,159 @@ void main() {
     expect(source, isNot(contains('position.longitude')));
     expect(source, isNot(contains('toStringAsFixed')));
   });
+
+  testWidgets('server active step renders each of four canonical stages', (
+    tester,
+  ) async {
+    const stages = <(OnboardingStepV2, String, String)>[
+      (OnboardingStepV2.account, 'Your account', 'Save account'),
+      (
+        OnboardingStepV2.workPreferences,
+        'Work preferences',
+        'Save work preferences',
+      ),
+      (OnboardingStepV2.safetySupport, 'Safety & support', 'Continue'),
+      (OnboardingStepV2.review, 'Review & finish', 'Finish setup'),
+    ];
+
+    for (var index = 0; index < stages.length; index++) {
+      final stage = stages[index];
+      await _pumpOnboarding(
+        tester,
+        repository: _FakeProfileRepository(initialStep: stage.$1),
+        disableAnimations: true,
+        onboardingKey: ValueKey(stage.$1),
+      );
+
+      expect(find.text('Step ${index + 1} of 4'), findsOneWidget);
+      expect(find.text(stage.$2), findsOneWidget);
+      expect(find.widgetWithText(MortButton, stage.$3), findsOneWidget);
+      expect(find.byType(MortStepper), findsOneWidget);
+      final colors = _stepSegmentColors(tester);
+      expect(colors, hasLength(4));
+      for (var segment = 0; segment < colors.length; segment++) {
+        expect(
+          colors[segment],
+          segment <= index ? MortColors.accent : MortColors.line,
+        );
+      }
+      if (stage.$1 == OnboardingStepV2.safetySupport) {
+        expect(find.byType(MortSelect<String>), findsOneWidget);
+        expect(
+          tester
+              .widget<Text>(find.text('Guardian Mode (optional)'))
+              .style
+              ?.color,
+          MortColors.silverBright,
+        );
+      }
+      if (stage.$1 == OnboardingStepV2.review) {
+        final avatar = tester.widget<CircleAvatar>(find.byType(CircleAvatar));
+        expect(avatar.backgroundColor, MortColors.silverDark);
+        expect(
+          tester
+              .widget<Icon>(
+                find.descendant(
+                  of: find.byType(CircleAvatar),
+                  matching: find.byIcon(Icons.check_rounded),
+                ),
+              )
+              .color,
+          MortColors.silverBright,
+        );
+      }
+    }
+  });
+
+  testWidgets('canonical DOB keeps native semantics and stable adult choices', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await _pumpOnboarding(tester, disableAnimations: true);
+
+    expect(find.byType(MortDateField), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(MortDateField),
+        matching: find.byType(EditableText),
+      ),
+      findsOneWidget,
+    );
+    final dobSemantics = find.bySemanticsLabel('Date of birth');
+    expect(dobSemantics, findsOneWidget);
+    expect(
+      tester.getSemantics(dobSemantics).flagsCollection.isTextField,
+      isTrue,
+    );
+
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(MortDateField),
+        matching: find.byType(TextFormField),
+      ),
+      _adultDob(),
+    );
+    await tester.pumpAndSettle();
+
+    for (final identifier in const [
+      'qa-onboarding-account-adult',
+      'qa-onboarding-account-guardian',
+    ]) {
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics && widget.properties.identifier == identifier,
+        ),
+        findsOneWidget,
+      );
+    }
+    semantics.dispose();
+  });
+
+  testWidgets(
+    'onboarding action stays above and dismisses keyboard on iPhone SE at 200 percent',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await _pumpOnboarding(
+        tester,
+        textScaler: const TextScaler.linear(2),
+        disableAnimations: true,
+        keyboardInset: 220,
+      );
+
+      final dobField = find.descendant(
+        of: find.byType(MortDateField),
+        matching: find.byType(TextFormField),
+      );
+      await tester.ensureVisible(dobField);
+      await tester.pumpAndSettle();
+      await tester.tap(dobField);
+      await tester.pump();
+      final editable = find.descendant(
+        of: find.byType(MortDateField),
+        matching: find.byType(EditableText),
+      );
+      expect(tester.widget<EditableText>(editable).focusNode.hasFocus, isTrue);
+
+      final action = find.widgetWithText(MortButton, 'Save account');
+      await tester.ensureVisible(action);
+      await tester.pumpAndSettle();
+      expect(action.hitTestable(), findsOneWidget);
+      expect(tester.getRect(action).bottom, lessThanOrEqualTo(568 - 220));
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+      expect(tester.widget<EditableText>(editable).focusNode.hasFocus, isFalse);
+      expect(
+        tester.widget<AnimatedSwitcher>(find.byType(AnimatedSwitcher)).duration,
+        Duration.zero,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testMortWidgets(
     'compact onboarding exposes exactly four primary production steps',
@@ -328,6 +511,29 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('reduced motion jumps safely between restored steps', (
+    tester,
+  ) async {
+    await _pumpOnboarding(
+      tester,
+      repository: _FakeProfileRepository(
+        initialStep: OnboardingStepV2.workPreferences,
+      ),
+      disableAnimations: true,
+    );
+
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, -200),
+    );
+    await tester.pump();
+    await tester.tap(find.widgetWithText(MortButton, 'Back'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Step 1 of 4'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'onboarding stays usable on Samsung viewport with large text and reduced motion',

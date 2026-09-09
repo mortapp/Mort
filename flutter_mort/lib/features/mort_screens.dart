@@ -106,24 +106,21 @@ class _WelcomeFeature extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.body,
+    this.accented = false,
   });
 
   final IconData icon;
   final String title;
   final String body;
+  final bool accented;
 
   @override
   Widget build(BuildContext context) => MortGlassCard(
-    infoAccent: title == 'Safety stays free',
+    infoAccent: accented,
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          color: title == 'Safety stays free'
-              ? MortColors.lightBlue
-              : MortColors.roseGold,
-        ),
+        Icon(icon, color: accented ? MortColors.lightBlue : MortColors.silver),
         const SizedBox(width: MortSpacing.sm),
         Expanded(
           child: Column(
@@ -187,7 +184,7 @@ class WelcomeScreen extends StatelessWidget {
         ),
       ),
       children: [
-        const Center(child: MortBrandMark(size: 96, showWordmark: true)),
+        const Center(child: MortLogo(size: 96, showWordmark: true)),
         const SizedBox(height: MortSpacing.xl),
         const MortHeader(
           eyebrow: 'Earn nearby. Move smart.',
@@ -206,6 +203,7 @@ class WelcomeScreen extends StatelessWidget {
           title: 'Safety stays free',
           body:
               'Report, block, Safety Ping, and core Guardian Mode are never paywalled.',
+          accented: true,
         ),
         const SizedBox(height: MortSpacing.sm),
         const _WelcomeFeature(
@@ -501,7 +499,10 @@ class _ReleaseModeCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.lock_outline, color: MortColors.neon),
+                  const Icon(
+                    Icons.lock_outline,
+                    color: MortColors.silverBright,
+                  ),
                   const SizedBox(width: MortSpacing.xs),
                   Expanded(
                     child: Text(
@@ -668,7 +669,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     return MortScreen(
       children: [
-        const Center(child: MortBrandMark(size: 64)),
+        const Center(child: MortLogo(size: 64)),
         const SizedBox(height: MortSpacing.md),
         const MortHeader(
           title: 'Reset password',
@@ -6958,7 +6959,7 @@ class _BackendStatusCard extends ConsumerWidget {
     };
     final checking = status.isLoading;
     return MortCard(
-      color: connected ? MortColors.neonDeep : MortColors.cardAlt,
+      color: MortColors.cardAlt,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -6968,7 +6969,11 @@ class _BackendStatusCard extends ConsumerWidget {
                 : checking
                 ? Icons.cloud_sync
                 : Icons.cloud_off,
-            color: connected ? MortColors.neon : MortColors.warning,
+            color: connected
+                ? MortColors.accent
+                : checking
+                ? MortColors.silver
+                : MortColors.warning,
           ),
           const SizedBox(width: MortSpacing.sm),
           Expanded(
