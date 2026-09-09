@@ -10,17 +10,35 @@ class MortTheme {
   const MortTheme._();
 
   static ThemeData dark() {
-    final colorScheme = ColorScheme.fromSeed(
-      brightness: Brightness.dark,
-      seedColor: MortColors.accent,
-      primary: MortColors.accent,
-      onPrimary: MortColors.bg,
-      secondary: MortColors.lightBlue,
-      onSecondary: MortColors.bg,
-      surface: MortColors.card,
-      onSurface: MortColors.text,
-      error: MortColors.danger,
-    );
+    final colorScheme =
+        const ColorScheme(
+          brightness: Brightness.dark,
+          primary: MortColors.accent,
+          onPrimary: MortColors.bg,
+          secondary: MortColors.lightBlue,
+          onSecondary: MortColors.bg,
+          error: MortColors.dangerDeep,
+          onError: MortColors.white,
+          surface: MortColors.card,
+          onSurface: MortColors.text,
+        ).copyWith(
+          primaryContainer: MortColors.lineStrong,
+          onPrimaryContainer: MortColors.text,
+          secondaryContainer: MortColors.lightBlueDeep,
+          onSecondaryContainer: MortColors.lightBlueSoft,
+          surfaceContainerLowest: MortColors.bg,
+          surfaceContainerLow: MortColors.black,
+          surfaceContainer: MortColors.card,
+          surfaceContainerHigh: MortColors.raisedBlack,
+          surfaceContainerHighest: MortColors.bgElevated,
+          outline: MortColors.lineStrong,
+          outlineVariant: MortColors.line,
+          shadow: Colors.black,
+          scrim: Colors.black,
+          inverseSurface: MortColors.text,
+          onInverseSurface: MortColors.bg,
+          inversePrimary: MortColors.silverDark,
+        );
 
     return ThemeData(
       useMaterial3: true,
@@ -86,7 +104,7 @@ class MortTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(MortRadii.medium),
           ),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
       chipTheme: ChipThemeData(

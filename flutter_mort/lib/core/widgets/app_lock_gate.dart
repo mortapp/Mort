@@ -44,7 +44,7 @@ class _PrivacyCover extends StatelessWidget {
     return ColoredBox(
       color: MortColors.bg,
       child: const Center(
-        child: Icon(Icons.shield, color: MortColors.neon, size: 52),
+        child: Icon(Icons.shield, color: MortColors.lightBlue, size: 52),
       ),
     );
   }
@@ -71,7 +71,7 @@ class _LockedView extends StatelessWidget {
                 children: [
                   const Icon(
                     Icons.lock_person_outlined,
-                    color: MortColors.neon,
+                    color: MortColors.lightBlue,
                     size: 52,
                   ),
                   const SizedBox(height: MortSpacing.lg),
