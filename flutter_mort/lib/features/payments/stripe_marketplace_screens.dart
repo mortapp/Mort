@@ -126,7 +126,7 @@ class _StripePayoutSetupScreenState
                       MortBadge(
                         label: _label(payout['status'] ?? 'not_started'),
                         color: payout['payouts_enabled'] == true
-                            ? MortColors.neon
+                            ? MortColors.accent
                             : MortColors.warning,
                       ),
                       const SizedBox(height: MortSpacing.sm),
@@ -304,7 +304,7 @@ class _StripeJobFundingScreenState
                         label:
                             'Funding: ${_label(summary['funding_status'] ?? 'unfunded')}',
                         color: summary['funding_status'] == 'funded'
-                            ? MortColors.neon
+                            ? MortColors.accent
                             : MortColors.warning,
                       ),
                     ],
