@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -262,6 +263,25 @@ Widget _wrap(
 }
 
 void main() {
+  test('financial surfaces stay monochrome and truthful', () {
+    final source = [
+      File(
+        '${Directory.current.path}/lib/features/financial/financial_safety_center.dart',
+      ),
+      File(
+        '${Directory.current.path}/lib/features/financial/financial_section_screens.dart',
+      ),
+      File(
+        '${Directory.current.path}/lib/features/financial/financial_export_service.dart',
+      ),
+    ].map((file) => file.readAsStringSync()).join('\n');
+
+    expect(source, isNot(contains('MortColors.neon')));
+    expect(source, isNot(contains('MortColors.roseGold')));
+    expect(source, contains('not tax'));
+    expect(source, contains('not recommend a specific bank'));
+  });
+
   testWidgets('empty year shows the real zero-state, never fake numbers', (
     tester,
   ) async {
