@@ -148,7 +148,12 @@ void main() {
     expect(source, isNot(contains('MortColors.roseGold')));
     expect(source, isNot(contains('MortColors.godPink')));
     expect(source, isNot(contains('MortColors.neon')));
-    expect(source, isNot(contains('MORT does not calculate your distance')));
+    expect(
+      source,
+      contains(
+        'MORT does not calculate your distance to a job from public job data',
+      ),
+    );
     expect(source, contains('Use current general area'));
     expect(
       source,
