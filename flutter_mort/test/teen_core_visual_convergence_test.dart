@@ -155,6 +155,54 @@ void main() {
       contains('does not retain raw coordinates from either request'),
     );
   });
+
+  test('teen lifecycle routes use canonical progress and monochrome state', () {
+    final applications = File(
+      '${Directory.current.path}/lib/features/jobs/application_screens.dart',
+    ).readAsStringSync();
+    final progress = File(
+      '${Directory.current.path}/lib/features/jobs/job_progress_screen.dart',
+    ).readAsStringSync();
+    final proofReview = File(
+      '${Directory.current.path}/lib/features/jobs/proof_review_screen.dart',
+    ).readAsStringSync();
+    final screens = File(
+      '${Directory.current.path}/lib/features/mort_screens.dart',
+    ).readAsStringSync();
+    final router = File(
+      '${Directory.current.path}/lib/core/routing/app_router.dart',
+    ).readAsStringSync();
+    final proofUpload = screens.substring(
+      screens.indexOf('class ProofUploadScreen'),
+      screens.indexOf('class VerificationScreen'),
+    );
+
+    for (final source in [applications, progress, proofReview, proofUpload]) {
+      expect(source, isNot(contains('MortColors.roseGold')));
+      expect(source, isNot(contains('MortColors.godPink')));
+      expect(source, isNot(contains('MortColors.neon')));
+    }
+    expect(applications, contains(r"'/jobs/progress/${application.id}'"));
+    expect(applications, isNot(contains("onStatus('in_progress')")));
+    expect(applications, isNot(contains("onStatus('completed')")));
+    expect(
+      proofReview,
+      contains(r"'/jobs/progress/${widget.applicationId}'"),
+    );
+    expect(
+      proofReview,
+      isNot(contains("updateStatus(widget.applicationId, 'completed')")),
+    );
+    expect(proofUpload, contains('Proof should show job completion only.'));
+    expect(proofUpload, contains("label: 'Submit proof'"));
+    expect(proofUpload, contains("label: 'Back to applications'"));
+
+    final progressRoute = router.substring(
+      router.indexOf("path: '/jobs/progress/:applicationId'"),
+      router.indexOf("_guarded('/guide'"),
+    );
+    expect(progressRoute, contains('SensitiveScreenProtection('));
+  });
 }
 
 const _activeJob = Job(

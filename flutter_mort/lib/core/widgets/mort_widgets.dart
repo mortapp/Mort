@@ -268,7 +268,7 @@ class MortHeader extends StatelessWidget {
           ),
           if (trailing != null) ...[
             const SizedBox(width: MortSpacing.md),
-            trailing!,
+            Flexible(child: trailing!),
           ],
         ],
       ),

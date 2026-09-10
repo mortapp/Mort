@@ -1144,8 +1144,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/jobs/progress/:applicationId',
         builder: (_, state) => GuardedRoute(
-          child: JobProgressScreen(
-            applicationId: state.pathParameters['applicationId'] ?? '',
+          child: SensitiveScreenProtection(
+            child: JobProgressScreen(
+              applicationId: state.pathParameters['applicationId'] ?? '',
+            ),
           ),
         ),
       ),
