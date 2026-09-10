@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -14,6 +15,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 
 void main() {
+  test('guardian surfaces use monochrome optional-state styling', () {
+    final source = File(
+      'lib/features/guardian/guardian_mode_screens.dart',
+    ).readAsStringSync();
+    expect(source, isNot(contains('MortColors.neon')));
+    expect(source, isNot(contains('MortColors.roseGold')));
+    expect(source, contains('Guardian Mode is optional'));
+  });
+
   group('guardian optional product behavior', () {
     testWidgets('onboarding clearly permits skipping Guardian Mode', (
       tester,
