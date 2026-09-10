@@ -388,8 +388,15 @@ async function leaveToHome(driver, { viaHeaderBack }) {
   } else {
     await swipeFromLeftEdgeToPop(driver);
     const leaveSetup = await driver.$("~Leave setup");
-    if (await leaveSetup.waitForExist({ timeout: 5000 })) {
+    await driver.pause(500);
+    if (await leaveSetup.isExisting()) {
       await leaveSetup.click();
+    } else {
+      await driver.back();
+      const leaveSetupAfterBack = await driver.$("~Leave setup");
+      if (await leaveSetupAfterBack.waitForExist({ timeout: 5000 })) {
+        await leaveSetupAfterBack.click();
+      }
     }
   }
   await goHome(driver);
