@@ -264,7 +264,7 @@ class _StatusLine extends StatelessWidget {
           Expanded(child: Text(label)),
           MortBadge(
             label: enabled ? 'Enabled' : 'Disabled',
-            color: enabled ? MortColors.neon : MortColors.warning,
+            color: enabled ? MortColors.accent : MortColors.warning,
           ),
         ],
       ),
@@ -291,7 +291,7 @@ class _Checklist extends StatelessWidget {
                 children: [
                   const Icon(
                     Icons.check_circle_outline,
-                    color: MortColors.neon,
+                    color: MortColors.accent,
                     size: 18,
                   ),
                   const SizedBox(width: MortSpacing.xs),

@@ -84,7 +84,7 @@ class LegalCenterScreen extends ConsumerWidget {
                               : 'Accepted',
                           color: item['acceptance_id'] == null
                               ? MortColors.warning
-                              : MortColors.neon,
+                              : MortColors.accent,
                         ),
                       ],
                     ),
@@ -399,7 +399,7 @@ class _BoundaryLine extends StatelessWidget {
         children: [
           const Icon(
             Icons.check_circle_outline,
-            color: MortColors.neon,
+            color: MortColors.accent,
             size: 18,
           ),
           const SizedBox(width: MortSpacing.xs),
