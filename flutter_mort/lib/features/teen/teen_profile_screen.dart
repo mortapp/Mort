@@ -71,7 +71,7 @@ class _TeenProfileBody extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         LiquidGlassContainer(
-          tint: MortColors.roseGold,
+          tint: MortColors.silver,
           child: Column(
             children: [
               ProfileAvatarView(
@@ -156,10 +156,7 @@ class _TeenProfileBody extends ConsumerWidget {
             runSpacing: MortSpacing.xs,
             children: [
               for (final category in profile.preferredJobCategories)
-                MortStatusPill(
-                  label: category,
-                  color: MortColors.roseGoldLight,
-                ),
+                MortStatusPill(label: category, color: MortColors.accent),
             ],
           ),
         ],

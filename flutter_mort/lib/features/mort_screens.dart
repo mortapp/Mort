@@ -6877,7 +6877,7 @@ class FeatureChecklist extends StatelessWidget {
                   const Icon(
                     Icons.check_circle_outline,
                     size: 18,
-                    color: MortColors.neon,
+                    color: MortColors.accent,
                   ),
                   const SizedBox(width: MortSpacing.xs),
                   Expanded(child: Text(item)),

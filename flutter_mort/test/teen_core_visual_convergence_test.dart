@@ -185,10 +185,7 @@ void main() {
     expect(applications, contains(r"'/jobs/progress/${application.id}'"));
     expect(applications, isNot(contains("onStatus('in_progress')")));
     expect(applications, isNot(contains("onStatus('completed')")));
-    expect(
-      proofReview,
-      contains(r"'/jobs/progress/${widget.applicationId}'"),
-    );
+    expect(proofReview, contains(r"'/jobs/progress/${widget.applicationId}'"));
     expect(
       proofReview,
       isNot(contains("updateStatus(widget.applicationId, 'completed')")),
@@ -202,6 +199,46 @@ void main() {
       router.indexOf("_guarded('/guide'"),
     );
     expect(progressRoute, contains('SensitiveScreenProtection('));
+  });
+
+  test('teen profile and growth routes keep honest monochrome boundaries', () {
+    final profile = File(
+      '${Directory.current.path}/lib/features/teen/teen_profile_screen.dart',
+    ).readAsStringSync();
+    final screens = File(
+      '${Directory.current.path}/lib/features/mort_screens.dart',
+    ).readAsStringSync();
+    final router = File(
+      '${Directory.current.path}/lib/core/routing/app_router.dart',
+    ).readAsStringSync();
+    final checklist = screens.substring(
+      screens.indexOf('class FeatureChecklist'),
+      screens.indexOf('class FeatureScaffoldScreen'),
+    );
+
+    expect(profile, isNot(contains('MortColors.roseGold')));
+    expect(profile, isNot(contains('MortColors.godPink')));
+    expect(profile, isNot(contains('MortColors.neon')));
+    expect(checklist, isNot(contains('MortColors.roseGold')));
+    expect(checklist, isNot(contains('MortColors.godPink')));
+    expect(checklist, isNot(contains('MortColors.neon')));
+    expect(
+      router,
+      contains(
+        'Public portfolio publishing is not available for this account.',
+      ),
+    );
+    for (final route in [
+      '/teen/profile',
+      '/teen/portfolio',
+      '/teen/skills',
+      '/teen/availability',
+      '/teen/goals',
+      '/teen/hustle-academy',
+      '/teen/safety',
+    ]) {
+      expect(router, contains(route), reason: route);
+    }
   });
 }
 
