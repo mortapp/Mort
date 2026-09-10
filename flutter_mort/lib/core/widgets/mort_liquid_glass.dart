@@ -741,17 +741,18 @@ class MortSafetyPulse extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 224),
-      child: AspectRatio(
-        aspectRatio: 1,
-        child: LiquidGlassContainer(
-          tint: color,
-          borderRadius: BorderRadius.circular(MortRadii.pill),
-          onTap: onPressed,
-          semanticLabel: '$title. $status',
+    child: SizedBox(
+      width: 224,
+      child: LiquidGlassContainer(
+        tint: color,
+        borderRadius: BorderRadius.circular(MortRadii.pill),
+        onTap: onPressed,
+        semanticLabel: '$title. $status',
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 192),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: 52, color: color),
               const SizedBox(height: MortSpacing.sm),
@@ -763,8 +764,6 @@ class MortSafetyPulse extends StatelessWidget {
               const SizedBox(height: MortSpacing.xs),
               Text(
                 status,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),

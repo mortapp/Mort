@@ -1610,9 +1610,11 @@ class MortProfileCompletionMeter extends StatelessWidget {
                       color: MortColors.textMuted,
                     ),
                     const SizedBox(width: MortSpacing.xs),
-                    Text(
-                      item.label,
-                      style: Theme.of(context).textTheme.bodyMedium,
+                    Expanded(
+                      child: Text(
+                        item.label,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
                     ),
                   ],
                 ),

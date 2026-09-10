@@ -2260,30 +2260,34 @@ class RoleHomeScreen extends ConsumerWidget {
     final dashboard = _roleDashboardDefinition(role, hasPartnerWorkspace);
     return MortScreen(
       children: [
-        const Align(
-          alignment: Alignment.centerLeft,
-          child: MortBrandMark(size: 46),
-        ),
-        const SizedBox(height: MortSpacing.xs),
-        MortGlassHeader(
-          eyebrow: profile?.displayName ?? userRoleToString(role) ?? 'MORT',
-          title: title,
-          subtitle:
-              'Safety-first workflows and optional perks without paywalling core safety.',
-          trailing: MortNotificationBell(
-            onPressed: () => context.push('/notifications'),
+        if (role != UserRole.teen) ...[
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: MortBrandMark(size: 46),
           ),
-        ),
-        const SizedBox(height: MortSpacing.md),
+          const SizedBox(height: MortSpacing.xs),
+        ],
         if (role == UserRole.teen)
-          MortProfileCompletionMeter(
-            value: profile?.completionRatio ?? 0,
-            items: [
-              for (final item in profile?.completionChecklist ?? const [])
-                (label: item.label, complete: item.complete),
-            ],
-            onTap: () => context.push('/teen/profile'),
+          MortTeenDestinationHeader(
+            eyebrow: profile?.displayName ?? 'MORT',
+            title: title,
+            subtitle:
+                'Safety-first workflows and optional perks without paywalling core safety.',
+            trailing: MortNotificationBell(
+              onPressed: () => context.push('/notifications'),
+            ),
+          )
+        else
+          MortGlassHeader(
+            eyebrow: profile?.displayName ?? userRoleToString(role) ?? 'MORT',
+            title: title,
+            subtitle:
+                'Safety-first workflows and optional perks without paywalling core safety.',
+            trailing: MortNotificationBell(
+              onPressed: () => context.push('/notifications'),
+            ),
           ),
+        const SizedBox(height: MortSpacing.md),
         if (role == UserRole.adult) const MortVerificationDisclaimer(),
         if (role == UserRole.guardian) const MortGuardianBanner(),
         if (role == UserRole.admin)
@@ -2307,10 +2311,19 @@ class RoleHomeScreen extends ConsumerWidget {
             onPressed: () => context.push('/teen/safety'),
           ),
           const SizedBox(height: MortSpacing.md),
-          const _TeenLeaderboardSection(),
+          MortProfileCompletionMeter(
+            value: profile?.completionRatio ?? 0,
+            items: [
+              for (final item in profile?.completionChecklist ?? const [])
+                (label: item.label, complete: item.complete),
+            ],
+            onTap: () => context.push('/teen/profile'),
+          ),
           const SizedBox(height: MortSpacing.md),
           MortSectionLabel(label: 'Quick links'),
           MortQuickActionGrid(actions: actions),
+          const SizedBox(height: MortSpacing.md),
+          const _TeenLeaderboardSection(),
         ] else ...[
           MortGlassButton(
             label: dashboard.primary.label,
@@ -2455,14 +2468,13 @@ class _TeenNearbyWorkSection extends ConsumerWidget {
   }
 }
 
-/// Podium coloring for the top 3 leaderboard ranks only -- rose gold and
-/// silver, per MORT's brand (no yellow/gold). Every other rank stays on
-/// the standard rose-gold accent.
+/// Restrained silver hierarchy for the top ranks. Text and tier labels remain
+/// explicit, so color is never the only rank signal.
 Color _podiumColor(int rank) => switch (rank) {
-  1 => MortColors.roseGold,
-  2 => MortColors.silverBright,
-  3 => MortColors.roseGoldDeep,
-  _ => MortColors.roseGoldLight,
+  1 => MortColors.silverBright,
+  2 => MortColors.silver,
+  3 => MortColors.silverDark,
+  _ => MortColors.textMuted,
 };
 
 class _TeenLeaderboardSection extends ConsumerWidget {
@@ -2493,7 +2505,7 @@ class _TeenLeaderboardSection extends ConsumerWidget {
                           Text(
                             rank.tierLabel,
                             style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(color: MortColors.roseGoldLight),
+                                ?.copyWith(color: MortColors.silverBright),
                           ),
                           Text(
                             rank.completedCount == 0
