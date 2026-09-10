@@ -394,8 +394,15 @@ async function leaveToHome(driver, { viaHeaderBack }) {
     } else {
       await driver.back();
       const leaveSetupAfterBack = await driver.$("~Leave setup");
-      if (await leaveSetupAfterBack.waitForExist({ timeout: 5000 })) {
+      await driver.pause(1000);
+      if (await leaveSetupAfterBack.isExisting()) {
         await leaveSetupAfterBack.click();
+      } else {
+        // BrowserStack's Flutter/iOS bridge may not deliver system back to
+        // the route's confirmation sheet. Restarting this internal-only QA
+        // shell returns deterministically to /qa without touching production.
+        await driver.terminateApp("com.mortapp.mobile");
+        await driver.activateApp("com.mortapp.mobile");
       }
     }
   }
