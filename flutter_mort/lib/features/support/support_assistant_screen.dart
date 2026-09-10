@@ -357,7 +357,7 @@ class SupportAssistantMessageBubble extends StatelessWidget {
     child: ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 560),
       child: MortCard(
-        color: message.isUser ? MortColors.roseGoldDeep : MortColors.card,
+        color: message.isUser ? MortColors.raisedBlack : MortColors.card,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -373,7 +373,7 @@ class SupportAssistantMessageBubble extends StatelessWidget {
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
                       color: message.isUser
                           ? MortColors.text
-                          : MortColors.roseGoldLight,
+                          : MortColors.accent,
                     ),
                   ),
                 ),

@@ -419,6 +419,21 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  test('messaging and support bubbles use monochrome safe states', () {
+    final support = File(
+      '${Directory.current.path}/lib/features/support/support_screens.dart',
+    ).readAsStringSync();
+    final assistant = File(
+      '${Directory.current.path}/lib/features/support/support_assistant_screen.dart',
+    ).readAsStringSync();
+
+    for (final source in [support, assistant]) {
+      expect(source, isNot(contains('MortColors.neon')));
+      expect(source, isNot(contains('MortColors.roseGold')));
+      expect(source, isNot(contains('MortColors.godPink')));
+    }
+  });
+
   testWidgets('realtime message bursts coalesce read acknowledgements', (
     tester,
   ) async {
