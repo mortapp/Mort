@@ -106,7 +106,7 @@ class _IdentityVerificationScreenState
                     ? 'TEST MODE'
                     : status.status.replaceAll('_', ' '),
                 color: status.productionVerified
-                    ? MortColors.neon
+                    ? MortColors.accent
                     : MortColors.warning,
               ),
             ],
@@ -800,7 +800,7 @@ class _JobSafetyWorkspaceScreenState
               MortBadge(
                 label: agreement.status.replaceAll('_', ' '),
                 color: agreement.status == 'confirmed'
-                    ? MortColors.neon
+                    ? MortColors.accent
                     : MortColors.warning,
               ),
             ],
@@ -1241,7 +1241,10 @@ class _AccountSessionsScreenState extends ConsumerState<AccountSessionsScreen> {
                   children: [
                     Expanded(child: Text(session.userAgent)),
                     if (session.isCurrent)
-                      const MortBadge(label: 'Current', color: MortColors.neon),
+                      const MortBadge(
+                        label: 'Current',
+                        color: MortColors.accent,
+                      ),
                   ],
                 ),
                 Text('Session ${session.reference}'),

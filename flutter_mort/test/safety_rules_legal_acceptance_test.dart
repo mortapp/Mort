@@ -12,6 +12,12 @@ void main() {
   final compactOnboarding = File(
     '${Directory.current.path}/lib/features/onboarding/compact_onboarding.dart',
   ).readAsStringSync();
+  final safety = File(
+    '${Directory.current.path}/lib/features/safety/trust_safety_screens.dart',
+  ).readAsStringSync();
+  final permissions = File(
+    '${Directory.current.path}/lib/features/settings/native_permissions_screen.dart',
+  ).readAsStringSync();
 
   test(
     'the real reachable onboarding safety step actually records legal acceptance',
@@ -93,5 +99,12 @@ void main() {
       contains('_safetyRules &&\n      _antiGroomingAcknowledged;'),
     );
     expect(compactOnboarding, contains('_antiGroomingAcknowledged'));
+  });
+
+  test('safety surfaces use restrained monochrome state colors', () {
+    expect(safety, isNot(contains('MortColors.neon')));
+    expect(safety, isNot(contains('MortColors.roseGold')));
+    expect(permissions, isNot(contains('MortColors.neon')));
+    expect(permissions, isNot(contains('MortColors.roseGold')));
   });
 }

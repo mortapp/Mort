@@ -178,7 +178,7 @@ class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
         if (_areaMessage != null) ...[
           const SizedBox(height: MortSpacing.md),
           MortCard(
-            color: MortColors.neon.withValues(alpha: 0.08),
+            color: MortColors.accent.withValues(alpha: 0.08),
             child: Text(_areaMessage!),
           ),
         ],
