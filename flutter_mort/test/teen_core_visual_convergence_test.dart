@@ -136,6 +136,25 @@ void main() {
       expect(quickLinks, lessThan(leaderboard));
     },
   );
+
+  test('teen marketplace uses canonical monochrome controls and tokens', () {
+    final source = File(
+      '${Directory.current.path}/lib/features/jobs/teen_job_screens.dart',
+    ).readAsStringSync();
+
+    expect(source, contains('MortSelect<String>('));
+    expect(source, contains('MortSelect<JobSort>('));
+    expect(source, contains('semanticLabel:'));
+    expect(source, isNot(contains('MortColors.roseGold')));
+    expect(source, isNot(contains('MortColors.godPink')));
+    expect(source, isNot(contains('MortColors.neon')));
+    expect(source, isNot(contains('MORT does not calculate your distance')));
+    expect(source, contains('Use current general area'));
+    expect(
+      source,
+      contains('does not retain raw coordinates from either request'),
+    );
+  });
 }
 
 const _activeJob = Job(

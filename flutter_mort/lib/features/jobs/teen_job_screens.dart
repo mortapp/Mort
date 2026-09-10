@@ -312,7 +312,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
           title: const Text('Filters and sorting'),
           leading: const Icon(Icons.tune),
           children: [
-            MortDropdown<String>(
+            MortSelect<String>(
               label: 'Category',
               value: _category,
               items: {for (final value in _feedCategories) value: value},
@@ -327,7 +327,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
               ),
             ),
             const SizedBox(height: MortSpacing.sm),
-            MortDropdown<String>(
+            MortSelect<String>(
               label: 'Payment type',
               value: _paymentType,
               items: const {
@@ -339,7 +339,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
                   setState(() => _paymentType = value ?? 'any'),
             ),
             const SizedBox(height: MortSpacing.sm),
-            MortDropdown<String>(
+            MortSelect<String>(
               label: 'Schedule',
               value: _scheduleType,
               items: const {
@@ -351,7 +351,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
                   setState(() => _scheduleType = value ?? 'any'),
             ),
             const SizedBox(height: MortSpacing.sm),
-            MortDropdown<String>(
+            MortSelect<String>(
               label: 'Applicant verification preference',
               value: _verification,
               items: const {
@@ -364,7 +364,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
                   setState(() => _verification = value ?? 'any'),
             ),
             const SizedBox(height: MortSpacing.sm),
-            MortDropdown<String>(
+            MortSelect<String>(
               label: 'Guardian approval',
               value: _guardian,
               items: const {
@@ -375,7 +375,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
               onChanged: (value) => setState(() => _guardian = value ?? 'any'),
             ),
             const SizedBox(height: MortSpacing.sm),
-            MortDropdown<String>(
+            MortSelect<String>(
               label: 'Work environment',
               value: _environment,
               items: const {
@@ -398,7 +398,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
                   ),
                   const SizedBox(height: MortSpacing.xs),
                   const Text(
-                    'City and state are optional. MORT does not calculate your distance to a job. Manual entry works even when location access is denied.',
+                    'City and state are optional. With permission, MORT uses a fresh location to calculate rounded job distances. If you tap Use current general area, MORT separately converts a fresh location to city and state. MORT does not retain raw coordinates from either request, and manual entry works when location access is denied.',
                   ),
                   const SizedBox(height: MortSpacing.sm),
                   MortTextField(label: 'City', controller: _city),
@@ -424,7 +424,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
               ),
             ),
             const SizedBox(height: MortSpacing.sm),
-            MortDropdown<JobSort>(
+            MortSelect<JobSort>(
               label: 'Sort',
               value: _sort,
               items: const {
@@ -625,40 +625,41 @@ class _TeenJobCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return MortGlassCard(
       onTap: () => context.push('/teen/jobs/${job.id}'),
+      semanticLabel:
+          '${job.title}. Listed pay ${job.payDisplay}. Approximate area ${job.locationText}. ${job.scheduleDisplay}. ${job.verificationDisplay}.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      job.title,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: MortSpacing.xxs),
-                    Text(
-                      job.category,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: MortSpacing.sm),
-              // Pay stays the single most prominent figure on the card --
-              // the first thing a Teen's eye should land on after the title.
-              Text(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked =
+                  constraints.maxWidth < 300 ||
+                  MediaQuery.textScalerOf(context).scale(16) > 21;
+              final titleBlock = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    job.title,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: MortSpacing.xxs),
+                  Text(
+                    job.category,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              );
+              // Listed pay stays prominent, while its wording and semantics
+              // avoid implying that MORT has processed or guaranteed payment.
+              final pay = Text(
                 job.payDisplay,
+                textAlign: TextAlign.end,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: MortColors.roseGoldLight,
+                  color: MortColors.silverBright,
                   fontWeight: FontWeight.w700,
                 ),
-              ),
-              const SizedBox(width: MortSpacing.xs),
-              SizedBox.square(
+              );
+              final save = SizedBox.square(
                 dimension: MortSpacing.minTouchTarget,
                 child: saving
                     ? const Padding(
@@ -673,12 +674,37 @@ class _TeenJobCard extends StatelessWidget {
                               ? Icons.favorite_rounded
                               : Icons.favorite_border_rounded,
                           color: saved
-                              ? MortColors.roseGoldLight
+                              ? MortColors.silverBright
                               : MortColors.silver,
                         ),
                       ),
-              ),
-            ],
+              );
+              if (stacked) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    titleBlock,
+                    const SizedBox(height: MortSpacing.sm),
+                    Row(
+                      children: [
+                        Expanded(child: pay),
+                        save,
+                      ],
+                    ),
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: titleBlock),
+                  const SizedBox(width: MortSpacing.sm),
+                  Flexible(child: pay),
+                  const SizedBox(width: MortSpacing.xs),
+                  save,
+                ],
+              );
+            },
           ),
           const SizedBox(height: MortSpacing.sm),
           // A compact wrapping meta-row scans far faster than a stack of
@@ -795,7 +821,7 @@ class _JobCardMetaChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = emphasize ? MortColors.roseGoldLight : MortColors.lightBlue;
+    final color = emphasize ? MortColors.silverBright : MortColors.lightBlue;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -807,7 +833,7 @@ class _JobCardMetaChip extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: emphasize ? MortColors.roseGoldLight : null,
+              color: emphasize ? MortColors.silverBright : null,
               fontWeight: emphasize ? FontWeight.w600 : null,
             ),
           ),
@@ -939,7 +965,11 @@ class _TeenJobDetailScreenState extends ConsumerState<TeenJobDetailScreen> {
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const MortLoading(label: 'Checking job eligibility');
+          return const MortScreen(
+            children: [
+              MortLoading(label: 'Checking job eligibility', fullScreen: false),
+            ],
+          );
         }
         if (snapshot.hasError) {
           return MortScreen(
@@ -1176,6 +1206,11 @@ class _TeenJobDetailScreenState extends ConsumerState<TeenJobDetailScreen> {
                 ),
               ),
             ],
+            if (job.safetyNotes?.trim().isNotEmpty == true) ...[
+              const SizedBox(height: MortSpacing.md),
+              const MortSectionTitle(title: 'Safety expectations'),
+              MortCard(child: Text(job.safetyNotes!.trim())),
+            ],
             const SizedBox(height: MortSpacing.md),
             const MortSafetyBanner(
               message:
@@ -1186,7 +1221,7 @@ class _TeenJobDetailScreenState extends ConsumerState<TeenJobDetailScreen> {
             const SizedBox(height: MortSpacing.md),
             MortCard(
               color: eligibility.eligible
-                  ? MortColors.neon.withValues(alpha: 0.08)
+                  ? MortColors.accent.withValues(alpha: 0.08)
                   : MortColors.danger.withValues(alpha: 0.08),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_mort/data/models/application.dart';
 import 'package:flutter_mort/data/models/job.dart';
 import 'package:flutter_mort/data/models/profile.dart';
+import 'package:flutter_mort/data/repositories/applications_repository.dart';
 import 'package:flutter_mort/data/repositories/jobs_repository.dart';
 import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/data/repositories/safety_repository.dart';
+import 'package:flutter_mort/core/widgets/mort_widgets.dart';
 import 'package:flutter_mort/features/jobs/job_screens.dart';
 import 'package:flutter_mort/features/jobs/teen_job_screens.dart';
 import 'package:flutter_mort/features/mort_screens.dart';
@@ -13,12 +16,16 @@ import 'package:flutter_mort/features/mort_screens.dart';
 import 'helpers/mort_widget_harness.dart';
 
 class _FakeJobsRepository extends JobsRepository {
-  _FakeJobsRepository({List<Job>? savedJobs, JobPage? openJobsPage})
-    : savedJobs = List<Job>.from(savedJobs ?? const []),
-      openJobsPage = openJobsPage ?? const JobPage(items: [], hasMore: false);
+  _FakeJobsRepository({
+    List<Job>? savedJobs,
+    JobPage? openJobsPage,
+    this.jobDetail,
+  }) : savedJobs = List<Job>.from(savedJobs ?? const []),
+       openJobsPage = openJobsPage ?? const JobPage(items: [], hasMore: false);
 
   final JobPage openJobsPage;
   final List<Job> savedJobs;
+  final Job? jobDetail;
   String? unsavedJobId;
   String? savedJobId;
 
@@ -43,6 +50,23 @@ class _FakeJobsRepository extends JobsRepository {
   Future<void> saveJob(String jobId) async {
     savedJobId = jobId;
   }
+
+  @override
+  Future<Job?> getJob(String id) async => jobDetail;
+
+  @override
+  Future<bool> isSaved(String jobId) async =>
+      savedJobs.any((job) => job.id == jobId);
+}
+
+class _FakeApplicationsRepository extends ApplicationsRepository {
+  _FakeApplicationsRepository(this.eligibility);
+
+  final ApplicationEligibility eligibility;
+
+  @override
+  Future<ApplicationEligibility> checkEligibility(String jobId) async =>
+      eligibility;
 }
 
 class _FakeSafetyRepository extends SafetyRepository {
@@ -216,6 +240,160 @@ void main() {
     expect(repository.savedJobId, 'job-1');
     expect(find.byTooltip('Unsave job'), findsOneWidget);
   });
+
+  testMortWidgets(
+    'TeenJobFeedScreen keeps a detailed job card accessible at 200 percent text',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final job = Job(
+        id: 'job-accessible',
+        posterId: 'poster-1',
+        title: 'Help organize a community library reading room',
+        description: 'A job for testing.',
+        category: 'Community and library help',
+        locationText: 'Broad Ripple public library area',
+        city: 'Indianapolis',
+        state: 'IN',
+        status: 'open',
+        requiresGuardianApproval: true,
+        payAmountCents: 12500,
+        posterVerificationStatus: 'approved',
+        estimatedDurationMinutes: 150,
+        acceptableTransportationMethods: const ['walking', 'public_transit'],
+      );
+      final repository = _FakeJobsRepository(
+        openJobsPage: JobPage(items: [job], hasMore: false),
+      );
+
+      await tester.pumpWidget(
+        _app(
+          child: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(320, 568),
+              disableAnimations: true,
+              textScaler: TextScaler.linear(2),
+            ),
+            child: const TeenJobFeedScreen(),
+          ),
+          overrides: [
+            jobsRepositoryProvider.overrideWithValue(repository),
+            currentProfileProvider.overrideWithValue(
+              AsyncValue.data(_teenProfile()),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(
+        find.text('Help organize a community library reading room'),
+      );
+      await tester.pumpAndSettle();
+      final card = tester.widget<MortGlassCard>(
+        find.ancestor(
+          of: find.text('Help organize a community library reading room'),
+          matching: find.byType(MortGlassCard),
+        ),
+      );
+      expect(
+        card.semanticLabel,
+        'Help organize a community library reading room. Listed pay \$125.00. Approximate area Broad Ripple public library area. Flexible schedule. Verified poster.',
+      );
+      await tester.ensureVisible(find.byTooltip('Save job'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Save job').hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testMortWidgets(
+    'TeenJobDetailScreen keeps trust payment safety and apply truth visible',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final job = Job(
+        id: 'job-detail',
+        posterId: 'poster-1',
+        title: 'Community garden support',
+        description: 'Help prepare shared garden beds for spring.',
+        category: 'Yard work',
+        locationText: 'Near the public library',
+        city: 'Indianapolis',
+        state: 'IN',
+        status: 'open',
+        requiresGuardianApproval: false,
+        payAmountCents: 4800,
+        posterName: 'Synthetic Poster',
+        posterVerificationStatus: 'approved',
+        safetyNotes: 'Work stays in the public garden area.',
+      );
+      final jobs = _FakeJobsRepository(jobDetail: job);
+      final applications = _FakeApplicationsRepository(
+        const ApplicationEligibility(
+          eligible: true,
+          code: 'eligible',
+          message: 'You can apply for this job.',
+          guardianRequiredForThisJob: false,
+          guardianLinked: true,
+        ),
+      );
+
+      await tester.pumpWidget(
+        _app(
+          child: const MediaQuery(
+            data: MediaQueryData(
+              size: Size(320, 568),
+              disableAnimations: true,
+              textScaler: TextScaler.linear(2),
+            ),
+            child: TeenJobDetailScreen(jobId: 'job-detail'),
+          ),
+          overrides: [
+            jobsRepositoryProvider.overrideWithValue(jobs),
+            applicationsRepositoryProvider.overrideWithValue(applications),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final applyButton = find.text('Apply now');
+      expect(applyButton.hitTestable(), findsOneWidget);
+
+      for (final text in [
+        'Community garden support',
+        'Offered compensation',
+        'MORT does not process, hold, guarantee, or mark this amount paid.',
+        'Approximate area: Near the public library, Indianapolis, IN',
+        'Safety expectations',
+        'Work stays in the public garden area.',
+        'Application eligibility',
+      ]) {
+        final content = find.text(text);
+        expect(content, findsOneWidget, reason: text);
+        await tester.ensureVisible(content);
+        await tester.pumpAndSettle();
+        expect(content.hitTestable(), findsOneWidget, reason: text);
+        expect(tester.takeException(), isNull, reason: text);
+      }
+
+      final report = find.byTooltip('Report profile picture or poster');
+      expect(report, findsOneWidget);
+      await tester.ensureVisible(report);
+      await tester.pumpAndSettle();
+      expect(report.hitTestable(), findsOneWidget);
+      expect(find.byType(MortPaymentDisclaimer), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'SavedJobsScreen shows empty state when there are no saved jobs',
