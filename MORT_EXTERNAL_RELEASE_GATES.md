@@ -6,10 +6,10 @@ credential/account this session does not have and should not fabricate.
 ---
 
 GATE=BrowserStack account/credentials
-STATUS=NOT_CONFIGURED
-WHY=No BROWSERSTACK_USERNAME/BROWSERSTACK_ACCESS_KEY in this environment; `gh secret list --repo mortapp/Mort` returns empty; no BrowserStack MCP connection active.
-TECHNICAL_WORK_COMPLETE=YES — [GitHub Actions run 34131627976](https://github.com/mortapp/Mort/actions/runs/34131627976) passed its macOS iOS build/test/pod-install/unsigned-IPA artifact pipeline and uploaded `mort-ios-browserstack-qa`. Its BrowserStack credential check correctly skipped the App Automate upload because credentials are absent. The workflow and `scripts/browserstack/*.ps1` (verify-env, upload-ios-app, upload-android-app, poll-build, download-results) are ready but cannot be exercised end-to-end without credentials.
-HUMAN_ACTION_REQUIRED=Create/sign into a BrowserStack account with App Live + App Automate access; get Username + Access Key from Account Settings; set as env vars or complete BrowserStack MCP OAuth; never paste the key into source or chat.
+STATUS=NOT_EXECUTABLE_FROM_CURRENT_SHELL
+WHY=The local shell has no `BROWSERSTACK_USERNAME`/`BROWSERSTACK_ACCESS_KEY`, and `verify-browserstack-env.ps1` therefore fails closed. Repository secret names for `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY` are now present, but their values cannot be read or exported by this session; no `BROWSERSTACK_APP_URL` is available locally and no BrowserStack MCP connection is active.
+TECHNICAL_WORK_COMPLETE=YES — [GitHub Actions run 34131627976](https://github.com/mortapp/Mort/actions/runs/34131627976) passed its macOS iOS build/test/pod-install/unsigned-IPA artifact pipeline and uploaded `mort-ios-browserstack-qa`. Its BrowserStack upload step was skipped in that run because credentials were unavailable to the job. The workflow and `scripts/browserstack/*.ps1` (verify-env, upload-ios-app, upload-android-app, poll-build, download-results) are ready but cannot be exercised end-to-end from this shell.
+HUMAN_ACTION_REQUIRED=Run the BrowserStack workflow with the configured repository secrets, or provide the credentials through the protected environment and upload the iOS artifact to obtain `BROWSERSTACK_APP_URL`; never paste the key into source or chat.
 CREDENTIAL_REQUIRED=YES (BROWSERSTACK_USERNAME, BROWSERSTACK_ACCESS_KEY)
 PROVIDER=BrowserStack
 LAUNCH_IMPACT=Blocks all real-iPhone and real-Android-cloud QA (Tracks 10-11)
