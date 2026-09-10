@@ -387,6 +387,10 @@ async function leaveToHome(driver, { viaHeaderBack }) {
     await tapByAccessibleName(driver, "Back");
   } else {
     await swipeFromLeftEdgeToPop(driver);
+    const leaveSetup = await driver.$("~Leave setup");
+    if (await leaveSetup.waitForExist({ timeout: 5000 })) {
+      await leaveSetup.click();
+    }
   }
   await goHome(driver);
 }
