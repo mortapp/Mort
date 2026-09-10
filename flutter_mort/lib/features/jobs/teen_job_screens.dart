@@ -398,7 +398,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
                   ),
                   const SizedBox(height: MortSpacing.xs),
                   const Text(
-                    'City and state are optional. With permission, MORT uses a fresh location to calculate rounded job distances. If you tap Use current general area, MORT separately converts a fresh location to city and state. MORT does not retain raw coordinates from either request, and manual entry works when location access is denied.',
+                    'City and state are optional. MORT does not calculate your distance to a job from public job data. With permission, MORT uses a fresh location on-device to calculate rounded job distances. If you tap Use current general area, MORT separately converts a fresh location to city and state. MORT does not retain raw coordinates from either request, and manual entry works when location access is denied.',
                   ),
                   const SizedBox(height: MortSpacing.sm),
                   MortTextField(label: 'City', controller: _city),
