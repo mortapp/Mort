@@ -96,6 +96,28 @@ classified as blocked because the local emulator is available. Full
 authenticated marketplace journeys require a safe QA public configuration and
 were not fabricated.
 
+## Latest BrowserStack iOS evidence
+
+IOS_BROWSERSTACK_WORKFLOW_RUN=34472297830
+IOS_BROWSERSTACK_WORKFLOW_URL=https://github.com/mortapp/Mort/actions/runs/34472297830
+IOS_BROWSERSTACK_HEAD_SHA=0180d27b7c50565a6b67288adfb797eac40bd803
+IOS_BROWSERSTACK_BUILD=PASS
+IOS_BROWSERSTACK_UPLOAD=PASS
+IOS_BROWSERSTACK_REAL_DEVICE_MATRIX=PASS
+IOS_BROWSERSTACK_IPHONE_15_IOS_17=PASS
+IOS_BROWSERSTACK_IPHONE_17_IOS_26=PASS
+IOS_BROWSERSTACK_IPHONE_SE_2022_IOS_15=PASS
+IOS_BROWSERSTACK_FORBIDDEN_SIDE_EFFECTS=PASS (QA fixture and Appium forbidden-action guard)
+IOS_BROWSERSTACK_EVIDENCE_ARTIFACT=PASS
+
+The matrix covered the internal deterministic home, onboarding, legal, safety,
+financial, settings, and permission checkpoints on the configured device
+profiles. The unsigned QA artifact was accepted by BrowserStack App Automate
+for this run; App Store/TestFlight signing remains a separate external gate.
+
+PHASE_18_IOS_BROWSERSTACK_QA=PASS
+IOS_BROWSERSTACK_QA_BLOCKED=NO
+
 | AREA | INTERNAL % | EXTERNAL STATUS | EVIDENCE | REMAINING INTERNAL WORK |
 |---|---|---|---|---|
 | CI/repository health | 100 | N/A | PR #7 merged after verifying head SHA/CI/scope; fresh `dart format`/`flutter analyze`/`flutter test` (448 passed/2 skipped/0 failed) on updated main | None found |
@@ -109,7 +131,7 @@ were not fabricated.
 | Identity verification architecture | 100 (of sampled scope) | Live identity provider = BLOCKED_EXTERNAL | Fail-closed without provider config; SSRF-safe handoff-host allowlisting; bounded 30-min handoff TTL | None found in sampled scope |
 | Android implementation | 100 (of sampled scope) | Release signing = BLOCKED_EXTERNAL (owner keystore) | Manifest audited: only one exported component (`.MainActivity`, correctly exported for LAUNCHER), custom-scheme OAuth deep links match client-side `MortOAuthCallbackPolicy` strict scheme/host/path allowlisting + sensitive-param rejection; `network_security_config.xml` disables cleartext traffic globally with no debug override; AD_ID/ADSERVICES/FOREGROUND_SERVICE permissions explicitly removed; native `FLAG_SECURE` channel confirmed wired to 20+ real sensitive routes (`SensitiveScreenProtection` in `app_router.dart`), not dead code. **Runtime-verified, not just built**: generated a throwaway local-only signing key (never committed — gitignored, deleted after use) purely to exercise `flutter build apk --release` end-to-end; R8 minify+shrink succeeded (74.0MB), installed on the `MORT_QA_Pixel6` emulator, launched, and stayed resumed with zero `FATAL EXCEPTION` in logcat. Local API 36 emulator evidence also passed the native smoke suite and large-text safety acknowledgement flow; the emulator cleanup exit code 1 occurred only after intentional shutdown and is expected. | Full authenticated Android Phase 17 journeys remain pending safe public QA configuration; keyboard, small-screen, reduced-motion, and full role-surface checks remain unexecuted |
 | iOS source implementation/parity | 100 (of sampled scope) | macOS/Xcode build = PASS; App Store signing = BLOCKED_EXTERNAL | `MORT_IOS_NATIVE_SOURCE_AUDIT.md` establishes the privacy, OAuth, Firebase, permission, and ATS contracts. GitHub Actions [run 34131627976](https://github.com/mortapp/Mort/actions/runs/34131627976) on macOS/Xcode 16.2 passed pub get, format, analyze, 487-test suite, CocoaPods, `xcodebuild -list`, unsigned `flutter build ios --release --no-codesign`, IPA packaging, and artifact upload for `62b48fd`. The CocoaPods base-config warning is non-blocking: `Flutter/Debug.xcconfig` and `Flutter/Release.xcconfig` already include the matching Pods configs, and Profile maps to Release. | No sampled build-path work remains; real-device testing and distribution signing remain external |
-| iOS/Android real-device QA (BrowserStack) | 0 (execution) / 100 (scaffolding) | BrowserStack account = BLOCKED_EXTERNAL | [Run 34131627976](https://github.com/mortapp/Mort/actions/runs/34131627976) produced and uploaded the unsigned `mort-ios-browserstack-qa` IPA artifact. The BrowserStack credential-check job passed and deliberately skipped App Automate upload because credentials are absent. The workflow and `scripts/browserstack/*.ps1` remain ready for a real upload once configured. | Cannot execute end-to-end without credentials; unverified whether BrowserStack accepts the unsigned iOS artifact (explicitly flagged in workflow/script comments, not assumed) |
+| iOS/Android real-device QA (BrowserStack) | iOS execution PASS / Android cloud execution not required | BrowserStack iOS QA = PASS; Android local emulator = PARTIAL | [Run 34472297830](https://github.com/mortapp/Mort/actions/runs/34472297830) built, uploaded, and completed the three-device iOS functional matrix against the post-redesign candidate; evidence artifact contains all passing checkpoint screenshots. | Android full authenticated/device-configuration coverage remains pending safe QA public configuration; App Store/TestFlight signing remains external |
 | UI/design system/V6 polish | 100 (of sampled scope) | N/A | `MORT_UI_DESIGN_SYSTEM_AUDIT.md`: token-bypass scan (6 hits, all legitimate — Google/Apple brand-guideline colors, one shadow overlay); canonical-button spot-check (raw TextButton usage found to be correct inline-link/dialog patterns, not violations); accessibility scan of all 43 IconButton sites found and fixed one real gap (missing tooltip on notification "mark as read", `MortIconButton`'s tooltip is required at the type level so this was the only bypass); tap-target constant (`MortSpacing.minTouchTarget = 48.0`) applied consistently; reduced-motion and high-contrast confirmed as real, plumbed-through preferences, not stubs | Full screen-by-screen visual parity not eyeballed (needs a running device pass, better suited to the BrowserStack track) |
 | Automated tests | 487 passed / 2 skipped / 0 failed | N/A | Grew from 448 at session start to 487 across the legal-reacceptance (4 new), and financial-safety-transfer (4 new files) work; every regression run this session green | No new automated backend test harness exists (pgTAP/SQL) — flagged as a gap, not fixed (would be new infrastructure, out of scope for a targeted audit) |
 | Legal/compliance implementation | 100 (of sampled scope) | Final attorney legal approval = BLOCKED_EXTERNAL (every document is explicitly `draft_attorney_review`, labeled as such everywhere in-app) | `MORT_LEGAL_RECONSENT_AUDIT.md`: server-authoritative hash-bound acceptance, role/age-specific requirements, no-inferred-acceptance, required-vs-optional decline handling all verified sound. Found and fixed a real gap: nothing prompted an already-onboarded user to re-accept a materially revised document — added `pendingRequiredLegalReacceptanceProvider` + one-shot redirect in `app.dart`, 4 new tests, full regression 452 passed/2 skipped/0 failed | Public-site-vs-in-app wording parity not verified word-for-word (attorney-level task, out of scope) |

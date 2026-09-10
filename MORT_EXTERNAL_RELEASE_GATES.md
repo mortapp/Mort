@@ -6,10 +6,10 @@ credential/account this session does not have and should not fabricate.
 ---
 
 GATE=BrowserStack account/credentials
-STATUS=NOT_EXECUTABLE_FROM_CURRENT_SHELL
-WHY=The local shell has no `BROWSERSTACK_USERNAME`/`BROWSERSTACK_ACCESS_KEY`, and `verify-browserstack-env.ps1` therefore fails closed. Repository secret names for `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY` are now present, but their values cannot be read or exported by this session; no `BROWSERSTACK_APP_URL` is available locally and no BrowserStack MCP connection is active.
-TECHNICAL_WORK_COMPLETE=YES — [GitHub Actions run 34131627976](https://github.com/mortapp/Mort/actions/runs/34131627976) passed its macOS iOS build/test/pod-install/unsigned-IPA artifact pipeline and uploaded `mort-ios-browserstack-qa`. Its BrowserStack upload step was skipped in that run because credentials were unavailable to the job. The workflow and `scripts/browserstack/*.ps1` (verify-env, upload-ios-app, upload-android-app, poll-build, download-results) are ready but cannot be exercised end-to-end from this shell.
-HUMAN_ACTION_REQUIRED=Run the BrowserStack workflow with the configured repository secrets, or provide the credentials through the protected environment and upload the iOS artifact to obtain `BROWSERSTACK_APP_URL`; never paste the key into source or chat.
+STATUS=RESOLVED_FOR_IOS_QA
+WHY=Protected repository secrets were injected by GitHub Actions; the local shell correctly cannot read their values. Workflow run 34472297830 generated the BrowserStack app URL, uploaded the candidate, and completed the real-device matrix.
+TECHNICAL_WORK_COMPLETE=YES — [GitHub Actions run 34472297830](https://github.com/mortapp/Mort/actions/runs/34472297830) passed macOS pub get, formatting, analyze,  full Flutter tests, CocoaPods, xcodebuild validation, unsigned iOS build/package, BrowserStack upload, and functional QA on iPhone 15/iOS 17, iPhone 17/iOS 26, and iPhone SE 2022/iOS 15. Evidence was uploaded by the workflow.
+HUMAN_ACTION_REQUIRED=None for BrowserStack QA. App Store/TestFlight distribution still requires the separate Apple signing gate.
 CREDENTIAL_REQUIRED=YES (BROWSERSTACK_USERNAME, BROWSERSTACK_ACCESS_KEY)
 PROVIDER=BrowserStack
 LAUNCH_IMPACT=Blocks all real-iPhone and real-Android-cloud QA (Tracks 10-11)
