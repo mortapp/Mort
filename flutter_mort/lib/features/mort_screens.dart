@@ -2087,7 +2087,7 @@ class _OnboardingMomentumCard extends StatelessWidget {
             label: progress.isComplete
                 ? 'Setup complete'
                 : '$completed of 11 steps saved',
-            color: MortColors.neon,
+            color: MortColors.accent,
           ),
           const SizedBox(height: MortSpacing.sm),
           Text(
@@ -3338,7 +3338,7 @@ class _ApplicationCard extends ConsumerWidget {
           MortBadge(
             label: application.status,
             color: application.status == 'accepted'
-                ? MortColors.neon
+                ? MortColors.accent
                 : MortColors.safetyBlue,
           ),
           if (application.note != null) ...[
@@ -3789,7 +3789,7 @@ class VerificationScreen extends ConsumerWidget {
               ' ',
             ),
             color: profile?.verificationStatus == 'approved'
-                ? MortColors.neon
+                ? MortColors.accent
                 : MortColors.warning,
           ),
         ),
@@ -4511,7 +4511,7 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
                   color: message.blocked
                       ? MortColors.danger.withValues(alpha: 0.1)
                       : message.senderId == currentUserId
-                      ? MortColors.roseGoldDeep.withValues(alpha: 0.34)
+                      ? MortColors.raisedBlack.withValues(alpha: 0.34)
                       : MortColors.card,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

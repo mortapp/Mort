@@ -72,7 +72,7 @@ class _MortSparkSectionState extends ConsumerState<MortSparkSection> {
                 children: [
                   const Icon(
                     Icons.auto_awesome_rounded,
-                    color: MortColors.roseGold,
+                    color: MortColors.accent,
                   ),
                   const SizedBox(width: MortSpacing.sm),
                   Expanded(

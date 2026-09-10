@@ -218,14 +218,14 @@ class MortGuideMessageBubble extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
         child: MortCard(
-          color: assistant ? MortColors.card : MortColors.neonDeep,
+          color: assistant ? MortColors.card : MortColors.raisedBlack,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 assistant ? 'MORT Guide' : 'You',
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: assistant ? MortColors.neon : MortColors.text,
+                  color: assistant ? MortColors.accent : MortColors.text,
                 ),
               ),
               const SizedBox(height: MortSpacing.xs),

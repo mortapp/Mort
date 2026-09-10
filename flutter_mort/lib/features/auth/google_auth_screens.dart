@@ -913,13 +913,13 @@ class _IdentityCard extends StatelessWidget {
         contentPadding: EdgeInsets.zero,
         leading: Icon(
           connected ? Icons.verified_user : Icons.link_off,
-          color: connected ? MortColors.neon : MortColors.textMuted,
+          color: connected ? MortColors.accent : MortColors.textMuted,
         ),
         title: Text(title),
         subtitle: Text(subtitle),
         trailing: MortBadge(
           label: connected ? 'Connected' : 'Not connected',
-          color: connected ? MortColors.neon : MortColors.textMuted,
+          color: connected ? MortColors.accent : MortColors.textMuted,
         ),
       ),
     );
