@@ -86,10 +86,10 @@ REAL_AVATAR_UPLOADS=NO
 REAL_EVIDENCE_UPLOADS=NO
 REAL_MODERATION_MUTATIONS=NO
 
-ANDROID_FULL_INTERACTION=REMAINING (a live non-Impeller session exposed the QA shell and role landmarks, but the emulator disconnected before interaction evidence could be completed)
-ANDROID_EMULATOR_EXECUTION_BLOCKER=EMULATOR_SESSION_UNSTABLE
+ANDROID_FULL_INTERACTION=REMAINING (see forensic evidence below -- the emulator process itself terminates before interactive checkpoint evidence can be captured)
+ANDROID_EMULATOR_EXECUTION_BLOCKER=HOST_RESOURCE_PRESSURE (evidenced; see below)
 PHASE_17_ANDROID_DEVICE_QA=PARTIAL
-ANDROID_DEVICE_QA_BLOCKED=NO
+ANDROID_DEVICE_QA_BLOCKED=YES (interactive checkpoints only -- non-interactive/fixture-test evidence above is unaffected)
 
 The local AVD was reused without modifying or deleting existing virtual devices.
 The internal QA shell was extended to mount the real production
@@ -99,13 +99,78 @@ This closes the role-fixture implementation gap but does not by itself replace
 the remaining emulator interaction checks for keyboard, compact layout, and
 reduced motion.
 
-The current candidate debug APK was rebuilt and installed on `MORT_QA_Pixel6`
-with the internal QA defines. A live `flutter run --no-enable-impeller`
-session exposed `BrowserStack functional QA`, `qa-open-onboarding`, and
-`qa-open-teen` accessibility landmarks, proving the QA shell can render on
-the emulator when Impeller is disabled. The emulator then disconnected while
-opening onboarding, before keyboard or full-interaction evidence could be
-completed. The four interaction checks above remain unaccepted.
+### Android emulator instability -- forensic root-cause session (2026-09-11)
+
+Three independent, reproducible emulator **process** crashes (not mere ADB
+disconnects -- `tasklist` confirmed the `emulator`/`qemu` process itself
+disappeared each time, and `adb kill-server`/`start-server` found no device)
+occurred in this session, all at the identical trigger: navigating from the
+QA home screen into the Onboarding form (`qa-open-onboarding` tap). A fourth,
+historical occurrence at the same trigger was already recorded by a prior
+session. MORT's own UI never crashed and never rendered incorrectly in any
+observed screenshot before a crash -- this is an Android
+emulator/host-environment failure, not a MORT application defect.
+
+Evidence gathered:
+- Host free RAM was critically low before any emulator launch: 2.05 GB free
+  of 16 GB total (`Get-CimInstance Win32_OperatingSystem`).
+- The emulator log (`INFO | host doesn't support requested feature:
+  CPUID.01H:ECX.xsave [bit 26]` / `...ECX.avx [bit 28]`) shows the host CPU's
+  AVX/XSAVE features are not exposed to the hypervisor, consistent with this
+  machine running inside a constrained or nested virtualization layer --
+  degrading QEMU/SwiftShader (software Vulkan/GL) performance generally.
+- Each crash was immediately followed by a large jump in free host RAM
+  (~1.3 GB before a crash to ~4.3 GB after), confirming the live emulator's
+  real footprint substantially exceeds its own `-memory` flag and that the
+  crash coincides with peak resource demand (rendering a multi-field form).
+- No crash/panic signature appears in the emulator's own log on any of the
+  three occurrences -- the process is silently terminated, not internally
+  crashing, which is consistent with external termination under memory
+  pressure rather than an emulator-internal bug.
+- A separate, non-fatal `SystemUI isn't responding` ANR (Android System UI,
+  not MORT) recurred on nearly every cold boot/launch and was successfully
+  recovered by choosing "Wait" and pausing -- proving the underlying system is
+  merely slow under this host's constraints, not permanently broken, but that
+  slowness is severe enough to tip into a fatal process loss under load.
+
+Repairs attempted, in escalating order, before classifying this as a genuine
+environment blocker:
+1. Cold boot with `-no-snapshot -no-audio -no-boot-anim -no-window` (ruled
+   out stale-snapshot corruption as the cause -- boot succeeded cleanly each
+   time, and a 5-minute post-boot stability soak, 20 consecutive
+   `adb devices`/`sys.boot_completed` checks, passed with zero disconnects
+   while a concurrent `flutter build apk --debug` ran).
+2. Stopped a stray Gradle daemon left over from that build (`./gradlew
+   --stop`, reclaimed ~320 MB) before the second attempt.
+3. Reduced guest RAM from the AVD default 2048 MB to 1536 MB, then to
+   1024 MB, on successive relaunches.
+4. Added generous settle pauses (8-10s) between every input action and
+   replaced chained tap+screenshot sequences with paced,
+   connectivity-checked steps.
+None of these prevented the crash from recurring at the same trigger; the
+ANR-recovery behavior did improve (two of the three attempts survived the
+ANR itself and only failed on the *next* interaction), which further
+localizes the failure to cumulative resource exhaustion under sustained
+rendering load rather than a single fixable misconfiguration.
+
+Per the three-strikes escalation policy, further blind retries were stopped.
+This is classified as `ANDROID_ENVIRONMENT_BLOCKER=HOST_RESOURCE_PRESSURE`
+(compounded by constrained/nested-virtualization CPU features) -- an INTERNAL
+task genuinely blocked by the current local host's available resources, not
+an external/credential gate and not a MORT code defect. Keyboard,
+compact-layout, and reduced-motion interactive checks remain REMAINING for
+this reason; they should be retried on a host with materially more free RAM
+(a clean reboot freeing the ~13 GB currently held by other running
+applications would very plausibly resolve this) or via a cloud-hosted
+Android emulator/device lane analogous to the already-working iOS BrowserStack
+track.
+
+The current candidate debug APK was rebuilt at commit `3831add` and installed
+on `MORT_QA_Pixel6` with the internal QA defines. Live sessions (both with and
+without Impeller) rendered the full QA home landmark set correctly, including
+the newly added `qa-open-teen`/`qa-open-adult`/`qa-open-guardian`/
+`qa-open-admin` buttons in the converged monochrome theme -- screenshots
+confirm pixel-correct rendering with no visual defects.
 The native smoke suite verified Android secure storage, device-auth capability,
 permission snapshot, screen-security acquire/release, package/version identity,
 and the large-text safety acknowledgement flow. The remaining checks are
