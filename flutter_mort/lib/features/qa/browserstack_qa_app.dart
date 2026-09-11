@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_mort/data/models/profile.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -56,6 +57,22 @@ class BrowserStackQaApp extends StatelessWidget {
         GoRoute(
           path: '/qa/legal',
           builder: (_, _) => const TeenTermsSummaryScreen(),
+        ),
+        GoRoute(
+          path: '/qa/role/teen',
+          builder: (_, _) => const RoleHomeScreen(role: UserRole.teen),
+        ),
+        GoRoute(
+          path: '/qa/role/adult',
+          builder: (_, _) => const RoleHomeScreen(role: UserRole.adult),
+        ),
+        GoRoute(
+          path: '/qa/role/guardian',
+          builder: (_, _) => const RoleHomeScreen(role: UserRole.guardian),
+        ),
+        GoRoute(
+          path: '/qa/role/admin',
+          builder: (_, _) => const RoleHomeScreen(role: UserRole.admin),
         ),
       ],
     );
@@ -131,6 +148,34 @@ class _BrowserStackQaHome extends StatelessWidget {
           label: 'Legal',
           icon: Icons.gavel_outlined,
           onPressed: () => context.push('/qa/legal'),
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        _QaRouteButton(
+          identifier: 'qa-open-teen',
+          label: 'Teen role',
+          icon: Icons.school_outlined,
+          onPressed: () => context.push('/qa/role/teen'),
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        _QaRouteButton(
+          identifier: 'qa-open-adult',
+          label: 'Adult role',
+          icon: Icons.work_outline,
+          onPressed: () => context.push('/qa/role/adult'),
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        _QaRouteButton(
+          identifier: 'qa-open-guardian',
+          label: 'Guardian role',
+          icon: Icons.family_restroom_outlined,
+          onPressed: () => context.push('/qa/role/guardian'),
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        _QaRouteButton(
+          identifier: 'qa-open-admin',
+          label: 'Admin role',
+          icon: Icons.admin_panel_settings_outlined,
+          onPressed: () => context.push('/qa/role/admin'),
         ),
       ],
     );

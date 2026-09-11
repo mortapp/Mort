@@ -12,7 +12,7 @@ TECHNICAL_WORK_COMPLETE=YES — [GitHub Actions run 34472297830](https://github.
 HUMAN_ACTION_REQUIRED=None for BrowserStack QA. App Store/TestFlight distribution still requires the separate Apple signing gate.
 CREDENTIAL_REQUIRED=YES (BROWSERSTACK_USERNAME, BROWSERSTACK_ACCESS_KEY)
 PROVIDER=BrowserStack
-LAUNCH_IMPACT=Blocks all real-iPhone and real-Android-cloud QA (Tracks 10-11)
+LAUNCH_IMPACT=No longer blocks iOS BrowserStack QA; real Android cloud QA remains outside the local emulator evidence
 FAIL_CLOSED_BEHAVIOR=N/A (test infrastructure, not a production runtime gate)
 
 ---
@@ -31,12 +31,12 @@ FAIL_CLOSED_BEHAVIOR=Correct — build hard-fails rather than silently falling b
 
 GATE=Apple Developer account / signing certificates
 STATUS=UNAVAILABLE for App Store distribution; macOS CI build PASS
-WHY=This program runs on a Windows host, but [GitHub Actions run 34131627976](https://github.com/mortapp/Mort/actions/runs/34131627976) supplied the missing macOS/Xcode 16.2 evidence: pub get, format, analyze, 487 tests, CocoaPods, `xcodebuild -list`, unsigned `flutter build ios --release --no-codesign`, IPA packaging, and artifact upload all passed for `62b48fd`. The build intentionally has no signing. Separately, `test/ios_platform_parity_test.dart` deliberately asserts the Xcode project has no APNs/Sign-in-with-Apple entitlement until provider configuration and legal gates actually exist; this is intentional, not an oversight (see `MORT_IOS_NATIVE_SOURCE_AUDIT.md`).
+WHY=This program runs on a Windows host, but [GitHub Actions run 34472297830](https://github.com/mortapp/Mort/actions/runs/34472297830) supplied the missing macOS/Xcode evidence: pub get, format, analyze, full Flutter tests, CocoaPods, `xcodebuild` validation, unsigned iOS release build, IPA packaging, BrowserStack upload, and three-device real-device QA all passed for `0180d27`. The build intentionally has no App Store signing. Separately, `test/ios_platform_parity_test.dart` deliberately asserts the Xcode project has no APNs/Sign-in-with-Apple entitlement until provider configuration and legal gates actually exist; this is intentional, not an oversight (see `MORT_IOS_NATIVE_SOURCE_AUDIT.md`).
 TECHNICAL_WORK_COMPLETE=YES for every pre-account technical check, including the real macOS build. Distribution signing remains intentionally unverified without Apple credentials.
-HUMAN_ACTION_REQUIRED=Provide Apple Developer Program membership plus signing certificates/provisioning profiles once TestFlight/App Store distribution is needed. BrowserStack App Live/App Automate testing may not require full Apple distribution signing, but that remains unverified until credentials allow a real device-cloud upload.
+HUMAN_ACTION_REQUIRED=Provide Apple Developer Program membership plus signing certificates/provisioning profiles once TestFlight/App Store distribution is needed. BrowserStack real-device QA is already verified separately in run 34472297830.
 CREDENTIAL_REQUIRED=YES, for App Store distribution specifically
 PROVIDER=Apple
-LAUNCH_IMPACT=Blocks TestFlight/App Store submission. Does not necessarily block BrowserStack device testing (BrowserStack can often re-sign uploaded apps for its own devices) — needs verification once a build artifact exists.
+LAUNCH_IMPACT=Blocks TestFlight/App Store submission; it does not block the completed BrowserStack QA evidence.
 FAIL_CLOSED_BEHAVIOR=N/A (build/distribution gate, not a runtime safety gate)
 
 ---

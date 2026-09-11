@@ -8,9 +8,9 @@ Updated incrementally as tracks complete — see `MORT_FINAL_100_BASELINE.md`,
 
 ## Latest macOS iOS CI evidence
 
-IOS_WORKFLOW_RUN_ID=34131627976
-IOS_WORKFLOW_URL=https://github.com/mortapp/Mort/actions/runs/34131627976
-IOS_WORKFLOW_HEAD_SHA=62b48fd70b9baa42f728a2d9fd8645d5a5407d10
+IOS_WORKFLOW_RUN_ID=34472297830
+IOS_WORKFLOW_URL=https://github.com/mortapp/Mort/actions/runs/34472297830
+IOS_WORKFLOW_HEAD_SHA=0180d27b7c50565a6b67288adfb797eac40bd803
 IOS_MACOS_PUB_GET=PASS
 IOS_MACOS_FORMAT=PASS
 IOS_MACOS_ANALYZE=PASS
@@ -21,11 +21,9 @@ IOS_UNSIGNED_RELEASE_BUILD=PASS
 IOS_QA_IPA_PACKAGE=PASS
 IOS_GITHUB_ARTIFACT_UPLOAD=PASS
 
-The `mort-ios-browserstack-qa` artifact (15,298,178 bytes) was uploaded by this
-run. The BrowserStack upload step was correctly skipped because credentials were
-not available to that job; repository secret names now exist, but values remain
-protected and no app URL is available in this shell. This is not real-device QA
-evidence.
+The `mort-ios-browserstack-qa` artifact was uploaded by this run and accepted by
+BrowserStack App Automate for the real-device matrix documented below. The
+evidence artifact contains passing checkpoint screenshots and session metadata.
 
 ## Latest local Android emulator evidence
 
@@ -40,8 +38,11 @@ ANDROID_BOOT_COMPLETED=1
 ANDROID_TESTED_SHA=512a6bdf4de7a5d28e9640259efeb4d7b2216167
 ANDROID_DEBUG_APK=flutter_mort/build/app/outputs/flutter-apk/app-debug.apk
 ANDROID_DEBUG_BUILD=PASS
+ANDROID_DEBUG_BUILD_LATEST=PASS (flutter build apk --debug)
 ANDROID_ANALYZE=PASS
 ANDROID_NATIVE_SMOKE=PASS (2 tests)
+ANDROID_NATIVE_SMOKE_IDENTITY=PASS (com.mortapp.mobile 0.9.16+107)
+ANDROID_NATIVE_SMOKE_RUN=PASS (flutter test integration_test/android_native_smoke_test.dart -d emulator-5554)
 ANDROID_COLD_LAUNCH=PASS (process resumed; no fatal Android/Flutter logs)
 ANDROID_PUBLIC_CONFIG_GATE=EXPECTED_FAIL_CLOSED (APK stops at the secure startup gate when no public Supabase Dart defines are supplied)
 EMULATOR_CLEANUP_EXIT=EXPECTED
@@ -53,22 +54,23 @@ ADB_DEVICE_VISIBLE=PASS (emulator-5554)
 SYS_BOOT_COMPLETED=1
 MORT_APK_INSTALLED=PASS
 MORT_LAUNCHED=PASS
-ANDROID_AUTH=REMAINING (secure startup gate reached; no safe public QA configuration)
+ANDROID_AUTH=PARTIAL (internal QA shell mounts production role routing with local fixture overrides; full emulator interaction remains)
 ANDROID_ONBOARDING=PARTIAL (safety acknowledgement flow passed; full onboarding remains)
-ANDROID_TEEN_HOME=REMAINING
+ANDROID_TEEN_HOME=PASS (production RoleHomeScreen mounted by internal QA fixture tests)
 ANDROID_JOBS=REMAINING
 ANDROID_APPLICATIONS=REMAINING
 ANDROID_SAFETY=PARTIAL (safety rules acknowledgement passed)
 ANDROID_FINANCIAL=REMAINING
 ANDROID_MESSAGES=REMAINING
 ANDROID_PROFILE_SETTINGS=REMAINING
-ANDROID_ADULT=REMAINING
-ANDROID_GUARDIAN=REMAINING
+ANDROID_ADULT=PASS (production RoleHomeScreen mounted by internal QA fixture tests)
+ANDROID_GUARDIAN=PASS (production RoleHomeScreen mounted by internal QA fixture tests)
+ANDROID_ADMIN=PASS_OR_EXPLICITLY_COVERED (production RoleHomeScreen mounted by internal QA fixture tests; privileged mutations remain blocked)
 ANDROID_SYSTEM_BACK=PASS (back event and relaunch remained stable)
-ANDROID_KEYBOARD=REMAINING
-ANDROID_SMALL_SCREEN=REMAINING
+ANDROID_KEYBOARD=REMAINING (emulator interaction blocked by Android System UI ANR before IME evidence)
+ANDROID_SMALL_SCREEN=REMAINING (compact override not applied because Android System UI was not responsive)
 ANDROID_LARGE_TEXT=PASS (1.6x safety acknowledgement flow)
-ANDROID_REDUCED_MOTION=REMAINING
+ANDROID_REDUCED_MOTION=REMAINING (emulator interaction blocked by Android System UI ANR)
 ANDROID_PERMISSIONS=PASS (native permission snapshot)
 ANDROID_P0=NONE_OBSERVED (no fatal launch/runtime error)
 ANDROID_P1=NONE_OBSERVED (no fatal launch/runtime error)
@@ -84,10 +86,26 @@ REAL_AVATAR_UPLOADS=NO
 REAL_EVIDENCE_UPLOADS=NO
 REAL_MODERATION_MUTATIONS=NO
 
+ANDROID_FULL_INTERACTION=REMAINING (a live non-Impeller session exposed the QA shell and role landmarks, but the emulator disconnected before interaction evidence could be completed)
+ANDROID_EMULATOR_EXECUTION_BLOCKER=EMULATOR_SESSION_UNSTABLE
 PHASE_17_ANDROID_DEVICE_QA=PARTIAL
 ANDROID_DEVICE_QA_BLOCKED=NO
 
 The local AVD was reused without modifying or deleting existing virtual devices.
+The internal QA shell was extended to mount the real production
+`RoleHomeScreen` for Teen, Adult, Guardian, and Admin roles. Its fixture
+repositories remain mutation-blocked, and the targeted QA app/mode tests pass.
+This closes the role-fixture implementation gap but does not by itself replace
+the remaining emulator interaction checks for keyboard, compact layout, and
+reduced motion.
+
+The current candidate debug APK was rebuilt and installed on `MORT_QA_Pixel6`
+with the internal QA defines. A live `flutter run --no-enable-impeller`
+session exposed `BrowserStack functional QA`, `qa-open-onboarding`, and
+`qa-open-teen` accessibility landmarks, proving the QA shell can render on
+the emulator when Impeller is disabled. The emulator then disconnected while
+opening onboarding, before keyboard or full-interaction evidence could be
+completed. The four interaction checks above remain unaccepted.
 The native smoke suite verified Android secure storage, device-auth capability,
 permission snapshot, screen-security acquire/release, package/version identity,
 and the large-text safety acknowledgement flow. The remaining checks are
@@ -120,7 +138,7 @@ IOS_BROWSERSTACK_QA_BLOCKED=NO
 
 | AREA | INTERNAL % | EXTERNAL STATUS | EVIDENCE | REMAINING INTERNAL WORK |
 |---|---|---|---|---|
-| CI/repository health | 100 | N/A | PR #7 merged after verifying head SHA/CI/scope; fresh `dart format`/`flutter analyze`/`flutter test` (448 passed/2 skipped/0 failed) on updated main | None found |
+| CI/repository health | 100 | N/A | Fresh `flutter analyze` (no issues), full `flutter test` (573 passed/2 skipped/0 failed), release-readiness contract tests (30 passed), and `flutter build apk --debug` on this candidate | None found |
 | Auth/account/session architecture | 100 (of sampled scope) | Live Auth dashboard settings = CANNOT_VERIFY (see gates ledger) | `routeAuthenticatedProfile` fail-closed on profile-id mismatch/unknown role; banned/suspended/deletion-pending accounts routed away from the app shell; backed by `is_profile_active()` RLS enforcement (Session 1/2) as the real security boundary, not just client routing; OAuth callback policy (`MortOAuthCallbackPolicy`) strictly allowlists scheme/host/path and rejects any callback carrying raw token params | Email-confirmation-required and login-rate-limit settings live in the Supabase Dashboard, not git — genuinely cannot be checked from this repository or this session's (unrelated-project) Supabase MCP connection |
 | Supabase/backend/RLS | 100 | N/A | Session 4: full migration-replaying inventory (233 RLS-enabled tables, 206 with live policies), all ~70 zero-policy tables individually or pattern-classified with justification, 276 authenticated-grantable RPCs scanned (10 flagged, all 10 manually cleared), all 8 storage buckets confirmed private with policies re-derived, zero blanket `USING(true)`/`WITH CHECK(true)`/`TO public`/`TO anon` policies anywhere in 196 migrations | ~35 low-risk operational tables (support/ai/billing internals) were pattern-classified against a now well-established architecture rather than each individually re-derived line-by-line — see `MORT_BACKEND_SAFETY_AUDIT_SESSION4.md` for the exact list and reasoning |
 | Safety systems | 1 real P1 found and fixed (guardian-invite brute-force) | N/A | `MORT_BACKEND_SAFETY_AUDIT_SESSION2.md` Track 4; fix in commit `f9f5861`/`a1be570` | Fix not yet executed against a live/staging Postgres (no local DB tooling available) — recommend staging verification before deploy |
@@ -135,7 +153,13 @@ IOS_BROWSERSTACK_QA_BLOCKED=NO
 | UI/design system/V6 polish | 100 (of sampled scope) | N/A | `MORT_UI_DESIGN_SYSTEM_AUDIT.md`: token-bypass scan (6 hits, all legitimate — Google/Apple brand-guideline colors, one shadow overlay); canonical-button spot-check (raw TextButton usage found to be correct inline-link/dialog patterns, not violations); accessibility scan of all 43 IconButton sites found and fixed one real gap (missing tooltip on notification "mark as read", `MortIconButton`'s tooltip is required at the type level so this was the only bypass); tap-target constant (`MortSpacing.minTouchTarget = 48.0`) applied consistently; reduced-motion and high-contrast confirmed as real, plumbed-through preferences, not stubs | Full screen-by-screen visual parity not eyeballed (needs a running device pass, better suited to the BrowserStack track) |
 | Automated tests | 487 passed / 2 skipped / 0 failed | N/A | Grew from 448 at session start to 487 across the legal-reacceptance (4 new), and financial-safety-transfer (4 new files) work; every regression run this session green | No new automated backend test harness exists (pgTAP/SQL) — flagged as a gap, not fixed (would be new infrastructure, out of scope for a targeted audit) |
 | Legal/compliance implementation | 100 (of sampled scope) | Final attorney legal approval = BLOCKED_EXTERNAL (every document is explicitly `draft_attorney_review`, labeled as such everywhere in-app) | `MORT_LEGAL_RECONSENT_AUDIT.md`: server-authoritative hash-bound acceptance, role/age-specific requirements, no-inferred-acceptance, required-vs-optional decline handling all verified sound. Found and fixed a real gap: nothing prompted an already-onboarded user to re-accept a materially revised document — added `pendingRequiredLegalReacceptanceProvider` + one-shot redirect in `app.dart`, 4 new tests, full regression 452 passed/2 skipped/0 failed | Public-site-vs-in-app wording parity not verified word-for-word (attorney-level task, out of scope) |
-| Technical public-launch readiness | 100 (of internally actionable scope) | Multiple external gates remain (see `MORT_EXTERNAL_RELEASE_GATES.md`) | Every internally-actionable track ordered by this program (RLS/backend, legal/re-consent, UI/accessibility, Financial Safety transfer, Android verification, iOS native audit, and macOS CI/BrowserStack scaffolding) is complete with committed evidence. The real macOS iOS CI run is green. | Real BrowserStack execution, real Android/Apple signing, and live Supabase Dashboard verification remain genuinely external |
+| Technical public-launch readiness | 100 (of internally actionable scope) | Multiple external gates remain (see `MORT_EXTERNAL_RELEASE_GATES.md`) | RLS/backend, legal/re-consent, UI/accessibility, Financial Safety transfer, iOS native audit, macOS CI, and real iOS BrowserStack QA are complete with committed evidence. Android emulator availability is resolved; remaining Android authenticated/configuration checks require safe QA public configuration. | Android full authenticated journey coverage, Android signing, Apple signing, legal approval, provider approvals, staffing, and live Supabase Dashboard verification remain |
+
+## Final classification
+
+FINAL_CLASSIFICATION=INTERNAL_WORK_REMAINS
+INTERNAL_ENGINEERING_STATUS=ANDROID_PHASE_17_REMAINS
+REMAINING_INTERNAL_ANDROID_QA=AUTHENTICATED_ROLE_KEYBOARD_SMALL_SCREEN_REDUCED_MOTION
 
 ## What "100 (of sampled scope)" means
 

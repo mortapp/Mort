@@ -9,6 +9,7 @@ import 'package:flutter_mort/data/repositories/avatar_repository.dart';
 import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/features/qa/browserstack_qa_app.dart';
 import 'package:flutter_mort/features/qa/browserstack_qa_fixtures.dart';
+import 'package:flutter_mort/features/mort_screens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
@@ -56,10 +57,27 @@ void main() {
       'qa-open-settings',
       'qa-open-permissions',
       'qa-open-legal',
+      'qa-open-teen',
+      'qa-open-adult',
+      'qa-open-guardian',
+      'qa-open-admin',
     ]) {
       expect(find.bySemanticsLabel(identifier), findsOneWidget);
     }
   });
+
+  for (final role in const ['teen', 'adult', 'guardian', 'admin']) {
+    testWidgets('QA mounts the real $role role home', (tester) async {
+      await _pumpQaApp(tester);
+
+      final route = find.bySemanticsLabel('qa-open-$role');
+      await tester.ensureVisible(route);
+      await tester.tap(route);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(RoleHomeScreen), findsOneWidget);
+    });
+  }
 
   testWidgets('financial route renders only deterministic zero-state data', (
     tester,
