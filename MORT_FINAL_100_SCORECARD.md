@@ -459,6 +459,21 @@ full page-by-page audit (only the primary design-system tokens were sampled, not
 one-off inline color in the codebase), but is a genuine computed result, not a fabricated
 pass.
 
+**Correction (2026-09-12, later same day):** the table above used `--text`/`--muted`/
+`--muted2`/`--accent-blue` as declared in `app/globals.css`'s `:root`. During the
+anti-vibecode pass below, it turned out `app/cinematic.css` declares its own `:root`
+block that redefines several of the *same* custom-property names (`--bg`, `--text`,
+`--muted`, `--muted2`, `--primary*`, `--accent-blue`, `--accent-pink`, `--purple`), and
+because `layout.tsx` imports `cinematic.css` *after* `globals.css`, its values win the
+cascade everywhere -- so the numbers above were computed from shadowed, non-rendering
+values. Recomputed with the actual cascade-resolved values: body text 17.96:1, muted
+text 8.22:1 (higher margin than first reported, not lower), muted2 11.63:1, `.btn.info`
+text-on-accent-blue 9.40:1, `.btn.danger` text-on-tint 6.90:1. `.btn.sos` is unaffected
+(its colors aren't in `cinematic.css`'s override list). **The conclusion is unchanged
+and if anything stronger -- every pair still clears AA with real margin -- but the
+specific figures above should be read as superseded by these.** See the "Cascade
+duplication" finding below for the underlying `:root`-shadowing issue itself.
+
 ## Mobile app (flutter_mort): anti-vibe-code + accessibility spot-check (2026-09-12)
 
 Companion pass to the mort-web checks above, applying the same launch-integrity
@@ -513,3 +528,335 @@ No anti-vibe-code or accessibility defect found in this mobile spot-check. As wi
 the web contrast check, this samples the shared design-system tokens, not every
 one-off inline color across ~62 screen files -- a genuine result at the scope
 actually covered, not a claim of exhaustive coverage.
+
+## MORT anti-vibecode / anti-template visual quality gate (2026-09-12)
+
+Note on process: mid-way through this pass, `mortapp/mort-web` PR #2 and `mortapp/Mort`
+PRs #8 and #9 were merged into their respective `main` branches by the repo owner
+(outside this session -- confirmed via `gh pr view --json mergedBy`, `is_bot=false`,
+not a `gh pr merge` run here). Checked the blast radius before continuing: PR #8's
+branch was already a full ancestor of PR #9's (post-redesign was built on top of
+readiness), so that merge added zero new content; PR #9's merge is CI-green
+(`https://github.com/mortapp/Mort/actions/runs/34698368559`, success) and its content
+is everything already audited and pushed in this engagement. `mort-web`'s production
+deployment was confirmed live and correct post-merge (`mortapp.org` serves the fixed
+CSP header). Since both `main` branches are now ahead of the branches this session had
+been working on, the fixes below are on fresh branches
+(`anti-vibecode-final-100-pass`) off current `main` in both repos, each opened as its
+own PR and **not merged**, per the standing "no merge without explicit authorization"
+rule.
+
+### Methodology
+
+Source audit (grep/read against real files) -> live-render audit (real production
+builds, Lighthouse headless-Chrome runs including genuine full-page screenshots) ->
+fix concrete findings only -> second independent source pass -> second live-render
+confirmation. Chrome browser automation (`claude-in-chrome`) was unavailable this
+session, so "live" evidence for the website is Lighthouse's real rendered
+screenshots/scores/computed-accessibility-audit rather than interactive manual
+testing; this is disclosed everywhere it's relied on, not presented as more than it
+is. iOS evidence reuses the already-accepted BrowserStack run
+`IOS_BROWSERSTACK_WORKFLOW_RUN=34472297830` per the gate's own instruction not to
+rerun solely for prettier screenshots. Android live/interactive evidence remains
+blocked by host RAM (checked again this session: 2.26 GB free, still well under what
+the prior 3-crash forensic session needed; see the "Re-attempt check" above) --
+recorded as a genuine, disclosed gap, not fabricated.
+
+### Findings and fixes (mort-web)
+
+1. **Dead "gradient orb + glass card" CSS (`app/globals.css`).** `.hero`,
+   `.hero::before/::after`, `.hero-grid`, `.hero-visual`, `.hero-visual-glow` (a
+   `radial-gradient` + `filter: blur(30px)` "blob", explicitly self-labeled in its own
+   code comment as "gradient-to-solid blob"), and `.hero-card`/`.hero-card-back`/
+   `.hero-card-front` (rotated, `backdrop-filter: blur(14px)` floating cards) were all
+   dead code -- zero references in any `.tsx` file, confirmed by grep across `app/`
+   and `components/`. The live hero (`components/mort-hero.tsx`, class `cinema-hero`)
+   was built later on a completely different class vocabulary and never used these.
+   **FIXED**: removed the entire block (was providing zero value and is exactly the
+   "gradient orb" + "glassmorphic floating card" signature this gate targets).
+2. **Dead "gradient hero text" utility (`app/globals.css`).** `.gradient-text`
+   (`background: var(--primary-gradient); background-clip: text; color: transparent`)
+   -- also zero references anywhere in `.tsx`. **FIXED**: removed.
+3. **Real color-token cascade bug: `.role-badge.guardian`/`.level-badge.l4`.**
+   Hardcoded a literal pink background (`rgba(255,179,209,...)`) while using
+   `var(--accent-pink)` for text. Traced the actual cascade (see finding 4) and
+   confirmed `--accent-pink` resolves to a cool ice-blue-gray (`#bfc9d5`), not pink --
+   so the real rendered badge was a pink chip with mismatched blue-gray text.
+   **FIXED**: background now derives from `var(--accent-pink-tint)`/`var(--accent-pink)`
+   so text and background are always coherent regardless of which stylesheet's
+   palette is active.
+4. **`app/cinematic.css` silently shadows a large subset of `app/globals.css`'s
+   `:root` tokens.** Both files declare an unscoped `:root { ... }` block with several
+   identical custom-property names (`--bg`, `--text`, `--muted`, `--muted2`,
+   `--primary`, `--primary-gradient`, `--primary-tint-bg`, `--accent-blue`,
+   `--accent-pink`, `--purple`, `--purple-tint`, `--accent-pink-tint`, `--radius*`,
+   `--border*`), and since `layout.tsx` imports `globals.css` then `cinematic.css`
+   then `world-chapters.css` (all three global, unscoped), `cinematic.css`'s values
+   always win for anything it redeclares. Its own header comment says it's "Shared
+   material system: neutral metal, black glass, restrained ice-blue accents" -- a
+   deliberate, documented convergence, and its actual values (`--purple: #bac6d4`,
+   `--accent-pink: #bfc9d5` -- both cool grays, not purple/pink at all) are exactly
+   the restrained on-palette system the gate wants. **This means the word "purple" or
+   "pink" appearing as a variable *name* in `globals.css` is a false-positive trap for
+   a naive text search** -- the actual rendered color is neutral gray-blue. Not fixed
+   (would require auditing every one of ~15 shadowed properties across both files for
+   safe consolidation -- real cleanup work, but broader than a "fix only concrete
+   findings" pass should take on unprompted; flagging for deliberate follow-up rather
+   than a blind mid-audit refactor). This also means the WCAG contrast correction
+   above exists because of this exact issue.
+5. **`role-badge.admin`'s "purple" is not visually purple.** Direct consequence of
+   finding 4: `--purple`/`--purple-tint` resolve to `cinematic.css`'s `#bac6d4` (cool
+   gray), so the one deliberate semantic role-color badge that reads "purple" in
+   source never actually renders as purple. ANTI_VIBECODE_01 target is met even more
+   solidly than a first read of `globals.css` alone would suggest.
+6. **Authenticated app shell (`app/app/**`, i.e. adult/guardian/admin/teen
+   dashboards) grepped separately for the same signatures** (purple/violet/indigo,
+   `backdrop-filter`, `.gradient-text`, marquee, bento, `whileInView`) -- zero matches.
+   Also grepped `app/app/admin` specifically for fabricated charts/live-indicator
+   patterns (`chart`, `online now`, `people viewing`) -- zero matches. The
+   authenticated surfaces share the same restrained system as the public marketing
+   pages; no divergent "generic B2B SaaS dashboard" style found.
+7. **Hero badge-like element checked and cleared.** The small `YOUR NEXT CHAPTER
+   STARTS NEARBY` line above the hero headline (visible in the screenshot below) is
+   an `.eyeline` element: plain flat monospace text with a 5x5px dot marker, no
+   background, no border-radius, no pill shape (confirmed in `cinematic.css`). It's
+   part of a consistent "chapter/crossing" editorial kicker device used identically
+   elsewhere on the page (`01 -- LOCAL OPPORTUNITY`, `MORT / THE FIRST CROSSING`), not
+   a generic "NEW" / "Introducing X" decorative startup badge.
+8. **No shadcn/Radix/Lucide dependency at all** -- grepped `package.json`, zero
+   matches. Icons are a hand-rolled `Icon` component with a fixed, small SVG path
+   vocabulary (`components/mort/icon.tsx`), not a generic icon-library catalog look.
+9. **No Inter, no Space Grotesk, no Instrument Serif, no italic-serif accents** --
+   the site uses Plus Jakarta Sans exclusively (one `@import`, now correctly
+   allowlisted in the CSP from the earlier launch-integrity pass). Grepped for
+   `font-style: italic` in every `.css` file: zero matches.
+10. **No grain/noise texture assets anywhere in the repo.**
+11. **The one "beam" grep hit** (`components/mort/scene/environment/weather.tsx`) is
+    a GLSL shader variable name for an atmospheric light-shaft effect inside the 3D
+    weather/atmosphere scene -- unrelated to a cursor-following interactive gimmick.
+    No cursor/spotlight/magnetic-cursor code found anywhere.
+12. **No decorative scroll-reveal.** The only `IntersectionObserver` use
+    (`components/mort-voyage.tsx`) pauses an animated/interactive scene when it's
+    scrolled out of view (a performance optimization paired with a
+    `prefers-reduced-motion` media-query sync and a `MutationObserver` on scene
+    state) -- not a "fade content in on scroll" decoration.
+13. **"Three items in a row" sections checked and found content-driven, not
+    generic.** The homepage's `.principle-list` (MOVE / CONNECT / BUILD) uses no
+    icons at all -- just a number, a specific heading, and a specific sentence per
+    item, thematically tied to the site's actual job-lifecycle narrative. The
+    `.role-editorial` teen/adult/guardian section represents three real, distinct
+    product audiences (a genuine informational necessity for a multi-role
+    marketplace), each with unique copy and its own CTA -- not interchangeable
+    generic benefit cards.
+14. **Em-dash usage checked across marketing/legal copy**: 3-7 per page on pages with
+    substantial text (privacy policy, safety page). Read every instance in context --
+    each is either a real clarifying clause ("never random direct messages -- ...")
+    or a standard "Page Title -- MORT" title-separator convention, not filler
+    connecting vague buzzwords. Not an overuse pattern; did not strip legitimate
+    punctuation.
+15. **Buzzword grep** (seamless/revolutionary/game-changing/cutting-edge/
+    next-generation/transformative/empowering/unlock/reimagine/"future of"/
+    one-stop/effortlessly/"innovative platform") returned exactly one hit: "earn XP,
+    unlock badges, and level up your hustle" -- a literal, specific description of a
+    real in-app gamification mechanic (XP/badges/leveling), not vague filler.
+16. **Shape-language spot-check**: a real token scale exists (`--radius-sm: 12px`,
+    `--radius: 16px`, `--radius-lg: 22px`, `--radius-pill: 999px`) used consistently
+    for cards/panels/chips. Small icon-tile boxes (32-56px) use proportionally-scaled
+    radii (9-16px) rather than the token scale directly -- a defensible, common
+    technique (corner radius scaled to a small fixed box's own size), not "every
+    control turned into a random capsule."
+17. **Live-render evidence.** Real Lighthouse run against a real production build
+    (`localhost`, real Supabase env vars) after the fixes above:
+    performance=67 (up from 41 before the earlier CSP/WASM fixes), accessibility=100,
+    best-practices=100, SEO=100, 0 console errors. Also ran against `/safety`:
+    accessibility=100, 0 failed audits. Captured and visually reviewed a real
+    full-page-render screenshot of the homepage hero (saved via Lighthouse's
+    `final-screenshot` trace, not fabricated) -- see below for what it shows.
+
+Homepage hero screenshot review (real render, not a mockup): deep near-black
+background with a custom, bespoke 3D atmosphere scene (mountains, water reflection,
+a faceted gem/diamond centerpiece) -- not a generic gradient blob or stock
+illustration; a plain white "Start your crossing" pill CTA plus one plain-text
+secondary link, not a wall of competing CTAs; a monospace "MORT / THE FIRST CROSSING"
+coordinate label and small eyeline kicker text (checked above, not a decorative
+badge); a visible "Pause atmosphere" control confirming the accessibility affordance
+found in code is real and rendered; minimal nav (wordmark + menu icon only). Reads as
+distinctive and intentional, not a generic AI-SaaS template.
+
+### Findings (flutter_mort, mobile) -- carried forward from the spot-check above, plus new this pass
+
+18. **`mort_liquid_glass.dart` (the app's one remaining "liquid glass" component
+    family) assessed in depth**, since the directive explicitly states MORT's
+    liquid-glass direction is no longer the final identity. Read the full
+    `LiquidGlassContainer` implementation: blur is **disabled entirely on web**,
+    **disabled by default on Android** (opt-in only per call site via
+    `allowAndroidBlur`), disabled under `MediaQuery.highContrastOf` and a real
+    user-facing `reducedTransparency` preference, and even when active uses a low
+    base alpha (8-20%) layered under the blur with a solid 82-92%-opaque fallback
+    everywhere it's off. Wrapped in `RepaintBoundary` for GPU isolation. Used in 10
+    files including the Teen shell's nav bar/header, the auth screen, profile
+    surfaces, and settings -- real breadth, not confined to one screen, but every
+    non-blurred fallback state already matches the gate's own stated ideal ("dark,
+    solid/near-solid, controlled translucency, thin restrained borders"), and the
+    live-blur variant mimics iOS's own native translucent nav-chrome convention
+    (platform-appropriate, not a copied web trend) rather than decorating content
+    cards indiscriminately. **Classified as legitimate, already-restrained usage,
+    not fixed** -- ripping it out would be exactly the "broad redesign" this gate's
+    own rules say not to do without a concrete defect, and the fallback state already
+    satisfies the accessibility-first requirement (section 62: accessibility wins).
+19. **Shape-language token scale confirmed** (`MortRadii.small/medium/card/sheet/
+    pill` = 10/14/16/20/999, `MortSpacing` similarly tokenized) -- consistent,
+    canonical, not one-off values.
+20. Purple/emoji-heading/fake-social-proof/buzzword/touch-target/reduced-motion/
+    contrast findings from the earlier spot-check (see above) stand unchanged after
+    this second look -- re-grepped the same patterns fresh and got identical
+    zero-match results.
+
+### Second independent pass
+
+Re-ran the core signature greps (`purple|violet|indigo`, `backdrop-filter`,
+`gradient-text`, `shadcn|lucide-react`, `marquee|bento`, `whileInView`) against both
+repos fresh, after the fixes above, rather than only trusting the first pass's notes:
+`MISSED_SIGNATURES=0` -- no new active template signature turned up that the first
+pass missed. The `--accent-pink`/`--purple` cascade-shadowing discovery (finding 4)
+itself came from this kind of re-verification (re-tracing a variable's *actual*
+resolved value instead of trusting its declared value in the first file read) --
+exactly the case this gate's two-pass requirement exists to catch.
+
+### Cross-platform coherence
+
+Website and mobile independently converge on the same underlying philosophy: a dark,
+near-black canvas; a restricted, restrained cool-blue/neutral-gray accent instead of a
+saturated brand hue; a real typographic and spacing token scale rather than
+ad hoc values; systemic (not spot-lucky) accessibility affordances (tooltips,
+reduced-motion, touch targets, contrast); and a shared "restrained, not generic"
+design philosophy -- reached independently on each platform (mobile's monochrome
+convergence documented in `mort_colors.dart`'s own comments; web's in
+`cinematic.css`'s own comment) rather than copy-pasted, but landing in the same place.
+Neither platform uses shadcn/Lucide/Inter/Space-Grotesk-plus-Instrument-Serif/grain
+textures/cursor gimmicks. This reads as one coherent brand family, not two
+independently-styled products that happen to share a name.
+
+### Final 20-point report
+
+```
+ANTI_VIBECODE_01_PURPLE_BLUE_GRADIENT=PASS (one semantic admin-badge token named
+  "purple" exists but its cascade-resolved color is a neutral gray, not purple; no
+  primary gradient anywhere)
+ANTI_VIBECODE_02_GRADIENT_HERO_TEXT=FIXED (dead .gradient-text utility removed;
+  live hero never used it)
+ANTI_VIBECODE_03_HEADING_EMOJIS=PASS (none found on web or mobile; the one emoji-
+  range mobile match is a data-driven rating "★", not a decorative heading icon)
+ANTI_VIBECODE_04_GENERIC_INTER_EVERYWHERE=NOT_APPLICABLE (site uses Plus Jakarta
+  Sans exclusively; mobile uses its own MORT typography system)
+ANTI_VIBECODE_05_COLORED_BORDER_CARDS=PASS (role-badge system is semantic --
+  4 real user roles, each one deliberate color -- not decorative rainbow cards)
+ANTI_VIBECODE_06_GLASSMORPHISM=PASS (web: dead glass-card block removed, surviving
+  backdrop-filter uses are scoped to nav/header/auth-panel chrome, not "everywhere";
+  mobile: restrained, accessibility-gated, disabled on web/default-Android, solid
+  fallback matches the gate's own stated ideal)
+ANTI_VIBECODE_07_LOW_CONTRAST_DARK=PASS (computed WCAG ratios, corrected for the
+  real cascade winner on web; all pairs clear AA on both platforms with real margin)
+ANTI_VIBECODE_08_THREE_ICON_BOX_ROW=PASS (the two 3-item sections are icon-free,
+  content-specific, and narratively tied to the actual product, not generic filler)
+ANTI_VIBECODE_09_HERO_BADGE=PASS (the hero's small kicker line is plain text with
+  a 5px dot marker, no pill/background, part of a consistent editorial device)
+ANTI_VIBECODE_10_GENERIC_LUCIDE_USAGE=NOT_APPLICABLE (no icon library dependency
+  at all on web; mobile uses Material icons through app-specific widgets, not a
+  raw unmodified icon catalog)
+ANTI_VIBECODE_11_UNTOUCHED_SHADCN=NOT_APPLICABLE (zero shadcn/Radix dependency)
+ANTI_VIBECODE_12_SCROLL_FADE_OVERUSE=PASS (the one IntersectionObserver use is a
+  performance pause, not decorative reveal; no framer-motion whileInView usage
+  found anywhere)
+ANTI_VIBECODE_13_CURSOR_BEAM=PASS (no cursor-following/spotlight/magnetic-cursor
+  code; the one "beam" grep hit is an unrelated GLSL shader variable name)
+ANTI_VIBECODE_14_OPACITY_ONLY_BUTTON_HOVER=PASS (confirmed in the earlier
+  launch-integrity pass: .btn:hover changes background+border+color together)
+ANTI_VIBECODE_15_INCONSISTENT_SPACING=PASS (real spacing/radius token scales exist
+  and are used consistently on both platforms; small proportionally-scaled icon-tile
+  radii are a deliberate technique, not unexplained drift)
+ANTI_VIBECODE_16_EM_DASH_OVERUSE=PASS (3-7 per page on long-copy pages, every
+  instance read in context and found to be a genuine clarifying clause or a
+  standard title separator, not AI-pattern filler)
+ANTI_VIBECODE_17_GENERIC_BUZZWORDS=PASS (one buzzword-adjacent grep hit was a
+  literal, specific description of a real gamification feature)
+ANTI_VIBECODE_18_SERIF_ITALIC_TREND=NOT_APPLICABLE (no italic serif usage found)
+ANTI_VIBECODE_19_TREND_FONT_PAIRING=NOT_APPLICABLE (no Space Grotesk, no
+  Instrument Serif, anywhere in either codebase)
+ANTI_VIBECODE_20_GRAIN_GRADIENT=FIXED (the one gradient-blob-plus-blur element
+  found was dead code; removed. No grain/noise texture assets exist.)
+```
+
+### Additional report
+
+```
+BENTO_GRID=NOT_FOUND
+FAKE_LOGO_WALL=NOT_FOUND
+FAKE_DASHBOARD_CHARTS=NOT_FOUND (admin surface grepped specifically; no fabricated
+  chart/metric patterns)
+FAKE_NOTIFICATIONS=NOT_FOUND
+FAKE_LIVE_ACTIVITY=NOT_FOUND (no "online now"/"people viewing" patterns; the app's
+  real notification-count badges are provider-driven, not decorative)
+GENERIC_DEVICE_MOCKUPS=NOT_FOUND (no phone-frame/device-mockup usage found in the
+  removed dead hero block or elsewhere)
+GENERIC_SAAS_LAYOUT=NOT_FOUND (authenticated app shell grepped separately from
+  public marketing pages; shares the same restrained system, no generic-dashboard
+  divergence)
+GENERIC_AI_COPY=PASS (buzzword/formulaic-structure grep clean; copy is specific to
+  MORT's actual mechanics throughout)
+UNMODIFIED_COMPONENT_LIBRARY_STYLE=NOT_APPLICABLE (no component library dependency
+  to be unmodified from)
+ICON_LANGUAGE=CONSISTENT (web: one hand-rolled Icon component, fixed vocabulary;
+  mobile: Material icons routed through app-specific widgets with enforced tooltips)
+TYPOGRAPHY_LANGUAGE=CONSISTENT (one font family per platform, real size/weight
+  scale, no random one-off heading styles found)
+SPACING_LANGUAGE=CONSISTENT (real token scales on both platforms)
+SHAPE_LANGUAGE=CONSISTENT (real radius token scales on both platforms; the few
+  non-token values are proportionally-justified icon-tile exceptions)
+COLOR_LANGUAGE=PASS_WITH_ONE_FLAGGED_CLEANUP (every active color has a semantic
+  reason on both platforms; the cinematic.css/globals.css :root-shadowing overlap
+  on web -- finding 4 above -- is real duplication worth a deliberate follow-up
+  cleanup, not touched in this pass since it's broader than a surgical fix)
+MOTION_LANGUAGE=RESTRAINED (no scroll-jacking, no cursor gimmicks, no
+  fade-in-everywhere on web; systemic prefers-reduced-motion support spanning 10
+  files on mobile and the web's animated scene pauses when off-screen/hidden)
+CROSS_PLATFORM_BRAND_COHERENCE=PASS (see "Cross-platform coherence" above)
+```
+
+### Final acceptance
+
+```
+ACTIVE_TEMPLATE_SIGNATURES=0 (2 dead/unused template-signature CSS blocks found and
+  removed; everything else classified as PASS, NOT_APPLICABLE, or legitimate
+  documented usage)
+P0_VISUAL=0
+P1_VISUAL=0 (one real but low-severity item -- the guardian/level-4 badge color
+  mismatch -- found and fixed; the cinematic.css/globals.css token-shadowing
+  duplication is flagged as a real cleanup item but did not produce any currently-
+  visible defect beyond that one badge case)
+P0_ACCESSIBILITY=0
+P1_ACCESSIBILITY=0
+WEBSITE_BRAND_COHERENCE=PASS
+ANDROID_BRAND_COHERENCE=PASS (source-audited; live/interactive render remains
+  blocked by host RAM, unchanged from the earlier forensic diagnosis -- not
+  re-claimed as visually verified beyond what the source audit supports)
+IOS_BRAND_COHERENCE=PASS (per the existing accepted BrowserStack evidence,
+  run 34472297830 -- not rerun, per this gate's own instruction)
+CROSS_PLATFORM_COHERENCE=PASS
+MORT_ANTI_VIBECODE_GATE=PASS (with two disclosed, non-blocking follow-ups noted
+  above: the cinematic.css/globals.css token-duplication cleanup, and a genuine
+  interactive Android render pass once host RAM conditions allow or a cloud device
+  lane is used)
+```
+
+No mistake-impossibility claim is made. This is a two-pass, evidence-based
+verification (source audit -> live render -> fix -> second source pass -> second
+live-render confirmation) with disclosed scope limits (no interactive browser
+automation this session; Android live render still blocked), not a guarantee that
+zero issues exist beyond what was checked.
+
+Fixes for both repos are on their own branches
+(`anti-vibecode-final-100-pass` in each), each opened as its own PR
+(`mortapp/mort-web#3`, and this commit's PR in `mortapp/Mort`) and **not merged** --
+left for explicit owner review per the standing rule, especially given the merge
+timing issue noted at the top of this section.
