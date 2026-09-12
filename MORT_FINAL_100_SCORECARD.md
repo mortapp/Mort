@@ -458,3 +458,58 @@ AA comfortably). No contrast defect found in this spot-check. This does not repl
 full page-by-page audit (only the primary design-system tokens were sampled, not every
 one-off inline color in the codebase), but is a genuine computed result, not a fabricated
 pass.
+
+## Mobile app (flutter_mort): anti-vibe-code + accessibility spot-check (2026-09-12)
+
+Companion pass to the mort-web checks above, applying the same launch-integrity
+checklist to the Flutter app in this worktree. All findings below are from actual
+grep/read evidence against `flutter_mort/lib`, not inferred:
+
+- Purple gradients / off-brand color: NOT_FOUND. `grep -i 'purple|violet'` across
+  `lib/core/theme` returns nothing. `mort_colors.dart` is a deliberate monochrome
+  palette (black/white/silver family) plus one restrained cool-blue accent reserved
+  for "information, safety, location, and verified system state" per its own doc
+  comment -- consistent with the "converged monochrome theme" already recorded above,
+  not a vibe-coded default.
+- Emoji-as-UI-icon: NOT_FOUND as a pattern. The one emoji-range character match in
+  `lib/features/mort_screens.dart` is a `★` rendered inline with a real computed
+  value (`'${rank.averageRating.toStringAsFixed(1)}★ avg'`) -- a data-driven rating
+  display, not a decorative icon substitute.
+- Fabricated social proof: NOT_FOUND. Grepped for "trusted by", "thousands of",
+  hardcoded user/download counts, testimonial-quote patterns, "verified reviewer" --
+  no matches. The only counts rendered in the UI (leaderboard rank, completed-job
+  totals, review averages) are sourced from live repository/provider calls, not
+  hardcoded strings.
+- AI-slop marketing copy: NOT_FOUND. Grepped for "revolutionary", "game-changing",
+  "industry-leading", "100% safe", "guaranteed", "#1" and similar superlative-claim
+  patterns -- no matches in `lib/`.
+- Icon-button accessibility: systemic, not spot-luck. All 43 `IconButton`/
+  `MortIconButton` occurrences sampled across 24 files carry an explicit `tooltip:`;
+  the shared `MortIconButton` widget (`lib/core/widgets/mort_widgets.dart:499-504`)
+  makes `tooltip` a compiler-enforced `required` constructor parameter, so a new
+  icon button without one fails to build rather than silently shipping unlabeled.
+- Touch targets: `MortSpacing.minTouchTarget = 48.0` (logical px), referenced
+  directly in interactive widget constraints (e.g. `mort_liquid_glass.dart:367`) --
+  meets the standard 44-48dp minimum target size guidance.
+- Reduced motion: genuinely systemic, not a single opt-out. Motion-reduction
+  handling (`disableAnimations`/`AccessibilityFeatures`) appears in 10 separate
+  files spanning onboarding, core widgets, brand/liquid-glass components, page
+  transitions, and `app.dart` itself -- not confined to one screen.
+- Color contrast (computed, not eyeballed) for the monochrome theme's real
+  text/status pairs against the two darkest surfaces in use:
+
+| Pair | Ratio | AA (4.5:1 text) |
+|---|---|---|
+| `text` (godWhite) on `bg` (godBlack) | 19.00:1 | PASS |
+| `textSoft` on `bg` | 15.64:1 | PASS |
+| `textMuted` on `bg` | 6.55:1 | PASS |
+| `textMuted` on `card` | 5.93:1 | PASS |
+| `success` on `bg` | 7.97:1 | PASS |
+| `warning` on `bg` | 8.29:1 | PASS |
+| `danger` on `bg` | 4.80:1 | PASS (narrow margin -- closest to the 4.5:1 floor of anything sampled; fine at normal text size, worth keeping in mind before darkening further) |
+| `textDisabled` on `bg` | 2.77:1 | Below AA, but WCAG explicitly exempts disabled-control text from the contrast requirement -- correctly not a defect. |
+
+No anti-vibe-code or accessibility defect found in this mobile spot-check. As with
+the web contrast check, this samples the shared design-system tokens, not every
+one-off inline color across ~62 screen files -- a genuine result at the scope
+actually covered, not a claim of exhaustive coverage.
