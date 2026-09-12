@@ -282,3 +282,54 @@ independent review:
   (`safeStripeConnectUri`) additionally pins the host to exactly `connect.stripe.com`.
 - PRIVATE_API_KEYS (mobile client)=PASS — zero references to any service-role key
   pattern anywhere in `flutter_mort/lib/`.
+
+## Real CI evidence for this branch (2026-09-12)
+
+`mort-ci.yml`'s `on.push.branches` allowlist (`main`, `mort-supreme-production-readiness`)
+does not include `integration/mort-final-100-post-redesign`, and no PR previously existed
+for it -- meaning zero real CI evidence existed for this branch's history before today.
+Opened PR https://github.com/mortapp/Mort/pull/9 (base `main`, head this branch, title
+"DO NOT MERGE — CI evidence only") solely to trigger the `pull_request` workflow trigger.
+**This PR must not be merged** -- same role as PR #8 for the prior branch.
+
+Run https://github.com/mortapp/Mort/actions/runs/34692994883 — all three real jobs pass:
+- `expo-reference` = PASS (1m37s)
+- `flutter-authoritative` = PASS (4m18s)
+- `public-site` = PASS (18s)
+
+Vercel check on the same PR reports `fail` (`dpl_52pQHUSEjC9r1SdmtGXhjzXLh9E8`,
+`Error: supabaseUrl is required.` thrown inside `@expo/router-server`'s static export of
+the legacy Expo reference app). Root-caused as a **pre-existing Vercel project
+configuration gap** (the Preview environment for this Vercel project is missing an
+`EXPO_PUBLIC_SUPABASE_URL`-equivalent env var), not a regression from this branch's
+changes: PR #8 (a different, earlier branch, already fully reviewed and accepted) shows
+the byte-for-byte identical `Deployment has failed` / `supabaseUrl is required` failure
+mode while its own three GitHub Actions jobs all pass. Classified as an **external
+gate** (Vercel dashboard project-settings access, not a code fix) -- flagging for
+whoever owns the Vercel project rather than attempting to "fix" it by touching app code.
+
+## mort-web independent-reviewer fixes (2026-09-12)
+
+A fresh, read-only reviewer subagent independently re-verified all 9 claims in
+`mortapp/mort-web` PR #1 against `main` (separate repo, separate Vercel/CI surface from
+the Mort mobile/backend monorepo). All 9 claims held up under independent re-test
+(CVE counts, zero-vulns-after-fix, live security headers, route titles, robots/sitemap,
+custom 404, dynamic copyright year). It also found two real, previously-missed gaps,
+both fixed and re-verified in this session before the reviewer's findings were closed
+out:
+- CSP/font conflict: `app/globals.css` imports Google Fonts (`fonts.googleapis.com`
+  stylesheet, `fonts.gstatic.com` font files), but the new CSP's `style-src`/`font-src`
+  only allowed `'self'` -- contradicting the `next.config.ts` comment's own claim that no
+  other external origin is referenced anywhere in `app/`. Fixed by adding both origins
+  to the relevant directives; rebuilt with real Supabase env vars and confirmed via a
+  live `curl -D -` that the served CSP header now includes both. `npm run build` and the
+  full `npm test` suite (5/5) still pass after the change.
+- Icon consistency: a raw `←` glyph appears in front of link text in three back-navigation
+  links (`app/app/support/[id]/page.tsx`, `app/app/messages/[id]/page.tsx`,
+  `app/app/teen/jobs/[id]/page.tsx`) -- a consistent, intentional pattern across all
+  three, not the isolated inconsistency the reviewer's 5-file sample suggested, but
+  still lacking `aria-hidden` (a screen reader would announce "left arrow" ahead of the
+  destination name, which the destination text alone already conveys). Fixed by wrapping
+  the glyph in `<span aria-hidden="true">` in all three locations rather than forcing it
+  through the `Icon` SVG component (which has no left-arrow path defined and is meant for
+  standalone/leading decorative icons, not inline text-adjacent glyphs).
