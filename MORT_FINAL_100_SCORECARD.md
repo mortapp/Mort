@@ -234,3 +234,51 @@ sampled scope)" entry means: everything actually inspected in that area was veri
 correct, with no shortcuts taken to make it look done. It is not a claim that literally
 every function/policy/screen in that category has been individually re-reviewed — the
 "remaining internal work" column says exactly what has not yet been looked at.
+
+## Web + mobile launch integrity pass (2026-09-12)
+
+Companion to a security/quality sweep of the separate `mortapp/mort-web` repo (see
+PR https://github.com/mortapp/mort-web/pull/1, not merged). Fresh spot-checks against
+the current migration state in *this* repo, done in parallel while that PR was under
+independent review:
+
+- QA_ESCAPE_GATE=PASS — `MORT_BROWSERSTACK_QA_MODE` is a Dart `bool.fromEnvironment`
+  compile-time constant (cannot be toggled by any runtime input); `release_profile.dart`
+  additionally throws a hard `StateError` at startup (`assertValidReleaseConfiguration`,
+  called from `main.dart`) if it's ever set outside `automated_test`/`internal_test`.
+  Same compile-time-constant pattern independently confirmed for
+  `identityVerificationEnabled` and the ads/IAP gates.
+- DEBUG_UI=PASS — `kDebugMode`-gated code (`app_config.dart:173-174`) only controls a
+  visible "Debug" badge and diagnostics text (the same badge visible in this session's
+  own emulator screenshots), never a navigable route or auth bypass; `kDebugMode` is
+  `false` in any real release build by Flutter SDK guarantee, not app-level toggle.
+- STORAGE_BUCKET_PRIVACY=PASS — every one of the 8 `storage.buckets` insert statements
+  across all migrations (`proof-uploads`, `profile-avatars`, `identity-evidence`,
+  `incident-evidence`, `mort-document-vault`, `support-evidence`, `support-attachments`,
+  `financial-receipts`) explicitly sets `public = false`. Checked all 8 directly, not
+  sampled.
+- RATE_LIMITING=PASS (spot-checked) — `submit_safety_report_v2` enforces both an
+  immediate-danger-specific throttle (`urgent_safety_rate_limited`) and a general cap
+  (15) via `safety_report_rate_limited`, generous enough not to block a genuinely
+  distressed user while preventing spam. Confirmed alongside the previously-recorded
+  `check_rate_limit()` coverage for guardian invites/acceptance, support tickets,
+  account deletion, and auth identity events.
+- GUARDIAN_RLS_TIGHTENING=VERIFIED_NO_BYPASS — `20260711170513_...sql` explicitly
+  `drop policy if exists guardian_connections_insert_teen` /
+  `..._update_guardian_or_admin` *before* creating the replacement admin-only
+  policies. Confirmed this wasn't a case of an old permissive policy coexisting
+  alongside a new restrictive one (Postgres RLS policies are additive/OR'd for
+  permissive policies, so a stale drop-less "tightening" migration would have been a
+  real, silent bypass -- it is not the case here).
+- PAYMENTS_LIVE_GATE=PASS (re-verified) — `stripe_runtime_phase12_live_gate` CHECK
+  constraint still requires `mode <> 'live'` unless all ~13 explicit approval flags
+  (owner/legal/privacy/tax/minor-payout/retention/receipts/reconciliation/etc.) are
+  simultaneously true. Unweakened since the last audit.
+- OPEN_REDIRECT / SSRF (mobile)=PASS — `lib/core/utils/safe_uri.dart`'s
+  `safeInternalHelpRoute` rejects any URI with a scheme or authority (blocks both
+  absolute URLs and `//host`-style protocol-relative redirects) and path-traversal
+  segments, using an allowlist (not a blocklist) of exact/prefix paths.
+  `safeExternalHttpsUri` rejects localhost/private/link-local hosts; the only caller
+  (`safeStripeConnectUri`) additionally pins the host to exactly `connect.stripe.com`.
+- PRIVATE_API_KEYS (mobile client)=PASS — zero references to any service-role key
+  pattern anywhere in `flutter_mort/lib/`.
