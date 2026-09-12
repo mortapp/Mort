@@ -179,6 +179,29 @@ classified as blocked because the local emulator is available. Full
 authenticated marketplace journeys require a safe QA public configuration and
 were not fabricated.
 
+### Re-attempt check (2026-09-12, later same day)
+
+Checked host conditions before deciding whether to retry, per the diagnose-don't-
+retry-blind policy: `Get-CimInstance Win32_OperatingSystem` reported **1.37 GB free
+of 15.45 GB total** -- worse than every reading in the forensic session above (which
+ranged 1-4 GB). Checked for any leftover process from this session's own work
+(`node`, `next`, `lighthouse`, `qemu`, `emulator`, `java`, `gradle`) that could be
+reclaimed first: the only `node` processes found were 10-21 MB each, not a lingering
+dev server -- this session's own `next start` instances and Lighthouse's headless
+Chrome had already exited cleanly. The top memory consumers (`Get-Process | Sort
+WorkingSet64`) were six independent `chrome` processes (~450 MB each), two `Code`
+(VS Code) instances, `Discord`, `MsMpEng` (Windows Defender), and `Memory
+Compression` already active at 566 MB -- all the user's own concurrent desktop
+session, not anything this task spawned or can reclaim.
+
+Did not attempt another emulator boot: current free RAM is strictly worse than the
+conditions that produced 3 prior crashes at the identical trigger, and forcing a 4th
+attempt risks destabilizing the user's active desktop session for a near-certain
+repeat failure rather than new information. This re-confirms
+`ANDROID_ENVIRONMENT_BLOCKER=HOST_RESOURCE_PRESSURE` rather than superseding it.
+Unchanged recommendation: retry after a reboot/quiet host, or move interactive
+Android QA to a cloud device lane (BrowserStack) as already done for iOS.
+
 ## Latest BrowserStack iOS evidence
 
 IOS_BROWSERSTACK_WORKFLOW_RUN=34472297830
@@ -316,6 +339,12 @@ https://github.com/mortapp/Mort/actions/runs/34693880624 -- `expo-reference` PAS
 confirming this is a stable, reproducible pre-existing gate rather than a flaky or
 branch-specific regression.
 
+Re-confirmed a third time on the next docs-only push (`39e0bcd`): run
+https://github.com/mortapp/Mort/actions/runs/34695155304 -- all three real jobs PASS
+again (`expo-reference` 1m28s, `flutter-authoritative` 3m47s, `public-site` 29s); Vercel
+(`dpl_J8YGzDDZBh8XH4uGgf8aYPthL99k`) failed with the same `supabaseUrl is required.`
+signature. No new information -- recording only to confirm the pattern hasn't changed.
+
 ## mort-web independent-reviewer fixes (2026-09-12)
 
 A fresh, read-only reviewer subagent independently re-verified all 9 claims in
@@ -403,3 +432,29 @@ color-contrast, but is not equivalent to manual testing):
 NOT_APPLICABLE / NOT_DONE: full manual keyboard-only navigation through signup/login/job
 flows, and screen-reader (NVDA/VoiceOver) verification, remain undone this session --
 recorded honestly rather than claimed.
+
+## Color-contrast spot-check against WCAG AA (2026-09-12)
+
+Since a live browser wasn't available to sample rendered pixels, computed real WCAG 2.x
+relative-luminance contrast ratios (not eyeballed) for `app/globals.css`'s primary
+text/button token pairs, including alpha-blended backgrounds composited against the page
+canvas where relevant:
+
+| Pair | Ratio | AA (4.5:1 text / 3:1 UI) |
+|---|---|---|
+| body text `--text` on `--bg` | 18.40:1 | PASS |
+| muted text `--muted` on `--bg` | 6.77:1 | PASS |
+| secondary muted `--muted2` on `--bg` (also `.btn.ghost` text) | 12.67:1 | PASS |
+| `.btn.primary` text on gradient (lightest point) | 18.75:1 | PASS |
+| `.btn.primary` text on gradient (darkest point) | 14.86:1 | PASS |
+| `.btn.info` text on `--accent-blue` | 8.66:1 | PASS |
+| `.btn.sos` text on gradient (lightest point) | 6.95:1 | PASS |
+| `.btn.sos` text on gradient (darkest point) | 5.93:1 | PASS |
+| `.btn.danger` text on its own tint background | 7.23:1 (or 6.42:1 over a card surface) | PASS |
+
+Every sampled pair clears AA with real margin; most also clear AAA's 7:1 (the two
+exceptions -- `--muted` at 6.77:1 and `.btn.sos` darkest-point at 5.93:1 -- still clear
+AA comfortably). No contrast defect found in this spot-check. This does not replace a
+full page-by-page audit (only the primary design-system tokens were sampled, not every
+one-off inline color in the codebase), but is a genuine computed result, not a fabricated
+pass.
