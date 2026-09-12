@@ -72,7 +72,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Review MORT safety rules'), findsOneWidget);
-      expect(find.byType(CheckboxListTile), findsNWidgets(5));
+      expect(find.byType(CheckboxListTile), findsNWidgets(6));
       final finishButton = find.widgetWithText(
         ElevatedButton,
         'Save acknowledgments and review',

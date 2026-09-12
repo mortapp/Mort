@@ -73,7 +73,7 @@ class JobContractsScreen extends ConsumerWidget {
                         MortBadge(
                           label: _label(contract['status']),
                           color: contract['status'] == 'active'
-                              ? MortColors.neon
+                              ? MortColors.accent
                               : MortColors.warning,
                         ),
                       ],
@@ -258,7 +258,7 @@ class _JobContractScreenState extends ConsumerState<JobContractScreen> {
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(
                       Icons.verified_outlined,
-                      color: MortColors.neon,
+                      color: MortColors.accent,
                     ),
                     title: Text('${_label(item['party_role'])} confirmed'),
                     subtitle: Text(
@@ -573,7 +573,7 @@ class PaymentStatusScreen extends ConsumerWidget {
                           color:
                               obligation['status'] ==
                                   'worker_confirmed_received'
-                              ? MortColors.neon
+                              ? MortColors.accent
                               : MortColors.warning,
                         ),
                         Text('Due: ${_label(obligation['due_rule'])}'),

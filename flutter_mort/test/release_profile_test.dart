@@ -12,6 +12,7 @@ MortReleaseConfiguration configuration({
   bool identityVerificationEnabled = false,
   bool remotePushEnabled = false,
   bool crashReportingEnabled = false,
+  bool productAnalyticsEnabled = false,
   bool chatbotAiEnabled = false,
   bool deterministicChatbotFallbackEnabled = true,
   bool adsEnabled = false,
@@ -23,6 +24,7 @@ MortReleaseConfiguration configuration({
   String communityVersion = 'draft-2026-07',
   String safetyVersion = 'draft-2026-07',
   bool debugEndpointsEnabled = false,
+  bool browserStackQaMode = false,
 }) {
   final hosted = profile.requiresHostedBackend;
   return MortReleaseConfiguration(
@@ -42,6 +44,7 @@ MortReleaseConfiguration configuration({
     identityVerificationEnabled: identityVerificationEnabled,
     remotePushEnabled: remotePushEnabled,
     crashReportingEnabled: crashReportingEnabled,
+    productAnalyticsEnabled: productAnalyticsEnabled,
     chatbotAiEnabled: chatbotAiEnabled,
     deterministicChatbotFallbackEnabled: deterministicChatbotFallbackEnabled,
     adsEnabled: adsEnabled,
@@ -57,6 +60,7 @@ MortReleaseConfiguration configuration({
     minimumSupportedAppVersion: '0.9.11',
     maintenanceMode: false,
     debugEndpointsEnabled: debugEndpointsEnabled,
+    browserStackQaMode: browserStackQaMode,
   );
 }
 
@@ -89,6 +93,67 @@ void main() {
       );
     },
   );
+
+  test(
+    'BrowserStack QA mode is isolated to the internal automated-test profile',
+    () {
+      expect(
+        configuration(
+          profile: MortReleaseProfile.automatedTest,
+          releaseStage: 'internal_test',
+          browserStackQaMode: true,
+        ).validationErrors,
+        isEmpty,
+      );
+      expect(
+        configuration(
+          profile: MortReleaseProfile.production,
+          releaseStage: 'production_public',
+          browserStackQaMode: true,
+          publicMarketplaceEnabled: true,
+          identityVerificationEnabled: true,
+          remotePushEnabled: true,
+          crashReportingEnabled: true,
+          productionActivationApproved: true,
+          termsVersion: 'terms-2026-08-approved',
+          privacyVersion: 'privacy-2026-08-approved',
+          communityVersion: 'community-2026-08-approved',
+          safetyVersion: 'safety-2026-08-approved',
+        ).validationErrors,
+        contains(
+          'BrowserStack QA mode is valid only for internal automated tests',
+        ),
+      );
+    },
+  );
+
+  test('BrowserStack QA mode rejects analytics and payment-provider modes', () {
+    final analyticsEnabled = configuration(
+      profile: MortReleaseProfile.automatedTest,
+      releaseStage: 'internal_test',
+      browserStackQaMode: true,
+      productAnalyticsEnabled: true,
+    );
+    final paymentProviderEnabled = configuration(
+      profile: MortReleaseProfile.automatedTest,
+      releaseStage: 'internal_test',
+      browserStackQaMode: true,
+      paymentProviderMode: 'preference_only',
+    );
+
+    expect(
+      analyticsEnabled.validationErrors,
+      contains(
+        'BrowserStack QA mode cannot enable external production systems',
+      ),
+    );
+    expect(
+      paymentProviderEnabled.validationErrors,
+      contains(
+        'BrowserStack QA mode cannot enable external production systems',
+      ),
+    );
+  });
 
   test('reviewer demo is isolated from production capabilities', () {
     expect(

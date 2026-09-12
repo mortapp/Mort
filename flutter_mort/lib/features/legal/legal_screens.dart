@@ -84,7 +84,7 @@ class LegalCenterScreen extends ConsumerWidget {
                               : 'Accepted',
                           color: item['acceptance_id'] == null
                               ? MortColors.warning
-                              : MortColors.neon,
+                              : MortColors.accent,
                         ),
                       ],
                     ),
@@ -127,43 +127,46 @@ class TeenTermsSummaryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MortScreen(
+    return MortScreen(
       children: [
-        MortHeader(
-          eyebrow: 'Plain language',
-          title: 'Teen terms summary',
-          subtitle:
-              'This draft summary helps with understanding. It does not replace the full agreement or attorney review.',
+        Semantics(
+          identifier: 'qa-legal-summary-header',
+          child: const MortHeader(
+            eyebrow: 'Plain language',
+            title: 'Teen terms summary',
+            subtitle:
+                'This draft summary helps with understanding. It does not replace the full agreement or attorney review.',
+          ),
         ),
-        _SummaryCard(
+        const _SummaryCard(
           'Use MORT honestly',
           'Use your real role and age information. Do not impersonate anyone or evade account restrictions.',
         ),
-        _SummaryCard(
+        const _SummaryCard(
           'Only do work that is safe for you',
           'Do not accept prohibited, sexual, illegal, hazardous, overnight, or age-inappropriate work. Leave any situation that feels unsafe.',
         ),
-        _SummaryCard(
+        const _SummaryCard(
           'Protect private details',
           'Use general locations until an accepted job reaches the authorized release stage. Keep communication in MORT.',
         ),
-        _SummaryCard(
+        const _SummaryCard(
           'Payment stays off-platform',
           'MORT records the agreement and status, but does not process money, hold escrow, or guarantee payment or recovery.',
         ),
-        _SummaryCard(
+        const _SummaryCard(
           'Reports are not automatic guilt findings',
           'Reports stay private, evidence can be preserved, and consequential decisions require review and appeal.',
         ),
-        _SummaryCard(
+        const _SummaryCard(
           'Verification signals have limits',
           'Document quality, web-image reuse, live presence, school email, and device authentication do not by themselves prove legal identity or safety.',
         ),
-        _SummaryCard(
+        const _SummaryCard(
           'Guardian Mode is optional',
           'Guardian Mode is separate from jurisdiction-specific legal requirements and account eligibility rules.',
         ),
-        MortSafetyBanner(),
+        const MortSafetyBanner(),
       ],
     );
   }
@@ -396,7 +399,7 @@ class _BoundaryLine extends StatelessWidget {
         children: [
           const Icon(
             Icons.check_circle_outline,
-            color: MortColors.neon,
+            color: MortColors.accent,
             size: 18,
           ),
           const SizedBox(width: MortSpacing.xs),

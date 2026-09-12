@@ -1154,7 +1154,7 @@ class _TrustIndicatorCard extends StatelessWidget {
                 color:
                     indicator.status == 'verified' ||
                         indicator.status == 'configured'
-                    ? MortColors.neon
+                    ? MortColors.accent
                     : MortColors.warning,
               ),
             ],

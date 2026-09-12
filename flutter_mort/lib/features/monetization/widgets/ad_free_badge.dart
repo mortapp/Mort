@@ -10,7 +10,7 @@ class AdFreeBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MortBadge(
       label: 'Ad-free perk',
-      color: MortColors.neon,
+      color: MortColors.accent,
       icon: Icons.visibility_off_outlined,
     );
   }

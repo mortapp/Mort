@@ -865,14 +865,14 @@ class _SupportBubble extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
         child: MortCard(
-          color: user ? MortColors.neonDeep : MortColors.card,
+          color: user ? MortColors.raisedBlack : MortColors.card,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: user ? MortColors.text : MortColors.neon,
+                  color: user ? MortColors.text : MortColors.accent,
                 ),
               ),
               const SizedBox(height: MortSpacing.xs),

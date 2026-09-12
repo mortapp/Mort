@@ -218,14 +218,14 @@ class MortGuideMessageBubble extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
         child: MortCard(
-          color: assistant ? MortColors.card : MortColors.neonDeep,
+          color: assistant ? MortColors.card : MortColors.raisedBlack,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 assistant ? 'MORT Guide' : 'You',
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: assistant ? MortColors.neon : MortColors.text,
+                  color: assistant ? MortColors.accent : MortColors.text,
                 ),
               ),
               const SizedBox(height: MortSpacing.xs),
@@ -258,6 +258,9 @@ class MortGuideSuggestedQuestions extends StatelessWidget {
   static const questions = [
     'How do I apply for a job?',
     'How do completion checks work?',
+    'Why did I get an earnings alert?',
+    'My mom says I need to stop working because we get SNAP.',
+    'How do I record an expense or receipt?',
     'How do I report or block someone?',
     'How do I delete my account?',
     'What stays free without MORT Plus?',

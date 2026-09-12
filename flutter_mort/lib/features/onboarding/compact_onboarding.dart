@@ -11,7 +11,6 @@ import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/utils/date_of_birth.dart';
-import '../../core/widgets/date_of_birth_field.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/onboarding_progress.dart';
 import '../../data/models/profile.dart';
@@ -23,7 +22,16 @@ import 'mort_rules_copy.dart';
 /// MORT's production onboarding path. Four primary screens render the v2
 /// server projection; `complete` is a terminal server state, never a fifth UI.
 class CompactOnboardingScreen extends ConsumerStatefulWidget {
-  const CompactOnboardingScreen({super.key});
+  const CompactOnboardingScreen({
+    super.key,
+    this.permissionsService = const NativePermissionsService(),
+    this.nativeLocationLookupEnabled = true,
+    this.nativeLocationDisabledMessage,
+  });
+
+  final NativePermissionsService permissionsService;
+  final bool nativeLocationLookupEnabled;
+  final String? nativeLocationDisabledMessage;
 
   @override
   ConsumerState<CompactOnboardingScreen> createState() =>
@@ -234,8 +242,7 @@ class _CompactOnboardingScreenState
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final area = await const NativePermissionsService()
-          .resolveCurrentGeneralArea();
+      final area = await widget.permissionsService.resolveCurrentGeneralArea();
       if (!mounted) return;
       _zip.text = '${area.city}, ${area.state}';
       setState(() {
@@ -356,11 +363,13 @@ class _CompactOnboardingScreenState
   void _scrollToStepStart() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) return;
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _scrollController.jumpTo(0);
+        return;
+      }
       _scrollController.animateTo(
         0,
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 220),
+        duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
       );
     });
@@ -651,7 +660,7 @@ class _CompactOnboardingScreenState
         ),
         const SizedBox(height: MortSpacing.lg),
         Form(
-          child: DateOfBirthField(
+          child: MortDateField(
             controller: _dob,
             enabled: !_busy && !_restoring,
             onSubmitted: (_) => _next(),
@@ -690,17 +699,26 @@ class _CompactOnboardingScreenState
             spacing: MortSpacing.sm,
             runSpacing: MortSpacing.sm,
             children: [
-              ChoiceChip(
-                avatar: const Icon(Icons.work_outline_rounded, size: 18),
-                label: const Text('Post or hire'),
-                selected: !_adultWantsGuardianRole,
-                onSelected: (_) => _setAdultGuardianChoice(false),
+              Semantics(
+                identifier: 'qa-onboarding-account-adult',
+                child: ChoiceChip(
+                  avatar: const Icon(Icons.work_outline_rounded, size: 18),
+                  label: const Text('Post or hire'),
+                  selected: !_adultWantsGuardianRole,
+                  onSelected: (_) => _setAdultGuardianChoice(false),
+                ),
               ),
-              ChoiceChip(
-                avatar: const Icon(Icons.supervisor_account_outlined, size: 18),
-                label: const Text('Supervise as guardian'),
-                selected: _adultWantsGuardianRole,
-                onSelected: (_) => _setAdultGuardianChoice(true),
+              Semantics(
+                identifier: 'qa-onboarding-account-guardian',
+                child: ChoiceChip(
+                  avatar: const Icon(
+                    Icons.supervisor_account_outlined,
+                    size: 18,
+                  ),
+                  label: const Text('Supervise as guardian'),
+                  selected: _adultWantsGuardianRole,
+                  onSelected: (_) => _setAdultGuardianChoice(true),
+                ),
               ),
             ],
           ),
@@ -814,8 +832,17 @@ class _CompactOnboardingScreenState
             style: MortButtonStyle.secondary,
             busy: _busy,
             busyLabel: 'Finding general area',
-            onPressed: _requestApproximateLocation,
+            onPressed: widget.nativeLocationLookupEnabled
+                ? _requestApproximateLocation
+                : null,
           ),
+          if (widget.nativeLocationDisabledMessage != null) ...[
+            const SizedBox(height: MortSpacing.sm),
+            Text(
+              widget.nativeLocationDisabledMessage!,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
           if (_locationHint != null) ...[
             const SizedBox(height: MortSpacing.sm),
             Semantics(
@@ -1033,7 +1060,7 @@ class _CompactOnboardingScreenState
           ],
         ],
         const SizedBox(height: MortSpacing.lg),
-        MortDropdown<String>(
+        MortSelect<String>(
           label: 'Notification preference',
           value: _notificationChoice,
           items: const {
@@ -1054,7 +1081,7 @@ class _CompactOnboardingScreenState
 
   Widget _buildNotificationPermissionStatus() {
     return FutureBuilder<NativePermissionSnapshot>(
-      future: const NativePermissionsService().snapshot(),
+      future: widget.permissionsService.snapshot(),
       builder: (context, snapshot) {
         final label = snapshot.hasData
             ? notificationPermissionLabel(snapshot.data!.notifications)
@@ -1175,10 +1202,10 @@ class _CompactOnboardingScreenState
           child: liveProfile == null
               ? const CircleAvatar(
                   radius: 44,
-                  backgroundColor: MortColors.roseGoldDeep,
+                  backgroundColor: MortColors.silverDark,
                   child: Icon(
                     Icons.check_rounded,
-                    color: MortColors.roseGoldLight,
+                    color: MortColors.silverBright,
                     size: 42,
                   ),
                 )
@@ -1277,67 +1304,75 @@ class _CompactOnboardingScreenState
         ? 'Finishing setup'
         : 'Saving step';
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: MortColors.bgSecondary.withValues(alpha: 0.97),
-        border: const Border(top: BorderSide(color: MortColors.lineStrong)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Center(
-          heightFactor: 1,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: MortSpacing.maxContentWidth,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                MortSpacing.md,
-                MortSpacing.sm,
-                MortSpacing.md,
-                MortSpacing.sm,
+    return AnimatedPadding(
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: MortColors.bgSecondary.withValues(alpha: 0.97),
+          border: const Border(top: BorderSide(color: MortColors.lineStrong)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Center(
+            heightFactor: 1,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: MortSpacing.maxContentWidth,
               ),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final largeText =
-                      MediaQuery.textScalerOf(context).scale(16) > 21;
-                  final stackActions = constraints.maxWidth < 340 || largeText;
-                  final primary = MortButton(
-                    label: primaryLabels[_step],
-                    icon: _step == _totalSteps - 1
-                        ? Icons.check_rounded
-                        : Icons.arrow_forward_rounded,
-                    busy: _busy || _restoring,
-                    busyLabel: busyLabel,
-                    onPressed: _restoring ? null : _next,
-                  );
-                  if (_step == 0) return primary;
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  MortSpacing.md,
+                  MortSpacing.sm,
+                  MortSpacing.md,
+                  MortSpacing.sm,
+                ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final largeText =
+                        MediaQuery.textScalerOf(context).scale(16) > 21;
+                    final stackActions =
+                        constraints.maxWidth < 340 || largeText;
+                    final primary = MortButton(
+                      label: primaryLabels[_step],
+                      icon: _step == _totalSteps - 1
+                          ? Icons.check_rounded
+                          : Icons.arrow_forward_rounded,
+                      busy: _busy || _restoring,
+                      busyLabel: busyLabel,
+                      onPressed: _restoring ? null : _next,
+                    );
+                    if (_step == 0) return primary;
 
-                  final back = MortButton(
-                    label: 'Back',
-                    icon: Icons.arrow_back_rounded,
-                    style: MortButtonStyle.ghost,
-                    onPressed: _busy ? null : _back,
-                  );
-                  if (stackActions) {
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                    final back = MortButton(
+                      label: 'Back',
+                      icon: Icons.arrow_back_rounded,
+                      style: MortButtonStyle.ghost,
+                      onPressed: _busy ? null : _back,
+                    );
+                    if (stackActions) {
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          back,
+                          const SizedBox(height: MortSpacing.xs),
+                          primary,
+                        ],
+                      );
+                    }
+                    return Row(
                       children: [
-                        back,
-                        const SizedBox(height: MortSpacing.xs),
-                        primary,
+                        Expanded(child: back),
+                        const SizedBox(width: MortSpacing.sm),
+                        Expanded(flex: 2, child: primary),
                       ],
                     );
-                  }
-                  return Row(
-                    children: [
-                      Expanded(child: back),
-                      const SizedBox(width: MortSpacing.sm),
-                      Expanded(flex: 2, child: primary),
-                    ],
-                  );
-                },
+                  },
+                ),
               ),
             ),
           ),
@@ -1490,7 +1525,7 @@ class _OnboardingSectionLabel extends StatelessWidget {
       label,
       style: Theme.of(
         context,
-      ).textTheme.titleMedium?.copyWith(color: MortColors.roseGoldLight),
+      ).textTheme.titleMedium?.copyWith(color: MortColors.silverBright),
     ),
   );
 }

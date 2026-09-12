@@ -7,6 +7,19 @@ import 'package:flutter_mort/features/legal/legal_screens.dart';
 import 'package:flutter_mort/features/legal/trust_foundation_screens.dart';
 
 void main() {
+  test('legal and payment disclosures use monochrome state colors', () {
+    final sources = [
+      File('lib/features/legal/legal_screens.dart'),
+      File('lib/features/legal/trust_foundation_screens.dart'),
+      File('lib/features/legal/contract_payment_screens.dart'),
+    ].map((file) => file.readAsStringSync());
+
+    for (final source in sources) {
+      expect(source, isNot(contains('MortColors.neon')));
+      expect(source, isNot(contains('MortColors.roseGold')));
+    }
+  });
+
   testWidgets('teen summary states payment and identity limits', (
     tester,
   ) async {

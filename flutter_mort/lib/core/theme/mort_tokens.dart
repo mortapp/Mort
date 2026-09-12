@@ -7,7 +7,7 @@ class MortRadii {
 
   static const small = 10.0;
   static const medium = 14.0;
-  static const card = 12.0;
+  static const card = 16.0;
   static const sheet = 20.0;
   static const pill = 999.0;
 }
@@ -24,9 +24,18 @@ class MortGlassTokens {
 class MortMotion {
   const MortMotion._();
 
+  static const micro = Duration(milliseconds: 120);
+  static const control = Duration(milliseconds: 180);
+  static const content = Duration(milliseconds: 240);
+  static const reveal = Duration(milliseconds: 420);
+
+  static const standardCurve = Curves.easeOutCubic;
+  static const exitCurve = Curves.easeInCubic;
+
+  // Compatibility names retained while call sites move to intent-based tokens.
   static const quick = Duration(milliseconds: 140);
-  static const standard = Duration(milliseconds: 240);
-  static const emphasized = Duration(milliseconds: 420);
+  static const standard = content;
+  static const emphasized = reveal;
 }
 
 class MortIconSizes {
@@ -41,23 +50,19 @@ class MortShadows {
   const MortShadows._();
 
   static const card = <BoxShadow>[
-    BoxShadow(color: Color(0x80000000), blurRadius: 26, offset: Offset(0, 12)),
-    BoxShadow(color: Color(0x1CD98C8C), blurRadius: 18),
+    BoxShadow(color: Color(0x52000000), blurRadius: 10, offset: Offset(0, 4)),
   ];
 
   static const glow = <BoxShadow>[
-    BoxShadow(color: Color(0x45F0AAA3), blurRadius: 28),
-    BoxShadow(color: Color(0x2475C7F7), blurRadius: 42),
+    BoxShadow(color: Color(0x2EB8C1CB), blurRadius: 18),
+    BoxShadow(color: Color(0x1475C7F7), blurRadius: 26),
   ];
 }
 
 class MortGradients {
   const MortGradients._();
 
-  /// Primary metallic Rose Gold: dark edge -> deep -> core -> a narrow
-  /// bright highlight band -> core -> deep -> dark edge. The narrow
-  /// highlight (tightly clustered stops around 0.5) is what reads as a
-  /// specular reflection off polished metal instead of a flat pink fill.
+  /// Primary neutral metallic treatment.
   static const metallic = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,

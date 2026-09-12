@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import '../theme/mort_colors.dart';
 import '../theme/mort_tokens.dart';
 
-class MortBrandMark extends StatelessWidget {
-  const MortBrandMark({super.key, this.size = 72, this.showWordmark = false});
+class MortLogo extends StatelessWidget {
+  const MortLogo({super.key, this.size = 72, this.showWordmark = false});
 
-  static const assetPath = 'assets/branding/mort_arrow_rose_gold.png';
+  static const assetPath = 'assets/branding/mort_arrow_adaptive_monochrome.png';
 
   final double size;
   final bool showWordmark;
@@ -26,7 +26,7 @@ class MortBrandMark extends StatelessWidget {
           errorBuilder: (_, _, _) => Icon(
             Icons.north_east_rounded,
             size: safeSize * 0.58,
-            color: MortColors.roseGold,
+            color: MortColors.silver,
           ),
         ),
       ),
@@ -49,6 +49,13 @@ class MortBrandMark extends StatelessWidget {
   }
 }
 
+/// Backwards-compatible name for existing feature call sites.
+class MortBrandMark extends MortLogo {
+  const MortBrandMark({super.key, super.size, super.showWordmark});
+
+  static const assetPath = MortLogo.assetPath;
+}
+
 class MortAnimatedBrandMark extends StatefulWidget {
   const MortAnimatedBrandMark({
     super.key,
@@ -65,25 +72,39 @@ class MortAnimatedBrandMark extends StatefulWidget {
 
 class _MortAnimatedBrandMarkState extends State<MortAnimatedBrandMark>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _fade;
-  late final Animation<double> _rise;
+  AnimationController? _controller;
+  Animation<double>? _fade;
+  Animation<double>? _rise;
 
   @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller
+        ?..stop()
+        ..value = 1;
+      return;
+    }
+    if (_controller != null) return;
+    final controller = AnimationController(
       vsync: this,
-      duration: MortMotion.emphasized,
+      duration: MortMotion.reveal,
     );
-    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
-    _rise = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
-    _controller.forward();
+    _controller = controller;
+    _fade = CurvedAnimation(
+      parent: controller,
+      curve: MortMotion.standardCurve,
+    );
+    _rise = CurvedAnimation(
+      parent: controller,
+      curve: MortMotion.standardCurve,
+    );
+    controller.forward();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
@@ -97,15 +118,23 @@ class _MortAnimatedBrandMarkState extends State<MortAnimatedBrandMark>
     );
     final child = DecoratedBox(
       decoration: const BoxDecoration(boxShadow: MortShadows.glow),
-      child: MortBrandMark(size: safeSize, showWordmark: widget.showWordmark),
+      child: MortLogo(size: safeSize, showWordmark: widget.showWordmark),
     );
-    if (MediaQuery.disableAnimationsOf(context)) return child;
+    final controller = _controller;
+    final fadeAnimation = _fade;
+    final riseAnimation = _rise;
+    if (MediaQuery.disableAnimationsOf(context) ||
+        controller == null ||
+        fadeAnimation == null ||
+        riseAnimation == null) {
+      return child;
+    }
     return AnimatedBuilder(
-      animation: _controller,
+      animation: controller,
       child: child,
       builder: (context, child) {
-        final fade = _finiteUnitInterval(_fade.value);
-        final rise = _finiteUnitInterval(_rise.value);
+        final fade = _finiteUnitInterval(fadeAnimation.value);
+        final rise = _finiteUnitInterval(riseAnimation.value);
         final dy = _finiteOffset(safeSize * 0.08 * (1 - rise));
         return Opacity(
           opacity: fade,

@@ -95,7 +95,7 @@ class _VerificationOption extends StatelessWidget {
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: MortColors.neon),
+        Icon(icon, color: MortColors.accent),
         const SizedBox(width: MortSpacing.sm),
         Expanded(
           child: Column(

@@ -17,13 +17,13 @@ import UIKit
     applicationInactive = application.applicationState != .active
     NotificationCenter.default.addObserver(
       self,
-      selector: #selector(applicationWillResignActive),
+      selector: #selector(handleWillResignActiveNotification),
       name: UIApplication.willResignActiveNotification,
       object: nil
     )
     NotificationCenter.default.addObserver(
       self,
-      selector: #selector(applicationDidBecomeActive),
+      selector: #selector(handleDidBecomeActiveNotification),
       name: UIApplication.didBecomeActiveNotification,
       object: nil
     )
@@ -81,12 +81,14 @@ import UIKit
     screenSecurityChannel = channel
   }
 
-  @objc private func applicationWillResignActive() {
+  // Do not use the UIApplicationDelegate lifecycle selector names here:
+  // FlutterAppDelegate exposes those selectors too, making #selector ambiguous.
+  @objc private func handleWillResignActiveNotification() {
     applicationInactive = true
     updatePrivacyShields()
   }
 
-  @objc private func applicationDidBecomeActive() {
+  @objc private func handleDidBecomeActiveNotification() {
     applicationInactive = false
     updatePrivacyShields()
   }

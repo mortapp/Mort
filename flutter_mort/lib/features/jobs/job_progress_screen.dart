@@ -475,7 +475,7 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
             title: 'Job progress',
             subtitle:
                 'Agreement, funding, in-person handoff, completion review, and payment release stay separate.',
-            trailing: MortBadge(label: _label(status.state)),
+            trailing: null,
           ),
           const MortSafetyBanner(
             message:
@@ -585,7 +585,13 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
               label: 'Cancel job',
               icon: Icons.cancel_outlined,
               style: MortButtonStyle.danger,
-              enabled: !{'completed', 'cancelled'}.contains(status.state),
+              enabled: {
+                'awaiting_start',
+                'start_pin_active',
+                'in_progress',
+                'finish_pin_active',
+                'completion_pending_release',
+              }.contains(status.state),
               busy: _busy,
               onPressed: _cancelJob,
             ),
@@ -698,12 +704,12 @@ class _CompletionCard extends StatelessWidget {
           height: 84,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: MortColors.roseGoldLight),
+            border: Border.all(color: MortColors.accent),
             boxShadow: MortShadows.glow,
           ),
           child: const Icon(
             Icons.check_rounded,
-            color: MortColors.roseGoldLight,
+            color: MortColors.accent,
             size: 48,
           ),
         ),
@@ -721,10 +727,13 @@ class _CompletionCard extends StatelessWidget {
         ),
         const SizedBox(height: MortSpacing.sm),
         const MortStatusChip(
-          label: 'Payment under review',
+          label: 'Payment status separate',
           icon: Icons.schedule_rounded,
           color: MortColors.lightBlue,
         ),
+        const SizedBox(height: MortSpacing.xs),
+        const Text('Payment status is separate'),
+        const Text('Job completion does not confirm payment release.'),
         const SizedBox(height: MortSpacing.md),
         MortActionRow(
           actions: [
@@ -759,7 +768,7 @@ class _FundingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MortCard(
     color: status.fundingStatus == 'funded'
-        ? MortColors.neonDeep
+        ? MortColors.cardAlt
         : MortColors.warning.withValues(alpha: 0.12),
     child: Row(
       children: [
@@ -774,9 +783,7 @@ class _FundingCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                status.fundingStatus == 'funded'
-                    ? 'Funds collected'
-                    : 'Funding: ${_label(status.fundingStatus)}',
+                'Server funding status: ${status.fundingStatus}',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               Text(
@@ -899,7 +906,7 @@ class _GeneratedPinCardState extends State<_GeneratedPinCard> {
     return MortCard(
       color: expired
           ? MortColors.warning.withValues(alpha: 0.12)
-          : MortColors.neonDeep,
+          : MortColors.cardAlt,
       child: Semantics(
         label: 'Generated six digit in-person job PIN',
         liveRegion: expired || _remaining.inSeconds == 30,
@@ -1145,11 +1152,11 @@ class _AbandonmentResponseDialogState
   );
 }
 
-String _label(String value) => value
-    .split('_')
-    .map(
-      (part) => part.isEmpty
-          ? ''
-          : '${part.substring(0, 1).toUpperCase()}${part.substring(1)}',
-    )
-    .join(' ');
+String _label(String value) {
+  final words = value.split('_').where((part) => part.isNotEmpty).toList();
+  if (words.isEmpty) return '';
+  return [
+    words.first[0].toUpperCase() + words.first.substring(1),
+    ...words.skip(1),
+  ].join(' ');
+}

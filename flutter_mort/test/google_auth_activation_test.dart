@@ -22,7 +22,10 @@ void main() {
     expect(AppConfig.remotePushEnabled, isFalse);
   }, skip: !_activationProfileUnderTest);
 
-  testWidgets('Continue with Google is visible and enabled', (tester) async {
+  testWidgets('Google provider is visible, enabled, and accessible', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(home: Scaffold(body: GoogleAuthSection())),
@@ -31,7 +34,21 @@ void main() {
     await tester.pump();
 
     expect(find.text('Continue with Google'), findsOneWidget);
-    final button = tester.widget<OutlinedButton>(find.byType(OutlinedButton));
-    expect(button.onPressed, isNotNull);
+    final googleSemantics = find.byWidgetPredicate(
+      (widget) =>
+          widget is Semantics &&
+          widget.properties.label == 'Continue with Google',
+    );
+    expect(googleSemantics, findsOneWidget);
+    expect(tester.widget<Semantics>(googleSemantics).properties.button, isTrue);
+    expect(
+      tester.widget<Semantics>(googleSemantics).properties.enabled,
+      isTrue,
+    );
+    expect(
+      tester.widget<OutlinedButton>(find.byType(OutlinedButton)).onPressed,
+      isNotNull,
+    );
+    semantics.dispose();
   }, skip: !_activationProfileUnderTest);
 }

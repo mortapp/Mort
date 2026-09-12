@@ -28,8 +28,14 @@ String? safeInternalHelpRoute(String? value) {
       uri.pathSegments.any((segment) => segment == '..')) {
     return null;
   }
-  const exact = {'/support', '/guide', '/legal-center'};
-  const prefixes = {'/legal/', '/legal-center/', '/support/', '/guide/'};
+  const exact = {'/support', '/guide', '/legal-center', '/financial'};
+  const prefixes = {
+    '/legal/',
+    '/legal-center/',
+    '/support/',
+    '/guide/',
+    '/financial/',
+  };
   final allowed =
       exact.contains(uri.path) ||
       prefixes.any((prefix) => uri.path.startsWith(prefix));

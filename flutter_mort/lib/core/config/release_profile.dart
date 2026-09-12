@@ -46,6 +46,7 @@ class MortReleaseConfiguration {
     required this.identityVerificationEnabled,
     required this.remotePushEnabled,
     required this.crashReportingEnabled,
+    required this.productAnalyticsEnabled,
     required this.chatbotAiEnabled,
     required this.deterministicChatbotFallbackEnabled,
     required this.adsEnabled,
@@ -61,6 +62,7 @@ class MortReleaseConfiguration {
     required this.minimumSupportedAppVersion,
     required this.maintenanceMode,
     required this.debugEndpointsEnabled,
+    required this.browserStackQaMode,
   });
 
   final MortReleaseProfile profile;
@@ -79,6 +81,7 @@ class MortReleaseConfiguration {
   final bool identityVerificationEnabled;
   final bool remotePushEnabled;
   final bool crashReportingEnabled;
+  final bool productAnalyticsEnabled;
   final bool chatbotAiEnabled;
   final bool deterministicChatbotFallbackEnabled;
   final bool adsEnabled;
@@ -94,6 +97,7 @@ class MortReleaseConfiguration {
   final String minimumSupportedAppVersion;
   final bool maintenanceMode;
   final bool debugEndpointsEnabled;
+  final bool browserStackQaMode;
 
   bool get hostedBackendConfigured =>
       supabaseUrl == 'https://$expectedSupabaseProjectRef.supabase.co' &&
@@ -107,6 +111,13 @@ class MortReleaseConfiguration {
     }
     if (profile.requiresHostedBackend && !hostedBackendConfigured) {
       errors.add('hosted Supabase public configuration is missing or wrong');
+    }
+    if (browserStackQaMode &&
+        (profile != MortReleaseProfile.automatedTest ||
+            releaseStage != 'internal_test')) {
+      errors.add(
+        'BrowserStack QA mode is valid only for internal automated tests',
+      );
     }
     if (googleAuthEnabled &&
         oauthCallback != 'com.mortapp.mobile://app/auth-callback') {
@@ -186,6 +197,25 @@ class MortReleaseConfiguration {
         }
         break;
       case MortReleaseProfile.automatedTest:
+        if (browserStackQaMode &&
+            (googleAuthEnabled ||
+                appleAuthEnabled ||
+                publicMarketplaceEnabled ||
+                marketplacePaymentsEnabled ||
+                identityVerificationEnabled ||
+                remotePushEnabled ||
+                crashReportingEnabled ||
+                productAnalyticsEnabled ||
+                chatbotAiEnabled ||
+                adsEnabled ||
+                iapEnabled ||
+                reviewerModeEnabled ||
+                productionActivationApproved ||
+                paymentProviderMode != 'disabled')) {
+          errors.add(
+            'BrowserStack QA mode cannot enable external production systems',
+          );
+        }
         if (publicMarketplaceEnabled ||
             productionActivationApproved ||
             identityVerificationEnabled ||
@@ -268,6 +298,7 @@ class MortReleaseConfiguration {
     'Identity verification': _enabled(identityVerificationEnabled),
     'Remote push': _enabled(remotePushEnabled),
     'Crash reporting': _enabled(crashReportingEnabled),
+    'Product analytics': _enabled(productAnalyticsEnabled),
     'External support AI': _enabled(chatbotAiEnabled),
     'Deterministic support': _enabled(deterministicChatbotFallbackEnabled),
     'Ads': _enabled(adsEnabled),

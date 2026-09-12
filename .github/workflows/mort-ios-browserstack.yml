@@ -1,0 +1,262 @@
+name: MORT iOS BrowserStack QA
+
+# This workflow is deliberately NOT run on every PR: it needs a macOS runner
+# (expensive, slow) and, for the BrowserStack upload/run steps, real
+# BROWSERSTACK_USERNAME/BROWSERSTACK_ACCESS_KEY repo secrets that may not be
+# configured yet. Trigger it manually or on a release tag once BrowserStack
+# is ready. The fast, deterministic checks in mort-ci.yml still run on every
+# PR and are not affected by this file.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "ios-qa-*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mort-ios-browserstack-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios-build:
+    runs-on: macos-14
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: flutter_mort
+    outputs:
+      artifact-built: ${{ steps.package.outputs.built }}
+    env:
+      # google_mobile_ads' iOS podspec hard-declares a CocoaPods-level
+      # `s.dependency 'webview_flutter_wkwebview'`, but that plugin ships a
+      # Package.swift. Flutter's Swift Package Manager support is enabled by
+      # default on the stable channel (flutter_tools Feature.enabledByDefault),
+      # and podhelper.rb deliberately skips registering an SPM-compatible
+      # plugin as a local CocoaPods pod when SPM is enabled -- leaving
+      # google_mobile_ads' hard CocoaPods dependency on it unsatisfiable, so
+      # `pod install` falls through to the public trunk, where it was never
+      # published, and fails with "Unable to find a specification". Disabling
+      # SPM for this job forces Flutter back to registering every plugin via
+      # the traditional CocoaPods symlink mechanism instead.
+      FLUTTER_SWIFT_PACKAGE_MANAGER: "false"
+    steps:
+      - uses: actions/checkout@v7
+
+      # macos-14 runners default to Xcode 15.4, whose iOS SDK does not yet
+      # declare NSProcessInfo.isiOSAppOnVision -- device_info_plus 13.2.0
+      # references it directly (not behind a respondsToSelector: guard),
+      # so compilation fails with "No visible @interface for 'NSProcessInfo'
+      # declares the selector 'isiOSAppOnVision'". Xcode 16.2 is also
+      # preinstalled on this runner image and its newer SDK declares it.
+      - name: Select Xcode 16.2 (newer iOS SDK than the macos-14 default)
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+
+      # On a completely fresh checkout, build/ios/SourcePackages doesn't exist
+      # yet. `flutter pub get`'s Swift Package Manager plugin-vendoring step
+      # rsyncs each SPM-compatible plugin (e.g. firebase_messaging) into that
+      # directory, and macOS's bundled rsync (an old BSD fork, not a modern
+      # one with --mkpath) cannot create more than one missing parent level
+      # at once -- it fails with "mkdir ... No such file or directory".
+      # Normally a prior `flutter build`/`flutter run` creates this tree as a
+      # side effect; on CI, pub get is the very first Flutter command ever
+      # run, so nothing has created it yet. Pre-create it explicitly.
+      - name: Prepare iOS Swift Package Manager plugin directory
+        run: mkdir -p build/ios/SourcePackages
+
+      - run: flutter pub get
+
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed lib test integration_test
+
+      - run: flutter analyze --no-pub
+
+      - name: Flutter unit/widget tests (macOS runner)
+        run: flutter test --no-pub
+
+      - name: Install CocoaPods dependencies
+        working-directory: flutter_mort/ios
+        run: pod install --repo-update
+
+      - name: Validate iOS project (xcodebuild -list)
+        working-directory: flutter_mort/ios
+        run: xcodebuild -list -workspace Runner.xcworkspace
+
+      # No Apple signing certificate is available to this program (external
+      # gate — see MORT_EXTERNAL_RELEASE_GATES.md). --no-codesign produces an
+      # unsigned Runner.app that proves the source/build/CocoaPods graph is
+      # sound, but BrowserStack real-device testing (App Live / App Automate)
+      # requires an app actually signed for on-device installation. Whether
+      # BrowserStack will accept this unsigned artifact for this project is
+      # unverified — do not assume it will work; the upload step in
+      # scripts/browserstack/upload-ios-app.ps1 will report the real
+      # BrowserStack response rather than assuming success.
+      - name: Build unsigned iOS release (no codesign)
+        run: >-
+          flutter build ios --release --no-codesign
+          --dart-define=MORT_RELEASE_STAGE=internal_test
+          --dart-define=MORT_RELEASE_PROFILE=automated_test
+          --dart-define=MORT_OPERATIONAL_MODE=automated_test
+          --dart-define=MORT_BROWSERSTACK_QA_MODE=true
+          --dart-define=MORT_PUBLIC_MARKETPLACE_ENABLED=false
+          --dart-define=MORT_IDENTITY_VERIFICATION_ENABLED=false
+          --dart-define=MORT_MARKETPLACE_PAYMENTS_ENABLED=false
+          --dart-define=MORT_REMOTE_PUSH_ENABLED=false
+          --dart-define=MORT_CRASH_REPORTING_ENABLED=false
+          --dart-define=MORT_SUPPORT_AI_ENABLED=false
+          --dart-define=MORT_DETERMINISTIC_SUPPORT_ENABLED=true
+          --dart-define=ADS_ENABLED=false
+          --dart-define=IAP_ENABLED=false
+
+      - name: Package Runner.app into a BrowserStack-shaped .ipa (UNSIGNED)
+        id: package
+        run: |
+          set -euo pipefail
+          APP_PATH="build/ios/iphoneos/Runner.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Runner.app not found at $APP_PATH" >&2
+            exit 1
+          fi
+          mkdir -p build/ios/browserstack/Payload
+          cp -R "$APP_PATH" build/ios/browserstack/Payload/
+          (cd build/ios/browserstack && zip -qr ../mort-ios-qa-unsigned.ipa Payload)
+          echo "built=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mort-ios-browserstack-qa
+          path: |
+            flutter_mort/build/ios/mort-ios-qa-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+  browserstack-app-live-smoke:
+    needs: ios-build
+    runs-on: ubuntu-latest
+    if: needs.ios-build.outputs.artifact-built == 'true'
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          name: mort-ios-browserstack-qa
+          path: ios-qa-artifact
+
+      - name: Check BrowserStack credentials are configured
+        id: creds
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:BROWSERSTACK_USERNAME) -or [string]::IsNullOrWhiteSpace($env:BROWSERSTACK_ACCESS_KEY)) {
+            Write-Host "BrowserStack credentials are not configured (BLOCKED_EXTERNAL) — skipping upload."
+            "configured=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          } else {
+            "configured=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          }
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+
+      - name: Upload to BrowserStack App Automate
+        id: upload
+        if: steps.creds.outputs.configured == 'true'
+        shell: pwsh
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        run: |
+          ./scripts/browserstack/upload-ios-app.ps1 -IpaPath "ios-qa-artifact/mort-ios-qa-unsigned.ipa"
+
+      - name: List currently available real iOS devices
+        if: steps.upload.outputs.app_url != ''
+        shell: pwsh
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        run: ./scripts/browserstack/list-ios-devices.ps1
+
+      - uses: actions/setup-node@v7
+        if: steps.upload.outputs.app_url != ''
+        with:
+          node-version: 22
+
+      - name: Install Appium client (pinned, reproducible)
+        if: steps.upload.outputs.app_url != ''
+        working-directory: scripts/browserstack
+        run: npm ci --ignore-scripts
+
+      # Authoritative functional matrix: drives the real onboarding, legal,
+      # safety, financial, settings, and permissions screens (mounted by
+      # BrowserStackQaApp) through their stable accessibility identifiers --
+      # not just a launch/crash check (see ios-appium-functional-test.mjs).
+      # Device/OS pairs are chosen from BrowserStack's own live inventory
+      # (browserstack-ios-devices.json, previous step): one current-generation
+      # high-tier device (deep coverage), one current device on an alternate
+      # OS version (limited coverage), and one older/smaller device (floor
+      # coverage, narrow-layout only).
+      - name: Real-device functional QA matrix
+        if: steps.upload.outputs.app_url != ''
+        working-directory: scripts/browserstack
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+          BROWSERSTACK_APP_URL: ${{ steps.upload.outputs.app_url }}
+        run: |
+          set -uo pipefail
+          devices=(
+            "iPhone 15|17|deep"
+            "iPhone 17|26|limited"
+            "iPhone SE 2022|15|floor"
+          )
+          overall=0
+          for entry in "${devices[@]}"; do
+            IFS='|' read -r device os qa_profile <<< "$entry"
+            echo "::group::Functional QA ($qa_profile): $device / iOS $os"
+            slug=$(echo "$device" | tr ' ' '_')
+            if BS_DEVICE_NAME="$device" BS_OS_VERSION="$os" BS_QA_PROFILE="$qa_profile" node ios-appium-functional-test.mjs; then
+              rc=0
+            else
+              rc=$?
+            fi
+            for f in browserstack-"$qa_profile"-*.png; do
+              [ -e "$f" ] || continue
+              mv "$f" "${f%.png}-${slug}-${os}.png"
+            done
+            [ -f "browserstack-crash-log-${qa_profile}.txt" ] && mv "browserstack-crash-log-${qa_profile}.txt" "browserstack-crash-log-${qa_profile}-${slug}-${os}.txt"
+            [ -f "browserstack-device-log-${qa_profile}.txt" ] && mv "browserstack-device-log-${qa_profile}.txt" "browserstack-device-log-${qa_profile}-${slug}-${os}.txt"
+            [ -f "browserstack-appium-log-${qa_profile}.txt" ] && mv "browserstack-appium-log-${qa_profile}.txt" "browserstack-appium-log-${qa_profile}-${slug}-${os}.txt"
+            [ -f "browserstack-session-${qa_profile}.json" ] && mv "browserstack-session-${qa_profile}.json" "browserstack-session-${qa_profile}-${slug}-${os}.json"
+            for f in browserstack-"$qa_profile"-*-page-source.xml browserstack-"$qa_profile"-*-diagnostics.json; do
+              [ -e "$f" ] || continue
+              extension="${f##*.}"
+              mv "$f" "${f%.*}-${slug}-${os}.${extension}"
+            done
+            if [ $rc -ne 0 ]; then
+              echo "FAILED ($qa_profile): $device / iOS $os"
+              overall=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $overall
+
+      - uses: actions/upload-artifact@v7
+        if: always() && steps.upload.outputs.app_url != ''
+        with:
+          name: mort-ios-browserstack-evidence
+          path: |
+            browserstack-ios-devices.json
+            scripts/browserstack/browserstack-*-*.png
+            scripts/browserstack/browserstack-crash-log-*.txt
+            scripts/browserstack/browserstack-device-log-*.txt
+            scripts/browserstack/browserstack-appium-log-*.txt
+            scripts/browserstack/browserstack-*.xml
+            scripts/browserstack/browserstack-*.json
+            scripts/browserstack/browserstack-session-*.json
+          if-no-files-found: warn
+          retention-days: 14

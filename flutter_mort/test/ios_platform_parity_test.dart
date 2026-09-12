@@ -21,6 +21,9 @@ void main() {
   final sceneDelegate = File(
     'ios/Runner/SceneDelegate.swift',
   ).readAsStringSync();
+  final browserStackWorkflow = File(
+    '../.github/workflows/mort-ios-browserstack.yml',
+  ).readAsStringSync();
 
   group('iOS Info.plist contract', () {
     test('registers the exact MORT URL scheme used by the OAuth callback', () {
@@ -62,6 +65,21 @@ void main() {
       expect(infoPlist, contains('UIInterfaceOrientationPortrait'));
       expect(infoPlist, contains('UISceneDelegateClassName'));
     });
+
+    test(
+      'declares a GADApplicationIdentifier for the compiled-in AdMob SDK',
+      () {
+        // google_mobile_ads is compiled in unconditionally
+        // (AppConfig.nativeAdsCompiledIn), and its native SDK crashes with
+        // GADInvalidInitializationException at process launch on every real
+        // device if this key is absent -- independent of the ADS_ENABLED
+        // dart-define, since the SDK's own launch check runs regardless of
+        // whether Dart ever calls MobileAds.instance.initialize(). Confirmed
+        // via a real BrowserStack device crash before this key was added.
+        expect(infoPlist, contains('GADApplicationIdentifier'));
+        expect(infoPlist, contains('ca-app-pub-'));
+      },
+    );
   });
 
   group('iOS Xcode project contract', () {
@@ -230,5 +248,20 @@ void main() {
     const channel = MethodChannel('mort/native_security');
     expect(channel.name, 'mort/native_security');
     expect(appDelegate, contains('mort/native_security'));
+  });
+
+  group('MORT iOS BrowserStack workflow contract', () {
+    test('runs the deep/limited/floor functional QA matrix, not the old '
+        'launch-only setup', () {
+      expect(
+        browserStackWorkflow,
+        contains('--dart-define=MORT_BROWSERSTACK_QA_MODE=true'),
+      );
+      expect(browserStackWorkflow, contains('npm ci --ignore-scripts'));
+      expect(browserStackWorkflow, contains('ios-appium-functional-test.mjs'));
+      expect(browserStackWorkflow, contains('iPhone 15|17|deep'));
+      expect(browserStackWorkflow, contains('iPhone 17|26|limited'));
+      expect(browserStackWorkflow, contains('iPhone SE 2022|15|floor'));
+    });
   });
 }

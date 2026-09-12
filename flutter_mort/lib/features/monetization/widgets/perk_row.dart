@@ -16,7 +16,7 @@ class PerkRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: MortColors.neon, size: 18),
+          Icon(icon, color: MortColors.accent, size: 18),
           const SizedBox(width: MortSpacing.xs),
           Expanded(
             child: Text(text, style: Theme.of(context).textTheme.bodyMedium),

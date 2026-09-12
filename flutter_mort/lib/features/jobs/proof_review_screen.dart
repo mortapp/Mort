@@ -112,28 +112,6 @@ class _ProofReviewScreenState extends ConsumerState<ProofReviewScreen> {
     }
   }
 
-  Future<void> _complete() async {
-    if (_busy) return;
-    final confirmed = await MortConfirmSheet.show(
-      context,
-      title: 'Mark this job complete?',
-      message:
-          'This protected action keeps approved proof in the private job record.',
-    );
-    if (!confirmed || !mounted) return;
-    setState(() => _busy = true);
-    try {
-      await ref
-          .read(applicationsRepositoryProvider)
-          .updateStatus(widget.applicationId, 'completed');
-      if (mounted) context.go('/adult/applicants');
-    } catch (error) {
-      if (mounted) MortToast.show(context, userFacingError(error));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return MortScreen(
@@ -307,11 +285,10 @@ class _ProofReviewScreenState extends ConsumerState<ProofReviewScreen> {
           ),
         ] else if (proof.status == 'approved') ...[
           MortButton(
-            label: 'Mark job complete',
-            busyLabel: 'Completing...',
-            busy: _busy,
-            icon: Icons.task_alt,
-            onPressed: _complete,
+            label: 'Open job progress',
+            icon: Icons.timeline_outlined,
+            onPressed: () =>
+                context.go('/jobs/progress/${widget.applicationId}'),
           ),
         ] else
           const MortCard(
@@ -324,7 +301,7 @@ class _ProofReviewScreenState extends ConsumerState<ProofReviewScreen> {
   }
 
   static Color _statusColor(String status) => switch (status) {
-    'approved' => MortColors.neon,
+    'approved' => MortColors.accent,
     'submitted' => MortColors.safetyBlue,
     _ => MortColors.warning,
   };

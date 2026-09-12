@@ -405,7 +405,7 @@ class _PartnerParticipantsScreenState
                           MortBadge(
                             label: _humanize(attestation['status']),
                             color: attestation['status'] == 'active'
-                                ? MortColors.neon
+                                ? MortColors.accent
                                 : MortColors.textMuted,
                           ),
                           if (attestation['status'] == 'active') ...[
@@ -640,7 +640,7 @@ class _PartnerInvitesScreenState extends ConsumerState<PartnerInvitesScreen> {
                               ? 'Active'
                               : 'Revoked',
                           color: invite['revoked_at'] == null
-                              ? MortColors.neon
+                              ? MortColors.accent
                               : MortColors.textMuted,
                         ),
                         if (invite['revoked_at'] == null) ...[

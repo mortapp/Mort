@@ -125,6 +125,10 @@ class AppConfig {
     'MORT_DEBUG_ENDPOINTS_ENABLED',
     defaultValue: false,
   );
+  static const browserStackQaMode = bool.fromEnvironment(
+    'MORT_BROWSERSTACK_QA_MODE',
+    defaultValue: false,
+  );
   static const supportedReleaseStages = <String>{
     'development',
     'internal_test',
@@ -343,6 +347,7 @@ class AppConfig {
         identityVerificationEnabled: identityVerificationEnabled,
         remotePushEnabled: remotePushEnabled,
         crashReportingEnabled: crashReportingEnabled,
+        productAnalyticsEnabled: productAnalyticsEnabled,
         chatbotAiEnabled: chatbotAiEnabled,
         deterministicChatbotFallbackEnabled:
             deterministicChatbotFallbackEnabled,
@@ -359,6 +364,7 @@ class AppConfig {
         minimumSupportedAppVersion: minimumSupportedAppVersion,
         maintenanceMode: maintenanceMode,
         debugEndpointsEnabled: debugEndpointsEnabled,
+        browserStackQaMode: browserStackQaMode,
       );
 
   static Map<String, String> get safeReleaseDiagnostics => {
@@ -386,12 +392,16 @@ class AppConfig {
 
     final isRelease = releaseStage != 'development';
     if (isRelease) {
-      if (!isSupabaseConfigured) {
-        errors.add('hosted Supabase public configuration is missing');
-      }
-      if (supabaseProjectRef != expectedSupabaseProjectRef ||
-          supabaseUrl != 'https://$expectedSupabaseProjectRef.supabase.co') {
-        errors.add('Supabase project does not match the approved MORT project');
+      if (!browserStackQaMode) {
+        if (!isSupabaseConfigured) {
+          errors.add('hosted Supabase public configuration is missing');
+        }
+        if (supabaseProjectRef != expectedSupabaseProjectRef ||
+            supabaseUrl != 'https://$expectedSupabaseProjectRef.supabase.co') {
+          errors.add(
+            'Supabase project does not match the approved MORT project',
+          );
+        }
       }
       if (iapEnabled || nativeBillingCompiledIn) {
         errors.add('native billing must be absent from this release');

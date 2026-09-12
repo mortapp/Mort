@@ -32,7 +32,7 @@ class ReviewerRoleSelectorScreen extends ConsumerWidget {
               onTap: () => _openRole(context, ref, role),
               child: Row(
                 children: [
-                  Icon(_roleIcon(role), color: MortColors.neon),
+                  Icon(_roleIcon(role), color: MortColors.accent),
                   const SizedBox(width: MortSpacing.md),
                   Expanded(
                     child: Column(
@@ -129,7 +129,7 @@ class ReviewerRoleExperience extends ConsumerWidget {
           eyebrow: '${role.label} demo',
           title: '${role.label} review experience',
           subtitle: _roleSummary(role),
-          trailing: Icon(_roleIcon(role), color: MortColors.neon, size: 30),
+          trailing: Icon(_roleIcon(role), color: MortColors.accent, size: 30),
         ),
         MortDropdown<ReviewerRole>(
           label: 'Review Role',
@@ -457,12 +457,12 @@ class _SyntheticProofPanel extends ConsumerWidget {
             const SizedBox(height: MortSpacing.md),
             const ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.image, color: MortColors.neon),
+              leading: Icon(Icons.image, color: MortColors.accent),
               title: Text('synthetic-yard-proof.jpg'),
               subtitle: Text(
                 'Generated demonstration file - local session only',
               ),
-              trailing: Icon(Icons.check_circle, color: MortColors.neon),
+              trailing: Icon(Icons.check_circle, color: MortColors.accent),
             ),
           ],
           const SizedBox(height: MortSpacing.md),

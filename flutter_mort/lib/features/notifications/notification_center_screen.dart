@@ -275,7 +275,10 @@ class _NotificationCenterScreenState
                           ),
                         ),
                         if (item.isUnread)
-                          const MortBadge(label: 'new', color: MortColors.neon),
+                          const MortBadge(
+                            label: 'new',
+                            color: MortColors.accent,
+                          ),
                       ],
                     ),
                   ),

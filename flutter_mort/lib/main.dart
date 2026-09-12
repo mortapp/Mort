@@ -15,11 +15,16 @@ import 'core/widgets/mort_widgets.dart';
 import 'data/services/supabase_service.dart';
 import 'core/config/app_config.dart';
 import 'features/ads/data/ad_consent_service.dart';
+import 'features/qa/browserstack_qa_app.dart';
 import 'services/push/push_notification_coordinator.dart';
 import 'services/push/remote_push_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (AppConfig.browserStackQaMode) {
+    _runApp();
+    return;
+  }
   // Android 15+ (targetSdk 35+, which MORT uses) enforces edge-to-edge
   // display regardless of app preference -- content draws behind system
   // bars whether or not the app asks for it. Without explicitly opting
@@ -118,6 +123,9 @@ class _MortBootstrapState extends State<MortBootstrap> {
   Future<Object?> _initializeSafely() async {
     try {
       AppConfig.assertValidReleaseConfiguration();
+      if (AppConfig.browserStackQaMode) {
+        return null;
+      }
       if (AppConfig.crashReportingEnabled &&
           !MortCrashReporting.instance.providerConfigured) {
         throw StateError('The configured crash provider is unavailable.');
@@ -174,6 +182,9 @@ class _MortBootstrapState extends State<MortBootstrap> {
             snapshot.connectionState == ConnectionState.done &&
             snapshot.data != null;
         if (snapshot.connectionState == ConnectionState.done && !failed) {
+          if (AppConfig.browserStackQaMode) {
+            return const BrowserStackQaApp();
+          }
           return const MortApp();
         }
 

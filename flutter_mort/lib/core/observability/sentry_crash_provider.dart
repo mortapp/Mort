@@ -38,7 +38,6 @@ class MortSentryCrashProvider {
           ..enableAppHangTracking = false
           ..enableFramesTracking = false
           ..enableLogs = false
-          ..enableMetrics = false
           ..tracesSampleRate = 0
           ..maxBreadcrumbs = 50
           ..beforeSend = sanitizeEvent;

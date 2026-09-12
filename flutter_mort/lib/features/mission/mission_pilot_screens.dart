@@ -206,7 +206,7 @@ class PartnerInvitationScreen extends StatelessWidget {
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(
                     Icons.verified_user_outlined,
-                    color: MortColors.neon,
+                    color: MortColors.accent,
                   ),
                   title: Text(entry.key),
                   subtitle: Text(entry.value),
@@ -1018,7 +1018,7 @@ class PilotJobSafetyScreen extends StatelessWidget {
           title: 'Initially allowed settings',
           items: allowed,
           icon: Icons.check_circle_outline,
-          color: MortColors.neon,
+          color: MortColors.accent,
         ),
         const SizedBox(height: MortSpacing.md),
         _BulletCard(

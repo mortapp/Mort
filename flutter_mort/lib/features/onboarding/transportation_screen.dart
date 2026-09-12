@@ -241,7 +241,7 @@ class _TransportationScreenState extends ConsumerState<TransportationScreen> {
                               entry.value.icon,
                               color: selected
                                   ? MortColors.lightBlue
-                                  : MortColors.roseGoldLight,
+                                  : MortColors.accent,
                               size: 30,
                             ),
                             const SizedBox(height: MortSpacing.xs),

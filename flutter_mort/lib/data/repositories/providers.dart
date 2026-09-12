@@ -6,11 +6,13 @@ import '../models/profile.dart';
 import '../models/onboarding_progress.dart';
 import '../models/job.dart';
 import '../models/account_trust.dart';
+import '../models/financial_safety.dart';
 import '../services/supabase_service.dart';
 import '../services/secure_draft_storage.dart';
 import 'account_trust_repository.dart';
 import 'account_deletion_repository.dart';
 import 'admin_repository.dart';
+import 'financial_repository.dart';
 import 'applications_repository.dart';
 import 'auth_repository.dart';
 import 'avatar_repository.dart';
@@ -167,6 +169,30 @@ final jobExecutionRepositoryProvider = Provider<JobExecutionRepository>(
 final legalContractRepositoryProvider = Provider<LegalContractRepository>(
   (ref) => LegalContractRepository(),
 );
+// A material revision to a required legal document (Terms, Privacy, Safety
+// Rules) creates a server-side reacceptance requirement, but nothing
+// previously prompted an already-onboarded user to actually go re-accept it
+// -- it only surfaced if they happened to open the Legal Center themselves.
+// This mirrors the get_my_legal_requirements() shape (required + null
+// acceptance_id = outstanding) and fails open (false) on any error, since a
+// network hiccup here must never block app startup.
+final pendingRequiredLegalReacceptanceProvider = FutureProvider<bool>((
+  ref,
+) async {
+  try {
+    final result = await ref
+        .read(legalContractRepositoryProvider)
+        .legalRequirements();
+    final requirements = (result['requirements'] as List? ?? const []).map(
+      (item) => Map<String, dynamic>.from(item as Map),
+    );
+    return requirements.any(
+      (item) => item['required'] == true && item['acceptance_id'] == null,
+    );
+  } catch (_) {
+    return false;
+  }
+});
 final applicationsRepositoryProvider = Provider<ApplicationsRepository>(
   (ref) => ApplicationsRepository(),
 );
@@ -249,6 +275,48 @@ final stripeMarketplaceRepositoryProvider =
     Provider<StripeMarketplaceRepository>(
       (ref) => StripeMarketplaceRepository(),
     );
+final financialRepositoryProvider = Provider<FinancialRepository>(
+  (ref) => FinancialRepository(),
+);
+
+/// Tracked compensation summary for one calendar year (server-authoritative).
+final financialSummaryProvider = FutureProvider.autoDispose
+    .family<FinancialSummary, int>((ref, year) {
+      ref.watch(authStateProvider);
+      return ref.watch(financialRepositoryProvider).getFinancialSummary(year);
+    });
+
+/// Financial Check evaluation for one calendar year. Informational only:
+/// the result never gates any marketplace capability.
+final financialAlertsProvider = FutureProvider.autoDispose
+    .family<FinancialEvaluation, int>((ref, year) {
+      ref.watch(authStateProvider);
+      return ref.watch(financialRepositoryProvider).evaluateAlerts(year);
+    });
+
+final financialPreferencesProvider = FutureProvider<FinancialPreferences>((
+  ref,
+) {
+  ref.watch(authStateProvider);
+  return ref.watch(financialRepositoryProvider).getPreferences();
+});
+
+final financialRulesProvider = FutureProvider<List<FinancialRule>>((ref) {
+  ref.watch(authStateProvider);
+  return ref.watch(financialRepositoryProvider).listRules();
+});
+
+final financialExpensesProvider = FutureProvider.autoDispose
+    .family<List<ExpenseRecord>, int>((ref, year) {
+      ref.watch(authStateProvider);
+      return ref.watch(financialRepositoryProvider).listExpenses(year);
+    });
+
+final financialYearReportProvider = FutureProvider.autoDispose
+    .family<FinancialYearReport, int>((ref, year) {
+      ref.watch(authStateProvider);
+      return ref.watch(financialRepositoryProvider).getYearReport(year);
+    });
 
 final authStateProvider = StreamProvider<AuthState>((ref) {
   return ref.watch(authRepositoryProvider).authStateChanges;
@@ -308,4 +376,11 @@ void invalidateUserScopedProviders(WidgetRef ref) {
   ref.invalidate(accountTrustRepositoryProvider);
   ref.invalidate(accountDeletionRepositoryProvider);
   ref.invalidate(adminRepositoryProvider);
+  ref.invalidate(financialRepositoryProvider);
+  ref.invalidate(financialSummaryProvider);
+  ref.invalidate(financialAlertsProvider);
+  ref.invalidate(financialPreferencesProvider);
+  ref.invalidate(financialRulesProvider);
+  ref.invalidate(financialExpensesProvider);
+  ref.invalidate(financialYearReportProvider);
 }

@@ -21,26 +21,42 @@ void main() {
     expect(source, isNot(contains('liveRegion: true')));
     expect(source, contains('_remaining.inSeconds == 30'));
     expect(source, contains('if (_remaining > Duration.zero)'));
+    expect(source, isNot(contains('MortColors.roseGold')));
+    expect(source, isNot(contains('MortColors.godPink')));
+    expect(source, isNot(contains('MortColors.neon')));
   });
 
   testWidgets('adult job progress shows server state and role actions', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
-          home: JobProgressScreen(
-            applicationId: 'synthetic-widget-qa',
-            syntheticStatusForTesting: JobExecutionStatus(
+          home: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(320, 568),
+              disableAnimations: true,
+              textScaler: TextScaler.linear(2),
+            ),
+            child: JobProgressScreen(
               applicationId: 'synthetic-widget-qa',
-              jobId: 'job-widget-qa',
-              contractId: 'contract-widget-qa',
-              role: 'adult',
-              state: 'awaiting_start',
-              fundingStatus: 'funded',
-              startPinActive: false,
-              finishPinActive: false,
-              livePaymentEnabled: false,
+              syntheticStatusForTesting: JobExecutionStatus(
+                applicationId: 'synthetic-widget-qa',
+                jobId: 'job-widget-qa',
+                contractId: 'contract-widget-qa',
+                role: 'adult',
+                state: 'awaiting_start',
+                fundingStatus: 'funded',
+                startPinActive: false,
+                finishPinActive: false,
+                livePaymentEnabled: false,
+              ),
             ),
           ),
         ),
@@ -49,7 +65,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Job progress'), findsOneWidget);
-    expect(find.text('Funds collected'), findsOneWidget);
+    expect(find.text('Server funding status: funded'), findsOneWidget);
+    expect(find.text('Funds collected'), findsNothing);
     expect(find.text('Adult actions'), findsOneWidget);
     expect(find.text('Generate start PIN'), findsOneWidget);
     expect(find.text('Generate finish PIN - Unavailable'), findsOneWidget);
@@ -57,6 +74,17 @@ void main() {
       find.textContaining('Live payments remain disabled'),
       findsOneWidget,
     );
+    for (final state in [
+      'Awaiting start',
+      'Start pin active',
+      'In progress',
+      'Finish pin active',
+      'Completion pending release',
+      'Completed',
+    ]) {
+      expect(find.text(state), findsOneWidget, reason: state);
+    }
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(
@@ -122,8 +150,46 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Job complete'), findsOneWidget);
-    expect(find.text('Payment under review'), findsOneWidget);
+    expect(find.text('Payment status is separate'), findsOneWidget);
+    expect(find.text('Payment under review'), findsNothing);
     expect(find.text('Leave a rating'), findsOneWidget);
     expect(find.textContaining('You were paid'), findsNothing);
+  });
+
+  testWidgets('unknown server state fails closed for adult mutations', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: JobProgressScreen(
+            applicationId: 'synthetic-unknown-widget-qa',
+            syntheticStatusForTesting: JobExecutionStatus(
+              applicationId: 'synthetic-unknown-widget-qa',
+              jobId: 'job-unknown-widget-qa',
+              contractId: 'contract-unknown-widget-qa',
+              role: 'adult',
+              state: 'unexpected_transition',
+              fundingStatus: 'unknown',
+              startPinActive: false,
+              finishPinActive: false,
+              livePaymentEnabled: false,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Unexpected transition'), findsOneWidget);
+    expect(find.text('Generate start PIN - Unavailable'), findsOneWidget);
+    expect(find.text('Generate finish PIN - Unavailable'), findsOneWidget);
+    expect(find.text('Cancel job - Unavailable'), findsOneWidget);
+    expect(
+      find.text('Report possible abandonment - Unavailable'),
+      findsOneWidget,
+    );
+    expect(find.text('Open support'), findsOneWidget);
+    expect(find.text('Safety Center'), findsOneWidget);
   });
 }

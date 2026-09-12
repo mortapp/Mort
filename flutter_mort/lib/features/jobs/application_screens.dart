@@ -393,7 +393,7 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
               if (application.availabilityConfirmed)
                 const MortBadge(
                   label: 'Availability confirmed',
-                  color: MortColors.neon,
+                  color: MortColors.accent,
                 ),
             ],
           ),
@@ -496,14 +496,16 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
           ),
         ]);
       }
-      if (application.status == 'in_progress' &&
-          application.job?.proofExpected != true) {
+      if ([
+        'accepted',
+        'in_progress',
+        'proof_submitted',
+      ].contains(application.status)) {
         actions.add(
           MortAction(
-            label: 'Mark complete',
-            icon: Icons.task_alt,
-            busy: busy,
-            onPressed: () => onStatus('completed'),
+            label: 'Open job progress',
+            icon: Icons.timeline_outlined,
+            route: '/jobs/progress/${application.id}',
           ),
         );
       }
@@ -578,10 +580,9 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
       );
       actions.add(
         MortAction(
-          label: 'Start job',
-          icon: Icons.play_arrow,
-          busy: busy,
-          onPressed: () => onStatus('in_progress'),
+          label: 'Open job progress',
+          icon: Icons.timeline_outlined,
+          route: '/jobs/progress/${application.id}',
         ),
       );
     }
@@ -630,7 +631,7 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
   }
 
   static Color _statusColor(String status) => switch (status) {
-    'accepted' || 'completed' => MortColors.neon,
+    'accepted' || 'completed' => MortColors.accent,
     'rejected' ||
     'guardian_rejected' ||
     'withdrawn' ||
