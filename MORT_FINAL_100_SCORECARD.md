@@ -308,6 +308,14 @@ mode while its own three GitHub Actions jobs all pass. Classified as an **extern
 gate** (Vercel dashboard project-settings access, not a code fix) -- flagging for
 whoever owns the Vercel project rather than attempting to "fix" it by touching app code.
 
+Re-confirmed on the docs-only follow-up push (`bf2f63a`): run
+https://github.com/mortapp/Mort/actions/runs/34693880624 -- `expo-reference` PASS (2m21s),
+`flutter-authoritative` PASS (3m42s), `public-site` PASS (22s). Vercel check
+(`dpl_3ooHP82UbNSf1qxM9sFo26Csa88L`) failed again with the byte-for-byte identical
+`Metro error: supabaseUrl is required.` / `pnpm run build exited with 1` signature,
+confirming this is a stable, reproducible pre-existing gate rather than a flaky or
+branch-specific regression.
+
 ## mort-web independent-reviewer fixes (2026-09-12)
 
 A fresh, read-only reviewer subagent independently re-verified all 9 claims in
@@ -333,3 +341,65 @@ out:
   the glyph in `<span aria-hidden="true">` in all three locations rather than forcing it
   through the `Icon` SVG component (which has no left-arrow path defined and is meant for
   standalone/leading decorative icons, not inline text-adjacent glyphs).
+
+Both fixes were committed (`1e35573`) and pushed to `audit/final-100-launch-integrity`.
+**Before that push's CI could be checked, PR #1 was merged into `main` by the `mortapp`
+account** (`mergedAt=2026-09-12T01:57:24Z`, `mergedBy.login=mortapp`, `is_bot=false`,
+`autoMergeRequest=null` -- a direct merge, not an auto-merge queue) -- not an action taken
+by this session; no `gh pr merge` was ever run here. `main`'s HEAD (`67c8e62`) was at
+`11dde0c`, i.e. *before* the font-CSP fix, so `main` briefly shipped with `style-src`/
+`font-src` blocking the site's own Google Fonts import.
+
+## mort-web: second real regression found + PR #2 opened (2026-09-12)
+
+Ran Lighthouse (`npx lighthouse`, real headless Chrome, real production build + real
+Supabase env vars) against the merged `main` state as an extra check beyond the
+independent reviewer's manual pass. Accessibility=100, SEO=100, but Performance=41 and
+`errors-in-console` failed best-practices with:
+`CompileError: WebAssembly.instantiate(): ... violates ... script-src 'self' 'unsafe-inline'`.
+
+Root cause: `@react-three/rapier`'s physics engine (compiled to WebAssembly, used by
+`components/mort/scene/world.tsx`, mounted from `MortAtmosphere` for the homepage's
+animated hero scene) cannot instantiate under a CSP with no WASM allowance -- a real
+regression from this session's own earlier `next.config.ts` CSP-hardening commit,
+undetected until this Lighthouse run because prior verification only checked that
+headers were *present*, not that every page's actual client-side functionality still
+worked under them.
+
+Fixed by adding `'wasm-unsafe-eval'` to `script-src` (narrower than `'unsafe-eval'`:
+permits only WASM module instantiation, not arbitrary JS `eval()`). Re-ran Lighthouse
+after the fix: best-practices 92->100, the console-error audit now passes, LCP improved
+8.9s->3.7s. Total-blocking-time got *worse* (8.6s->19.7s) after the fix -- expected, not
+a regression: previously the physics scene was silently failing (less real work), now it
+correctly runs. Verified this is an accepted, already-mitigated design tradeoff rather
+than an unmitigated defect: `MortAtmosphere` (`components/mort-atmosphere.tsx`) defaults
+`reduced=true` and never mounts the WASM scene unless `prefers-reduced-motion` explicitly
+allows motion, feature-detects WebGL2 with a static CSS fallback (`SceneBoundary` error
+boundary too), pauses on `document.visibilitychange`, and exposes a manual
+pause/resume control with `aria-pressed`/`aria-label` (satisfying WCAG 2.2.2 Pause, Stop,
+Hide). Did not rework the scene itself -- it's a deliberate brand/design asset, out of
+scope for a CSP correctness fix.
+
+Committed (`1431129`), pushed to `audit/final-100-launch-integrity`, `npm run build` /
+`npm test` (5/5) / `npm run lint` all re-verified passing. Since PR #1 was already merged,
+opened a fresh PR https://github.com/mortapp/mort-web/pull/2 (base `main`) carrying both
+post-merge fix commits (font-CSP + wasm-unsafe-eval). Its Vercel check passes
+(`dpl_2FU3GeUFD8B7KKteGmNuvvhRMRmK`). **Not merged** -- left open for explicit owner
+review/merge per the standing "no merge to main without explicit authorization" rule.
+
+## Keyboard-navigation / manual accessibility pass -- honest scope limitation
+
+Chrome browser automation (`claude-in-chrome`) was unavailable in this environment this
+session ("Browser extension is not connected"), so a live, interactive keyboard-tab-order
+and screen-reader pass could not be performed and is not claimed here. What was verified
+instead, all via static analysis and Lighthouse's automated accessibility audit (which
+covers a meaningful subset of WCAG 2.x success criteria via axe-core rules, including
+color-contrast, but is not equivalent to manual testing):
+- Lighthouse accessibility category = 100 on the homepage (post-CSP-fix build).
+- `skip-link` element present (`app/globals.css`/layout), `main` elements carry
+  `id="main-content" tabIndex={-1}` across pages, consistent with skip-to-content support.
+- No `tabindex` values greater than `0` found via grep across `app/` and `components/`
+  (positive tabindex values are a common keyboard-trap/order-scrambling anti-pattern).
+NOT_APPLICABLE / NOT_DONE: full manual keyboard-only navigation through signup/login/job
+flows, and screen-reader (NVDA/VoiceOver) verification, remain undone this session --
+recorded honestly rather than claimed.
