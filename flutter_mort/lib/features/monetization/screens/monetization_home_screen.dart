@@ -42,6 +42,21 @@ class MonetizationHomeScreen extends StatelessWidget {
               route: '/monetization/job-boost',
             ),
             MortAction(
+              label: 'Profile styles',
+              icon: Icons.style_rounded,
+              route: '/monetization/profile-style-pack',
+            ),
+            MortAction(
+              label: 'Adult Pro',
+              icon: Icons.workspace_premium_rounded,
+              route: '/monetization/adult-pro',
+            ),
+            MortAction(
+              label: 'Guardian Plus',
+              icon: Icons.family_restroom_rounded,
+              route: '/monetization/guardian-plus',
+            ),
+            MortAction(
               label: 'Restore',
               icon: Icons.restore,
               route: '/monetization/restore',

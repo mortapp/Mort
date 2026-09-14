@@ -10,6 +10,7 @@ import '../errors/user_facing_error.dart';
 import '../../features/monetization/screens/ad_free_screen.dart';
 import '../../features/monetization/screens/job_boost_paywall_screen.dart';
 import '../../features/monetization/screens/monetization_home_screen.dart';
+import '../../features/monetization/screens/product_availability_screen.dart';
 import '../../features/monetization/screens/google_play_billing_screens.dart';
 import '../../features/monetization/screens/username_change_paywall_screen.dart';
 import '../../features/guardian/guardian_mode_screens.dart';
@@ -1170,6 +1171,44 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         const UsernameChangePaywallScreen(),
       ),
       _guarded('/monetization/job-boost', const JobBoostPaywallScreen()),
+      _guarded(
+        '/monetization/profile-style-pack',
+        const ProductAvailabilityScreen(
+          product: 'profile-style-pack',
+          title: 'Profile styles',
+          description:
+              'Profile style packs are planned optional perks. No store '
+              'offering is configured in this release, so no style pack can '
+              'be shown or purchased yet.',
+        ),
+      ),
+      _guarded(
+        '/monetization/adult-pro',
+        const ProductAvailabilityScreen(
+          product: 'adult-pro',
+          title: 'Adult Pro',
+          description:
+              'Adult Pro perks (templates, sorting, insights) are planned '
+              'optional perks for adult accounts. No store offering is '
+              'configured in this release. Job insights remain available in '
+              'their entitlement-honest state.',
+          secondaryRoute: '/adult/analytics',
+          secondaryLabel: 'Open job insights status',
+        ),
+      ),
+      _guarded(
+        '/monetization/guardian-plus',
+        const ProductAvailabilityScreen(
+          product: 'guardian-plus',
+          title: 'Guardian Plus',
+          description:
+              'Basic Guardian Mode is free and always will be. Guardian Plus '
+              'organization perks have no store offering configured in this '
+              'release.',
+          secondaryRoute: '/guardian/home',
+          secondaryLabel: 'Open Guardian Mode',
+        ),
+      ),
       _guarded('/monetization/restore', const RestorePurchasesView()),
       _guarded('/monetization/manage', const ManageSubscriptionView()),
       GoRoute(
