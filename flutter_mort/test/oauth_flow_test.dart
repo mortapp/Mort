@@ -80,6 +80,16 @@ void main() {
       );
     });
 
+    test('rejects a callback with malformed UTF-8 query data', () {
+      expect(
+        MortOAuthCallbackPolicy.isApproved(
+          Uri.parse('com.mortapp.mobile://app/auth-callback?state=%E0%80'),
+          isWeb: false,
+        ),
+        isFalse,
+      );
+    });
+
     test('normalizes the exact native route emitted by the router', () {
       final normalized = MortOAuthCallbackPolicy.normalize(
         Uri.parse('/auth-callback?code=opaque'),

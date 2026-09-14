@@ -136,8 +136,14 @@ class MortOAuthCallbackPolicy {
 
   static bool isApproved(Uri uri, {required bool isWeb}) {
     final normalized = normalize(uri, isWeb: isWeb);
-    if (normalized.queryParameters.keys.any(_sensitiveParameters.contains) ||
-        _fragmentContainsSensitiveParameter(normalized.fragment)) {
+    try {
+      if (normalized.queryParameters.keys.any(_sensitiveParameters.contains) ||
+          _fragmentContainsSensitiveParameter(normalized.fragment)) {
+        return false;
+      }
+    } on FormatException {
+      return false;
+    } on ArgumentError {
       return false;
     }
 
@@ -160,6 +166,11 @@ class MortOAuthCallbackPolicy {
         fragment,
       ).keys.any(_sensitiveParameters.contains);
     } on FormatException {
+      // Malformed escapes (e.g. invalid UTF-8 sequences) are hostile.
+      return true;
+    } on ArgumentError {
+      // Truncated percent-escapes raise ArgumentError, not FormatException.
+      // A callback whose fragment cannot be decoded is never trusted.
       return true;
     }
   }
