@@ -9,6 +9,7 @@ import {
   withDatabase,
   withQaUsers,
 } from "./feature-qa-helpers.mjs";
+import { cleanupQaStorageObject, withQaCleanup } from "./qa-cleanup.mjs";
 
 const scope = "support-chatbot";
 
@@ -494,60 +495,61 @@ await withQaUsers(
       !adultAttachments.error && adultAttachments.data?.length === 0,
       "attachment manifest leaked cross-user",
     );
-    const upload = await teen.client.storage
-      .from("support-attachments")
-      .upload(manifest.data.object_path, jpeg, {
-        contentType: "image/jpeg",
-        upsert: false,
-      });
-    assertQa(
-      !upload.error,
-      `private attachment upload failed: ${upload.error?.message}`,
-    );
-    const submit = await invoke(teen.client, "support-upload-authorize", {
-      action: "submit",
-      attachment_id: manifest.data.attachment_id,
-    });
-    assertQa(
-      submit.response.status === 200 && submit.data.ok === true,
-      "attachment submit failed",
-    );
-    const download = await invoke(teen.client, "support-upload-authorize", {
-      action: "download",
-      attachment_id: manifest.data.attachment_id,
-    });
-    assertQa(
-      download.response.status === 200 && download.data.signed_url,
-      "signed attachment download failed",
-    );
-    const downloaded = await fetch(download.data.signed_url);
-    assertQa(
-      downloaded.ok &&
-        (await downloaded.arrayBuffer()).byteLength === jpeg.byteLength,
-      "signed attachment bytes did not round-trip",
-    );
-    const shortSigned = await serviceClient.storage
-      .from("support-attachments")
-      .createSignedUrl(manifest.data.object_path, 5);
-    assertQa(
-      !shortSigned.error && shortSigned.data?.signedUrl,
-      "short expiry URL creation failed",
-    );
-    const beforeExpiry = await fetch(shortSigned.data.signedUrl);
-    assertQa(beforeExpiry.ok, "short signed URL failed before expiry");
-    await new Promise((resolve) => setTimeout(resolve, 6100));
-    const afterExpiry = await fetch(shortSigned.data.signedUrl);
-    assertQa(!afterExpiry.ok, "short signed URL still worked after expiry");
-    const storageCleanup = await serviceClient.storage
-      .from("support-attachments")
-      .remove([manifest.data.object_path]);
-    assertQa(
-      !storageCleanup.error,
-      `attachment storage cleanup failed: ${storageCleanup.error?.message}`,
-    );
-    qaLog(
-      scope,
-      "private upload, manifest validation, signed download, expiry, opaque path, and isolation work",
+    await withQaCleanup(
+      async () => {
+        const upload = await teen.client.storage
+          .from("support-attachments")
+          .upload(manifest.data.object_path, jpeg, {
+            contentType: "image/jpeg",
+            upsert: false,
+          });
+        assertQa(
+          !upload.error,
+          `private attachment upload failed: ${upload.error?.message}`,
+        );
+        const submit = await invoke(teen.client, "support-upload-authorize", {
+          action: "submit",
+          attachment_id: manifest.data.attachment_id,
+        });
+        assertQa(
+          submit.response.status === 200 && submit.data.ok === true,
+          "attachment submit failed",
+        );
+        const download = await invoke(teen.client, "support-upload-authorize", {
+          action: "download",
+          attachment_id: manifest.data.attachment_id,
+        });
+        assertQa(
+          download.response.status === 200 && download.data.signed_url,
+          "signed attachment download failed",
+        );
+        const downloaded = await fetch(download.data.signed_url);
+        assertQa(
+          downloaded.ok &&
+            (await downloaded.arrayBuffer()).byteLength === jpeg.byteLength,
+          "signed attachment bytes did not round-trip",
+        );
+        const shortSigned = await serviceClient.storage
+          .from("support-attachments")
+          .createSignedUrl(manifest.data.object_path, 5);
+        assertQa(
+          !shortSigned.error && shortSigned.data?.signedUrl,
+          "short expiry URL creation failed",
+        );
+        const beforeExpiry = await fetch(shortSigned.data.signedUrl);
+        assertQa(beforeExpiry.ok, "short signed URL failed before expiry");
+        await new Promise((resolve) => setTimeout(resolve, 6100));
+        const afterExpiry = await fetch(shortSigned.data.signedUrl);
+        assertQa(!afterExpiry.ok, "short signed URL still worked after expiry");
+        qaLog(
+          scope,
+          "private upload, manifest validation, signed download, expiry, opaque path, and isolation work",
+        );
+      },
+      async () => cleanupQaStorageObject({
+        objectPath: manifest.data.object_path,
+        remove: (paths) => serviceClient.storage.from("support-attachments").remove(paths),
+      }),
     );
 
     const safeTool = await invoke(teen.client, "support-tool-execute", {

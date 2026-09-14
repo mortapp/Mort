@@ -2,6 +2,8 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
 
+import { cleanupQaUsers, withQaCleanup } from "./qa-cleanup.mjs";
+
 export const projectRef = "rakjydmgwwgtdislanbt";
 export const supabaseUrl = `https://${projectRef}.supabase.co`;
 
@@ -635,7 +637,7 @@ export async function withQaUsers(scope, definitions, run) {
   const created = [];
   const users = {};
 
-  try {
+  async function provisionAndRunQaUsers() {
     for (const definition of definitions) {
       const email = `qa-feature-${definition.key}-${suffix}@mort.test`;
       const { data, error } = await withRateLimitRetry(
@@ -821,32 +823,17 @@ export async function withQaUsers(scope, definitions, run) {
 
     qaLog(scope, `created and authenticated ${definitions.length} isolated QA users`);
     await run(users);
-  } finally {
-    if (created.length > 0) {
-      try {
-        await cleanupQaRestrictedData(created.map((user) => user.id));
-      } catch (error) {
-        console.error(`[${scope}] restricted cleanup warning: ${error.message}`);
-      }
-    }
-    const cleanupOrder = [...created].sort((left, right) => {
-      const priority = { teen: 0, guardian: 1, adult: 2, admin: 3 };
-      return (priority[left.role] ?? 9) - (priority[right.role] ?? 9);
-    });
-    for (const user of cleanupOrder) {
-      const { error } = await serviceClient.auth.admin.deleteUser(user.id, false);
-      if (
-        error &&
-        error.code !== "user_not_found" &&
-        error.message !== "User not found"
-      ) {
-        console.error(`[${scope}] cleanup warning: ${error.message}`);
-      }
-    }
-    if (created.length > 0) {
-      qaLog(scope, "removed only the QA users created by this run");
-    }
   }
+
+  return withQaCleanup(
+    provisionAndRunQaUsers,
+    async () => cleanupQaUsers({
+      users: created,
+      cleanupRestrictedData: cleanupQaRestrictedData,
+      deleteUser: (userId) => serviceClient.auth.admin.deleteUser(userId, false),
+      onSuccess: () => qaLog(scope, "removed only the QA users created by this run"),
+    }),
+  );
 }
 
 export async function saveJob(client, overrides = {}, publish = true) {
