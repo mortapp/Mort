@@ -103,26 +103,33 @@ void main() {
     },
   );
 
-  test('adaptive and monochrome launcher assets have transparent corners', () {
+  test('opaque dark launcher foreground has no themed monochrome layer', () {
     final foreground = image.decodePng(
       File(
         'android/app/src/main/res/drawable-xxxhdpi/ic_launcher_foreground.png',
       ).readAsBytesSync(),
     );
-    final monochrome = image.decodePng(
-      File(
-        'android/app/src/main/res/drawable-xxxhdpi/ic_launcher_monochrome.png',
-      ).readAsBytesSync(),
-    );
     final adaptiveXml = _read(
       'android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml',
     );
+    final launcherConfig = _read('pubspec.yaml');
+    final launchBackground = _read(
+      'android/app/src/main/res/drawable/launch_background.xml',
+    );
+    final launchBackgroundV21 = _read(
+      'android/app/src/main/res/drawable-v21/launch_background.xml',
+    );
 
     expect(foreground, isNotNull);
-    expect(monochrome, isNotNull);
-    expect(foreground!.getPixel(0, 0).a, 0);
-    expect(monochrome!.getPixel(0, 0).a, 0);
-    expect(adaptiveXml, contains('<monochrome>'));
+    final corner = foreground!.getPixel(0, 0);
+    expect(corner.a, 255);
+    expect(corner.r, lessThan(48));
+    expect(corner.g, lessThan(48));
+    expect(corner.b, lessThan(64));
+    expect(adaptiveXml, isNot(contains('<monochrome>')));
+    expect(launcherConfig, isNot(contains('adaptive_icon_monochrome:')));
+    expect(launchBackground, contains('@drawable/ic_launcher_foreground'));
+    expect(launchBackgroundV21, contains('@drawable/ic_launcher_foreground'));
   });
 
   test('release pipeline uses upload identity and a real R8 rules file', () {

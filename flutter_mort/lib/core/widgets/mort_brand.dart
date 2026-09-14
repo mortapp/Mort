@@ -6,7 +6,7 @@ import '../theme/mort_tokens.dart';
 class MortLogo extends StatelessWidget {
   const MortLogo({super.key, this.size = 72, this.showWordmark = false});
 
-  static const assetPath = 'assets/branding/mort_arrow_adaptive_monochrome.png';
+  static const assetPath = 'assets/branding/mort_logo_silver_double_arrow.png';
 
   final double size;
   final bool showWordmark;

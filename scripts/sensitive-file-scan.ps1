@@ -24,6 +24,7 @@ $forbiddenExtensions = @('.pem', '.p12', '.pfx', '.key', '.mobileprovision', '.s
 $reviewedMediaHashes = @{
   'flutter_mort/assets/branding/mort_arrow_adaptive_foreground.png' = 'BCAE9EDFD57B676D97EA0A41500937F67704A87370F03D20A1755EBB551A34D5'
   'flutter_mort/assets/branding/mort_arrow_adaptive_monochrome.png' = '78C72C2B49698ED36351E51324D8EFF89276F7D65873CE9931615B7C78C93D24'
+  'flutter_mort/assets/branding/mort_logo_silver_double_arrow.png' = 'EB8D3207309FEF505DFD3DA1FB78C88136B9F46F297DDCBC0F80061498E7D686'
   'artifacts/native-qa/mort-api36-launch.png' = '35A9DFC922AD29D82E79CEB58A7F6CD5FECEDDD0D99A086CA5345B9664C34466'
   'artifacts/native-qa/mort-api36-launch-0.9.10.png' = 'E24AE97D7C3503526AC94FBB4A73B99FF630ACE4750217CA8E41217BE9A07702'
   'artifacts/native-qa/mort-api36-launch-0.9.11.png' = '25A8A730BCAC2C59F319E61F823FF92153786A3E5DD3D634B77DB1071A4180AC'
