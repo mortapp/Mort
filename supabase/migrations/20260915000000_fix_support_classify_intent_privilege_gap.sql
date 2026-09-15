@@ -1,0 +1,30 @@
+-- Bug found while investigating a live qa-support-chatbot.mjs failure:
+-- public.support_classify_intent(p_message) is `security invoker`
+-- (20260813030000_support_ai_hardening_live_gauntlet_fix.sql intentionally
+-- moved it off `security definer` to narrow definer surface area), and its
+-- body is exactly:
+--
+--   select private.support_classify_message(p_message);
+--
+-- Because the wrapper is invoker, that inner call runs with the CALLING
+-- user's own privileges, not the definer's. The same migration granted
+-- execute on the public wrapper to `service_role, authenticated, anon`,
+-- but granted execute on the inner `private.support_classify_message` to
+-- `service_role` only. Any real authenticated (or anon) caller of the
+-- public, documented entry point therefore hits a Postgres
+-- permission-denied error inside the wrapper before ever reaching the
+-- classification logic -- confirmed directly against the hosted database
+-- (has_function_privilege('authenticated', ..., 'execute') = false and
+-- has_function_privilege('anon', ..., 'execute') = false for the private
+-- function, while both are true for the public wrapper). This is a real,
+-- currently-live defect affecting every real caller of intent
+-- classification, not merely a QA-harness artifact.
+--
+-- Fix: grant execute on the inner function to the same roles already
+-- granted on its public wrapper, matching the access breadth that
+-- 20260813030000 itself already declared as intended. No behavior other
+-- than the privilege grant changes; the SQL body, argument shape, and
+-- `security invoker` posture of the public wrapper are all left exactly
+-- as the hardening migration set them.
+
+grant execute on function private.support_classify_message(text) to authenticated, anon;

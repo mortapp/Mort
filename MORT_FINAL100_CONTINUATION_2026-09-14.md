@@ -168,33 +168,62 @@ The source/deployment mismatches remain release blockers, not completed work.
   RELEASE_BLOCKING=YES for anyone actually using Guardian financial oversight,
   but NOT a security incident.
 
-- **qa-ai-safety-edge / qa-support-chatbot** (Sections 7C/7D) -- exact root
-  cause found, not just re-labeled as "AI provider disabled":
-  - `qa-ai-safety-edge`: reproduced twice against the live hosted project with
-    an identical, well-formed first request (ordinary phone-number content,
-    valid resourceType/resourceId/clientRequestId). Hosted function returned
-    `{"code":"invalid_message","status":400}`. Current local source
-    (`supabase/functions/ai-safety/index.ts:105`) returns `code:
-    "invalid_request"` for the equivalent validation failure, and would accept
-    this exact request. Classification: **HOSTED_CONFIG_DRIFT** -- the
-    deployed `ai-safety` function does not match the current repository
-    source. Not a PROVIDER_GATE: this function is pure deterministic regex
-    pattern-matching (see the `patterns` table in the same file), it never
-    calls a generative AI provider at all.
-  - `qa-support-chatbot`: reproduced twice; `support-intent-classify` returned
-    non-200 for a well-formed `{message: "I cannot sign in to my account"}"}`
-    request. The underlying RPC (`support_classify_intent`) is defined in
-    migrations dated 2026-07/08 -- well before the known undeployed set
-    (`20260831120000`, `20260907000000`, `20260907010000`, `20260907020000`),
-    so it is very likely already deployed; the exact hosted-side failure mode
-    was not traced further than this (no hosted log access from this session,
-    and no further live calls were made against production beyond what had
-    already run twice). Classification: **HOSTED_CONFIG_DRIFT** (same class of
-    finding as ai-safety), with residual uncertainty disclosed rather than
-    guessed away. Not a PROVIDER_GATE for the same reason (deterministic
-    classification RPC, no generative call in this path).
-  - Neither failure is caused by, or related to, this session's V7/native-brand
-    changes (zero backend files touched).
+  **Deployment-authorization note**: this fix and the
+  `support_classify_intent` privilege-gap fix below are both re-verified,
+  low-blast-radius, ready-to-deploy migrations. Neither was applied to the
+  live project in this session. This continues the no-production-write
+  posture held throughout this entire engagement rather than a technical
+  blocker -- both are one `supabase db push --linked` (or an
+  `apply_migration` call) away from being live once explicitly authorized.
+
+- **qa-ai-safety-edge / qa-support-chatbot** (Sections 7C/7D) -- upgraded from
+  inference to definitive proof via direct read-only inspection of the
+  deployed function source and live grant state (Supabase MCP
+  `get_edge_function` / `execute_sql`, read-only, no writes):
+  - `qa-ai-safety-edge`: **HOSTED_CONFIG_DRIFT, confirmed definitively.**
+    Fetched the actual deployed `ai-safety` function source
+    (project `rakjydmgwwgtdislanbt`, version 18). Its real `index.ts` is a
+    two-line wrapper -- `serveSupportFunction("safety-triage")` -- delegating
+    to the generic shared support runtime's safety-triage operation. This is
+    a completely different implementation from the current local
+    `supabase/functions/ai-safety/index.ts` (~180 lines, its own dedicated
+    deterministic regex-pattern table, its own request contract of
+    `content`/`resourceType`/`resourceId`/`clientRequestId`, its own
+    `ai_moderation_events` writes). The local dedicated implementation was
+    never deployed; the hosted project still runs the older shared-runtime
+    version, which naturally rejects the new contract's shape (explaining the
+    `invalid_message` code, which is the shared runtime's generic
+    message-length guard, not this function's own validation). Not a
+    PROVIDER_GATE either way: neither implementation calls a generative AI
+    provider.
+  - `qa-support-chatbot` / `support-intent-classify`: **not drift --
+    a real, currently-live PRODUCT_BUG, confirmed against both the deployed
+    function source and live database grants.** The deployed
+    `support-intent-classify` function body is byte-identical to current
+    local source. The RPC it calls, `public.support_classify_intent(text)`,
+    exists on the hosted database exactly as the latest local migration
+    (`20260813030000_support_ai_hardening_live_gauntlet_fix.sql`) defines it:
+    `security invoker`, calling `private.support_classify_message(text)`
+    internally. That migration granted the public wrapper execute to
+    `service_role, authenticated, anon` but granted the *inner* private
+    function execute to `service_role` only. Verified directly against the
+    live database: `has_function_privilege('authenticated', ..., 'execute')`
+    and the `anon` equivalent are both `false` for
+    `private.support_classify_message`, while both are `true` for the public
+    wrapper. Because the wrapper is invoker (not definer), it runs the inner
+    call with the *caller's* privileges -- so every real authenticated (or
+    anon) caller of the documented, publicly-grantable entry point hits a
+    Postgres permission-denied error before reaching the classification
+    logic. This affects real production support-chat users right now, not
+    just the QA harness. Wrote the fix as a new migration,
+    `supabase/migrations/20260915000000_fix_support_classify_intent_privilege_gap.sql`
+    -- a single additive `grant execute ... to authenticated, anon` on the
+    inner function, matching the exact access breadth the hardening migration
+    already declared for its own public wrapper. No logic, argument shape, or
+    `security invoker` posture changes. Not deployed in this session (see
+    deployment-authorization note below).
+  - Neither finding is caused by, or related to, this session's V7/native-
+    brand changes (zero backend files touched by that work).
 
 - **BrowserStack dependency audit** (Section 7B):
   PACKAGE=`extract-zip@2.0.1` (latest published version; no patched release
