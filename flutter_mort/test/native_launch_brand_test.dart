@@ -51,10 +51,7 @@ void main() {
     expect(androidLaunch, isNot(contains('color/white')));
     expect(androidLaunchV21, contains('@drawable/ic_launcher_foreground'));
     expect(androidLaunchV21, contains('@color/mort_launch_background'));
-    expect(
-      androidLaunchV21,
-      isNot(contains('android:drawable="#050914"')),
-    );
+    expect(androidLaunchV21, isNot(contains('android:drawable="#050914"')));
     expect(androidLaunchV21, isNot(contains('@mipmap/ic_launcher')));
     expect(
       pubspec,
