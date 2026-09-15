@@ -6,7 +6,7 @@ await withQaUsers(scope, [{ key: "teen", role: "teen" }], async ({ teen }) => {
   const created = await teen.client.rpc("create_my_expense", {
     p_amount_cents: 1500,
     p_spent_on: "2026-01-15",
-    p_category: "supplies",
+    p_category: "SUPPLIES",
     p_merchant: "",
     p_description: "",
     p_job_id: null,

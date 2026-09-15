@@ -2,13 +2,23 @@ import { assertQa, qaLog, withQaUsers } from "./feature-qa-helpers.mjs";
 
 const scope = "qa-financial-kb-audience";
 
+function assertNoFinancialRoute(routes, label) {
+  assertQa(
+    !routes.includes("/financial") &&
+      !routes.includes("/financial/benefits") &&
+      !routes.includes("/financial/expenses"),
+    `${label}: search still returned a teen-only /financial* route (${JSON.stringify(routes)}), which would dead-end at WrongRoleScreen`,
+  );
+}
+
 await withQaUsers(
   scope,
   [
     { key: "teen", role: "teen" },
     { key: "adult", role: "adult" },
+    { key: "guardian", role: "guardian" },
   ],
-  async ({ teen, adult }) => {
+  async ({ teen, adult, guardian }) => {
     const query = "earnings safety expenses receipts benefits";
 
     const teenResults = await teen.client.rpc("support_search_kb", {
@@ -21,9 +31,9 @@ await withQaUsers(
       teenRoutes.includes("/financial") ||
         teenRoutes.includes("/financial/benefits") ||
         teenRoutes.includes("/financial/expenses"),
-      `NO_REGRESSION: teen search for "${query}" returned no /financial* result at all (${JSON.stringify(teenRoutes)}) -- the fix must not have removed teen access`,
+      `TEEN_FINANCIAL_KB_VISIBLE: teen search for "${query}" returned no /financial* result at all (${JSON.stringify(teenRoutes)}) -- the fix must not have removed teen access`,
     );
-    qaLog(scope, "NO_REGRESSION=PASS (teen still finds the financial-safety KB documents)");
+    qaLog(scope, "TEEN_FINANCIAL_KB_VISIBLE=PASS (teen still finds the financial-safety KB documents)");
 
     const adultResults = await adult.client.rpc("support_search_kb", {
       p_query: query,
@@ -31,13 +41,17 @@ await withQaUsers(
     });
     assertQa(!adultResults.error, `adult support_search_kb failed: ${adultResults.error?.message}`);
     const adultRoutes = (adultResults.data ?? []).map((row) => row.navigation_route);
-    assertQa(
-      !adultRoutes.includes("/financial") &&
-        !adultRoutes.includes("/financial/benefits") &&
-        !adultRoutes.includes("/financial/expenses"),
-      `ADULT_NO_DEAD_END: an adult's KB search still returned a teen-only /financial* route (${JSON.stringify(adultRoutes)}), which would dead-end at WrongRoleScreen`,
-    );
-    qaLog(scope, "ADULT_NO_DEAD_END=PASS (adult search no longer surfaces the teen-only /financial* routes)");
+    assertNoFinancialRoute(adultRoutes, "ADULT_TEEN_FINANCIAL_ROUTE_EXPOSURE");
+    qaLog(scope, "ADULT_TEEN_FINANCIAL_ROUTE_EXPOSURE=0 (adult search no longer surfaces the teen-only /financial* routes)");
+
+    const guardianResults = await guardian.client.rpc("support_search_kb", {
+      p_query: query,
+      p_limit: 8,
+    });
+    assertQa(!guardianResults.error, `guardian support_search_kb failed: ${guardianResults.error?.message}`);
+    const guardianRoutes = (guardianResults.data ?? []).map((row) => row.navigation_route);
+    assertNoFinancialRoute(guardianRoutes, "GUARDIAN_TEEN_FINANCIAL_ROUTE_EXPOSURE");
+    qaLog(scope, "GUARDIAN_TEEN_FINANCIAL_ROUTE_EXPOSURE=0 (guardian search no longer surfaces the teen-only /financial* routes)");
   },
 );
 
