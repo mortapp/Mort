@@ -383,4 +383,5 @@ void invalidateUserScopedProviders(WidgetRef ref) {
   ref.invalidate(financialRulesProvider);
   ref.invalidate(financialExpensesProvider);
   ref.invalidate(financialYearReportProvider);
+  ref.invalidate(pendingRequiredLegalReacceptanceProvider);
 }

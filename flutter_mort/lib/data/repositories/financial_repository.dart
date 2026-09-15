@@ -143,7 +143,19 @@ class FinancialRepository extends RepositoryBase {
       'delete_my_expense',
       params: {'p_id': expenseId},
     );
-    _ok(response, 'expense_not_deleted');
+    final data = _ok(response, 'expense_not_deleted');
+    // Storage deletion cannot be atomic with the DB delete above (a separate
+    // system, its own API); best-effort clean up the attached receipt now
+    // that the authoritative row is gone, matching removeReceipt's pattern.
+    final receiptPath = data['receipt_path'];
+    if (receiptPath is String && receiptPath.isNotEmpty) {
+      try {
+        await client.storage.from(receiptsBucket).remove([receiptPath]);
+      } catch (_) {
+        // The expense record is already gone; a stale object is harmless
+        // and remains owner-only accessible.
+      }
+    }
   }
 
   // -- Receipts (private storage, owner-only RLS) ---------------------------
@@ -219,10 +231,14 @@ class FinancialRepository extends RepositoryBase {
   }
 
   Future<void> removeReceipt(String expenseId, String path) async {
-    await client.rpc(
+    final response = await client.rpc(
       'set_my_expense_receipt',
       params: {'p_id': expenseId, 'p_path': null},
     );
+    // Fail closed: only delete the storage object once the DB reference is
+    // confirmed cleared, so a rejected/failed clear never orphans
+    // expense_records.receipt_path against a deleted file.
+    _ok(response, 'receipt_not_cleared');
     try {
       await client.storage.from(receiptsBucket).remove([path]);
     } catch (_) {

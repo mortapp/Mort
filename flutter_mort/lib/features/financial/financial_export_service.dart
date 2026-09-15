@@ -236,11 +236,34 @@ class FinancialExportService {
     );
   }
 
+  // The share sheet can still be reading the file asynchronously (some
+  // platforms hand off to a separate share extension) after share() returns,
+  // so this run's own temp directory is never deleted immediately. Instead,
+  // each new export first clears out directories left behind by earlier
+  // exports, bounding the leak to at most one run's worth of files rather
+  // than growing forever.
+  static Future<void> _cleanupStaleExportDirs() async {
+    try {
+      await for (final entity in Directory.systemTemp.list()) {
+        if (entity is Directory && entity.path.contains('mort_export')) {
+          try {
+            await entity.delete(recursive: true);
+          } catch (_) {
+            // Best-effort; a file still in use by a prior share is skipped.
+          }
+        }
+      }
+    } catch (_) {
+      // Best-effort cleanup; never block the export the caller asked for.
+    }
+  }
+
   /// Shares [contents] as a text file via the platform share sheet.
   static Future<void> shareTextFile(
     String contents, {
     required String fileName,
   }) async {
+    await _cleanupStaleExportDirs();
     final directory = await Directory.systemTemp.createTemp('mort_export');
     final file = File('${directory.path}/$fileName');
     await file.writeAsString(contents, flush: true);
@@ -254,6 +277,7 @@ class FinancialExportService {
     List<int> bytes, {
     required String fileName,
   }) async {
+    await _cleanupStaleExportDirs();
     final directory = await Directory.systemTemp.createTemp('mort_export');
     final file = File('${directory.path}/$fileName');
     await file.writeAsBytes(bytes, flush: true);

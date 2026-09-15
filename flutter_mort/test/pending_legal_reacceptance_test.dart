@@ -90,4 +90,33 @@ void main() {
 
     expect(pending, isFalse);
   });
+
+  test(
+    'invalidating on sign-out stops user A\'s pending state leaking to user B',
+    () async {
+      var response = () => {
+        'requirements': [
+          {'document_key': 'terms', 'required': true, 'acceptance_id': null},
+        ],
+      };
+      final container = _containerWith(() => response());
+
+      final userAPending = await container.read(
+        pendingRequiredLegalReacceptanceProvider.future,
+      );
+      expect(userAPending, isTrue);
+
+      // User B has nothing outstanding. Without the invalidation that
+      // invalidateUserScopedProviders performs on sign-out, this
+      // non-autoDispose FutureProvider would keep returning user A's cached
+      // `true` for user B too.
+      response = () => {'requirements': const []};
+      container.invalidate(pendingRequiredLegalReacceptanceProvider);
+      final userBPending = await container.read(
+        pendingRequiredLegalReacceptanceProvider.future,
+      );
+
+      expect(userBPending, isFalse);
+    },
+  );
 }

@@ -732,8 +732,12 @@ class _CompletionCard extends StatelessWidget {
           color: MortColors.lightBlue,
         ),
         const SizedBox(height: MortSpacing.xs),
-        const Text('Payment status is separate'),
-        const Text('Job completion does not confirm payment release.'),
+        const Text('Payment status is separate', textAlign: TextAlign.center),
+        const SizedBox(height: MortSpacing.xs),
+        const Text(
+          'Job completion does not confirm payment release.',
+          textAlign: TextAlign.center,
+        ),
         const SizedBox(height: MortSpacing.md),
         MortActionRow(
           actions: [

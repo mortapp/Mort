@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_mort/core/money/mort_service_fee.dart';
 import 'package:flutter_mort/data/models/financial_safety.dart';
 import 'package:flutter_mort/data/repositories/financial_repository.dart';
 import 'package:flutter_mort/data/repositories/providers.dart';
@@ -695,5 +696,20 @@ void main() {
     await tester.tap(find.text('Save target'));
     await tester.pumpAndSettle();
     expect(repository.savedTargetYearAmount, '$year:800000');
+  });
+
+  test('plainAmountFromCents preserves cents (no truncating division)', () {
+    expect(plainAmountFromCents(1234), '12.34');
+    expect(plainAmountFromCents(99), '0.99');
+    expect(plainAmountFromCents(10005), '100.05');
+    expect(
+      MortServiceFee.tryParseAdultAmount(plainAmountFromCents(1234)),
+      1234,
+    );
+    expect(MortServiceFee.tryParseAdultAmount(plainAmountFromCents(99)), 99);
+    expect(
+      MortServiceFee.tryParseAdultAmount(plainAmountFromCents(10005)),
+      10005,
+    );
   });
 }

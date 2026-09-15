@@ -36,7 +36,7 @@ begin
       status = 'active',
       accepted_at = now(),
       updated_at = now()
-  where invite_code_hash = digest(upper(trim(p_invite_code)), 'sha256')
+  where invite_code_hash = extensions.digest(upper(trim(p_invite_code)), 'sha256')
     and status = 'invited'
     and guardian_id is null
     and invite_expires_at > now()

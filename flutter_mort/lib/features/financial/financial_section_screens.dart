@@ -185,6 +185,13 @@ String _expenseDateLabel(DateTime date) {
       '${local.day.toString().padLeft(2, '0')}';
 }
 
+// Cents formatted as a plain, re-parseable "12.34" string -- distinct from
+// formatUsdCents, which adds a `$` and thousands separators that
+// MortServiceFee.tryParseAdultAmount's input regex rejects.
+String plainAmountFromCents(int cents) {
+  return '${cents ~/ 100}.${(cents % 100).toString().padLeft(2, '0')}';
+}
+
 class _ExpenseFormSheet extends ConsumerStatefulWidget {
   const _ExpenseFormSheet({required this.year, this.existing});
 

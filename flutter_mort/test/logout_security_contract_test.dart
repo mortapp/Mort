@@ -35,6 +35,7 @@ void main() {
       'messagingRepositoryProvider',
       'notificationsRepositoryProvider',
       'supportRepositoryProvider',
+      'pendingRequiredLegalReacceptanceProvider',
     ]) {
       expect(providers, contains('ref.invalidate($provider)'));
     }
