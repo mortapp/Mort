@@ -1,5 +1,32 @@
 # MORT External Release Gates
 
+## Current qualification — 2026-09-14
+
+This ledger does **not** imply internal work is complete. Current evidence is in
+`MORT_FINAL100_CONTINUATION_2026-09-14.md`; the Final-100 classification remains
+`INTERNAL_WORK_REMAINS`. Historical iOS run `34472297830` does not verify the
+current changed auth/UI/native candidate.
+
+GATE=Controlled hosted migration reconciliation and deployment authority
+STATUS=BLOCKED_BY_NO_PRODUCTION_WRITE_CONSTRAINT
+WHY=Read-only MORT catalog inspection confirms missing deployed guardian-summary identity correction, earnings payment-status trigger, and guardian-invite acceptance throttle. The financial migration also has differently versioned local/remote entries; blind replay is unsafe.
+TECHNICAL_WORK_COMPLETE=NO — local transactional regressions and migration reconciliation must precede deployment; the invite-attempt counter followed by an exception requires rollback-aware verification.
+HUMAN_ACTION_REQUIRED=Authorize a separately reviewed production deployment only after internal migration validation succeeds, or provide an isolated database test environment first. No production changes were made here.
+CREDENTIAL_REQUIRED=NO for the completed read-only checks; deployment authority is deliberately not inferred.
+PROVIDER=Supabase
+LAUNCH_IMPACT=Blocks release acceptance. Source-only fixes are not deployed fixes.
+FAIL_CLOSED_BEHAVIOR=Do not enable the public marketplace or claim Final-100.
+
+GATE=Supabase leaked-password protection
+STATUS=DISABLED — confirmed by hosted security advisor on 2026-09-14
+TECHNICAL_WORK_COMPLETE=N/A (hosted Auth setting; not changed under no-production-write constraint)
+HUMAN_ACTION_REQUIRED=Owner review/configuration of [password protection](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+PROVIDER=Supabase
+
+The connector is now bound to MORT (`rakjydmgwwgtdislanbt`); the historical
+Loop-only-access explanation below is stale. Email-confirmation and login-rate
+settings have not been reverified by these catalog/advisor reads.
+
 Each entry is a dependency this program cannot close without a human action or a
 credential/account this session does not have and should not fabricate.
 

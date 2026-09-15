@@ -1,5 +1,21 @@
 # MORT Final-100 Readiness — Scorecard
 
+## Current candidate override — 2026-09-14
+
+**INTERNAL_WORK_REMAINS.** Earlier 100-percent rows below describe historical
+sampled scope, not current release acceptance. See
+`MORT_FINAL100_CONTINUATION_2026-09-14.md` for fresh evidence and open gates.
+OAuth malformed-query handling and compact product availability are reviewed
+and committed (`6295969`, `95d116d`; final focused tests 14/14).
+Supplied double-arrow/native launch branding is reviewed and committed (`a0fabd2`;
+final focused tests 34/34). Full Flutter regression: 582 passed, 2 existing
+profile-gated skips, 0 failed; analysis clean; formatting clean.
+Android/current-device evidence, QA cleanup repairs, dependency findings, and
+hosted migration reconciliation are not yet complete.
+Hosted inspection confirms the guardian financial-summary fix, earnings-status
+trigger, and guardian-invite throttle are not deployed. Production was not
+modified. PR #8 was already merged on September 12; no current-open-PR claim is made.
+
 Evidence-based only. No area is marked 100 without a cited command, file, or finding.
 Updated incrementally as tracks complete — see `MORT_FINAL_100_BASELINE.md`,
 `MORT_BACKEND_SAFETY_AUDIT_SESSION{1,2,3,4}.md`, `MORT_LEGAL_RECONSENT_AUDIT.md`,

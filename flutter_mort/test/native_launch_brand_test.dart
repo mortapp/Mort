@@ -37,14 +37,24 @@ void main() {
     final androidLaunchV21 = File(
       'android/app/src/main/res/drawable-v21/launch_background.xml',
     ).readAsStringSync();
+    final launchColors = File(
+      'android/app/src/main/res/values/mort_launch_colors.xml',
+    ).readAsStringSync();
     final storyboard = File(
       'ios/Runner/Base.lproj/LaunchScreen.storyboard',
     ).readAsStringSync();
 
     expect(androidLaunch, contains('@drawable/ic_launcher_foreground'));
+    expect(androidLaunch, contains('@color/mort_launch_background'));
+    expect(androidLaunch, isNot(contains('android:drawable="#050914"')));
     expect(androidLaunch, isNot(contains('@mipmap/ic_launcher')));
     expect(androidLaunch, isNot(contains('color/white')));
     expect(androidLaunchV21, contains('@drawable/ic_launcher_foreground'));
+    expect(androidLaunchV21, contains('@color/mort_launch_background'));
+    expect(
+      androidLaunchV21,
+      isNot(contains('android:drawable="#050914"')),
+    );
     expect(androidLaunchV21, isNot(contains('@mipmap/ic_launcher')));
     expect(
       pubspec,
@@ -81,6 +91,8 @@ void main() {
       'android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml',
     ).readAsStringSync();
     expect(adaptiveIcon, isNot(contains('<monochrome>')));
+    expect(launchColors, contains('name="mort_launch_background"'));
+    expect(launchColors, contains('#050914'));
   });
 
   test('generated launcher icons are dark and contain non-rose-gold art', () {
