@@ -133,13 +133,138 @@ The source/deployment mismatches remain release blockers, not completed work.
 - Fresh MORT CI for the final candidate remains required. PR #8 cannot supply
   that gate because it is already merged; do not alter it to pretend otherwise.
 
+## Continuation session 2 (same day, later) — Claude picking up from this checkpoint
+
+- Recovered state exactly as this file describes; HEAD `4bf3c02` confirmed
+  ahead of remote by 8. `flutter_mort/build/app/outputs/flutter-apk/app-debug.apk`
+  (timestamp 19:44) and `.superpowers/sdd/2026-09-14-final100/android-debug-build-final.log`
+  already showed the interrupted debug build had in fact **succeeded**
+  (`✓ Built build\app\outputs\flutter-apk\app-debug.apk`) -- Codex's own
+  session ended before observing this. Re-ran the combined
+  native-launch/iOS-parity/brand-foundation/production-readiness suite fresh
+  (34/34 pass), confirmed `git diff --check` clean, committed as `61e6774`
+  (`fix(android): use a color resource for the native launch background`),
+  pushed, and verified exact SHA equality
+  (local `61e6774e1a87935cb81d4be21a6065ba1617fc5a` == remote). This checkpoint
+  is now safely on GitHub.
+
+- **Guardian financial-summary identity bug** (Section 7A):
+  LOCAL_FIX_PATH=`supabase/migrations/20260907020000_fix_linked_teen_financial_summary_identity.sql`.
+  HOSTED_CURRENT_STATE=still calls `get_my_financial_summary(p_year)`
+  internally, which reads `auth.uid()` (the guardian's own id) regardless of
+  the `p_teen_id` argument name.
+  MIGRATION_OR_RPC_REQUIRED=single `CREATE OR REPLACE FUNCTION`, same
+  signature, same authorization checks (guardian_financial_visibility opt-in +
+  active guardian_connections link), same output shape -- only the internal
+  data-source query is inlined against `p_teen_id` instead of delegating.
+  DEPLOYMENT_SAFETY=low risk (no schema/table change, no data migration, no
+  breaking contract change); not deployed in this session (no production-write
+  authority here).
+  REAL_USER_IMPACT=correctness, not a cross-user privacy leak -- the
+  authorization gate runs and passes correctly *before* the buggy delegation,
+  so an affected guardian gets their own (empty/irrelevant) summary instead of
+  the teen's, never another user's real data. The feature silently doesn't
+  work, but nothing unauthorized is exposed.
+  RELEASE_BLOCKING=YES for anyone actually using Guardian financial oversight,
+  but NOT a security incident.
+
+- **qa-ai-safety-edge / qa-support-chatbot** (Sections 7C/7D) -- exact root
+  cause found, not just re-labeled as "AI provider disabled":
+  - `qa-ai-safety-edge`: reproduced twice against the live hosted project with
+    an identical, well-formed first request (ordinary phone-number content,
+    valid resourceType/resourceId/clientRequestId). Hosted function returned
+    `{"code":"invalid_message","status":400}`. Current local source
+    (`supabase/functions/ai-safety/index.ts:105`) returns `code:
+    "invalid_request"` for the equivalent validation failure, and would accept
+    this exact request. Classification: **HOSTED_CONFIG_DRIFT** -- the
+    deployed `ai-safety` function does not match the current repository
+    source. Not a PROVIDER_GATE: this function is pure deterministic regex
+    pattern-matching (see the `patterns` table in the same file), it never
+    calls a generative AI provider at all.
+  - `qa-support-chatbot`: reproduced twice; `support-intent-classify` returned
+    non-200 for a well-formed `{message: "I cannot sign in to my account"}"}`
+    request. The underlying RPC (`support_classify_intent`) is defined in
+    migrations dated 2026-07/08 -- well before the known undeployed set
+    (`20260831120000`, `20260907000000`, `20260907010000`, `20260907020000`),
+    so it is very likely already deployed; the exact hosted-side failure mode
+    was not traced further than this (no hosted log access from this session,
+    and no further live calls were made against production beyond what had
+    already run twice). Classification: **HOSTED_CONFIG_DRIFT** (same class of
+    finding as ai-safety), with residual uncertainty disclosed rather than
+    guessed away. Not a PROVIDER_GATE for the same reason (deterministic
+    classification RPC, no generative call in this path).
+  - Neither failure is caused by, or related to, this session's V7/native-brand
+    changes (zero backend files touched).
+
+- **BrowserStack dependency audit** (Section 7B):
+  PACKAGE=`extract-zip@2.0.1` (latest published version; no patched release
+  exists upstream). DIRECT_OR_TRANSITIVE=transitive
+  (`webdriverio` -> `@wdio/utils` -> `@puppeteer/browsers` -> `extract-zip`).
+  DEV_ONLY_OR_RUNTIME=dev/QA-tooling only -- this Node package never ships
+  inside the Flutter app binaries. USED_IN_PRODUCTION=NO.
+  FIX_AVAILABLE=NO (npm's only suggestion is downgrading `webdriverio` to
+  `8.14.6`, a major-version downgrade, unverified to even resolve the
+  transitive path). BREAKING_UPDATE_REQUIRED=YES if attempted.
+  ACTUAL_RELEASE_RISK=LOW -- Codex's own capability-matching check already
+  confirmed WebdriverIO skips local browser download/extraction entirely on
+  the remote-hub (`hub.browserstack.com`) code path this project actually
+  uses, so the vulnerable local-archive-extraction code is present in the
+  dependency tree but not exercised by this project's actual usage pattern.
+  Real, currently-unpatched, correctly disclosed -- not dismissed as N/A, but
+  not blocking either.
+
+- **16KB alignment**: ran the existing
+  `scripts/qa-android-16kb-alignment.ps1 -ApkPath
+  flutter_mort\build\app\outputs\flutter-apk\app-debug.apk` (no new checker
+  invented). `ELF_16KB_ALIGNMENT=PASS`, 16 native libraries checked.
+
+- **Android device QA -- three-strikes outcome (2026-09-14, this session)**:
+  Checked host RAM before every attempt (never launched blind). Attempt 1:
+  ~2.6 GB free, no competing Gradle/emulator process; boot succeeded, app
+  installed, but the debug APK lacked QA dart-defines and correctly hit the
+  fail-closed "MORT cannot start securely" screen (expected, not a defect;
+  confirms the secure-startup gate works). Rebuilt with
+  `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`MORT_RELEASE_STAGE=automated_test`/
+  `MORT_BROWSERSTACK_QA_MODE=true`. Attempt 2 (~2.6 GB free, 1536 MB guest
+  RAM): boot and a 60s stability soak succeeded; app install and launch
+  succeeded; hit the same previously-documented "SystemUI isn't responding"
+  ANR (Android System UI, not MORT -- and the launch background is now
+  correctly dark, confirming the color-resource fix renders right); tapping
+  Wait triggered a silent emulator/qemu process termination (confirmed via
+  `tasklist`, not just an ADB disconnect) with free RAM jumping 2.6 GB -> 4.55
+  GB immediately after -- the exact signature from the prior forensic
+  session. Attempt 3, changed variable per policy (reduced guest RAM to 1024
+  MB, used the more favorable ~4.45 GB post-crash headroom): identical
+  behavior at the identical trigger point, RAM jumping 2.6 GB -> 4.37 GB after.
+  Three materially identical failures -> stopped per policy, did not attempt
+  a fourth. This reconfirms `HOST_RESOURCE_PRESSURE` (unrelated to guest RAM
+  allocation, since 1536 MB and 1024 MB both failed identically) rather than
+  superseding it. No interactive keyboard/compact/200%-text/reduced-motion/
+  role-journey/Guide/Support/monetization/back/background-resume evidence was
+  obtainable this session; the existing non-interactive evidence (role-home
+  screen mounting via the internal QA shell, native smoke tests, the 34-test
+  native/brand suite, the 582-test full suite) remains the best available
+  Android evidence pending a quieter host or a cloud device lane.
+
+- **iOS retest decision**: IOS_RETEST_REQUIRED=YES. Native iOS launch assets
+  changed (storyboard + LaunchImage populated with the new logo, confirmed via
+  `git diff` on `project.pbxproj` and the task-2 report), and shared Flutter
+  code changed (OAuth hardening, monetization router/screens) -- both
+  explicitly trigger mandatory retest per this task's own rule, independent of
+  the historical run `34472297830` which predates all of it. Triggered the
+  existing `mort-ios-browserstack.yml` workflow via `workflow_dispatch`
+  against this branch rather than inventing a new pipeline:
+  run https://github.com/mortapp/Mort/actions/runs/34918334540. Result pending.
+
 ## Remaining verification before acceptance
 
-Android debug build;
-release build/signing classification; candidate 16KB inspection; current device
-matrix/session/screenshots; local database regression and deployment
-reconciliation; dependency gate; final independent review; scorecard/ledger
-update; normal integration push and exact remote SHA verification.
+Release build/signing classification (external signing gate expected, not a
+defect to fix); iOS BrowserStack run result; local database regression
+(Docker engine returned HTTP 500 in the prior session -- no safe local
+substitute was established, and production was correctly not used as a
+stand-in); hosted deployment of the guardian financial-summary fix (blocked on
+explicit authorization, not on missing engineering work); final scorecard
+sync; confirm remote SHA after this session's push.
 
 Earlier narrow checks do not satisfy this list. P0/P1 zero and technical 100%
 are **not established**.
