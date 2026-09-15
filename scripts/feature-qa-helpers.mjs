@@ -1,8 +1,91 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import dns from "node:dns";
 import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
 
 import { cleanupQaUsers, withQaCleanup } from "./qa-cleanup.mjs";
+
+// Some Windows/Node combinations fail dns.lookup() (getaddrinfo) for
+// IPv6-only hostnames like Supabase's direct db.<ref> host even though the
+// OS resolver and dns.resolve6() succeed, and `pg` always resolves the host
+// itself via a plain Socket.connect(port, host) with no lookup override
+// hook. Pre-resolve to a raw IP literal instead so no DNS lookup happens on
+// the connection path at all.
+let cachedDatabaseHost;
+async function getDatabaseHost() {
+  if (cachedDatabaseHost) return cachedDatabaseHost;
+  const hostname = `db.${projectRef}.supabase.co`;
+  try {
+    const addresses6 = await dns.promises.resolve6(hostname);
+    if (addresses6.length > 0) return (cachedDatabaseHost = addresses6[0]);
+  } catch {
+    // fall through
+  }
+  try {
+    const addresses4 = await dns.promises.resolve4(hostname);
+    if (addresses4.length > 0) return (cachedDatabaseHost = addresses4[0]);
+  } catch {
+    // fall through
+  }
+  return (cachedDatabaseHost = hostname);
+}
+
+// The direct db.<ref> host is IPv6-only. Networks with no working IPv6 route
+// (no code fix can resolve that -- it is a host/network fact) can still
+// reach Supabase's IPv4 Supavisor pooler instead. Try the direct connection
+// first so nothing changes for networks that already work, and only fall
+// back to the pooler on a network-layer failure, never on an auth failure.
+const poolerHostCandidates = [
+  "aws-0-us-east-2.pooler.supabase.com",
+  "aws-1-us-east-2.pooler.supabase.com",
+];
+const networkUnreachableCodes = new Set([
+  "ENETUNREACH",
+  "EHOSTUNREACH",
+  "ETIMEDOUT",
+  "ENOTFOUND",
+  "ECONNREFUSED",
+]);
+
+async function connectDatabase() {
+  const direct = new pg.Client({
+    host: await getDatabaseHost(),
+    port: 5432,
+    database: "postgres",
+    user: "postgres",
+    password: dbPassword,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 8000,
+  });
+  direct.on("error", () => {});
+  try {
+    await direct.connect();
+    return direct;
+  } catch (directError) {
+    if (!networkUnreachableCodes.has(directError?.code)) throw directError;
+  }
+
+  let lastPoolerError;
+  for (const poolerHost of poolerHostCandidates) {
+    const pooled = new pg.Client({
+      host: poolerHost,
+      port: 5432,
+      database: "postgres",
+      user: `postgres.${projectRef}`,
+      password: dbPassword,
+      ssl: { rejectUnauthorized: false },
+      connectionTimeoutMillis: 8000,
+    });
+    pooled.on("error", () => {});
+    try {
+      await pooled.connect();
+      return pooled;
+    } catch (poolerError) {
+      lastPoolerError = poolerError;
+    }
+  }
+  throw lastPoolerError;
+}
 
 export const projectRef = "rakjydmgwwgtdislanbt";
 export const supabaseUrl = `https://${projectRef}.supabase.co`;
@@ -42,18 +125,7 @@ export async function sendSafeMessage(client, threadId, body, requestId = random
 }
 
 export async function withDatabase(run) {
-  const database = new pg.Client({
-    host: `db.${projectRef}.supabase.co`,
-    port: 5432,
-    database: "postgres",
-    user: "postgres",
-    password: dbPassword,
-    ssl: { rejectUnauthorized: false },
-  });
-  // Active queries still reject; this prevents a later socket close from
-  // bypassing the caller's cleanup/finally path as an unhandled EventEmitter.
-  database.on("error", () => {});
-  await database.connect();
+  const database = await connectDatabase();
   try {
     return await run(database);
   } finally {
@@ -62,16 +134,7 @@ export async function withDatabase(run) {
 }
 
 export async function removeQaModerationEvent(resourceId, userId) {
-  const database = new pg.Client({
-    host: `db.${projectRef}.supabase.co`,
-    port: 5432,
-    database: "postgres",
-    user: "postgres",
-    password: dbPassword,
-    ssl: { rejectUnauthorized: false },
-  });
-  database.on("error", () => {});
-  await database.connect();
+  const database = await connectDatabase();
   try {
     const result = await database.query(
       `
@@ -669,16 +732,7 @@ export async function withQaUsers(scope, definitions, run) {
       };
     }
 
-    const database = new pg.Client({
-      host: `db.${projectRef}.supabase.co`,
-      port: 5432,
-      database: "postgres",
-      user: "postgres",
-      password: dbPassword,
-      ssl: { rejectUnauthorized: false },
-    });
-    database.on("error", () => {});
-    await database.connect();
+    const database = await connectDatabase();
     try {
       await database.query("begin");
       await database.query("select set_config('mort.internal_update', 'true', true)");
