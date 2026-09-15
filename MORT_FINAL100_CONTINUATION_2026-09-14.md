@@ -336,15 +336,112 @@ The source/deployment mismatches remain release blockers, not completed work.
   against this branch rather than inventing a new pipeline:
   run https://github.com/mortapp/Mort/actions/runs/34918334540. Result pending.
 
+## Guardian financial-summary fix -- deployed and verified (2026-09-14)
+
+Deployed `20260907020000_fix_linked_teen_financial_summary_identity.sql` to
+the linked production project (`rakjydmgwwgtdislanbt`) under explicit
+authorization. Post-deploy `pg_get_functiondef` matched the reviewed file
+exactly. Regression (`scripts/qa-guardian-financial-summary-identity.mjs`,
+new synthetic-fixture script, committed `7a08214`): `AUTHORIZATION_GATE=PASS`,
+`LINKED_TEEN_IDENTITY=PASS`, `UNLINKED_GUARDIAN_DENIED=PASS`,
+`VISIBILITY_OPT_IN_REQUIRED=PASS`, `REAL_USER_ROWS_MUTATED=0`.
+
+## Support intent-classify privilege gap -- least-privilege redesign, deployed and verified (2026-09-14)
+
+**Root cause** (traced through migration history, not guessed):
+`20260729195632_mort_support_chatbot_foundation.sql` defined
+`public.support_classify_intent` as `SECURITY DEFINER` with a real body: an
+`auth.uid()`/`is_profile_active()` check, 3-2000 char length validation, a
+`private.support_take_rate_limit(...)` call, then delegation to
+`private.support_classify_message` (itself always `SECURITY INVOKER` by
+design -- the wrapper was the one deliberate elevation point in the chain).
+`20260729212722` kept this posture unchanged.
+`20260813030000_support_ai_hardening_live_gauntlet_fix.sql` -- whose own
+stated purpose was entirely classification-logic robustness against a live
+red-team gauntlet, not a privilege-model change -- rewrote the wrapper down to
+a bare `select private.support_classify_message(p_message);`, which as an
+apparent unintended side effect dropped `SECURITY DEFINER`, the auth check,
+length validation, and rate-limiting. From that point the private chain (now
+4 versioned functions deep, all `service_role`-only, none `SECURITY DEFINER`)
+had no path to run with elevated privilege, so every real authenticated/anon
+caller has hit a Postgres permission-denied error inside the wrapper since
+2026-08-13 -- a live outage for the support chatbot's intent-classification
+feature, silently masked by the edge function's generic
+`support_classification_unavailable` fallback.
+
+**Initial fix attempt found insufficient**: a one-hop
+`grant execute on private.support_classify_message to authenticated, anon`
+(`20260915000000_fix_support_classify_intent_privilege_gap.sql`) was drafted
+and reviewed, but pre-deployment verification traced the actual call chain
+and found it is 4 levels deep (`support_classify_message` ->
+`_20260816010000` -> `_20260813110000` -> `_20260813101000`), all
+`service_role`-only -- the one-hop grant would not have fixed the bug. Per
+the user's own "STOP on unexpected result" instruction, this migration was
+**never deployed** and was deleted rather than patched further without
+re-authorization.
+
+**Least-privilege architecture comparison** (requested instead of a blanket
+grant):
+
+| Option | Description | Attack surface | Direct private-fn exposure | PostgREST reachability | search_path risk | Privilege-escalation risk | Maintainability | Rollback | Recommended |
+|---|---|---|---|---|---|---|---|---|---|
+| A: Restore SECURITY DEFINER wrapper | Restore the original 2026-07-29 wrapper design, delegating to the current classifier chain | Unchanged from pre-2026-08-13 (the wrapper is the only elevation point) | None -- zero new grants on any of the 4 chain functions | Unchanged (`private` schema never PostgREST-exposed) | None -- `set search_path = ''` retained | None -- no new grant to any role | High -- restores a previously-shipped, understood design; single migration | Trivial (`CREATE OR REPLACE`, no grant changes to undo) | **YES** |
+| B: Dedicated bridge function | New narrow `SECURITY DEFINER` function calling only the current classifier | Slightly larger -- two DEFINER functions to reason about instead of one | None | Unchanged | Must independently set `search_path = ''` | None if written correctly, but duplicates logic the wrapper already has | Medium -- an extra function to keep in sync with the wrapper's own auth/rate-limit logic | Trivial | No -- reinvents A with no benefit |
+| C: Blanket grant on all 4 helpers | `GRANT EXECUTE` on all 4 private chain functions to authenticated/anon | Large -- 4 additional directly-callable entry points | High -- every version of the classifier becomes directly callable, bypassing the wrapper's auth/length/rate-limit checks entirely | Still blocked by PostgREST schema config today, but now one config change away from full exposure with no app-level gate | Each of the 4 functions must be independently audited for `search_path` safety under direct invocation | High -- direct calls skip `auth.uid()`/rate-limiting entirely; a caller could invoke the raw classifier at unlimited rate | Low -- 4 grants to track instead of 1 wrapper | Requires revoking 4 grants to undo | No -- explicitly rejected by the user as unnecessary exposure |
+
+Option A restores an architecture that already shipped and ran safely in
+production for two weeks before the 2026-08-13 hardening pass -- it is a
+restoration of a previously-reviewed design, not a novel one, per the user's
+"do not undo a security hardening casually" instruction (the *classification
+logic* hardening from that pass is fully preserved; only the wrapper's
+privilege posture is restored).
+
+**Independent security review**: a fresh, non-forked subagent was given the
+new migration, the 4 chain functions, their grants/ownership/search_path, and
+the regression script, and asked verbatim whether this restoration "exposes
+less privilege than granting authenticated/anon direct execute on all four
+private helpers." **Answer: YES**, with reasoning matching the table above,
+plus one actionable improvement: the original regression only proved
+PostgREST-routing-unreachability (a config-layer property that would pass
+identically even under Option C), not an independent GRANT-level guarantee.
+Adopted: added a `has_function_privilege()`-based check for all 5
+chain/helper functions as a second, independent verification layer.
+
+**Deployment**: `20260915010000_restore_support_classify_intent_least_privilege_wrapper.sql`
+deployed via `apply_migration` to `rakjydmgwwgtdislanbt`. Post-deploy verified
+live via `execute_sql`: wrapper `prosecdef=true` (DEFINER restored),
+`authenticated_can_execute=true`, `anon_can_execute=true` (existing grants on
+the wrapper preserved automatically by `CREATE OR REPLACE FUNCTION`), and all
+5 chain/helper functions (`support_classify_message` + 3 versioned helpers +
+`support_take_rate_limit`) confirmed `false` for both `authenticated` and
+`anon` -- zero new privilege granted anywhere in the chain.
+
+**Regression**: `scripts/qa-support-classify-intent-least-privilege.mjs`
+(new) -- `AUTHENTICATED_CLASSIFICATION=PASS`,
+`ANON_CLASSIFICATION=DENIED` (clean `authentication_required`, not part of
+the contract), `PRIVATE_HELPER_DIRECT_ACCESS (PostgREST routing)=DENIED`,
+`PRIVATE_HELPER_EXPOSURE=MINIMAL` (verified via `has_function_privilege()` on
+all 5 chain functions), `INVALID_INPUT_FAILS_CLOSED=PASS`,
+`REAL_USER_ROWS_MUTATED=0`. Re-ran the original `scripts/qa-support-chatbot.mjs`
+suite immediately after (the actual QA harness that first surfaced this bug):
+**all 21 checks PASS**, including "named intent-classification endpoint
+returns deterministic account routing" -- confirming the live outage is
+fixed end-to-end, not just at the new regression's narrower scope. Committed
+`d708e24`, pushed to `integration/mort-final-100-post-redesign`, local HEAD
+== remote HEAD.
+
 ## Remaining verification before acceptance
 
-Release build/signing classification (external signing gate expected, not a
-defect to fix); iOS BrowserStack run result; local database regression
-(Docker engine returned HTTP 500 in the prior session -- no safe local
-substitute was established, and production was correctly not used as a
-stand-in); hosted deployment of the guardian financial-summary fix (blocked on
-explicit authorization, not on missing engineering work); final scorecard
-sync; confirm remote SHA after this session's push.
+AI Safety edge function compatibility/deployment decision (Section 5/6 of the
+active directive -- not yet started: contract-comparison table, independent
+review if deployment is pursued, separate deploy/verify from Support); final
+backend regression / Flutter gate only if backend changes affect client
+tests; Final-100 ledger update; release build/signing classification
+(external signing gate expected, not a defect to fix); iOS BrowserStack run
+result; local database regression (Docker engine returned HTTP 500 in the
+prior session -- no safe local substitute was established, and production was
+correctly not used as a stand-in); final scorecard sync; final commit/push
+and remote SHA confirmation after AI Safety and the final gates are resolved.
 
 Earlier narrow checks do not satisfy this list. P0/P1 zero and technical 100%
 are **not established**.
