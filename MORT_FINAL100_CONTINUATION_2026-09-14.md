@@ -168,13 +168,64 @@ The source/deployment mismatches remain release blockers, not completed work.
   RELEASE_BLOCKING=YES for anyone actually using Guardian financial oversight,
   but NOT a security incident.
 
-  **Deployment-authorization note**: this fix and the
-  `support_classify_intent` privilege-gap fix below are both re-verified,
-  low-blast-radius, ready-to-deploy migrations. Neither was applied to the
-  live project in this session. This continues the no-production-write
-  posture held throughout this entire engagement rather than a technical
-  blocker -- both are one `supabase db push --linked` (or an
-  `apply_migration` call) away from being live once explicitly authorized.
+  **Deployment update (explicit scoped authorization received, this
+  session)**: the user explicitly authorized deploying exactly these two
+  reviewed migrations, via the narrowest available mechanism (`apply_migration`
+  against the exact file content, not a broad `db push --linked` that could
+  sweep in the other pending local-only migrations). Pre-deployment: fetched
+  and recorded the live pre-fix definition of
+  `public.get_linked_teen_financial_summary` (verbatim, above the fold in this
+  session's tool history) for rollback evidence, and confirmed the linked
+  project (`get_project` -> `name: "Mort"`, ref `rakjydmgwwgtdislanbt`,
+  ACTIVE_HEALTHY) before writing anything. Applied via `apply_migration`
+  (name `fix_linked_teen_financial_summary_identity`) -- **deployed**.
+  Post-deployment: re-fetched the live definition and confirmed it now
+  matches the fix exactly (inlined `p_teen_id`-scoped queries, no more
+  `get_my_financial_summary(p_year)` delegation; all fail-closed checks --
+  `authentication_required`, `invalid_request` self-target,
+  `invalid_year`, `guardian_access_disabled`, `not_linked_guardian` -- intact
+  and in the same order). Wrote and ran a new, permanent regression script,
+  `scripts/qa-guardian-financial-summary-identity.mjs`, against the live
+  database using three fresh synthetic `@mort.test` QA fixture users (one
+  teen, one linked guardian, one deliberately unlinked guardian) exercising
+  the self-service `set_my_financial_preferences`/`upsert_my_financial_target`
+  RPCs a real teen would call (service_role has no direct table grant on
+  `financial_preferences`/`financial_personal_targets` by design -- confirmed
+  via `has_table_privilege` -- so fixture setup goes through the same RPCs a
+  real user hits, not a table-level bypass; `guardian_connections` does grant
+  service_role INSERT directly, used only to establish the link since there
+  is no self-service invite-accept path exercised by this narrow check).
+  Result: **AUTHORIZATION_GATE=PASS, LINKED_TEEN_IDENTITY=PASS,
+  UNLINKED_GUARDIAN_DENIED=PASS, VISIBILITY_OPT_IN_REQUIRED=PASS**. The
+  linked-teen-identity check is the one that actually exercises the fixed
+  code path: it inserts one identifiable personal target as the teen, then
+  confirms the linked guardian's summary response contains that exact
+  target -- proof the guardian is receiving the *teen's* data, not their own
+  (empty) summary, which was the original bug. All three QA fixture users
+  were created and removed by the script itself; `REAL_USER_ROWS_MUTATED=0`
+  (only fresh synthetic `@mort.test` fixtures were touched).
+
+- **`support_classify_intent` privilege-gap fix -- NOT deployed, deeper issue
+  found during pre-deployment verification.** Per the user's own
+  "verify again before deploying" instruction, traced the actual runtime call
+  chain instead of assuming the one-hop grant was sufficient. Discovered
+  `private.support_classify_message`'s body itself calls
+  `private.support_classify_message_20260816010000`, which calls
+  `..._20260813110000`, which calls `..._20260813101000` (a real, versioned
+  chain of prior hardening patches) -- and confirmed via
+  `has_function_privilege` that **all four** of these `private.*` functions
+  are `service_role`-only (none are `SECURITY DEFINER`), not just the one the
+  reviewed migration grants. Deploying the migration exactly as authorized
+  and reviewed would therefore not actually fix the reported
+  `qa-support-chatbot` failure -- the permission error would simply resurface
+  one hop deeper in the chain. Per the user's own "if either migration
+  produces an unexpected result: STOP, do not stack additional production
+  fixes on top, investigate and report before continuing" instruction, this
+  migration was **not applied**. The correct complete fix needs the same
+  `grant execute ... to authenticated, anon` statement repeated for all four
+  chain functions, which is a larger surface than what was specifically
+  reviewed and authorized -- flagged back to the user rather than silently
+  expanding scope.
 
 - **qa-ai-safety-edge / qa-support-chatbot** (Sections 7C/7D) -- upgraded from
   inference to definitive proof via direct read-only inspection of the
