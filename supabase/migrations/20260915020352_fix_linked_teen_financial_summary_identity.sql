@@ -1,25 +1,3 @@
--- Bug found while transferring the Financial Safety feature from the
--- preserved PR #4 checkout: get_linked_teen_financial_summary(p_teen_id,
--- p_year) authorizes the caller correctly (guardian_financial_visibility
--- opt-in + an active guardian_connections link) but then calls
--- public.get_my_financial_summary(p_year), which internally reads
--- v_user := auth.uid(). auth.uid() reflects the JWT of the actual calling
--- session regardless of how many SECURITY DEFINER functions are nested
--- inside one another -- it does not become the teen's id just because this
--- function's argument is named p_teen_id. The guardian would therefore
--- receive their OWN (empty/irrelevant) financial summary, not the linked
--- teen's, despite the authorization checks being correct.
---
--- Fix: inline the same aggregate computation parameterized on p_teen_id
--- instead of delegating to the auth.uid()-based helper. Deliberately not
--- refactored into a shared private helper function (which would need new
--- grant/privilege wiring this session cannot execute against a live
--- database to verify) -- duplicating this already-correct, already-reviewed
--- query with the id source swapped is the lower-risk fix. Output shape is
--- unchanged: still excludes method_breakdown and always nulls
--- benefit_programs, matching the original's privacy intent (guardians never
--- see payment-method detail or benefit-program selections).
-
 create or replace function public.get_linked_teen_financial_summary(p_teen_id uuid, p_year integer)
 returns jsonb
 language plpgsql
@@ -105,4 +83,4 @@ begin
     'notice', 'Financial summary shared by the teen. Benefit program selections are never shared.'
   );
 end;
-$$;
+$$;;

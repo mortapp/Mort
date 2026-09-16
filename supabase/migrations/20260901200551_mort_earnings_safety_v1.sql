@@ -1143,3 +1143,4 @@ grant execute on function
   public.get_linked_teen_financial_summary(uuid, integer),
   public.get_my_financial_year_report(integer)
 to authenticated;
+;
