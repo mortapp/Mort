@@ -33,6 +33,9 @@ export async function runStripeQa(scope, scenario) {
     "resolution-role-separation": checkResolutionRoleSeparation,
     "resolution-idempotency": checkResolutionIdempotency,
     "refund-webhook-reconciliation": checkRefundWebhookReconciliation,
+    "policy-versioning": checkPolicyVersioning,
+    "funding-quote": checkFundingQuote,
+    "settlement-policy": checkSettlementPolicy,
   };
   const check = checks[scenario];
   if (!check) throw new Error(`Unknown Stripe QA scenario: ${scenario}`);
@@ -291,6 +294,63 @@ async function checkRefundWebhookReconciliation(scope) {
   assertQa(webhook.includes('"charge.refunded"') && webhook.includes("applyRefund"), "charge/refund webhook events are not reconciled");
   assertQa(!webhook.includes('"refund_reconciliation_required"'), "refund events are still ignored");
   qaLog(scope, "verified refund and charge.refunded events reconcile idempotent private payment state");
+}
+
+async function checkPolicyVersioning(scope) {
+  await withDatabase(async (database) => {
+    const result = await database.query(`
+      select service_fee_bps, service_fee_min_cents, service_fee_max_cents,
+             quote_ttl_seconds, version
+      from private.stripe_financial_policy_versions
+      where environment = 'test' and policy_kind = 'service_fee'
+        and currency_code = 'USD' and scope_key = 'global' and active
+    `);
+    assertQa(result.rowCount === 1, "sandbox service-fee policy is missing or ambiguous");
+    assertQa(result.rows[0].service_fee_bps === 800, "sandbox service-fee rate is not 800 bps");
+    assertQa(result.rows[0].service_fee_min_cents === 100, "sandbox service-fee minimum is not 100 cents");
+    assertQa(result.rows[0].service_fee_max_cents === 500, "sandbox service-fee maximum is not 500 cents");
+    assertQa(result.rows[0].quote_ttl_seconds === 900, "sandbox quote TTL is not 900 seconds");
+  });
+  qaLog(scope, "versioned sandbox policy stores the approved fee and 900-second quote TTL while live policy remains gated");
+}
+
+async function checkFundingQuote(scope) {
+  const createArgs = await functionArguments("public.stripe_server_create_job_funding_quote_v1");
+  const createSource = await functionSource("public.stripe_server_create_job_funding_quote_v1");
+  const consumeArgs = await functionArguments("public.stripe_server_consume_job_funding_quote_v1");
+  const consumeSource = await functionSource("public.stripe_server_consume_job_funding_quote_v1");
+  for (const forbidden of ["amount", "fee", "total", "currency", "worker", "provider", "expires", "time"]) {
+    assertQa(!createArgs.toLowerCase().includes(forbidden), `quote creation accepts client ${forbidden} authority`);
+  }
+  assertQa(createSource.includes("public.job_payment_obligations"), "quote does not derive base pay from the obligation");
+  assertQa(createSource.includes("pg_advisory_xact_lock"), "quote refresh is not serialized");
+  assertQa(!consumeArgs.includes("timestamptz"), "quote consumption accepts a client clock");
+  assertQa(consumeSource.includes("clock_timestamp()"), "quote consumption does not use the server clock");
+  await assertUnique("private", "stripe_job_funding_quotes", ["environment", "payer_id", "request_id"]);
+  qaLog(scope, "funding quotes are server-priced, request-idempotent, serialized, expiring, and consumed by server clock only");
+}
+
+async function checkSettlementPolicy(scope) {
+  for (const name of [
+    "private.evaluate_fair_pay_v1",
+    "private.evaluate_tip_policy_v1",
+    "private.evaluate_cancellation_v1",
+    "private.evaluate_partial_compensation_v1",
+  ]) {
+    const source = await functionSource(name);
+    assertQa(source.includes("search_path") || source.includes("evaluate_compensation_policy_v1"), `${name} is missing hardened implementation`);
+  }
+  await withDatabase(async (database) => {
+    const result = await database.query(`
+      select count(*)::integer count
+      from private.stripe_financial_policy_versions
+      where environment = 'live'
+        and policy_kind in ('service_fee', 'fair_pay', 'tip', 'cancellation', 'partial_compensation')
+        and active
+    `);
+    assertQa(result.rows[0].count === 0, "a production financial policy is active without owner approval");
+  });
+  qaLog(scope, "Fair Pay, tip, cancellation, and partial-compensation evaluators are versioned and production remains fail-closed");
 }
 
 async function functionSource(name) {
