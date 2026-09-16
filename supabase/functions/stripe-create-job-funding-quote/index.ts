@@ -38,7 +38,7 @@ const handler = createFundingQuoteHandler({
     const { data, error } = await asStripeContext(context).serviceClient.rpc(
       "stripe_server_create_job_funding_quote_v1",
       {
-        p_payer_id: input.payer_id,
+        p_payer_id: context.userId,
         p_contract_id: input.contract_id,
         p_request_id: input.request_id,
       },

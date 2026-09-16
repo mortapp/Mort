@@ -21,12 +21,13 @@ Deno.serve(async (request: Request) => {
     eventId = event.id;
     if (event.livemode !== (environment === "live")) return json({ ok: false, code: "stripe_environment_mismatch" }, 400);
     const supabase = serviceClient();
-    const { data: claimed, error: claimError } = await supabase.rpc("stripe_server_claim_webhook_event", {
+    const { data: claimed, error: claimError } = await supabase.rpc("stripe_server_claim_webhook_event_v2", {
       p_environment: environment,
       p_provider_event_id: event.id,
       p_event_type: event.type,
       p_provider_created_at: new Date(event.created * 1000).toISOString(),
       p_payload_sha256: await sha256(rawBody),
+      p_lease_seconds: 120,
     });
     if (claimError) throw claimError;
     if (claimed.claimed !== true) return json({ ok: true, duplicate: true });
@@ -59,7 +60,7 @@ async function processEvent(
     const intent = event.data.object as Stripe.PaymentIntent;
     const chargeId = typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id ?? null;
     const failureCode = intent.last_payment_error?.code ?? null;
-    return rpc(supabase, "stripe_server_apply_payment_event", {
+    return rpc(supabase, "stripe_server_apply_payment_event_v2", {
       p_environment: environment,
       p_provider_event_id: event.id,
       p_event_type: event.type,
@@ -129,6 +130,9 @@ async function processEvent(
     if (!accountId) throw new Error("payout connected account unavailable");
     const destination = payout.destination;
     const destinationObject = typeof destination === "object" ? destination : null;
+    const destinationLast4 = destinationObject && "last4" in destinationObject
+      ? destinationObject.last4
+      : null;
     return rpc(supabase, "stripe_server_apply_payout_event", {
       p_environment: environment,
       p_provider_event_id: event.id,
@@ -138,7 +142,7 @@ async function processEvent(
       p_currency_code: payout.currency.toUpperCase(),
       p_status: mapPayoutStatus(payout.status),
       p_destination_type: destinationObject?.object === "card" ? "debit_card" : destinationObject?.object === "bank_account" ? "bank_account" : "unknown",
-      p_destination_last4: destinationObject?.last4 ?? null,
+      p_destination_last4: destinationLast4,
       p_arrival_at: payout.arrival_date ? new Date(payout.arrival_date * 1000).toISOString() : null,
       p_failure_code: payout.failure_code ?? null,
     });
@@ -219,7 +223,7 @@ function mapDisputeStatus(status: Stripe.Dispute.Status) {
   }
 }
 
-function mapPayoutStatus(status: Stripe.Payout.Status) {
+function mapPayoutStatus(status: string) {
   switch (status) {
     case "in_transit": return "in_transit";
     case "paid": return "paid";
@@ -229,7 +233,7 @@ function mapPayoutStatus(status: Stripe.Payout.Status) {
   }
 }
 
-function mapRefundStatus(status: Stripe.Refund.Status | null) {
+function mapRefundStatus(status: string | null) {
   switch (status) {
     case "succeeded": return "succeeded";
     case "failed": return "failed";
