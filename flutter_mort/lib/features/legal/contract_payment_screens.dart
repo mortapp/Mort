@@ -14,6 +14,8 @@ import '../../core/utils/formatters.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/profile.dart';
 import '../../data/repositories/providers.dart';
+import '../payments/models/payment_state.dart';
+import '../payments/widgets/payment_state_panel.dart';
 
 class JobContractsScreen extends ConsumerWidget {
   const JobContractsScreen({super.key});
@@ -547,9 +549,15 @@ class PaymentStatusScreen extends ConsumerWidget {
             final disputes =
                 snapshot.data?['disputes'] as List<Map<String, dynamic>>? ??
                 const [];
+            final paymentState = mortPaymentStateForObligations(
+              obligations,
+              providerEnabled: AppConfig.marketplacePaymentsEnabled,
+            );
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                MortPaymentStatePanel(state: paymentState),
+                const SizedBox(height: MortSpacing.sm),
                 if (obligations.isEmpty)
                   const MortEmptyState(
                     title: 'No obligation visible',
@@ -661,6 +669,23 @@ class PaymentStatusScreen extends ConsumerWidget {
       ],
     );
   }
+}
+
+MortPaymentState mortPaymentStateForObligations(
+  List<Map<String, dynamic>> obligations, {
+  required bool providerEnabled,
+}) {
+  if (!providerEnabled) return MortPaymentState.providerUnavailable;
+  if (obligations.isEmpty) return MortPaymentState.unknown;
+  final status = obligations.first['status']?.toString();
+  return switch (status) {
+    'worker_confirmed_received' => MortPaymentState.pending,
+    'poster_marked_sent' || 'due' => MortPaymentState.pending,
+    'declined' => MortPaymentState.declined,
+    'cancelled' => MortPaymentState.cancelled,
+    'failed' => MortPaymentState.failed,
+    _ => MortPaymentState.unknown,
+  };
 }
 
 class NonpaymentReportScreen extends ConsumerStatefulWidget {

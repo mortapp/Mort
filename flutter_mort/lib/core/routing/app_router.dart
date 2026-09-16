@@ -35,6 +35,9 @@ import '../../features/notifications/notification_center_screen.dart';
 import '../../features/onboarding/compact_onboarding.dart';
 import '../../features/payments/stripe_marketplace_screens.dart';
 import '../../features/payments/admin_payment_operations_screen.dart';
+import '../../features/payments/screens/payment_review_screen.dart';
+import '../../features/history/screens/job_payment_history_screen.dart';
+import '../../features/receipts/screens/receipt_detail_screen.dart';
 import '../../features/admin/admin_moderation_detail_screen.dart';
 import '../../features/admin/admin_operational_alerts_screen.dart';
 import '../../features/auth/google_auth_screens.dart';
@@ -999,6 +1002,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       _guarded('/settings', const SettingsScreen()),
+      _guarded(
+        '/settings/payment-history',
+        const JobPaymentHistoryScreen(backendUnavailable: true),
+      ),
       _guarded('/settings/blocked-users', const BlockedUsersScreen()),
       _guarded('/settings/profile', const ProfileSetupScreen()),
       _guarded('/settings/connected-accounts', const ConnectedAccountsScreen()),
@@ -1050,6 +1057,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => GuardedRoute(
           child: PaymentStatusScreen(
             contractId: state.pathParameters['contractId'] ?? '',
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/payments/review',
+        builder: (_, _) => GuardedRoute(
+          requiredRole: UserRole.adult,
+          child: const PaymentReviewUnavailableScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/contracts/:contractId/payment/review',
+        builder: (_, state) => GuardedRoute(
+          requiredRole: UserRole.adult,
+          child: PaymentReviewUnavailableScreen(
+            contractId: state.pathParameters['contractId'],
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/receipts/:receiptNumber',
+        builder: (_, state) => GuardedRoute(
+          child: ReceiptDetailScreen(
+            receiptNumber: state.pathParameters['receiptNumber'],
           ),
         ),
       ),

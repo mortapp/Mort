@@ -18,6 +18,8 @@ import '../../data/repositories/providers.dart';
 import '../../data/services/supabase_service.dart';
 import '../../services/precise_location_service.dart';
 import '../location/precise_location_gate.dart';
+import '../payments/models/fair_pay.dart';
+import '../payments/widgets/fair_pay_panel.dart';
 import 'job_creation_flow.dart';
 
 const safeJobCategories = [
@@ -40,9 +42,10 @@ const safeJobCategories = [
 ];
 
 class JobCreationScreen extends ConsumerStatefulWidget {
-  const JobCreationScreen({super.key, this.jobId});
+  const JobCreationScreen({super.key, this.jobId, this.fairPayPolicy});
 
   final String? jobId;
+  final MortFairPayAssessment? fairPayPolicy;
 
   @override
   ConsumerState<JobCreationScreen> createState() => _JobCreationScreenState();
@@ -658,6 +661,15 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
   Future<void> _save({required bool publish}) async {
     if (_busy) return;
     _fieldErrors.clear();
+    if (publish && !MortJobCreationFairPayGate.canPublish(_fairPayAssessment)) {
+      MortToast.show(
+        context,
+        _fairPayAssessment == null
+            ? 'Fair Pay is unavailable. Publishing is blocked until the server policy is available.'
+            : 'The offered amount is below the Fair Pay minimum.',
+      );
+      return;
+    }
     if (publish) {
       final original = _step;
       for (
@@ -730,9 +742,33 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
       MortToast.show(context, error);
       return;
     }
+    if (_step == JobCreationStep.payment.index &&
+        !MortJobCreationFairPayGate.canContinue(_fairPayAssessment)) {
+      MortToast.show(
+        context,
+        _fairPayAssessment == null
+            ? 'Fair Pay is unavailable. This job cannot continue until the server policy is available.'
+            : _fairPayAssessment!.blocksContinue
+            ? 'The offered amount is below the Fair Pay minimum.'
+            : 'Fair Pay policy is not authoritative for this job.',
+      );
+      return;
+    }
     _syncDraft();
     setState(() => _step = (_step + 1).clamp(0, jobCreationSteps.length - 1));
     _scheduleDraftPersist();
+  }
+
+  MortFairPayAssessment? get _fairPayAssessment {
+    final policy = widget.fairPayPolicy;
+    final amount = MortServiceFee.tryParseAdultAmount(_pay.text);
+    if (policy == null || amount == null) return null;
+    return MortFairPayAssessment(
+      recommendedRangeCents: policy.recommendedRangeCents,
+      hardMinimumCents: policy.hardMinimumCents,
+      actualCents: amount,
+      backendAuthoritative: policy.backendAuthoritative,
+    );
   }
 
   @override
@@ -792,7 +828,11 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
                   icon: _step == 7 ? Icons.publish : Icons.arrow_forward,
                   busy: _busy,
                   busyLabel: _step == 7 ? 'Publishing...' : 'Saving...',
-                  onPressed: _step == 7 ? () => _save(publish: true) : _next,
+                  onPressed: _step == 7
+                      ? () => _save(publish: true)
+                      : _canAdvance
+                      ? _next
+                      : null,
                 ),
               ),
             ],
@@ -832,6 +872,11 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
         ),
       ],
     );
+  }
+
+  bool get _canAdvance {
+    if (_step != JobCreationStep.payment.index) return true;
+    return MortJobCreationFairPayGate.canContinue(_fairPayAssessment);
   }
 
   Widget _buildStep() => switch (jobCreationStepAt(_step)) {
@@ -1289,6 +1334,15 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
         ),
         const SizedBox(height: MortSpacing.sm),
       ],
+      if (_fairPayAssessment case final assessment?) ...[
+        MortFairPayPanel(assessment: assessment),
+        const SizedBox(height: MortSpacing.sm),
+      ] else
+        const MortErrorState(
+          title: 'Fair Pay unavailable',
+          message:
+              'An authoritative Fair Pay policy is required before this job can continue.',
+        ),
       MortDropdown<String>(
         label: 'Payment type',
         value: _paymentType,
