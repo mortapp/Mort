@@ -714,12 +714,18 @@ struct RepositoryTests {
 
 struct DependencyTests {
 
-    @Test("Without backend configuration the app runs in labeled preview mode")
+    @Test("Shipping build resolves the configured shared MORT backend")
     @MainActor
-    func fallsBackToPreviewMode() {
-        // Config values are empty in source control, so resolve() must not
-        // claim a live backend.
+    func shippingBuildUsesLiveBackend() {
         let dependencies = MortDependencies.resolve()
+        #expect(dependencies.mode == .live)
+        #expect(!dependencies.mode.isPreview)
+    }
+
+    @Test("An explicitly missing backend still fails closed to labeled preview mode")
+    @MainActor
+    func missingBackendFallsBackToPreviewMode() {
+        let dependencies = MortDependencies.resolve(config: nil)
         #expect(dependencies.mode == .preview)
         #expect(dependencies.mode.isPreview)
     }
