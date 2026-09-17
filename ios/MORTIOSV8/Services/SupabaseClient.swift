@@ -27,15 +27,16 @@ nonisolated struct SupabaseConfig: Sendable {
     /// Resolves configuration from `Config`. Returns nil when the project has
     /// not been wired yet, so callers fail CLOSED instead of guessing.
     ///
-    /// INTEGRATION: add `EXPO_PUBLIC_SUPABASE_URL` and
-    /// `EXPO_PUBLIC_SUPABASE_ANON_KEY` to the project environment, then read
-    /// them here through `Config`.
+    /// MORT ships a Supabase publishable key in the client. It is not a
+    /// privileged credential; Auth + RLS remain the authorization boundary.
     static func fromEnvironment() -> SupabaseConfig? {
         let raw = Config.allValues
         guard
             let urlString = raw["EXPO_PUBLIC_SUPABASE_URL"], !urlString.isEmpty,
-            let key = raw["EXPO_PUBLIC_SUPABASE_ANON_KEY"], !key.isEmpty,
-            let url = URL(string: urlString)
+            let key = raw["EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY"], !key.isEmpty,
+            key.hasPrefix("sb_publishable_"),
+            let url = URL(string: urlString),
+            url.scheme == "https"
         else { return nil }
         return SupabaseConfig(url: url, anonKey: key)
     }
@@ -115,6 +116,19 @@ actor SupabaseClient {
     }
 
     // MARK: - Requests
+
+    /// Canonical Edge Function route. Reject path traversal and arbitrary URL
+    /// fragments before they reach URL construction.
+    nonisolated static func edgeFunctionPath(for slug: String) -> String? {
+        guard
+            !slug.isEmpty,
+            slug.range(
+                of: #"^[a-z0-9]+(?:-[a-z0-9]+)*$"#,
+                options: .regularExpression
+            ) != nil
+        else { return nil }
+        return "/functions/v1/\(slug)"
+    }
 
     private func makeRequest(
         path: String,
