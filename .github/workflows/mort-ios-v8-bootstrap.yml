@@ -6,6 +6,7 @@ on:
       - codex/ios-v8-integration
     paths:
       - 'MORT_IOS_V8_repo_patch.zip'
+      - '.gitignore'
       - '.github/workflows/mort-ios-v8-bootstrap.yml'
   workflow_dispatch:
 
@@ -57,6 +58,22 @@ jobs:
           PY
           grep -F 'PRODUCT_NAME: MORTIOSV8' ios/project.yml
           grep -F 'INFOPLIST_KEY_CFBundleDisplayName: MORT' ios/project.yml
+
+      - name: Verify native source is trackable
+        run: |
+          set -euo pipefail
+          for path in ios/project.yml ios/MORTIOSV8/App/MORTIOSV8App.swift ios/MORTIOSV8Tests/MORTIOSV8Tests.swift; do
+            test -f "$path"
+            if git check-ignore -q "$path"; then
+              echo "Native source is still ignored: $path" >&2
+              git check-ignore -v "$path" || true
+              exit 1
+            fi
+          done
+          if ! git check-ignore -q ios/MORTIOSV8.xcodeproj/project.pbxproj 2>/dev/null; then
+            echo 'Generated Xcode project must remain ignored.' >&2
+            exit 1
+          fi
 
       - name: Inspect toolchain
         run: |
