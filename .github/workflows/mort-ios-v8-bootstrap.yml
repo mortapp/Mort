@@ -42,6 +42,22 @@ jobs:
             --exclude '.github/workflows/mort-ios-v8-native.yml' \
             "$PATCH_DIR/MORT_IOS_V8_repo_patch/" ./
 
+      - name: Align native product and test host
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('ios/project.yml')
+          text = path.read_text()
+          old = '        PRODUCT_NAME: MORT\n'
+          new = '        PRODUCT_NAME: MORTIOSV8\n'
+          if old not in text:
+              raise SystemExit('Expected PRODUCT_NAME contract not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          grep -F 'PRODUCT_NAME: MORTIOSV8' ios/project.yml
+          grep -F 'INFOPLIST_KEY_CFBundleDisplayName: MORT' ios/project.yml
+
       - name: Inspect toolchain
         run: |
           set -euo pipefail
@@ -128,10 +144,9 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf ios/MORTIOSV8.xcodeproj
-          rm -f MORT_IOS_V8_repo_patch.zip
           git config user.name 'MORT iOS CI'
           git config user.email 'ios-ci@invalid'
-          git add -A
+          git add ios MORT_IOS_V8_BUILD_STATUS.md docs/superpowers/specs/2026-09-17-mort-ios-v8-native-build-design.md docs/superpowers/plans/2026-09-17-mort-ios-v8-native-build-test.md
           if git diff --cached --quiet; then
             echo 'No source changes to commit.'
             exit 0
