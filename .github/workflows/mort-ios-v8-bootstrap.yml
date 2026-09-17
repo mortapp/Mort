@@ -5,9 +5,13 @@ on:
     branches:
       - codex/ios-v8-integration
     paths:
+      - 'ios/**'
       - 'MORT_IOS_V8_repo_patch.zip'
       - '.gitignore'
       - '.github/workflows/mort-ios-v8-bootstrap.yml'
+      - 'MORT_IOS_V8_BUILD_STATUS.md'
+      - 'docs/superpowers/specs/2026-09-17-mort-ios-v8-native-build-design.md'
+      - 'docs/superpowers/plans/2026-09-17-mort-ios-v8-native-build-test.md'
   workflow_dispatch:
 
 permissions:
@@ -31,9 +35,13 @@ jobs:
           test -f MORT_IOS_V8_repo_patch.zip
           unzip -t MORT_IOS_V8_repo_patch.zip >/dev/null
 
-      - name: Expand native iOS V8 source
+      - name: Bootstrap native iOS V8 source when absent
         run: |
           set -euo pipefail
+          if [[ -d ios/MORTIOSV8 && -f ios/project.yml ]]; then
+            echo "Using committed native iOS source."
+            exit 0
+          fi
           PATCH_DIR="$RUNNER_TEMP/mort-ios-v8-patch"
           rm -rf "$PATCH_DIR"
           mkdir -p "$PATCH_DIR"
@@ -43,19 +51,9 @@ jobs:
             --exclude '.github/workflows/mort-ios-v8-native.yml' \
             "$PATCH_DIR/MORT_IOS_V8_repo_patch/" ./
 
-      - name: Align native product and test host
+      - name: Verify native product contract
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('ios/project.yml')
-          text = path.read_text()
-          old = '        PRODUCT_NAME: MORT\n'
-          new = '        PRODUCT_NAME: MORTIOSV8\n'
-          if old not in text:
-              raise SystemExit('Expected PRODUCT_NAME contract not found')
-          path.write_text(text.replace(old, new, 1))
-          PY
           grep -F 'PRODUCT_NAME: MORTIOSV8' ios/project.yml
           grep -F 'INFOPLIST_KEY_CFBundleDisplayName: MORT' ios/project.yml
 
@@ -156,17 +154,3 @@ jobs:
             ${{ runner.temp }}/MORTIOSV8-UnitTests.xcresult
             ${{ runner.temp }}/MORTIOSV8-UISmoke.xcresult
 
-      - name: Commit verified native source
-        if: success()
-        run: |
-          set -euo pipefail
-          rm -rf ios/MORTIOSV8.xcodeproj
-          git config user.name 'MORT iOS CI'
-          git config user.email 'ios-ci@invalid'
-          git add ios MORT_IOS_V8_BUILD_STATUS.md docs/superpowers/specs/2026-09-17-mort-ios-v8-native-build-design.md docs/superpowers/plans/2026-09-17-mort-ios-v8-native-build-test.md
-          if git diff --cached --quiet; then
-            echo 'No source changes to commit.'
-            exit 0
-          fi
-          git commit -m 'feat(ios): add verified native MORT iOS V8 project'
-          git push origin HEAD:codex/ios-v8-integration
