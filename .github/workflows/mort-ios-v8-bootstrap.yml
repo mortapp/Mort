@@ -1,0 +1,140 @@
+name: MORT iOS V8 Bootstrap
+
+on:
+  push:
+    branches:
+      - codex/ios-v8-integration
+    paths:
+      - 'MORT_IOS_V8_repo_patch.zip'
+      - '.github/workflows/mort-ios-v8-bootstrap.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap-build-test:
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/ios-v8-integration
+          fetch-depth: 0
+
+      - name: Verify patch archive
+        run: |
+          set -euo pipefail
+          test -f MORT_IOS_V8_repo_patch.zip
+          unzip -t MORT_IOS_V8_repo_patch.zip >/dev/null
+
+      - name: Expand native iOS V8 source
+        run: |
+          set -euo pipefail
+          PATCH_DIR="$RUNNER_TEMP/mort-ios-v8-patch"
+          rm -rf "$PATCH_DIR"
+          mkdir -p "$PATCH_DIR"
+          unzip -q MORT_IOS_V8_repo_patch.zip -d "$PATCH_DIR"
+          test -d "$PATCH_DIR/MORT_IOS_V8_repo_patch/ios/MORTIOSV8"
+          rsync -a \
+            --exclude '.github/workflows/mort-ios-v8-native.yml' \
+            "$PATCH_DIR/MORT_IOS_V8_repo_patch/" ./
+
+      - name: Inspect toolchain
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          swift --version
+
+      - name: Install XcodeGen
+        run: |
+          set -euo pipefail
+          brew install xcodegen
+          xcodegen --version
+
+      - name: Generate Xcode project
+        run: |
+          set -euo pipefail
+          xcodegen generate --spec ios/project.yml
+          test -d ios/MORTIOSV8.xcodeproj
+          xcodebuild -project ios/MORTIOSV8.xcodeproj -scheme MORTIOSV8 -list
+
+      - name: Select iPhone simulator
+        id: simulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEVICE_ID="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; ids=[x["udid"] for runtime in d.values() for x in runtime if x.get("isAvailable") and x.get("name", "").startswith("iPhone")]; print(ids[0] if ids else "")')"
+          if [[ -z "$DEVICE_ID" ]]; then
+            echo "No available iPhone simulator found" >&2
+            exit 1
+          fi
+          echo "id=$DEVICE_ID" >> "$GITHUB_OUTPUT"
+          xcrun simctl boot "$DEVICE_ID" 2>/dev/null || true
+          xcrun simctl bootstatus "$DEVICE_ID" -b
+
+      - name: Build native app
+        run: |
+          set -euo pipefail
+          xcodebuild build \
+            -project ios/MORTIOSV8.xcodeproj \
+            -scheme MORTIOSV8 \
+            -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}" \
+            -derivedDataPath "$RUNNER_TEMP/mort-ios-v8-derived" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Unit tests
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project ios/MORTIOSV8.xcodeproj \
+            -scheme MORTIOSV8 \
+            -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}" \
+            -derivedDataPath "$RUNNER_TEMP/mort-ios-v8-derived" \
+            -resultBundlePath "$RUNNER_TEMP/MORTIOSV8-UnitTests.xcresult" \
+            -only-testing:MORTIOSV8Tests \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: UI launch smoke
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project ios/MORTIOSV8.xcodeproj \
+            -scheme MORTIOSV8 \
+            -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}" \
+            -derivedDataPath "$RUNNER_TEMP/mort-ios-v8-derived" \
+            -resultBundlePath "$RUNNER_TEMP/MORTIOSV8-UISmoke.xcresult" \
+            -only-testing:MORTIOSV8UITests/MORTIOSV8UITests/testExample \
+            -only-testing:MORTIOSV8UITests/MORTIOSV8UITestsLaunchTests/testLaunch \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Upload XCTest evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mort-ios-v8-bootstrap-xcresults
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/MORTIOSV8-UnitTests.xcresult
+            ${{ runner.temp }}/MORTIOSV8-UISmoke.xcresult
+
+      - name: Commit verified native source
+        if: success()
+        run: |
+          set -euo pipefail
+          rm -rf ios/MORTIOSV8.xcodeproj
+          rm -f MORT_IOS_V8_repo_patch.zip
+          git config user.name 'MORT iOS CI'
+          git config user.email 'ios-ci@invalid'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No source changes to commit.'
+            exit 0
+          fi
+          git commit -m 'feat(ios): add verified native MORT iOS V8 project'
+          git push origin HEAD:codex/ios-v8-integration
