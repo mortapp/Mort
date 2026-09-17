@@ -20,6 +20,12 @@
 .env.*.local
 !.env.example
 /ios/
+!/ios/
+!/ios/**
+/ios/*.xcodeproj/
+/ios/DerivedData/
+/ios/**/xcuserdata/
+/ios/**/*.xcuserstate
 /android/
 *.zip
 *.apk
