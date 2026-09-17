@@ -1,5 +1,6 @@
 import Stripe from "npm:stripe@22.1.1";
 import { json, safeError, serviceClient, sha256, webhookRuntime } from "../_shared/stripe.ts";
+import { assertWebhookEventRoute, verifyWebhookEvent } from "./verification.ts";
 
 const maximumWebhookBytes = 512 * 1024;
 
@@ -17,7 +18,12 @@ Deno.serve(async (request: Request) => {
     const rawBody = await request.text();
     if (new TextEncoder().encode(rawBody).byteLength > maximumWebhookBytes) return json({ ok: false, code: "payload_too_large" }, 413);
 
-    const event = await runtime.stripe.webhooks.constructEventAsync(rawBody, signature, runtime.webhookSecret!);
+    const verified = await verifyWebhookEvent(runtime.stripe, rawBody, signature, {
+      platform: runtime.webhookSecret,
+      connect: runtime.connectWebhookSecret,
+    });
+    const event = verified.event;
+    assertWebhookEventRoute(event, verified.source);
     eventId = event.id;
     if (event.livemode !== (environment === "live")) return json({ ok: false, code: "stripe_environment_mismatch" }, 400);
     const supabase = serviceClient();

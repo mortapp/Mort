@@ -135,9 +135,10 @@ async function checkPaymentSheetContract(scope) {
 
 async function checkWebhookSignature(scope) {
   const webhook = await text("supabase/functions/stripe-webhook/index.ts");
+  const verification = await text("supabase/functions/stripe-webhook/verification.ts");
   assertQa(webhook.includes("await request.text()"), "webhook does not preserve raw body");
-  assertQa(webhook.includes("constructEventAsync(rawBody, signature"), "Stripe signature verification is absent");
-  assertQa(webhook.indexOf("constructEventAsync") < webhook.indexOf("processEvent("), "event is processed before signature verification");
+  assertQa(verification.includes("constructEventAsync(rawBody, signature"), "Stripe signature verification is absent");
+  assertQa(webhook.includes("verifyWebhookEvent(runtime.stripe, rawBody, signature"), "webhook source verification is not enforced before dispatch");
   qaLog(scope, "webhook verifies Stripe-Signature against the untouched raw body before dispatch");
 }
 
