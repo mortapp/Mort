@@ -219,6 +219,19 @@ actor SupabaseClient {
         try await post(path: "/rest/v1/rpc/\(function)", body: args)
     }
 
+    /// Calls an authenticated Supabase Edge Function. The function slug is
+    /// validated locally and the request still carries only the public key +
+    /// current user JWT; privileged credentials never enter the app.
+    func function<T: Decodable>(
+        _ slug: String,
+        body: [String: any Sendable] = [:]
+    ) async throws -> T {
+        guard let path = Self.edgeFunctionPath(for: slug) else {
+            throw MortError.notConfigured("Edge Function")
+        }
+        return try await post(path: path, body: body, authenticated: true)
+    }
+
     /// Uploads job proof/evidence to Storage.
     func upload(bucket: String, path: String, data: Data, contentType: String) async throws {
         var request = try await makeRequest(
