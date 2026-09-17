@@ -1,4 +1,5 @@
 import Stripe from "npm:stripe@22.1.1";
+import { PublicError } from "../_shared/stripe.ts";
 
 export type WebhookSecrets = {
   platform: string | undefined;
@@ -64,10 +65,10 @@ export async function verifyWebhookEvent(
     }
   }
 
-  throw new Error("invalid_webhook_signature_or_source");
+  throw new PublicError("invalid_webhook_signature_or_source", 401);
 }
 
 export function assertWebhookEventRoute(event: Stripe.Event, source: VerifiedWebhookEvent["source"]) {
   const allowed = source === "connect" ? connectEventTypes : platformEventTypes;
-  if (!allowed.has(event.type)) throw new Error("webhook_event_source_mismatch");
+  if (!allowed.has(event.type)) throw new PublicError("webhook_event_source_mismatch", 400);
 }

@@ -1,5 +1,6 @@
 import Stripe from "npm:stripe@22.1.1";
 import { assertEquals, assertRejects } from "jsr:@std/assert@1";
+import { PublicError } from "../_shared/stripe.ts";
 import { assertWebhookEventRoute, verifyWebhookEvent } from "../stripe-webhook/verification.ts";
 
 const platformSecret = "whsec_platform";
@@ -66,7 +67,7 @@ Deno.test("rejects invalid signatures", async () => {
   await assertRejects(() => verifyWebhookEvent(stripe, signed.body, "t=1,v1=invalid", {
     platform: platformSecret,
     connect: connectSecret,
-  }));
+  }), PublicError);
 });
 
 Deno.test("rejects a Connect event signed only with the platform secret", async () => {
