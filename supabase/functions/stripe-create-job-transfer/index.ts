@@ -7,12 +7,12 @@ Deno.serve(async (request: Request) => {
   try {
     requireOperationsSecret(request);
     const context = await authenticate(request);
-    const payload = await readJson<{ contract_id?: unknown; eligibility_path?: unknown }>(request);
-    const contractId = assertUuid(payload.contract_id, "contract_id");
+    const payload = await readJson<{ payment_intent_id?: unknown; eligibility_path?: unknown }>(request);
+    const paymentIntentId = assertUuid(payload.payment_intent_id, "payment_intent_id");
     const eligibilityPath = typeof payload.eligibility_path === "string" ? payload.eligibility_path : "";
     const stripeRuntime = await runtime(context);
-    const { data: prepared, error } = await context.serviceClient.rpc("stripe_server_prepare_transfer", {
-      p_contract_id: contractId,
+    const { data: prepared, error } = await context.serviceClient.rpc("stripe_server_prepare_settlement_transfer_v1", {
+      p_payment_intent_id: paymentIntentId,
       p_environment: stripeRuntime.environment,
       p_eligibility_path: eligibilityPath,
     });
@@ -26,10 +26,8 @@ Deno.serve(async (request: Request) => {
       transfer_group: prepared.transfer_group,
       metadata: { mort_payment_ref: prepared.payment_record_id, mort_environment: stripeRuntime.environment },
     }, { idempotencyKey: prepared.idempotency_key });
-    const { data: recorded, error: recordError } = await context.serviceClient.rpc("stripe_server_record_transfer", {
-      p_contract_id: contractId,
-      p_environment: stripeRuntime.environment,
-      p_eligibility_path: eligibilityPath,
+    const { data: recorded, error: recordError } = await context.serviceClient.rpc("stripe_server_record_settlement_transfer_v1", {
+      p_transfer_record_id: prepared.transfer_record_id,
       p_provider_transfer_id: transfer.id,
       p_provider_status: "paid",
     });
