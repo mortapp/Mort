@@ -29,4 +29,21 @@ struct SupabaseTransportContractTests {
         #expect(SupabaseClient.edgeFunctionPath(for: "stripe/config") == nil)
         #expect(SupabaseClient.edgeFunctionPath(for: "") == nil)
     }
+
+    @Test("Edge Function invocation rejects unsafe slugs before network or auth")
+    func edgeFunctionInvocationFailsClosedForUnsafeSlug() async throws {
+        let config = try #require(SupabaseConfig.fromEnvironment())
+        let client = SupabaseClient(config: config)
+
+        await #expect(throws: MortError.self) {
+            let _: EdgeProbeResponse = try await client.function(
+                "../stripe-config",
+                body: [:]
+            )
+        }
+    }
+}
+
+private nonisolated struct EdgeProbeResponse: Decodable, Sendable {
+    let ok: Bool?
 }
