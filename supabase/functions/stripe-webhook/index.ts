@@ -58,6 +58,16 @@ async function processEvent(
 ) {
   if (["payment_intent.succeeded", "payment_intent.processing", "payment_intent.payment_failed", "payment_intent.canceled"].includes(event.type)) {
     const intent = event.data.object as Stripe.PaymentIntent;
+    const tipAttemptId = intent.metadata?.mort_tip_attempt_ref;
+    if (tipAttemptId) {
+      return rpc(supabase, "stripe_server_apply_tip_event_v1", {
+        p_tip_attempt_id: tipAttemptId,
+        p_provider_payment_intent_id: intent.id,
+        p_provider_status: event.type,
+        p_amount_cents: intent.amount,
+        p_currency_code: intent.currency.toUpperCase(),
+      });
+    }
     const chargeId = typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id ?? null;
     const failureCode = intent.last_payment_error?.code ?? null;
     return rpc(supabase, "stripe_server_apply_payment_event_v2", {
