@@ -1,0 +1,69 @@
+name: MORTIOSV8
+options:
+  createIntermediateGroups: true
+  deploymentTarget:
+    iOS: "18.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+    IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+    CODE_SIGN_STYLE: Automatic
+
+targets:
+  MORTIOSV8:
+    type: application
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: MORTIOSV8
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mortapp.mobile
+        PRODUCT_NAME: MORTIOSV8
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: MORT
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
+        INFOPLIST_KEY_NSCameraUsageDescription: "MORT uses the camera so you can add proof photos when a job is done."
+        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "MORT lets you attach a photo from your library as job proof."
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        TARGETED_DEVICE_FAMILY: "1"
+
+  MORTIOSV8Tests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: MORTIOSV8Tests
+    dependencies:
+      - target: MORTIOSV8
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mortapp.mobile.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+  MORTIOSV8UITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: MORTIOSV8UITests
+    dependencies:
+      - target: MORTIOSV8
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mortapp.mobile.uitests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  MORTIOSV8:
+    build:
+      targets:
+        MORTIOSV8: all
+        MORTIOSV8Tests: [test]
+        MORTIOSV8UITests: [test]
+    test:
+      gatherCoverageData: true
+      targets:
+        - name: MORTIOSV8Tests
+        - name: MORTIOSV8UITests
