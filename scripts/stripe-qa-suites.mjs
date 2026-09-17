@@ -110,12 +110,13 @@ async function checkPaymentAmountForgery(scope) {
 }
 
 async function checkPaymentIdempotency(scope) {
-  const source = await functionSource("public.stripe_server_prepare_job_payment");
+  const source = await functionSource("public.stripe_server_prepare_quote_payment_v1");
   const edge = await text("supabase/functions/stripe-create-job-payment-intent/index.ts");
-  assertQa(source.includes(":funding:"), "server funding operation version is absent from the key");
-  assertQa(edge.includes("idempotencyKey: prepared.idempotency_key"), "Stripe create call lacks server idempotency");
-  await assertUnique("private", "stripe_job_payment_intents", ["contract_version_id", "environment", "operation_version"]);
-  qaLog(scope, "database and provider idempotency protect repeated funding requests");
+  assertQa(source.includes(":quote:"), "quote-bound funding idempotency key is absent");
+  assertQa(edge.includes("paymentIntents.retrieve"), "existing provider intents are not reconciled before retry");
+  assertQa(edge.includes("idempotencyKey: preparedAttempt.idempotency_key"), "Stripe create call lacks server idempotency");
+  await assertUnique("private", "stripe_job_payment_intents", ["environment", "funding_quote_id"]);
+  qaLog(scope, "quote, provider, and database idempotency protect repeated funding requests");
 }
 
 async function checkPaymentSheetContract(scope) {
@@ -124,11 +125,12 @@ async function checkPaymentSheetContract(scope) {
   const config = await text("flutter_mort/lib/core/config/app_config.dart");
   const pubspec = await text("flutter_mort/pubspec.yaml");
   assertQa(edge.includes("payment_intent_client_secret") && edge.includes("customer_ephemeral_key_secret"), "server Payment Sheet contract is incomplete");
-  assertQa(client.includes("marketplace_payments_disabled"), "closed-test Payment Sheet stub does not fail closed");
-  assertQa(config.includes("nativeStripePaymentSheetCompiledIn = false"), "native Stripe compilation boundary is not explicit");
-  assertQa(!pubspec.includes("flutter_stripe:"), "Stripe SDK is compiled into a payment-disabled release");
-  assertQa(!client.includes("initPaymentSheet") && !client.includes("presentPaymentSheet"), "payment execution remained in the signed client");
-  qaLog(scope, "server Payment Sheet contract is retained for future review while the distributed client has no payment SDK and fails closed");
+  assertQa(client.includes("stripe_sandbox_configuration_invalid"), "sandbox Payment Sheet configuration gate is absent");
+  assertQa(config.includes("nativeStripePaymentSheetCompiledIn = true"), "native Stripe compilation boundary is not explicit");
+  assertQa(pubspec.includes("flutter_stripe:"), "sandbox PaymentSheet SDK is not declared");
+  assertQa(client.includes("initPaymentSheet") && client.includes("presentPaymentSheet"), "PaymentSheet execution is not wired");
+  assertQa(client.includes("pk_test_"), "PaymentSheet does not reject non-test publishable keys");
+  qaLog(scope, "sandbox PaymentSheet is compiled and executable only behind test-key validation while public activation remains separately gated");
 }
 
 async function checkWebhookSignature(scope) {
@@ -161,7 +163,7 @@ async function checkJobFunding(scope) {
   assertQa(preview.includes("stripe_job_funding_enabled"), "preview ignores funding shutdown");
   assertQa(event.includes("payment_intent.succeeded") && event.includes("'funded'"), "funded state lacks provider event binding");
   const client = await text("flutter_mort/lib/features/payments/stripe_marketplace_screens.dart");
-  assertQa(client.includes("waiting for Stripe webhook confirmation"), "client implies callback is authoritative");
+  assertQa(client.includes("waiting for provider confirmation"), "client implies callback is authoritative");
   qaLog(scope, "server controls gate funding and only a verified provider event marks a payment funded");
 }
 

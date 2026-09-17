@@ -94,19 +94,23 @@ Deno.serve(async (request: Request) => {
       if (error) throw error;
     }
 
-    const paymentIntent = await stripeRuntime.stripe.paymentIntents.create({
-      amount: consumed.authoritative_total_cents,
-      currency: String(consumed.currency_code).toLowerCase(),
-      customer: customerId,
-      automatic_payment_methods: { enabled: true },
-      setup_future_usage: savePaymentMethod ? "off_session" : undefined,
-      transfer_group: prepared.transfer_group,
-      metadata: {
-        mort_quote_ref: quoteId,
-        mort_contract_ref: consumed.contract_id,
-        mort_environment: stripeRuntime.environment,
-      },
-    }, { idempotencyKey: preparedAttempt.idempotency_key });
+    const paymentIntent = prepared.provider_payment_intent_id
+      ? await stripeRuntime.stripe.paymentIntents.retrieve(
+          prepared.provider_payment_intent_id,
+        )
+      : await stripeRuntime.stripe.paymentIntents.create({
+          amount: consumed.authoritative_total_cents,
+          currency: String(consumed.currency_code).toLowerCase(),
+          customer: customerId,
+          automatic_payment_methods: { enabled: true },
+          setup_future_usage: savePaymentMethod ? "off_session" : undefined,
+          transfer_group: prepared.transfer_group,
+          metadata: {
+            mort_quote_ref: quoteId,
+            mort_contract_ref: consumed.contract_id,
+            mort_environment: stripeRuntime.environment,
+          },
+        }, { idempotencyKey: preparedAttempt.idempotency_key });
     if (!paymentIntent.client_secret) throw new Error("payment_intent_client_secret_unavailable");
 
     const ephemeralKey = await stripeRuntime.stripe.ephemeralKeys.create(
