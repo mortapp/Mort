@@ -54,12 +54,10 @@ Deno.serve(async (request: Request) => {
 
     const stripeRuntime = await runtime(context);
     const { data: prepared, error: prepareError } = await context.serviceClient.rpc(
-      "stripe_server_prepare_job_payment",
+      "stripe_server_prepare_quote_payment_v1",
       {
-        p_adult_id: context.user.id,
-        p_contract_id: consumed.contract_id,
-        p_environment: stripeRuntime.environment,
-        p_operation_version: 1,
+        p_quote_id: quoteId,
+        p_request_id: requestId,
       },
     );
     if (prepareError) throw prepareError;
