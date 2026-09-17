@@ -98,8 +98,8 @@ void main() {
       expect(profileRepository, isNot(contains('savePaymentPreference')));
       expect(manifest, isNot(contains('com.android.vending.BILLING')));
       expect(pubspec, isNot(contains('in_app_purchase:')));
-      expect(pubspec, isNot(contains('flutter_stripe')));
-      expect(AppConfig.nativeStripePaymentSheetCompiledIn, isFalse);
+      expect(pubspec, contains('flutter_stripe'));
+      expect(AppConfig.nativeStripePaymentSheetCompiledIn, isTrue);
     },
   );
 

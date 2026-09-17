@@ -220,8 +220,11 @@ class _StripeJobFundingScreenState
       if (_savePaymentMethod) {
         await repository.recordSavedPaymentConsent(widget.contractId);
       }
-      final initialization = await repository.createPaymentSheet(
+      final quote = await repository.createFundingQuote(
         contractId: widget.contractId,
+      );
+      final initialization = await repository.createPaymentSheet(
+        quoteId: quote.quoteId,
         savePaymentMethod: _savePaymentMethod,
         savedPaymentConsentVersion: _savePaymentMethod
             ? StripeMarketplaceRepository.savedPaymentConsentVersion
@@ -230,10 +233,18 @@ class _StripeJobFundingScreenState
       final completed = await const StripePaymentSheetService().present(
         initialization,
       );
+      final paymentIntentId = initialization['payment_intent_id'];
+      final state = paymentIntentId is String
+          ? await repository.paymentAttemptState(paymentIntentId)
+          : const <String, dynamic>{};
       if (!mounted) return;
-      _notice = completed
-          ? 'Payment Sheet finished. MORT is waiting for Stripe webhook confirmation before showing this job as funded.'
-          : 'Payment Sheet was canceled. No funded status was recorded by the app.';
+      final normalizedState = state['state']?.toString();
+      _notice = !completed
+          ? 'Payment Sheet was canceled. No funded status was recorded by the app.'
+          : normalizedState == 'SUCCEEDED'
+          ? 'Payment confirmed by MORT. This job is funded.'
+          : 'Payment Sheet finished. MORT is waiting for provider confirmation '
+                'before showing this job as funded.';
       _reload();
     } catch (error) {
       if (!mounted) return;
