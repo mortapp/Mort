@@ -36,8 +36,8 @@ struct GuardianHomeView: View {
                         MortEmptyState(
                             symbol: "person.2",
                             title: "No teen linked yet",
-                            message: "Invite your teen, or enter the link code from their account.",
-                            actionTitle: "Invite a teen"
+                            message: "Enter the Guardian Mode link code from the teen's account.",
+                            actionTitle: "Enter link code"
                         ) {
                             nav.present(.guardianInvite)
                         }
@@ -69,7 +69,7 @@ struct GuardianHomeView: View {
                                 .buttonStyle(.plain)
                                 .accessibilityElement(children: .combine)
                             }
-                            MortGhostButton(title: "Link another teen", symbol: "plus") {
+                            MortGhostButton(title: "Enter another link code", symbol: "plus") {
                                 nav.present(.guardianInvite)
                             }
                         }
@@ -231,75 +231,44 @@ struct GuardianInviteView: View {
     @Environment(MortNavigator.self) private var nav
     @Environment(\.dismiss) private var dismiss
 
-    @State private var email = ""
     @State private var code = ""
-    @State private var mode: Mode = .invite
     @State private var isWorking = false
     @State private var error: MortError?
     @State private var done = false
 
-    enum Mode: String, CaseIterable, Identifiable {
-        case invite, code
-        var id: String { rawValue }
-        var label: String {
-            switch self {
-            case .invite: "Send an invite"
-            case .code: "Enter a code"
-            }
-        }
-    }
-
     var body: some View {
         MortScreen(
-            title: done ? "Invite sent" : "Link a teen",
+            title: done ? "Guardian Mode linked" : "Link a teen",
             subtitle: done
-                ? "Once they accept, you'll see their jobs and check-ins."
-                : "Either send them an invite, or enter the code from their account.",
+                ? "You can now see the limited Guardian Mode information they chose to share."
+                : "Enter the link code generated from the teen's account.",
             atmosphereIntensity: 0.6
         ) {
             VStack(alignment: .leading, spacing: MortSpace.s5) {
                 if done {
                     MortStatusPanel(
                         tone: .success,
-                        symbol: "paperplane",
-                        label: "SENT",
-                        detail: "We've let them know. Nothing is shared with you until they accept."
+                        symbol: "person.2.badge.gearshape",
+                        label: "LINKED",
+                        detail: "Guardian Mode is connected. Messages, exact locations and full payment details remain private."
                     )
                 } else {
                     if let error {
                         MortNote(text: error.userMessage, tone: .danger)
                     }
-                    HStack(spacing: MortSpace.s2) {
-                        ForEach(Mode.allCases) { option in
-                            MortChip(label: option.label, isSelected: mode == option) {
-                                mode = option
-                            }
-                        }
-                    }
 
-                    if mode == .invite {
-                        MortTextField(
-                            label: "Teen's email",
-                            placeholder: "them@example.com",
-                            text: $email,
-                            symbol: "envelope",
-                            keyboard: .emailAddress,
-                            capitalization: .never
-                        )
-                    } else {
-                        MortTextField(
-                            label: "Link code",
-                            placeholder: "6 characters",
-                            text: $code,
-                            symbol: "number",
-                            capitalization: .characters,
-                            helpText: "They'll find this in Settings on their account."
-                        )
-                    }
+                    MortTextField(
+                        label: "Link code",
+                        placeholder: "Enter code",
+                        text: $code,
+                        symbol: "number",
+                        capitalization: .characters,
+                        helpText: "The teen generates this code from their own MORT account."
+                    )
 
                     MortRestrictedState(
                         title: "Linking is not surveillance",
-                        message: "Your teen can see exactly what you can see. Messages, exact locations and full payment details stay private to them.",
+                        message: "The teen can see exactly what Guardian Mode shares. Messages, exact locations and full payment details stay private.",
                         symbol: "eye.trianglebadge.exclamationmark"
                     )
                 }
@@ -313,9 +282,9 @@ struct GuardianInviteView: View {
                     }
                 } else {
                     MortPrimaryButton(
-                        title: mode == .invite ? "Send invite" : "Link account",
+                        title: "Link account",
                         isBusy: isWorking,
-                        isEnabled: mode == .invite ? email.contains("@") : code.count >= 4
+                        isEnabled: code.trimmingCharacters(in: .whitespacesAndNewlines).count >= 4
                     ) {
                         Task { await submit() }
                     }
@@ -339,11 +308,7 @@ struct GuardianInviteView: View {
         isWorking = true
         error = nil
         do {
-            if mode == .invite {
-                try await mort.guardians.inviteTeen(email: email)
-            } else {
-                try await mort.guardians.acceptLink(code: code)
-            }
+            try await mort.guardians.acceptLink(code: code)
             done = true
             MortHaptic.success()
         } catch let failure as MortError {
