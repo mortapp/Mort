@@ -100,6 +100,11 @@ if (Test-Path -LiteralPath $GateEvidencePath) {
   $gate = $gateText | ConvertFrom-Json
 }
 
+$connectPreflight = Join-Path $PSScriptRoot 'stripe-connect-webhook-preflight.ps1'
+if (-not (Test-Path -LiteralPath $connectPreflight)) {
+  throw 'Task 31 Connect webhook preflight is missing.'
+}
+
 if ($gateExit -ne 0 -or -not $gate -or $gate.passed -ne $true) {
   Write-Evidence -Payload ([ordered]@{
     schema_version = 1
@@ -124,6 +129,32 @@ if ($gateExit -ne 0 -or -not $gate -or $gate.passed -ne $true) {
   exit 2
 }
 
+& $connectPreflight -ProjectRef $ProjectRef
+if ($LASTEXITCODE -ne 0) {
+  Write-Evidence -Payload ([ordered]@{
+    schema_version = 1
+    suite = 'mort_stripe_sandbox_e2e'
+    project_ref = $ProjectRef
+    environment = 'test'
+    mode = 'sandbox'
+    gate_passed = $true
+    connect_webhook_preflight_passed = $false
+    provider_e2e_executed = $false
+    live_mode_detected = $false
+    complete = $false
+    scenarios = Empty-ScenarioRows -Status 'blocked' -ResultCode 'connect_webhook_preflight_failed'
+    reconciliation = [ordered]@{ unreconciled_count = $null }
+    no_live_money_proof = [ordered]@{
+      live_objects_detected = 0
+      live_credentials_detected = $false
+      real_card_data_used = $false
+    }
+    completed_at = [DateTimeOffset]::UtcNow.ToString('o')
+  })
+  Write-Output 'Stripe sandbox E2E BLOCKED: Connect webhook preflight did not pass. No provider mutation was attempted.'
+  exit 2
+}
+
 if (-not $ExecuteProvider) {
   Write-Evidence -Payload ([ordered]@{
     schema_version = 1
@@ -132,6 +163,7 @@ if (-not $ExecuteProvider) {
     environment = 'test'
     mode = 'sandbox'
     gate_passed = $true
+    connect_webhook_preflight_passed = $true
     provider_e2e_executed = $false
     live_mode_detected = $false
     complete = $false
@@ -193,6 +225,7 @@ $final = [ordered]@{
   environment = 'test'
   mode = 'sandbox'
   gate_passed = $true
+  connect_webhook_preflight_passed = $true
   provider_e2e_executed = $true
   live_mode_detected = $false
   complete = $true
