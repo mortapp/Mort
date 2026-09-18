@@ -902,6 +902,23 @@ nonisolated struct HostedSafetyPingResponseDTO: Codable, Sendable {
     let physicalInterventionDispatched: Bool?
 }
 
+
+// MARK: - Hosted guardian contract
+
+nonisolated struct HostedGuardianConnectionDTO: Codable, Sendable {
+    let id: String
+    let teenId: String
+    let guardianId: String?
+    let status: String
+}
+
+nonisolated struct HostedGuardianLinkResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let message: String?
+    let linkId: String?
+}
+
 // MARK: - Safety / Support / Notifications / Guardian
 
 nonisolated struct CheckInDTO: Codable, Sendable {
