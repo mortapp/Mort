@@ -42,6 +42,13 @@ nonisolated struct SupabaseConfig: Sendable {
     }
 }
 
+/// Explicit JSON null sentinel for RPC arguments whose Postgres signatures
+/// require nullable values. It is converted to NSNull immediately before
+/// JSONSerialization and never leaves the transport boundary.
+nonisolated struct SupabaseJSONNull: Sendable {
+    init() {}
+}
+
 /// Stored session tokens. Persisted in the Keychain, never in UserDefaults.
 nonisolated struct SupabaseSession: Codable, Sendable {
     let accessToken: String
@@ -194,7 +201,7 @@ actor SupabaseClient {
         authenticated: Bool = true
     ) async throws -> T {
         var request = try await makeRequest(path: path, method: "POST", query: query, authenticated: authenticated)
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        request.httpBody = try JSONSerialization.data(withJSONObject: Self.foundationJSONObject(body))
         return try await perform(request)
     }
 
@@ -206,8 +213,19 @@ actor SupabaseClient {
     ) async throws -> T {
         var request = try await makeRequest(path: path, method: "PATCH", query: query, authenticated: authenticated)
         request.setValue("return=representation", forHTTPHeaderField: "Prefer")
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        request.httpBody = try JSONSerialization.data(withJSONObject: Self.foundationJSONObject(body))
         return try await perform(request)
+    }
+
+    nonisolated static func foundationJSONObject(
+        _ body: [String: any Sendable]
+    ) -> [String: Any] {
+        var result: [String: Any] = [:]
+        result.reserveCapacity(body.count)
+        for (key, value) in body {
+            result[key] = value is SupabaseJSONNull ? NSNull() : value
+        }
+        return result
     }
 
     /// Calls a Postgres function. All MORT financial logic lives behind RPCs
