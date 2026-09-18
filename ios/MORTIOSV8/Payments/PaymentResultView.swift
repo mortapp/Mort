@@ -44,7 +44,7 @@ struct PaymentResultView: View {
                 PaymentHeader(
                     presentation: presentation,
                     amount: quote?.total ?? .zero,
-                    amountLabel: state == .funded ? "Held for this job" : "Attempted",
+                    amountLabel: state == .funded ? "Funded for this job" : "Attempted",
                     jobTitle: quote?.jobTitle,
                     workerHandle: quote?.workerHandle
                 )
@@ -62,7 +62,7 @@ struct PaymentResultView: View {
                         tone: .info,
                         symbol: "info.circle",
                         label: "WHAT THIS MEANS",
-                        detail: "The job is funded and your worker can start. This isn't the same as paying them — MORT settles their earnings after you confirm the work."
+                        detail: "The pre-work funding is confirmed and the job can start. The worker payout is separate and only follows the backend's authoritative settlement decision."
                     )
                 }
 
