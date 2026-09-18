@@ -831,42 +831,110 @@ nonisolated final class LiveMessageRepository: MessageRepository {
     init(client: SupabaseClient) { self.client = client }
 
     func conversations() async throws -> [MortConversation] {
-        let rows: [ConversationDTO] = try await client.rpc("mort_conversations")
-        return rows.map { $0.toDomain() }
+        let page: HostedMessageThreadPageDTO = try await client.rpc(
+            MortBackendContract.RPC.messageThreads,
+            args: ["p_limit": 50]
+        )
+
+        let ids = page.items.compactMap(\.counterpartyId)
+        var usernames: [String: String] = [:]
+        if !ids.isEmpty {
+            let rows: [HostedUsernameDTO] = try await client.get(
+                path: "/rest/v1/profiles",
+                query: [
+                    URLQueryItem(name: "id", value: "in.(\(ids.joined(separator: ",")))"),
+                    URLQueryItem(name: "select", value: "id,username"),
+                ]
+            )
+            usernames = Dictionary(
+                uniqueKeysWithValues: rows.compactMap { row in
+                    guard let username = row.username else { return nil }
+                    return (row.id, username)
+                }
+            )
+        }
+
+        return page.items.map { item in
+            item.toDomain(username: item.counterpartyId.flatMap { usernames[$0] })
+        }
     }
 
-    func messages(conversationId: String, cursor: String?) async throws -> (messages: [MortMessage], nextCursor: String?) {
-        let page: MessagePageDTO = try await client.rpc("mort_messages", args: [
-            "p_conversation_id": conversationId,
-            "p_cursor": cursor ?? "",
-        ])
-        return (page.messages.map { $0.toDomain() }, page.nextCursor)
+    func messages(
+        conversationId: String,
+        cursor: String?
+    ) async throws -> (messages: [MortMessage], nextCursor: String?) {
+        guard UUID(uuidString: conversationId) != nil else { throw MortError.notFound }
+        guard let stored = await client.storedSession() else { throw MortError.unauthorized }
+
+        var args: [String: any Sendable] = [
+            "p_thread_id": conversationId,
+            "p_limit": 40,
+        ]
+        if let cursor {
+            guard let decoded = HostedThreadMessagesPageDTO.Cursor(opaqueValue: cursor) else {
+                throw MortError.rejected("That message page token is no longer valid. Refresh the conversation.")
+            }
+            args["p_cursor_created_at"] = decoded.createdAt.ISO8601Format()
+            args["p_cursor_id"] = decoded.id
+        }
+
+        let page: HostedThreadMessagesPageDTO = try await client.rpc(
+            MortBackendContract.RPC.threadMessages,
+            args: args
+        )
+        let summary = page.thread
+        let counterpartyName = summary?.counterpartyDisplayName ?? "MORT participant"
+        let counterpartyHandle = ""
+        let rows = page.items.map {
+            $0.toDomain(
+                currentUserId: stored.userId,
+                counterpartyHandle: counterpartyHandle,
+                counterpartyDisplayName: counterpartyName
+            )
+        }
+        return (rows, page.hasMore ? page.nextCursor?.opaqueValue : nil)
     }
 
     func send(conversationId: String, body: String) async throws -> MortMessage {
-        let row: MessageDTO = try await client.rpc("mort_send_message", args: [
-            "p_conversation_id": conversationId,
-            "p_body": body,
-        ])
-        return row.toDomain()
+        guard UUID(uuidString: conversationId) != nil else { throw MortError.notFound }
+        guard let stored = await client.storedSession() else { throw MortError.unauthorized }
+        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw MortError.rejected("Write a message before sending.")
+        }
+
+        let row: HostedMessageRowDTO = try await client.rpc(
+            MortBackendContract.RPC.sendMessage,
+            args: [
+                "p_thread_id": conversationId,
+                "p_body": trimmed,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        return row.toDomain(
+            currentUserId: stored.userId,
+            counterpartyHandle: "",
+            counterpartyDisplayName: "MORT participant"
+        )
     }
 
     func markRead(conversationId: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_mark_conversation_read", args: [
-            "p_conversation_id": conversationId,
-        ])
+        guard UUID(uuidString: conversationId) != nil else { throw MortError.notFound }
+        let response: HostedMutationAckDTO = try await client.rpc(
+            MortBackendContract.RPC.markThreadRead,
+            args: ["p_thread_id": conversationId]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "The conversation could not be marked read.")
+        }
     }
 
     func report(conversationId: String, category: SafetyReportCategory, detail: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_report_conversation", args: [
-            "p_conversation_id": conversationId,
-            "p_category": category.rawValue,
-            "p_detail": detail,
-        ])
+        throw MortError.notConfigured("Conversation reporting")
     }
 
     func block(handle: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_block_user", args: ["p_handle": handle])
+        throw MortError.notConfigured("User blocking")
     }
 }
 
