@@ -943,44 +943,64 @@ nonisolated final class LiveSafetyRepository: SafetyRepository {
     init(client: SupabaseClient) { self.client = client }
 
     func activeCheckIn() async throws -> SafetyCheckIn? {
-        let rows: [CheckInDTO] = try await client.rpc("mort_active_check_in")
+        let rows: [HostedActiveCheckInDTO] = try await client.rpc(
+            MortBackendContract.RPC.activeCheckIns
+        )
         return rows.first?.toDomain()
     }
 
     func confirmCheckIn(id: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_confirm_check_in", args: ["p_check_in_id": id])
+        guard UUID(uuidString: id) != nil else { throw MortError.notFound }
+        let response: HostedMutationAckDTO = try await client.rpc(
+            MortBackendContract.RPC.completeCheckIn,
+            args: [
+                "p_checkin_id": id,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "That safety check-in could not be confirmed.")
+        }
     }
 
     func contacts() async throws -> [SafetyContact] {
-        let rows: [SafetyContactDTO] = try await client.rpc("mort_safety_contacts")
-        return rows.map { $0.toDomain() }
+        // The current safety-circle read contract does not expose a display
+        // name/contact mask in one participant-safe shape yet.
+        throw MortError.notConfigured("Safety circle contacts")
     }
 
     func shareJobStatus(jobId: String, enabled: Bool) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_share_job_status", args: [
-            "p_job_id": jobId,
-            "p_enabled": enabled,
-        ])
+        throw MortError.notConfigured("Per-job safety sharing")
     }
 
     func report(category: SafetyReportCategory, detail: String, jobId: String?) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_safety_report", args: [
-            "p_category": category.rawValue,
-            "p_detail": detail,
-            "p_job_id": jobId ?? "",
-        ])
+        throw MortError.notConfigured("Structured safety reporting")
     }
 
     func raiseEmergencyAlert(jobId: String?) async throws {
-        // NEVER faked. If this RPC is absent, the call throws and the UI keeps
-        // the native emergency-call affordance as the real path.
-        let _: EmptyResponse = try await client.rpc("mort_raise_emergency_alert", args: [
-            "p_job_id": jobId ?? "",
-        ])
+        // The hosted urgent Safety Ping creates a critical safety incident but
+        // explicitly does NOT claim physical intervention was dispatched.
+        guard let jobId, UUID(uuidString: jobId) != nil else {
+            throw MortError.notConfigured("Urgent safety ping without an active job")
+        }
+        let response: HostedSafetyPingResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.createSafetyPing,
+            args: [
+                "p_status": "needs_help",
+                "p_note": "Urgent safety help requested from the MORT iOS Safety Center.",
+                "p_job_id": jobId,
+                "p_immediate_danger": true,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "MORT could not send the urgent safety ping.")
+        }
     }
 
     func capabilityState() async -> SafetyCapabilityState {
-        .available
+        guard await client.storedSession() != nil else { return .unavailable }
+        return .available
     }
 }
 
