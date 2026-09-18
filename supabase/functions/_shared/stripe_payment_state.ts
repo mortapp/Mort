@@ -20,7 +20,7 @@ const terminalStates = new Set<MortPaymentState>([
 ]);
 
 const transitions: Record<MortPaymentState, ReadonlySet<MortPaymentState>> = {
-  READY: new Set(["PROCESSING", "SUCCEEDED", "CANCELLED", "PROVIDER_UNAVAILABLE"]),
+  READY: new Set(["PROCESSING", "REQUIRES_ACTION", "SUCCEEDED", "CANCELLED", "PROVIDER_UNAVAILABLE"]),
   PROCESSING: new Set([
     "REQUIRES_ACTION",
     "PENDING",
