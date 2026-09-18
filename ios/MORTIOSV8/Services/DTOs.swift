@@ -772,6 +772,96 @@ nonisolated struct HostedMutationAckDTO: Codable, Sendable {
     let code: String?
 }
 
+
+// MARK: - Hosted support contract
+
+nonisolated struct HostedSupportTicketDTO: Codable, Sendable {
+    let id: String
+    let subject: String
+    let status: String
+    let updatedAt: Date
+    let caseNumber: String?
+    let priority: String?
+    let assignedSupportUserId: String?
+    let humanReviewed: Bool?
+    let humanReviewRequestedAt: Date?
+
+    func toDomain(lastMessagePreview: String = "") -> SupportCase {
+        let state: SupportCaseState = {
+            if priority == "urgent_safety" { return .safetyPriority }
+            switch status {
+            case "waiting_on_user":
+                return .waitingOnYou
+            case "waiting_on_staff":
+                return .withSupport
+            case "resolved":
+                return .resolved
+            case "closed":
+                return .closed
+            default:
+                return .open
+            }
+        }()
+
+        let withHuman = assignedSupportUserId != nil
+            || humanReviewed == true
+            || humanReviewRequestedAt != nil
+
+        return SupportCase(
+            id: id,
+            subject: subject,
+            state: state,
+            updatedAt: updatedAt,
+            lastMessagePreview: lastMessagePreview,
+            withHumanAgent: withHuman,
+            reference: caseNumber
+        )
+    }
+}
+
+nonisolated struct HostedSupportMessageDTO: Codable, Sendable {
+    let id: String
+    let ticketId: String
+    let senderId: String?
+    let body: String
+    let createdAt: Date
+    let senderKind: String
+
+    func toDomain() -> MortMessage {
+        let fromMe = senderKind == "user"
+        return MortMessage(
+            id: id,
+            conversationId: ticketId,
+            authorHandle: fromMe ? "" : "@mort-support",
+            authorDisplayName: fromMe ? "You" : "MORT Support",
+            body: body,
+            sentAt: createdAt,
+            fromMe: fromMe,
+            delivery: .sent,
+            attachmentName: nil
+        )
+    }
+}
+
+nonisolated struct HostedSupportThreadDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let ticket: HostedSupportTicketDTO?
+    let messages: [HostedSupportMessageDTO]?
+}
+
+nonisolated struct HostedSupportCreateResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let ticket: HostedSupportTicketDTO?
+}
+
+nonisolated struct HostedSupportReplyResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let message: HostedSupportMessageDTO?
+}
+
 // MARK: - Safety / Support / Notifications / Guardian
 
 nonisolated struct CheckInDTO: Codable, Sendable {
