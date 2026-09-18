@@ -82,10 +82,15 @@ final class MortDependencies {
         self.session = MortSession(auth: auth)
     }
 
-    /// Resolves the real container. Uses the live backend when Supabase
-    /// configuration exists, otherwise falls back to labeled preview data.
+    /// Resolves the shipping container from public client configuration.
     static func resolve() -> MortDependencies {
-        guard let config = SupabaseConfig.fromEnvironment() else {
+        resolve(config: SupabaseConfig.fromEnvironment())
+    }
+
+    /// Explicit configuration seam for tests and controlled bootstrap paths.
+    /// Passing nil must fail closed to clearly labeled preview data.
+    static func resolve(config: SupabaseConfig?) -> MortDependencies {
+        guard let config else {
             return .preview()
         }
         let client = SupabaseClient(config: config)
