@@ -43,6 +43,7 @@ nonisolated enum MortBackendContract {
         static let threadMessages = "list_thread_messages_page"
         static let sendMessage = "send_safe_message_v2"
         static let markThreadRead = "mark_message_thread_read"
+        static let blockUser = "block_user_v2"
 
         // Guardian
         static let createGuardianInvite = "create_guardian_invite_v2"
