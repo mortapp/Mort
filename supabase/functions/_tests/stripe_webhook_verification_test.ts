@@ -25,7 +25,7 @@ async function signature(body: string, secret: string) {
   return `t=${timestamp},v1=${hex}`;
 }
 
-async function signedEvent(account?: string) {
+async function signedEvent(account?: string, eventType?: string) {
   const event = {
     id: crypto.randomUUID(),
     object: "event",
@@ -35,7 +35,7 @@ async function signedEvent(account?: string) {
     livemode: false,
     pending_webhooks: 1,
     request: null,
-    type: account ? "account.updated" : "payment_intent.succeeded",
+    type: eventType ?? (account ? "account.updated" : "payment_intent.succeeded"),
     ...(account ? { account } : {}),
   };
   const body = JSON.stringify(event);
@@ -50,6 +50,17 @@ Deno.test("accepts a valid platform signature", async () => {
   });
   assertEquals(verified.source, "platform");
   assertEquals(verified.event.account, undefined);
+});
+
+Deno.test("accepts requires-action as a platform payment event", async () => {
+  const signed = await signedEvent(undefined, "payment_intent.requires_action");
+  const verified = await verifyWebhookEvent(stripe, signed.body, signed.signature, {
+    platform: platformSecret,
+    connect: connectSecret,
+  });
+  assertEquals(verified.source, "platform");
+  assertEquals(verified.event.type, "payment_intent.requires_action");
+  assertWebhookEventRoute(verified.event, verified.source);
 });
 
 Deno.test("accepts a valid Connect signature", async () => {
