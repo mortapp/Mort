@@ -180,7 +180,7 @@ nonisolated final class LiveProfileRepository: ProfileRepository {
             "preferred_job_categories": draft.categories,
             "bio": draft.bio,
         ]
-        let response: HostedProfileMutationResponseDTO = try await client.rpc(
+        let response: HostedProfileUpdateResponseDTO = try await client.rpc(
             MortBackendContract.RPC.updateMyProfile,
             args: [
                 "p_patch": patch,
