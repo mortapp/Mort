@@ -989,35 +989,73 @@ nonisolated final class LiveSupportRepository: SupportRepository {
     init(client: SupabaseClient) { self.client = client }
 
     func cases() async throws -> [SupportCase] {
-        let rows: [SupportCaseDTO] = try await client.rpc("mort_support_cases")
+        let rows: [HostedSupportTicketDTO] = try await client.rpc(
+            MortBackendContract.RPC.listSupportTickets
+        )
         return rows.map { $0.toDomain() }
     }
 
-    func openCase(topicId: String, subject: String, detail: String, reference: String?) async throws -> SupportCase {
-        let row: SupportCaseDTO = try await client.rpc("mort_open_support_case", args: [
-            "p_topic": topicId,
-            "p_subject": subject,
-            "p_detail": detail,
-            "p_reference": reference ?? "",
-        ])
-        return row.toDomain()
+    func openCase(
+        topicId: String,
+        subject: String,
+        detail: String,
+        reference: String?
+    ) async throws -> SupportCase {
+        let response: HostedSupportCreateResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.createSupportTicket,
+            args: [
+                "p_subject": subject,
+                "p_message": detail,
+            ]
+        )
+        guard response.ok, let ticket = response.ticket else {
+            throw MortError.rejected(response.code ?? "Support could not open that conversation.")
+        }
+        return ticket.toDomain()
     }
 
     func messages(caseId: String) async throws -> [MortMessage] {
-        let rows: [MessageDTO] = try await client.rpc("mort_support_messages", args: ["p_case_id": caseId])
-        return rows.map { $0.toDomain() }
+        guard UUID(uuidString: caseId) != nil else { throw MortError.notFound }
+        let thread: HostedSupportThreadDTO = try await client.rpc(
+            MortBackendContract.RPC.supportThread,
+            args: ["p_ticket_id": caseId]
+        )
+        guard thread.ok else {
+            throw MortError.rejected(thread.code ?? "That support conversation is unavailable.")
+        }
+        return (thread.messages ?? []).map { $0.toDomain() }
     }
 
     func reply(caseId: String, body: String) async throws -> MortMessage {
-        let row: MessageDTO = try await client.rpc("mort_support_reply", args: [
-            "p_case_id": caseId,
-            "p_body": body,
-        ])
-        return row.toDomain()
+        guard UUID(uuidString: caseId) != nil else { throw MortError.notFound }
+        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw MortError.rejected("Write a reply before sending.")
+        }
+
+        let response: HostedSupportReplyResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.postSupportTicketMessage,
+            args: [
+                "p_ticket_id": caseId,
+                "p_message": trimmed,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        guard response.ok, let message = response.message else {
+            throw MortError.rejected(response.code ?? "That support reply could not be sent.")
+        }
+        return message.toDomain()
     }
 
     func requestHuman(caseId: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_support_request_human", args: ["p_case_id": caseId])
+        guard UUID(uuidString: caseId) != nil else { throw MortError.notFound }
+        let response: HostedMutationAckDTO = try await client.rpc(
+            MortBackendContract.RPC.requestSupportHumanReview,
+            args: ["p_ticket_id": caseId]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "Human review could not be requested.")
+        }
     }
 }
 
