@@ -148,3 +148,80 @@ struct HostedJobFeedDTOTests {
         #expect(HostedJobCursorDTO(opaqueValue: "not-a-valid-cursor") == nil)
     }
 }
+
+
+struct HostedPaymentOSDTOTests {
+    @Test("Hosted funding quote preserves server-authoritative cents and expiry")
+    func fundingQuoteDecodes() throws {
+        let json = #"""
+        {
+          "ok": true,
+          "quote_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "contract_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          "base_pay_cents": 2400,
+          "service_fee_cents": 192,
+          "authoritative_total_cents": 2592,
+          "currency_code": "USD",
+          "fair_pay_decision": "GREEN",
+          "state": "ACTIVE",
+          "created_at": "2026-09-18T00:00:00Z",
+          "expires_at": "2026-09-18T00:15:00Z",
+          "idempotent": false
+        }
+        """#.data(using: .utf8)!
+
+        let quote = try hostedDecoder().decode(HostedFundingQuoteResponseDTO.self, from: json)
+        #expect(quote.ok)
+        #expect(quote.quoteId == "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+        #expect(quote.contractId == "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+        #expect(quote.basePayCents == 2400)
+        #expect(quote.serviceFeeCents == 192)
+        #expect(quote.authoritativeTotalCents == 2592)
+        #expect(quote.state == "ACTIVE")
+        #expect(quote.expiresAt != nil)
+    }
+
+    @Test("Hosted PaymentIntent response derives only the provider pi id from its client secret")
+    func paymentIntentProviderReference() throws {
+        let json = #"""
+        {
+          "ok": true,
+          "payment_intent_id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+          "payment_attempt_id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+          "environment": "test",
+          "publishable_key": "pk_test_example",
+          "payment_intent_client_secret": "pi_12345_secret_shortlived",
+          "customer_id": "cus_123",
+          "customer_ephemeral_key_secret": "ek_test_shortlived",
+          "base_pay_cents": 2400,
+          "service_fee_cents": 192,
+          "total_amount_cents": 2592,
+          "currency_code": "USD"
+        }
+        """#.data(using: .utf8)!
+
+        let intent = try hostedDecoder().decode(HostedPaymentIntentResponseDTO.self, from: json)
+        #expect(intent.ok)
+        #expect(intent.providerPaymentIntentId == "pi_12345")
+        #expect(intent.totalAmountCents == 2592)
+    }
+
+    @Test("Hosted normalized payment state never promotes processing to funded")
+    func paymentStateMapping() {
+        #expect(HostedPaymentStateMapper.normalized("SUCCEEDED") == .funded)
+        #expect(HostedPaymentStateMapper.normalized("PROCESSING") == .processing)
+        #expect(HostedPaymentStateMapper.normalized("REQUIRES_ACTION") == .requiresAction)
+        #expect(HostedPaymentStateMapper.normalized("DECLINED") == .declined)
+        #expect(HostedPaymentStateMapper.normalized("FAILED") == .unknown)
+        #expect(HostedPaymentStateMapper.normalized("something_new") == .unknown)
+    }
+
+    @Test("Legacy recovery status prevents blind double-charge after known funding")
+    func legacyRecoveryMapping() {
+        #expect(HostedPaymentStateMapper.legacyFundingStatus("funded") == .funded)
+        #expect(HostedPaymentStateMapper.legacyFundingStatus("transferred") == .funded)
+        #expect(HostedPaymentStateMapper.legacyFundingStatus("partially_refunded") == .funded)
+        #expect(HostedPaymentStateMapper.legacyFundingStatus("processing") == .processing)
+        #expect(HostedPaymentStateMapper.legacyFundingStatus("funding_failed") == .unknown)
+    }
+}
