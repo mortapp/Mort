@@ -4,6 +4,13 @@ on:
   pull_request:
   push:
     branches: [main, mort-supreme-production-readiness]
+  workflow_dispatch:
+    inputs:
+      run_stripe_hosted_regression:
+        description: Run protected hosted Stripe non-provider regression
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -13,6 +20,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  stripe-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: node scripts/qa-stripe-pre-provider-gate.mjs
+      - run: deno test --allow-read --allow-env supabase/functions/_tests
+      - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs --regression-manifest
+
   expo-reference:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -94,3 +116,41 @@ jobs:
           EXPO_PUBLIC_SUPABASE_URL: https://rakjydmgwwgtdislanbt.supabase.co
           EXPO_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYXNlIiwicmVmIjoicmFranlkbWd3d2d0ZGlzbGFuYnQiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc4MTg3MTE3NSwiZXhwIjoyMDk3NDQ3MTc1fQ.DorOgj6jdPTrPX45Vi0O1dYgx-e3zgO6_S39JDcL2Ww
       - run: node scripts/validate-public-legal-site.mjs
+
+
+  stripe-hosted-regression:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_stripe_hosted_regression }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: pnpm install --frozen-lockfile
+      - shell: pwsh
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://rakjydmgwwgtdislanbt.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          MORT_SUPABASE_PROJECT_REF: rakjydmgwwgtdislanbt
+          MORT_STRIPE_MODE: sandbox
+          MORT_STRIPE_TEST_WEBHOOK_URL: https://rakjydmgwwgtdislanbt.supabase.co/functions/v1/stripe-webhook
+        run: ./scripts/run-mort-stripe-regression.ps1

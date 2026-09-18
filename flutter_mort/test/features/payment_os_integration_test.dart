@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -147,4 +148,14 @@ void main() {
     expect(find.byType(PaymentReviewScreen), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  test('financial reads stay behind authenticated Edge adapters', () {
+    final source = File(
+      'lib/data/repositories/stripe_marketplace_repository.dart',
+    ).readAsStringSync();
+    expect(source, contains("'stripe-list-financial-history'"));
+    expect(source, contains("'stripe-get-financial-document'"));
+    expect(source, isNot(contains("'get_my_financial_history_v1'")));
+    expect(source, isNot(contains("'get_my_financial_document_v1'")));
+  });
+
 }
