@@ -10,12 +10,14 @@ export const requiredTestSecretNames = Object.freeze([
   "STRIPE_TEST_SECRET_KEY",
   "STRIPE_TEST_PUBLISHABLE_KEY",
   "STRIPE_TEST_WEBHOOK_SECRET",
+  "STRIPE_TEST_CONNECT_WEBHOOK_SECRET",
 ]);
 
 export const forbiddenLiveSecretNames = Object.freeze([
   "STRIPE_LIVE_SECRET_KEY",
   "STRIPE_LIVE_PUBLISHABLE_KEY",
   "STRIPE_LIVE_WEBHOOK_SECRET",
+  "STRIPE_LIVE_CONNECT_WEBHOOK_SECRET",
 ]);
 
 export function assertNoCredentialValues(text, label = "input") {
@@ -87,9 +89,15 @@ export function evaluatePreProviderGate(input, now = new Date()) {
           : "missing_or_mismatched",
     },
     {
-      id: "test_webhook_secret_name",
-      pass: secretNames.has("STRIPE_TEST_WEBHOOK_SECRET"),
-      detail: secretNames.has("STRIPE_TEST_WEBHOOK_SECRET") ? "present" : "missing",
+      id: "test_webhook_secret_names",
+      pass:
+        secretNames.has("STRIPE_TEST_WEBHOOK_SECRET") &&
+        secretNames.has("STRIPE_TEST_CONNECT_WEBHOOK_SECRET"),
+      detail: !secretNames.has("STRIPE_TEST_WEBHOOK_SECRET")
+        ? "platform_missing"
+        : !secretNames.has("STRIPE_TEST_CONNECT_WEBHOOK_SECRET")
+          ? "connect_missing"
+          : "present",
     },
     {
       id: "sandbox_project_and_mode",
