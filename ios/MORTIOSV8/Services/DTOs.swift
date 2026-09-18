@@ -862,6 +862,46 @@ nonisolated struct HostedSupportReplyResponseDTO: Codable, Sendable {
     let message: HostedSupportMessageDTO?
 }
 
+
+// MARK: - Hosted safety contract
+
+nonisolated struct HostedActiveCheckInDTO: Codable, Sendable {
+    let checkinId: String
+    let applicationId: String
+    let jobId: String
+    let jobTitle: String
+    let checkinType: String
+    let expectedAt: Date?
+    let completedAt: Date?
+    let status: String
+
+    func toDomain(now: Date = Date()) -> SafetyCheckIn {
+        let state: CheckInState
+        if completedAt != nil {
+            state = .confirmed
+        } else if status == "missed" || (expectedAt.map { $0 < now } ?? false) {
+            state = .overdue
+        } else {
+            state = .dueSoon
+        }
+
+        return SafetyCheckIn(
+            id: checkinId,
+            jobId: jobId,
+            jobTitle: jobTitle,
+            state: state,
+            dueAt: expectedAt,
+            confirmedAt: completedAt
+        )
+    }
+}
+
+nonisolated struct HostedSafetyPingResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let physicalInterventionDispatched: Bool?
+}
+
 // MARK: - Safety / Support / Notifications / Guardian
 
 nonisolated struct CheckInDTO: Codable, Sendable {
