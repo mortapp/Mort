@@ -106,7 +106,7 @@ struct PaymentReviewView: View {
     var body: some View {
         MortScreen(
             title: "Fund this job",
-            subtitle: "MORT holds the money until you confirm the work is done.",
+            subtitle: "Fund the job before work begins. Settlement happens after completion.",
             atmosphereIntensity: 0.6
         ) {
             if let model {
@@ -220,7 +220,7 @@ struct PaymentReviewView: View {
                 tone: .info,
                 symbol: "lock.shield",
                 label: "WHAT HAPPENS NEXT",
-                detail: "Funding holds the money with MORT so your worker knows it's real. They can then start. After you confirm the job, MORT settles it and sends their earnings — funding is not the same as paying them directly."
+                detail: "MORT captures the job funding before work begins. After completion, the backend authoritatively decides settlement, worker earnings, and any eligible refund. Funding is not the worker payout."
             )
 
             MortNote(
