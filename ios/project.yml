@@ -13,7 +13,7 @@ settings:
 packages:
   Stripe:
     url: https://github.com/stripe/stripe-ios-spm
-    exactVersion: 26.11.0
+    exactVersion: 25.17.0
 
 targets:
   MORTIOSV8:
