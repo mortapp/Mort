@@ -1109,27 +1109,80 @@ nonisolated final class LiveGuardianRepository: GuardianRepository {
     init(client: SupabaseClient) { self.client = client }
 
     func linkedTeens() async throws -> [MortUser] {
-        let rows: [ProfileDTO] = try await client.rpc("mort_linked_teens")
-        return rows.map { $0.toDomain() }
+        let links: [HostedGuardianConnectionDTO] = try await client.get(
+            path: "/rest/v1/guardian_connections",
+            query: [
+                URLQueryItem(name: "status", value: "eq.active"),
+                URLQueryItem(name: "select", value: "id,teen_id,guardian_id,status"),
+                URLQueryItem(name: "order", value: "accepted_at.desc"),
+            ]
+        )
+        let teenIds = Array(Set(links.map(\.teenId)))
+        guard !teenIds.isEmpty else { return [] }
+
+        let rows: [HostedProfileDTO] = try await client.get(
+            path: "/rest/v1/profiles",
+            query: [
+                URLQueryItem(name: "id", value: "in.(\(teenIds.joined(separator: ",")))"),
+                URLQueryItem(
+                    name: "select",
+                    value: "id,username,display_name,role,city,state,approximate_area,verification_status,guardian_setup_status,created_at,updated_at,bio"
+                ),
+            ]
+        )
+        let order = Dictionary(uniqueKeysWithValues: teenIds.enumerated().map { ($0.element, $0.offset) })
+        return rows
+            .sorted { order[$0.id, default: .max] < order[$1.id, default: .max] }
+            .map { $0.toDomain() }
     }
 
     func teenSummary(teenId: String) async throws -> GuardianSummary {
-        // Policy-limited by RLS: the guardian only receives approved fields.
-        let dto: GuardianSummaryDTO = try await client.rpc("mort_guardian_summary", args: [
-            "p_teen_id": teenId,
-        ])
-        return dto.toDomain()
+        // The hosted financial-summary RPC is yearly, while this UI promises a
+        // monthly total plus active jobs/check-ins/payout state. Do not combine
+        // incompatible scopes or fabricate missing guardian-visible fields.
+        throw MortError.notConfigured("Guardian teen summary")
     }
 
     func inviteTeen(email: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_invite_teen", args: ["p_email": email])
+        // Hosted invite creation is teen-initiated. A guardian cannot create a
+        // link for a teen by email, so this legacy UI path fails closed.
+        throw MortError.notConfigured("Guardian-initiated email invite")
     }
 
     func acceptLink(code: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_accept_guardian_link", args: ["p_code": code])
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !trimmed.isEmpty else {
+            throw MortError.rejected("Enter the guardian link code from the teen account.")
+        }
+        let response: HostedGuardianLinkResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.acceptGuardianInvite,
+            args: ["p_invite_code": trimmed]
+        )
+        guard response.ok else {
+            throw MortError.rejected(
+                response.message ?? response.code ?? "That guardian link code could not be accepted."
+            )
+        }
     }
 
     func unlink(teenId: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_unlink_teen", args: ["p_teen_id": teenId])
+        guard UUID(uuidString: teenId) != nil else { throw MortError.notFound }
+        let rows: [HostedGuardianConnectionDTO] = try await client.get(
+            path: "/rest/v1/guardian_connections",
+            query: [
+                URLQueryItem(name: "teen_id", value: "eq.\(teenId)"),
+                URLQueryItem(name: "status", value: "eq.active"),
+                URLQueryItem(name: "select", value: "id,teen_id,guardian_id,status"),
+                URLQueryItem(name: "limit", value: "1"),
+            ]
+        )
+        guard let link = rows.first else { throw MortError.notFound }
+        let response: HostedGuardianLinkResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.unlinkGuardian,
+            args: ["p_link_id": link.id]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "That Guardian Mode link could not be removed.")
+        }
     }
 }
