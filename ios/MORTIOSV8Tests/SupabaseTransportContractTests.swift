@@ -6,6 +6,7 @@
 //  shipping client contract. Secrets must never be accepted here.
 //
 
+import Foundation
 import Testing
 @testable import MORTIOSV8
 
@@ -28,6 +29,18 @@ struct SupabaseTransportContractTests {
         #expect(SupabaseClient.edgeFunctionPath(for: "../stripe-config") == nil)
         #expect(SupabaseClient.edgeFunctionPath(for: "stripe/config") == nil)
         #expect(SupabaseClient.edgeFunctionPath(for: "") == nil)
+    }
+
+
+
+    @Test("RPC transport converts explicit nullable arguments to JSON null")
+    func explicitNullEncoding() {
+        let object = SupabaseClient.foundationJSONObject([
+            "required": "value",
+            "optional": SupabaseJSONNull(),
+        ])
+        #expect(object["required"] as? String == "value")
+        #expect(object["optional"] is NSNull)
     }
 
     @Test("Edge Function invocation rejects unsafe slugs before network or auth")
