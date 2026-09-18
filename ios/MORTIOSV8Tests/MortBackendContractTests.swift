@@ -25,6 +25,7 @@ struct MortBackendContractTests {
     func executionAndSafety() {
         #expect(MortBackendContract.RPC.generateStartPin == "generate_job_start_pin")
         #expect(MortBackendContract.RPC.confirmStartPin == "confirm_job_start_pin_v2")
+        #expect(MortBackendContract.RPC.respondCompletion == "respond_job_completion")
         #expect(MortBackendContract.RPC.activeCheckIns == "get_my_active_job_checkins")
         #expect(MortBackendContract.RPC.completeCheckIn == "complete_active_job_checkin")
         #expect(MortBackendContract.RPC.createSafetyPing == "create_safety_ping_v2")
