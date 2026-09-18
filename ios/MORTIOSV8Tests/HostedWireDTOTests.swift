@@ -225,3 +225,129 @@ struct HostedPaymentOSDTOTests {
         #expect(HostedPaymentStateMapper.legacyFundingStatus("funding_failed") == .unknown)
     }
 }
+
+
+struct HostedJobRecordDTOTests {
+    @Test("Hosted job record maps lifecycle and privacy-safe location")
+    func jobRecordMapping() throws {
+        let json = #"""
+        {
+          "id": "33333333-3333-4333-8333-333333333333",
+          "poster_id": "44444444-4444-4444-8444-444444444444",
+          "title": "Mow the yard",
+          "summary": "Front and back yard mowing",
+          "description": "Mow both yards and bag the clippings when finished.",
+          "category": "lawn care",
+          "location_text": "General northside area",
+          "city": "Indianapolis",
+          "state": "IN",
+          "neighborhood": "Northside",
+          "pay_amount_cents": 2400,
+          "status": "in_progress",
+          "starts_at": "2026-09-20T14:00:00Z",
+          "created_at": "2026-09-17T18:30:00Z",
+          "updated_at": "2026-09-18T00:00:00Z",
+          "proof_expected": true,
+          "schedule_type": "exact",
+          "applications_open": false
+        }
+        """#.data(using: .utf8)!
+
+        let dto = try hostedDecoder().decode(HostedJobRecordDTO.self, from: json)
+        let job = try dto.toDomain(posterHandle: "@jordan", posterDisplayName: "Jordan P.")
+        #expect(job.state == .inProgress)
+        #expect(job.baseCents == 2400)
+        #expect(job.area == "Northside")
+        #expect(job.posterHandle == "@jordan")
+        #expect(job.requiresProof)
+    }
+}
+
+struct HostedFinancialDocumentDTOTests {
+    @Test("Immutable teen earnings document maps to receipt and timeline without inventing bank payout")
+    func teenEarningsMapping() throws {
+        let json = #"""
+        {
+          "id": "55555555-5555-4555-8555-555555555555",
+          "document_type": "TEEN_EARNINGS",
+          "receipt_id": "K-260918-00042",
+          "order_number": "0042",
+          "document_date": "2026-09-18",
+          "amount_cents": 2400,
+          "currency_code": "USD",
+          "status": "succeeded",
+          "masked_provider_reference": "ch_4242",
+          "immutable_snapshot": {
+            "job_title": "Mow the yard",
+            "display_username": "sosa",
+            "service_description": "Yard mowing service"
+          },
+          "linked_document_refs": ["Q-260918-00041"],
+          "created_at": "2026-09-18T00:30:00Z"
+        }
+        """#.data(using: .utf8)!
+
+        let dto = try hostedDecoder().decode(HostedFinancialDocumentDTO.self, from: json)
+        let receipt = dto.toReceipt()
+        let history = dto.toHistoryRecord()
+
+        #expect(receipt.type == .teenEarnings)
+        #expect(receipt.id == "K-260918-00042")
+        #expect(receipt.orderNumber == "0042")
+        #expect(receipt.lines.first?.amountCents == 2400)
+        #expect(receipt.notATaxDocumentNote != nil)
+        #expect(history.kind == .earning)
+        #expect(history.amountCents == 2400)
+        #expect(history.receiptNumber == "K-260918-00042")
+    }
+
+    @Test("Adult payment timeline amount is an outflow")
+    func adultPaymentSign() throws {
+        let json = #"""
+        {
+          "id": "66666666-6666-4666-8666-666666666666",
+          "document_type": "ADULT_JOB_PAYMENT",
+          "receipt_id": "M-260918-00043",
+          "order_number": "0043",
+          "document_date": "2026-09-18",
+          "amount_cents": 2592,
+          "currency_code": "USD",
+          "status": "succeeded",
+          "masked_provider_reference": "ch_4242",
+          "immutable_snapshot": {},
+          "linked_document_refs": [],
+          "created_at": "2026-09-18T00:31:00Z"
+        }
+        """#.data(using: .utf8)!
+
+        let dto = try hostedDecoder().decode(HostedFinancialDocumentDTO.self, from: json)
+        #expect(dto.toHistoryRecord().amountCents == -2592)
+        #expect(dto.toReceipt().type == .adultJobPayment)
+    }
+}
+
+struct HostedPayoutStatusDTOTests {
+    @Test("Hosted payout status distinguishes provider readiness from bank settlement")
+    func payoutMapping() throws {
+        let json = #"""
+        {
+          "status": "complete",
+          "details_submitted": true,
+          "payouts_enabled": true,
+          "transfers_status": "active",
+          "requirements_status": "satisfied",
+          "guardian_requirement_status": "not_required",
+          "disabled_reason_code": null,
+          "country": "US",
+          "default_currency": "usd",
+          "last_synchronized_at": "2026-09-18T00:00:00Z",
+          "latest_payout": null,
+          "provider": "stripe"
+        }
+        """#.data(using: .utf8)!
+
+        let dto = try hostedDecoder().decode(HostedStripePayoutStatusDTO.self, from: json)
+        #expect(dto.stage == .ready)
+        #expect(!dto.toDomain().stage.isMoneyInBank)
+    }
+}
