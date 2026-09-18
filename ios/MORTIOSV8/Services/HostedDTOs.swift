@@ -385,6 +385,143 @@ nonisolated struct HostedJobPaymentSummaryDTO: Codable, Sendable {
     }
 }
 
+
+nonisolated struct HostedServiceFeePolicyDTO: Codable, Sendable {
+    let version: String?
+    let percentBasisPoints: Int
+    let minimumCents: Int64
+    let maximumCents: Int64
+    let quoteTtlSeconds: Int?
+
+    func toDomain() -> MortFeeConfig {
+        MortFeeConfig(
+            percentBasisPoints: percentBasisPoints,
+            minimumCents: minimumCents,
+            maximumCents: maximumCents
+        )
+    }
+}
+
+nonisolated struct HostedTipPolicyDTO: Codable, Sendable {
+    let version: String?
+    let minimumCents: Int64
+    let maximumCents: Int64
+    let lateTipWindowSeconds: Int?
+    let teenShareBasisPoints: Int?
+    let mortFeeBasisPoints: Int?
+    let excludedFromFairPay: Bool?
+
+    func toDomain() throws -> TipConfig {
+        guard
+            minimumCents > 0,
+            maximumCents >= minimumCents,
+            teenShareBasisPoints == 10_000,
+            mortFeeBasisPoints == 0,
+            excludedFromFairPay == true
+        else {
+            throw MortError.serverUnavailable
+        }
+        return TipConfig(minimumCents: minimumCents, maximumCents: maximumCents)
+    }
+}
+
+nonisolated struct HostedFinancialPolicyConfigDTO: Codable, Sendable {
+    let ok: Bool
+    let environment: String
+    let currencyCode: String
+    let serviceFee: HostedServiceFeePolicyDTO?
+    let tip: HostedTipPolicyDTO?
+}
+
+nonisolated struct HostedJobSettlementDTO: Codable, Sendable {
+    let ok: Bool
+    let settlementId: String
+    let contractId: String
+    let jobId: String
+    let orderNumber: String?
+    let fundedBaseCents: Int64
+    let compensatedBaseCents: Int64
+    let baseRefundCents: Int64
+    let serviceFeeCents: Int64
+    let serviceFeeRefundCents: Int64
+    let feeRetainedCents: Int64
+    let adultRefundCents: Int64
+    let currencyCode: String
+    let outcomeCode: String
+    let decisionReasonCode: String
+    let finalizedAt: Date?
+    let explanation: String
+
+    func toDomain() throws -> SettlementResult {
+        guard
+            fundedBaseCents >= 0,
+            compensatedBaseCents >= 0,
+            baseRefundCents >= 0,
+            compensatedBaseCents + baseRefundCents == fundedBaseCents,
+            serviceFeeCents >= 0,
+            serviceFeeRefundCents >= 0,
+            serviceFeeRefundCents <= serviceFeeCents,
+            feeRetainedCents == serviceFeeCents - serviceFeeRefundCents,
+            adultRefundCents == baseRefundCents + serviceFeeRefundCents
+        else {
+            throw MortError.serverUnavailable
+        }
+
+        let outcome: SettlementResult.Outcome
+        if adultRefundCents == 0 {
+            outcome = .settledInFull
+        } else if compensatedBaseCents == 0 {
+            outcome = .settledWithRefund
+        } else {
+            outcome = .settledWithРartialRefund
+        }
+
+        return SettlementResult(
+            jobId: jobId,
+            orderNumber: orderNumber ?? "—",
+            fundedBaseCents: fundedBaseCents,
+            compensatedBaseCents: compensatedBaseCents,
+            feeRetainedCents: feeRetainedCents,
+            feeRefundedCents: serviceFeeRefundCents,
+            adultRefundCents: adultRefundCents,
+            outcome: outcome,
+            explanation: explanation
+        )
+    }
+}
+
+nonisolated struct HostedTipPaymentIntentResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let tipAttemptId: String?
+    let providerPaymentIntentId: String?
+    let normalizedState: String?
+    let environment: String?
+    let publishableKey: String?
+    let paymentIntentClientSecret: String?
+    let customerId: String?
+    let amountCents: Int64?
+    let teenAmountCents: Int64?
+    let mortFeeCents: Int64?
+    let currencyCode: String?
+}
+
+nonisolated struct HostedTipAttemptStateDTO: Codable, Sendable {
+    let tipAttemptId: String
+    let settlementId: String
+    let jobId: String
+    let amountCents: Int64
+    let teenAmountCents: Int64
+    let mortFeeCents: Int64
+    let currencyCode: String
+    let state: String
+    let updatedAt: Date
+
+    var paymentState: PaymentState {
+        HostedPaymentStateMapper.normalized(state)
+    }
+}
+
 nonisolated enum HostedPaymentStateMapper {
     static func normalized(_ raw: String) -> PaymentState {
         switch raw.uppercased() {
