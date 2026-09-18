@@ -21,6 +21,7 @@ struct JobStartPinView: View {
     @State private var isWorking = false
     @State private var error: MortError?
     @State private var started = false
+    @State private var personMatchesProfile = false
 
     private var isPoster: Bool { user.role == .adult }
 
@@ -31,7 +32,7 @@ struct JobStartPinView: View {
                 ? "The clock is running. Stay safe and check in if we ask."
                 : (isPoster
                     ? "Read this to your worker when they arrive. It confirms they're really there."
-                    : "Ask the person who posted the job for their 4-digit code."),
+                    : "Ask the person who posted the job for their 6-digit code."),
             atmosphereIntensity: 0.6
         ) {
             VStack(alignment: .leading, spacing: MortSpace.s5) {
@@ -65,7 +66,7 @@ struct JobStartPinView: View {
                     }
                     MortTextField(
                         label: "Start code",
-                        placeholder: "4 digits",
+                        placeholder: "6 digits",
                         text: $pin,
                         symbol: "number",
                         keyboard: .numberPad
@@ -74,6 +75,25 @@ struct JobStartPinView: View {
                         text: "If they can't give you a code, don't start the job. Report it instead.",
                         tone: .info
                     )
+
+                    Button {
+                        personMatchesProfile.toggle()
+                        MortHaptic.select()
+                    } label: {
+                        HStack(alignment: .top, spacing: MortSpace.s3) {
+                            Image(systemName: personMatchesProfile ? "checkmark.square.fill" : "square")
+                                .foregroundStyle(
+                                    personMatchesProfile ? MortColor.silver1 : MortColor.textMuted
+                                )
+                            Text("I confirm the person here matches the MORT profile for this job.")
+                                .mortBody()
+                                .multilineTextAlignment(.leading)
+                            Spacer(minLength: 0)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityValue(personMatchesProfile ? "Checked" : "Unchecked")
                 }
             }
         } bottom: {
@@ -87,7 +107,7 @@ struct JobStartPinView: View {
                         title: "Start the job",
                         symbol: "play.fill",
                         isBusy: isWorking,
-                        isEnabled: pin.count == 4 && !isWorking
+                        isEnabled: pin.count == 6 && personMatchesProfile && !isWorking
                     ) {
                         Task { await start() }
                     }
@@ -115,7 +135,11 @@ struct JobStartPinView: View {
         isWorking = true
         error = nil
         do {
-            try await mort.execution.startJob(jobId: jobId, pin: pin)
+            try await mort.execution.startJob(
+                jobId: jobId,
+                pin: pin,
+                personMatchesProfile: personMatchesProfile
+            )
             started = true
             MortHaptic.success()
         } catch let failure as MortError {
