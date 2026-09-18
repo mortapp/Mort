@@ -72,6 +72,12 @@ verify_jwt = true
 [functions.stripe-create-job-funding-quote]
 verify_jwt = true
 
+[functions.stripe-get-financial-document]
+verify_jwt = true
+
+[functions.stripe-list-financial-history]
+verify_jwt = true
+
 [functions.support-chat]
 verify_jwt = true
 
