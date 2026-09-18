@@ -17,6 +17,8 @@ struct MortBackendContractTests {
         #expect(MortBackendContract.RPC.submitApplication == "submit_job_application")
         #expect(MortBackendContract.RPC.updateApplication == "update_application_status_v3")
         #expect(MortBackendContract.RPC.quickAcceptJob == "quick_accept_job_v1")
+        #expect(MortBackendContract.RPC.saveJob == "save_job_draft_or_publish_without_fee_v1")
+        #expect(MortBackendContract.RPC.manageJob == "manage_job_v2")
     }
 
     @Test("Native client uses the hosted MORT execution and safety RPCs")
@@ -51,6 +53,7 @@ struct MortBackendContractTests {
         #expect(MortBackendContract.RPC.paymentAttemptState == "get_my_payment_attempt_state_v1")
         #expect(MortBackendContract.RPC.financialHistory == "get_my_financial_history_v1")
         #expect(MortBackendContract.RPC.financialDocument == "get_my_financial_document_v1")
+        #expect(MortBackendContract.RPC.jobPaymentReceipt == "get_my_job_payment_receipt")
         #expect(MortBackendContract.RPC.payoutStatus == "get_my_stripe_payout_status")
     }
 
