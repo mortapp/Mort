@@ -83,6 +83,11 @@ export function validateSandboxEvidence(payload) {
   if (payload.complete === true) {
     assert.equal(payload.gate_passed, true, "complete evidence requires a passing pre-provider gate");
     assert.equal(
+      payload.connect_webhook_preflight_passed,
+      true,
+      "complete evidence requires the TEST Connect webhook signing preflight",
+    );
+    assert.equal(
       payload.provider_e2e_executed,
       true,
       "complete evidence requires actual sandbox provider execution",
@@ -127,6 +132,10 @@ async function validateTask31SourceContracts() {
     path.join(root, "scripts", "stripe-sandbox-e2e.ps1"),
     "utf8",
   );
+  const connectPreflight = await readFile(
+    path.join(root, "scripts", "stripe-connect-webhook-preflight.ps1"),
+    "utf8",
+  );
   const trigger = await readFile(
     path.join(root, "scripts", "stripe-trigger-test-events.ps1"),
     "utf8",
@@ -141,6 +150,7 @@ async function validateTask31SourceContracts() {
   );
 
   assert(runner.includes("stripe-pre-provider-test-gate.ps1"));
+  assert(runner.includes("stripe-connect-webhook-preflight.ps1"));
   assert(runner.includes("[switch]$ExecuteProvider"));
   assert(runner.includes("provider_e2e_executed = $false"));
   assert(runner.includes("live_mode_detected = $false"));
@@ -152,8 +162,14 @@ async function validateTask31SourceContracts() {
   }
 
   const gateIndex = runner.indexOf("stripe-pre-provider-test-gate.ps1");
+  const connectIndex = runner.indexOf("stripe-connect-webhook-preflight.ps1");
   const providerSwitchIndex = runner.indexOf("if (-not $ExecuteProvider)");
-  assert(gateIndex >= 0 && providerSwitchIndex > gateIndex, "Task 30 gate must run before provider execution is allowed");
+  assert(gateIndex >= 0 && connectIndex > gateIndex, "Connect preflight must follow the Task 30 gate");
+  assert(providerSwitchIndex > connectIndex, "both read-only gates must run before provider execution is allowed");
+
+  assert(connectPreflight.includes("STRIPE_TEST_CONNECT_WEBHOOK_SECRET"));
+  assert(connectPreflight.includes("STRIPE_LIVE_CONNECT_WEBHOOK_SECRET"));
+  assert(!/stripe\s+(?:trigger|payment_intents|charges|refunds|transfers)/i.test(connectPreflight));
 
   assert(trigger.includes("[switch]$Execute"));
   assert(trigger.includes("if (-not $Execute)"));
@@ -269,6 +285,7 @@ function completeFixture() {
     environment: "test",
     mode: "sandbox",
     gate_passed: true,
+    connect_webhook_preflight_passed: true,
     provider_e2e_executed: true,
     live_mode_detected: false,
     complete: true,
