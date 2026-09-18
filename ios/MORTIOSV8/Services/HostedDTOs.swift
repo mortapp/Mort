@@ -94,6 +94,7 @@ nonisolated struct HostedProfileUpdateResponseDTO: Codable, Sendable {
 
 nonisolated enum HostedWireContractError: Error, Sendable {
     case unexpectedJobState(String)
+    case invalidJobPay
 }
 
 nonisolated struct HostedJobCursorDTO: Codable, Sendable {
@@ -134,11 +135,27 @@ nonisolated struct HostedJobCursorDTO: Codable, Sendable {
 
 nonisolated struct HostedJobFeedPageDTO: Codable, Sendable {
     let ok: Bool
+    let code: String?
     let items: [HostedJobFeedItemDTO]
     let hasMore: Bool
     let nextCursor: HostedJobCursorDTO?
     let distanceCalculated: Bool?
     let locationPrecision: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case ok, code, items, hasMore, nextCursor, distanceCalculated, locationPrecision
+    }
+
+    init(from decoder: Decoder) throws {
+        let box = try decoder.container(keyedBy: CodingKeys.self)
+        ok = try box.decodeIfPresent(Bool.self, forKey: .ok) ?? false
+        code = try box.decodeIfPresent(String.self, forKey: .code)
+        items = try box.decodeIfPresent([HostedJobFeedItemDTO].self, forKey: .items) ?? []
+        hasMore = try box.decodeIfPresent(Bool.self, forKey: .hasMore) ?? false
+        nextCursor = try box.decodeIfPresent(HostedJobCursorDTO.self, forKey: .nextCursor)
+        distanceCalculated = try box.decodeIfPresent(Bool.self, forKey: .distanceCalculated)
+        locationPrecision = try box.decodeIfPresent(String.self, forKey: .locationPrecision)
+    }
 }
 
 nonisolated struct HostedJobFeedPosterDTO: Codable, Sendable {
@@ -171,6 +188,9 @@ nonisolated struct HostedJobFeedItemDTO: Codable, Sendable {
     func toDomain() throws -> MortJob {
         guard status == "open" else {
             throw HostedWireContractError.unexpectedJobState(status)
+        }
+        guard let payAmountCents, payAmountCents > 0 else {
+            throw HostedWireContractError.invalidJobPay
         }
 
         let cleanNeighborhood = neighborhood?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -230,7 +250,7 @@ nonisolated struct HostedJobFeedItemDTO: Codable, Sendable {
             title: title,
             category: category,
             details: detailText,
-            baseCents: payAmountCents ?? 0,
+            baseCents: payAmountCents,
             distance: distance,
             area: area,
             scheduleText: scheduleText,
