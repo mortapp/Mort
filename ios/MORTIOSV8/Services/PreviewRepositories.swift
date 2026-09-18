@@ -514,6 +514,7 @@ nonisolated final class PreviewGuardianRepository: GuardianRepository {
             lastCheckInState: .confirmed,
             lastCheckInText: "Checked in at 10:06 AM",
             earningsThisMonthCents: 8700,
+            earningsVisible: true,
             payoutStage: .transferPending,
             safetyAlertsCount: 0,
             restrictedNotice: "Message contents, exact locations and full payment details stay private to your teen."
