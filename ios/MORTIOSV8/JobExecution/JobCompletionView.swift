@@ -17,6 +17,7 @@ struct JobCompletionView: View {
     @Environment(MortNavigator.self) private var nav
     @State private var job: LoadState<MortJob> = .idle
     @State private var settlement: SettlementResult?
+    @State private var receiptNumber: String?
     @State private var isWorking = false
     @State private var error: MortError?
 
@@ -24,8 +25,8 @@ struct JobCompletionView: View {
         MortScreen(
             title: settlement == nil ? "Confirm the work" : "Settled",
             subtitle: settlement == nil
-                ? "Confirming releases the payment to your worker."
-                : "Here's exactly what happened with the money.",
+                ? "Confirming records the completion outcome for authoritative settlement."
+                : "Here's exactly what MORT recorded for the settlement.",
             atmosphereIntensity: 0.62
         ) {
             VStack(alignment: .leading, spacing: MortSpace.s5) {
@@ -81,8 +82,16 @@ struct JobCompletionView: View {
                     MortPrimaryButton(title: "Add a tip", symbol: "hand.thumbsup") {
                         nav.present(.tipSelect(jobId: jobId, isLate: true))
                     }
-                    MortGhostButton(title: "View receipt", symbol: "doc.text") {
-                        nav.push(.receipt(MortFixtures.adultReceipt.id))
+                    if let receiptNumber {
+                        MortGhostButton(title: "View receipt", symbol: "doc.text") {
+                            nav.push(.receipt(receiptNumber))
+                        }
+                    } else {
+                        MortNote(
+                            text: "The immutable receipt appears in History after the backend issues it.",
+                            tone: .neutral,
+                            symbol: "doc.text"
+                        )
                     }
                     MortQuietButton(title: "Done") { nav.popToRoot() }
                     if settlement.outcome == .disputed {
@@ -124,7 +133,9 @@ struct JobCompletionView: View {
         error = nil
         do {
             // Settlement is the backend's decision, returned here.
-            settlement = try await mort.execution.confirmCompletion(jobId: jobId)
+            let result = try await mort.execution.confirmCompletion(jobId: jobId)
+            settlement = result
+            await resolveReceipt(for: result)
             MortHaptic.success()
         } catch let failure as MortError {
             error = failure
@@ -133,6 +144,13 @@ struct JobCompletionView: View {
             self.error = .unknown
         }
         isWorking = false
+    }
+
+    private func resolveReceipt(for settlement: SettlementResult) async {
+        guard let page = try? await mort.receipts.receipts(cursor: nil) else { return }
+        receiptNumber = page.receipts.first(where: {
+            $0.orderNumber == settlement.orderNumber && $0.type == .adultJobPayment
+        })?.id
     }
 }
 
@@ -190,8 +208,8 @@ struct JobCancelView: View {
         MortScreen(
             title: done ? "Job cancelled" : "Cancel this job",
             subtitle: done
-                ? "Any money held for this job is being returned."
-                : "Tell us why. If the job was funded, MORT handles the refund.",
+                ? "MORT recorded the cancellation. Any eligible refund is a separate immutable financial event."
+                : "Tell us why. If the job was funded, MORT evaluates the cancellation and any refund server-side.",
             atmosphereIntensity: 0.62
         ) {
             VStack(alignment: .leading, spacing: MortSpace.s5) {
@@ -200,7 +218,7 @@ struct JobCancelView: View {
                         tone: .info,
                         symbol: "arrow.uturn.left.circle",
                         label: "CANCELLED",
-                        detail: "If this job was funded, MORT issues a refund receipt. Your original receipt is never changed."
+                        detail: "If a refund is due, MORT records it as a new linked financial document. The original receipt never changes."
                     )
                 } else {
                     if let error {
@@ -285,7 +303,7 @@ struct JobDisputeView: View {
                         tone: .warning,
                         symbol: "exclamationmark.triangle",
                         label: "UNDER REVIEW",
-                        detail: "Money for this job stays held while we look at it. Nothing moves until MORT decides."
+                        detail: "MORT pauses settlement actions while the review is open. The final financial outcome stays server-authoritative."
                     )
                 } else {
                     if let error {
