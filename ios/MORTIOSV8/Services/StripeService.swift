@@ -175,15 +175,17 @@ nonisolated final class StripePaymentSheetAdapter: ProviderPaymentSheet {
 
     #if canImport(UIKit)
     @MainActor
-    private static func topViewController(
-        from base: UIViewController? = {
-            UIApplication.shared.connectedScenes
-                .compactMap { $0 as? UIWindowScene }
-                .flatMap(\.windows)
-                .first(where: \.isKeyWindow)?
-                .rootViewController
-        }()
-    ) -> UIViewController? {
+    private static func topViewController() -> UIViewController? {
+        let base = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow)?
+            .rootViewController
+        return topViewController(from: base)
+    }
+
+    @MainActor
+    private static func topViewController(from base: UIViewController?) -> UIViewController? {
         if let navigation = base as? UINavigationController {
             return topViewController(from: navigation.visibleViewController)
         }
