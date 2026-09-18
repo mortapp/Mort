@@ -499,3 +499,36 @@ struct HostedAdultCompletionDTOTests {
         #expect(dto.mortProcessedPayment == false)
     }
 }
+
+
+struct HostedGuardianTeenSummaryDTOTests {
+    @Test("Guardian summary preserves teen-controlled financial visibility")
+    func guardianSummaryVisibility() throws {
+        let json = #"""
+        {
+          "ok": true,
+          "teen_id": "77777777-7777-4777-8777-777777777777",
+          "teen_handle": "@teen",
+          "teen_display_name": "Teen T.",
+          "active_job_count": 1,
+          "upcoming_job_title": "Walk the dogs",
+          "last_check_in_state": "confirmed",
+          "last_check_in_text": "Checked in Sep 18, 2026 02:00 UTC",
+          "earnings_this_month_cents": 0,
+          "earnings_visible": false,
+          "payout_stage": null,
+          "safety_alerts_count": 0,
+          "restricted_notice": "Messages, exact locations, financial totals, individual payment details, and payout destination details stay private to your teen."
+        }
+        """#.data(using: .utf8)!
+
+        let dto = try hostedDecoder().decode(HostedGuardianTeenSummaryDTO.self, from: json)
+        let summary = dto.toDomain()
+        #expect(summary.teenHandle == "@teen")
+        #expect(summary.activeJobCount == 1)
+        #expect(summary.lastCheckInState == .confirmed)
+        #expect(summary.earningsVisible == false)
+        #expect(summary.earningsThisMonthCents == 0)
+        #expect(summary.payoutStage == nil)
+    }
+}
