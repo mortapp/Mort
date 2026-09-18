@@ -874,7 +874,7 @@ nonisolated struct HostedReviewDTO: Codable, Sendable {
     let reviewerId: String
     let subjectId: String
     let rating: Int
-    let body: String
+    let body: String?
     let moderationStatus: String
     let createdAt: Date
     let reviewer: HostedReviewProfileDTO?
@@ -892,7 +892,7 @@ nonisolated struct HostedReviewDTO: Codable, Sendable {
             authorHandle: handle,
             authorDisplayName: (display?.isEmpty == false) ? display! : (handle.isEmpty ? "MORT member" : handle),
             rating: rating,
-            body: body,
+            body: body ?? "",
             jobTitle: job?.title ?? "MORT job",
             createdAt: createdAt
         )
