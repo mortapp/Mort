@@ -659,12 +659,71 @@ nonisolated struct HostedMessageThreadDTO: Codable, Sendable {
     let lastMessagePreview: String?
     let lastMessageAt: Date?
     let unreadCount: Int
+
+    func toDomain(username: String?) -> MortConversation {
+        let cleanUsername = username?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "@"))
+        let handle = cleanUsername.map { "@\($0)" } ?? ""
+        let displayName = counterpartyDisplayName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let safeDisplay = (displayName?.isEmpty == false) ? displayName! : "MORT participant"
+        let initials = safeDisplay
+            .split(separator: " ")
+            .compactMap(\.first)
+            .prefix(2)
+            .map(String.init)
+            .joined()
+            .uppercased()
+
+        return MortConversation(
+            id: id,
+            counterpartyHandle: handle,
+            counterpartyDisplayName: safeDisplay,
+            counterpartyInitials: initials.isEmpty ? "?" : initials,
+            preview: lastMessagePreview ?? "",
+            updatedAt: lastMessageAt ?? updatedAt,
+            unreadCount: unreadCount,
+            jobTitle: jobTitle ?? "MORT job",
+            jobId: jobId ?? "",
+            restriction: lifecycleStatus == "read_only" ? .archived : .none
+        )
+    }
 }
 
 nonisolated struct HostedThreadMessagesPageDTO: Codable, Sendable {
     nonisolated struct Cursor: Codable, Sendable {
         let createdAt: Date
         let id: String
+
+        var opaqueValue: String? {
+            guard let data = try? JSONEncoder().encode(self) else { return nil }
+            return data.base64EncodedString()
+                .replacingOccurrences(of: "+", with: "-")
+                .replacingOccurrences(of: "/", with: "_")
+                .replacingOccurrences(of: "=", with: "")
+        }
+
+        init(createdAt: Date, id: String) {
+            self.createdAt = createdAt
+            self.id = id
+        }
+
+        init?(opaqueValue: String) {
+            guard !opaqueValue.isEmpty else { return nil }
+            var base64 = opaqueValue
+                .replacingOccurrences(of: "-", with: "+")
+                .replacingOccurrences(of: "_", with: "/")
+            let remainder = base64.count % 4
+            if remainder != 0 {
+                base64 += String(repeating: "=", count: 4 - remainder)
+            }
+            guard
+                let data = Data(base64Encoded: base64),
+                let decoded = try? JSONDecoder().decode(Self.self, from: data),
+                UUID(uuidString: decoded.id) != nil
+            else { return nil }
+            self = decoded
+        }
     }
 
     let items: [HostedMessageRowDTO]
