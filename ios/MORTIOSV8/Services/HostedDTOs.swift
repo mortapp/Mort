@@ -88,3 +88,160 @@ nonisolated struct HostedProfileUpdateResponseDTO: Codable, Sendable {
     let code: String?
     let profile: HostedProfileDTO?
 }
+
+
+// MARK: - Hosted marketplace feed
+
+nonisolated enum HostedWireContractError: Error, Sendable {
+    case unexpectedJobState(String)
+}
+
+nonisolated struct HostedJobCursorDTO: Codable, Sendable {
+    let value: String
+    let id: String
+
+    var opaqueValue: String? {
+        guard let data = try? JSONEncoder().encode(self) else { return nil }
+        return data.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+
+    init(value: String, id: String) {
+        self.value = value
+        self.id = id
+    }
+
+    init?(opaqueValue: String) {
+        guard !opaqueValue.isEmpty else { return nil }
+        var base64 = opaqueValue
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        let remainder = base64.count % 4
+        if remainder != 0 {
+            base64 += String(repeating: "=", count: 4 - remainder)
+        }
+        guard
+            let data = Data(base64Encoded: base64),
+            let decoded = try? JSONDecoder().decode(Self.self, from: data),
+            UUID(uuidString: decoded.id) != nil,
+            !decoded.value.isEmpty
+        else { return nil }
+        self = decoded
+    }
+}
+
+nonisolated struct HostedJobFeedPageDTO: Codable, Sendable {
+    let ok: Bool
+    let items: [HostedJobFeedItemDTO]
+    let hasMore: Bool
+    let nextCursor: HostedJobCursorDTO?
+    let distanceCalculated: Bool?
+    let locationPrecision: String?
+}
+
+nonisolated struct HostedJobFeedPosterDTO: Codable, Sendable {
+    let displayName: String?
+    let verificationStatus: String?
+    let avatarPath: String?
+}
+
+nonisolated struct HostedJobFeedItemDTO: Codable, Sendable {
+    let id: String
+    let posterId: String
+    let title: String
+    let description: String?
+    let summary: String?
+    let category: String
+    let locationText: String?
+    let city: String?
+    let state: String?
+    let neighborhood: String?
+    let payAmountCents: Int64?
+    let status: String
+    let startsAt: Date?
+    let createdAt: Date
+    let proofExpected: Bool?
+    let scheduleType: String?
+    let profiles: HostedJobFeedPosterDTO?
+    let distanceStatus: String?
+    let matchExplanation: String?
+
+    func toDomain() throws -> MortJob {
+        guard status == "open" else {
+            throw HostedWireContractError.unexpectedJobState(status)
+        }
+
+        let cleanNeighborhood = neighborhood?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanCity = city?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanState = state?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanLocation = locationText?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let area: String = {
+            if let cleanNeighborhood, !cleanNeighborhood.isEmpty { return cleanNeighborhood }
+            if let cleanCity, !cleanCity.isEmpty, let cleanState, !cleanState.isEmpty {
+                return "\(cleanCity), \(cleanState)"
+            }
+            if let cleanCity, !cleanCity.isEmpty { return cleanCity }
+            if let cleanState, !cleanState.isEmpty { return cleanState }
+            if let cleanLocation, !cleanLocation.isEmpty { return cleanLocation }
+            return "General area"
+        }()
+
+        let scheduleText: String = {
+            if let startsAt {
+                return startsAt.formatted(
+                    .dateTime
+                        .month(.abbreviated)
+                        .day()
+                        .hour()
+                        .minute()
+                )
+            }
+            switch scheduleType {
+            case "flexible": return "Flexible"
+            case "exact": return "Scheduled time"
+            default: return "Schedule in job details"
+            }
+        }()
+
+        let distance: String = {
+            switch distanceStatus {
+            case "unavailable", nil: return "Distance unavailable"
+            default:
+                return distanceStatus?
+                    .replacingOccurrences(of: "_", with: " ")
+                    .capitalized ?? "Distance unavailable"
+            }
+        }()
+
+        let detailText = {
+            let description = description?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let description, !description.isEmpty { return description }
+            let summary = summary?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return (summary?.isEmpty == false) ? summary! : "See job details."
+        }()
+
+        let display = profiles?.displayName?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return MortJob(
+            id: id,
+            title: title,
+            category: category,
+            details: detailText,
+            baseCents: payAmountCents ?? 0,
+            distance: distance,
+            area: area,
+            scheduleText: scheduleText,
+            posterHandle: "",
+            posterDisplayName: (display?.isEmpty == false) ? display! : "MORT member",
+            workerHandle: nil,
+            state: .open,
+            orderNumber: nil,
+            applicantCount: 0,
+            postedAgo: createdAt.formatted(.dateTime.month(.abbreviated).day()),
+            requiresProof: proofExpected ?? false
+        )
+    }
+}
