@@ -259,7 +259,7 @@ nonisolated struct GuardianSummary: Codable, Hashable, Sendable {
     /// Approved aggregate only, in cents.
     let earningsThisMonthCents: Int64
     /// False when the teen has not opted into sharing the aggregate.
-    let earningsVisible: Bool = true
+    let earningsVisible: Bool
     /// Payout-provider state is optional because Guardian Mode may not expose it.
     let payoutStage: PayoutStage?
     let safetyAlertsCount: Int
