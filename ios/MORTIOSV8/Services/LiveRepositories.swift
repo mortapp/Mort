@@ -630,8 +630,43 @@ nonisolated final class LiveJobExecutionRepository: JobExecutionRepository {
         return pin
     }
 
-    func submitProof(jobId: String, note: String, attachmentNames: [String]) async throws {
-        throw MortError.notConfigured("Job proof upload")
+    func submitProof(jobId: String, note: String, attachment: JobProofAttachment) async throws {
+        guard attachment.contentType == "image/jpeg" else {
+            throw MortError.rejected("Job proof must be a JPEG image.")
+        }
+        guard !attachment.data.isEmpty, attachment.data.count <= 10 * 1024 * 1024 else {
+            throw MortError.rejected("Job proof must be 10 MB or smaller.")
+        }
+        guard let stored = await client.storedSession() else {
+            throw MortError.unauthorized
+        }
+
+        let application = try await executionApplication(jobId: jobId)
+        guard application.status == "in_progress" else {
+            throw MortError.rejected("Proof can only be submitted while the job is in progress.")
+        }
+
+        let proofId = UUID().uuidString.lowercased()
+        let storagePath = "\(stored.userId)/\(proofId).jpg"
+        try await client.upload(
+            bucket: "proof-uploads",
+            path: storagePath,
+            data: attachment.data,
+            contentType: attachment.contentType
+        )
+
+        let response: HostedMutationAckDTO = try await client.rpc(
+            MortBackendContract.RPC.submitApplicationProof,
+            args: [
+                "p_proof_id": proofId,
+                "p_application_id": application.id,
+                "p_storage_path": storagePath,
+                "p_note": note.trimmingCharacters(in: .whitespacesAndNewlines),
+            ]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "MORT could not attach that proof to the job.")
+        }
     }
 
     func markComplete(jobId: String) async throws {
