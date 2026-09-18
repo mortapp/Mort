@@ -65,7 +65,7 @@ final class PaymentReviewViewModel {
 
     /// Submits pre-work funding. The returned state is the BACKEND's.
     func fund() async {
-        guard !isSubmitting, hasUsableMethod else { return }
+        guard !isSubmitting, canPresentProviderSheet else { return }
         isSubmitting = true
         error = nil
         do {
@@ -195,9 +195,11 @@ struct PaymentReviewView: View {
 
             VStack(alignment: .leading, spacing: MortSpace.s3) {
                 MortSectionHeader(title: "Paying with") {
-                    Button("Change") { nav.present(.paymentMethods) }
-                        .font(MortFont.label())
-                        .foregroundStyle(MortColor.silver3)
+                    if !model.methods.isEmpty {
+                        Button("Change") { nav.present(.paymentMethods) }
+                            .font(MortFont.label())
+                            .foregroundStyle(MortColor.silver3)
+                    }
                 }
                 MortCard {
                     if let method = model.selectedMethod {
