@@ -95,6 +95,12 @@ struct MortRootView: View {
     }
 
     private func handleIncoming(_ url: URL) {
+        // Stripe owns redirect-capable payment callbacks. Give it the URL
+        // before ordinary MORT deep-link routing and before auth-state gating.
+        if StripePaymentSheetAdapter.handleURLCallback(url) {
+            return
+        }
+
         // Universal links and the custom scheme both funnel here.
         // Deep-link POLICY (which links require auth) is owned by the existing
         // MORT app — this only routes the understood paths.
