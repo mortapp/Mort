@@ -251,6 +251,37 @@ nonisolated struct HostedStartConfirmationResponseDTO: Codable, Sendable {
     let code: String?
 }
 
+nonisolated struct HostedExecutionStatusDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let applicationId: String?
+    let jobId: String?
+    let contractId: String?
+    let role: String?
+    let state: String?
+    let startPinActive: Bool?
+    let startPinExpiresAt: Date?
+    let startedAt: Date?
+    let finishPinActive: Bool?
+    let finishPinExpiresAt: Date?
+    let completionPendingAt: Date?
+    let reviewWindowEndsAt: Date?
+    let fundingStatus: String?
+    let livePaymentEnabled: Bool?
+}
+
+nonisolated struct HostedCompletionAssertionResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let assertionId: String?
+    let adultAcknowledgmentStillRequired: Bool?
+}
+
+nonisolated struct HostedExecutionJobContextDTO: Codable, Sendable {
+    let id: String
+    let locationType: String?
+}
+
 nonisolated struct PinDTO: Codable, Sendable {
     let pin: String
 }

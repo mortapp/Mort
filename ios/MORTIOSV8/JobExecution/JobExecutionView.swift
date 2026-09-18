@@ -238,7 +238,7 @@ struct JobExecutionView: View {
                     Task { await markComplete() }
                 }
                 MortNote(
-                    text: "The poster confirms next. MORT decides the final amount from what's confirmed.",
+                    text: "Submitting confirms that you completed the approved job scope. The poster confirms next; settlement and payout remain separate backend decisions.",
                     tone: .neutral
                 )
             }

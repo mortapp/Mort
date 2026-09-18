@@ -59,7 +59,7 @@ jobs:
         run: |
           set -euo pipefail
           grep -F 'PRODUCT_NAME: MORTIOSV8' ios/project.yml
-          grep -F 'INFOPLIST_KEY_CFBundleDisplayName: MORT' ios/project.yml
+          grep -F 'CFBundleDisplayName: MORT' ios/project.yml
 
       - name: Verify native source is trackable
         run: |

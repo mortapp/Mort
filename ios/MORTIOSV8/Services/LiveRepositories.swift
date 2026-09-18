@@ -670,7 +670,58 @@ nonisolated final class LiveJobExecutionRepository: JobExecutionRepository {
     }
 
     func markComplete(jobId: String) async throws {
-        throw MortError.notConfigured("Job completion assertion")
+        let application = try await executionApplication(jobId: jobId)
+        let status: HostedExecutionStatusDTO = try await client.rpc(
+            MortBackendContract.RPC.executionStatus,
+            args: ["p_application_id": application.id]
+        )
+        guard
+            status.ok,
+            status.state == "in_progress",
+            let contractId = status.contractId,
+            UUID(uuidString: contractId) != nil
+        else {
+            throw MortError.rejected(
+                status.code ?? "This job is not in a state where completion can be submitted."
+            )
+        }
+
+        let jobs: [HostedExecutionJobContextDTO] = try await client.get(
+            path: "/rest/v1/jobs",
+            query: [
+                URLQueryItem(name: "id", value: "eq.\(jobId)"),
+                URLQueryItem(name: "select", value: "id,location_type"),
+                URLQueryItem(name: "limit", value: "1"),
+            ]
+        )
+        guard let job = jobs.first else { throw MortError.notFound }
+        let locationType = job.locationType?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let confirmedLocationType = (locationType?.isEmpty == false)
+            ? locationType!
+            : "unspecified"
+
+        // The "I've finished the work" action is the worker's explicit
+        // approved-scope confirmation. Empty checklist means no structured
+        // checklist was supplied; it never invents completed task facts.
+        let response: HostedCompletionAssertionResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.submitCompletionAssertion,
+            args: [
+                "p_contract_id": contractId,
+                "p_task_checklist": [String](),
+                "p_start_timestamp": status.startedAt?.ISO8601Format() ?? SupabaseJSONNull(),
+                "p_completion_timestamp": Date().ISO8601Format(),
+                "p_location_type_confirmation": confirmedLocationType,
+                "p_approved_scope_confirmation": true,
+                "p_witness_notes": SupabaseJSONNull(),
+                "p_statement": SupabaseJSONNull(),
+            ]
+        )
+        guard response.ok, response.assertionId != nil else {
+            throw MortError.rejected(
+                response.code ?? "MORT could not record the completion assertion."
+            )
+        }
     }
 
     func confirmCompletion(jobId: String) async throws -> SettlementResult {
