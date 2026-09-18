@@ -83,7 +83,8 @@ $scripts = @(
   'qa-stripe-activation-gates.mjs',
   'qa-stripe-financial-access.mjs',
   'qa-stripe-financial-documents.mjs',
-  'qa-stripe-financial-history.mjs'
+  'qa-stripe-financial-history.mjs',
+  'qa-stripe-observability.mjs'
 )
 
 if ($StartAt) {

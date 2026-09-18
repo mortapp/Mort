@@ -95,7 +95,8 @@ async function validateRegressionManifest() {
   "qa-stripe-activation-gates.mjs",
   "qa-stripe-financial-access.mjs",
   "qa-stripe-financial-documents.mjs",
-  "qa-stripe-financial-history.mjs",];
+  "qa-stripe-financial-history.mjs",
+  "qa-stripe-observability.mjs",];
   for (const token of requiredStripeQa) {
     assert(finalRegression.includes(token), `final Supabase regression missing ${token}`);
   }
