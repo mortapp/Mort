@@ -25,16 +25,27 @@ targets:
     dependencies:
       - package: Stripe
         product: StripePaymentSheet
+    info:
+      path: MORTIOSV8/Info.plist
+      properties:
+        CFBundleDisplayName: MORT
+        CFBundleURLTypes:
+          - CFBundleURLName: com.mortapp.mobile
+            CFBundleURLSchemes:
+              - com.mortapp.mobile
+        ITSAppUsesNonExemptEncryption: false
+        NSCameraUsageDescription: "MORT uses the camera so you can add proof photos when a job is done."
+        NSPhotoLibraryUsageDescription: "MORT lets you attach a photo from your library as job proof."
+        UILaunchScreen: {}
+    entitlements:
+      path: MORTIOSV8/MORTIOSV8.entitlements
+      properties:
+        com.apple.developer.applesignin:
+          - Default
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.mortapp.mobile
         PRODUCT_NAME: MORTIOSV8
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: MORT
-        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
-        INFOPLIST_KEY_NSCameraUsageDescription: "MORT uses the camera so you can add proof photos when a job is done."
-        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "MORT lets you attach a photo from your library as job proof."
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
         TARGETED_DEVICE_FAMILY: "1"
 
   MORTIOSV8Tests:
