@@ -42,6 +42,7 @@ struct MortBackendContractTests {
         #expect(MortBackendContract.RPC.createGuardianInvite == "create_guardian_invite_v2")
         #expect(MortBackendContract.RPC.acceptGuardianInvite == "accept_guardian_invite")
         #expect(MortBackendContract.RPC.unlinkGuardian == "unlink_guardian")
+        #expect(MortBackendContract.RPC.guardianTeenSummary == "get_guardian_teen_summary_v1")
         #expect(MortBackendContract.RPC.listSupportTickets == "list_my_support_tickets")
         #expect(MortBackendContract.RPC.supportThread == "get_my_support_ticket_thread")
     }
