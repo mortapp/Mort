@@ -80,7 +80,8 @@ $scripts = @(
   'qa-stripe-policy-versioning.mjs',
   'qa-stripe-funding-quote.mjs',
   'qa-stripe-settlement-policy.mjs',
-  'qa-stripe-activation-gates.mjs'
+  'qa-stripe-activation-gates.mjs',
+  'qa-stripe-financial-access.mjs'
 )
 
 if ($StartAt) {
