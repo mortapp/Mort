@@ -53,4 +53,12 @@ struct MortBackendContractTests {
         #expect(MortBackendContract.RPC.financialDocument == "get_my_financial_document_v1")
         #expect(MortBackendContract.RPC.payoutStatus == "get_my_stripe_payout_status")
     }
+
+
+    @Test("Profile and account lifecycle use hosted MORT RPCs")
+    func profileAndAccountLifecycle() {
+        #expect(MortBackendContract.RPC.getMyProfile == "get_my_profile")
+        #expect(MortBackendContract.RPC.updateMyProfile == "update_my_profile")
+        #expect(MortBackendContract.RPC.requestAccountDeletion == "request_account_deletion")
+    }
 }
