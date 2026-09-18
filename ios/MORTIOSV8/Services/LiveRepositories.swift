@@ -1084,23 +1084,58 @@ nonisolated final class LiveNotificationRepository: NotificationRepository {
     init(client: SupabaseClient) { self.client = client }
 
     func notifications() async throws -> [MortNotification] {
-        let rows: [NotificationDTO] = try await client.rpc("mort_notifications")
+        let rows: [HostedNotificationDTO] = try await client.get(
+            path: "/rest/v1/notifications",
+            query: [
+                URLQueryItem(name: "select", value: "id,title,body,data,read_at,created_at"),
+                URLQueryItem(name: "order", value: "created_at.desc"),
+                URLQueryItem(name: "limit", value: "100"),
+            ]
+        )
         return rows.map { $0.toDomain() }
     }
 
     func markRead(id: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_mark_notification_read", args: ["p_id": id])
+        guard UUID(uuidString: id) != nil else { throw MortError.notFound }
+        let rows: [HostedNotificationDTO] = try await client.patch(
+            path: "/rest/v1/notifications",
+            query: [
+                URLQueryItem(name: "id", value: "eq.\(id)"),
+                URLQueryItem(name: "read_at", value: "is.null"),
+                URLQueryItem(name: "select", value: "id,title,body,data,read_at,created_at"),
+            ],
+            body: ["read_at": Date().ISO8601Format()]
+        )
+        // A zero-row update is valid when the notification was already read.
+        if rows.isEmpty {
+            let existing: [HostedNotificationDTO] = try await client.get(
+                path: "/rest/v1/notifications",
+                query: [
+                    URLQueryItem(name: "id", value: "eq.\(id)"),
+                    URLQueryItem(name: "select", value: "id,title,body,data,read_at,created_at"),
+                    URLQueryItem(name: "limit", value: "1"),
+                ]
+            )
+            guard existing.first != nil else { throw MortError.notFound }
+        }
     }
 
     func markAllRead() async throws {
-        let _: EmptyResponse = try await client.rpc("mort_mark_all_notifications_read")
+        let _: [HostedNotificationDTO] = try await client.patch(
+            path: "/rest/v1/notifications",
+            query: [
+                URLQueryItem(name: "read_at", value: "is.null"),
+                URLQueryItem(name: "select", value: "id,title,body,data,read_at,created_at"),
+            ],
+            body: ["read_at": Date().ISO8601Format()]
+        )
     }
 
     func registerPushToken(_ token: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_register_push_token", args: [
-            "p_token": token,
-            "p_platform": "ios",
-        ])
+        // Hosted push registration currently requires an FCM registration
+        // token even on iOS. This protocol receives the native APNs token, so
+        // forwarding it would falsely register the wrong provider material.
+        throw MortError.notConfigured("iOS push provider bridge")
     }
 }
 
