@@ -172,12 +172,17 @@ nonisolated final class PreviewApplicationRepository: ApplicationRepository {
 }
 
 nonisolated final class PreviewJobExecutionRepository: JobExecutionRepository {
-    func startJob(jobId: String, pin: String) async throws {
+    func startJob(jobId: String, pin: String, personMatchesProfile: Bool) async throws {
         try? await Task.sleep(for: .milliseconds(300))
-        guard pin == "4417" else { throw MortError.rejected("That code doesn't match. Ask them to read it again.") }
+        guard personMatchesProfile else {
+            throw MortError.rejected("Confirm the person matches the profile before starting.")
+        }
+        guard pin == "441733" else {
+            throw MortError.rejected("That code doesn't match. Ask them to read it again.")
+        }
     }
 
-    func startPin(jobId: String) async throws -> String { "4417" }
+    func startPin(jobId: String) async throws -> String { "441733" }
 
     func submitProof(jobId: String, note: String, attachmentNames: [String]) async throws {
         try? await Task.sleep(for: .milliseconds(380))
