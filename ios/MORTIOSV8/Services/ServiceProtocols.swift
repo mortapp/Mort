@@ -39,6 +39,22 @@ protocol AuthService: Sendable {
 
 // MARK: - Jobs
 
+/// A normalized proof image ready for the private proof-uploads bucket.
+/// Live implementations accept JPEG bytes only because the hosted proof RPC
+/// validates both the object path and MIME type before attaching evidence.
+nonisolated struct JobProofAttachment: Sendable, Equatable {
+    let data: Data
+    let filename: String
+    let contentType: String
+
+    init(data: Data, filename: String, contentType: String = "image/jpeg") {
+        self.data = data
+        self.filename = filename
+        self.contentType = contentType
+    }
+}
+
+
 protocol JobRepository: Sendable {
     /// Paginated discovery feed. `cursor` is an opaque backend cursor.
     func discover(query: String?, category: String?, cursor: String?) async throws -> (jobs: [MortJob], nextCursor: String?)
@@ -76,7 +92,7 @@ protocol JobExecutionRepository: Sendable {
     func startJob(jobId: String, pin: String, personMatchesProfile: Bool) async throws
     /// The PIN the counterparty must enter. Issued by the backend.
     func startPin(jobId: String) async throws -> String
-    func submitProof(jobId: String, note: String, attachmentNames: [String]) async throws
+    func submitProof(jobId: String, note: String, attachment: JobProofAttachment) async throws
     func markComplete(jobId: String) async throws
     /// Adult confirms the work; this triggers authoritative settlement.
     func confirmCompletion(jobId: String) async throws -> SettlementResult
