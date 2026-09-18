@@ -15,6 +15,7 @@ const expectThrows = (callback: () => unknown, message: string) => {
 
 const legal: Array<[MortPaymentState, MortPaymentState, MortPaymentState]> = [
   ["READY", "PROCESSING", "PROCESSING"],
+  ["READY", "REQUIRES_ACTION", "REQUIRES_ACTION"],
   ["PROCESSING", "REQUIRES_ACTION", "REQUIRES_ACTION"],
   ["PROCESSING", "SUCCEEDED", "SUCCEEDED"],
   ["READY", "SUCCEEDED", "SUCCEEDED"],
