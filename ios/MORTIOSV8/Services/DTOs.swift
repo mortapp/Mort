@@ -224,6 +224,85 @@ nonisolated struct ApplicationDTO: Codable, Sendable {
     }
 }
 
+
+/// Hosted application row used by PostgREST and submit_job_application.
+nonisolated struct HostedApplicationDTO: Codable, Sendable {
+    nonisolated struct JobSummary: Codable, Sendable {
+        let title: String?
+    }
+
+    nonisolated struct ApplicantSummary: Codable, Sendable {
+        let username: String?
+        let displayName: String?
+    }
+
+    let id: String
+    let jobId: String
+    let teenId: String?
+    let status: String
+    let note: String?
+    let createdAt: Date?
+    let updatedAt: Date?
+    let jobs: JobSummary?
+    let applicant: ApplicantSummary?
+
+    func toDomain() -> MortApplication {
+        let username = applicant?.username ?? ""
+        let handle = username.isEmpty
+            ? ""
+            : (username.hasPrefix("@") ? username : "@\(username)")
+        let displayName = applicant?.displayName ?? handle
+
+        let mappedState: MortApplication.State = switch status {
+        case "viewed":
+            .viewed
+        case "accepted", "in_progress", "proof_submitted",
+             "completion_pending_release", "completed", "disputed":
+            .accepted
+        case "rejected", "guardian_rejected":
+            .declined
+        case "withdrawn":
+            .withdrawn
+        case "canceled":
+            .expired
+        default:
+            .submitted
+        }
+
+        let submittedAgo: String = {
+            guard let createdAt else { return "" }
+            let formatter = RelativeDateTimeFormatter()
+            formatter.unitsStyle = .short
+            return formatter.localizedString(for: createdAt, relativeTo: Date())
+        }()
+
+        return MortApplication(
+            id: id,
+            jobId: jobId,
+            jobTitle: jobs?.title ?? "",
+            applicantHandle: handle,
+            applicantDisplayName: displayName,
+            applicantRating: nil,
+            applicantCompletedJobs: 0,
+            message: note ?? "",
+            state: mappedState,
+            submittedAgo: submittedAgo
+        )
+    }
+}
+
+nonisolated struct HostedApplicationSubmitResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let message: String?
+    let application: HostedApplicationDTO?
+}
+
+nonisolated struct HostedApplicationTransitionResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+}
+
 nonisolated struct PinDTO: Codable, Sendable {
     let pin: String
 }
