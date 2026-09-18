@@ -16,6 +16,9 @@ Status: sandbox payment architecture, mobile contracts, and non-provider release
 - The ordered pre-provider gate now has fixture coverage for missing TEST key names, webhook metadata, wrong project/mode, live-name contamination, disabled runtime mutation flags, and credential-like output. The gate records only sanitized evidence and never mutates Stripe.
 - A unified Stripe regression runner and CI manifest now cover local migration reset/listing, existing hosted non-provider QA, Deno Edge tests, Supabase advisors, Flutter format/analyze/tests, and secret scans. Provider E2E is excluded from ordinary CI.
 
+- Secret hygiene now uses role-aware JWT classification: public anon JWTs are not treated as service credentials, while service-role JWTs, Stripe secret/restricted/webhook values, live publishable keys, client secrets, private-key material, and configured exact secret values are rejected without printing them. Synthetic credential fixtures are narrowly allowlisted only in Stripe QA files.
+- A hosted activation-gate regression now verifies that every production/provider approval stays false, production partial-compensation remains unset, and the conjunctive database live-readiness function still requires all external approvals.
+
 ## Not completed
 
 Provider sandbox mutation testing has not been run from this branch. The hosted runtime is still `sandbox`, while payment, connected-onboarding, funding, transfer, refund, live-mode, and owner-live-approval controls remain false. No provider E2E evidence should be treated as complete until the ordered pre-provider gate passes and the manual sandbox suite is explicitly run. Live activation remains blocked.

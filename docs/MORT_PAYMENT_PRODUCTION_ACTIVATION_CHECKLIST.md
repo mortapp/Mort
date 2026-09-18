@@ -1,35 +1,30 @@
 # MORT Payment Production Activation Checklist
 
-Updated: 2026-07-30
+Updated: 2026-09-18
 
 All items are incomplete unless backed by dated evidence. Current result:
-**BLOCKED - LIVE PAYMENTS MUST REMAIN OFF**.
+**BLOCKED — LIVE PAYMENTS MUST REMAIN OFF**.
 
-- [ ] Provider approved the exact marketplace, country, connected-account, and
-  teen/representative use case in writing.
-- [ ] Licensed counsel approved payments, minors, worker classification,
-  refunds, disputes, consumer terms, privacy, and retention.
-- [ ] Tax professional approved reporting, form delivery, and record retention.
-- [ ] Provider-approved minor payout/representative flow is documented; no age
-  or identity workaround exists.
-- [ ] Partial-compensation policy has a version, owner, and legal approval.
-- [ ] Negative-balance, reserve, chargeback, transfer-reversal, and platform-loss
-  plans are funded and approved.
-- [ ] Receipts and tax-document wording is approved and tested.
-- [ ] Financial deletion/de-identification policy is approved and exercised.
-- [ ] Sandbox credentials are server-only and rotated after setup.
-- [ ] Signed webhook, replay, outage, and secret-rotation drills passed.
-- [ ] Real sandbox onboarding, charge, refund, transfer, reversal, dispute,
-  payout, failure, and reconciliation journeys passed.
-- [ ] Physical Android and iOS payment/onboarding journeys passed with supported
-  SDKs in separately approved builds.
-- [ ] Financial roles, two-person review, support hours, alerts, escalation, and
-  on-call staffing are assigned to real trained people.
-- [ ] Google Play/App Store declarations, privacy disclosures, terms, support
-  scripts, and incident runbooks match the distributed binaries.
-- [ ] Public marketplace, production identity verification, and payout account
-  eligibility are approved independently.
-- [ ] Owner approved a reviewed forward activation migration with rollback,
-  monitoring, and incident evidence.
+- [ ] Provider approved the exact marketplace, country, connected-account, and teen/representative use case in writing, including **minor Connect** readiness for ages 13–17.
+- [ ] Licensed counsel approved payments, minors, worker classification, refunds, disputes, consumer terms, privacy, retention, receipts, and financial deletion/de-identification.
+- [ ] Tax professional approved reporting, form delivery, record retention, and operational ownership.
+- [ ] **Production pricing** is approved: service-fee schedule, refund economics, **provider fee payer**, Connect/provider pricing, and store/public disclosures.
+- [ ] **Radar Pro** remains the selected fraud product and its **transaction cost** is incorporated into reviewed unit economics.
+- [ ] Production **partial-compensation** policy has approved values, version, owner, legal rationale, and release evidence.
+- [ ] Negative-balance, chargeback, transfer-reversal, and platform-loss plans are funded; the reserve and production **chart of accounts** are approved.
+- [ ] Provider-approved minor payout/representative flow is documented; no age, identity, bank, SSN, or guardian-evidence workaround exists.
+- [ ] Sandbox credentials are server-only, rotated as required, and source/history/artifact/evidence secret scans pass.
+- [ ] Ordered pre-provider gate passes before any provider mutation.
+- [ ] Real sandbox onboarding, charge/capture, decline, requires-action, ambiguity/retry, webhook duplicate/out-of-order, settlement, transfer, refund, reversal, tip, dispute, payout, failure, and reconciliation journeys pass with sanitized evidence.
+- [ ] Signed webhook, replay, outage, lease-recovery, reconciliation, and secret-rotation drills pass.
+- [ ] Physical Android and iOS PaymentSheet and Stripe-hosted onboarding journeys pass with supported SDKs in separately approved builds.
+- [ ] Financial roles, two-person review, support hours, alerts, escalation, reconciliation schedule, and **monitoring/on-call** staffing are assigned to trained people.
+- [ ] Google Play/App Store declarations, privacy disclosures, terms, support scripts, and incident runbooks match the distributed binaries.
+- [ ] Public marketplace, production identity verification, payout-account eligibility, and standard-payout-only policy are approved independently.
+- [ ] Provider pricing and reserve assumptions are rechecked against the final production account configuration.
+- [ ] A reviewed forward-only activation migration and disable/recovery procedure are approved.
+- [ ] **Final owner approval** is recorded only after all prior evidence is complete.
+
+Current hosted controls remain sandbox/fail-closed: live mode, live owner approval, provider/use-case approval, legal/privacy/tax/minor payout approvals, production release approval, and provider-mutation flags are false; production partial-compensation version and production approval timestamp are unset.
 
 No checklist item may be inferred from code or automated tests alone.

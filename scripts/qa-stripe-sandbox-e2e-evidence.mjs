@@ -54,6 +54,7 @@ async function validateRegressionManifest() {
     "flutter analyze --no-pub",
     "flutter test --no-pub",
     "secret-scan.ps1",
+    "secret_extraction_scan.mjs",
     "secret-scan-git-history.mjs",
     "provider_e2e_executed = $false",
   ];

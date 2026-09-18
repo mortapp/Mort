@@ -79,7 +79,8 @@ $scripts = @(
   'qa-stripe-refund-webhook-reconciliation.mjs',
   'qa-stripe-policy-versioning.mjs',
   'qa-stripe-funding-quote.mjs',
-  'qa-stripe-settlement-policy.mjs'
+  'qa-stripe-settlement-policy.mjs',
+  'qa-stripe-activation-gates.mjs'
 )
 
 if ($StartAt) {
