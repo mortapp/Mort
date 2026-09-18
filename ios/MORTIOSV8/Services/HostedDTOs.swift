@@ -949,6 +949,40 @@ nonisolated struct HostedStripePayoutStatusDTO: Codable, Sendable {
     }
 }
 
+// MARK: - Hosted guardian summary
+
+nonisolated struct HostedGuardianTeenSummaryDTO: Codable, Sendable {
+    let ok: Bool
+    let teenId: String
+    let teenHandle: String
+    let teenDisplayName: String
+    let activeJobCount: Int
+    let upcomingJobTitle: String?
+    let lastCheckInState: String
+    let lastCheckInText: String
+    let earningsThisMonthCents: Int64
+    let earningsVisible: Bool
+    let payoutStage: String?
+    let safetyAlertsCount: Int
+    let restrictedNotice: String
+
+    func toDomain() -> GuardianSummary {
+        GuardianSummary(
+            teenHandle: teenHandle,
+            teenDisplayName: teenDisplayName,
+            activeJobCount: activeJobCount,
+            upcomingJobTitle: upcomingJobTitle,
+            lastCheckInState: CheckInState(rawValue: lastCheckInState) ?? .notStarted,
+            lastCheckInText: lastCheckInText,
+            earningsThisMonthCents: earningsThisMonthCents,
+            earningsVisible: earningsVisible,
+            payoutStage: payoutStage.flatMap(PayoutStage.init(rawValue:)),
+            safetyAlertsCount: safetyAlertsCount,
+            restrictedNotice: restrictedNotice
+        )
+    }
+}
+
 // MARK: - Hosted safety circle
 
 nonisolated struct HostedSafetyCircleMemberDTO: Codable, Sendable {
