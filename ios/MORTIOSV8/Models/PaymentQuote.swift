@@ -30,8 +30,7 @@ nonisolated struct PaymentQuote: Codable, Hashable, Sendable {
     let jobId: String
     let jobTitle: String
     let workerHandle: String
-    let orderNumber: String
-    /// Worker base pay in cents (authoritative).
+    /// Display order number, when the backend has issued one. Pre-funding quotes may not have one yet.\n    let orderNumber: String?\n    /// Worker base pay in cents (authoritative).
     let baseCents: Int64
     /// MORT platform service fee in cents (authoritative, adult side only).
     let feeCents: Int64

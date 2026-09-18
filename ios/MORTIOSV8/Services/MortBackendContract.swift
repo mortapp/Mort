@@ -57,6 +57,7 @@ nonisolated enum MortBackendContract {
 
         // Payment OS / financial documents
         static let jobFundingQuote = "get_my_job_funding_quote_v1"
+        static let jobPaymentSummary = "get_job_payment_summary"
         static let paymentAttemptState = "get_my_payment_attempt_state_v1"
         static let financialHistory = "get_my_financial_history_v1"
         static let financialDocument = "get_my_financial_document_v1"

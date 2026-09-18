@@ -56,6 +56,9 @@ final class PaymentReviewViewModel {
         selectedMethod?.isUsable == true
     }
 
+    /// A saved method is optional: Stripe PaymentSheet can collect a new one.
+    var canPresentProviderSheet: Bool { true }
+
     var isQuoteExpired: Bool {
         quote.value?.isExpired == true
     }
@@ -144,7 +147,9 @@ struct PaymentReviewView: View {
                  .pending, .cancelled, .unknown, .duplicateBlocked, .quoteExpired,
                  .requiresAction:
                 nav.push(.paymentResult(jobId: jobId, state: state))
-            case .ready, .processing:
+            case .processing:
+                nav.push(.paymentResult(jobId: jobId, state: .processing))
+            case .ready:
                 break
             }
         }
@@ -200,12 +205,10 @@ struct PaymentReviewView: View {
                     } else {
                         VStack(alignment: .leading, spacing: MortSpace.s3) {
                             MortNote(
-                                text: "You don't have a usable payment method yet.",
-                                tone: .warning
+                                text: "Choose or enter a payment method in Stripe's secure payment sheet when you continue.",
+                                tone: .info,
+                                symbol: "creditcard"
                             )
-                            MortGhostButton(title: "Add a payment method", symbol: "plus") {
-                                nav.push(.paymentMethodMissing)
-                            }
                         }
                     }
                 }
@@ -237,13 +240,10 @@ struct PaymentReviewView: View {
                 title: "Fund \(quote.total.formatted)",
                 symbol: "lock.shield",
                 isBusy: model.isSubmitting,
-                isEnabled: model.hasUsableMethod && !model.isSubmitting,
+                isEnabled: model.canPresentProviderSheet && !model.isSubmitting,
                 busyTitle: "Processing…"
             ) {
                 Task { await model.fund() }
-            }
-            if !model.hasUsableMethod {
-                MortNote(text: "Add a payment method to continue.", tone: .warning)
             }
             MortQuietButton(title: "Add a tip instead of later") {
                 nav.present(.tipSelect(jobId: jobId, isLate: false))

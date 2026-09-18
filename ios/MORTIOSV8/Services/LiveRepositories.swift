@@ -370,9 +370,17 @@ nonisolated final class LiveJobExecutionRepository: JobExecutionRepository {
 
 // MARK: - Payment OS
 
-nonisolated final class LivePaymentRepository: PaymentRepository {
+nonisolated actor LivePaymentRepository: PaymentRepository {
+    private struct FundingSession: Sendable {
+        let quote: PaymentQuote
+        let contractId: String
+        let quoteId: String
+        var providerPaymentIntentId: String?
+    }
+
     private let client: SupabaseClient
     private let sheet: any ProviderPaymentSheet
+    private var sessions: [String: FundingSession] = [:]
 
     init(client: SupabaseClient, sheet: any ProviderPaymentSheet) {
         self.client = client
@@ -380,110 +388,245 @@ nonisolated final class LivePaymentRepository: PaymentRepository {
     }
 
     func fundingQuote(jobId: String) async throws -> PaymentQuote {
-        // The total is computed SERVER-SIDE. Never derive it on device.
-        let dto: QuoteDTO = try await client.rpc("mort_funding_quote", args: ["p_job_id": jobId])
-        return dto.toDomain()
+        let contract = try await contractForJob(jobId, activeOnly: true)
+        guard contract.status == "active" else {
+            throw MortError.rejected("This job is not ready to be funded.")
+        }
+
+        let requestId = UUID().uuidString.lowercased()
+        let response: HostedFundingQuoteResponseDTO = try await client.function(
+            MortBackendContract.EdgeFunction.fundingQuote,
+            body: [
+                "contract_id": contract.id,
+                "request_id": requestId,
+            ]
+        )
+
+        guard
+            response.ok,
+            let quoteId = response.quoteId,
+            UUID(uuidString: quoteId) != nil,
+            let contractId = response.contractId,
+            contractId == contract.id,
+            let base = response.basePayCents, base > 0,
+            let fee = response.serviceFeeCents, fee >= 0,
+            let total = response.authoritativeTotalCents, total == base + fee,
+            let expiresAt = response.expiresAt,
+            response.state == "ACTIVE"
+        else {
+            if response.state == "EXPIRED" {
+                throw MortError.rejected("That funding amount expired. Refresh it before paying.")
+            }
+            throw MortError.serverUnavailable
+        }
+
+        let metadata = try await paymentMetadata(contract: contract)
+        let quote = PaymentQuote(
+            jobId: jobId,
+            jobTitle: metadata.job.title,
+            workerHandle: metadata.worker.safeDisplayHandle,
+            orderNumber: nil,
+            baseCents: base,
+            feeCents: fee,
+            totalCents: total,
+            feeExplanation: "MORT's service fee for this funding quote is \(Money(cents: fee).formatted). It's added on top of base pay and is not taken from the worker.",
+            expiresAt: expiresAt,
+            method: nil
+        )
+        sessions[jobId] = FundingSession(
+            quote: quote,
+            contractId: contractId,
+            quoteId: quoteId,
+            providerPaymentIntentId: nil
+        )
+        return quote
+    }
+
+    func fundingDisplay(jobId: String) async throws -> PaymentQuote? {
+        sessions[jobId]?.quote
     }
 
     func beginFunding(jobId: String, methodId: String?, idempotencyKey: String) async throws -> PaymentState {
-        // 1. Backend creates the PaymentIntent (platform charge) and returns
-        //    only the client secret + runtime publishable key.
-        let intent: IntentDTO = try await client.rpc("mort_begin_funding", args: [
-            "p_job_id": jobId,
-            "p_method_id": methodId ?? "",
-            "p_idempotency_key": idempotencyKey,
-        ])
-
-        // A backend-side terminal answer wins immediately (e.g. duplicate
-        // submission blocked, or a saved method charged off-session).
-        if let immediate = intent.state.flatMap(PaymentState.init(rawValue:)),
-           immediate != .processing {
-            return immediate
+        guard var session = sessions[jobId] else {
+            throw MortError.rejected("Refresh the funding amount before paying.")
+        }
+        guard !session.quote.isExpired else { return .quoteExpired }
+        guard UUID(uuidString: idempotencyKey) != nil else {
+            throw MortError.rejected("This payment attempt is no longer valid. Refresh and try again.")
         }
 
-        // 2. Present the provider sheet.
+        let intent: HostedPaymentIntentResponseDTO = try await client.function(
+            MortBackendContract.EdgeFunction.paymentIntent,
+            body: [
+                "quote_id": session.quoteId,
+                "request_id": idempotencyKey.lowercased(),
+                // PaymentSheet may collect a new method. Saving requires a
+                // separate explicit-consent UX that iOS has not enabled yet.
+                "save_payment_method": false,
+            ]
+        )
+
+        guard
+            intent.ok,
+            let clientSecret = intent.paymentIntentClientSecret,
+            let publishableKey = intent.publishableKey,
+            let providerId = intent.providerPaymentIntentId,
+            let responseBase = intent.basePayCents,
+            let responseFee = intent.serviceFeeCents,
+            let responseTotal = intent.totalAmountCents,
+            responseBase == session.quote.baseCents,
+            responseFee == session.quote.feeCents,
+            responseTotal == session.quote.totalCents
+        else {
+            return .unknown
+        }
+
+        session.providerPaymentIntentId = providerId
+        sessions[jobId] = session
+
         let outcome = await sheet.present(handle: PaymentIntentHandle(
-            clientSecret: intent.clientSecret,
-            publishableKey: intent.publishableKey,
+            clientSecret: clientSecret,
+            publishableKey: publishableKey,
             customerEphemeralKeySecret: intent.customerEphemeralKeySecret,
             customerId: intent.customerId,
             merchantDisplayName: "MORT",
-            applePayMerchantId: intent.applePayMerchantId
+            applePayMerchantId: nil
         ))
 
-        // 3. The sheet result is NOT financial truth. Always reconcile.
+        // PaymentSheet is presentation state, never financial truth. Always
+        // ask MORT after it dismisses, even when the SDK reports completion.
+        let reconciled = try? await fundingStatus(jobId: jobId)
+
         switch outcome {
         case .completed:
-            return try await fundingStatus(jobId: jobId).state
+            guard let reconciled else { return .unknown }
+            // A provider completion can precede the signed webhook. Render a
+            // pending state until the backend reaches SUCCEEDED.
+            return reconciled.state == .processing ? .pending : reconciled.state
+
         case .canceled:
+            if let reconciled,
+               reconciled.state == .funded
+                || reconciled.state == .processing
+                || reconciled.state == .pending
+                || reconciled.state == .requiresAction {
+                return reconciled.state
+            }
             return .cancelled
+
         case .failed(let reason):
-            // Ask the backend anyway: the charge may have landed even though
-            // the local sheet reported a failure.
-            let confirmed = try? await fundingStatus(jobId: jobId)
-            if let confirmed, confirmed.state == .funded { return .funded }
-            return reason == .networkInterrupted ? .failedNetwork : .declined
+            if let reconciled,
+               reconciled.state != .ready
+                && reconciled.state != .unknown {
+                return reconciled.state
+            }
+            return reason == .networkInterrupted ? .failedNetwork : .unknown
         }
     }
 
     func fundingStatus(jobId: String) async throws -> (state: PaymentState, reason: PaymentFailureReason?) {
-        let dto: PaymentStatusDTO = try await client.rpc("mort_funding_status", args: [
-            "p_job_id": jobId,
-        ])
-        return (
-            PaymentState(rawValue: dto.state) ?? .unknown,
-            dto.reason.flatMap(PaymentFailureReason.init(rawValue:))
+        if
+            let providerId = sessions[jobId]?.providerPaymentIntentId,
+            let attempt: HostedPaymentAttemptStateDTO = try await paymentAttempt(providerId: providerId)
+        {
+            return (attempt.paymentState, nil)
+        }
+
+        // Recovery path after app restart: the participant-visible payment
+        // summary is keyed by the job contract and prevents blind re-charging.
+        let contract = try await contractForJob(jobId, activeOnly: false)
+        let summary: HostedJobPaymentSummaryDTO = try await client.rpc(
+            MortBackendContract.RPC.jobPaymentSummary,
+            args: ["p_contract_id": contract.id]
         )
+        return (summary.paymentState, nil)
     }
 
     func paymentMethods() async throws -> [PaymentMethodRef] {
-        // Masks only; the vault lives with the provider.
-        let rows: [MethodDTO] = try await client.rpc("mort_payment_methods")
-        return rows.map { $0.toDomain() }
+        // Saved-method display/collection is owned by Stripe PaymentSheet using
+        // its short-lived Customer ephemeral key. MORT never receives PAN/CVV.
+        []
     }
 
     func setDefaultMethod(id: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_set_default_method", args: ["p_method_id": id])
+        throw MortError.notConfigured("Saved payment-method management")
     }
 
     func submitTip(jobId: String, tipCents: Int64, idempotencyKey: String) async throws -> PaymentState {
-        // SEPARATE transaction. A failure here must never unwind settlement.
-        let intent: IntentDTO = try await client.rpc("mort_begin_tip", args: [
-            "p_job_id": jobId,
-            "p_tip_cents": tipCents,
-            "p_idempotency_key": idempotencyKey,
-        ])
-        if let immediate = intent.state.flatMap(PaymentState.init(rawValue:)),
-           immediate != .processing {
-            return immediate
-        }
-        let outcome = await sheet.present(handle: PaymentIntentHandle(
-            clientSecret: intent.clientSecret,
-            publishableKey: intent.publishableKey,
-            customerEphemeralKeySecret: intent.customerEphemeralKeySecret,
-            customerId: intent.customerId,
-            merchantDisplayName: "MORT tip",
-            applePayMerchantId: intent.applePayMerchantId
-        ))
-        switch outcome {
-        case .completed:
-            let dto: PaymentStatusDTO = try await client.rpc("mort_tip_status", args: ["p_job_id": jobId])
-            return PaymentState(rawValue: dto.state) ?? .unknown
-        case .canceled:
-            return .cancelled
-        case .failed:
-            return .declined
-        }
+        // The hosted tip function requires an authoritative settlement_id.
+        // There is not yet a participant-safe read contract that exposes that
+        // id by job. Fail closed instead of guessing or touching private tables.
+        throw MortError.notConfigured("Post-settlement tips")
     }
 
     func feeConfig() async throws -> MortFeeConfig {
-        let dto: FeeConfigDTO = try await client.rpc("mort_fee_config")
-        return dto.toDomain()
+        // The actual fee on a charge comes from the authoritative quote above.
+        // Do not expose the reference constants as if they were hosted config.
+        throw MortError.notConfigured("MORT fee configuration")
     }
 
     func tipConfig() async throws -> TipConfig {
-        let dto: TipConfigDTO = try await client.rpc("mort_tip_config")
-        return dto.toDomain()
+        throw MortError.notConfigured("Tip policy")
+    }
+
+    private func paymentAttempt(providerId: String) async throws -> HostedPaymentAttemptStateDTO? {
+        let dto: HostedPaymentAttemptStateDTO? = try await client.rpc(
+            MortBackendContract.RPC.paymentAttemptState,
+            args: ["p_payment_intent_id": providerId]
+        )
+        return dto
+    }
+
+    private func contractForJob(_ jobId: String, activeOnly: Bool) async throws -> HostedJobContractDTO {
+        guard UUID(uuidString: jobId) != nil else { throw MortError.notFound }
+        var query = [
+            URLQueryItem(name: "job_id", value: "eq.\(jobId)"),
+            URLQueryItem(name: "select", value: "id,job_id,teen_id,adult_id,status,active_version_id"),
+            URLQueryItem(name: "order", value: "created_at.desc"),
+            URLQueryItem(name: "limit", value: "1"),
+        ]
+        if activeOnly {
+            query.insert(URLQueryItem(name: "status", value: "eq.active"), at: 1)
+        }
+        let rows: [HostedJobContractDTO] = try await client.get(
+            path: "/rest/v1/job_contracts",
+            query: query
+        )
+        guard let contract = rows.first else {
+            throw MortError.rejected(
+                activeOnly
+                    ? "This job does not have an active funding contract yet."
+                    : "We couldn't find this job's payment record."
+            )
+        }
+        return contract
+    }
+
+    private func paymentMetadata(
+        contract: HostedJobContractDTO
+    ) async throws -> (job: HostedPaymentJobDTO, worker: HostedPaymentCounterpartyDTO) {
+        let jobs: [HostedPaymentJobDTO] = try await client.get(
+            path: "/rest/v1/jobs",
+            query: [
+                URLQueryItem(name: "id", value: "eq.\(contract.jobId)"),
+                URLQueryItem(name: "select", value: "id,title"),
+                URLQueryItem(name: "limit", value: "1"),
+            ]
+        )
+        guard let job = jobs.first, let teenId = contract.teenId else {
+            throw MortError.notFound
+        }
+
+        let workers: [HostedPaymentCounterpartyDTO] = try await client.get(
+            path: "/rest/v1/profiles",
+            query: [
+                URLQueryItem(name: "id", value: "eq.\(teenId)"),
+                URLQueryItem(name: "select", value: "id,username,display_name"),
+                URLQueryItem(name: "limit", value: "1"),
+            ]
+        )
+        guard let worker = workers.first else { throw MortError.notFound }
+        return (job, worker)
     }
 }
 

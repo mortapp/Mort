@@ -177,7 +177,7 @@ struct PaymentResultView: View {
     }
 
     private func load() async {
-        quote = try? await mort.payments.fundingQuote(jobId: jobId)
+        quote = try? await mort.payments.fundingDisplay(jobId: jobId)
         if state.producesNoReceipt {
             let status = try? await mort.payments.fundingStatus(jobId: jobId)
             reason = status?.reason

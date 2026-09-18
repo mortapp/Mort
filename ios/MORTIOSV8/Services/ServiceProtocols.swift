@@ -86,7 +86,12 @@ protocol JobExecutionRepository: Sendable {
 
 protocol PaymentRepository: Sendable {
     /// Authoritative pre-work funding quote. Never computed on device.
+    /// This may create/supersede a short-lived backend quote and is therefore
+    /// only for the payment-review step.
     func fundingQuote(jobId: String) async throws -> PaymentQuote
+    /// Returns already-known funding display context without creating a new
+    /// quote. Used by result/tip screens so rendering never mutates money state.
+    func fundingDisplay(jobId: String) async throws -> PaymentQuote?
     /// Starts pre-work platform funding. Returns the backend's state.
     /// An idempotency key makes duplicate submissions impossible.
     func beginFunding(jobId: String, methodId: String?, idempotencyKey: String) async throws -> PaymentState
@@ -99,6 +104,13 @@ protocol PaymentRepository: Sendable {
     func submitTip(jobId: String, tipCents: Int64, idempotencyKey: String) async throws -> PaymentState
     func feeConfig() async throws -> MortFeeConfig
     func tipConfig() async throws -> TipConfig
+}
+
+
+extension PaymentRepository {
+    func fundingDisplay(jobId: String) async throws -> PaymentQuote? {
+        try await fundingQuote(jobId: jobId)
+    }
 }
 
 protocol ReceiptRepository: Sendable {

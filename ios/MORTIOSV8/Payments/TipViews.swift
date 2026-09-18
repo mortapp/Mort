@@ -36,8 +36,11 @@ final class TipViewModel {
     func load() async {
         quote = .loading
         do {
-            quote = .loaded(try await mort.payments.fundingQuote(jobId: jobId))
-            config = (try? await mort.payments.tipConfig()) ?? .reference
+            guard let display = try await mort.payments.fundingDisplay(jobId: jobId) else {
+                throw MortError.notConfigured("Tip payment context")
+            }
+            quote = .loaded(display)
+            config = try await mort.payments.tipConfig()
         } catch let failure as MortError {
             quote = .failed(failure)
         } catch {
@@ -335,7 +338,7 @@ struct TipConfirmView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .task {
-            quote = try? await mort.payments.fundingQuote(jobId: jobId)
+            quote = try? await mort.payments.fundingDisplay(jobId: jobId)
             receipt = try? await mort.receipts.receipt(jobId: jobId, type: .lateTip)
         }
     }

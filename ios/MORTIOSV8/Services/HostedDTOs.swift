@@ -265,3 +265,151 @@ nonisolated struct HostedJobFeedItemDTO: Codable, Sendable {
         )
     }
 }
+
+
+// MARK: - Hosted Payment OS
+
+nonisolated struct HostedJobContractDTO: Codable, Sendable {
+    let id: String
+    let jobId: String
+    let teenId: String?
+    let adultId: String?
+    let status: String
+    let activeVersionId: String?
+}
+
+nonisolated struct HostedPaymentJobDTO: Codable, Sendable {
+    let id: String
+    let title: String
+}
+
+nonisolated struct HostedPaymentCounterpartyDTO: Codable, Sendable {
+    let id: String
+    let username: String?
+    let displayName: String?
+
+    var safeDisplayHandle: String {
+        if let username {
+            let clean = username
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "@"))
+            if !clean.isEmpty { return "@\(clean)" }
+        }
+        if let displayName {
+            let clean = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !clean.isEmpty { return clean }
+        }
+        return "Worker"
+    }
+}
+
+nonisolated struct HostedFundingQuoteResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let quoteId: String?
+    let contractId: String?
+    let basePayCents: Int64?
+    let serviceFeeCents: Int64?
+    let authoritativeTotalCents: Int64?
+    let currencyCode: String?
+    let fairPayDecision: String?
+    let state: String?
+    let createdAt: Date?
+    let expiresAt: Date?
+    let idempotent: Bool?
+}
+
+nonisolated struct HostedPaymentIntentResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    /// Internal MORT payment-intent row id returned by the hosted function.
+    let paymentIntentId: String?
+    let paymentAttemptId: String?
+    let environment: String?
+    let publishableKey: String?
+    let paymentIntentClientSecret: String?
+    let customerId: String?
+    let customerEphemeralKeySecret: String?
+    let basePayCents: Int64?
+    let serviceFeeCents: Int64?
+    let totalAmountCents: Int64?
+    let currencyCode: String?
+
+    var providerPaymentIntentId: String? {
+        guard
+            let secret = paymentIntentClientSecret,
+            let range = secret.range(of: "_secret_")
+        else { return nil }
+        let providerId = String(secret[..<range.lowerBound])
+        return providerId.hasPrefix("pi_") ? providerId : nil
+    }
+}
+
+nonisolated struct HostedPaymentAttemptStateDTO: Codable, Sendable {
+    let paymentIntentId: String
+    let state: String
+    let legacyStatus: String?
+    let providerConfirmedAt: Date?
+    let lastReconciledAt: Date?
+
+    var paymentState: PaymentState {
+        HostedPaymentStateMapper.normalized(state)
+    }
+}
+
+nonisolated struct HostedJobPaymentSummaryDTO: Codable, Sendable {
+    let contractId: String
+    let obligationStatus: String?
+    let earningsAmountCents: Int64?
+    let currencyCode: String?
+    let fundingStatus: String
+    let serviceFeeCents: Int64?
+    let totalAmountCents: Int64?
+    let refundedAmountCents: Int64?
+    let transferStatus: String?
+    let disputeActive: Bool?
+    let provider: String?
+    let payoutDepositConfirmed: Bool?
+
+    var paymentState: PaymentState {
+        HostedPaymentStateMapper.legacyFundingStatus(fundingStatus)
+    }
+}
+
+nonisolated enum HostedPaymentStateMapper {
+    static func normalized(_ raw: String) -> PaymentState {
+        switch raw.uppercased() {
+        case "READY": .ready
+        case "PROCESSING": .processing
+        case "REQUIRES_ACTION": .requiresAction
+        case "PENDING": .pending
+        case "SUCCEEDED": .funded
+        case "DECLINED": .declined
+        case "CANCELLED": .cancelled
+        case "PROVIDER_UNAVAILABLE": .providerUnavailable
+        case "DUPLICATE_BLOCKED": .duplicateBlocked
+        case "FAILED", "UNKNOWN": .unknown
+        default: .unknown
+        }
+    }
+
+    static func legacyFundingStatus(_ raw: String) -> PaymentState {
+        switch raw.lowercased() {
+        case "funded", "transfer_pending", "transferred", "refund_pending",
+             "partially_refunded", "refunded", "closed":
+            .funded
+        case "requires_action":
+            .requiresAction
+        case "processing":
+            .processing
+        case "requires_payment_method", "unfunded":
+            .ready
+        case "canceled":
+            .cancelled
+        case "funding_failed", "disputed", "chargeback":
+            .unknown
+        default:
+            .unknown
+        }
+    }
+}
