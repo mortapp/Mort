@@ -1254,8 +1254,8 @@ nonisolated final class LiveMessageRepository: MessageRepository {
         let response: HostedMutationAckDTO = try await client.rpc(
             MortBackendContract.RPC.submitSafetyReport,
             args: [
-                "p_target_user_id": thread.counterpartyId ?? SupabaseJSONNull(),
-                "p_target_job_id": thread.jobId ?? SupabaseJSONNull(),
+                "p_target_user_id": Self.nullableJSON(thread.counterpartyId),
+                "p_target_job_id": Self.nullableJSON(thread.jobId),
                 "p_target_message_id": SupabaseJSONNull(),
                 "p_target_review_id": SupabaseJSONNull(),
                 "p_application_id": SupabaseJSONNull(),
@@ -1300,6 +1300,11 @@ nonisolated final class LiveMessageRepository: MessageRepository {
         guard response.ok else {
             throw MortError.rejected(response.code ?? "That MORT account could not be blocked.")
         }
+    }
+
+    private static func nullableJSON(_ value: String?) -> any Sendable {
+        if let value { return value }
+        return SupabaseJSONNull()
     }
 
     private static func backendCategory(_ category: SafetyReportCategory) -> String {
