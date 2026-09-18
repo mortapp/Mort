@@ -6,9 +6,11 @@ Server-only secret names:
 - `STRIPE_TEST_SECRET_KEY`
 - `STRIPE_TEST_PUBLISHABLE_KEY`
 - `STRIPE_TEST_WEBHOOK_SECRET`
+- `STRIPE_TEST_CONNECT_WEBHOOK_SECRET`
 - `STRIPE_LIVE_SECRET_KEY`
 - `STRIPE_LIVE_PUBLISHABLE_KEY`
 - `STRIPE_LIVE_WEBHOOK_SECRET`
+- `STRIPE_LIVE_CONNECT_WEBHOOK_SECRET`
 - `MORT_STRIPE_OPERATIONS_SECRET`
 - `MORT_STRIPE_ALLOWED_REDIRECT_ORIGINS`
 
@@ -19,7 +21,7 @@ After rotation, redeploy affected functions, run unauthorized/config probes, sen
 
 ## Pre-provider gate handling
 
-The pre-provider gate discovers remote **names only** with `supabase secrets list`; it never prints raw command output and aborts if output resembles a Stripe credential or JWT. The gate also confirms the deployed `stripe-webhook` function before accepting `STRIPE_TEST_WEBHOOK_SECRET` as configured.
+The pre-provider gate discovers remote **names only** with `supabase secrets list`; it never prints raw command output and aborts if output resembles a Stripe credential or JWT. The gate also confirms the deployed `stripe-webhook` function before accepting the platform webhook signing path as configured. Task 31 additionally requires the TEST Connect webhook signing-secret name before account or payout scenarios can run.
 
 Non-secret operator metadata:
 
