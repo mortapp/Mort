@@ -634,7 +634,7 @@ nonisolated struct HostedJobRecordDTO: Codable, Sendable {
             title: title,
             category: category,
             details: details,
-            baseCents: max(payAmountCents ?? 0, 0),
+            baseCents: max(payAmountCents, 0),
             distance: "Distance unavailable",
             area: area,
             scheduleText: scheduleText,
