@@ -919,6 +919,57 @@ nonisolated struct HostedGuardianLinkResponseDTO: Codable, Sendable {
     let linkId: String?
 }
 
+
+// MARK: - Hosted notification contract
+
+nonisolated struct HostedNotificationDTO: Codable, Sendable {
+    let id: String
+    let title: String
+    let body: String
+    let data: [String: String]?
+    let readAt: Date?
+    let createdAt: Date
+
+    func toDomain() -> MortNotification {
+        let rawType = data?["type"]?.lowercased() ?? ""
+        let rawRoute = data?["route"]
+        let category: NotificationCategory = {
+            if rawType.contains("safety") || data?["safetyPingId"] != nil || data?["incidentId"] != nil {
+                return .safety
+            }
+            if rawType.contains("message") || data?["threadId"] != nil || data?["messageId"] != nil {
+                return .message
+            }
+            if rawType.contains("guardian") || data?["teenId"] != nil {
+                return .guardian
+            }
+            if rawType.contains("payout") {
+                return .payout
+            }
+            if rawType.contains("payment") || data?["disputeId"] != nil {
+                return .payment
+            }
+            if rawType.contains("application") || data?["applicationId"] != nil {
+                return .application
+            }
+            if rawType.contains("job") || data?["jobId"] != nil || data?["targetJobId"] != nil {
+                return .job
+            }
+            return .system
+        }()
+
+        return MortNotification(
+            id: id,
+            category: category,
+            title: title,
+            body: body,
+            receivedAt: createdAt,
+            isRead: readAt != nil,
+            route: rawRoute
+        )
+    }
+}
+
 // MARK: - Safety / Support / Notifications / Guardian
 
 nonisolated struct CheckInDTO: Codable, Sendable {
