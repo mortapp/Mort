@@ -166,23 +166,37 @@ struct GuardianTeenDetailView: View {
                                 title: "Earnings this month",
                                 subtitle: "Approved summary only"
                             )
-                            Text(value.earningsThisMonth.formatted)
-                                .font(MortFont.money(32, weight: .light))
-                                .foregroundStyle(MortColor.textPrimary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.6)
-                            HStack {
-                                Text("PAYOUTS").mortLabel()
-                                Spacer(minLength: MortSpace.s2)
-                                MortStatusPill(
-                                    tone: value.payoutStage.tone,
-                                    symbol: value.payoutStage.symbol,
-                                    label: value.payoutStage.label,
-                                    compact: true
+                            if value.earningsVisible {
+                                Text(value.earningsThisMonth.formatted)
+                                    .font(MortFont.money(32, weight: .light))
+                                    .foregroundStyle(MortColor.textPrimary)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.6)
+                            } else {
+                                MortNote(
+                                    text: "Your teen has not shared their monthly earnings total.",
+                                    tone: .neutral,
+                                    symbol: "lock"
                                 )
                             }
+                            if let payoutStage = value.payoutStage {
+                                HStack {
+                                    Text("PAYOUTS").mortLabel()
+                                    Spacer(minLength: MortSpace.s2)
+                                    MortStatusPill(
+                                        tone: payoutStage.tone,
+                                        symbol: payoutStage.symbol,
+                                        label: payoutStage.label,
+                                        compact: true
+                                    )
+                                }
+                            } else {
+                                MortKeyValueRow(label: "PAYOUTS", value: "Private to teen")
+                            }
                             MortNote(
-                                text: "You see the total, not individual payment details.",
+                                text: value.earningsVisible
+                                    ? "You see the monthly total, not individual payment details."
+                                    : "Financial totals and individual payment details stay private.",
                                 tone: .neutral,
                                 symbol: "eye.slash"
                             )
