@@ -30,6 +30,7 @@ nonisolated enum MortBackendContract {
         static let executionStatus = "get_job_execution_status"
         static let submitApplicationProof = "submit_application_proof"
         static let submitCompletionAssertion = "submit_job_completion_assertion"
+        static let respondCompletion = "respond_job_completion"
 
         // Safety
         static let activeCheckIns = "get_my_active_job_checkins"

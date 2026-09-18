@@ -192,9 +192,13 @@ nonisolated final class PreviewJobExecutionRepository: JobExecutionRepository {
         try? await Task.sleep(for: .milliseconds(300))
     }
 
-    func confirmCompletion(jobId: String) async throws -> SettlementResult {
+    func confirmCompletion(jobId: String) async throws -> CompletionAcknowledgement {
         try? await Task.sleep(for: .milliseconds(520))
-        return MortFixtures.settlement
+        return CompletionAcknowledgement(
+            assertionId: "55555555-5555-4555-8555-555555555555",
+            paymentDue: true,
+            mortProcessedPayment: false
+        )
     }
 
     func openDispute(jobId: String, category: String, detail: String) async throws {

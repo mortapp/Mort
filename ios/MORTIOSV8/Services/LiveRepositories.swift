@@ -724,8 +724,31 @@ nonisolated final class LiveJobExecutionRepository: JobExecutionRepository {
         }
     }
 
-    func confirmCompletion(jobId: String) async throws -> SettlementResult {
-        throw MortError.notConfigured("Authoritative settlement confirmation")
+    func confirmCompletion(jobId: String) async throws -> CompletionAcknowledgement {
+        let application = try await executionApplication(jobId: jobId)
+        let status: HostedExecutionStatusDTO = try await client.rpc(
+            MortBackendContract.RPC.executionStatus,
+            args: ["p_application_id": application.id]
+        )
+        guard
+            status.ok,
+            let contractId = status.contractId,
+            UUID(uuidString: contractId) != nil
+        else {
+            throw MortError.rejected(
+                status.code ?? "MORT could not resolve this job's completion contract."
+            )
+        }
+
+        let response: HostedAdultCompletionResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.respondCompletion,
+            args: [
+                "p_contract_id": contractId,
+                "p_acknowledged": true,
+                "p_statement": SupabaseJSONNull(),
+            ]
+        )
+        return try response.toDomain()
     }
 
     func openDispute(jobId: String, category: String, detail: String) async throws {

@@ -2,9 +2,8 @@
 //  JobCompletionView.swift
 //  MORT iOS V8 — Job Execution
 //
-//  The adult confirms the work. This triggers AUTHORITATIVE SETTLEMENT:
-//  MORT decides the compensated base, retains or refunds its fee, and
-//  refunds any difference. Neither party sets the number.
+//  The adult acknowledges the worker's completion assertion.
+//  This does not itself prove settlement, transfer, refund, or payout.
 //
 
 import SwiftUI
@@ -16,17 +15,16 @@ struct JobCompletionView: View {
     @Environment(\.mort) private var mort
     @Environment(MortNavigator.self) private var nav
     @State private var job: LoadState<MortJob> = .idle
-    @State private var settlement: SettlementResult?
-    @State private var receiptNumber: String?
+    @State private var acknowledgement: CompletionAcknowledgement?
     @State private var isWorking = false
     @State private var error: MortError?
 
     var body: some View {
         MortScreen(
-            title: settlement == nil ? "Confirm the work" : "Settled",
-            subtitle: settlement == nil
-                ? "Confirming records the completion outcome for authoritative settlement."
-                : "Here's exactly what MORT recorded for the settlement.",
+            title: acknowledgement == nil ? "Confirm the work" : "Completion confirmed",
+            subtitle: acknowledgement == nil
+                ? "Confirm the worker's completion assertion. Financial settlement remains a separate backend step."
+                : "MORT recorded your acknowledgement. Payment, transfer, refund, and payout remain server-authoritative.",
             atmosphereIntensity: 0.62
         ) {
             VStack(alignment: .leading, spacing: MortSpace.s5) {
@@ -39,8 +37,27 @@ struct JobCompletionView: View {
                     )
                 }
 
-                if let settlement {
-                    SettlementSummaryView(settlement: settlement)
+                if let acknowledgement {
+                    MortStatusPanel(
+                        tone: .success,
+                        symbol: "checkmark.seal",
+                        label: "COMPLETION CONFIRMED",
+                        detail: acknowledgement.paymentDue
+                            ? "The contractual payment obligation is now due. This does not mean a transfer or payout has completed."
+                            : "Your acknowledgement was recorded. MORT has not reported a completed financial settlement."
+                    )
+                    if acknowledgement.mortProcessedPayment {
+                        MortNote(
+                            text: "MORT reports a payment-processing action occurred, but this screen does not treat that as proof of transfer or payout. Check authoritative financial history for issued documents.",
+                            tone: .info
+                        )
+                    } else {
+                        MortNote(
+                            text: "Financial resolution is still separate. Immutable receipts appear in History only after the backend issues them.",
+                            tone: .neutral,
+                            symbol: "doc.text"
+                        )
+                    }
                 } else {
                     switch job {
                     case .idle, .loading:
@@ -78,31 +95,17 @@ struct JobCompletionView: View {
             }
         } bottom: {
             MortBottomBar {
-                if let settlement {
-                    MortPrimaryButton(title: "Add a tip", symbol: "hand.thumbsup") {
-                        nav.present(.tipSelect(jobId: jobId, isLate: true))
-                    }
-                    if let receiptNumber {
-                        MortGhostButton(title: "View receipt", symbol: "doc.text") {
-                            nav.push(.receipt(receiptNumber))
-                        }
-                    } else {
-                        MortNote(
-                            text: "The immutable receipt appears in History after the backend issues it.",
-                            tone: .neutral,
-                            symbol: "doc.text"
-                        )
-                    }
-                    MortQuietButton(title: "Done") { nav.popToRoot() }
-                    if settlement.outcome == .disputed {
-                        MortNote(text: "This job is under review. We'll update you here.", tone: .warning)
+                if acknowledgement != nil {
+                    MortPrimaryButton(title: "Done") { nav.popToRoot() }
+                    MortGhostButton(title: "Financial history", symbol: "clock.arrow.circlepath") {
+                        nav.push(.history)
                     }
                 } else {
                     MortPrimaryButton(
                         title: "Confirm — the work is done",
                         symbol: "checkmark.seal.fill",
                         isBusy: isWorking,
-                        busyTitle: "Settling…"
+                        busyTitle: "Confirming…"
                     ) {
                         Task { await confirm() }
                     }
@@ -132,10 +135,7 @@ struct JobCompletionView: View {
         isWorking = true
         error = nil
         do {
-            // Settlement is the backend's decision, returned here.
-            let result = try await mort.execution.confirmCompletion(jobId: jobId)
-            settlement = result
-            await resolveReceipt(for: result)
+            acknowledgement = try await mort.execution.confirmCompletion(jobId: jobId)
             MortHaptic.success()
         } catch let failure as MortError {
             error = failure
@@ -146,12 +146,7 @@ struct JobCompletionView: View {
         isWorking = false
     }
 
-    private func resolveReceipt(for settlement: SettlementResult) async {
-        guard let page = try? await mort.receipts.receipts(cursor: nil) else { return }
-        receiptNumber = page.receipts.first(where: {
-            $0.orderNumber == settlement.orderNumber && $0.type == .adultJobPayment
-        })?.id
-    }
+
 }
 
 struct SettlementView: View {

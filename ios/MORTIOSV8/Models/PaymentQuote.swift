@@ -77,6 +77,17 @@ nonisolated struct MortFeeConfig: Codable, Hashable, Sendable {
     }
 }
 
+/// Adult acknowledgement of the worker's completion assertion.
+///
+/// This is NOT a settlement result and NOT proof that a transfer, refund, or
+/// payout occurred. The backend may mark the contractual payment obligation
+/// due while financial resolution remains a separate server-authoritative step.
+nonisolated struct CompletionAcknowledgement: Codable, Hashable, Sendable {
+    let assertionId: String
+    let paymentDue: Bool
+    let mortProcessedPayment: Bool
+}
+
 /// Settlement after the work is confirmed. Neither party may authoritatively
 /// choose `compensatedBaseCents` — the backend decides it.
 nonisolated struct SettlementResult: Codable, Hashable, Sendable {

@@ -94,8 +94,10 @@ protocol JobExecutionRepository: Sendable {
     func startPin(jobId: String) async throws -> String
     func submitProof(jobId: String, note: String, attachment: JobProofAttachment) async throws
     func markComplete(jobId: String) async throws
-    /// Adult confirms the work; this triggers authoritative settlement.
-    func confirmCompletion(jobId: String) async throws -> SettlementResult
+    /// Adult acknowledges the worker's completion assertion. This may make
+    /// the contractual payment obligation due, but it does NOT itself prove
+    /// that settlement, transfer, refund, or payout has completed.
+    func confirmCompletion(jobId: String) async throws -> CompletionAcknowledgement
     func openDispute(jobId: String, category: String, detail: String) async throws
     func settlement(jobId: String) async throws -> SettlementResult
 }

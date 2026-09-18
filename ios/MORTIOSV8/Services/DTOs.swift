@@ -277,6 +277,25 @@ nonisolated struct HostedCompletionAssertionResponseDTO: Codable, Sendable {
     let adultAcknowledgmentStillRequired: Bool?
 }
 
+nonisolated struct HostedAdultCompletionResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let assertionId: String?
+    let paymentDue: Bool?
+    let mortProcessedPayment: Bool?
+
+    func toDomain() throws -> CompletionAcknowledgement {
+        guard ok, let assertionId, UUID(uuidString: assertionId) != nil else {
+            throw MortError.rejected(code ?? "MORT could not record the completion acknowledgement.")
+        }
+        return CompletionAcknowledgement(
+            assertionId: assertionId,
+            paymentDue: paymentDue ?? false,
+            mortProcessedPayment: mortProcessedPayment ?? false
+        )
+    }
+}
+
 nonisolated struct HostedExecutionJobContextDTO: Codable, Sendable {
     let id: String
     let locationType: String?
