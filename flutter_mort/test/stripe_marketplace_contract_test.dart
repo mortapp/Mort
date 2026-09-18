@@ -38,6 +38,17 @@ void main() {
     expect(screen, isNot(contains("status': 'funded'")));
   });
 
+  test('financial reads use authenticated Edge adapters', () {
+    final repository = _read(
+      'lib/data/repositories/stripe_marketplace_repository.dart',
+    );
+
+    expect(repository, contains("'stripe-list-financial-history'"));
+    expect(repository, contains("'stripe-get-financial-document'"));
+    expect(repository, isNot(contains("'get_my_financial_history_v1'")));
+    expect(repository, isNot(contains("'get_my_financial_document_v1'")));
+  });
+
   test('Stripe and Google Play billing boundaries stay separate', () {
     final migration = _read(
       '../supabase/migrations/20260722032907_stripe_connect_sandbox_foundation.sql',

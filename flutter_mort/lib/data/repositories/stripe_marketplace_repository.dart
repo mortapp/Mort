@@ -146,31 +146,25 @@ class StripeMarketplaceRepository extends RepositoryBase {
     String? search,
     int limit = 50,
   }) async {
-    requireUserId();
-    return MortFinancialHistoryPage.fromJson(
-      _map(
-        await client.rpc(
-          'get_my_financial_history_v1',
-          params: {
-            'p_cursor': cursor,
-            'p_year': year,
-            'p_category': category,
-            'p_search': search,
-            'p_limit': limit,
-          },
-        ),
-      ),
+    final response = await _invoke(
+      'stripe-list-financial-history',
+      body: {
+        'cursor': cursor,
+        'year': year,
+        'category': category,
+        'search': search,
+        'limit': limit,
+      },
     );
+    return MortFinancialHistoryPage.fromJson(response);
   }
 
   Future<Map<String, dynamic>> financialDocument(String receiptId) async {
-    requireUserId();
-    return _map(
-      await client.rpc(
-        'get_my_financial_document_v1',
-        params: {'p_receipt_id': receiptId},
-      ),
+    final response = await _invoke(
+      'stripe-get-financial-document',
+      body: {'receipt_id': receiptId},
     );
+    return _map(response['document']);
   }
 
   Future<Map<String, dynamic>> paymentAttemptState(
