@@ -1,9 +1,9 @@
 const valueLikePatterns = [
-  /\\bsk_(?:test|live)_[A-Za-z0-9_-]{8,}\\b/i,
-  /\\bpk_(?:test|live)_[A-Za-z0-9_-]{8,}\\b/i,
-  /\\bwhsec_[A-Za-z0-9_-]{8,}\\b/i,
-  /\\brk_(?:test|live)_[A-Za-z0-9_-]{8,}\\b/i,
-  /\\beyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\b/,
+  /\bsk_(?:test|live)_[A-Za-z0-9_-]{8,}\b/i,
+  /\bpk_(?:test|live)_[A-Za-z0-9_-]{8,}\b/i,
+  /\bwhsec_[A-Za-z0-9_-]{8,}\b/i,
+  /\brk_(?:test|live)_[A-Za-z0-9_-]{8,}\b/i,
+  /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/,
 ];
 
 export const requiredTestSecretNames = Object.freeze([
