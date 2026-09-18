@@ -939,24 +939,52 @@ nonisolated final class LiveReceiptRepository: ReceiptRepository {
     init(client: SupabaseClient) { self.client = client }
 
     func receipt(number: String) async throws -> Receipt {
-        // Receipts are immutable, backend-issued documents.
-        let dto: ReceiptDTO = try await client.rpc("mort_receipt", args: ["p_receipt_number": number])
-        return dto.toDomain()
+        let trimmed = number.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !trimmed.isEmpty else { throw MortError.notFound }
+        let dto: HostedFinancialDocumentDTO? = try await client.rpc(
+            MortBackendContract.RPC.financialDocument,
+            args: ["p_receipt_id": trimmed]
+        )
+        guard let dto else { throw MortError.notFound }
+        return dto.toReceipt()
     }
 
     func receipts(cursor: String?) async throws -> (receipts: [Receipt], nextCursor: String?) {
-        let page: ReceiptPageDTO = try await client.rpc("mort_receipts", args: [
-            "p_cursor": cursor ?? "",
-        ])
-        return (page.receipts.map { $0.toDomain() }, page.nextCursor)
+        let page = try await financialPage(cursor: cursor, category: nil, search: nil, limit: 50)
+        let next = page.items.count == 50
+            ? page.items.last?.createdAt.ISO8601Format()
+            : nil
+        return (page.items.map { $0.toReceipt() }, next)
     }
 
     func receipt(jobId: String, type: ReceiptType) async throws -> Receipt? {
-        let rows: [ReceiptDTO] = try await client.rpc("mort_job_receipts", args: [
-            "p_job_id": jobId,
-            "p_type": type.rawValue,
-        ])
-        return rows.first?.toDomain()
+        // The immutable document API is receipt-id keyed. Until the backend
+        // exposes a participant-safe job->document lookup, do not guess by
+        // title/order or render the legacy provider-status summary as a receipt.
+        throw MortError.notConfigured("Job receipt lookup")
+    }
+
+    private func financialPage(
+        cursor: String?,
+        category: String?,
+        search: String?,
+        limit: Int
+    ) async throws -> HostedFinancialHistoryPageDTO {
+        var args: [String: any Sendable] = [
+            "p_limit": min(max(limit, 1), 100),
+        ]
+        if let cursor {
+            guard ISO8601DateFormatter().date(from: cursor) != nil else {
+                throw MortError.rejected("That receipt page token is no longer valid.")
+            }
+            args["p_cursor"] = cursor
+        }
+        if let category, !category.isEmpty { args["p_category"] = category }
+        if let search, !search.isEmpty { args["p_search"] = search }
+        return try await client.rpc(
+            MortBackendContract.RPC.financialHistory,
+            args: args
+        )
     }
 }
 
@@ -965,30 +993,37 @@ nonisolated final class LivePayoutRepository: PayoutRepository {
     init(client: SupabaseClient) { self.client = client }
 
     func payoutStatus() async throws -> PayoutStatus {
-        let dto: PayoutDTO = try await client.rpc("mort_payout_status")
+        let dto: HostedStripePayoutStatusDTO = try await client.rpc(
+            MortBackendContract.RPC.payoutStatus
+        )
         return dto.toDomain()
     }
 
     func payoutHistory() async throws -> [PayoutStatus] {
-        let rows: [PayoutDTO] = try await client.rpc("mort_payout_history")
-        return rows.map { $0.toDomain() }
+        let dto: HostedStripePayoutStatusDTO = try await client.rpc(
+            MortBackendContract.RPC.payoutStatus
+        )
+        guard dto.latestPayout != nil else { return [] }
+        // The current participant-safe RPC deliberately exposes only the latest
+        // provider payout. Return exactly that one known record rather than
+        // manufacturing a historical list.
+        return [dto.toDomain()]
     }
 
     func beginPayoutOnboarding() async throws -> URL {
-        // The backend creates the Connect onboarding link.
-        let dto: OnboardingLinkDTO = try await client.rpc("mort_payout_onboarding_link")
-        guard let url = URL(string: dto.url) else { throw MortError.unknown }
-        return url
+        // Hosted onboarding requires approved HTTPS return/refresh origins.
+        // Native universal-link routing is not configured in this target yet.
+        throw MortError.notConfigured("Payout onboarding return link")
     }
 
     func refreshPayoutReadiness() async throws -> PayoutStage {
-        // Readiness is ALWAYS re-read from the provider via the backend.
-        let dto: PayoutStageDTO = try await client.rpc("mort_refresh_payout_readiness")
-        return PayoutStage(rawValue: dto.stage) ?? .setupRequired
+        let dto: HostedStripePayoutStatusDTO = try await client.function(
+            MortBackendContract.EdgeFunction.connectedAccountStatus,
+            body: [:]
+        )
+        return dto.stage
     }
 }
-
-// MARK: - History
 
 nonisolated final class LiveHistoryRepository: HistoryRepository {
     private let client: SupabaseClient
@@ -1000,39 +1035,99 @@ nonisolated final class LiveHistoryRepository: HistoryRepository {
         query: String?,
         cursor: String?
     ) async throws -> (records: [HistoryRecord], nextCursor: String?) {
-        let page: HistoryPageDTO = try await client.rpc("mort_history", args: [
-            "p_filter": filter.rawValue,
-            "p_year": year ?? 0,
-            "p_query": query ?? "",
-            "p_cursor": cursor ?? "",
-        ])
-        return (page.records.map { $0.toDomain() }, page.nextCursor)
+        if filter == .failed || filter == .disputed || filter == .jobs {
+            // Failed attempts and disputes do not issue immutable financial
+            // documents, while job lifecycle rows are a separate domain. The
+            // hosted backend has no unified participant-safe cursor yet.
+            return ([], nil)
+        }
+
+        var args: [String: any Sendable] = ["p_limit": 50]
+        if let year { args["p_year"] = year }
+        if let query {
+            let clean = query.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !clean.isEmpty { args["p_search"] = clean }
+        }
+        if let category = Self.category(for: filter) {
+            args["p_category"] = category
+        }
+        if let cursor {
+            guard ISO8601DateFormatter().date(from: cursor) != nil else {
+                throw MortError.rejected("That history page token is no longer valid.")
+            }
+            args["p_cursor"] = cursor
+        }
+
+        let page: HostedFinancialHistoryPageDTO = try await client.rpc(
+            MortBackendContract.RPC.financialHistory,
+            args: args
+        )
+        let next = page.items.count == 50
+            ? page.items.last?.createdAt.ISO8601Format()
+            : nil
+        return (page.items.map { $0.toHistoryRecord() }, next)
     }
 
     func availableYears() async throws -> [Int] {
-        let dto: YearsDTO = try await client.rpc("mort_history_years")
-        return dto.years
+        var years = Set<Int>()
+        var cursor: String?
+        var pageCount = 0
+
+        repeat {
+            var args: [String: any Sendable] = ["p_limit": 100]
+            if let cursor { args["p_cursor"] = cursor }
+            let page: HostedFinancialHistoryPageDTO = try await client.rpc(
+                MortBackendContract.RPC.financialHistory,
+                args: args
+            )
+            for item in page.items {
+                years.insert(Calendar(identifier: .gregorian).component(.year, from: item.createdAt))
+            }
+            cursor = page.items.count == 100
+                ? page.items.last?.createdAt.ISO8601Format()
+                : nil
+            pageCount += 1
+        } while cursor != nil && pageCount < 20
+
+        if years.isEmpty {
+            years.insert(Calendar(identifier: .gregorian).component(.year, from: Date()))
+        }
+        return years.sorted(by: >)
     }
 
     func startAnnualExport(year: Int) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_start_annual_export", args: ["p_year": year])
+        // No hosted export-file job currently exists. Keep this honest rather
+        // than claiming a local reconstruction is an official export.
+        throw MortError.notConfigured("Annual financial export")
     }
 
     func exportState(year: Int) async throws -> ExportState {
-        let dto: ExportStateDTO = try await client.rpc("mort_export_state", args: ["p_year": year])
-        return ExportState(rawValue: dto.state) ?? .ready
+        throw MortError.notConfigured("Annual financial export")
     }
 
     func exportFile(year: Int) async throws -> URL {
-        // [DO NOT FAKE] If the backend has no file, this throws and the UI
-        // stays in a failed/preparing state.
-        let dto: ExportFileDTO = try await client.rpc("mort_export_file", args: ["p_year": year])
-        guard let url = URL(string: dto.url) else { throw MortError.notFound }
-        return url
+        throw MortError.notConfigured("Annual financial export")
+    }
+
+    private static func category(for filter: HistoryFilter) -> String? {
+        switch filter {
+        case .all, .receipts:
+            return nil
+        case .payments:
+            return "ADULT_JOB_PAYMENT"
+        case .earnings:
+            return "TEEN_EARNINGS"
+        case .tips:
+            return "TIP"
+        case .refunds:
+            return "REFUND"
+        case .adjustments:
+            return "ADJUSTMENT"
+        case .failed, .disputed, .jobs:
+            return nil
+        }
     }
 }
-
-// MARK: - Messaging / Safety / Support / Notifications / Guardian
 
 nonisolated final class LiveMessageRepository: MessageRepository {
     private let client: SupabaseClient
