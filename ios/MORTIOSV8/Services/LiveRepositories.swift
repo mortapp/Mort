@@ -179,13 +179,33 @@ nonisolated final class LiveJobRepository: JobRepository {
     init(client: SupabaseClient) { self.client = client }
 
     func discover(query: String?, category: String?, cursor: String?) async throws -> (jobs: [MortJob], nextCursor: String?) {
-        // Server-side search + cursor pagination keeps the feed scalable.
-        let page: JobPageDTO = try await client.rpc("mort_discover_jobs", args: [
-            "p_query": query ?? "",
-            "p_category": category ?? "",
-            "p_cursor": cursor ?? "",
-        ])
-        return (page.jobs.map { $0.toDomain() }, page.nextCursor)
+        var args: [String: any Sendable] = [
+            "p_keyword": query ?? "",
+            "p_sort": "newest",
+            "p_limit": 20,
+        ]
+        if let category, !category.isEmpty {
+            args["p_category"] = category
+        }
+        if let cursor {
+            guard let decoded = HostedJobCursorDTO(opaqueValue: cursor) else {
+                throw MortError.rejected("That job-feed page token is no longer valid. Refresh the list.")
+            }
+            args["p_cursor_value"] = decoded.value
+            args["p_cursor_id"] = decoded.id
+        }
+
+        let page: HostedJobFeedPageDTO = try await client.rpc(
+            MortBackendContract.RPC.discoverJobs,
+            args: args
+        )
+        guard page.ok else {
+            throw MortError.rejected(page.code ?? "The job feed is temporarily unavailable.")
+        }
+
+        let jobs = try page.items.map { try $0.toDomain() }
+        let nextCursor = page.hasMore ? page.nextCursor?.opaqueValue : nil
+        return (jobs, nextCursor)
     }
 
     func job(id: String) async throws -> MortJob {
