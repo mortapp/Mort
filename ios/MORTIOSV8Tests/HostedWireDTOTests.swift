@@ -79,3 +79,72 @@ private func hostedDecoder() -> JSONDecoder {
     decoder.dateDecodingStrategy = .iso8601
     return decoder
 }
+
+
+struct HostedJobFeedDTOTests {
+    @Test("Hosted open-job page preserves authoritative pay, area and opaque cursor")
+    func openJobPageMapping() throws {
+        let json = #"""
+        {
+          "ok": true,
+          "items": [
+            {
+              "id": "33333333-3333-4333-8333-333333333333",
+              "poster_id": "44444444-4444-4444-8444-444444444444",
+              "title": "Mow front and back yard",
+              "description": "Mow both yards and bag the clippings.",
+              "summary": "Yard mowing",
+              "category": "yard_work",
+              "location_text": "Northside, Indianapolis",
+              "city": "Indianapolis",
+              "state": "IN",
+              "neighborhood": "Northside",
+              "pay_amount_cents": 2400,
+              "status": "open",
+              "starts_at": "2026-09-20T14:00:00Z",
+              "created_at": "2026-09-17T18:30:00Z",
+              "proof_expected": true,
+              "schedule_type": "exact",
+              "profiles": {
+                "display_name": "Jordan P.",
+                "verification_status": "approved",
+                "avatar_path": null
+              },
+              "distance_status": "unavailable",
+              "match_explanation": "Distance is not calculated."
+            }
+          ],
+          "has_more": true,
+          "next_cursor": {
+            "value": "2026-09-17T18:30:00+00:00",
+            "id": "33333333-3333-4333-8333-333333333333"
+          },
+          "distance_calculated": false,
+          "location_precision": "general_area_only"
+        }
+        """#.data(using: .utf8)!
+
+        let page = try hostedDecoder().decode(HostedJobFeedPageDTO.self, from: json)
+        let job = try #require(page.items.first).toDomain()
+
+        #expect(page.ok)
+        #expect(job.id == "33333333-3333-4333-8333-333333333333")
+        #expect(job.title == "Mow front and back yard")
+        #expect(job.baseCents == 2400)
+        #expect(job.area == "Northside")
+        #expect(job.posterDisplayName == "Jordan P.")
+        #expect(job.state == .open)
+        #expect(job.requiresProof)
+        #expect(job.distance == "Distance unavailable")
+
+        let opaque = try #require(page.nextCursor?.opaqueValue)
+        let decoded = try #require(HostedJobCursorDTO(opaqueValue: opaque))
+        #expect(decoded.value == "2026-09-17T18:30:00+00:00")
+        #expect(decoded.id == "33333333-3333-4333-8333-333333333333")
+    }
+
+    @Test("Hosted job cursors reject malformed client state")
+    func cursorRejectsMalformedInput() {
+        #expect(HostedJobCursorDTO(opaqueValue: "not-a-valid-cursor") == nil)
+    }
+}
