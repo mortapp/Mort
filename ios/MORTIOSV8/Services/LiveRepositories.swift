@@ -307,12 +307,17 @@ nonisolated final class LiveApplicationRepository: ApplicationRepository {
     private let client: SupabaseClient
     init(client: SupabaseClient) { self.client = client }
 
+    private let selectShape = """
+    id,job_id,teen_id,status,note,created_at,updated_at,    jobs:jobs!applications_job_id_fkey(title),    applicant:profiles!applications_teen_id_fkey(username,display_name)
+    """
+
     func applications(jobId: String) async throws -> [MortApplication] {
-        let rows: [ApplicationDTO] = try await client.get(
+        guard UUID(uuidString: jobId) != nil else { throw MortError.notFound }
+        let rows: [HostedApplicationDTO] = try await client.get(
             path: "/rest/v1/applications",
             query: [
                 URLQueryItem(name: "job_id", value: "eq.\(jobId)"),
-                URLQueryItem(name: "select", value: "*"),
+                URLQueryItem(name: "select", value: selectShape),
                 URLQueryItem(name: "order", value: "created_at.desc"),
             ]
         )
@@ -320,28 +325,62 @@ nonisolated final class LiveApplicationRepository: ApplicationRepository {
     }
 
     func myApplications() async throws -> [MortApplication] {
-        let rows: [ApplicationDTO] = try await client.rpc("mort_my_applications")
+        guard let stored = await client.storedSession() else {
+            throw MortError.unauthorized
+        }
+        let rows: [HostedApplicationDTO] = try await client.get(
+            path: "/rest/v1/applications",
+            query: [
+                URLQueryItem(name: "teen_id", value: "eq.\(stored.userId)"),
+                URLQueryItem(name: "select", value: selectShape),
+                URLQueryItem(name: "order", value: "created_at.desc"),
+            ]
+        )
         return rows.map { $0.toDomain() }
     }
 
     func apply(jobId: String, message: String) async throws -> MortApplication {
-        let row: ApplicationDTO = try await client.rpc("mort_apply_to_job", args: [
-            "p_job_id": jobId,
-            "p_message": message,
-        ])
-        return row.toDomain()
+        guard UUID(uuidString: jobId) != nil else { throw MortError.notFound }
+        let response: HostedApplicationSubmitResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.submitApplication,
+            args: [
+                "p_job_id": jobId,
+                "p_note": message,
+                "p_availability_confirmed": true,
+                "p_portfolio_ids": [String](),
+            ]
+        )
+        guard response.ok, let application = response.application else {
+            throw MortError.rejected(
+                response.message ?? response.code ?? "That application could not be submitted."
+            )
+        }
+        return application.toDomain()
     }
 
     func withdraw(applicationId: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_withdraw_application", args: [
-            "p_application_id": applicationId,
-        ])
+        try await transition(applicationId: applicationId, action: "withdrawn")
     }
 
     func selectApplicant(applicationId: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_select_applicant", args: [
-            "p_application_id": applicationId,
-        ])
+        try await transition(applicationId: applicationId, action: "accepted")
+    }
+
+    private func transition(applicationId: String, action: String) async throws {
+        guard UUID(uuidString: applicationId) != nil else { throw MortError.notFound }
+        let response: HostedApplicationTransitionResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.updateApplication,
+            args: [
+                "p_application_id": applicationId,
+                "p_action": action,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        guard response.ok else {
+            throw MortError.rejected(
+                response.code ?? "That application status could not be changed."
+            )
+        }
     }
 }
 
