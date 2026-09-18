@@ -704,18 +704,24 @@ nonisolated final class LiveJobExecutionRepository: JobExecutionRepository {
         // The "I've finished the work" action is the worker's explicit
         // approved-scope confirmation. Empty checklist means no structured
         // checklist was supplied; it never invents completed task facts.
+        var completionArgs: [String: any Sendable] = [
+            "p_contract_id": contractId,
+            "p_task_checklist": [String](),
+            "p_completion_timestamp": Date().ISO8601Format(),
+            "p_location_type_confirmation": confirmedLocationType,
+            "p_approved_scope_confirmation": true,
+            "p_witness_notes": SupabaseJSONNull(),
+            "p_statement": SupabaseJSONNull(),
+        ]
+        if let startedAt = status.startedAt {
+            completionArgs["p_start_timestamp"] = startedAt.ISO8601Format()
+        } else {
+            completionArgs["p_start_timestamp"] = SupabaseJSONNull()
+        }
+
         let response: HostedCompletionAssertionResponseDTO = try await client.rpc(
             MortBackendContract.RPC.submitCompletionAssertion,
-            args: [
-                "p_contract_id": contractId,
-                "p_task_checklist": [String](),
-                "p_start_timestamp": status.startedAt?.ISO8601Format() ?? SupabaseJSONNull(),
-                "p_completion_timestamp": Date().ISO8601Format(),
-                "p_location_type_confirmation": confirmedLocationType,
-                "p_approved_scope_confirmation": true,
-                "p_witness_notes": SupabaseJSONNull(),
-                "p_statement": SupabaseJSONNull(),
-            ]
+            args: completionArgs
         )
         guard response.ok, response.assertionId != nil else {
             throw MortError.rejected(
