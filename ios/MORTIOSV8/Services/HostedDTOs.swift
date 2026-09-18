@@ -15,8 +15,8 @@ nonisolated struct HostedProfileDTO: Codable, Sendable {
     let displayName: String?
     let city: String?
     let state: String?
-    let createdAt: Date
-    let updatedAt: Date
+    let createdAt: Date?
+    let updatedAt: Date?
     let username: String?
     let guardianSetupStatus: String?
     let verificationStatus: String?
@@ -28,7 +28,7 @@ nonisolated struct HostedProfileDTO: Codable, Sendable {
         let cleanUsername = username?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .trimmingCharacters(in: CharacterSet(charactersIn: "@"))
-        let handle = cleanUsername.map { "@\($0)" } ?? "@member"
+        let handle = cleanUsername.map { "@\($0)" } ?? ""
 
         let display = displayName?
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -61,7 +61,9 @@ nonisolated struct HostedProfileDTO: Codable, Sendable {
             .joined()
             .uppercased()
 
-        let year = Calendar(identifier: .gregorian).component(.year, from: createdAt)
+        let memberSince = createdAt.map {
+            String(Calendar(identifier: .gregorian).component(.year, from: $0))
+        } ?? ""
 
         return MortUser(
             id: id,
@@ -74,8 +76,8 @@ nonisolated struct HostedProfileDTO: Codable, Sendable {
             avatarInitials: initials.isEmpty ? "?" : initials,
             rating: nil,
             completedJobs: 0,
-            verifications: [],
-            memberSince: String(year),
+            verifications: verificationStatus == "approved" ? ["Identity verified"] : [],
+            memberSince: memberSince,
             bio: bio,
             guardianLinked: guardianSetupStatus == "linked"
         )
@@ -88,6 +90,13 @@ nonisolated struct HostedProfileUpdateResponseDTO: Codable, Sendable {
     let code: String?
     let profile: HostedProfileDTO?
 }
+
+
+nonisolated struct HostedAccountDeletionResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+}
+
 
 
 // MARK: - Hosted marketplace feed
