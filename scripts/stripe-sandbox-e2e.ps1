@@ -56,7 +56,7 @@ function Assert-SafeEvidenceText {
 }
 
 function Write-Evidence {
-  param([Parameter(Mandatory = $true)][hashtable]$Payload)
+  param([Parameter(Mandatory = $true)][System.Collections.IDictionary]$Payload)
   $json = $Payload | ConvertTo-Json -Depth 10
   Assert-SafeEvidenceText -Text $json
   $parent = Split-Path $EvidencePath -Parent
