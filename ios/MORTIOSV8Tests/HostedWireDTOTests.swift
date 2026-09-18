@@ -224,6 +224,90 @@ struct HostedPaymentOSDTOTests {
         #expect(HostedPaymentStateMapper.legacyFundingStatus("processing") == .processing)
         #expect(HostedPaymentStateMapper.legacyFundingStatus("funding_failed") == .unknown)
     }
+
+
+    @Test("Participant financial policy config preserves hosted fee values and fails closed on missing tip policy")
+    func financialPolicyConfigDecodes() throws {
+        let json = #"""
+        {
+          "ok": true,
+          "environment": "test",
+          "currency_code": "USD",
+          "service_fee": {
+            "version": "sandbox-2026-09-16-v1",
+            "percent_basis_points": 800,
+            "minimum_cents": 100,
+            "maximum_cents": 500,
+            "quote_ttl_seconds": 900
+          },
+          "tip": null
+        }
+        """#.data(using: .utf8)!
+
+        let dto = try hostedDecoder().decode(HostedFinancialPolicyConfigDTO.self, from: json)
+        let fee = try #require(dto.serviceFee).toDomain()
+        #expect(fee.percentBasisPoints == 800)
+        #expect(fee.minimumCents == 100)
+        #expect(fee.maximumCents == 500)
+        #expect(dto.tip == nil)
+    }
+
+    @Test("Participant settlement enforces integer-cent conservation before mapping")
+    func participantSettlementMapping() throws {
+        let json = #"""
+        {
+          "ok": true,
+          "settlement_id": "11111111-1111-4111-8111-111111111111",
+          "contract_id": "22222222-2222-4222-8222-222222222222",
+          "job_id": "33333333-3333-4333-8333-333333333333",
+          "order_number": "0042",
+          "funded_base_cents": 2400,
+          "compensated_base_cents": 1800,
+          "base_refund_cents": 600,
+          "service_fee_cents": 192,
+          "service_fee_refund_cents": 48,
+          "fee_retained_cents": 144,
+          "adult_refund_cents": 648,
+          "currency_code": "USD",
+          "outcome_code": "partial_compensation",
+          "decision_reason_code": "qa_partial",
+          "finalized_at": "2026-09-18T02:00:00Z",
+          "explanation": "MORT finalized this job with partial worker compensation and a customer refund."
+        }
+        """#.data(using: .utf8)!
+
+        let dto = try hostedDecoder().decode(HostedJobSettlementDTO.self, from: json)
+        let settlement = try dto.toDomain()
+        #expect(settlement.jobId == "33333333-3333-4333-8333-333333333333")
+        #expect(settlement.orderNumber == "0042")
+        #expect(settlement.compensatedBaseCents == 1800)
+        #expect(settlement.feeRetainedCents == 144)
+        #expect(settlement.feeRefundedCents == 48)
+        #expect(settlement.adultRefundCents == 648)
+        #expect(settlement.outcome == .settledWithРartialRefund)
+    }
+
+    @Test("Tip attempt state never treats processing as funded")
+    func tipAttemptStateMapping() throws {
+        let json = #"""
+        {
+          "tip_attempt_id": "44444444-4444-4444-8444-444444444444",
+          "settlement_id": "55555555-5555-4555-8555-555555555555",
+          "job_id": "66666666-6666-4666-8666-666666666666",
+          "amount_cents": 500,
+          "teen_amount_cents": 500,
+          "mort_fee_cents": 0,
+          "currency_code": "USD",
+          "state": "PROCESSING",
+          "updated_at": "2026-09-18T02:01:00Z"
+        }
+        """#.data(using: .utf8)!
+
+        let dto = try hostedDecoder().decode(HostedTipAttemptStateDTO.self, from: json)
+        #expect(dto.paymentState == .processing)
+        #expect(dto.amountCents == dto.teenAmountCents)
+        #expect(dto.mortFeeCents == 0)
+    }
 }
 
 
