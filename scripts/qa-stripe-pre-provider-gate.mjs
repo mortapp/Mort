@@ -22,6 +22,7 @@ function baseline(overrides = {}) {
       "STRIPE_TEST_SECRET_KEY",
       "STRIPE_TEST_PUBLISHABLE_KEY",
       "STRIPE_TEST_WEBHOOK_SECRET",
+      "STRIPE_TEST_CONNECT_WEBHOOK_SECRET",
       "MORT_STRIPE_OPERATIONS_SECRET",
     ]),
     mutationTestEligible: true,
@@ -49,8 +50,24 @@ expectFailure(
 );
 expectFailure(baseline({ functionNames: new Set(), webhookUrl: "" }), "test_webhook_endpoint");
 expectFailure(
-  baseline({ secretNames: new Set(["STRIPE_TEST_SECRET_KEY", "STRIPE_TEST_PUBLISHABLE_KEY"]) }),
-  "test_webhook_secret_name",
+  baseline({
+    secretNames: new Set([
+      "STRIPE_TEST_SECRET_KEY",
+      "STRIPE_TEST_PUBLISHABLE_KEY",
+      "STRIPE_TEST_WEBHOOK_SECRET",
+    ]),
+  }),
+  "test_webhook_secret_names",
+);
+expectFailure(
+  baseline({
+    secretNames: new Set([
+      "STRIPE_TEST_SECRET_KEY",
+      "STRIPE_TEST_PUBLISHABLE_KEY",
+      "STRIPE_TEST_CONNECT_WEBHOOK_SECRET",
+    ]),
+  }),
+  "test_webhook_secret_names",
 );
 expectFailure(baseline({ linkedProjectRef: "wrong-project" }), "sandbox_project_and_mode");
 expectFailure(baseline({ runtimeMode: "live" }), "sandbox_project_and_mode");
@@ -82,10 +99,12 @@ const names = extractAllowlistedSecretNames(`NAME
 STRIPE_TEST_SECRET_KEY
 STRIPE_TEST_PUBLISHABLE_KEY
 STRIPE_TEST_WEBHOOK_SECRET
+STRIPE_TEST_CONNECT_WEBHOOK_SECRET
 `);
 assert(names.has("STRIPE_TEST_SECRET_KEY"));
 assert(names.has("STRIPE_TEST_PUBLISHABLE_KEY"));
 assert(names.has("STRIPE_TEST_WEBHOOK_SECRET"));
+assert(names.has("STRIPE_TEST_CONNECT_WEBHOOK_SECRET"));
 
 const ps = await readFile(new URL("./stripe-pre-provider-test-gate.ps1", import.meta.url), "utf8");
 assert(ps.includes("supabase','secrets','list"));
@@ -95,4 +114,4 @@ assert(ps.includes("provider_mutation_performed = $false"));
 assert(!/stripe\\s+(?:trigger|payment_intents|charges|refunds|transfers)/i.test(ps));
 assert(!/api\\.stripe\\.com/i.test(ps));
 
-console.log(JSON.stringify({ status: "PASS", cases: 17, provider_mutation_performed: false }));
+console.log(JSON.stringify({ status: "PASS", cases: 18, provider_mutation_performed: false }));
