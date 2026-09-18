@@ -1233,11 +1233,84 @@ nonisolated final class LiveMessageRepository: MessageRepository {
     }
 
     func report(conversationId: String, category: SafetyReportCategory, detail: String) async throws {
-        throw MortError.notConfigured("Conversation reporting")
+        guard UUID(uuidString: conversationId) != nil else { throw MortError.notFound }
+        let trimmed = detail.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 10 else {
+            throw MortError.rejected("Add a little more detail before submitting the safety report.")
+        }
+
+        let page: HostedThreadMessagesPageDTO = try await client.rpc(
+            MortBackendContract.RPC.threadMessages,
+            args: [
+                "p_thread_id": conversationId,
+                "p_limit": 1,
+            ]
+        )
+        guard let thread = page.thread,
+              thread.counterpartyId != nil || thread.jobId != nil else {
+            throw MortError.rejected("MORT could not identify a reportable participant or job for this conversation.")
+        }
+
+        let response: HostedMutationAckDTO = try await client.rpc(
+            MortBackendContract.RPC.submitSafetyReport,
+            args: [
+                "p_target_user_id": thread.counterpartyId ?? SupabaseJSONNull(),
+                "p_target_job_id": thread.jobId ?? SupabaseJSONNull(),
+                "p_target_message_id": SupabaseJSONNull(),
+                "p_target_review_id": SupabaseJSONNull(),
+                "p_application_id": SupabaseJSONNull(),
+                "p_category": Self.backendCategory(category),
+                "p_severity": "moderate",
+                "p_immediate_danger": false,
+                "p_details": trimmed,
+                "p_occurred_at": Date().ISO8601Format(),
+                "p_location_type": SupabaseJSONNull(),
+                "p_desired_outcome": "review_and_follow_up",
+                "p_confidential_safety_feedback": false,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "MORT could not submit that safety report.")
+        }
     }
 
     func block(handle: String) async throws {
-        throw MortError.notConfigured("User blocking")
+        let clean = handle
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "@"))
+        guard !clean.isEmpty else { throw MortError.notFound }
+
+        let rows: [HostedSafetyContactProfileDTO] = try await client.get(
+            path: "/rest/v1/profiles",
+            query: [
+                URLQueryItem(name: "username", value: "eq.\(clean)"),
+                URLQueryItem(name: "select", value: "id,username,display_name,role"),
+                URLQueryItem(name: "limit", value: "1"),
+            ]
+        )
+        guard let target = rows.first else { throw MortError.notFound }
+        let response: HostedMutationAckDTO = try await client.rpc(
+            MortBackendContract.RPC.blockUser,
+            args: [
+                "p_blocked_id": target.id,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "That MORT account could not be blocked.")
+        }
+    }
+
+    private static func backendCategory(_ category: SafetyReportCategory) -> String {
+        switch category {
+        case .unsafeBehavior: return "unsafe_job_conditions"
+        case .harassment: return "harassment"
+        case .paymentProblem: return "nonpayment"
+        case .noShow: return "other_urgent_concern"
+        case .unsafeLocation: return "unexpected_location"
+        case .somethingElse: return "other_urgent_concern"
+        }
     }
 }
 
@@ -1267,17 +1340,80 @@ nonisolated final class LiveSafetyRepository: SafetyRepository {
     }
 
     func contacts() async throws -> [SafetyContact] {
-        // The current safety-circle read contract does not expose a display
-        // name/contact mask in one participant-safe shape yet.
-        throw MortError.notConfigured("Safety circle contacts")
+        guard let stored = await client.storedSession() else {
+            throw MortError.unauthorized
+        }
+        let rows: [HostedSafetyCircleMemberDTO] = try await client.rpc(
+            MortBackendContract.RPC.safetyCircle
+        )
+        let active = rows.filter { $0.status == "active" }
+        let otherIds = Array(Set(active.map {
+            $0.teenId == stored.userId ? $0.contactId : $0.teenId
+        }))
+        guard !otherIds.isEmpty else { return [] }
+
+        let profiles: [HostedSafetyContactProfileDTO] = try await client.get(
+            path: "/rest/v1/profiles",
+            query: [
+                URLQueryItem(name: "id", value: "in.(\(otherIds.joined(separator: ",")))"),
+                URLQueryItem(name: "select", value: "id,username,display_name,role"),
+            ]
+        )
+        let byId = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
+
+        return active.compactMap { row in
+            let otherId = row.teenId == stored.userId ? row.contactId : row.teenId
+            guard let profile = byId[otherId] else { return nil }
+            return SafetyContact(
+                id: row.id,
+                displayName: profile.display,
+                relationship: row.relationshipLabel,
+                contactMask: profile.handleOrMask,
+                isGuardian: profile.role == "guardian",
+                isNotifiedOnJobs: row.receiveJobStatus
+            )
+        }
     }
 
     func shareJobStatus(jobId: String, enabled: Bool) async throws {
+        // The hosted safety-circle permission is global per member, not
+        // per-job. Do not silently turn a per-job UI switch into a broader
+        // permission change.
         throw MortError.notConfigured("Per-job safety sharing")
     }
 
     func report(category: SafetyReportCategory, detail: String, jobId: String?) async throws {
-        throw MortError.notConfigured("Structured safety reporting")
+        let trimmed = detail.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 10 else {
+            throw MortError.rejected("Add a little more detail before submitting the safety report.")
+        }
+        if let jobId, UUID(uuidString: jobId) == nil { throw MortError.notFound }
+        guard jobId != nil else {
+            throw MortError.rejected("Choose the related job before submitting this safety report.")
+        }
+
+        let response: HostedMutationAckDTO = try await client.rpc(
+            MortBackendContract.RPC.submitSafetyReport,
+            args: [
+                "p_target_user_id": SupabaseJSONNull(),
+                "p_target_job_id": jobId!,
+                "p_target_message_id": SupabaseJSONNull(),
+                "p_target_review_id": SupabaseJSONNull(),
+                "p_application_id": SupabaseJSONNull(),
+                "p_category": Self.backendCategory(category),
+                "p_severity": "moderate",
+                "p_immediate_danger": false,
+                "p_details": trimmed,
+                "p_occurred_at": Date().ISO8601Format(),
+                "p_location_type": SupabaseJSONNull(),
+                "p_desired_outcome": "review_and_follow_up",
+                "p_confidential_safety_feedback": false,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "MORT could not submit that safety report.")
+        }
     }
 
     func raiseEmergencyAlert(jobId: String?) async throws {
@@ -1298,6 +1434,17 @@ nonisolated final class LiveSafetyRepository: SafetyRepository {
         )
         guard response.ok else {
             throw MortError.rejected(response.code ?? "MORT could not send the urgent safety ping.")
+        }
+    }
+
+    private static func backendCategory(_ category: SafetyReportCategory) -> String {
+        switch category {
+        case .unsafeBehavior: return "unsafe_job_conditions"
+        case .harassment: return "harassment"
+        case .paymentProblem: return "nonpayment"
+        case .noShow: return "other_urgent_concern"
+        case .unsafeLocation: return "unexpected_location"
+        case .somethingElse: return "other_urgent_concern"
         }
     }
 
