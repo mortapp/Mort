@@ -109,9 +109,19 @@ nonisolated final class LiveAuthService: AuthService {
     }
 
     func deleteAccount(userId: String) async throws {
-        // Account deletion must be a server-side RPC: it cascades job history,
-        // receipts retention policy and payout teardown.
-        let _: EmptyResponse = try await client.rpc("mort_delete_account", args: ["p_user_id": userId])
+        guard let stored = await client.storedSession(), stored.userId == userId else {
+            throw MortError.forbidden
+        }
+        let response: HostedAccountDeletionResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.requestAccountDeletion,
+            args: ["p_source": "in_app"]
+        )
+        guard response.ok else {
+            if response.code == "recent_reauthentication_required" {
+                throw MortError.rejected("Please sign in again before deleting your account.")
+            }
+            throw MortError.rejected(response.code ?? "Account deletion could not be requested.")
+        }
         await client.clearSession()
     }
 
@@ -132,11 +142,27 @@ nonisolated final class LiveProfileRepository: ProfileRepository {
     init(client: SupabaseClient) { self.client = client }
 
     func profile(userId: String) async throws -> MortUser {
-        let rows: [ProfileDTO] = try await client.get(
+        guard UUID(uuidString: userId) != nil else { throw MortError.notFound }
+
+        if let stored = await client.storedSession(), stored.userId == userId {
+            let rows: [HostedProfileDTO] = try await client.rpc(
+                MortBackendContract.RPC.getMyProfile
+            )
+            guard let row = rows.first else { throw MortError.notFound }
+            return row.toDomain()
+        }
+
+        // Public profile lookup stays explicitly field-limited. RLS remains
+        // authoritative for whether the signed-in viewer may read the row.
+        let rows: [HostedProfileDTO] = try await client.get(
             path: "/rest/v1/profiles",
             query: [
                 URLQueryItem(name: "id", value: "eq.\(userId)"),
-                URLQueryItem(name: "select", value: "*"),
+                URLQueryItem(
+                    name: "select",
+                    value: "id,username,display_name,role,city,state,approximate_area,verification_status,guardian_setup_status,created_at,bio"
+                ),
+                URLQueryItem(name: "limit", value: "1"),
             ]
         )
         guard let row = rows.first else { throw MortError.notFound }
@@ -144,31 +170,33 @@ nonisolated final class LiveProfileRepository: ProfileRepository {
     }
 
     func updateProfile(userId: String, draft: MortProfileDraft) async throws -> MortUser {
-        let rows: [ProfileDTO] = try await client.patch(
-            path: "/rest/v1/profiles",
-            query: [URLQueryItem(name: "id", value: "eq.\(userId)")],
-            body: [
-                "display_name": draft.displayName,
-                "area": draft.area,
-                "age_group": draft.ageGroup,
-                "categories": draft.categories,
-                "bio": draft.bio,
+        guard let stored = await client.storedSession(), stored.userId == userId else {
+            throw MortError.forbidden
+        }
+
+        let response: HostedProfileMutationResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.updateMyProfile,
+            args: [
+                "p_patch": [
+                    "display_name": draft.displayName,
+                    "approximate_area": draft.area,
+                    "preferred_job_categories": draft.categories,
+                    "bio": draft.bio,
+                ],
+                "p_client_request_id": UUID().uuidString.lowercased(),
             ]
         )
-        guard let row = rows.first else { throw MortError.notFound }
-        return row.toDomain()
+        guard response.ok, let profile = response.profile else {
+            throw MortError.rejected(response.code ?? "Profile update was not accepted.")
+        }
+        return profile.toDomain()
     }
 
     func reviews(userId: String) async throws -> [MortReview] {
-        let rows: [ReviewDTO] = try await client.get(
-            path: "/rest/v1/reviews",
-            query: [
-                URLQueryItem(name: "subject_id", value: "eq.\(userId)"),
-                URLQueryItem(name: "select", value: "*"),
-                URLQueryItem(name: "order", value: "created_at.desc"),
-            ]
-        )
-        return rows.map { $0.toDomain() }
+        // Review presentation still needs a participant-safe joined read shape
+        // (reviewer username/display name + job title). Fail closed rather
+        // than decoding the raw table into fields it does not contain.
+        throw MortError.notConfigured("Profile reviews")
     }
 }
 
