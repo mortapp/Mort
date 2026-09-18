@@ -194,10 +194,21 @@ nonisolated final class LiveProfileRepository: ProfileRepository {
     }
 
     func reviews(userId: String) async throws -> [MortReview] {
-        // Review presentation still needs a participant-safe joined read shape
-        // (reviewer username/display name + job title). Fail closed rather
-        // than decoding the raw table into fields it does not contain.
-        throw MortError.notConfigured("Profile reviews")
+        guard UUID(uuidString: userId) != nil else { throw MortError.notFound }
+        let rows: [HostedReviewDTO] = try await client.get(
+            path: "/rest/v1/reviews",
+            query: [
+                URLQueryItem(name: "subject_id", value: "eq.\(userId)"),
+                URLQueryItem(name: "moderation_status", value: "eq.approved"),
+                URLQueryItem(
+                    name: "select",
+                    value: "id,reviewer_id,subject_id,rating,body,moderation_status,created_at,reviewer:profiles!reviews_reviewer_id_fkey(username,display_name),job:jobs!reviews_job_id_fkey(title)"
+                ),
+                URLQueryItem(name: "order", value: "created_at.desc"),
+                URLQueryItem(name: "limit", value: "100"),
+            ]
+        )
+        return rows.map { $0.toDomain() }
     }
 }
 
