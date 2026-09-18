@@ -55,6 +55,10 @@ struct MortBackendContractTests {
         #expect(MortBackendContract.RPC.paymentAttemptState == "get_my_payment_attempt_state_v1")
         #expect(MortBackendContract.RPC.financialHistory == "get_my_financial_history_v1")
         #expect(MortBackendContract.RPC.financialDocument == "get_my_financial_document_v1")
+        #expect(MortBackendContract.RPC.financialPolicyConfig == "get_my_financial_policy_config_v1")
+        #expect(MortBackendContract.RPC.jobSettlement == "get_my_job_settlement_v1")
+        #expect(MortBackendContract.RPC.jobFinancialDocument == "get_my_job_financial_document_v1")
+        #expect(MortBackendContract.RPC.tipAttemptState == "get_my_tip_attempt_state_v1")
         #expect(MortBackendContract.RPC.jobPaymentReceipt == "get_my_job_payment_receipt")
         #expect(MortBackendContract.RPC.payoutStatus == "get_my_stripe_payout_status")
     }
