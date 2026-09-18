@@ -71,7 +71,9 @@ protocol ApplicationRepository: Sendable {
 /// Job execution: start, PIN handshake, proof, completion.
 protocol JobExecutionRepository: Sendable {
     /// Starting requires the job to be FUNDED — the backend enforces this.
-    func startJob(jobId: String, pin: String) async throws
+    /// personMatchesProfile is an explicit in-person safety attestation and
+    /// must come from the worker UI; the client must never assume it.
+    func startJob(jobId: String, pin: String, personMatchesProfile: Bool) async throws
     /// The PIN the counterparty must enter. Issued by the backend.
     func startPin(jobId: String) async throws -> String
     func submitProof(jobId: String, note: String, attachmentNames: [String]) async throws
