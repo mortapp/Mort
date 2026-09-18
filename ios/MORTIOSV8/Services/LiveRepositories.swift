@@ -762,7 +762,27 @@ nonisolated final class LiveJobExecutionRepository: JobExecutionRepository {
     }
 
     func settlement(jobId: String) async throws -> SettlementResult {
-        throw MortError.notConfigured("Participant settlement summary")
+        guard UUID(uuidString: jobId) != nil else { throw MortError.notFound }
+        let contracts: [HostedJobContractDTO] = try await client.get(
+            path: "/rest/v1/job_contracts",
+            query: [
+                URLQueryItem(name: "job_id", value: "eq.\(jobId)"),
+                URLQueryItem(name: "select", value: "id,job_id,teen_id,adult_id,status,active_version_id"),
+                URLQueryItem(name: "order", value: "created_at.desc"),
+                URLQueryItem(name: "limit", value: "1"),
+            ]
+        )
+        guard let contract = contracts.first else {
+            throw MortError.rejected("We couldn't find this job's settlement contract.")
+        }
+        let dto: HostedJobSettlementDTO? = try await client.rpc(
+            MortBackendContract.RPC.jobSettlement,
+            args: ["p_contract_id": contract.id]
+        )
+        guard let dto else {
+            throw MortError.rejected("Settlement has not been finalized yet.")
+        }
+        return try dto.toDomain()
     }
 
     private func executionApplication(jobId: String) async throws -> HostedExecutionApplicationRefDTO {
@@ -972,20 +992,99 @@ nonisolated actor LivePaymentRepository: PaymentRepository {
     }
 
     func submitTip(jobId: String, tipCents: Int64, idempotencyKey: String) async throws -> PaymentState {
-        // The hosted tip function requires an authoritative settlement_id.
-        // There is not yet a participant-safe read contract that exposes that
-        // id by job. Fail closed instead of guessing or touching private tables.
-        throw MortError.notConfigured("Post-settlement tips")
+        guard tipCents > 0 else {
+            throw MortError.rejected("Enter a valid tip amount.")
+        }
+        guard UUID(uuidString: idempotencyKey) != nil else {
+            throw MortError.rejected("This tip attempt is no longer valid. Try again.")
+        }
+
+        let policy = try await tipConfig()
+        guard tipCents >= policy.minimumCents, tipCents <= policy.maximumCents else {
+            throw MortError.rejected("That tip is outside MORT's current allowed range.")
+        }
+
+        let contract = try await contractForJob(jobId, activeOnly: false)
+        let settlement: HostedJobSettlementDTO? = try await client.rpc(
+            MortBackendContract.RPC.jobSettlement,
+            args: ["p_contract_id": contract.id]
+        )
+        guard let settlement else {
+            throw MortError.rejected("This job must be settled before you can add a tip.")
+        }
+
+        let intent: HostedTipPaymentIntentResponseDTO = try await client.function(
+            MortBackendContract.EdgeFunction.tipPaymentIntent,
+            body: [
+                "settlement_id": settlement.settlementId,
+                "amount_cents": tipCents,
+                "request_id": idempotencyKey.lowercased(),
+            ]
+        )
+
+        guard
+            intent.ok,
+            let tipAttemptId = intent.tipAttemptId,
+            UUID(uuidString: tipAttemptId) != nil,
+            let clientSecret = intent.paymentIntentClientSecret,
+            let publishableKey = intent.publishableKey,
+            intent.amountCents == tipCents,
+            intent.teenAmountCents == tipCents,
+            intent.mortFeeCents == 0
+        else {
+            if let state = intent.normalizedState {
+                return HostedPaymentStateMapper.normalized(state)
+            }
+            return .unknown
+        }
+
+        let outcome = await sheet.present(handle: PaymentIntentHandle(
+            clientSecret: clientSecret,
+            publishableKey: publishableKey,
+            customerEphemeralKeySecret: nil,
+            customerId: intent.customerId,
+            merchantDisplayName: "MORT tip",
+            applePayMerchantId: nil
+        ))
+
+        let reconciled: HostedTipAttemptStateDTO? = try? await client.rpc(
+            MortBackendContract.RPC.tipAttemptState,
+            args: ["p_tip_attempt_id": tipAttemptId]
+        )
+        let state = reconciled?.paymentState ?? .unknown
+
+        switch outcome {
+        case .completed:
+            return state == .processing ? .pending : state
+        case .canceled:
+            if state == .funded || state == .processing || state == .pending || state == .requiresAction {
+                return state
+            }
+            return .cancelled
+        case .failed(let reason):
+            if state != .unknown && state != .ready { return state }
+            return reason == .networkInterrupted ? .failedNetwork : .unknown
+        }
     }
 
     func feeConfig() async throws -> MortFeeConfig {
-        // The actual fee on a charge comes from the authoritative quote above.
-        // Do not expose the reference constants as if they were hosted config.
-        throw MortError.notConfigured("MORT fee configuration")
+        let config: HostedFinancialPolicyConfigDTO = try await client.rpc(
+            MortBackendContract.RPC.financialPolicyConfig
+        )
+        guard config.ok, let fee = config.serviceFee else {
+            throw MortError.serverUnavailable
+        }
+        return fee.toDomain()
     }
 
     func tipConfig() async throws -> TipConfig {
-        throw MortError.notConfigured("Tip policy")
+        let config: HostedFinancialPolicyConfigDTO = try await client.rpc(
+            MortBackendContract.RPC.financialPolicyConfig
+        )
+        guard config.ok, let tip = config.tip else {
+            throw MortError.notConfigured("Tip policy")
+        }
+        return try tip.toDomain()
     }
 
     private func paymentAttempt(providerId: String) async throws -> HostedPaymentAttemptStateDTO? {
@@ -1073,10 +1172,40 @@ nonisolated final class LiveReceiptRepository: ReceiptRepository {
     }
 
     func receipt(jobId: String, type: ReceiptType) async throws -> Receipt? {
-        // The immutable document API is receipt-id keyed. Until the backend
-        // exposes a participant-safe job->document lookup, do not guess by
-        // title/order or render the legacy provider-status summary as a receipt.
-        throw MortError.notConfigured("Job receipt lookup")
+        guard UUID(uuidString: jobId) != nil else { throw MortError.notFound }
+
+        let documentType: String?
+        switch type {
+        case .adultJobPayment: documentType = "ADULT_JOB_PAYMENT"
+        case .teenEarnings: documentType = "TEEN_EARNINGS"
+        case .lateTip: documentType = "TIP"
+        case .fullRefund: documentType = "FULL_REFUND"
+        case .partialRefund: documentType = "PARTIAL_REFUND"
+        case .adjustment: documentType = "ADJUSTMENT"
+        case .reversal: documentType = "REVERSAL"
+        case .storePurchase: documentType = nil
+        }
+        guard let documentType else { return nil }
+
+        let contracts: [HostedJobContractDTO] = try await client.get(
+            path: "/rest/v1/job_contracts",
+            query: [
+                URLQueryItem(name: "job_id", value: "eq.\(jobId)"),
+                URLQueryItem(name: "select", value: "id,job_id,teen_id,adult_id,status,active_version_id"),
+                URLQueryItem(name: "order", value: "created_at.desc"),
+                URLQueryItem(name: "limit", value: "1"),
+            ]
+        )
+        guard let contract = contracts.first else { return nil }
+
+        let dto: HostedFinancialDocumentDTO? = try await client.rpc(
+            MortBackendContract.RPC.jobFinancialDocument,
+            args: [
+                "p_contract_id": contract.id,
+                "p_document_type": documentType,
+            ]
+        )
+        return dto?.toReceipt()
     }
 
     private func financialPage(
