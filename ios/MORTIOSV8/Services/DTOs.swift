@@ -1140,6 +1140,7 @@ nonisolated struct GuardianSummaryDTO: Codable, Sendable {
             lastCheckInState: CheckInState(rawValue: lastCheckInState ?? "notStarted") ?? .notStarted,
             lastCheckInText: lastCheckInText ?? "",
             earningsThisMonthCents: earningsThisMonthCents ?? 0,
+            earningsVisible: true,
             payoutStage: PayoutStage(rawValue: payoutStage ?? "setupRequired") ?? .setupRequired,
             safetyAlertsCount: safetyAlertsCount ?? 0,
             restrictedNotice: restrictedNotice
