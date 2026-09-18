@@ -244,25 +244,72 @@ nonisolated final class LiveJobRepository: JobRepository {
         }
 
         let jobs = try page.items.map { try $0.toDomain() }
-        let nextCursor = page.hasMore ? page.nextCursor?.opaqueValue : nil
-        return (jobs, nextCursor)
+        return (jobs, page.hasMore ? page.nextCursor?.opaqueValue : nil)
     }
 
     func job(id: String) async throws -> MortJob {
-        let rows: [JobDTO] = try await client.get(
-            path: "/rest/v1/jobs",
-            query: [
-                URLQueryItem(name: "id", value: "eq.\(id)"),
-                URLQueryItem(name: "select", value: "*"),
-            ]
+        let row = try await jobRecord(id: id)
+        let profile = try? await profileSummary(id: row.posterId)
+        return try row.toDomain(
+            posterHandle: profile?.handle ?? "",
+            posterDisplayName: profile?.displayName ?? "MORT member"
         )
-        guard let row = rows.first else { throw MortError.notFound }
-        return row.toDomain()
     }
 
     func myJobs(role: MortRole) async throws -> [MortJob] {
-        let rows: [JobDTO] = try await client.rpc("mort_my_jobs", args: ["p_role": role.rawValue])
-        return rows.map { $0.toDomain() }
+        guard let stored = await client.storedSession() else {
+            throw MortError.unauthorized
+        }
+
+        let rows: [HostedJobRecordDTO]
+        switch role {
+        case .adult:
+            rows = try await client.get(
+                path: "/rest/v1/jobs",
+                query: [
+                    URLQueryItem(name: "poster_id", value: "eq.\(stored.userId)"),
+                    URLQueryItem(name: "select", value: Self.jobSelect),
+                    URLQueryItem(name: "order", value: "updated_at.desc"),
+                    URLQueryItem(name: "limit", value: "100"),
+                ]
+            )
+        case .teen:
+            let applications: [HostedExecutionApplicationWithJobDTO] = try await client.get(
+                path: "/rest/v1/applications",
+                query: [
+                    URLQueryItem(name: "teen_id", value: "eq.\(stored.userId)"),
+                    URLQueryItem(
+                        name: "status",
+                        value: "in.(submitted,guardian_pending,adult_review,viewed,accepted,in_progress,proof_submitted,completion_pending_release,completed)"
+                    ),
+                    URLQueryItem(name: "select", value: "job_id"),
+                    URLQueryItem(name: "order", value: "updated_at.desc"),
+                    URLQueryItem(name: "limit", value: "100"),
+                ]
+            )
+            let ids = Array(Set(applications.map(\.jobId)))
+            guard !ids.isEmpty else { return [] }
+            rows = try await client.get(
+                path: "/rest/v1/jobs",
+                query: [
+                    URLQueryItem(name: "id", value: "in.(\(ids.joined(separator: ",")))"),
+                    URLQueryItem(name: "select", value: Self.jobSelect),
+                    URLQueryItem(name: "order", value: "updated_at.desc"),
+                ]
+            )
+        case .guardian:
+            return []
+        }
+
+        let posterIds = Array(Set(rows.map(\.posterId)))
+        let profiles = try await profileSummaries(ids: posterIds)
+        return try rows.map { row in
+            let profile = profiles[row.posterId]
+            return try row.toDomain(
+                posterHandle: profile?.handle ?? "",
+                posterDisplayName: profile?.displayName ?? "MORT member"
+            )
+        }
     }
 
     func createJob(
@@ -273,45 +320,195 @@ nonisolated final class LiveJobRepository: JobRepository {
         scheduleText: String,
         requiresProof: Bool
     ) async throws -> MortJob {
-        // The backend re-validates Fair Pay here; a client-side green verdict
-        // is never sufficient.
-        let row: JobDTO = try await client.rpc("mort_create_job", args: [
-            "p_title": title,
-            "p_category": category,
-            "p_details": details,
-            "p_base_cents": baseCents,
-            "p_schedule_text": scheduleText,
-            "p_requires_proof": requiresProof,
-        ])
-        return row.toDomain()
+        guard baseCents > 0 else {
+            throw MortError.rejected("Enter a valid base pay amount.")
+        }
+        let profile = try await currentPostingProfile()
+        let payload = try postingPayload(
+            title: title,
+            category: category,
+            details: details,
+            baseCents: baseCents,
+            requiresProof: requiresProof,
+            profile: profile
+        )
+        let response: HostedJobMutationResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.saveJob,
+            args: [
+                "p_client_request_id": UUID().uuidString.lowercased(),
+                "p_payload": payload,
+                "p_publish": true,
+            ]
+        )
+        guard response.ok, let row = response.job else {
+            throw MortError.rejected(response.code ?? "That job could not be published.")
+        }
+        let identity = profile.toDomain()
+        return try row.toDomain(
+            posterHandle: identity.handle,
+            posterDisplayName: identity.displayName
+        )
     }
 
     func updateJob(id: String, title: String, details: String, baseCents: Int64) async throws -> MortJob {
-        let row: JobDTO = try await client.rpc("mort_update_job", args: [
-            "p_job_id": id,
-            "p_title": title,
-            "p_details": details,
-            "p_base_cents": baseCents,
-        ])
-        return row.toDomain()
+        guard UUID(uuidString: id) != nil else { throw MortError.notFound }
+        guard baseCents > 0 else {
+            throw MortError.rejected("Enter a valid base pay amount.")
+        }
+        let existing = try await jobRecord(id: id)
+        let profile = try await currentPostingProfile()
+        let payload = try postingPayload(
+            title: title,
+            category: existing.category,
+            details: details,
+            baseCents: baseCents,
+            requiresProof: existing.proofExpected ?? false,
+            profile: profile,
+            existing: existing
+        )
+        let response: HostedJobMutationResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.saveJob,
+            args: [
+                "p_job_id": id,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+                "p_payload": payload,
+                "p_publish": existing.status != "draft",
+            ]
+        )
+        guard response.ok, let row = response.job else {
+            throw MortError.rejected(response.code ?? "That job could not be updated.")
+        }
+        let identity = profile.toDomain()
+        return try row.toDomain(
+            posterHandle: identity.handle,
+            posterDisplayName: identity.displayName
+        )
     }
 
     func cancelJob(id: String, reason: String) async throws {
-        // Cancellation may trigger a refund; the backend owns that decision.
-        let _: EmptyResponse = try await client.rpc("mort_cancel_job", args: [
-            "p_job_id": id,
-            "p_reason": reason,
-        ])
+        guard UUID(uuidString: id) != nil else { throw MortError.notFound }
+        let trimmed = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 10 else {
+            throw MortError.rejected("Add a short cancellation reason before continuing.")
+        }
+        let response: HostedJobMutationResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.manageJob,
+            args: [
+                "p_job_id": id,
+                "p_action": "cancel",
+                "p_reason": trimmed,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "That job could not be cancelled.")
+        }
     }
 
     func fairPayPolicy(category: String) async throws -> FairPayPolicy {
-        // [POSSIBLE NEW BACKEND REQUIRED] if MORT has no per-category band
-        // endpoint yet. Do NOT hardcode bands in the app.
-        let dto: FairPayPolicyDTO = try await client.rpc("mort_fair_pay_policy", args: [
-            "p_category": category,
-        ])
-        return dto.toDomain()
+        // Fair Pay is enforced by the hosted funding-quote path. The database
+        // does not expose a participant-safe per-category band endpoint yet,
+        // so the app must not invent a local band.
+        throw MortError.notConfigured("Fair Pay preview bands")
     }
+
+    private static let jobSelect = "id,poster_id,title,summary,description,category,location_text,city,state,neighborhood,pay_amount_cents,status,starts_at,created_at,updated_at,proof_expected,schedule_type,applications_open"
+
+    private func jobRecord(id: String) async throws -> HostedJobRecordDTO {
+        guard UUID(uuidString: id) != nil else { throw MortError.notFound }
+        let rows: [HostedJobRecordDTO] = try await client.get(
+            path: "/rest/v1/jobs",
+            query: [
+                URLQueryItem(name: "id", value: "eq.\(id)"),
+                URLQueryItem(name: "select", value: Self.jobSelect),
+                URLQueryItem(name: "limit", value: "1"),
+            ]
+        )
+        guard let row = rows.first else { throw MortError.notFound }
+        return row
+    }
+
+    private func currentPostingProfile() async throws -> HostedProfileDTO {
+        let rows: [HostedProfileDTO] = try await client.rpc(
+            MortBackendContract.RPC.getMyProfile
+        )
+        guard let profile = rows.first else { throw MortError.notFound }
+        return profile
+    }
+
+    private func profileSummary(id: String) async throws -> MortUser {
+        let rows: [HostedProfileDTO] = try await client.get(
+            path: "/rest/v1/profiles",
+            query: [
+                URLQueryItem(name: "id", value: "eq.\(id)"),
+                URLQueryItem(name: "select", value: "id,username,display_name,role,city,state,approximate_area,verification_status,guardian_setup_status,created_at,bio"),
+                URLQueryItem(name: "limit", value: "1"),
+            ]
+        )
+        guard let row = rows.first else { throw MortError.notFound }
+        return row.toDomain()
+    }
+
+    private func profileSummaries(ids: [String]) async throws -> [String: MortUser] {
+        guard !ids.isEmpty else { return [:] }
+        let rows: [HostedProfileDTO] = try await client.get(
+            path: "/rest/v1/profiles",
+            query: [
+                URLQueryItem(name: "id", value: "in.(\(ids.joined(separator: ",")))"),
+                URLQueryItem(name: "select", value: "id,username,display_name,role,city,state,approximate_area,verification_status,guardian_setup_status,created_at,bio"),
+            ]
+        )
+        return Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0.toDomain()) })
+    }
+
+    private func postingPayload(
+        title: String,
+        category: String,
+        details: String,
+        baseCents: Int64,
+        requiresProof: Bool,
+        profile: HostedProfileDTO,
+        existing: HostedJobRecordDTO? = nil
+    ) throws -> [String: any Sendable] {
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanDetails = details.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard cleanTitle.count >= 5, cleanTitle.count <= 80 else {
+            throw MortError.rejected("Job titles must be 5–80 characters.")
+        }
+        guard cleanDetails.count >= 20, cleanDetails.count <= 4000 else {
+            throw MortError.rejected("Job details must be 20–4000 characters.")
+        }
+        guard let city = profile.city, !city.isEmpty,
+              let state = profile.state, state.count == 2 else {
+            throw MortError.rejected("Add your city and state to your profile before publishing a job.")
+        }
+
+        let summary = String(cleanDetails.prefix(240))
+        let area = existing?.locationText
+            ?? profile.approximateArea
+            ?? "\(city), \(state)"
+
+        return [
+            "title": cleanTitle,
+            "summary": summary,
+            "description": cleanDetails,
+            "category": category.lowercased(),
+            "location_text": area,
+            "city": existing?.city ?? city,
+            "state": existing?.state ?? state,
+            "pay_amount_cents": baseCents,
+            "proof_expected": requiresProof,
+            "schedule_type": existing?.scheduleType ?? "flexible",
+            "payment_type": "fixed",
+            "payment_method": "flexible",
+            "payment_timing": "after_completion",
+            "tip_allowed": true,
+        ]
+    }
+}
+
+nonisolated struct HostedExecutionApplicationWithJobDTO: Codable, Sendable {
+    let jobId: String
 }
 
 nonisolated final class LiveApplicationRepository: ApplicationRepository {
