@@ -50,6 +50,7 @@ nonisolated enum MortBackendContract {
         static let createGuardianInvite = "create_guardian_invite_v2"
         static let acceptGuardianInvite = "accept_guardian_invite"
         static let unlinkGuardian = "unlink_guardian"
+        static let guardianTeenSummary = "get_guardian_teen_summary_v1"
         static let linkedTeenFinancialSummary = "get_linked_teen_financial_summary"
 
         // Support
