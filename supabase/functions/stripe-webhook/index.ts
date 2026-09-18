@@ -62,7 +62,7 @@ async function processEvent(
   environment: "test" | "live",
   event: Stripe.Event,
 ) {
-  if (["payment_intent.succeeded", "payment_intent.processing", "payment_intent.payment_failed", "payment_intent.canceled"].includes(event.type)) {
+  if (["payment_intent.succeeded", "payment_intent.processing", "payment_intent.requires_action", "payment_intent.payment_failed", "payment_intent.canceled"].includes(event.type)) {
     const intent = event.data.object as Stripe.PaymentIntent;
     const tipAttemptId = intent.metadata?.mort_tip_attempt_ref;
     if (tipAttemptId) {
