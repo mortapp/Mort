@@ -684,14 +684,31 @@ struct RepositoryTests {
         #expect(years == years.sorted(by: >))
     }
 
-    @Test("Starting a job requires the correct in-person PIN")
+    @Test("Starting a job requires the correct six-digit PIN and identity attestation")
     func startPinIsChecked() async throws {
         let repository = PreviewJobExecutionRepository()
         let pin = try await repository.startPin(jobId: "job-42")
-        try await repository.startJob(jobId: "job-42", pin: pin)
+        #expect(pin.count == 6)
+        try await repository.startJob(
+            jobId: "job-42",
+            pin: pin,
+            personMatchesProfile: true
+        )
 
         await #expect(throws: MortError.self) {
-            try await repository.startJob(jobId: "job-42", pin: "0000")
+            try await repository.startJob(
+                jobId: "job-42",
+                pin: "000000",
+                personMatchesProfile: true
+            )
+        }
+
+        await #expect(throws: MortError.self) {
+            try await repository.startJob(
+                jobId: "job-42",
+                pin: pin,
+                personMatchesProfile: false
+            )
         }
     }
 
