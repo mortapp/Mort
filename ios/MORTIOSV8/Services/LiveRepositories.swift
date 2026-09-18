@@ -1871,10 +1871,13 @@ nonisolated final class LiveGuardianRepository: GuardianRepository {
     }
 
     func teenSummary(teenId: String) async throws -> GuardianSummary {
-        // The hosted financial-summary RPC is yearly, while this UI promises a
-        // monthly total plus active jobs/check-ins/payout state. Do not combine
-        // incompatible scopes or fabricate missing guardian-visible fields.
-        throw MortError.notConfigured("Guardian teen summary")
+        guard UUID(uuidString: teenId) != nil else { throw MortError.notFound }
+        let dto: HostedGuardianTeenSummaryDTO? = try await client.rpc(
+            MortBackendContract.RPC.guardianTeenSummary,
+            args: ["p_teen_id": teenId]
+        )
+        guard let dto, dto.ok else { throw MortError.notFound }
+        return dto.toDomain()
     }
 
     func inviteTeen(email: String) async throws {
