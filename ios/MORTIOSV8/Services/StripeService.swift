@@ -97,6 +97,10 @@ protocol ProviderPaymentSheet: Sendable {
 /// failure and the UI shows an honest "temporarily unavailable" state rather
 /// than a fake confirmation.
 nonisolated final class StripePaymentSheetAdapter: ProviderPaymentSheet {
+    /// Registered custom-scheme return route for redirect-capable payment methods.
+    /// Keep this in sync with ios/project.yml.
+    nonisolated static let returnURLString = "com.mortapp.mobile://stripe-redirect"
+
     init() {}
 
     @MainActor
@@ -118,6 +122,7 @@ nonisolated final class StripePaymentSheetAdapter: ProviderPaymentSheet {
         var configuration = PaymentSheet.Configuration()
         configuration.merchantDisplayName = handle.merchantDisplayName
         configuration.style = .alwaysDark
+        configuration.returnURL = Self.returnURLString
 
         // The backend currently creates legacy Customer ephemeral keys.
         // Only configure saved-method access when both pieces are present;
