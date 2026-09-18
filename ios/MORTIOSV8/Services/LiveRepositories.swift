@@ -174,15 +174,16 @@ nonisolated final class LiveProfileRepository: ProfileRepository {
             throw MortError.forbidden
         }
 
+        let patch: [String: any Sendable] = [
+            "display_name": draft.displayName,
+            "approximate_area": draft.area,
+            "preferred_job_categories": draft.categories,
+            "bio": draft.bio,
+        ]
         let response: HostedProfileMutationResponseDTO = try await client.rpc(
             MortBackendContract.RPC.updateMyProfile,
             args: [
-                "p_patch": [
-                    "display_name": draft.displayName,
-                    "approximate_area": draft.area,
-                    "preferred_job_categories": draft.categories,
-                    "bio": draft.bio,
-                ],
+                "p_patch": patch,
                 "p_client_request_id": UUID().uuidString.lowercased(),
             ]
         )
