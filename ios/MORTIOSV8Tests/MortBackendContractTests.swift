@@ -37,6 +37,7 @@ struct MortBackendContractTests {
         #expect(MortBackendContract.RPC.threadMessages == "list_thread_messages_page")
         #expect(MortBackendContract.RPC.sendMessage == "send_safe_message_v2")
         #expect(MortBackendContract.RPC.markThreadRead == "mark_message_thread_read")
+        #expect(MortBackendContract.RPC.blockUser == "block_user_v2")
         #expect(MortBackendContract.RPC.createGuardianInvite == "create_guardian_invite_v2")
         #expect(MortBackendContract.RPC.acceptGuardianInvite == "accept_guardian_invite")
         #expect(MortBackendContract.RPC.unlinkGuardian == "unlink_guardian")
