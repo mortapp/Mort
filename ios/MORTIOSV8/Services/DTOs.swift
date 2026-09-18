@@ -706,6 +706,85 @@ nonisolated struct MessagePageDTO: Codable, Sendable {
     let nextCursor: String?
 }
 
+
+// MARK: - Hosted messaging contract
+
+nonisolated struct HostedMessageThreadPageDTO: Codable, Sendable {
+    nonisolated struct Cursor: Codable, Sendable {
+        let updatedAt: Date
+        let id: String
+    }
+
+    let items: [HostedMessageThreadDTO]
+    let hasMore: Bool
+    let nextCursor: Cursor?
+}
+
+nonisolated struct HostedMessageThreadDTO: Codable, Sendable {
+    let id: String
+    let jobId: String?
+    let lifecycleStatus: String
+    let updatedAt: Date
+    let jobTitle: String?
+    let counterpartyId: String?
+    let counterpartyDisplayName: String?
+    let lastMessagePreview: String?
+    let lastMessageAt: Date?
+    let unreadCount: Int
+}
+
+nonisolated struct HostedThreadMessagesPageDTO: Codable, Sendable {
+    nonisolated struct Cursor: Codable, Sendable {
+        let createdAt: Date
+        let id: String
+    }
+
+    let items: [HostedMessageRowDTO]
+    let hasMore: Bool
+    let lifecycleStatus: String?
+    let thread: HostedMessageThreadDTO?
+    let nextCursor: Cursor?
+}
+
+nonisolated struct HostedMessageRowDTO: Codable, Sendable {
+    let id: String
+    let threadId: String
+    let senderId: String
+    let body: String
+    let scannerStatus: String?
+    let createdAt: Date
+
+    func toDomain(
+        currentUserId: String,
+        counterpartyHandle: String,
+        counterpartyDisplayName: String
+    ) -> MortMessage {
+        let fromMe = senderId == currentUserId
+        let visibleBody = scannerStatus == "blocked" ? "Blocked by MORT safety scanner." : body
+        return MortMessage(
+            id: id,
+            conversationId: threadId,
+            authorHandle: fromMe ? "" : counterpartyHandle,
+            authorDisplayName: fromMe ? "You" : counterpartyDisplayName,
+            body: visibleBody,
+            sentAt: createdAt,
+            fromMe: fromMe,
+            delivery: .sent,
+            attachmentName: nil
+        )
+    }
+}
+
+nonisolated struct HostedUsernameDTO: Codable, Sendable {
+    let id: String
+    let username: String?
+}
+
+nonisolated struct HostedMutationAckDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+}
+
 // MARK: - Safety / Support / Notifications / Guardian
 
 nonisolated struct CheckInDTO: Codable, Sendable {
