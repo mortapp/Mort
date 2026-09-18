@@ -6,7 +6,9 @@
 //  A job cannot start unless the backend says it is FUNDED.
 //
 
+import PhotosUI
 import SwiftUI
+import UIKit
 
 struct JobStartPinView: View {
     let jobId: String
@@ -280,14 +282,17 @@ struct JobProofView: View {
     @Environment(\.mort) private var mort
     @Environment(MortNavigator.self) private var nav
     @State private var note = ""
-    @State private var attachments: [String] = []
+    @State private var attachment: JobProofAttachment?
+    @State private var previewImage: UIImage?
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var showsCamera = false
     @State private var isWorking = false
     @State private var error: MortError?
 
     var body: some View {
         MortScreen(
             title: "Add proof",
-            subtitle: "A quick photo and note is usually plenty.",
+            subtitle: "Add one clear photo and an optional note.",
             atmosphereIntensity: 0.65
         ) {
             VStack(alignment: .leading, spacing: MortSpace.s5) {
@@ -297,37 +302,79 @@ struct JobProofView: View {
 
                 MortCard {
                     VStack(alignment: .leading, spacing: MortSpace.s3) {
-                        MortSectionHeader(title: "Photos")
-                        if attachments.isEmpty {
-                            Text("No photos added yet.").mortMicro()
-                        } else {
-                            ForEach(attachments, id: \.self) { name in
-                                HStack(spacing: MortSpace.s2) {
-                                    Image(systemName: "photo")
-                                        .foregroundStyle(MortColor.silver1)
-                                    Text(name).mortBody().lineLimit(1)
-                                    Spacer(minLength: 0)
-                                    Button {
-                                        attachments.removeAll { $0 == name }
-                                    } label: {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .foregroundStyle(MortColor.textMuted)
-                                            .frame(
-                                                width: MortMetric.minTouchTarget,
-                                                height: MortMetric.minTouchTarget
-                                            )
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel("Remove \(name)")
-                                }
+                        MortSectionHeader(
+                            title: "Proof photo",
+                            subtitle: "Stored privately with this job record"
+                        )
+
+                        if let previewImage {
+                            Image(uiImage: previewImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 210)
+                                .clipShape(
+                                    RoundedRectangle(
+                                        cornerRadius: MortRadius.md,
+                                        style: .continuous
+                                    )
+                                )
+                                .accessibilityLabel("Selected proof photo")
+
+                            MortQuietButton(title: "Remove photo", tone: .danger) {
+                                attachment = nil
+                                self.previewImage = nil
+                                selectedPhoto = nil
                             }
+                        } else {
+                            Text("No photo added yet.")
+                                .mortMicro()
                         }
-                        // INTEGRATION: present PhotosPicker / camera here.
-                        // Requires NSPhotoLibraryUsageDescription and
-                        // NSCameraUsageDescription in project.pbxproj.
-                        MortGhostButton(title: "Add a photo", symbol: "camera") {
-                            attachments.append("proof-\(attachments.count + 1).jpg")
-                            MortHaptic.select()
+
+                        HStack(spacing: MortSpace.s2) {
+                            PhotosPicker(
+                                selection: $selectedPhoto,
+                                matching: .images,
+                                photoLibrary: .shared()
+                            ) {
+                                Label("Photo Library", systemImage: "photo.on.rectangle")
+                                    .font(MortFont.label())
+                                    .foregroundStyle(MortColor.textPrimary)
+                                    .frame(
+                                        maxWidth: .infinity,
+                                        minHeight: MortMetric.minTouchTarget
+                                    )
+                                    .background {
+                                        RoundedRectangle(
+                                            cornerRadius: MortRadius.md,
+                                            style: .continuous
+                                        )
+                                        .fill(MortColor.graphite2)
+                                    }
+                            }
+                            .buttonStyle(.plain)
+
+                            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                                Button {
+                                    showsCamera = true
+                                } label: {
+                                    Label("Camera", systemImage: "camera")
+                                        .font(MortFont.label())
+                                        .foregroundStyle(MortColor.textPrimary)
+                                        .frame(
+                                            maxWidth: .infinity,
+                                            minHeight: MortMetric.minTouchTarget
+                                        )
+                                        .background {
+                                            RoundedRectangle(
+                                                cornerRadius: MortRadius.md,
+                                                style: .continuous
+                                            )
+                                            .fill(MortColor.graphite2)
+                                        }
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
                     }
                 }
@@ -339,7 +386,7 @@ struct JobProofView: View {
                 )
 
                 MortNote(
-                    text: "Proof is shared with the poster and kept with the job record. Don't include other people in photos.",
+                    text: "MORT converts the image to JPEG before upload. Proof stays in the private proof bucket and is attached only after the backend validates the job and storage object.",
                     tone: .info
                 )
             }
@@ -348,7 +395,7 @@ struct JobProofView: View {
                 MortPrimaryButton(
                     title: "Submit proof",
                     isBusy: isWorking,
-                    isEnabled: !note.isEmpty || !attachments.isEmpty
+                    isEnabled: attachment != nil && !isWorking
                 ) {
                     Task { await submit() }
                 }
@@ -356,14 +403,75 @@ struct JobProofView: View {
         }
         .navigationTitle("Proof")
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: selectedPhoto) { _, item in
+            guard let item else { return }
+            Task { await loadPhoto(item) }
+        }
+        .sheet(isPresented: $showsCamera) {
+            MortCameraPicker(isPresented: $showsCamera) { image in
+                accept(image: image, filename: "camera-proof.jpg")
+            }
+            .ignoresSafeArea()
+        }
+    }
+
+    private func loadPhoto(_ item: PhotosPickerItem) async {
+        do {
+            guard
+                let data = try await item.loadTransferable(type: Data.self),
+                let image = UIImage(data: data)
+            else {
+                error = .rejected("That image couldn't be read. Choose another photo.")
+                return
+            }
+            accept(image: image, filename: "library-proof.jpg")
+        } catch {
+            self.error = .rejected("That image couldn't be loaded. Choose another photo.")
+        }
+    }
+
+    private func accept(image: UIImage, filename: String) {
+        error = nil
+        guard
+            let jpeg = normalizedJPEG(image),
+            !jpeg.isEmpty,
+            jpeg.count <= 10 * 1024 * 1024
+        else {
+            error = .rejected("That image is too large to use as job proof.")
+            return
+        }
+        previewImage = image
+        attachment = JobProofAttachment(
+            data: jpeg,
+            filename: filename,
+            contentType: "image/jpeg"
+        )
+        MortHaptic.select()
+    }
+
+    private func normalizedJPEG(_ image: UIImage) -> Data? {
+        let qualities: [CGFloat] = [0.88, 0.72, 0.58, 0.44]
+        for quality in qualities {
+            if let data = image.jpegData(compressionQuality: quality),
+               data.count <= 10 * 1024 * 1024 {
+                return data
+            }
+        }
+        return nil
     }
 
     private func submit() async {
+        guard let attachment else {
+            error = .rejected("Add a proof photo before submitting.")
+            return
+        }
         isWorking = true
         error = nil
         do {
             try await mort.execution.submitProof(
-                jobId: jobId, note: note, attachmentNames: attachments
+                jobId: jobId,
+                note: note,
+                attachment: attachment
             )
             MortHaptic.success()
             nav.pop()
@@ -373,6 +481,47 @@ struct JobProofView: View {
             self.error = .unknown
         }
         isWorking = false
+    }
+}
+
+private struct MortCameraPicker: UIViewControllerRepresentable {
+    @Binding var isPresented: Bool
+    let onImage: (UIImage) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let controller = UIImagePickerController()
+        controller.sourceType = .camera
+        controller.cameraCaptureMode = .photo
+        controller.delegate = context.coordinator
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        var parent: MortCameraPicker
+
+        init(parent: MortCameraPicker) {
+            self.parent = parent
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.isPresented = false
+        }
+
+        func imagePickerController(
+            _ picker: UIImagePickerController,
+            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+        ) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.onImage(image)
+            }
+            parent.isPresented = false
+        }
     }
 }
 
