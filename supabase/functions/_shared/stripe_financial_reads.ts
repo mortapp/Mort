@@ -4,7 +4,8 @@ export type FinancialReadContext = {
 };
 
 export type FinancialHistoryInput = {
-  cursor: string | null;
+  cursorAt: string | null;
+  cursorId: string | null;
   year: number | null;
   category: string | null;
   search: string | null;
@@ -37,6 +38,7 @@ export class FinancialReadHttpError extends Error {
 
 const maximumBodyBytes = 32 * 1024;
 const receiptPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const sensitiveKeyPattern =
   /^(?:provider|customer|connected_account|bank_account|identity|secret|token)(?:_|$)|(?:provider|customer|connected_account)_id$/i;
 
@@ -54,6 +56,66 @@ const documentKeys = [
   "linked_document_refs",
   "created_at",
 ] as const;
+
+const historyEventKeys = [
+  "event_id",
+  "event_kind",
+  "event_type",
+  "title",
+  "display_subtitle",
+  "occurred_at",
+  "status",
+  "amount_cents",
+  "currency_code",
+  "receipt_id",
+  "order_number",
+  "no_receipt",
+  "document_type",
+  "safe_code",
+] as const;
+
+export function encodeFinancialHistoryCursor(
+  occurredAt: string,
+  eventId: string,
+) {
+  if (Number.isNaN(Date.parse(occurredAt)) || !uuidPattern.test(eventId)) {
+    throw new FinancialReadHttpError("invalid_cursor", 400);
+  }
+  return btoa(JSON.stringify([occurredAt, eventId]))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/g, "");
+}
+
+export function decodeFinancialHistoryCursor(value: string | null) {
+  if (!value) return { cursorAt: null, cursorId: null };
+  try {
+    const normalized = value.replaceAll("-", "+").replaceAll("_", "/");
+    const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+    const decoded = JSON.parse(atob(padded));
+    if (
+      !Array.isArray(decoded) ||
+      decoded.length !== 2 ||
+      typeof decoded[0] !== "string" ||
+      typeof decoded[1] !== "string" ||
+      Number.isNaN(Date.parse(decoded[0])) ||
+      !uuidPattern.test(decoded[1])
+    ) {
+      throw new Error("invalid");
+    }
+    return { cursorAt: decoded[0], cursorId: decoded[1] };
+  } catch {
+    throw new FinancialReadHttpError("invalid_cursor", 400);
+  }
+}
+
+function minimizeHistoryEvent(source: Record<string, unknown>) {
+  const result: Record<string, unknown> = {};
+  for (const key of historyEventKeys) {
+    if (Object.hasOwn(source, key)) result[key] = source[key];
+  }
+  return result;
+}
 
 function json(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -182,10 +244,8 @@ export function createFinancialHistoryReadHandler(
       await dependencies.enforceRateLimit(context);
       const payload = await readPayload(request);
 
-      const cursor = optionalText(payload.cursor, "cursor", 64);
-      if (cursor && Number.isNaN(Date.parse(cursor))) {
-        throw new FinancialReadHttpError("invalid_cursor", 400);
-      }
+      const cursor = optionalText(payload.cursor, "cursor", 256);
+      const { cursorAt, cursorId } = decodeFinancialHistoryCursor(cursor);
 
       let year: number | null = null;
       if (payload.year !== null && payload.year !== undefined) {
@@ -213,7 +273,8 @@ export function createFinancialHistoryReadHandler(
       }
 
       const history = await dependencies.loadHistory(context, {
-        cursor,
+        cursorAt,
+        cursorId,
         year,
         category,
         search,
@@ -224,10 +285,20 @@ export function createFinancialHistoryReadHandler(
             .filter((item): item is Record<string, unknown> =>
               Boolean(item) && typeof item === "object" && !Array.isArray(item)
             )
-            .map(minimizeDocument)
+            .map(minimizeHistoryEvent)
         : [];
+      const nextCursorAt =
+        typeof history?.next_cursor_at === "string"
+          ? history.next_cursor_at
+          : null;
+      const nextCursorId =
+        typeof history?.next_cursor_id === "string"
+          ? history.next_cursor_id
+          : null;
       const nextCursor =
-        typeof history?.next_cursor === "string" ? history.next_cursor : null;
+        nextCursorAt && nextCursorId
+          ? encodeFinancialHistoryCursor(nextCursorAt, nextCursorId)
+          : null;
 
       return json({
         ok: true,

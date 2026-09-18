@@ -46,9 +46,10 @@ const handler = createFinancialHistoryReadHandler({
   },
   loadHistory: async (context, input) => {
     const { data, error } = await asStripeContext(context).userClient.rpc(
-      "get_my_financial_history_v1",
+      "get_my_financial_history_v2",
       {
-        p_cursor: input.cursor,
+        p_cursor_at: input.cursorAt,
+        p_cursor_id: input.cursorId,
         p_year: input.year,
         p_category: input.category,
         p_search: input.search,
@@ -59,7 +60,7 @@ const handler = createFinancialHistoryReadHandler({
       throw new FinancialReadHttpError("financial_history_unavailable", 503);
     }
     if (!data || typeof data !== "object" || Array.isArray(data)) {
-      return { items: [], next_cursor: null };
+      return { items: [], next_cursor_at: null, next_cursor_id: null };
     }
     return data as Record<string, unknown>;
   },
