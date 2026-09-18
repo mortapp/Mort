@@ -23,6 +23,8 @@ function eventTypeFor(intent: Stripe.PaymentIntent) {
       return "payment_intent.succeeded";
     case "processing":
       return "payment_intent.processing";
+    case "requires_action":
+      return "payment_intent.requires_action";
     case "canceled":
       return "payment_intent.canceled";
     case "requires_payment_method":
