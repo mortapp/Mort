@@ -967,6 +967,7 @@ begin
     values
       ('stripe_connected_account_create'::text, 3, 3600),
       ('stripe_job_payment_intent'::text, 10, 3600),
+      ('stripe_job_payment_status'::text, 60, 3600),
       ('stripe_job_funding_quote'::text, 20, 3600),
       ('stripe_financial_document'::text, 60, 3600),
       ('stripe_financial_history'::text, 60, 3600),
