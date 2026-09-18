@@ -303,6 +303,26 @@ nonisolated struct HostedApplicationTransitionResponseDTO: Codable, Sendable {
     let code: String?
 }
 
+
+/// Minimal participant-visible application reference used for job execution.
+nonisolated struct HostedExecutionApplicationRefDTO: Codable, Sendable {
+    let id: String
+    let status: String
+    let updatedAt: Date?
+}
+
+nonisolated struct HostedStartPinResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let startPin: String?
+    let expiresAt: Date?
+}
+
+nonisolated struct HostedStartConfirmationResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+}
+
 nonisolated struct PinDTO: Codable, Sendable {
     let pin: String
 }
