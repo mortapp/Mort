@@ -388,51 +388,79 @@ nonisolated final class LiveJobExecutionRepository: JobExecutionRepository {
     private let client: SupabaseClient
     init(client: SupabaseClient) { self.client = client }
 
-    func startJob(jobId: String, pin: String) async throws {
-        // The backend refuses to start a job that is not FUNDED.
-        let _: EmptyResponse = try await client.rpc("mort_start_job", args: [
-            "p_job_id": jobId,
-            "p_pin": pin,
-        ])
+    func startJob(jobId: String, pin: String, personMatchesProfile: Bool) async throws {
+        guard personMatchesProfile else {
+            throw MortError.rejected("Confirm the person matches the profile before starting.")
+        }
+        let application = try await executionApplication(jobId: jobId)
+        let response: HostedStartConfirmationResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.confirmStartPin,
+            args: [
+                "p_application_id": application.id,
+                "p_pin": pin,
+                "p_person_matches_profile": true,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "The start code was not accepted.")
+        }
     }
 
     func startPin(jobId: String) async throws -> String {
-        let dto: PinDTO = try await client.rpc("mort_job_start_pin", args: ["p_job_id": jobId])
-        return dto.pin
+        let application = try await executionApplication(jobId: jobId)
+        let response: HostedStartPinResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.generateStartPin,
+            args: [
+                "p_application_id": application.id,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        guard response.ok, let pin = response.startPin, pin.count == 6 else {
+            throw MortError.rejected(response.code ?? "A start code could not be created.")
+        }
+        return pin
     }
 
     func submitProof(jobId: String, note: String, attachmentNames: [String]) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_submit_proof", args: [
-            "p_job_id": jobId,
-            "p_note": note,
-            "p_attachments": attachmentNames,
-        ])
+        throw MortError.notConfigured("Job proof upload")
     }
 
     func markComplete(jobId: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_mark_complete", args: ["p_job_id": jobId])
+        throw MortError.notConfigured("Job completion assertion")
     }
 
     func confirmCompletion(jobId: String) async throws -> SettlementResult {
-        // AUTHORITATIVE SETTLEMENT. The returned numbers are the backend's
-        // decision; the app only renders them.
-        let dto: SettlementDTO = try await client.rpc("mort_confirm_completion", args: [
-            "p_job_id": jobId,
-        ])
-        return dto.toDomain()
+        throw MortError.notConfigured("Authoritative settlement confirmation")
     }
 
     func openDispute(jobId: String, category: String, detail: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_open_dispute", args: [
-            "p_job_id": jobId,
-            "p_category": category,
-            "p_detail": detail,
-        ])
+        throw MortError.notConfigured("Payment dispute opening")
     }
 
     func settlement(jobId: String) async throws -> SettlementResult {
-        let dto: SettlementDTO = try await client.rpc("mort_settlement", args: ["p_job_id": jobId])
-        return dto.toDomain()
+        throw MortError.notConfigured("Participant settlement summary")
+    }
+
+    private func executionApplication(jobId: String) async throws -> HostedExecutionApplicationRefDTO {
+        guard UUID(uuidString: jobId) != nil else { throw MortError.notFound }
+        let rows: [HostedExecutionApplicationRefDTO] = try await client.get(
+            path: "/rest/v1/applications",
+            query: [
+                URLQueryItem(name: "job_id", value: "eq.\(jobId)"),
+                URLQueryItem(
+                    name: "status",
+                    value: "in.(accepted,in_progress,proof_submitted,completion_pending_release)"
+                ),
+                URLQueryItem(name: "select", value: "id,status,updated_at"),
+                URLQueryItem(name: "order", value: "updated_at.desc"),
+                URLQueryItem(name: "limit", value: "1"),
+            ]
+        )
+        guard let application = rows.first else {
+            throw MortError.rejected("This job is not ready for the start handshake.")
+        }
+        return application
     }
 }
 
