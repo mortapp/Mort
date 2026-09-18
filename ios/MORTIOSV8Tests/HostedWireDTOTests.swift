@@ -394,3 +394,24 @@ struct HostedCompletionDTOTests {
         #expect(dto.adultAcknowledgmentStillRequired == true)
     }
 }
+
+
+struct HostedAdultCompletionDTOTests {
+    @Test("Adult completion acknowledgement does not pretend settlement ran")
+    func acknowledgementDecodes() throws {
+        let json = #"""
+        {
+          "ok": true,
+          "assertion_id": "55555555-5555-4555-8555-555555555555",
+          "payment_due": true,
+          "mort_processed_payment": false
+        }
+        """#.data(using: .utf8)!
+
+        let dto = try hostedDecoder().decode(HostedAdultCompletionResponseDTO.self, from: json)
+        #expect(dto.ok)
+        #expect(dto.assertionId == "55555555-5555-4555-8555-555555555555")
+        #expect(dto.paymentDue == true)
+        #expect(dto.mortProcessedPayment == false)
+    }
+}
