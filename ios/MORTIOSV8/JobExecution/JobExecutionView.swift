@@ -41,7 +41,7 @@ struct JobStartPinView: View {
                         tone: .success,
                         symbol: "play.circle",
                         label: "IN PROGRESS",
-                        detail: "MORT is holding the payment. It's released once the work is confirmed."
+                        detail: "Funding is confirmed. MORT still records completion and settlement before any earnings transfer or payout."
                     )
                 } else if isPoster {
                     MortCard {
@@ -160,6 +160,7 @@ struct JobExecutionView: View {
     @Environment(MortNavigator.self) private var nav
     @State private var job: LoadState<MortJob> = .idle
     @State private var checkIn: SafetyCheckIn?
+    @State private var conversationId: String?
     @State private var isWorking = false
 
     var body: some View {
@@ -184,8 +185,8 @@ struct JobExecutionView: View {
                     MortStatusPanel(
                         tone: .success,
                         symbol: "lock.shield",
-                        label: "PAYMENT IS HELD",
-                        detail: "\(value.basePay.formatted) is held by MORT for this job. You'll be paid after it's confirmed."
+                        label: "JOB FUNDED",
+                        detail: "Funding for \(value.basePay.formatted) base pay is confirmed. Completion, settlement, and payout remain separate backend steps."
                     )
 
                     if let checkIn, checkIn.state != .confirmed {
@@ -209,10 +210,12 @@ struct JobExecutionView: View {
                     }
 
                     VStack(spacing: MortSpace.s2) {
-                        MortNavRow(title: "Message the poster", symbol: "bubble.left") {
-                            nav.push(.conversation(MortFixtures.conversations[0].id))
+                        if let conversationId {
+                            MortNavRow(title: "Message the poster", symbol: "bubble.left") {
+                                nav.push(.conversation(conversationId))
+                            }
+                            MortDivider()
                         }
-                        MortDivider()
                         MortNavRow(title: "Safety Center", symbol: "shield.lefthalf.filled") {
                             nav.push(.safetyCenter)
                         }
@@ -248,6 +251,9 @@ struct JobExecutionView: View {
         do {
             job = .loaded(try await mort.jobs.job(id: jobId))
             checkIn = try? await mort.safety.activeCheckIn()
+            if let threads = try? await mort.messages.conversations() {
+                conversationId = threads.first(where: { $0.jobId == jobId })?.id
+            }
         } catch let error as MortError {
             job = .failed(error)
         } catch {
