@@ -184,7 +184,7 @@ nonisolated final class PreviewJobExecutionRepository: JobExecutionRepository {
 
     func startPin(jobId: String) async throws -> String { "441733" }
 
-    func submitProof(jobId: String, note: String, attachmentNames: [String]) async throws {
+    func submitProof(jobId: String, note: String, attachment: JobProofAttachment) async throws {
         try? await Task.sleep(for: .milliseconds(380))
     }
 
