@@ -63,3 +63,13 @@ test("QA router exposes the accessibility screen used for reduced-motion proof",
   assert.match(source, /path: '\/settings\/accessibility'/);
   assert.match(source, /ExperienceSettingsScreen/);
 });
+
+test("Android selector fallback scrolls offscreen Flutter semantics into view", async () => {
+  const source = await readFile(
+    path.join(root, "scripts", "browserstack", "android-appium-functional-test.mjs"),
+    "utf8",
+  );
+  assert.match(source, /UiScrollable\(new UiSelector\(\)\.scrollable\(true\)\)/);
+  assert.match(source, /scrollIntoView\(new UiSelector\(\)\.descriptionContains/);
+  assert.match(source, /scrollIntoView\(new UiSelector\(\)\.textContains/);
+});
