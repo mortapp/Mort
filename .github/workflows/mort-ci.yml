@@ -252,3 +252,22 @@ jobs:
           -ScenarioEvidencePath docs/payments/MORT_STRIPE_TASK31_SANDBOX_EVIDENCE_2026-09-18.json
           -ExecuteProvider
 
+  android-device-test-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+      - shell: pwsh
+        run: ./scripts/build-android-device-test-apk.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mort-android-device-test-apk
+          path: build/device-test/mort-device-test.apk
+          if-no-files-found: error
+          retention-days: 7
+
