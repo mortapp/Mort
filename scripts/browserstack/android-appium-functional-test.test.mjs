@@ -81,9 +81,13 @@ test("Android selector fallback scrolls offscreen Flutter semantics into view", 
   const fallbackStart = source.indexOf("Flutter exposes only the currently visible");
   const fallbackEnd = source.indexOf("} catch (scrollError)", fallbackStart);
   const fallback = source.slice(fallbackStart, fallbackEnd);
+  const descriptionSelector =
+    'scrollIntoView(new UiSelector().descriptionContains';
+  const resourceIdSelector =
+    'scrollIntoView(new UiSelector().resourceId';
   assert.ok(
-    fallback.indexOf("descriptionContains") < fallback.indexOf("resourceId"),
-    "descriptionContains must run before resourceId in the scroll fallback",
+    fallback.indexOf(descriptionSelector) < fallback.indexOf(resourceIdSelector),
+    "descriptionContains selector must run before resourceId selector in the scroll fallback",
   );
 });
 
