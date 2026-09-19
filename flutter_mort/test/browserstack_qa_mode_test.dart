@@ -10,6 +10,17 @@ void main() {
       'if (AppConfig.browserStackQaMode)',
       mainEntryPoint,
     );
+    final bootstrap = main.indexOf(
+      'Future<Object?> _initializeSafely() async',
+    );
+    final bootstrapQaBranch = main.indexOf(
+      'if (AppConfig.browserStackQaMode)',
+      bootstrap,
+    );
+    final releaseConfigValidation = main.indexOf(
+      'AppConfig.assertValidReleaseConfiguration();',
+      bootstrap,
+    );
     final supabaseInitialization = main.indexOf(
       'SupabaseService.initializeIfConfigured',
     );
@@ -23,6 +34,19 @@ void main() {
       lessThan(supabaseInitialization),
     );
     expect(main.indexOf('return;', qaBranch), lessThan(supabaseInitialization));
+    expect(bootstrap, greaterThanOrEqualTo(0));
+    expect(bootstrapQaBranch, greaterThanOrEqualTo(0));
+    expect(releaseConfigValidation, greaterThanOrEqualTo(0));
+    expect(
+      bootstrapQaBranch,
+      lessThan(releaseConfigValidation),
+      reason:
+          'BrowserStack QA must bypass release configuration validation before startup can fail closed on production-only gates.',
+    );
+    expect(
+      main.substring(bootstrapQaBranch, releaseConfigValidation),
+      contains('return null;'),
+    );
     expect(
       main.substring(mainEntryPoint, qaBranch),
       isNot(contains('configureRemotePushBackgroundHandler')),
