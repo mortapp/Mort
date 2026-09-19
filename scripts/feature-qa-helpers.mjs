@@ -39,7 +39,14 @@ function createDatabaseClient() {
       ssl: localConnection ? false : { rejectUnauthorized: false },
     });
   }
-  return createDatabaseClient();
+  return new pg.Client({
+    host: `db.${projectRef}.supabase.co`,
+    port: 5432,
+    database: "postgres",
+    user: "postgres",
+    password: dbPassword,
+    ssl: { rejectUnauthorized: false },
+  });
 }
 
 
