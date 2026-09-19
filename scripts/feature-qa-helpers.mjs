@@ -680,14 +680,7 @@ export async function withQaUsers(scope, definitions, run) {
       };
     }
 
-    const database = new pg.Client({
-      host: `db.${projectRef}.supabase.co`,
-      port: 5432,
-      database: "postgres",
-      user: "postgres",
-      password: dbPassword,
-      ssl: { rejectUnauthorized: false },
-    });
+    const database = createDatabaseClient();
     database.on("error", () => {});
     await database.connect();
     try {
