@@ -4,7 +4,23 @@ Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'play-review-secrets-common.ps1')
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
-Set-MortPlayReviewEnvironment
+$requiredProcessEnvironment = @(
+  'PLAY_REVIEW_TEEN_EMAIL', 'PLAY_REVIEW_TEEN_PASSWORD',
+  'PLAY_REVIEW_ADULT_EMAIL', 'PLAY_REVIEW_ADULT_PASSWORD',
+  'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_DB_PASSWORD',
+  'EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_ANON_KEY'
+)
+$processEnvironmentComplete = $true
+foreach ($name in $requiredProcessEnvironment) {
+  if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name, 'Process'))) {
+    $processEnvironmentComplete = $false
+    break
+  }
+}
+if (-not $processEnvironmentComplete) {
+  Set-MortPlayReviewEnvironment
+}
+
 $scripts = @(
   'qa-old-project-smoke.mjs',
   'qa-resumable-onboarding.mjs',
