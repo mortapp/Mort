@@ -38,6 +38,40 @@ async function invoke(client, name, body) {
   return { response, data };
 }
 
+function qaReachableSignedStorageUrl(value) {
+  const signedUrl = new URL(value);
+  const apiUrl = new URL(supabaseUrl);
+  const signedStoragePath =
+    signedUrl.pathname.startsWith("/storage/v1/object/sign/") &&
+    signedUrl.searchParams.has("token");
+  assertQa(signedStoragePath, "signed storage URL has an unexpected path or no token");
+
+  if (process.env.MORT_QA_LOCAL_SUPABASE !== "true") {
+    assertQa(
+      signedUrl.protocol === "https:" && signedUrl.hostname === apiUrl.hostname,
+      "hosted signed storage URL has an unexpected origin",
+    );
+    return signedUrl.toString();
+  }
+
+  const localStorageHost =
+    ["kong", "127.0.0.1", "localhost", "host.docker.internal"].includes(
+      signedUrl.hostname,
+    ) || signedUrl.hostname.startsWith("supabase_kong_");
+  assertQa(
+    signedUrl.protocol === "http:" && localStorageHost,
+    "local signed storage URL has an unexpected origin",
+  );
+
+  if (["127.0.0.1", "localhost"].includes(signedUrl.hostname)) {
+    return signedUrl.toString();
+  }
+  return new URL(
+    `${signedUrl.pathname}${signedUrl.search}`,
+    apiUrl.origin,
+  ).toString();
+}
+
 const anonymous = await fetch(`${supabaseUrl}/functions/v1/support-chat`, {
   method: "POST",
   headers: { apikey: anonKey, "content-type": "application/json" },
@@ -520,7 +554,9 @@ await withQaUsers(
       download.response.status === 200 && download.data.signed_url,
       "signed attachment download failed",
     );
-    const downloaded = await fetch(download.data.signed_url);
+    const downloaded = await fetch(
+      qaReachableSignedStorageUrl(download.data.signed_url),
+    );
     assertQa(
       downloaded.ok &&
         (await downloaded.arrayBuffer()).byteLength === jpeg.byteLength,
@@ -533,10 +569,14 @@ await withQaUsers(
       !shortSigned.error && shortSigned.data?.signedUrl,
       "short expiry URL creation failed",
     );
-    const beforeExpiry = await fetch(shortSigned.data.signedUrl);
+    const beforeExpiry = await fetch(
+      qaReachableSignedStorageUrl(shortSigned.data.signedUrl),
+    );
     assertQa(beforeExpiry.ok, "short signed URL failed before expiry");
     await new Promise((resolve) => setTimeout(resolve, 6100));
-    const afterExpiry = await fetch(shortSigned.data.signedUrl);
+    const afterExpiry = await fetch(
+      qaReachableSignedStorageUrl(shortSigned.data.signedUrl),
+    );
     assertQa(!afterExpiry.ok, "short signed URL still worked after expiry");
     const storageCleanup = await serviceClient.storage
       .from("support-attachments")
