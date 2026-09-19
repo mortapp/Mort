@@ -129,7 +129,7 @@ jobs:
 
 
   stripe-hosted-regression:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_stripe_hosted_regression }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.run_stripe_hosted_regression) || (github.event_name == 'pull_request' && github.head_ref == 'feature/mort-stripe-backend-integration') }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
