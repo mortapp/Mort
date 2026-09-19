@@ -74,6 +74,17 @@ test("Android selector fallback scrolls offscreen Flutter semantics into view", 
   assert.match(source, /scrollIntoView\(new UiSelector\(\)\.resourceId/);
   assert.match(source, /scrollIntoView\(new UiSelector\(\)\.descriptionContains/);
   assert.match(source, /scrollIntoView\(new UiSelector\(\)\.textContains/);
+
+  // UiScrollable changes the viewport while resolving each selector. Flutter
+  // action labels are exposed through content-desc on Android, so that selector
+  // must run before the resource-id fallback can scroll past the target.
+  const fallbackStart = source.indexOf("Flutter exposes only the currently visible");
+  const fallbackEnd = source.indexOf("} catch (scrollError)", fallbackStart);
+  const fallback = source.slice(fallbackStart, fallbackEnd);
+  assert.ok(
+    fallback.indexOf("descriptionContains") < fallback.indexOf("resourceId"),
+    "descriptionContains must run before resourceId in the scroll fallback",
+  );
 });
 
 

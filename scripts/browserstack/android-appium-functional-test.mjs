@@ -136,9 +136,14 @@ async function byLabel(driver, label, timeoutMs = 20000) {
       return await firstDisplayed(
         driver,
         [
-          `android=new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().resourceId("${escaped}"))`,
+          // Flutter semantics are exported to Android primarily through
+          // content-desc. Try that first because UiScrollable mutates scroll
+          // position while searching; a guaranteed-miss resourceId lookup can
+          // otherwise scroll to the end and make later selectors miss content
+          // that was above the final viewport.
           `android=new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().descriptionContains("${escaped}"))`,
           `android=new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("${escaped}"))`,
+          `android=new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().resourceId("${escaped}"))`,
         ],
         timeoutMs,
       );
