@@ -2,7 +2,13 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { assertQa, qaLog, withDatabase } from "./feature-qa-helpers.mjs";
+function assertQa(condition, message) {
+  if (!condition) throw new Error(message);
+}
+
+function qaLog(scope, message) {
+  console.log(`[${scope}] PASS: ${message}`);
+}
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sourceOnly = process.argv.includes("--source-only");
@@ -32,6 +38,7 @@ const falseFlags = [
 ];
 
 if (!sourceOnly) {
+  const { withDatabase } = await import("./feature-qa-helpers.mjs");
   await withDatabase(async (database) => {
     const result = await database.query(`
       select *
