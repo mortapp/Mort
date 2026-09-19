@@ -312,7 +312,8 @@ async function validateRegressionManifest() {
   ]) {
     assert(workflow.includes(token), `CI workflow missing ${token}`);
   }
-  const localRegressionJob = workflow.split("  stripe-local-regression:")[1] ?? "";
+  const localRegressionJob =
+    workflow.split("  stripe-local-regression:")[1]?.split("\n  expo-reference:")[0] ?? "";
   assert(
     localRegressionJob.includes("run-mort-stripe-regression.ps1"),
     "ordinary PR CI must execute the unified non-provider Stripe regression",
