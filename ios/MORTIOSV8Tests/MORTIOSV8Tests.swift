@@ -684,14 +684,31 @@ struct RepositoryTests {
         #expect(years == years.sorted(by: >))
     }
 
-    @Test("Starting a job requires the correct in-person PIN")
+    @Test("Starting a job requires the correct six-digit PIN and identity attestation")
     func startPinIsChecked() async throws {
         let repository = PreviewJobExecutionRepository()
         let pin = try await repository.startPin(jobId: "job-42")
-        try await repository.startJob(jobId: "job-42", pin: pin)
+        #expect(pin.count == 6)
+        try await repository.startJob(
+            jobId: "job-42",
+            pin: pin,
+            personMatchesProfile: true
+        )
 
         await #expect(throws: MortError.self) {
-            try await repository.startJob(jobId: "job-42", pin: "0000")
+            try await repository.startJob(
+                jobId: "job-42",
+                pin: "000000",
+                personMatchesProfile: true
+            )
+        }
+
+        await #expect(throws: MortError.self) {
+            try await repository.startJob(
+                jobId: "job-42",
+                pin: pin,
+                personMatchesProfile: false
+            )
         }
     }
 
@@ -714,12 +731,18 @@ struct RepositoryTests {
 
 struct DependencyTests {
 
-    @Test("Without backend configuration the app runs in labeled preview mode")
+    @Test("Shipping build resolves the configured shared MORT backend")
     @MainActor
-    func fallsBackToPreviewMode() {
-        // Config values are empty in source control, so resolve() must not
-        // claim a live backend.
+    func shippingBuildUsesLiveBackend() {
         let dependencies = MortDependencies.resolve()
+        #expect(dependencies.mode == .live)
+        #expect(!dependencies.mode.isPreview)
+    }
+
+    @Test("An explicitly missing backend still fails closed to labeled preview mode")
+    @MainActor
+    func missingBackendFallsBackToPreviewMode() {
+        let dependencies = MortDependencies.resolve(config: nil)
         #expect(dependencies.mode == .preview)
         #expect(dependencies.mode.isPreview)
     }

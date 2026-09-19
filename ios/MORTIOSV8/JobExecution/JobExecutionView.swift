@@ -6,7 +6,9 @@
 //  A job cannot start unless the backend says it is FUNDED.
 //
 
+import PhotosUI
 import SwiftUI
+import UIKit
 
 struct JobStartPinView: View {
     let jobId: String
@@ -21,6 +23,7 @@ struct JobStartPinView: View {
     @State private var isWorking = false
     @State private var error: MortError?
     @State private var started = false
+    @State private var personMatchesProfile = false
 
     private var isPoster: Bool { user.role == .adult }
 
@@ -31,7 +34,7 @@ struct JobStartPinView: View {
                 ? "The clock is running. Stay safe and check in if we ask."
                 : (isPoster
                     ? "Read this to your worker when they arrive. It confirms they're really there."
-                    : "Ask the person who posted the job for their 4-digit code."),
+                    : "Ask the person who posted the job for their 6-digit code."),
             atmosphereIntensity: 0.6
         ) {
             VStack(alignment: .leading, spacing: MortSpace.s5) {
@@ -40,7 +43,7 @@ struct JobStartPinView: View {
                         tone: .success,
                         symbol: "play.circle",
                         label: "IN PROGRESS",
-                        detail: "MORT is holding the payment. It's released once the work is confirmed."
+                        detail: "Funding is confirmed. MORT still records completion and settlement before any earnings transfer or payout."
                     )
                 } else if isPoster {
                     MortCard {
@@ -65,7 +68,7 @@ struct JobStartPinView: View {
                     }
                     MortTextField(
                         label: "Start code",
-                        placeholder: "4 digits",
+                        placeholder: "6 digits",
                         text: $pin,
                         symbol: "number",
                         keyboard: .numberPad
@@ -74,6 +77,25 @@ struct JobStartPinView: View {
                         text: "If they can't give you a code, don't start the job. Report it instead.",
                         tone: .info
                     )
+
+                    Button {
+                        personMatchesProfile.toggle()
+                        MortHaptic.select()
+                    } label: {
+                        HStack(alignment: .top, spacing: MortSpace.s3) {
+                            Image(systemName: personMatchesProfile ? "checkmark.square.fill" : "square")
+                                .foregroundStyle(
+                                    personMatchesProfile ? MortColor.silver1 : MortColor.textMuted
+                                )
+                            Text("I confirm the person here matches the MORT profile for this job.")
+                                .mortBody()
+                                .multilineTextAlignment(.leading)
+                            Spacer(minLength: 0)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityValue(personMatchesProfile ? "Checked" : "Unchecked")
                 }
             }
         } bottom: {
@@ -87,7 +109,7 @@ struct JobStartPinView: View {
                         title: "Start the job",
                         symbol: "play.fill",
                         isBusy: isWorking,
-                        isEnabled: pin.count == 4 && !isWorking
+                        isEnabled: pin.count == 6 && personMatchesProfile && !isWorking
                     ) {
                         Task { await start() }
                     }
@@ -115,7 +137,11 @@ struct JobStartPinView: View {
         isWorking = true
         error = nil
         do {
-            try await mort.execution.startJob(jobId: jobId, pin: pin)
+            try await mort.execution.startJob(
+                jobId: jobId,
+                pin: pin,
+                personMatchesProfile: personMatchesProfile
+            )
             started = true
             MortHaptic.success()
         } catch let failure as MortError {
@@ -136,6 +162,7 @@ struct JobExecutionView: View {
     @Environment(MortNavigator.self) private var nav
     @State private var job: LoadState<MortJob> = .idle
     @State private var checkIn: SafetyCheckIn?
+    @State private var conversationId: String?
     @State private var isWorking = false
 
     var body: some View {
@@ -160,8 +187,8 @@ struct JobExecutionView: View {
                     MortStatusPanel(
                         tone: .success,
                         symbol: "lock.shield",
-                        label: "PAYMENT IS HELD",
-                        detail: "\(value.basePay.formatted) is held by MORT for this job. You'll be paid after it's confirmed."
+                        label: "JOB FUNDED",
+                        detail: "Funding for \(value.basePay.formatted) base pay is confirmed. Completion, settlement, and payout remain separate backend steps."
                     )
 
                     if let checkIn, checkIn.state != .confirmed {
@@ -185,10 +212,12 @@ struct JobExecutionView: View {
                     }
 
                     VStack(spacing: MortSpace.s2) {
-                        MortNavRow(title: "Message the poster", symbol: "bubble.left") {
-                            nav.push(.conversation(MortFixtures.conversations[0].id))
+                        if let conversationId {
+                            MortNavRow(title: "Message the poster", symbol: "bubble.left") {
+                                nav.push(.conversation(conversationId))
+                            }
+                            MortDivider()
                         }
-                        MortDivider()
                         MortNavRow(title: "Safety Center", symbol: "shield.lefthalf.filled") {
                             nav.push(.safetyCenter)
                         }
@@ -209,7 +238,7 @@ struct JobExecutionView: View {
                     Task { await markComplete() }
                 }
                 MortNote(
-                    text: "The poster confirms next. MORT decides the final amount from what's confirmed.",
+                    text: "Submitting confirms that you completed the approved job scope. The poster confirms next; settlement and payout remain separate backend decisions.",
                     tone: .neutral
                 )
             }
@@ -224,6 +253,9 @@ struct JobExecutionView: View {
         do {
             job = .loaded(try await mort.jobs.job(id: jobId))
             checkIn = try? await mort.safety.activeCheckIn()
+            if let threads = try? await mort.messages.conversations() {
+                conversationId = threads.first(where: { $0.jobId == jobId })?.id
+            }
         } catch let error as MortError {
             job = .failed(error)
         } catch {
@@ -250,14 +282,17 @@ struct JobProofView: View {
     @Environment(\.mort) private var mort
     @Environment(MortNavigator.self) private var nav
     @State private var note = ""
-    @State private var attachments: [String] = []
+    @State private var attachment: JobProofAttachment?
+    @State private var previewImage: UIImage?
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var showsCamera = false
     @State private var isWorking = false
     @State private var error: MortError?
 
     var body: some View {
         MortScreen(
             title: "Add proof",
-            subtitle: "A quick photo and note is usually plenty.",
+            subtitle: "Add one clear photo and an optional note.",
             atmosphereIntensity: 0.65
         ) {
             VStack(alignment: .leading, spacing: MortSpace.s5) {
@@ -267,37 +302,79 @@ struct JobProofView: View {
 
                 MortCard {
                     VStack(alignment: .leading, spacing: MortSpace.s3) {
-                        MortSectionHeader(title: "Photos")
-                        if attachments.isEmpty {
-                            Text("No photos added yet.").mortMicro()
-                        } else {
-                            ForEach(attachments, id: \.self) { name in
-                                HStack(spacing: MortSpace.s2) {
-                                    Image(systemName: "photo")
-                                        .foregroundStyle(MortColor.silver1)
-                                    Text(name).mortBody().lineLimit(1)
-                                    Spacer(minLength: 0)
-                                    Button {
-                                        attachments.removeAll { $0 == name }
-                                    } label: {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .foregroundStyle(MortColor.textMuted)
-                                            .frame(
-                                                width: MortMetric.minTouchTarget,
-                                                height: MortMetric.minTouchTarget
-                                            )
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel("Remove \(name)")
-                                }
+                        MortSectionHeader(
+                            title: "Proof photo",
+                            subtitle: "Stored privately with this job record"
+                        )
+
+                        if let previewImage {
+                            Image(uiImage: previewImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 210)
+                                .clipShape(
+                                    RoundedRectangle(
+                                        cornerRadius: MortRadius.md,
+                                        style: .continuous
+                                    )
+                                )
+                                .accessibilityLabel("Selected proof photo")
+
+                            MortQuietButton(title: "Remove photo", tone: .danger) {
+                                attachment = nil
+                                self.previewImage = nil
+                                selectedPhoto = nil
                             }
+                        } else {
+                            Text("No photo added yet.")
+                                .mortMicro()
                         }
-                        // INTEGRATION: present PhotosPicker / camera here.
-                        // Requires NSPhotoLibraryUsageDescription and
-                        // NSCameraUsageDescription in project.pbxproj.
-                        MortGhostButton(title: "Add a photo", symbol: "camera") {
-                            attachments.append("proof-\(attachments.count + 1).jpg")
-                            MortHaptic.select()
+
+                        HStack(spacing: MortSpace.s2) {
+                            PhotosPicker(
+                                selection: $selectedPhoto,
+                                matching: .images,
+                                photoLibrary: .shared()
+                            ) {
+                                Label("Photo Library", systemImage: "photo.on.rectangle")
+                                    .font(MortFont.label())
+                                    .foregroundStyle(MortColor.textPrimary)
+                                    .frame(
+                                        maxWidth: .infinity,
+                                        minHeight: MortMetric.minTouchTarget
+                                    )
+                                    .background {
+                                        RoundedRectangle(
+                                            cornerRadius: MortRadius.md,
+                                            style: .continuous
+                                        )
+                                        .fill(MortColor.graphite2)
+                                    }
+                            }
+                            .buttonStyle(.plain)
+
+                            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                                Button {
+                                    showsCamera = true
+                                } label: {
+                                    Label("Camera", systemImage: "camera")
+                                        .font(MortFont.label())
+                                        .foregroundStyle(MortColor.textPrimary)
+                                        .frame(
+                                            maxWidth: .infinity,
+                                            minHeight: MortMetric.minTouchTarget
+                                        )
+                                        .background {
+                                            RoundedRectangle(
+                                                cornerRadius: MortRadius.md,
+                                                style: .continuous
+                                            )
+                                            .fill(MortColor.graphite2)
+                                        }
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
                     }
                 }
@@ -309,7 +386,7 @@ struct JobProofView: View {
                 )
 
                 MortNote(
-                    text: "Proof is shared with the poster and kept with the job record. Don't include other people in photos.",
+                    text: "MORT converts the image to JPEG before upload. Proof stays in the private proof bucket and is attached only after the backend validates the job and storage object.",
                     tone: .info
                 )
             }
@@ -318,7 +395,7 @@ struct JobProofView: View {
                 MortPrimaryButton(
                     title: "Submit proof",
                     isBusy: isWorking,
-                    isEnabled: !note.isEmpty || !attachments.isEmpty
+                    isEnabled: attachment != nil && !isWorking
                 ) {
                     Task { await submit() }
                 }
@@ -326,14 +403,75 @@ struct JobProofView: View {
         }
         .navigationTitle("Proof")
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: selectedPhoto) { _, item in
+            guard let item else { return }
+            Task { await loadPhoto(item) }
+        }
+        .sheet(isPresented: $showsCamera) {
+            MortCameraPicker(isPresented: $showsCamera) { image in
+                accept(image: image, filename: "camera-proof.jpg")
+            }
+            .ignoresSafeArea()
+        }
+    }
+
+    private func loadPhoto(_ item: PhotosPickerItem) async {
+        do {
+            guard
+                let data = try await item.loadTransferable(type: Data.self),
+                let image = UIImage(data: data)
+            else {
+                error = .rejected("That image couldn't be read. Choose another photo.")
+                return
+            }
+            accept(image: image, filename: "library-proof.jpg")
+        } catch {
+            self.error = .rejected("That image couldn't be loaded. Choose another photo.")
+        }
+    }
+
+    private func accept(image: UIImage, filename: String) {
+        error = nil
+        guard
+            let jpeg = normalizedJPEG(image),
+            !jpeg.isEmpty,
+            jpeg.count <= 10 * 1024 * 1024
+        else {
+            error = .rejected("That image is too large to use as job proof.")
+            return
+        }
+        previewImage = image
+        attachment = JobProofAttachment(
+            data: jpeg,
+            filename: filename,
+            contentType: "image/jpeg"
+        )
+        MortHaptic.select()
+    }
+
+    private func normalizedJPEG(_ image: UIImage) -> Data? {
+        let qualities: [CGFloat] = [0.88, 0.72, 0.58, 0.44]
+        for quality in qualities {
+            if let data = image.jpegData(compressionQuality: quality),
+               data.count <= 10 * 1024 * 1024 {
+                return data
+            }
+        }
+        return nil
     }
 
     private func submit() async {
+        guard let attachment else {
+            error = .rejected("Add a proof photo before submitting.")
+            return
+        }
         isWorking = true
         error = nil
         do {
             try await mort.execution.submitProof(
-                jobId: jobId, note: note, attachmentNames: attachments
+                jobId: jobId,
+                note: note,
+                attachment: attachment
             )
             MortHaptic.success()
             nav.pop()
@@ -343,6 +481,47 @@ struct JobProofView: View {
             self.error = .unknown
         }
         isWorking = false
+    }
+}
+
+private struct MortCameraPicker: UIViewControllerRepresentable {
+    @Binding var isPresented: Bool
+    let onImage: (UIImage) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let controller = UIImagePickerController()
+        controller.sourceType = .camera
+        controller.cameraCaptureMode = .photo
+        controller.delegate = context.coordinator
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        var parent: MortCameraPicker
+
+        init(parent: MortCameraPicker) {
+            self.parent = parent
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.isPresented = false
+        }
+
+        func imagePickerController(
+            _ picker: UIImagePickerController,
+            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+        ) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.onImage(image)
+            }
+            parent.isPresented = false
+        }
     }
 }
 

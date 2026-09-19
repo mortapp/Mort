@@ -30,7 +30,8 @@ nonisolated struct PaymentQuote: Codable, Hashable, Sendable {
     let jobId: String
     let jobTitle: String
     let workerHandle: String
-    let orderNumber: String
+    /// Display order number, when the backend has issued one. Pre-funding quotes may not have one yet.
+    let orderNumber: String?
     /// Worker base pay in cents (authoritative).
     let baseCents: Int64
     /// MORT platform service fee in cents (authoritative, adult side only).
@@ -74,6 +75,17 @@ nonisolated struct MortFeeConfig: Codable, Hashable, Sendable {
     var explanation: String {
         "MORT's service fee is \(percentText) of base pay (min \(Money(cents: minimumCents).formatted), max \(Money(cents: maximumCents).formatted)). It's added on top — never taken out of what your worker earns, and never charged on a tip."
     }
+}
+
+/// Adult acknowledgement of the worker's completion assertion.
+///
+/// This is NOT a settlement result and NOT proof that a transfer, refund, or
+/// payout occurred. The backend may mark the contractual payment obligation
+/// due while financial resolution remains a separate server-authoritative step.
+nonisolated struct CompletionAcknowledgement: Codable, Hashable, Sendable {
+    let assertionId: String
+    let paymentDue: Bool
+    let mortProcessedPayment: Bool
 }
 
 /// Settlement after the work is confirmed. Neither party may authoritatively

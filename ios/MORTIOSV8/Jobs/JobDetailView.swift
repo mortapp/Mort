@@ -13,6 +13,7 @@ import SwiftUI
 final class JobDetailViewModel {
     var job: LoadState<MortJob> = .idle
     var receipt: Receipt?
+    var conversationId: String?
 
     private let mort: MortDependencies
     private let jobId: String
@@ -27,6 +28,9 @@ final class JobDetailViewModel {
         do {
             let loaded = try await mort.jobs.job(id: jobId)
             job = .loaded(loaded)
+            if let threads = try? await mort.messages.conversations() {
+                conversationId = threads.first(where: { $0.jobId == jobId })?.id
+            }
             // A receipt only exists once the backend issued one.
             if loaded.state == .settled {
                 receipt = try? await mort.receipts.receipt(jobId: jobId, type: .adultJobPayment)
@@ -156,8 +160,8 @@ struct JobDetailView: View {
                     symbol: "lock.shield",
                     label: "JOB FUNDED",
                     detail: isPoster
-                        ? "MORT is holding the funds. They're released after you confirm the work."
-                        : "The money is already held by MORT. You'll be paid after the job is confirmed."
+                        ? "Funding is confirmed for this job. Completion, settlement, and any worker transfer are separate backend steps."
+                        : "Funding is confirmed for this job. Your earnings are credited only after MORT records the authoritative settlement."
                 )
             }
 
@@ -168,10 +172,19 @@ struct JobDetailView: View {
             }
 
             VStack(spacing: MortSpace.s2) {
-                MortNavRow(title: "Message", symbol: "bubble.left") {
-                    nav.push(.conversation(MortFixtures.conversations[0].id))
+                if let conversationId = model?.conversationId {
+                    MortNavRow(title: "Message", symbol: "bubble.left") {
+                        nav.push(.conversation(conversationId))
+                    }
+                    MortDivider()
+                } else {
+                    MortNote(
+                        text: "Messaging becomes available when MORT creates a conversation for this job.",
+                        tone: .neutral,
+                        symbol: "bubble.left"
+                    )
+                    MortDivider()
                 }
-                MortDivider()
                 MortNavRow(
                     title: isPoster ? "View worker profile" : "View poster profile",
                     symbol: "person.crop.circle"

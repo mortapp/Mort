@@ -76,6 +76,7 @@ nonisolated struct ReviewDTO: Codable, Sendable {
     }
 }
 
+
 // MARK: - Jobs
 
 nonisolated struct JobDTO: Codable, Sendable {
@@ -149,6 +150,155 @@ nonisolated struct ApplicationDTO: Codable, Sendable {
             submittedAgo: submittedAgo ?? ""
         )
     }
+}
+
+
+/// Hosted application row used by PostgREST and submit_job_application.
+nonisolated struct HostedApplicationDTO: Codable, Sendable {
+    nonisolated struct JobSummary: Codable, Sendable {
+        let title: String?
+    }
+
+    nonisolated struct ApplicantSummary: Codable, Sendable {
+        let username: String?
+        let displayName: String?
+    }
+
+    let id: String
+    let jobId: String
+    let teenId: String?
+    let status: String
+    let note: String?
+    let createdAt: Date?
+    let updatedAt: Date?
+    let jobs: JobSummary?
+    let applicant: ApplicantSummary?
+
+    func toDomain() -> MortApplication {
+        let username = applicant?.username ?? ""
+        let handle = username.isEmpty
+            ? ""
+            : (username.hasPrefix("@") ? username : "@\(username)")
+        let displayName = applicant?.displayName ?? handle
+
+        let mappedState: MortApplication.State = switch status {
+        case "viewed":
+            .viewed
+        case "accepted", "in_progress", "proof_submitted",
+             "completion_pending_release", "completed", "disputed":
+            .accepted
+        case "rejected", "guardian_rejected":
+            .declined
+        case "withdrawn":
+            .withdrawn
+        case "canceled":
+            .expired
+        default:
+            .submitted
+        }
+
+        let submittedAgo: String = {
+            guard let createdAt else { return "" }
+            let formatter = RelativeDateTimeFormatter()
+            formatter.unitsStyle = .short
+            return formatter.localizedString(for: createdAt, relativeTo: Date())
+        }()
+
+        return MortApplication(
+            id: id,
+            jobId: jobId,
+            jobTitle: jobs?.title ?? "",
+            applicantHandle: handle,
+            applicantDisplayName: displayName,
+            applicantRating: nil,
+            applicantCompletedJobs: 0,
+            message: note ?? "",
+            state: mappedState,
+            submittedAgo: submittedAgo
+        )
+    }
+}
+
+nonisolated struct HostedApplicationSubmitResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let message: String?
+    let application: HostedApplicationDTO?
+}
+
+nonisolated struct HostedApplicationTransitionResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+}
+
+
+/// Minimal participant-visible application reference used for job execution.
+nonisolated struct HostedExecutionApplicationRefDTO: Codable, Sendable {
+    let id: String
+    let status: String
+    let updatedAt: Date?
+}
+
+nonisolated struct HostedStartPinResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let startPin: String?
+    let expiresAt: Date?
+}
+
+nonisolated struct HostedStartConfirmationResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+}
+
+nonisolated struct HostedExecutionStatusDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let applicationId: String?
+    let jobId: String?
+    let contractId: String?
+    let role: String?
+    let state: String?
+    let startPinActive: Bool?
+    let startPinExpiresAt: Date?
+    let startedAt: Date?
+    let finishPinActive: Bool?
+    let finishPinExpiresAt: Date?
+    let completionPendingAt: Date?
+    let reviewWindowEndsAt: Date?
+    let fundingStatus: String?
+    let livePaymentEnabled: Bool?
+}
+
+nonisolated struct HostedCompletionAssertionResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let assertionId: String?
+    let adultAcknowledgmentStillRequired: Bool?
+}
+
+nonisolated struct HostedAdultCompletionResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let assertionId: String?
+    let paymentDue: Bool?
+    let mortProcessedPayment: Bool?
+
+    func toDomain() throws -> CompletionAcknowledgement {
+        guard ok, let assertionId, UUID(uuidString: assertionId) != nil else {
+            throw MortError.rejected(code ?? "MORT could not record the completion acknowledgement.")
+        }
+        return CompletionAcknowledgement(
+            assertionId: assertionId,
+            paymentDue: paymentDue ?? false,
+            mortProcessedPayment: mortProcessedPayment ?? false
+        )
+    }
+}
+
+nonisolated struct HostedExecutionJobContextDTO: Codable, Sendable {
+    let id: String
+    let locationType: String?
 }
 
 nonisolated struct PinDTO: Codable, Sendable {
@@ -534,6 +684,355 @@ nonisolated struct MessagePageDTO: Codable, Sendable {
     let nextCursor: String?
 }
 
+
+// MARK: - Hosted messaging contract
+
+nonisolated struct HostedMessageThreadPageDTO: Codable, Sendable {
+    nonisolated struct Cursor: Codable, Sendable {
+        let updatedAt: Date
+        let id: String
+    }
+
+    let items: [HostedMessageThreadDTO]
+    let hasMore: Bool
+    let nextCursor: Cursor?
+}
+
+nonisolated struct HostedMessageThreadDTO: Codable, Sendable {
+    let id: String
+    let jobId: String?
+    let lifecycleStatus: String
+    let updatedAt: Date
+    let jobTitle: String?
+    let counterpartyId: String?
+    let counterpartyDisplayName: String?
+    let lastMessagePreview: String?
+    let lastMessageAt: Date?
+    let unreadCount: Int
+
+    func toDomain(username: String?) -> MortConversation {
+        let cleanUsername = username?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "@"))
+        let handle = cleanUsername.map { "@\($0)" } ?? ""
+        let displayName = counterpartyDisplayName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let safeDisplay = (displayName?.isEmpty == false) ? displayName! : "MORT participant"
+        let initials = safeDisplay
+            .split(separator: " ")
+            .compactMap(\.first)
+            .prefix(2)
+            .map(String.init)
+            .joined()
+            .uppercased()
+
+        return MortConversation(
+            id: id,
+            counterpartyHandle: handle,
+            counterpartyDisplayName: safeDisplay,
+            counterpartyInitials: initials.isEmpty ? "?" : initials,
+            preview: lastMessagePreview ?? "",
+            updatedAt: lastMessageAt ?? updatedAt,
+            unreadCount: unreadCount,
+            jobTitle: jobTitle ?? "MORT job",
+            jobId: jobId ?? "",
+            restriction: lifecycleStatus == "read_only" ? .archived : .none
+        )
+    }
+}
+
+nonisolated struct HostedThreadMessagesPageDTO: Codable, Sendable {
+    nonisolated struct Cursor: Codable, Sendable {
+        let createdAt: Date
+        let id: String
+
+        var opaqueValue: String? {
+            guard let data = try? JSONEncoder().encode(self) else { return nil }
+            return data.base64EncodedString()
+                .replacingOccurrences(of: "+", with: "-")
+                .replacingOccurrences(of: "/", with: "_")
+                .replacingOccurrences(of: "=", with: "")
+        }
+
+        init(createdAt: Date, id: String) {
+            self.createdAt = createdAt
+            self.id = id
+        }
+
+        init?(opaqueValue: String) {
+            guard !opaqueValue.isEmpty else { return nil }
+            var base64 = opaqueValue
+                .replacingOccurrences(of: "-", with: "+")
+                .replacingOccurrences(of: "_", with: "/")
+            let remainder = base64.count % 4
+            if remainder != 0 {
+                base64 += String(repeating: "=", count: 4 - remainder)
+            }
+            guard
+                let data = Data(base64Encoded: base64),
+                let decoded = try? JSONDecoder().decode(Self.self, from: data),
+                UUID(uuidString: decoded.id) != nil
+            else { return nil }
+            self = decoded
+        }
+    }
+
+    let items: [HostedMessageRowDTO]
+    let hasMore: Bool
+    let lifecycleStatus: String?
+    let thread: HostedMessageThreadDTO?
+    let nextCursor: Cursor?
+}
+
+nonisolated struct HostedMessageRowDTO: Codable, Sendable {
+    let id: String
+    let threadId: String
+    let senderId: String
+    let body: String
+    let scannerStatus: String?
+    let createdAt: Date
+
+    func toDomain(
+        currentUserId: String,
+        counterpartyHandle: String,
+        counterpartyDisplayName: String
+    ) -> MortMessage {
+        let fromMe = senderId == currentUserId
+        let visibleBody = scannerStatus == "blocked" ? "Blocked by MORT safety scanner." : body
+        return MortMessage(
+            id: id,
+            conversationId: threadId,
+            authorHandle: fromMe ? "" : counterpartyHandle,
+            authorDisplayName: fromMe ? "You" : counterpartyDisplayName,
+            body: visibleBody,
+            sentAt: createdAt,
+            fromMe: fromMe,
+            delivery: .sent,
+            attachmentName: nil
+        )
+    }
+}
+
+nonisolated struct HostedUsernameDTO: Codable, Sendable {
+    let id: String
+    let username: String?
+}
+
+nonisolated struct HostedMutationAckDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+}
+
+
+// MARK: - Hosted support contract
+
+nonisolated struct HostedSupportTicketDTO: Codable, Sendable {
+    let id: String
+    let subject: String
+    let status: String
+    let updatedAt: Date
+    let caseNumber: String?
+    let priority: String?
+    let assignedSupportUserId: String?
+    let humanReviewed: Bool?
+    let humanReviewRequestedAt: Date?
+
+    func toDomain(lastMessagePreview: String = "") -> SupportCase {
+        let state: SupportCaseState = {
+            if priority == "urgent_safety" { return .safetyPriority }
+            switch status {
+            case "waiting_on_user":
+                return .waitingOnYou
+            case "waiting_on_staff":
+                return .withSupport
+            case "resolved":
+                return .resolved
+            case "closed":
+                return .closed
+            default:
+                return .open
+            }
+        }()
+
+        let withHuman = assignedSupportUserId != nil
+            || humanReviewed == true
+            || humanReviewRequestedAt != nil
+
+        return SupportCase(
+            id: id,
+            subject: subject,
+            state: state,
+            updatedAt: updatedAt,
+            lastMessagePreview: lastMessagePreview,
+            withHumanAgent: withHuman,
+            reference: caseNumber
+        )
+    }
+}
+
+nonisolated struct HostedSupportMessageDTO: Codable, Sendable {
+    let id: String
+    let ticketId: String
+    let senderId: String?
+    let body: String
+    let createdAt: Date
+    let senderKind: String
+
+    func toDomain() -> MortMessage {
+        let fromMe = senderKind == "user"
+        return MortMessage(
+            id: id,
+            conversationId: ticketId,
+            authorHandle: fromMe ? "" : "@mort-support",
+            authorDisplayName: fromMe ? "You" : "MORT Support",
+            body: body,
+            sentAt: createdAt,
+            fromMe: fromMe,
+            delivery: .sent,
+            attachmentName: nil
+        )
+    }
+}
+
+nonisolated struct HostedSupportThreadDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let ticket: HostedSupportTicketDTO?
+    let messages: [HostedSupportMessageDTO]?
+}
+
+nonisolated struct HostedSupportCreateResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let ticket: HostedSupportTicketDTO?
+}
+
+nonisolated struct HostedSupportReplyResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let message: HostedSupportMessageDTO?
+}
+
+
+// MARK: - Hosted safety contract
+
+nonisolated struct HostedActiveCheckInDTO: Codable, Sendable {
+    let checkinId: String
+    let applicationId: String
+    let jobId: String
+    let jobTitle: String
+    let checkinType: String
+    let expectedAt: Date?
+    let completedAt: Date?
+    let status: String
+
+    func toDomain(now: Date = Date()) -> SafetyCheckIn {
+        let state: CheckInState
+        if completedAt != nil {
+            state = .confirmed
+        } else if status == "missed" || (expectedAt.map { $0 < now } ?? false) {
+            state = .overdue
+        } else {
+            state = .dueSoon
+        }
+
+        return SafetyCheckIn(
+            id: checkinId,
+            jobId: jobId,
+            jobTitle: jobTitle,
+            state: state,
+            dueAt: expectedAt,
+            confirmedAt: completedAt
+        )
+    }
+}
+
+nonisolated struct HostedSafetyPingResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let physicalInterventionDispatched: Bool?
+}
+
+
+// MARK: - Hosted guardian contract
+
+nonisolated struct HostedGuardianConnectionDTO: Codable, Sendable {
+    let id: String
+    let teenId: String
+    let guardianId: String?
+    let status: String
+}
+
+nonisolated struct HostedGuardianLinkResponseDTO: Codable, Sendable {
+    let ok: Bool
+    let code: String?
+    let message: String?
+    let linkId: String?
+}
+
+
+// MARK: - Hosted notification contract
+
+nonisolated struct HostedNotificationDataDTO: Codable, Sendable {
+    let type: String?
+    let route: String?
+    let safetyPingId: String?
+    let incidentId: String?
+    let threadId: String?
+    let messageId: String?
+    let teenId: String?
+    let disputeId: String?
+    let applicationId: String?
+    let jobId: String?
+    let targetJobId: String?
+}
+
+nonisolated struct HostedNotificationDTO: Codable, Sendable {
+    let id: String
+    let title: String
+    let body: String
+    let data: HostedNotificationDataDTO?
+    let readAt: Date?
+    let createdAt: Date
+
+    func toDomain() -> MortNotification {
+        let rawType = data?.type?.lowercased() ?? ""
+        let category: NotificationCategory = {
+            if rawType.contains("safety") || data?.safetyPingId != nil || data?.incidentId != nil {
+                return .safety
+            }
+            if rawType.contains("message") || data?.threadId != nil || data?.messageId != nil {
+                return .message
+            }
+            if rawType.contains("guardian") || data?.teenId != nil {
+                return .guardian
+            }
+            if rawType.contains("payout") {
+                return .payout
+            }
+            if rawType.contains("payment") || data?.disputeId != nil {
+                return .payment
+            }
+            if rawType.contains("application") || data?.applicationId != nil {
+                return .application
+            }
+            if rawType.contains("job") || data?.jobId != nil || data?.targetJobId != nil {
+                return .job
+            }
+            return .system
+        }()
+
+        return MortNotification(
+            id: id,
+            category: category,
+            title: title,
+            body: body,
+            receivedAt: createdAt,
+            isRead: readAt != nil,
+            route: data?.route
+        )
+    }
+}
+
 // MARK: - Safety / Support / Notifications / Guardian
 
 nonisolated struct CheckInDTO: Codable, Sendable {
@@ -641,6 +1140,7 @@ nonisolated struct GuardianSummaryDTO: Codable, Sendable {
             lastCheckInState: CheckInState(rawValue: lastCheckInState ?? "notStarted") ?? .notStarted,
             lastCheckInText: lastCheckInText ?? "",
             earningsThisMonthCents: earningsThisMonthCents ?? 0,
+            earningsVisible: true,
             payoutStage: PayoutStage(rawValue: payoutStage ?? "setupRequired") ?? .setupRequired,
             safetyAlertsCount: safetyAlertsCount ?? 0,
             restrictedNotice: restrictedNotice

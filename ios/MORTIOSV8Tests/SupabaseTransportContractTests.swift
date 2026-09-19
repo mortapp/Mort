@@ -1,0 +1,62 @@
+//
+//  SupabaseTransportContractTests.swift
+//  MORT iOS V8
+//
+//  Public client configuration and Edge Function routing are part of the
+//  shipping client contract. Secrets must never be accepted here.
+//
+
+import Foundation
+import Testing
+@testable import MORTIOSV8
+
+struct SupabaseTransportContractTests {
+    @Test("Shipping iOS build resolves the public MORT Supabase endpoint")
+    func publicConfigurationIsPresent() throws {
+        let config = try #require(SupabaseConfig.fromEnvironment())
+        #expect(config.url.absoluteString == "https://rakjydmgwwgtdislanbt.supabase.co")
+        #expect(config.anonKey.hasPrefix("sb_publishable_"))
+        #expect(!config.anonKey.contains("service_role"))
+        #expect(!config.anonKey.hasPrefix("sb_secret_"))
+    }
+
+    @Test("Edge Function paths are canonical and reject unsafe slugs")
+    func edgeFunctionPaths() {
+        #expect(SupabaseClient.edgeFunctionPath(for: MortBackendContract.EdgeFunction.stripeConfig)
+                == "/functions/v1/stripe-config")
+        #expect(SupabaseClient.edgeFunctionPath(for: MortBackendContract.EdgeFunction.paymentIntent)
+                == "/functions/v1/stripe-create-job-payment-intent")
+        #expect(SupabaseClient.edgeFunctionPath(for: "../stripe-config") == nil)
+        #expect(SupabaseClient.edgeFunctionPath(for: "stripe/config") == nil)
+        #expect(SupabaseClient.edgeFunctionPath(for: "") == nil)
+    }
+
+
+
+    @Test("RPC transport converts explicit nullable arguments to JSON null")
+    func explicitNullEncoding() {
+        let object = SupabaseClient.foundationJSONObject([
+            "required": "value",
+            "optional": SupabaseJSONNull(),
+        ])
+        #expect(object["required"] as? String == "value")
+        #expect(object["optional"] is NSNull)
+    }
+
+    @Test("Edge Function invocation rejects unsafe slugs before network or auth")
+    func edgeFunctionInvocationFailsClosedForUnsafeSlug() async throws {
+        let config = try #require(SupabaseConfig.fromEnvironment())
+        let client = SupabaseClient(config: config)
+
+        await #expect(throws: MortError.self) {
+            let _: EdgeProbeResponse = try await client.function(
+                "../stripe-config",
+                body: [:]
+            )
+        }
+    }
+}
+
+private nonisolated struct EdgeProbeResponse: Decodable, Sendable {
+    let ok: Bool?
+}

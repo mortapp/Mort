@@ -109,9 +109,19 @@ nonisolated final class LiveAuthService: AuthService {
     }
 
     func deleteAccount(userId: String) async throws {
-        // Account deletion must be a server-side RPC: it cascades job history,
-        // receipts retention policy and payout teardown.
-        let _: EmptyResponse = try await client.rpc("mort_delete_account", args: ["p_user_id": userId])
+        guard let stored = await client.storedSession(), stored.userId == userId else {
+            throw MortError.forbidden
+        }
+        let response: HostedAccountDeletionResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.requestAccountDeletion,
+            args: ["p_source": "in_app"]
+        )
+        guard response.ok else {
+            if response.code == "recent_reauthentication_required" {
+                throw MortError.rejected("Please sign in again before deleting your account.")
+            }
+            throw MortError.rejected(response.code ?? "Account deletion could not be requested.")
+        }
         await client.clearSession()
     }
 
@@ -132,11 +142,27 @@ nonisolated final class LiveProfileRepository: ProfileRepository {
     init(client: SupabaseClient) { self.client = client }
 
     func profile(userId: String) async throws -> MortUser {
-        let rows: [ProfileDTO] = try await client.get(
+        guard UUID(uuidString: userId) != nil else { throw MortError.notFound }
+
+        if let stored = await client.storedSession(), stored.userId == userId {
+            let rows: [HostedProfileDTO] = try await client.rpc(
+                MortBackendContract.RPC.getMyProfile
+            )
+            guard let row = rows.first else { throw MortError.notFound }
+            return row.toDomain()
+        }
+
+        // Public profile lookup stays explicitly field-limited. RLS remains
+        // authoritative for whether the signed-in viewer may read the row.
+        let rows: [HostedProfileDTO] = try await client.get(
             path: "/rest/v1/profiles",
             query: [
                 URLQueryItem(name: "id", value: "eq.\(userId)"),
-                URLQueryItem(name: "select", value: "*"),
+                URLQueryItem(
+                    name: "select",
+                    value: "id,username,display_name,role,city,state,approximate_area,verification_status,guardian_setup_status,created_at,bio"
+                ),
+                URLQueryItem(name: "limit", value: "1"),
             ]
         )
         guard let row = rows.first else { throw MortError.notFound }
@@ -144,28 +170,42 @@ nonisolated final class LiveProfileRepository: ProfileRepository {
     }
 
     func updateProfile(userId: String, draft: MortProfileDraft) async throws -> MortUser {
-        let rows: [ProfileDTO] = try await client.patch(
-            path: "/rest/v1/profiles",
-            query: [URLQueryItem(name: "id", value: "eq.\(userId)")],
-            body: [
-                "display_name": draft.displayName,
-                "area": draft.area,
-                "age_group": draft.ageGroup,
-                "categories": draft.categories,
-                "bio": draft.bio,
+        guard let stored = await client.storedSession(), stored.userId == userId else {
+            throw MortError.forbidden
+        }
+
+        let patch: [String: any Sendable] = [
+            "display_name": draft.displayName,
+            "approximate_area": draft.area,
+            "preferred_job_categories": draft.categories,
+            "bio": draft.bio,
+        ]
+        let response: HostedProfileUpdateResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.updateMyProfile,
+            args: [
+                "p_patch": patch,
+                "p_client_request_id": UUID().uuidString.lowercased(),
             ]
         )
-        guard let row = rows.first else { throw MortError.notFound }
-        return row.toDomain()
+        guard response.ok, let profile = response.profile else {
+            throw MortError.rejected(response.code ?? "Profile update was not accepted.")
+        }
+        return profile.toDomain()
     }
 
     func reviews(userId: String) async throws -> [MortReview] {
-        let rows: [ReviewDTO] = try await client.get(
+        guard UUID(uuidString: userId) != nil else { throw MortError.notFound }
+        let rows: [HostedReviewDTO] = try await client.get(
             path: "/rest/v1/reviews",
             query: [
                 URLQueryItem(name: "subject_id", value: "eq.\(userId)"),
-                URLQueryItem(name: "select", value: "*"),
+                URLQueryItem(name: "moderation_status", value: "eq.approved"),
+                URLQueryItem(
+                    name: "select",
+                    value: "id,reviewer_id,subject_id,rating,body,moderation_status,created_at,reviewer:profiles!reviews_reviewer_id_fkey(username,display_name),job:jobs!reviews_job_id_fkey(title)"
+                ),
                 URLQueryItem(name: "order", value: "created_at.desc"),
+                URLQueryItem(name: "limit", value: "100"),
             ]
         )
         return rows.map { $0.toDomain() }
@@ -179,30 +219,97 @@ nonisolated final class LiveJobRepository: JobRepository {
     init(client: SupabaseClient) { self.client = client }
 
     func discover(query: String?, category: String?, cursor: String?) async throws -> (jobs: [MortJob], nextCursor: String?) {
-        // Server-side search + cursor pagination keeps the feed scalable.
-        let page: JobPageDTO = try await client.rpc("mort_discover_jobs", args: [
-            "p_query": query ?? "",
-            "p_category": category ?? "",
-            "p_cursor": cursor ?? "",
-        ])
-        return (page.jobs.map { $0.toDomain() }, page.nextCursor)
+        var args: [String: any Sendable] = [
+            "p_keyword": query ?? "",
+            "p_sort": "newest",
+            "p_limit": 20,
+        ]
+        if let category, !category.isEmpty {
+            args["p_category"] = category
+        }
+        if let cursor {
+            guard let decoded = HostedJobCursorDTO(opaqueValue: cursor) else {
+                throw MortError.rejected("That job-feed page token is no longer valid. Refresh the list.")
+            }
+            args["p_cursor_value"] = decoded.value
+            args["p_cursor_id"] = decoded.id
+        }
+
+        let page: HostedJobFeedPageDTO = try await client.rpc(
+            MortBackendContract.RPC.discoverJobs,
+            args: args
+        )
+        guard page.ok else {
+            throw MortError.rejected(page.code ?? "The job feed is temporarily unavailable.")
+        }
+
+        let jobs = try page.items.map { try $0.toDomain() }
+        return (jobs, page.hasMore ? page.nextCursor?.opaqueValue : nil)
     }
 
     func job(id: String) async throws -> MortJob {
-        let rows: [JobDTO] = try await client.get(
-            path: "/rest/v1/jobs",
-            query: [
-                URLQueryItem(name: "id", value: "eq.\(id)"),
-                URLQueryItem(name: "select", value: "*"),
-            ]
+        let row = try await jobRecord(id: id)
+        let profile = try? await profileSummary(id: row.posterId)
+        return try row.toDomain(
+            posterHandle: profile?.handle ?? "",
+            posterDisplayName: profile?.displayName ?? "MORT member"
         )
-        guard let row = rows.first else { throw MortError.notFound }
-        return row.toDomain()
     }
 
     func myJobs(role: MortRole) async throws -> [MortJob] {
-        let rows: [JobDTO] = try await client.rpc("mort_my_jobs", args: ["p_role": role.rawValue])
-        return rows.map { $0.toDomain() }
+        guard let stored = await client.storedSession() else {
+            throw MortError.unauthorized
+        }
+
+        let rows: [HostedJobRecordDTO]
+        switch role {
+        case .adult:
+            rows = try await client.get(
+                path: "/rest/v1/jobs",
+                query: [
+                    URLQueryItem(name: "poster_id", value: "eq.\(stored.userId)"),
+                    URLQueryItem(name: "select", value: Self.jobSelect),
+                    URLQueryItem(name: "order", value: "updated_at.desc"),
+                    URLQueryItem(name: "limit", value: "100"),
+                ]
+            )
+        case .teen:
+            let applications: [HostedExecutionApplicationWithJobDTO] = try await client.get(
+                path: "/rest/v1/applications",
+                query: [
+                    URLQueryItem(name: "teen_id", value: "eq.\(stored.userId)"),
+                    URLQueryItem(
+                        name: "status",
+                        value: "in.(submitted,guardian_pending,adult_review,viewed,accepted,in_progress,proof_submitted,completion_pending_release,completed)"
+                    ),
+                    URLQueryItem(name: "select", value: "job_id"),
+                    URLQueryItem(name: "order", value: "updated_at.desc"),
+                    URLQueryItem(name: "limit", value: "100"),
+                ]
+            )
+            let ids = Array(Set(applications.map(\.jobId)))
+            guard !ids.isEmpty else { return [] }
+            rows = try await client.get(
+                path: "/rest/v1/jobs",
+                query: [
+                    URLQueryItem(name: "id", value: "in.(\(ids.joined(separator: ",")))"),
+                    URLQueryItem(name: "select", value: Self.jobSelect),
+                    URLQueryItem(name: "order", value: "updated_at.desc"),
+                ]
+            )
+        case .guardian:
+            return []
+        }
+
+        let posterIds = Array(Set(rows.map(\.posterId)))
+        let profiles = try await profileSummaries(ids: posterIds)
+        return try rows.map { row in
+            let profile = profiles[row.posterId]
+            return try row.toDomain(
+                posterHandle: profile?.handle ?? "",
+                posterDisplayName: profile?.displayName ?? "MORT member"
+            )
+        }
     }
 
     func createJob(
@@ -213,57 +320,212 @@ nonisolated final class LiveJobRepository: JobRepository {
         scheduleText: String,
         requiresProof: Bool
     ) async throws -> MortJob {
-        // The backend re-validates Fair Pay here; a client-side green verdict
-        // is never sufficient.
-        let row: JobDTO = try await client.rpc("mort_create_job", args: [
-            "p_title": title,
-            "p_category": category,
-            "p_details": details,
-            "p_base_cents": baseCents,
-            "p_schedule_text": scheduleText,
-            "p_requires_proof": requiresProof,
-        ])
-        return row.toDomain()
+        guard baseCents > 0 else {
+            throw MortError.rejected("Enter a valid base pay amount.")
+        }
+        let profile = try await currentPostingProfile()
+        let payload = try postingPayload(
+            title: title,
+            category: category,
+            details: details,
+            baseCents: baseCents,
+            requiresProof: requiresProof,
+            profile: profile
+        )
+        let response: HostedJobMutationResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.saveJob,
+            args: [
+                "p_client_request_id": UUID().uuidString.lowercased(),
+                "p_payload": payload,
+                "p_publish": true,
+            ]
+        )
+        guard response.ok, let row = response.job else {
+            throw MortError.rejected(response.code ?? "That job could not be published.")
+        }
+        let identity = profile.toDomain()
+        return try row.toDomain(
+            posterHandle: identity.handle,
+            posterDisplayName: identity.displayName
+        )
     }
 
     func updateJob(id: String, title: String, details: String, baseCents: Int64) async throws -> MortJob {
-        let row: JobDTO = try await client.rpc("mort_update_job", args: [
-            "p_job_id": id,
-            "p_title": title,
-            "p_details": details,
-            "p_base_cents": baseCents,
-        ])
-        return row.toDomain()
+        guard UUID(uuidString: id) != nil else { throw MortError.notFound }
+        guard baseCents > 0 else {
+            throw MortError.rejected("Enter a valid base pay amount.")
+        }
+        let existing = try await jobRecord(id: id)
+        let profile = try await currentPostingProfile()
+        let payload = try postingPayload(
+            title: title,
+            category: existing.category,
+            details: details,
+            baseCents: baseCents,
+            requiresProof: existing.proofExpected ?? false,
+            profile: profile,
+            existing: existing
+        )
+        let response: HostedJobMutationResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.saveJob,
+            args: [
+                "p_job_id": id,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+                "p_payload": payload,
+                "p_publish": existing.status != "draft",
+            ]
+        )
+        guard response.ok, let row = response.job else {
+            throw MortError.rejected(response.code ?? "That job could not be updated.")
+        }
+        let identity = profile.toDomain()
+        return try row.toDomain(
+            posterHandle: identity.handle,
+            posterDisplayName: identity.displayName
+        )
     }
 
     func cancelJob(id: String, reason: String) async throws {
-        // Cancellation may trigger a refund; the backend owns that decision.
-        let _: EmptyResponse = try await client.rpc("mort_cancel_job", args: [
-            "p_job_id": id,
-            "p_reason": reason,
-        ])
+        guard UUID(uuidString: id) != nil else { throw MortError.notFound }
+        let trimmed = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 10 else {
+            throw MortError.rejected("Add a short cancellation reason before continuing.")
+        }
+        let response: HostedJobMutationResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.manageJob,
+            args: [
+                "p_job_id": id,
+                "p_action": "cancel",
+                "p_reason": trimmed,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "That job could not be cancelled.")
+        }
     }
 
     func fairPayPolicy(category: String) async throws -> FairPayPolicy {
-        // [POSSIBLE NEW BACKEND REQUIRED] if MORT has no per-category band
-        // endpoint yet. Do NOT hardcode bands in the app.
-        let dto: FairPayPolicyDTO = try await client.rpc("mort_fair_pay_policy", args: [
-            "p_category": category,
-        ])
-        return dto.toDomain()
+        // Fair Pay is enforced by the hosted funding-quote path. The database
+        // does not expose a participant-safe per-category band endpoint yet,
+        // so the app must not invent a local band.
+        throw MortError.notConfigured("Fair Pay preview bands")
     }
+
+    private static let jobSelect = "id,poster_id,title,summary,description,category,location_text,city,state,neighborhood,pay_amount_cents,status,starts_at,created_at,updated_at,proof_expected,schedule_type,applications_open"
+
+    private func jobRecord(id: String) async throws -> HostedJobRecordDTO {
+        guard UUID(uuidString: id) != nil else { throw MortError.notFound }
+        let rows: [HostedJobRecordDTO] = try await client.get(
+            path: "/rest/v1/jobs",
+            query: [
+                URLQueryItem(name: "id", value: "eq.\(id)"),
+                URLQueryItem(name: "select", value: Self.jobSelect),
+                URLQueryItem(name: "limit", value: "1"),
+            ]
+        )
+        guard let row = rows.first else { throw MortError.notFound }
+        return row
+    }
+
+    private func currentPostingProfile() async throws -> HostedProfileDTO {
+        let rows: [HostedProfileDTO] = try await client.rpc(
+            MortBackendContract.RPC.getMyProfile
+        )
+        guard let profile = rows.first else { throw MortError.notFound }
+        return profile
+    }
+
+    private func profileSummary(id: String) async throws -> MortUser {
+        let rows: [HostedProfileDTO] = try await client.get(
+            path: "/rest/v1/profiles",
+            query: [
+                URLQueryItem(name: "id", value: "eq.\(id)"),
+                URLQueryItem(name: "select", value: "id,username,display_name,role,city,state,approximate_area,verification_status,guardian_setup_status,created_at,bio"),
+                URLQueryItem(name: "limit", value: "1"),
+            ]
+        )
+        guard let row = rows.first else { throw MortError.notFound }
+        return row.toDomain()
+    }
+
+    private func profileSummaries(ids: [String]) async throws -> [String: MortUser] {
+        guard !ids.isEmpty else { return [:] }
+        let rows: [HostedProfileDTO] = try await client.get(
+            path: "/rest/v1/profiles",
+            query: [
+                URLQueryItem(name: "id", value: "in.(\(ids.joined(separator: ",")))"),
+                URLQueryItem(name: "select", value: "id,username,display_name,role,city,state,approximate_area,verification_status,guardian_setup_status,created_at,bio"),
+            ]
+        )
+        return Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0.toDomain()) })
+    }
+
+    private func postingPayload(
+        title: String,
+        category: String,
+        details: String,
+        baseCents: Int64,
+        requiresProof: Bool,
+        profile: HostedProfileDTO,
+        existing: HostedJobRecordDTO? = nil
+    ) throws -> [String: any Sendable] {
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanDetails = details.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard cleanTitle.count >= 5, cleanTitle.count <= 80 else {
+            throw MortError.rejected("Job titles must be 5–80 characters.")
+        }
+        guard cleanDetails.count >= 20, cleanDetails.count <= 4000 else {
+            throw MortError.rejected("Job details must be 20–4000 characters.")
+        }
+        guard let city = profile.city, !city.isEmpty,
+              let state = profile.state, state.count == 2 else {
+            throw MortError.rejected("Add your city and state to your profile before publishing a job.")
+        }
+
+        let summary = String(cleanDetails.prefix(240))
+        let area = existing?.locationText
+            ?? profile.approximateArea
+            ?? "\(city), \(state)"
+
+        return [
+            "title": cleanTitle,
+            "summary": summary,
+            "description": cleanDetails,
+            "category": category.lowercased(),
+            "location_text": area,
+            "city": existing?.city ?? city,
+            "state": existing?.state ?? state,
+            "pay_amount_cents": baseCents,
+            "proof_expected": requiresProof,
+            "schedule_type": existing?.scheduleType ?? "flexible",
+            "payment_type": "fixed",
+            "payment_method": "flexible",
+            "payment_timing": "after_completion",
+            "tip_allowed": true,
+        ]
+    }
+}
+
+nonisolated struct HostedExecutionApplicationWithJobDTO: Codable, Sendable {
+    let jobId: String
 }
 
 nonisolated final class LiveApplicationRepository: ApplicationRepository {
     private let client: SupabaseClient
     init(client: SupabaseClient) { self.client = client }
 
+    private let selectShape = """
+    id,job_id,teen_id,status,note,created_at,updated_at,    jobs:jobs!applications_job_id_fkey(title),    applicant:profiles!applications_teen_id_fkey(username,display_name)
+    """
+
     func applications(jobId: String) async throws -> [MortApplication] {
-        let rows: [ApplicationDTO] = try await client.get(
+        guard UUID(uuidString: jobId) != nil else { throw MortError.notFound }
+        let rows: [HostedApplicationDTO] = try await client.get(
             path: "/rest/v1/applications",
             query: [
                 URLQueryItem(name: "job_id", value: "eq.\(jobId)"),
-                URLQueryItem(name: "select", value: "*"),
+                URLQueryItem(name: "select", value: selectShape),
                 URLQueryItem(name: "order", value: "created_at.desc"),
             ]
         )
@@ -271,28 +533,62 @@ nonisolated final class LiveApplicationRepository: ApplicationRepository {
     }
 
     func myApplications() async throws -> [MortApplication] {
-        let rows: [ApplicationDTO] = try await client.rpc("mort_my_applications")
+        guard let stored = await client.storedSession() else {
+            throw MortError.unauthorized
+        }
+        let rows: [HostedApplicationDTO] = try await client.get(
+            path: "/rest/v1/applications",
+            query: [
+                URLQueryItem(name: "teen_id", value: "eq.\(stored.userId)"),
+                URLQueryItem(name: "select", value: selectShape),
+                URLQueryItem(name: "order", value: "created_at.desc"),
+            ]
+        )
         return rows.map { $0.toDomain() }
     }
 
     func apply(jobId: String, message: String) async throws -> MortApplication {
-        let row: ApplicationDTO = try await client.rpc("mort_apply_to_job", args: [
-            "p_job_id": jobId,
-            "p_message": message,
-        ])
-        return row.toDomain()
+        guard UUID(uuidString: jobId) != nil else { throw MortError.notFound }
+        let response: HostedApplicationSubmitResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.submitApplication,
+            args: [
+                "p_job_id": jobId,
+                "p_note": message,
+                "p_availability_confirmed": true,
+                "p_portfolio_ids": [String](),
+            ]
+        )
+        guard response.ok, let application = response.application else {
+            throw MortError.rejected(
+                response.message ?? response.code ?? "That application could not be submitted."
+            )
+        }
+        return application.toDomain()
     }
 
     func withdraw(applicationId: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_withdraw_application", args: [
-            "p_application_id": applicationId,
-        ])
+        try await transition(applicationId: applicationId, action: "withdrawn")
     }
 
     func selectApplicant(applicationId: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_select_applicant", args: [
-            "p_application_id": applicationId,
-        ])
+        try await transition(applicationId: applicationId, action: "accepted")
+    }
+
+    private func transition(applicationId: String, action: String) async throws {
+        guard UUID(uuidString: applicationId) != nil else { throw MortError.notFound }
+        let response: HostedApplicationTransitionResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.updateApplication,
+            args: [
+                "p_application_id": applicationId,
+                "p_action": action,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        guard response.ok else {
+            throw MortError.rejected(
+                response.code ?? "That application status could not be changed."
+            )
+        }
     }
 }
 
@@ -300,59 +596,230 @@ nonisolated final class LiveJobExecutionRepository: JobExecutionRepository {
     private let client: SupabaseClient
     init(client: SupabaseClient) { self.client = client }
 
-    func startJob(jobId: String, pin: String) async throws {
-        // The backend refuses to start a job that is not FUNDED.
-        let _: EmptyResponse = try await client.rpc("mort_start_job", args: [
-            "p_job_id": jobId,
-            "p_pin": pin,
-        ])
+    func startJob(jobId: String, pin: String, personMatchesProfile: Bool) async throws {
+        guard personMatchesProfile else {
+            throw MortError.rejected("Confirm the person matches the profile before starting.")
+        }
+        let application = try await executionApplication(jobId: jobId)
+        let response: HostedStartConfirmationResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.confirmStartPin,
+            args: [
+                "p_application_id": application.id,
+                "p_pin": pin,
+                "p_person_matches_profile": true,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "The start code was not accepted.")
+        }
     }
 
     func startPin(jobId: String) async throws -> String {
-        let dto: PinDTO = try await client.rpc("mort_job_start_pin", args: ["p_job_id": jobId])
-        return dto.pin
+        let application = try await executionApplication(jobId: jobId)
+        let response: HostedStartPinResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.generateStartPin,
+            args: [
+                "p_application_id": application.id,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        guard response.ok, let pin = response.startPin, pin.count == 6 else {
+            throw MortError.rejected(response.code ?? "A start code could not be created.")
+        }
+        return pin
     }
 
-    func submitProof(jobId: String, note: String, attachmentNames: [String]) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_submit_proof", args: [
-            "p_job_id": jobId,
-            "p_note": note,
-            "p_attachments": attachmentNames,
-        ])
+    func submitProof(jobId: String, note: String, attachment: JobProofAttachment) async throws {
+        guard attachment.contentType == "image/jpeg" else {
+            throw MortError.rejected("Job proof must be a JPEG image.")
+        }
+        guard !attachment.data.isEmpty, attachment.data.count <= 10 * 1024 * 1024 else {
+            throw MortError.rejected("Job proof must be 10 MB or smaller.")
+        }
+        guard let stored = await client.storedSession() else {
+            throw MortError.unauthorized
+        }
+
+        let application = try await executionApplication(jobId: jobId)
+        guard application.status == "in_progress" else {
+            throw MortError.rejected("Proof can only be submitted while the job is in progress.")
+        }
+
+        let proofId = UUID().uuidString.lowercased()
+        let storagePath = "\(stored.userId)/\(proofId).jpg"
+        try await client.upload(
+            bucket: "proof-uploads",
+            path: storagePath,
+            data: attachment.data,
+            contentType: attachment.contentType
+        )
+
+        let response: HostedMutationAckDTO = try await client.rpc(
+            MortBackendContract.RPC.submitApplicationProof,
+            args: [
+                "p_proof_id": proofId,
+                "p_application_id": application.id,
+                "p_storage_path": storagePath,
+                "p_note": note.trimmingCharacters(in: .whitespacesAndNewlines),
+            ]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "MORT could not attach that proof to the job.")
+        }
     }
 
     func markComplete(jobId: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_mark_complete", args: ["p_job_id": jobId])
+        let application = try await executionApplication(jobId: jobId)
+        let status: HostedExecutionStatusDTO = try await client.rpc(
+            MortBackendContract.RPC.executionStatus,
+            args: ["p_application_id": application.id]
+        )
+        guard
+            status.ok,
+            status.state == "in_progress",
+            let contractId = status.contractId,
+            UUID(uuidString: contractId) != nil
+        else {
+            throw MortError.rejected(
+                status.code ?? "This job is not in a state where completion can be submitted."
+            )
+        }
+
+        let jobs: [HostedExecutionJobContextDTO] = try await client.get(
+            path: "/rest/v1/jobs",
+            query: [
+                URLQueryItem(name: "id", value: "eq.\(jobId)"),
+                URLQueryItem(name: "select", value: "id,location_type"),
+                URLQueryItem(name: "limit", value: "1"),
+            ]
+        )
+        guard let job = jobs.first else { throw MortError.notFound }
+        let locationType = job.locationType?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let confirmedLocationType = (locationType?.isEmpty == false)
+            ? locationType!
+            : "unspecified"
+
+        // The "I've finished the work" action is the worker's explicit
+        // approved-scope confirmation. Empty checklist means no structured
+        // checklist was supplied; it never invents completed task facts.
+        var completionArgs: [String: any Sendable] = [
+            "p_contract_id": contractId,
+            "p_task_checklist": [String](),
+            "p_completion_timestamp": Date().ISO8601Format(),
+            "p_location_type_confirmation": confirmedLocationType,
+            "p_approved_scope_confirmation": true,
+            "p_witness_notes": SupabaseJSONNull(),
+            "p_statement": SupabaseJSONNull(),
+        ]
+        if let startedAt = status.startedAt {
+            completionArgs["p_start_timestamp"] = startedAt.ISO8601Format()
+        } else {
+            completionArgs["p_start_timestamp"] = SupabaseJSONNull()
+        }
+
+        let response: HostedCompletionAssertionResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.submitCompletionAssertion,
+            args: completionArgs
+        )
+        guard response.ok, response.assertionId != nil else {
+            throw MortError.rejected(
+                response.code ?? "MORT could not record the completion assertion."
+            )
+        }
     }
 
-    func confirmCompletion(jobId: String) async throws -> SettlementResult {
-        // AUTHORITATIVE SETTLEMENT. The returned numbers are the backend's
-        // decision; the app only renders them.
-        let dto: SettlementDTO = try await client.rpc("mort_confirm_completion", args: [
-            "p_job_id": jobId,
-        ])
-        return dto.toDomain()
+    func confirmCompletion(jobId: String) async throws -> CompletionAcknowledgement {
+        let application = try await executionApplication(jobId: jobId)
+        let status: HostedExecutionStatusDTO = try await client.rpc(
+            MortBackendContract.RPC.executionStatus,
+            args: ["p_application_id": application.id]
+        )
+        guard
+            status.ok,
+            let contractId = status.contractId,
+            UUID(uuidString: contractId) != nil
+        else {
+            throw MortError.rejected(
+                status.code ?? "MORT could not resolve this job's completion contract."
+            )
+        }
+
+        let response: HostedAdultCompletionResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.respondCompletion,
+            args: [
+                "p_contract_id": contractId,
+                "p_acknowledged": true,
+                "p_statement": SupabaseJSONNull(),
+            ]
+        )
+        return try response.toDomain()
     }
 
     func openDispute(jobId: String, category: String, detail: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_open_dispute", args: [
-            "p_job_id": jobId,
-            "p_category": category,
-            "p_detail": detail,
-        ])
+        throw MortError.notConfigured("Payment dispute opening")
     }
 
     func settlement(jobId: String) async throws -> SettlementResult {
-        let dto: SettlementDTO = try await client.rpc("mort_settlement", args: ["p_job_id": jobId])
-        return dto.toDomain()
+        guard UUID(uuidString: jobId) != nil else { throw MortError.notFound }
+        let contracts: [HostedJobContractDTO] = try await client.get(
+            path: "/rest/v1/job_contracts",
+            query: [
+                URLQueryItem(name: "job_id", value: "eq.\(jobId)"),
+                URLQueryItem(name: "select", value: "id,job_id,teen_id,adult_id,status,active_version_id"),
+                URLQueryItem(name: "order", value: "created_at.desc"),
+                URLQueryItem(name: "limit", value: "1"),
+            ]
+        )
+        guard let contract = contracts.first else {
+            throw MortError.rejected("We couldn't find this job's settlement contract.")
+        }
+        let dto: HostedJobSettlementDTO? = try await client.rpc(
+            MortBackendContract.RPC.jobSettlement,
+            args: ["p_contract_id": contract.id]
+        )
+        guard let dto else {
+            throw MortError.rejected("Settlement has not been finalized yet.")
+        }
+        return try dto.toDomain()
+    }
+
+    private func executionApplication(jobId: String) async throws -> HostedExecutionApplicationRefDTO {
+        guard UUID(uuidString: jobId) != nil else { throw MortError.notFound }
+        let rows: [HostedExecutionApplicationRefDTO] = try await client.get(
+            path: "/rest/v1/applications",
+            query: [
+                URLQueryItem(name: "job_id", value: "eq.\(jobId)"),
+                URLQueryItem(
+                    name: "status",
+                    value: "in.(accepted,in_progress,proof_submitted,completion_pending_release)"
+                ),
+                URLQueryItem(name: "select", value: "id,status,updated_at"),
+                URLQueryItem(name: "order", value: "updated_at.desc"),
+                URLQueryItem(name: "limit", value: "1"),
+            ]
+        )
+        guard let application = rows.first else {
+            throw MortError.rejected("This job is not ready for the start handshake.")
+        }
+        return application
     }
 }
 
 // MARK: - Payment OS
 
-nonisolated final class LivePaymentRepository: PaymentRepository {
+nonisolated actor LivePaymentRepository: PaymentRepository {
+    private struct FundingSession: Sendable {
+        let quote: PaymentQuote
+        let contractId: String
+        let quoteId: String
+        var providerPaymentIntentId: String?
+    }
+
     private let client: SupabaseClient
     private let sheet: any ProviderPaymentSheet
+    private var sessions: [String: FundingSession] = [:]
 
     init(client: SupabaseClient, sheet: any ProviderPaymentSheet) {
         self.client = client
@@ -360,110 +827,324 @@ nonisolated final class LivePaymentRepository: PaymentRepository {
     }
 
     func fundingQuote(jobId: String) async throws -> PaymentQuote {
-        // The total is computed SERVER-SIDE. Never derive it on device.
-        let dto: QuoteDTO = try await client.rpc("mort_funding_quote", args: ["p_job_id": jobId])
-        return dto.toDomain()
+        let contract = try await contractForJob(jobId, activeOnly: true)
+        guard contract.status == "active" else {
+            throw MortError.rejected("This job is not ready to be funded.")
+        }
+
+        let requestId = UUID().uuidString.lowercased()
+        let response: HostedFundingQuoteResponseDTO = try await client.function(
+            MortBackendContract.EdgeFunction.fundingQuote,
+            body: [
+                "contract_id": contract.id,
+                "request_id": requestId,
+            ]
+        )
+
+        guard
+            response.ok,
+            let quoteId = response.quoteId,
+            UUID(uuidString: quoteId) != nil,
+            let contractId = response.contractId,
+            contractId == contract.id,
+            let base = response.basePayCents, base > 0,
+            let fee = response.serviceFeeCents, fee >= 0,
+            let total = response.authoritativeTotalCents, total == base + fee,
+            let expiresAt = response.expiresAt,
+            response.state == "ACTIVE"
+        else {
+            if response.state == "EXPIRED" {
+                throw MortError.rejected("That funding amount expired. Refresh it before paying.")
+            }
+            throw MortError.serverUnavailable
+        }
+
+        let metadata = try await paymentMetadata(contract: contract)
+        let quote = PaymentQuote(
+            jobId: jobId,
+            jobTitle: metadata.job.title,
+            workerHandle: metadata.worker.safeDisplayHandle,
+            orderNumber: nil,
+            baseCents: base,
+            feeCents: fee,
+            totalCents: total,
+            feeExplanation: "MORT's service fee for this funding quote is \(Money(cents: fee).formatted). It's added on top of base pay and is not taken from the worker.",
+            expiresAt: expiresAt,
+            method: nil
+        )
+        sessions[jobId] = FundingSession(
+            quote: quote,
+            contractId: contractId,
+            quoteId: quoteId,
+            providerPaymentIntentId: nil
+        )
+        return quote
+    }
+
+    func fundingDisplay(jobId: String) async throws -> PaymentQuote? {
+        sessions[jobId]?.quote
     }
 
     func beginFunding(jobId: String, methodId: String?, idempotencyKey: String) async throws -> PaymentState {
-        // 1. Backend creates the PaymentIntent (platform charge) and returns
-        //    only the client secret + runtime publishable key.
-        let intent: IntentDTO = try await client.rpc("mort_begin_funding", args: [
-            "p_job_id": jobId,
-            "p_method_id": methodId ?? "",
-            "p_idempotency_key": idempotencyKey,
-        ])
-
-        // A backend-side terminal answer wins immediately (e.g. duplicate
-        // submission blocked, or a saved method charged off-session).
-        if let immediate = intent.state.flatMap(PaymentState.init(rawValue:)),
-           immediate != .processing {
-            return immediate
+        guard var session = sessions[jobId] else {
+            throw MortError.rejected("Refresh the funding amount before paying.")
+        }
+        guard !session.quote.isExpired else { return .quoteExpired }
+        guard UUID(uuidString: idempotencyKey) != nil else {
+            throw MortError.rejected("This payment attempt is no longer valid. Refresh and try again.")
         }
 
-        // 2. Present the provider sheet.
+        let intent: HostedPaymentIntentResponseDTO = try await client.function(
+            MortBackendContract.EdgeFunction.paymentIntent,
+            body: [
+                "quote_id": session.quoteId,
+                "request_id": idempotencyKey.lowercased(),
+                // PaymentSheet may collect a new method. Saving requires a
+                // separate explicit-consent UX that iOS has not enabled yet.
+                "save_payment_method": false,
+            ]
+        )
+
+        guard
+            intent.ok,
+            let clientSecret = intent.paymentIntentClientSecret,
+            let publishableKey = intent.publishableKey,
+            let providerId = intent.providerPaymentIntentId,
+            let responseBase = intent.basePayCents,
+            let responseFee = intent.serviceFeeCents,
+            let responseTotal = intent.totalAmountCents,
+            responseBase == session.quote.baseCents,
+            responseFee == session.quote.feeCents,
+            responseTotal == session.quote.totalCents
+        else {
+            return .unknown
+        }
+
+        session.providerPaymentIntentId = providerId
+        sessions[jobId] = session
+
         let outcome = await sheet.present(handle: PaymentIntentHandle(
-            clientSecret: intent.clientSecret,
-            publishableKey: intent.publishableKey,
+            clientSecret: clientSecret,
+            publishableKey: publishableKey,
             customerEphemeralKeySecret: intent.customerEphemeralKeySecret,
             customerId: intent.customerId,
             merchantDisplayName: "MORT",
-            applePayMerchantId: intent.applePayMerchantId
+            applePayMerchantId: nil
         ))
 
-        // 3. The sheet result is NOT financial truth. Always reconcile.
+        // PaymentSheet is presentation state, never financial truth. Always
+        // ask MORT after it dismisses, even when the SDK reports completion.
+        let reconciled = try? await fundingStatus(jobId: jobId)
+
         switch outcome {
         case .completed:
-            return try await fundingStatus(jobId: jobId).state
+            guard let reconciled else { return .unknown }
+            // A provider completion can precede the signed webhook. Render a
+            // pending state until the backend reaches SUCCEEDED.
+            return reconciled.state == .processing ? .pending : reconciled.state
+
         case .canceled:
+            if let reconciled,
+               reconciled.state == .funded
+                || reconciled.state == .processing
+                || reconciled.state == .pending
+                || reconciled.state == .requiresAction {
+                return reconciled.state
+            }
             return .cancelled
+
         case .failed(let reason):
-            // Ask the backend anyway: the charge may have landed even though
-            // the local sheet reported a failure.
-            let confirmed = try? await fundingStatus(jobId: jobId)
-            if let confirmed, confirmed.state == .funded { return .funded }
-            return reason == .networkInterrupted ? .failedNetwork : .declined
+            if let reconciled,
+               reconciled.state != .ready
+                && reconciled.state != .unknown {
+                return reconciled.state
+            }
+            return reason == .networkInterrupted ? .failedNetwork : .unknown
         }
     }
 
     func fundingStatus(jobId: String) async throws -> (state: PaymentState, reason: PaymentFailureReason?) {
-        let dto: PaymentStatusDTO = try await client.rpc("mort_funding_status", args: [
-            "p_job_id": jobId,
-        ])
-        return (
-            PaymentState(rawValue: dto.state) ?? .unknown,
-            dto.reason.flatMap(PaymentFailureReason.init(rawValue:))
+        if
+            let providerId = sessions[jobId]?.providerPaymentIntentId,
+            let attempt: HostedPaymentAttemptStateDTO = try await paymentAttempt(providerId: providerId)
+        {
+            return (attempt.paymentState, nil)
+        }
+
+        // Recovery path after app restart: the participant-visible payment
+        // summary is keyed by the job contract and prevents blind re-charging.
+        let contract = try await contractForJob(jobId, activeOnly: false)
+        let summary: HostedJobPaymentSummaryDTO = try await client.rpc(
+            MortBackendContract.RPC.jobPaymentSummary,
+            args: ["p_contract_id": contract.id]
         )
+        return (summary.paymentState, nil)
     }
 
     func paymentMethods() async throws -> [PaymentMethodRef] {
-        // Masks only; the vault lives with the provider.
-        let rows: [MethodDTO] = try await client.rpc("mort_payment_methods")
-        return rows.map { $0.toDomain() }
+        // Saved-method display/collection is owned by Stripe PaymentSheet using
+        // its short-lived Customer ephemeral key. MORT never receives PAN/CVV.
+        []
     }
 
     func setDefaultMethod(id: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_set_default_method", args: ["p_method_id": id])
+        throw MortError.notConfigured("Saved payment-method management")
     }
 
     func submitTip(jobId: String, tipCents: Int64, idempotencyKey: String) async throws -> PaymentState {
-        // SEPARATE transaction. A failure here must never unwind settlement.
-        let intent: IntentDTO = try await client.rpc("mort_begin_tip", args: [
-            "p_job_id": jobId,
-            "p_tip_cents": tipCents,
-            "p_idempotency_key": idempotencyKey,
-        ])
-        if let immediate = intent.state.flatMap(PaymentState.init(rawValue:)),
-           immediate != .processing {
-            return immediate
+        guard tipCents > 0 else {
+            throw MortError.rejected("Enter a valid tip amount.")
         }
+        guard UUID(uuidString: idempotencyKey) != nil else {
+            throw MortError.rejected("This tip attempt is no longer valid. Try again.")
+        }
+
+        let policy = try await tipConfig()
+        guard tipCents >= policy.minimumCents, tipCents <= policy.maximumCents else {
+            throw MortError.rejected("That tip is outside MORT's current allowed range.")
+        }
+
+        let contract = try await contractForJob(jobId, activeOnly: false)
+        let settlement: HostedJobSettlementDTO? = try await client.rpc(
+            MortBackendContract.RPC.jobSettlement,
+            args: ["p_contract_id": contract.id]
+        )
+        guard let settlement else {
+            throw MortError.rejected("This job must be settled before you can add a tip.")
+        }
+
+        let intent: HostedTipPaymentIntentResponseDTO = try await client.function(
+            MortBackendContract.EdgeFunction.tipPaymentIntent,
+            body: [
+                "settlement_id": settlement.settlementId,
+                "amount_cents": tipCents,
+                "request_id": idempotencyKey.lowercased(),
+            ]
+        )
+
+        guard
+            intent.ok,
+            let tipAttemptId = intent.tipAttemptId,
+            UUID(uuidString: tipAttemptId) != nil,
+            let clientSecret = intent.paymentIntentClientSecret,
+            let publishableKey = intent.publishableKey,
+            intent.amountCents == tipCents,
+            intent.teenAmountCents == tipCents,
+            intent.mortFeeCents == 0
+        else {
+            if let state = intent.normalizedState {
+                return HostedPaymentStateMapper.normalized(state)
+            }
+            return .unknown
+        }
+
         let outcome = await sheet.present(handle: PaymentIntentHandle(
-            clientSecret: intent.clientSecret,
-            publishableKey: intent.publishableKey,
-            customerEphemeralKeySecret: intent.customerEphemeralKeySecret,
+            clientSecret: clientSecret,
+            publishableKey: publishableKey,
+            customerEphemeralKeySecret: nil,
             customerId: intent.customerId,
             merchantDisplayName: "MORT tip",
-            applePayMerchantId: intent.applePayMerchantId
+            applePayMerchantId: nil
         ))
+
+        let reconciled: HostedTipAttemptStateDTO? = try? await client.rpc(
+            MortBackendContract.RPC.tipAttemptState,
+            args: ["p_tip_attempt_id": tipAttemptId]
+        )
+        let state = reconciled?.paymentState ?? .unknown
+
         switch outcome {
         case .completed:
-            let dto: PaymentStatusDTO = try await client.rpc("mort_tip_status", args: ["p_job_id": jobId])
-            return PaymentState(rawValue: dto.state) ?? .unknown
+            return state == .processing ? .pending : state
         case .canceled:
+            if state == .funded || state == .processing || state == .pending || state == .requiresAction {
+                return state
+            }
             return .cancelled
-        case .failed:
-            return .declined
+        case .failed(let reason):
+            if state != .unknown && state != .ready { return state }
+            return reason == .networkInterrupted ? .failedNetwork : .unknown
         }
     }
 
     func feeConfig() async throws -> MortFeeConfig {
-        let dto: FeeConfigDTO = try await client.rpc("mort_fee_config")
-        return dto.toDomain()
+        let config: HostedFinancialPolicyConfigDTO = try await client.rpc(
+            MortBackendContract.RPC.financialPolicyConfig
+        )
+        guard config.ok, let fee = config.serviceFee else {
+            throw MortError.serverUnavailable
+        }
+        return fee.toDomain()
     }
 
     func tipConfig() async throws -> TipConfig {
-        let dto: TipConfigDTO = try await client.rpc("mort_tip_config")
-        return dto.toDomain()
+        let config: HostedFinancialPolicyConfigDTO = try await client.rpc(
+            MortBackendContract.RPC.financialPolicyConfig
+        )
+        guard config.ok, let tip = config.tip else {
+            throw MortError.notConfigured("Tip policy")
+        }
+        return try tip.toDomain()
+    }
+
+    private func paymentAttempt(providerId: String) async throws -> HostedPaymentAttemptStateDTO? {
+        let dto: HostedPaymentAttemptStateDTO? = try await client.rpc(
+            MortBackendContract.RPC.paymentAttemptState,
+            args: ["p_payment_intent_id": providerId]
+        )
+        return dto
+    }
+
+    private func contractForJob(_ jobId: String, activeOnly: Bool) async throws -> HostedJobContractDTO {
+        guard UUID(uuidString: jobId) != nil else { throw MortError.notFound }
+        var query = [
+            URLQueryItem(name: "job_id", value: "eq.\(jobId)"),
+            URLQueryItem(name: "select", value: "id,job_id,teen_id,adult_id,status,active_version_id"),
+            URLQueryItem(name: "order", value: "created_at.desc"),
+            URLQueryItem(name: "limit", value: "1"),
+        ]
+        if activeOnly {
+            query.insert(URLQueryItem(name: "status", value: "eq.active"), at: 1)
+        }
+        let rows: [HostedJobContractDTO] = try await client.get(
+            path: "/rest/v1/job_contracts",
+            query: query
+        )
+        guard let contract = rows.first else {
+            throw MortError.rejected(
+                activeOnly
+                    ? "This job does not have an active funding contract yet."
+                    : "We couldn't find this job's payment record."
+            )
+        }
+        return contract
+    }
+
+    private func paymentMetadata(
+        contract: HostedJobContractDTO
+    ) async throws -> (job: HostedPaymentJobDTO, worker: HostedPaymentCounterpartyDTO) {
+        let jobs: [HostedPaymentJobDTO] = try await client.get(
+            path: "/rest/v1/jobs",
+            query: [
+                URLQueryItem(name: "id", value: "eq.\(contract.jobId)"),
+                URLQueryItem(name: "select", value: "id,title"),
+                URLQueryItem(name: "limit", value: "1"),
+            ]
+        )
+        guard let job = jobs.first, let teenId = contract.teenId else {
+            throw MortError.notFound
+        }
+
+        let workers: [HostedPaymentCounterpartyDTO] = try await client.get(
+            path: "/rest/v1/profiles",
+            query: [
+                URLQueryItem(name: "id", value: "eq.\(teenId)"),
+                URLQueryItem(name: "select", value: "id,username,display_name"),
+                URLQueryItem(name: "limit", value: "1"),
+            ]
+        )
+        guard let worker = workers.first else { throw MortError.notFound }
+        return (job, worker)
     }
 }
 
@@ -472,24 +1153,82 @@ nonisolated final class LiveReceiptRepository: ReceiptRepository {
     init(client: SupabaseClient) { self.client = client }
 
     func receipt(number: String) async throws -> Receipt {
-        // Receipts are immutable, backend-issued documents.
-        let dto: ReceiptDTO = try await client.rpc("mort_receipt", args: ["p_receipt_number": number])
-        return dto.toDomain()
+        let trimmed = number.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !trimmed.isEmpty else { throw MortError.notFound }
+        let dto: HostedFinancialDocumentDTO? = try await client.rpc(
+            MortBackendContract.RPC.financialDocument,
+            args: ["p_receipt_id": trimmed]
+        )
+        guard let dto else { throw MortError.notFound }
+        return dto.toReceipt()
     }
 
     func receipts(cursor: String?) async throws -> (receipts: [Receipt], nextCursor: String?) {
-        let page: ReceiptPageDTO = try await client.rpc("mort_receipts", args: [
-            "p_cursor": cursor ?? "",
-        ])
-        return (page.receipts.map { $0.toDomain() }, page.nextCursor)
+        let page = try await financialPage(cursor: cursor, category: nil, search: nil, limit: 50)
+        let next = page.items.count == 50
+            ? page.items.last?.createdAt.ISO8601Format()
+            : nil
+        return (page.items.map { $0.toReceipt() }, next)
     }
 
     func receipt(jobId: String, type: ReceiptType) async throws -> Receipt? {
-        let rows: [ReceiptDTO] = try await client.rpc("mort_job_receipts", args: [
-            "p_job_id": jobId,
-            "p_type": type.rawValue,
-        ])
-        return rows.first?.toDomain()
+        guard UUID(uuidString: jobId) != nil else { throw MortError.notFound }
+
+        let documentType: String?
+        switch type {
+        case .adultJobPayment: documentType = "ADULT_JOB_PAYMENT"
+        case .teenEarnings: documentType = "TEEN_EARNINGS"
+        case .lateTip: documentType = "TIP"
+        case .fullRefund: documentType = "FULL_REFUND"
+        case .partialRefund: documentType = "PARTIAL_REFUND"
+        case .adjustment: documentType = "ADJUSTMENT"
+        case .reversal: documentType = "REVERSAL"
+        case .storePurchase: documentType = nil
+        }
+        guard let documentType else { return nil }
+
+        let contracts: [HostedJobContractDTO] = try await client.get(
+            path: "/rest/v1/job_contracts",
+            query: [
+                URLQueryItem(name: "job_id", value: "eq.\(jobId)"),
+                URLQueryItem(name: "select", value: "id,job_id,teen_id,adult_id,status,active_version_id"),
+                URLQueryItem(name: "order", value: "created_at.desc"),
+                URLQueryItem(name: "limit", value: "1"),
+            ]
+        )
+        guard let contract = contracts.first else { return nil }
+
+        let dto: HostedFinancialDocumentDTO? = try await client.rpc(
+            MortBackendContract.RPC.jobFinancialDocument,
+            args: [
+                "p_contract_id": contract.id,
+                "p_document_type": documentType,
+            ]
+        )
+        return dto?.toReceipt()
+    }
+
+    private func financialPage(
+        cursor: String?,
+        category: String?,
+        search: String?,
+        limit: Int
+    ) async throws -> HostedFinancialHistoryPageDTO {
+        var args: [String: any Sendable] = [
+            "p_limit": min(max(limit, 1), 100),
+        ]
+        if let cursor {
+            guard ISO8601DateFormatter().date(from: cursor) != nil else {
+                throw MortError.rejected("That receipt page token is no longer valid.")
+            }
+            args["p_cursor"] = cursor
+        }
+        if let category, !category.isEmpty { args["p_category"] = category }
+        if let search, !search.isEmpty { args["p_search"] = search }
+        return try await client.rpc(
+            MortBackendContract.RPC.financialHistory,
+            args: args
+        )
     }
 }
 
@@ -498,30 +1237,37 @@ nonisolated final class LivePayoutRepository: PayoutRepository {
     init(client: SupabaseClient) { self.client = client }
 
     func payoutStatus() async throws -> PayoutStatus {
-        let dto: PayoutDTO = try await client.rpc("mort_payout_status")
+        let dto: HostedStripePayoutStatusDTO = try await client.rpc(
+            MortBackendContract.RPC.payoutStatus
+        )
         return dto.toDomain()
     }
 
     func payoutHistory() async throws -> [PayoutStatus] {
-        let rows: [PayoutDTO] = try await client.rpc("mort_payout_history")
-        return rows.map { $0.toDomain() }
+        let dto: HostedStripePayoutStatusDTO = try await client.rpc(
+            MortBackendContract.RPC.payoutStatus
+        )
+        guard dto.latestPayout != nil else { return [] }
+        // The current participant-safe RPC deliberately exposes only the latest
+        // provider payout. Return exactly that one known record rather than
+        // manufacturing a historical list.
+        return [dto.toDomain()]
     }
 
     func beginPayoutOnboarding() async throws -> URL {
-        // The backend creates the Connect onboarding link.
-        let dto: OnboardingLinkDTO = try await client.rpc("mort_payout_onboarding_link")
-        guard let url = URL(string: dto.url) else { throw MortError.unknown }
-        return url
+        // Hosted onboarding requires approved HTTPS return/refresh origins.
+        // Native universal-link routing is not configured in this target yet.
+        throw MortError.notConfigured("Payout onboarding return link")
     }
 
     func refreshPayoutReadiness() async throws -> PayoutStage {
-        // Readiness is ALWAYS re-read from the provider via the backend.
-        let dto: PayoutStageDTO = try await client.rpc("mort_refresh_payout_readiness")
-        return PayoutStage(rawValue: dto.stage) ?? .setupRequired
+        let dto: HostedStripePayoutStatusDTO = try await client.function(
+            MortBackendContract.EdgeFunction.connectedAccountStatus,
+            body: [:]
+        )
+        return dto.stage
     }
 }
-
-// MARK: - History
 
 nonisolated final class LiveHistoryRepository: HistoryRepository {
     private let client: SupabaseClient
@@ -533,81 +1279,287 @@ nonisolated final class LiveHistoryRepository: HistoryRepository {
         query: String?,
         cursor: String?
     ) async throws -> (records: [HistoryRecord], nextCursor: String?) {
-        let page: HistoryPageDTO = try await client.rpc("mort_history", args: [
-            "p_filter": filter.rawValue,
-            "p_year": year ?? 0,
-            "p_query": query ?? "",
-            "p_cursor": cursor ?? "",
-        ])
-        return (page.records.map { $0.toDomain() }, page.nextCursor)
+        if filter == .failed || filter == .disputed || filter == .jobs {
+            // Failed attempts and disputes do not issue immutable financial
+            // documents, while job lifecycle rows are a separate domain. The
+            // hosted backend has no unified participant-safe cursor yet.
+            return ([], nil)
+        }
+
+        var args: [String: any Sendable] = ["p_limit": 50]
+        if let year { args["p_year"] = year }
+        if let query {
+            let clean = query.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !clean.isEmpty { args["p_search"] = clean }
+        }
+        if let category = Self.category(for: filter) {
+            args["p_category"] = category
+        }
+        if let cursor {
+            guard ISO8601DateFormatter().date(from: cursor) != nil else {
+                throw MortError.rejected("That history page token is no longer valid.")
+            }
+            args["p_cursor"] = cursor
+        }
+
+        let page: HostedFinancialHistoryPageDTO = try await client.rpc(
+            MortBackendContract.RPC.financialHistory,
+            args: args
+        )
+        let next = page.items.count == 50
+            ? page.items.last?.createdAt.ISO8601Format()
+            : nil
+        return (page.items.map { $0.toHistoryRecord() }, next)
     }
 
     func availableYears() async throws -> [Int] {
-        let dto: YearsDTO = try await client.rpc("mort_history_years")
-        return dto.years
+        var years = Set<Int>()
+        var cursor: String?
+        var pageCount = 0
+
+        repeat {
+            var args: [String: any Sendable] = ["p_limit": 100]
+            if let cursor { args["p_cursor"] = cursor }
+            let page: HostedFinancialHistoryPageDTO = try await client.rpc(
+                MortBackendContract.RPC.financialHistory,
+                args: args
+            )
+            for item in page.items {
+                years.insert(Calendar(identifier: .gregorian).component(.year, from: item.createdAt))
+            }
+            cursor = page.items.count == 100
+                ? page.items.last?.createdAt.ISO8601Format()
+                : nil
+            pageCount += 1
+        } while cursor != nil && pageCount < 20
+
+        if years.isEmpty {
+            years.insert(Calendar(identifier: .gregorian).component(.year, from: Date()))
+        }
+        return years.sorted(by: >)
     }
 
     func startAnnualExport(year: Int) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_start_annual_export", args: ["p_year": year])
+        // No hosted export-file job currently exists. Keep this honest rather
+        // than claiming a local reconstruction is an official export.
+        throw MortError.notConfigured("Annual financial export")
     }
 
     func exportState(year: Int) async throws -> ExportState {
-        let dto: ExportStateDTO = try await client.rpc("mort_export_state", args: ["p_year": year])
-        return ExportState(rawValue: dto.state) ?? .ready
+        throw MortError.notConfigured("Annual financial export")
     }
 
     func exportFile(year: Int) async throws -> URL {
-        // [DO NOT FAKE] If the backend has no file, this throws and the UI
-        // stays in a failed/preparing state.
-        let dto: ExportFileDTO = try await client.rpc("mort_export_file", args: ["p_year": year])
-        guard let url = URL(string: dto.url) else { throw MortError.notFound }
-        return url
+        throw MortError.notConfigured("Annual financial export")
+    }
+
+    private static func category(for filter: HistoryFilter) -> String? {
+        switch filter {
+        case .all, .receipts:
+            return nil
+        case .payments:
+            return "ADULT_JOB_PAYMENT"
+        case .earnings:
+            return "TEEN_EARNINGS"
+        case .tips:
+            return "TIP"
+        case .refunds:
+            return "REFUND"
+        case .adjustments:
+            return "ADJUSTMENT"
+        case .failed, .disputed, .jobs:
+            return nil
+        }
     }
 }
-
-// MARK: - Messaging / Safety / Support / Notifications / Guardian
 
 nonisolated final class LiveMessageRepository: MessageRepository {
     private let client: SupabaseClient
     init(client: SupabaseClient) { self.client = client }
 
     func conversations() async throws -> [MortConversation] {
-        let rows: [ConversationDTO] = try await client.rpc("mort_conversations")
-        return rows.map { $0.toDomain() }
+        let page: HostedMessageThreadPageDTO = try await client.rpc(
+            MortBackendContract.RPC.messageThreads,
+            args: ["p_limit": 50]
+        )
+
+        let ids = page.items.compactMap(\.counterpartyId)
+        var usernames: [String: String] = [:]
+        if !ids.isEmpty {
+            let rows: [HostedUsernameDTO] = try await client.get(
+                path: "/rest/v1/profiles",
+                query: [
+                    URLQueryItem(name: "id", value: "in.(\(ids.joined(separator: ",")))"),
+                    URLQueryItem(name: "select", value: "id,username"),
+                ]
+            )
+            usernames = Dictionary(
+                uniqueKeysWithValues: rows.compactMap { row in
+                    guard let username = row.username else { return nil }
+                    return (row.id, username)
+                }
+            )
+        }
+
+        return page.items.map { item in
+            item.toDomain(username: item.counterpartyId.flatMap { usernames[$0] })
+        }
     }
 
-    func messages(conversationId: String, cursor: String?) async throws -> (messages: [MortMessage], nextCursor: String?) {
-        let page: MessagePageDTO = try await client.rpc("mort_messages", args: [
-            "p_conversation_id": conversationId,
-            "p_cursor": cursor ?? "",
-        ])
-        return (page.messages.map { $0.toDomain() }, page.nextCursor)
+    func messages(
+        conversationId: String,
+        cursor: String?
+    ) async throws -> (messages: [MortMessage], nextCursor: String?) {
+        guard UUID(uuidString: conversationId) != nil else { throw MortError.notFound }
+        guard let stored = await client.storedSession() else { throw MortError.unauthorized }
+
+        var args: [String: any Sendable] = [
+            "p_thread_id": conversationId,
+            "p_limit": 40,
+        ]
+        if let cursor {
+            guard let decoded = HostedThreadMessagesPageDTO.Cursor(opaqueValue: cursor) else {
+                throw MortError.rejected("That message page token is no longer valid. Refresh the conversation.")
+            }
+            args["p_cursor_created_at"] = decoded.createdAt.ISO8601Format()
+            args["p_cursor_id"] = decoded.id
+        }
+
+        let page: HostedThreadMessagesPageDTO = try await client.rpc(
+            MortBackendContract.RPC.threadMessages,
+            args: args
+        )
+        let summary = page.thread
+        let counterpartyName = summary?.counterpartyDisplayName ?? "MORT participant"
+        let counterpartyHandle = ""
+        let rows = page.items.map {
+            $0.toDomain(
+                currentUserId: stored.userId,
+                counterpartyHandle: counterpartyHandle,
+                counterpartyDisplayName: counterpartyName
+            )
+        }
+        return (rows, page.hasMore ? page.nextCursor?.opaqueValue : nil)
     }
 
     func send(conversationId: String, body: String) async throws -> MortMessage {
-        let row: MessageDTO = try await client.rpc("mort_send_message", args: [
-            "p_conversation_id": conversationId,
-            "p_body": body,
-        ])
-        return row.toDomain()
+        guard UUID(uuidString: conversationId) != nil else { throw MortError.notFound }
+        guard let stored = await client.storedSession() else { throw MortError.unauthorized }
+        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw MortError.rejected("Write a message before sending.")
+        }
+
+        let row: HostedMessageRowDTO = try await client.rpc(
+            MortBackendContract.RPC.sendMessage,
+            args: [
+                "p_thread_id": conversationId,
+                "p_body": trimmed,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        return row.toDomain(
+            currentUserId: stored.userId,
+            counterpartyHandle: "",
+            counterpartyDisplayName: "MORT participant"
+        )
     }
 
     func markRead(conversationId: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_mark_conversation_read", args: [
-            "p_conversation_id": conversationId,
-        ])
+        guard UUID(uuidString: conversationId) != nil else { throw MortError.notFound }
+        let response: HostedMutationAckDTO = try await client.rpc(
+            MortBackendContract.RPC.markThreadRead,
+            args: ["p_thread_id": conversationId]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "The conversation could not be marked read.")
+        }
     }
 
     func report(conversationId: String, category: SafetyReportCategory, detail: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_report_conversation", args: [
-            "p_conversation_id": conversationId,
-            "p_category": category.rawValue,
-            "p_detail": detail,
-        ])
+        guard UUID(uuidString: conversationId) != nil else { throw MortError.notFound }
+        let trimmed = detail.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 10 else {
+            throw MortError.rejected("Add a little more detail before submitting the safety report.")
+        }
+
+        let page: HostedThreadMessagesPageDTO = try await client.rpc(
+            MortBackendContract.RPC.threadMessages,
+            args: [
+                "p_thread_id": conversationId,
+                "p_limit": 1,
+            ]
+        )
+        guard let thread = page.thread,
+              thread.counterpartyId != nil || thread.jobId != nil else {
+            throw MortError.rejected("MORT could not identify a reportable participant or job for this conversation.")
+        }
+
+        let response: HostedMutationAckDTO = try await client.rpc(
+            MortBackendContract.RPC.submitSafetyReport,
+            args: [
+                "p_target_user_id": Self.nullableJSON(thread.counterpartyId),
+                "p_target_job_id": Self.nullableJSON(thread.jobId),
+                "p_target_message_id": SupabaseJSONNull(),
+                "p_target_review_id": SupabaseJSONNull(),
+                "p_application_id": SupabaseJSONNull(),
+                "p_category": Self.backendCategory(category),
+                "p_severity": "moderate",
+                "p_immediate_danger": false,
+                "p_details": trimmed,
+                "p_occurred_at": Date().ISO8601Format(),
+                "p_location_type": SupabaseJSONNull(),
+                "p_desired_outcome": "review_and_follow_up",
+                "p_confidential_safety_feedback": false,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "MORT could not submit that safety report.")
+        }
     }
 
     func block(handle: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_block_user", args: ["p_handle": handle])
+        let clean = handle
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "@"))
+        guard !clean.isEmpty else { throw MortError.notFound }
+
+        let rows: [HostedSafetyContactProfileDTO] = try await client.get(
+            path: "/rest/v1/profiles",
+            query: [
+                URLQueryItem(name: "username", value: "eq.\(clean)"),
+                URLQueryItem(name: "select", value: "id,username,display_name,role"),
+                URLQueryItem(name: "limit", value: "1"),
+            ]
+        )
+        guard let target = rows.first else { throw MortError.notFound }
+        let response: HostedMutationAckDTO = try await client.rpc(
+            MortBackendContract.RPC.blockUser,
+            args: [
+                "p_blocked_id": target.id,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "That MORT account could not be blocked.")
+        }
+    }
+
+    private static func nullableJSON(_ value: String?) -> any Sendable {
+        if let value { return value }
+        return SupabaseJSONNull()
+    }
+
+    private static func backendCategory(_ category: SafetyReportCategory) -> String {
+        switch category {
+        case .unsafeBehavior: return "unsafe_job_conditions"
+        case .harassment: return "harassment"
+        case .paymentProblem: return "nonpayment"
+        case .noShow: return "other_urgent_concern"
+        case .unsafeLocation: return "unexpected_location"
+        case .somethingElse: return "other_urgent_concern"
+        }
     }
 }
 
@@ -616,44 +1568,138 @@ nonisolated final class LiveSafetyRepository: SafetyRepository {
     init(client: SupabaseClient) { self.client = client }
 
     func activeCheckIn() async throws -> SafetyCheckIn? {
-        let rows: [CheckInDTO] = try await client.rpc("mort_active_check_in")
+        let rows: [HostedActiveCheckInDTO] = try await client.rpc(
+            MortBackendContract.RPC.activeCheckIns
+        )
         return rows.first?.toDomain()
     }
 
     func confirmCheckIn(id: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_confirm_check_in", args: ["p_check_in_id": id])
+        guard UUID(uuidString: id) != nil else { throw MortError.notFound }
+        let response: HostedMutationAckDTO = try await client.rpc(
+            MortBackendContract.RPC.completeCheckIn,
+            args: [
+                "p_checkin_id": id,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "That safety check-in could not be confirmed.")
+        }
     }
 
     func contacts() async throws -> [SafetyContact] {
-        let rows: [SafetyContactDTO] = try await client.rpc("mort_safety_contacts")
-        return rows.map { $0.toDomain() }
+        guard let stored = await client.storedSession() else {
+            throw MortError.unauthorized
+        }
+        let rows: [HostedSafetyCircleMemberDTO] = try await client.rpc(
+            MortBackendContract.RPC.safetyCircle
+        )
+        let active = rows.filter { $0.status == "active" }
+        let otherIds = Array(Set(active.map {
+            $0.teenId == stored.userId ? $0.contactId : $0.teenId
+        }))
+        guard !otherIds.isEmpty else { return [] }
+
+        let profiles: [HostedSafetyContactProfileDTO] = try await client.get(
+            path: "/rest/v1/profiles",
+            query: [
+                URLQueryItem(name: "id", value: "in.(\(otherIds.joined(separator: ",")))"),
+                URLQueryItem(name: "select", value: "id,username,display_name,role"),
+            ]
+        )
+        let byId = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
+
+        return active.compactMap { row in
+            let otherId = row.teenId == stored.userId ? row.contactId : row.teenId
+            guard let profile = byId[otherId] else { return nil }
+            return SafetyContact(
+                id: row.id,
+                displayName: profile.display,
+                relationship: row.relationshipLabel,
+                contactMask: profile.handleOrMask,
+                isGuardian: profile.role == "guardian",
+                isNotifiedOnJobs: row.receiveJobStatus
+            )
+        }
     }
 
     func shareJobStatus(jobId: String, enabled: Bool) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_share_job_status", args: [
-            "p_job_id": jobId,
-            "p_enabled": enabled,
-        ])
+        // The hosted safety-circle permission is global per member, not
+        // per-job. Do not silently turn a per-job UI switch into a broader
+        // permission change.
+        throw MortError.notConfigured("Per-job safety sharing")
     }
 
     func report(category: SafetyReportCategory, detail: String, jobId: String?) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_safety_report", args: [
-            "p_category": category.rawValue,
-            "p_detail": detail,
-            "p_job_id": jobId ?? "",
-        ])
+        let trimmed = detail.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 10 else {
+            throw MortError.rejected("Add a little more detail before submitting the safety report.")
+        }
+        if let jobId, UUID(uuidString: jobId) == nil { throw MortError.notFound }
+        guard jobId != nil else {
+            throw MortError.rejected("Choose the related job before submitting this safety report.")
+        }
+
+        let response: HostedMutationAckDTO = try await client.rpc(
+            MortBackendContract.RPC.submitSafetyReport,
+            args: [
+                "p_target_user_id": SupabaseJSONNull(),
+                "p_target_job_id": jobId!,
+                "p_target_message_id": SupabaseJSONNull(),
+                "p_target_review_id": SupabaseJSONNull(),
+                "p_application_id": SupabaseJSONNull(),
+                "p_category": Self.backendCategory(category),
+                "p_severity": "moderate",
+                "p_immediate_danger": false,
+                "p_details": trimmed,
+                "p_occurred_at": Date().ISO8601Format(),
+                "p_location_type": SupabaseJSONNull(),
+                "p_desired_outcome": "review_and_follow_up",
+                "p_confidential_safety_feedback": false,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "MORT could not submit that safety report.")
+        }
     }
 
     func raiseEmergencyAlert(jobId: String?) async throws {
-        // NEVER faked. If this RPC is absent, the call throws and the UI keeps
-        // the native emergency-call affordance as the real path.
-        let _: EmptyResponse = try await client.rpc("mort_raise_emergency_alert", args: [
-            "p_job_id": jobId ?? "",
-        ])
+        // The hosted urgent Safety Ping creates a critical safety incident but
+        // explicitly does NOT claim physical intervention was dispatched.
+        guard let jobId, UUID(uuidString: jobId) != nil else {
+            throw MortError.notConfigured("Urgent safety ping without an active job")
+        }
+        let response: HostedSafetyPingResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.createSafetyPing,
+            args: [
+                "p_status": "needs_help",
+                "p_note": "Urgent safety help requested from the MORT iOS Safety Center.",
+                "p_job_id": jobId,
+                "p_immediate_danger": true,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "MORT could not send the urgent safety ping.")
+        }
+    }
+
+    private static func backendCategory(_ category: SafetyReportCategory) -> String {
+        switch category {
+        case .unsafeBehavior: return "unsafe_job_conditions"
+        case .harassment: return "harassment"
+        case .paymentProblem: return "nonpayment"
+        case .noShow: return "other_urgent_concern"
+        case .unsafeLocation: return "unexpected_location"
+        case .somethingElse: return "other_urgent_concern"
+        }
     }
 
     func capabilityState() async -> SafetyCapabilityState {
-        .available
+        guard await client.storedSession() != nil else { return .unavailable }
+        return .available
     }
 }
 
@@ -662,35 +1708,73 @@ nonisolated final class LiveSupportRepository: SupportRepository {
     init(client: SupabaseClient) { self.client = client }
 
     func cases() async throws -> [SupportCase] {
-        let rows: [SupportCaseDTO] = try await client.rpc("mort_support_cases")
+        let rows: [HostedSupportTicketDTO] = try await client.rpc(
+            MortBackendContract.RPC.listSupportTickets
+        )
         return rows.map { $0.toDomain() }
     }
 
-    func openCase(topicId: String, subject: String, detail: String, reference: String?) async throws -> SupportCase {
-        let row: SupportCaseDTO = try await client.rpc("mort_open_support_case", args: [
-            "p_topic": topicId,
-            "p_subject": subject,
-            "p_detail": detail,
-            "p_reference": reference ?? "",
-        ])
-        return row.toDomain()
+    func openCase(
+        topicId: String,
+        subject: String,
+        detail: String,
+        reference: String?
+    ) async throws -> SupportCase {
+        let response: HostedSupportCreateResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.createSupportTicket,
+            args: [
+                "p_subject": subject,
+                "p_message": detail,
+            ]
+        )
+        guard response.ok, let ticket = response.ticket else {
+            throw MortError.rejected(response.code ?? "Support could not open that conversation.")
+        }
+        return ticket.toDomain()
     }
 
     func messages(caseId: String) async throws -> [MortMessage] {
-        let rows: [MessageDTO] = try await client.rpc("mort_support_messages", args: ["p_case_id": caseId])
-        return rows.map { $0.toDomain() }
+        guard UUID(uuidString: caseId) != nil else { throw MortError.notFound }
+        let thread: HostedSupportThreadDTO = try await client.rpc(
+            MortBackendContract.RPC.supportThread,
+            args: ["p_ticket_id": caseId]
+        )
+        guard thread.ok else {
+            throw MortError.rejected(thread.code ?? "That support conversation is unavailable.")
+        }
+        return (thread.messages ?? []).map { $0.toDomain() }
     }
 
     func reply(caseId: String, body: String) async throws -> MortMessage {
-        let row: MessageDTO = try await client.rpc("mort_support_reply", args: [
-            "p_case_id": caseId,
-            "p_body": body,
-        ])
-        return row.toDomain()
+        guard UUID(uuidString: caseId) != nil else { throw MortError.notFound }
+        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw MortError.rejected("Write a reply before sending.")
+        }
+
+        let response: HostedSupportReplyResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.postSupportTicketMessage,
+            args: [
+                "p_ticket_id": caseId,
+                "p_message": trimmed,
+                "p_client_request_id": UUID().uuidString.lowercased(),
+            ]
+        )
+        guard response.ok, let message = response.message else {
+            throw MortError.rejected(response.code ?? "That support reply could not be sent.")
+        }
+        return message.toDomain()
     }
 
     func requestHuman(caseId: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_support_request_human", args: ["p_case_id": caseId])
+        guard UUID(uuidString: caseId) != nil else { throw MortError.notFound }
+        let response: HostedMutationAckDTO = try await client.rpc(
+            MortBackendContract.RPC.requestSupportHumanReview,
+            args: ["p_ticket_id": caseId]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "Human review could not be requested.")
+        }
     }
 }
 
@@ -699,23 +1783,58 @@ nonisolated final class LiveNotificationRepository: NotificationRepository {
     init(client: SupabaseClient) { self.client = client }
 
     func notifications() async throws -> [MortNotification] {
-        let rows: [NotificationDTO] = try await client.rpc("mort_notifications")
+        let rows: [HostedNotificationDTO] = try await client.get(
+            path: "/rest/v1/notifications",
+            query: [
+                URLQueryItem(name: "select", value: "id,title,body,data,read_at,created_at"),
+                URLQueryItem(name: "order", value: "created_at.desc"),
+                URLQueryItem(name: "limit", value: "100"),
+            ]
+        )
         return rows.map { $0.toDomain() }
     }
 
     func markRead(id: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_mark_notification_read", args: ["p_id": id])
+        guard UUID(uuidString: id) != nil else { throw MortError.notFound }
+        let rows: [HostedNotificationDTO] = try await client.patch(
+            path: "/rest/v1/notifications",
+            query: [
+                URLQueryItem(name: "id", value: "eq.\(id)"),
+                URLQueryItem(name: "read_at", value: "is.null"),
+                URLQueryItem(name: "select", value: "id,title,body,data,read_at,created_at"),
+            ],
+            body: ["read_at": Date().ISO8601Format()]
+        )
+        // A zero-row update is valid when the notification was already read.
+        if rows.isEmpty {
+            let existing: [HostedNotificationDTO] = try await client.get(
+                path: "/rest/v1/notifications",
+                query: [
+                    URLQueryItem(name: "id", value: "eq.\(id)"),
+                    URLQueryItem(name: "select", value: "id,title,body,data,read_at,created_at"),
+                    URLQueryItem(name: "limit", value: "1"),
+                ]
+            )
+            guard existing.first != nil else { throw MortError.notFound }
+        }
     }
 
     func markAllRead() async throws {
-        let _: EmptyResponse = try await client.rpc("mort_mark_all_notifications_read")
+        let _: [HostedNotificationDTO] = try await client.patch(
+            path: "/rest/v1/notifications",
+            query: [
+                URLQueryItem(name: "read_at", value: "is.null"),
+                URLQueryItem(name: "select", value: "id,title,body,data,read_at,created_at"),
+            ],
+            body: ["read_at": Date().ISO8601Format()]
+        )
     }
 
     func registerPushToken(_ token: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_register_push_token", args: [
-            "p_token": token,
-            "p_platform": "ios",
-        ])
+        // Hosted push registration currently requires an FCM registration
+        // token even on iOS. This protocol receives the native APNs token, so
+        // forwarding it would falsely register the wrong provider material.
+        throw MortError.notConfigured("iOS push provider bridge")
     }
 }
 
@@ -724,27 +1843,83 @@ nonisolated final class LiveGuardianRepository: GuardianRepository {
     init(client: SupabaseClient) { self.client = client }
 
     func linkedTeens() async throws -> [MortUser] {
-        let rows: [ProfileDTO] = try await client.rpc("mort_linked_teens")
-        return rows.map { $0.toDomain() }
+        let links: [HostedGuardianConnectionDTO] = try await client.get(
+            path: "/rest/v1/guardian_connections",
+            query: [
+                URLQueryItem(name: "status", value: "eq.active"),
+                URLQueryItem(name: "select", value: "id,teen_id,guardian_id,status"),
+                URLQueryItem(name: "order", value: "accepted_at.desc"),
+            ]
+        )
+        let teenIds = Array(Set(links.map(\.teenId)))
+        guard !teenIds.isEmpty else { return [] }
+
+        let rows: [HostedProfileDTO] = try await client.get(
+            path: "/rest/v1/profiles",
+            query: [
+                URLQueryItem(name: "id", value: "in.(\(teenIds.joined(separator: ",")))"),
+                URLQueryItem(
+                    name: "select",
+                    value: "id,username,display_name,role,city,state,approximate_area,verification_status,guardian_setup_status,created_at,updated_at,bio"
+                ),
+            ]
+        )
+        let order = Dictionary(uniqueKeysWithValues: teenIds.enumerated().map { ($0.element, $0.offset) })
+        return rows
+            .sorted { order[$0.id, default: .max] < order[$1.id, default: .max] }
+            .map { $0.toDomain() }
     }
 
     func teenSummary(teenId: String) async throws -> GuardianSummary {
-        // Policy-limited by RLS: the guardian only receives approved fields.
-        let dto: GuardianSummaryDTO = try await client.rpc("mort_guardian_summary", args: [
-            "p_teen_id": teenId,
-        ])
+        guard UUID(uuidString: teenId) != nil else { throw MortError.notFound }
+        let dto: HostedGuardianTeenSummaryDTO? = try await client.rpc(
+            MortBackendContract.RPC.guardianTeenSummary,
+            args: ["p_teen_id": teenId]
+        )
+        guard let dto, dto.ok else { throw MortError.notFound }
         return dto.toDomain()
     }
 
     func inviteTeen(email: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_invite_teen", args: ["p_email": email])
+        // Hosted invite creation is teen-initiated. A guardian cannot create a
+        // link for a teen by email, so this legacy UI path fails closed.
+        throw MortError.notConfigured("Guardian-initiated email invite")
     }
 
     func acceptLink(code: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_accept_guardian_link", args: ["p_code": code])
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !trimmed.isEmpty else {
+            throw MortError.rejected("Enter the guardian link code from the teen account.")
+        }
+        let response: HostedGuardianLinkResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.acceptGuardianInvite,
+            args: ["p_invite_code": trimmed]
+        )
+        guard response.ok else {
+            throw MortError.rejected(
+                response.message ?? response.code ?? "That guardian link code could not be accepted."
+            )
+        }
     }
 
     func unlink(teenId: String) async throws {
-        let _: EmptyResponse = try await client.rpc("mort_unlink_teen", args: ["p_teen_id": teenId])
+        guard UUID(uuidString: teenId) != nil else { throw MortError.notFound }
+        let rows: [HostedGuardianConnectionDTO] = try await client.get(
+            path: "/rest/v1/guardian_connections",
+            query: [
+                URLQueryItem(name: "teen_id", value: "eq.\(teenId)"),
+                URLQueryItem(name: "status", value: "eq.active"),
+                URLQueryItem(name: "select", value: "id,teen_id,guardian_id,status"),
+                URLQueryItem(name: "limit", value: "1"),
+            ]
+        )
+        guard let link = rows.first else { throw MortError.notFound }
+        let response: HostedGuardianLinkResponseDTO = try await client.rpc(
+            MortBackendContract.RPC.unlinkGuardian,
+            args: ["p_link_id": link.id]
+        )
+        guard response.ok else {
+            throw MortError.rejected(response.code ?? "That Guardian Mode link could not be removed.")
+        }
     }
 }

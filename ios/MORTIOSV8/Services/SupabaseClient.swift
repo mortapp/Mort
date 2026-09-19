@@ -27,18 +27,26 @@ nonisolated struct SupabaseConfig: Sendable {
     /// Resolves configuration from `Config`. Returns nil when the project has
     /// not been wired yet, so callers fail CLOSED instead of guessing.
     ///
-    /// INTEGRATION: add `EXPO_PUBLIC_SUPABASE_URL` and
-    /// `EXPO_PUBLIC_SUPABASE_ANON_KEY` to the project environment, then read
-    /// them here through `Config`.
+    /// MORT ships a Supabase publishable key in the client. It is not a
+    /// privileged credential; Auth + RLS remain the authorization boundary.
     static func fromEnvironment() -> SupabaseConfig? {
         let raw = Config.allValues
         guard
             let urlString = raw["EXPO_PUBLIC_SUPABASE_URL"], !urlString.isEmpty,
-            let key = raw["EXPO_PUBLIC_SUPABASE_ANON_KEY"], !key.isEmpty,
-            let url = URL(string: urlString)
+            let key = raw["EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY"], !key.isEmpty,
+            key.hasPrefix("sb_publishable_"),
+            let url = URL(string: urlString),
+            url.scheme == "https"
         else { return nil }
         return SupabaseConfig(url: url, anonKey: key)
     }
+}
+
+/// Explicit JSON null sentinel for RPC arguments whose Postgres signatures
+/// require nullable values. It is converted to NSNull immediately before
+/// JSONSerialization and never leaves the transport boundary.
+nonisolated struct SupabaseJSONNull: Sendable {
+    init() {}
 }
 
 /// Stored session tokens. Persisted in the Keychain, never in UserDefaults.
@@ -116,6 +124,19 @@ actor SupabaseClient {
 
     // MARK: - Requests
 
+    /// Canonical Edge Function route. Reject path traversal and arbitrary URL
+    /// fragments before they reach URL construction.
+    nonisolated static func edgeFunctionPath(for slug: String) -> String? {
+        guard
+            !slug.isEmpty,
+            slug.range(
+                of: #"^[a-z0-9]+(?:-[a-z0-9]+)*$"#,
+                options: .regularExpression
+            ) != nil
+        else { return nil }
+        return "/functions/v1/\(slug)"
+    }
+
     private func makeRequest(
         path: String,
         method: String,
@@ -180,7 +201,7 @@ actor SupabaseClient {
         authenticated: Bool = true
     ) async throws -> T {
         var request = try await makeRequest(path: path, method: "POST", query: query, authenticated: authenticated)
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        request.httpBody = try JSONSerialization.data(withJSONObject: Self.foundationJSONObject(body))
         return try await perform(request)
     }
 
@@ -192,8 +213,19 @@ actor SupabaseClient {
     ) async throws -> T {
         var request = try await makeRequest(path: path, method: "PATCH", query: query, authenticated: authenticated)
         request.setValue("return=representation", forHTTPHeaderField: "Prefer")
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        request.httpBody = try JSONSerialization.data(withJSONObject: Self.foundationJSONObject(body))
         return try await perform(request)
+    }
+
+    nonisolated static func foundationJSONObject(
+        _ body: [String: any Sendable]
+    ) -> [String: Any] {
+        var result: [String: Any] = [:]
+        result.reserveCapacity(body.count)
+        for (key, value) in body {
+            result[key] = value is SupabaseJSONNull ? NSNull() : value
+        }
+        return result
     }
 
     /// Calls a Postgres function. All MORT financial logic lives behind RPCs
@@ -203,6 +235,19 @@ actor SupabaseClient {
         args: [String: any Sendable] = [:]
     ) async throws -> T {
         try await post(path: "/rest/v1/rpc/\(function)", body: args)
+    }
+
+    /// Calls an authenticated Supabase Edge Function. The function slug is
+    /// validated locally and the request still carries only the public key +
+    /// current user JWT; privileged credentials never enter the app.
+    func function<T: Decodable>(
+        _ slug: String,
+        body: [String: any Sendable] = [:]
+    ) async throws -> T {
+        guard let path = Self.edgeFunctionPath(for: slug) else {
+            throw MortError.notConfigured("Edge Function")
+        }
+        return try await post(path: path, body: body, authenticated: true)
     }
 
     /// Uploads job proof/evidence to Storage.

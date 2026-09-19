@@ -39,6 +39,22 @@ protocol AuthService: Sendable {
 
 // MARK: - Jobs
 
+/// A normalized proof image ready for the private proof-uploads bucket.
+/// Live implementations accept JPEG bytes only because the hosted proof RPC
+/// validates both the object path and MIME type before attaching evidence.
+nonisolated struct JobProofAttachment: Sendable, Equatable {
+    let data: Data
+    let filename: String
+    let contentType: String
+
+    init(data: Data, filename: String, contentType: String = "image/jpeg") {
+        self.data = data
+        self.filename = filename
+        self.contentType = contentType
+    }
+}
+
+
 protocol JobRepository: Sendable {
     /// Paginated discovery feed. `cursor` is an opaque backend cursor.
     func discover(query: String?, category: String?, cursor: String?) async throws -> (jobs: [MortJob], nextCursor: String?)
@@ -71,13 +87,17 @@ protocol ApplicationRepository: Sendable {
 /// Job execution: start, PIN handshake, proof, completion.
 protocol JobExecutionRepository: Sendable {
     /// Starting requires the job to be FUNDED — the backend enforces this.
-    func startJob(jobId: String, pin: String) async throws
+    /// personMatchesProfile is an explicit in-person safety attestation and
+    /// must come from the worker UI; the client must never assume it.
+    func startJob(jobId: String, pin: String, personMatchesProfile: Bool) async throws
     /// The PIN the counterparty must enter. Issued by the backend.
     func startPin(jobId: String) async throws -> String
-    func submitProof(jobId: String, note: String, attachmentNames: [String]) async throws
+    func submitProof(jobId: String, note: String, attachment: JobProofAttachment) async throws
     func markComplete(jobId: String) async throws
-    /// Adult confirms the work; this triggers authoritative settlement.
-    func confirmCompletion(jobId: String) async throws -> SettlementResult
+    /// Adult acknowledges the worker's completion assertion. This may make
+    /// the contractual payment obligation due, but it does NOT itself prove
+    /// that settlement, transfer, refund, or payout has completed.
+    func confirmCompletion(jobId: String) async throws -> CompletionAcknowledgement
     func openDispute(jobId: String, category: String, detail: String) async throws
     func settlement(jobId: String) async throws -> SettlementResult
 }
@@ -86,7 +106,12 @@ protocol JobExecutionRepository: Sendable {
 
 protocol PaymentRepository: Sendable {
     /// Authoritative pre-work funding quote. Never computed on device.
+    /// This may create/supersede a short-lived backend quote and is therefore
+    /// only for the payment-review step.
     func fundingQuote(jobId: String) async throws -> PaymentQuote
+    /// Returns already-known funding display context without creating a new
+    /// quote. Used by result/tip screens so rendering never mutates money state.
+    func fundingDisplay(jobId: String) async throws -> PaymentQuote?
     /// Starts pre-work platform funding. Returns the backend's state.
     /// An idempotency key makes duplicate submissions impossible.
     func beginFunding(jobId: String, methodId: String?, idempotencyKey: String) async throws -> PaymentState
@@ -99,6 +124,13 @@ protocol PaymentRepository: Sendable {
     func submitTip(jobId: String, tipCents: Int64, idempotencyKey: String) async throws -> PaymentState
     func feeConfig() async throws -> MortFeeConfig
     func tipConfig() async throws -> TipConfig
+}
+
+
+extension PaymentRepository {
+    func fundingDisplay(jobId: String) async throws -> PaymentQuote? {
+        try await fundingQuote(jobId: jobId)
+    }
 }
 
 protocol ReceiptRepository: Sendable {
@@ -226,7 +258,10 @@ nonisolated struct GuardianSummary: Codable, Hashable, Sendable {
     let lastCheckInText: String
     /// Approved aggregate only, in cents.
     let earningsThisMonthCents: Int64
-    let payoutStage: PayoutStage
+    /// False when the teen has not opted into sharing the aggregate.
+    let earningsVisible: Bool
+    /// Payout-provider state is optional because Guardian Mode may not expose it.
+    let payoutStage: PayoutStage?
     let safetyAlertsCount: Int
     /// Fields the guardian is NOT allowed to see, for honest UI messaging.
     let restrictedNotice: String

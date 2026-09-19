@@ -56,13 +56,16 @@ final class PaymentReviewViewModel {
         selectedMethod?.isUsable == true
     }
 
+    /// A saved method is optional: Stripe PaymentSheet can collect a new one.
+    var canPresentProviderSheet: Bool { true }
+
     var isQuoteExpired: Bool {
         quote.value?.isExpired == true
     }
 
     /// Submits pre-work funding. The returned state is the BACKEND's.
     func fund() async {
-        guard !isSubmitting, hasUsableMethod else { return }
+        guard !isSubmitting, canPresentProviderSheet else { return }
         isSubmitting = true
         error = nil
         do {
@@ -103,7 +106,7 @@ struct PaymentReviewView: View {
     var body: some View {
         MortScreen(
             title: "Fund this job",
-            subtitle: "MORT holds the money until you confirm the work is done.",
+            subtitle: "Fund the job before work begins. Settlement happens after completion.",
             atmosphereIntensity: 0.6
         ) {
             if let model {
@@ -144,7 +147,9 @@ struct PaymentReviewView: View {
                  .pending, .cancelled, .unknown, .duplicateBlocked, .quoteExpired,
                  .requiresAction:
                 nav.push(.paymentResult(jobId: jobId, state: state))
-            case .ready, .processing:
+            case .processing:
+                nav.push(.paymentResult(jobId: jobId, state: .processing))
+            case .ready:
                 break
             }
         }
@@ -190,9 +195,11 @@ struct PaymentReviewView: View {
 
             VStack(alignment: .leading, spacing: MortSpace.s3) {
                 MortSectionHeader(title: "Paying with") {
-                    Button("Change") { nav.present(.paymentMethods) }
-                        .font(MortFont.label())
-                        .foregroundStyle(MortColor.silver3)
+                    if !model.methods.isEmpty {
+                        Button("Change") { nav.present(.paymentMethods) }
+                            .font(MortFont.label())
+                            .foregroundStyle(MortColor.silver3)
+                    }
                 }
                 MortCard {
                     if let method = model.selectedMethod {
@@ -200,12 +207,10 @@ struct PaymentReviewView: View {
                     } else {
                         VStack(alignment: .leading, spacing: MortSpace.s3) {
                             MortNote(
-                                text: "You don't have a usable payment method yet.",
-                                tone: .warning
+                                text: "Choose or enter a payment method in Stripe's secure payment sheet when you continue.",
+                                tone: .info,
+                                symbol: "creditcard"
                             )
-                            MortGhostButton(title: "Add a payment method", symbol: "plus") {
-                                nav.push(.paymentMethodMissing)
-                            }
                         }
                     }
                 }
@@ -215,7 +220,7 @@ struct PaymentReviewView: View {
                 tone: .info,
                 symbol: "lock.shield",
                 label: "WHAT HAPPENS NEXT",
-                detail: "Funding holds the money with MORT so your worker knows it's real. They can then start. After you confirm the job, MORT settles it and sends their earnings — funding is not the same as paying them directly."
+                detail: "MORT captures the job funding before work begins. After completion, the backend authoritatively decides settlement, worker earnings, and any eligible refund. Funding is not the worker payout."
             )
 
             MortNote(
@@ -237,13 +242,10 @@ struct PaymentReviewView: View {
                 title: "Fund \(quote.total.formatted)",
                 symbol: "lock.shield",
                 isBusy: model.isSubmitting,
-                isEnabled: model.hasUsableMethod && !model.isSubmitting,
+                isEnabled: model.canPresentProviderSheet && !model.isSubmitting,
                 busyTitle: "Processing…"
             ) {
                 Task { await model.fund() }
-            }
-            if !model.hasUsableMethod {
-                MortNote(text: "Add a payment method to continue.", tone: .warning)
             }
             MortQuietButton(title: "Add a tip instead of later") {
                 nav.present(.tipSelect(jobId: jobId, isLate: false))

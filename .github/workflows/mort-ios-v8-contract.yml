@@ -1,0 +1,50 @@
+name: MORT iOS V8 Contract
+
+on:
+  push:
+    branches:
+      - codex/ios-v8-integration
+    paths:
+      - 'ios/**'
+      - '.github/workflows/mort-ios-v8-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mort-ios-v8-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile-contract:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/ios-v8-integration
+
+      - name: Install XcodeGen
+        run: |
+          set -euo pipefail
+          brew install xcodegen
+
+      - name: Generate project
+        run: |
+          set -euo pipefail
+          xcodegen generate --spec ios/project.yml
+
+      - name: Compile app and tests without booting a simulator
+        run: |
+          set -euo pipefail
+          xcodebuild build-for-testing \
+            -project ios/MORTIOSV8.xcodeproj \
+            -scheme MORTIOSV8 \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/mort-ios-v8-contract" \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO

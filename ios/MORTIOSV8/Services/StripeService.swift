@@ -25,6 +25,7 @@
 //
 
 import Foundation
+import StripePaymentSheet
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -96,13 +97,107 @@ protocol ProviderPaymentSheet: Sendable {
 /// failure and the UI shows an honest "temporarily unavailable" state rather
 /// than a fake confirmation.
 nonisolated final class StripePaymentSheetAdapter: ProviderPaymentSheet {
+    /// Registered custom-scheme return route for redirect-capable payment methods.
+    /// Keep this in sync with ios/project.yml.
+    nonisolated static let returnURLString = "com.mortapp.mobile://stripe-redirect"
+
     init() {}
 
     @MainActor
     func present(handle: PaymentIntentHandle) async -> ProviderSheetOutcome {
-        // NOT WIRED YET — fail closed. Never fabricate a provider success.
-        .failed(.providerUnavailable)
+        #if canImport(UIKit)
+        // Both values are provider-created, short-lived presentation material.
+        // Reject malformed input rather than handing arbitrary strings to the SDK.
+        guard
+            handle.clientSecret.hasPrefix("pi_"),
+            handle.clientSecret.contains("_secret_"),
+            handle.publishableKey.hasPrefix("pk_test_") || handle.publishableKey.hasPrefix("pk_live_"),
+            let presenter = Self.topViewController()
+        else {
+            return .failed(.providerUnavailable)
+        }
+
+        StripeAPI.defaultPublishableKey = handle.publishableKey
+
+        var configuration = PaymentSheet.Configuration()
+        configuration.merchantDisplayName = handle.merchantDisplayName
+        configuration.style = .alwaysDark
+        configuration.returnURL = Self.returnURLString
+
+        // The backend currently creates legacy Customer ephemeral keys.
+        // Only configure saved-method access when both pieces are present;
+        // PaymentSheet can still collect a new method without them.
+        if
+            let customerId = handle.customerId,
+            !customerId.isEmpty,
+            let ephemeralKey = handle.customerEphemeralKeySecret,
+            !ephemeralKey.isEmpty
+        {
+            configuration.customer = .init(
+                id: customerId,
+                ephemeralKeySecret: ephemeralKey
+            )
+        }
+
+        // Apple Pay is opt-in. Never invent a merchant identifier on-device.
+        if let merchantId = handle.applePayMerchantId, !merchantId.isEmpty {
+            configuration.applePay = .init(
+                merchantId: merchantId,
+                merchantCountryCode: "US"
+            )
+        }
+
+        let paymentSheet = PaymentSheet(
+            paymentIntentClientSecret: handle.clientSecret,
+            configuration: configuration
+        )
+        let result = await paymentSheet.present(from: presenter)
+
+        // IMPORTANT: this is only a UI/provider-sheet result. The caller must
+        // reconcile with the MORT backend before treating money as moved.
+        switch result {
+        case .completed:
+            return .completed
+        case .canceled:
+            return .canceled
+        case .failed:
+            return .failed(.unknown)
+        }
+        #else
+        return .failed(.providerUnavailable)
+        #endif
     }
+
+    @MainActor
+    static func handleURLCallback(_ url: URL) -> Bool {
+        StripeAPI.handleURLCallback(with: url)
+    }
+
+    #if canImport(UIKit)
+    @MainActor
+    private static func topViewController() -> UIViewController? {
+        let base = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow)?
+            .rootViewController
+        return topViewController(from: base)
+    }
+
+    @MainActor
+    private static func topViewController(from base: UIViewController?) -> UIViewController? {
+        if let navigation = base as? UINavigationController {
+            return topViewController(from: navigation.visibleViewController)
+        }
+        if let tab = base as? UITabBarController, let selected = tab.selectedViewController {
+            return topViewController(from: selected)
+        }
+        if let presented = base?.presentedViewController {
+            return topViewController(from: presented)
+        }
+        return base
+    }
+    #endif
 
     @MainActor
     func presentPayoutOnboarding(url: URL) async -> Bool {

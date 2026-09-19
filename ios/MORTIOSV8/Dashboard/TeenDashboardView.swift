@@ -134,11 +134,8 @@ struct TeenDashboardView: View {
                     MortEmptyState(
                         symbol: "briefcase",
                         title: "No active jobs yet",
-                        message: "When a neighbor picks you and funds the job, it shows up here.",
-                        actionTitle: "Find work nearby"
-                    ) {
-                        nav.push(.jobDetail(MortFixtures.job.id))
-                    }
+                        message: "When a neighbor picks you and funding is confirmed, it shows up here. Check nearby jobs below."
+                    )
                 } else {
                     ForEach(model.activeJobs) { job in
                         JobCard(job: job, showsState: true) {
@@ -164,7 +161,7 @@ struct TeenDashboardView: View {
                                     .foregroundStyle(MortColor.textPrimary)
                                     .lineLimit(1)
                                     .minimumScaleFactor(0.6)
-                                Text("MOVING TO YOUR BANK")
+                                Text("PAYOUT STATUS")
                                     .mortEyebrow()
                             }
                             Spacer(minLength: MortSpace.s2)

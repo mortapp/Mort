@@ -172,14 +172,19 @@ nonisolated final class PreviewApplicationRepository: ApplicationRepository {
 }
 
 nonisolated final class PreviewJobExecutionRepository: JobExecutionRepository {
-    func startJob(jobId: String, pin: String) async throws {
+    func startJob(jobId: String, pin: String, personMatchesProfile: Bool) async throws {
         try? await Task.sleep(for: .milliseconds(300))
-        guard pin == "4417" else { throw MortError.rejected("That code doesn't match. Ask them to read it again.") }
+        guard personMatchesProfile else {
+            throw MortError.rejected("Confirm the person matches the profile before starting.")
+        }
+        guard pin == "441733" else {
+            throw MortError.rejected("That code doesn't match. Ask them to read it again.")
+        }
     }
 
-    func startPin(jobId: String) async throws -> String { "4417" }
+    func startPin(jobId: String) async throws -> String { "441733" }
 
-    func submitProof(jobId: String, note: String, attachmentNames: [String]) async throws {
+    func submitProof(jobId: String, note: String, attachment: JobProofAttachment) async throws {
         try? await Task.sleep(for: .milliseconds(380))
     }
 
@@ -187,9 +192,13 @@ nonisolated final class PreviewJobExecutionRepository: JobExecutionRepository {
         try? await Task.sleep(for: .milliseconds(300))
     }
 
-    func confirmCompletion(jobId: String) async throws -> SettlementResult {
+    func confirmCompletion(jobId: String) async throws -> CompletionAcknowledgement {
         try? await Task.sleep(for: .milliseconds(520))
-        return MortFixtures.settlement
+        return CompletionAcknowledgement(
+            assertionId: "55555555-5555-4555-8555-555555555555",
+            paymentDue: true,
+            mortProcessedPayment: false
+        )
     }
 
     func openDispute(jobId: String, category: String, detail: String) async throws {
@@ -505,6 +514,7 @@ nonisolated final class PreviewGuardianRepository: GuardianRepository {
             lastCheckInState: .confirmed,
             lastCheckInText: "Checked in at 10:06 AM",
             earningsThisMonthCents: 8700,
+            earningsVisible: true,
             payoutStage: .transferPending,
             safetyAlertsCount: 0,
             restrictedNotice: "Message contents, exact locations and full payment details stay private to your teen."
