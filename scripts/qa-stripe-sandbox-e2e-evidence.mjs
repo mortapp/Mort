@@ -303,6 +303,7 @@ async function validateRegressionManifest() {
     "qa-stripe-pre-provider-gate.mjs",
     "deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests",
     "flutter test --no-pub test/features/payment_os_integration_test.dart",
+    "stripe-local-regression:",
     "stripe-hosted-regression:",
     "stripe-provider-e2e:",
     "workflow_dispatch",
@@ -311,6 +312,16 @@ async function validateRegressionManifest() {
   ]) {
     assert(workflow.includes(token), `CI workflow missing ${token}`);
   }
+  const localRegressionJob = workflow.split("  stripe-local-regression:")[1] ?? "";
+  assert(
+    localRegressionJob.includes("run-mort-stripe-regression.ps1"),
+    "ordinary PR CI must execute the unified non-provider Stripe regression",
+  );
+  assert(
+    !localRegressionJob.includes("stripe-sandbox-e2e.ps1"),
+    "ordinary PR local regression must not execute provider sandbox mutations",
+  );
+
   const ordinaryStripeJob = workflow.split("  stripe-contracts:")[1]?.split("\n  expo-reference:")[0] ?? "";
   assert(
     !/stripe-sandbox-e2e\.ps1/.test(ordinaryStripeJob),
