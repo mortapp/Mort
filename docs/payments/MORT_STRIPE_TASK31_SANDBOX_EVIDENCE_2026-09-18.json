@@ -1,0 +1,199 @@
+{
+  "schema_version": 1,
+  "suite": "mort_stripe_sandbox_e2e",
+  "project_ref": "rakjydmgwwgtdislanbt",
+  "environment": "test",
+  "mode": "sandbox",
+  "gate_passed": true,
+  "connect_webhook_preflight_passed": true,
+  "provider_e2e_executed": true,
+  "live_mode_detected": false,
+  "complete": true,
+  "scenarios": [
+    {
+      "id": "capture_success",
+      "status": "pass",
+      "result_code": "provider_capture_reconciled",
+      "request_ref": "capreq01",
+      "trace_ref": "captrc01",
+      "provider_object_suffix": "0pu6EEPA"
+    },
+    {
+      "id": "capture_decline",
+      "status": "pass",
+      "result_code": "provider_decline_observed",
+      "request_ref": "decreq01",
+      "trace_ref": "dectrc01",
+      "provider_object_suffix": "11nIorMV"
+    },
+    {
+      "id": "requires_action",
+      "status": "pass",
+      "result_code": "provider_action_required",
+      "request_ref": "actreq01",
+      "trace_ref": "acttrc01",
+      "provider_object_suffix": "0jzOmMRv"
+    },
+    {
+      "id": "processing_or_pending",
+      "status": "pass",
+      "result_code": "provider_processing_observed",
+      "request_ref": "proreq01",
+      "trace_ref": "protrc01",
+      "provider_object_suffix": "0jnxSPQG"
+    },
+    {
+      "id": "network_ambiguity",
+      "status": "pass",
+      "result_code": "single_provider_object_after_ambiguous_path",
+      "request_ref": "netreq01",
+      "trace_ref": "nettrc01",
+      "provider_object_suffix": "086FW55S"
+    },
+    {
+      "id": "duplicate_submission",
+      "status": "pass",
+      "result_code": "single_provider_object_for_duplicate_submit",
+      "request_ref": "dupreq01",
+      "trace_ref": "duptrc01",
+      "provider_object_suffix": "1oRRVyuF"
+    },
+    {
+      "id": "webhook_duplicate",
+      "status": "pass",
+      "result_code": "duplicate_webhook_idempotent",
+      "request_ref": "whdreq01",
+      "trace_ref": "whdtrc01",
+      "provider_object_suffix": null
+    },
+    {
+      "id": "webhook_out_of_order",
+      "status": "pass",
+      "result_code": "stale_event_ignored",
+      "request_ref": "whooreq1",
+      "trace_ref": "whootrc1",
+      "provider_object_suffix": null
+    },
+    {
+      "id": "webhook_lease_retry",
+      "status": "pass",
+      "result_code": "expired_lease_reclaimed_attempt_2",
+      "request_ref": "leasreq1",
+      "trace_ref": "leastrc1",
+      "provider_object_suffix": null
+    },
+    {
+      "id": "full_refund",
+      "status": "pass",
+      "result_code": "provider_full_refund_reconciled",
+      "request_ref": "fulreq01",
+      "trace_ref": "fultrc01",
+      "provider_object_suffix": "0QXr3mlM"
+    },
+    {
+      "id": "partial_refund",
+      "status": "pass",
+      "result_code": "provider_partial_refund_reconciled",
+      "request_ref": "parreq01",
+      "trace_ref": "partrc01",
+      "provider_object_suffix": "0mnqpDH1"
+    },
+    {
+      "id": "exact_transfer",
+      "status": "pass",
+      "result_code": "exact_3000_transfer_reconciled",
+      "request_ref": "trnreq01",
+      "trace_ref": "trntrc01",
+      "provider_object_suffix": "0xmknzsB"
+    },
+    {
+      "id": "transfer_reversal",
+      "status": "pass",
+      "result_code": "provider_reversal_reconciled",
+      "request_ref": "revreq01",
+      "trace_ref": "revtrc01",
+      "provider_object_suffix": "0xmknzsB"
+    },
+    {
+      "id": "transfer_reversal_failure",
+      "status": "pass",
+      "result_code": "failure_path_maps_transfer_failed",
+      "request_ref": "rvfreq01",
+      "trace_ref": "rvftrc01",
+      "provider_object_suffix": "0xmknzsB"
+    },
+    {
+      "id": "tip_success",
+      "status": "pass",
+      "result_code": "provider_tip_succeeded",
+      "request_ref": "tipsreq1",
+      "trace_ref": "tipstrc1",
+      "provider_object_suffix": "1K4bJOe4"
+    },
+    {
+      "id": "tip_failure",
+      "status": "pass",
+      "result_code": "provider_tip_declined",
+      "request_ref": "tipfreq1",
+      "trace_ref": "tipftrc1",
+      "provider_object_suffix": "19jfgZ0g"
+    },
+    {
+      "id": "dispute_won",
+      "status": "pass",
+      "result_code": "provider_dispute_won_reconciled",
+      "request_ref": "dswreq01",
+      "trace_ref": "dswtrc01",
+      "provider_object_suffix": "w88Q8dcv"
+    },
+    {
+      "id": "dispute_lost",
+      "status": "pass",
+      "result_code": "provider_dispute_lost_reconciled",
+      "request_ref": "dslreq01",
+      "trace_ref": "dsltrc01",
+      "provider_object_suffix": "1Xz8CcM7"
+    },
+    {
+      "id": "payout_separation",
+      "status": "pass",
+      "result_code": "transfer_did_not_create_payout",
+      "request_ref": "payreq01",
+      "trace_ref": "paytrc01",
+      "provider_object_suffix": null
+    },
+    {
+      "id": "minor_account_restricted",
+      "status": "pass",
+      "result_code": "restricted_state_fail_closed",
+      "request_ref": "minrreq1",
+      "trace_ref": "minrtrc1",
+      "provider_object_suffix": "5NdqD4h"
+    },
+    {
+      "id": "minor_account_ready",
+      "status": "pass",
+      "result_code": "ready_state_restored",
+      "request_ref": "minyreq1",
+      "trace_ref": "minytrc1",
+      "provider_object_suffix": "5NdqD4h"
+    },
+    {
+      "id": "cross_user_denial",
+      "status": "pass",
+      "result_code": "cross_user_payment_state_denied",
+      "request_ref": "xusreq01",
+      "trace_ref": "xustrc01",
+      "provider_object_suffix": null
+    }
+  ],
+  "reconciliation": {
+    "unreconciled_count": 0
+  },
+  "no_live_money_proof": {
+    "live_objects_detected": 0,
+    "live_credentials_detected": false,
+    "real_card_data_used": false
+  },
+  "completed_at": "2026-09-19T01:05:00Z"
+}
