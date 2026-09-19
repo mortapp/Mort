@@ -121,8 +121,10 @@ async function byLabel(driver, label, timeoutMs = 20000) {
       driver,
       [
         `~${label}`,
+        `android=new UiSelector().resourceId("${escaped}")`,
         `android=new UiSelector().descriptionContains("${escaped}")`,
         `android=new UiSelector().textContains("${escaped}")`,
+        `//*[@resource-id="${escaped}"]`,
       ],
       timeoutMs,
     );
@@ -134,6 +136,7 @@ async function byLabel(driver, label, timeoutMs = 20000) {
       return await firstDisplayed(
         driver,
         [
+          `android=new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().resourceId("${escaped}"))`,
           `android=new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().descriptionContains("${escaped}"))`,
           `android=new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("${escaped}"))`,
         ],
