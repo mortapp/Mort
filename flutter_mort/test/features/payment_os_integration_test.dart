@@ -157,5 +157,4 @@ void main() {
     expect(source, isNot(contains("'get_my_financial_history_v1'")));
     expect(source, isNot(contains("'get_my_financial_document_v1'")));
   });
-
 }
