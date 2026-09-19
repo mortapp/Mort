@@ -5,6 +5,25 @@ Updated: 2026-09-18
 All items are incomplete unless backed by dated evidence. Current result:
 **BLOCKED — LIVE PAYMENTS MUST REMAIN OFF**.
 
+
+## Production gate ownership matrix
+
+| Gate | Owner | Evidence | Status |
+| --- | --- | --- | --- |
+| Exact provider marketplace/use-case approval, including minor Connect ages 13–17 | Provider relationship owner | Written provider approval for the exact MORT flow | BLOCKED |
+| Legal review | Licensed counsel | Dated written legal approval covering minors, worker classification, refunds/disputes, consumer terms, privacy/retention/receipts | BLOCKED |
+| Tax reporting | Tax professional | Dated reporting/form-delivery/record-retention approval | BLOCKED |
+| Production pricing and provider fee payer | Product + finance owner | Approved service-fee/refund schedule, provider fee payer, Connect/provider pricing, store/public disclosures | BLOCKED |
+| Radar Pro economics | Finance owner | Radar Pro transaction cost incorporated into reviewed unit economics | BLOCKED |
+| Production partial compensation | Product + legal owner | Approved production values, semantic version, rationale, and release evidence | BLOCKED |
+| Reserve and chart of accounts | Finance/accounting owner | Approved reserve, negative-balance/chargeback loss plan, and production chart of accounts | BLOCKED |
+| Minor payout/representative flow | Provider + legal owner | End-to-end provider-approved minor representative/payout proof with no workaround | BLOCKED |
+| Monitoring/on-call and financial operations | Operations owner | Named staffing, alerts, escalation, reconciliation schedule, incident drills, support hours | BLOCKED |
+| Physical Android/iOS payment/onboarding QA | Mobile release owner | Dated physical-device PaymentSheet and hosted-onboarding evidence | BLOCKED |
+| Store/public disclosures | Release + legal owner | Reviewed Play/App Store declarations, privacy disclosures, terms, support scripts | BLOCKED |
+| Final activation | MORT owner | Reviewed forward-only activation/disable procedure plus every prior gate's dated evidence | BLOCKED |
+
+
 - [ ] Provider approved the exact marketplace, country, connected-account, and teen/representative use case in writing, including **minor Connect** readiness for ages 13–17.
 - [ ] Licensed counsel approved payments, minors, worker classification, refunds, disputes, consumer terms, privacy, retention, receipts, and financial deletion/de-identification.
 - [ ] Tax professional approved reporting, form delivery, record retention, and operational ownership.
