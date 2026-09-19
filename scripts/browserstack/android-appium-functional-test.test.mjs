@@ -69,7 +69,10 @@ test("Android selector fallback scrolls offscreen Flutter semantics into view", 
     path.join(root, "scripts", "browserstack", "android-appium-functional-test.mjs"),
     "utf8",
   );
+  assert.match(source, /UiSelector\(\)\.resourceId/);
+  assert.match(source, /\*\/\*\[@resource-id=/);
   assert.match(source, /UiScrollable\(new UiSelector\(\)\.scrollable\(true\)\)/);
+  assert.match(source, /scrollIntoView\(new UiSelector\(\)\.resourceId/);
   assert.match(source, /scrollIntoView\(new UiSelector\(\)\.descriptionContains/);
   assert.match(source, /scrollIntoView\(new UiSelector\(\)\.textContains/);
 });
