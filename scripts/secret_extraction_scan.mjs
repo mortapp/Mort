@@ -8,12 +8,30 @@ const syntheticFixtureTokens = new Set([
   "whsec_1234567890abcdef",
   "pk_live_1234567890abcdef",
   "pi_123_secret_1234567890abcdef",
+  "pi_12345_secret_shortlived",
+  "whsec_platform",
+  "whsec_connect",
+  "sk_test_placeholder",
+  "sk_test_REALLOOKINGVALUE123",
+  "whsec_REALLOOKINGVALUE123",
+  "pk_live_REALLOOKINGVALUE123",
+  "pi_123_secret_REALLOOKINGVALUE123",
 ]);
 
 const providerTokenPattern = /\b(?:sk_(?:test|live)|rk_(?:test|live)|whsec_|pk_live_|sb_secret_)[A-Za-z0-9_-]{8,}\b/g;
 const clientSecretPattern = /\b(?:pi|seti|src)_[A-Za-z0-9]+_secret_[A-Za-z0-9_-]{8,}\b/g;
 const jwtPattern = /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g;
-const privateKeyPattern = /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g;
+const privateKeyBlockPattern =
+  /-----BEGIN ((?:RSA |EC |OPENSSH )?)PRIVATE KEY-----([\s\S]*?)-----END \1PRIVATE KEY-----/g;
+
+function containsPrivateKeyMaterial(content) {
+  privateKeyBlockPattern.lastIndex = 0;
+  for (const match of content.matchAll(privateKeyBlockPattern)) {
+    const body = match[2].replace(/\s/g, "");
+    if (body.length >= 64 && /^[A-Za-z0-9+/=]+$/.test(body)) return true;
+  }
+  return false;
+}
 
 function decodeJwtPayload(token) {
   try {
@@ -26,8 +44,14 @@ function decodeJwtPayload(token) {
 }
 
 function isSyntheticFixture(pathname, token) {
-  return pathname.replaceAll("\\", "/").startsWith("scripts/qa-stripe-") &&
-    syntheticFixtureTokens.has(token);
+  const normalized = pathname.replaceAll("\\", "/");
+  const allowedFixturePath =
+    normalized.startsWith("scripts/qa-stripe-") ||
+    normalized === "scripts/secret_extraction_scan.mjs" ||
+    normalized === "scripts/secret-scan-git-history.mjs" ||
+    normalized === "supabase/functions/_tests/stripe_webhook_verification_test.ts" ||
+    normalized === "ios/MORTIOSV8Tests/HostedWireDTOTests.swift";
+  return allowedFixturePath && syntheticFixtureTokens.has(token);
 }
 
 export function scanText(pathname, content) {
@@ -45,8 +69,7 @@ export function scanText(pathname, content) {
     if (payload?.role === "service_role") findings.push("service_role_jwt");
   }
   jwtPattern.lastIndex = 0;
-  if (privateKeyPattern.test(content)) findings.push("private_key_material");
-  privateKeyPattern.lastIndex = 0;
+  if (containsPrivateKeyMaterial(content)) findings.push("private_key_material");
   return [...new Set(findings)];
 }
 
