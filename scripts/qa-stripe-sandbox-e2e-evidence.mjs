@@ -207,7 +207,7 @@ async function validateRegressionManifest() {
     "supabase migration list --local",
     "run-final-supabase-regression.ps1",
     "qa-stripe-pre-provider-gate.mjs",
-    "deno test --allow-read --allow-env supabase/functions/_tests",
+    "deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests",
     "audit-supabase-advisors.mjs",
     "dart format --output=none --set-exit-if-changed lib test integration_test",
     "flutter analyze --no-pub",
