@@ -172,11 +172,27 @@ await withQaUsers(
         callerError != null,
         "Authenticated mobile callers must not execute provider fulfillment.",
       );
-      const { error: writeError } = await adult.client
+      const { data: attemptedRows, error: writeError } = await adult.client
         .from("revenuecat_product_states")
         .update({ active: true })
-        .eq("user_id", adult.id);
-      assertQa(writeError != null, "Mobile callers must not mutate provider state.");
+        .eq("user_id", adult.id)
+        .select("active,last_event_id");
+      assertQa(
+        writeError != null || (Array.isArray(attemptedRows) && attemptedRows.length === 0),
+        "Mobile callers must not mutate provider state.",
+      );
+      const { data: protectedState, error: protectedStateError } = await serviceClient
+        .from("revenuecat_product_states")
+        .select("active,last_event_id")
+        .eq("user_id", adult.id)
+        .eq("product_id", "mort_guardian_plus_monthly")
+        .single();
+      if (protectedStateError) throw protectedStateError;
+      assertQa(
+        protectedState.active === false &&
+          protectedState.last_event_id === currentExpirationId,
+        "Mobile provider-state mutation attempt must leave server state unchanged.",
+      );
       qaLog(scope, "provider fulfillment and state writes are server-only");
     } finally {
       await serviceClient
