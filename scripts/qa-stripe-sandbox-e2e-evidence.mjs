@@ -200,11 +200,18 @@ async function validateRegressionManifest() {
     path.join(root, ".github", "workflows", "mort-ci.yml"),
     "utf8",
   );
+  const featureQaHelpers = await readFile(
+    path.join(root, "scripts", "feature-qa-helpers.mjs"),
+    "utf8",
+  );
 
   const requiredRunnerTokens = [
     "local-supabase-start.ps1",
     "local-supabase-reset.ps1",
     "supabase migration list --local",
+    "supabase status -o env",
+    "MORT_QA_LOCAL_SUPABASE",
+    "SUPABASE_DB_URL",
     "run-final-supabase-regression.ps1",
     "qa-stripe-pre-provider-gate.mjs",
     "deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests",
@@ -276,19 +283,20 @@ async function validateRegressionManifest() {
     );
   }
 
-  for (const token of [
-    "PLAY_REVIEW_TEEN_EMAIL",
-    "PLAY_REVIEW_TEEN_PASSWORD",
-    "PLAY_REVIEW_ADULT_EMAIL",
-    "PLAY_REVIEW_ADULT_PASSWORD",
-  ]) {
-    assert(workflow.includes(token), `CI workflow missing protected QA variable ${token}`);
-  }
   assert(
-    finalRegression.includes("Process") &&
+    finalRegression.includes("MORT_QA_LOCAL_SUPABASE") &&
+      finalRegression.includes("hostedOnlyScripts") &&
       finalRegression.includes("Set-MortPlayReviewEnvironment"),
-    "final Supabase regression must support CI process environment with local fallback",
+    "final Supabase regression must separate local CI from hosted-only QA",
   );
+  for (const token of [
+    'required("EXPO_PUBLIC_SUPABASE_URL")',
+    'required("SUPABASE_SERVICE_ROLE_KEY")',
+    '"SUPABASE_DB_URL"',
+    "createDatabaseClient",
+  ]) {
+    assert(featureQaHelpers.includes(token), `feature QA helper missing local-capable token ${token}`);
+  }
 
   for (const token of [
     "stripe-contracts:",
