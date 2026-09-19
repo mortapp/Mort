@@ -2,15 +2,22 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
 
-export const projectRef = "rakjydmgwwgtdislanbt";
-export const supabaseUrl = `https://${projectRef}.supabase.co`;
-
+export const supabaseUrl = required("EXPO_PUBLIC_SUPABASE_URL");
+export const projectRef =
+  process.env.MORT_SUPABASE_PROJECT_REF ||
+  new URL(supabaseUrl).hostname.split(".")[0] ||
+  "local";
 export const anonKey = required("EXPO_PUBLIC_SUPABASE_ANON_KEY");
 const serviceRoleKey = required("SUPABASE_SERVICE_ROLE_KEY");
-const dbPassword = required("SUPABASE_DB_PASSWORD");
+const dbUrl = process.env.SUPABASE_DB_URL || "";
+const dbPassword = process.env.SUPABASE_DB_PASSWORD || "";
+const localQa = process.env.MORT_QA_LOCAL_SUPABASE === "true";
 
-if (process.env.EXPO_PUBLIC_SUPABASE_URL !== supabaseUrl) {
-  throw new Error(`EXPO_PUBLIC_SUPABASE_URL must target ${supabaseUrl}.`);
+if (!localQa && supabaseUrl !== `https://${projectRef}.supabase.co`) {
+  throw new Error(`EXPO_PUBLIC_SUPABASE_URL must target ${projectRef}.`);
+}
+if (!dbUrl && !dbPassword) {
+  throw new Error("Missing SUPABASE_DB_URL or SUPABASE_DB_PASSWORD.");
 }
 
 export const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
@@ -22,6 +29,19 @@ function required(name) {
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
   return value;
 }
+
+function createDatabaseClient() {
+  if (dbUrl) {
+    const localConnection =
+      /^postgres(?:ql)?:\/\/[^@]+@(?:127\.0\.0\.1|localhost):/i.test(dbUrl);
+    return new pg.Client({
+      connectionString: dbUrl,
+      ssl: localConnection ? false : { rejectUnauthorized: false },
+    });
+  }
+  return createDatabaseClient();
+}
+
 
 export function assertQa(condition, message) {
   if (!condition) throw new Error(message);
@@ -40,14 +60,7 @@ export async function sendSafeMessage(client, threadId, body, requestId = random
 }
 
 export async function withDatabase(run) {
-  const database = new pg.Client({
-    host: `db.${projectRef}.supabase.co`,
-    port: 5432,
-    database: "postgres",
-    user: "postgres",
-    password: dbPassword,
-    ssl: { rejectUnauthorized: false },
-  });
+  const database = createDatabaseClient();
   // Active queries still reject; this prevents a later socket close from
   // bypassing the caller's cleanup/finally path as an unhandled EventEmitter.
   database.on("error", () => {});
@@ -60,14 +73,7 @@ export async function withDatabase(run) {
 }
 
 export async function removeQaModerationEvent(resourceId, userId) {
-  const database = new pg.Client({
-    host: `db.${projectRef}.supabase.co`,
-    port: 5432,
-    database: "postgres",
-    user: "postgres",
-    password: dbPassword,
-    ssl: { rejectUnauthorized: false },
-  });
+  const database = createDatabaseClient();
   database.on("error", () => {});
   await database.connect();
   try {
