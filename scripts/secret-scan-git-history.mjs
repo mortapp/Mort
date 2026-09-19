@@ -43,6 +43,10 @@ const clientSecretPattern = /\b(?:pi|seti|src)_[A-Za-z0-9]+_secret_[A-Za-z0-9_-]
 const jwtPattern = /eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g;
 const privateKeyBlockPattern =
   /-----BEGIN ((?:RSA |EC |OPENSSH )?)PRIVATE KEY-----([\s\S]*?)-----END \1PRIVATE KEY-----/g;
+const providerObjectIdPattern = /\b(?:pi|ch|tr|re|dp|po|acct|evt|cus)_[A-Za-z0-9]{6,}\b/g;
+const providerObjectTypePattern =
+  /"object"\s*:\s*"(?:payment_intent|charge|transfer|refund|dispute|payout|account|customer|event)"/i;
+const providerLivemodePattern = /"livemode"\s*:\s*(?:true|false)/i;
 
 function isSyntheticFixture(path, token) {
   const normalized = path.replaceAll("\\", "/");
@@ -53,6 +57,25 @@ function isSyntheticFixture(path, token) {
     normalized === "supabase/functions/_tests/stripe_webhook_verification_test.ts" ||
     normalized === "ios/MORTIOSV8Tests/HostedWireDTOTests.swift";
   return allowedFixturePath && syntheticFixtureTokens.has(token);
+}
+
+function allowsSyntheticProviderPayload(pathname) {
+  const normalized = pathname.replaceAll("\\", "/");
+  return normalized.startsWith("scripts/qa-stripe-") ||
+    normalized === "scripts/secret_extraction_scan.mjs" ||
+    normalized === "scripts/secret-scan-git-history.mjs" ||
+    normalized.startsWith("supabase/functions/_tests/stripe_") ||
+    normalized === "ios/MORTIOSV8Tests/HostedWireDTOTests.swift";
+}
+
+function containsCopiedProviderPayload(pathname, content) {
+  providerObjectIdPattern.lastIndex = 0;
+  const hasProviderId = providerObjectIdPattern.test(content);
+  providerObjectIdPattern.lastIndex = 0;
+  return !allowsSyntheticProviderPayload(pathname) &&
+    hasProviderId &&
+    providerObjectTypePattern.test(content) &&
+    providerLivemodePattern.test(content);
 }
 
 function decodeJwtPayload(token) {
@@ -89,6 +112,7 @@ export function classifyHistoricalBlob(path, content) {
     if (decodeJwtPayload(token)?.role === "service_role") types.add("service_role_jwt");
   }
   jwtPattern.lastIndex = 0;
+  if (containsCopiedProviderPayload(path, content)) types.add("copied_provider_payload");
   return [...types];
 }
 
@@ -162,6 +186,7 @@ const candidatePattern = [
   "pk_live_[A-Za-z0-9_-]{8,}",
   "sb_secret_[A-Za-z0-9_-]{8,}",
   "(pi|seti|src)_[A-Za-z0-9]+_secret_[A-Za-z0-9_-]{8,}",
+  "(pi|ch|tr|re|dp|po|acct|evt|cus)_[A-Za-z0-9]{6,}",
   "-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----",
 ].join("|");
 
