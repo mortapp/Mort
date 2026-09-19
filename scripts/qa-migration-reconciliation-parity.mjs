@@ -90,6 +90,35 @@ for (const mapping of mappings) {
   assert.match(aliasSql, /COMPARISON_RESULT=SEMANTICALLY_EQUIVALENT/);
 }
 
+const restoredHostedMigrations = [
+  {
+    file: "20260918032930_guardian_teen_summary_v1.sql",
+    gitBlobSha: "65455e7593dbcb51612f71303ba808063b43f6a6",
+  },
+  {
+    file: "20260918033424_guardian_teen_summary_privacy_hardening.sql",
+    gitBlobSha: "b7581e982ea4953a64db139ff17cf2ab0c3070f1",
+  },
+  {
+    file: "20260918033617_guardian_teen_summary_null_visibility_fix.sql",
+    gitBlobSha: "c4754fccc9162bdbb2f8e57dc99bd0e5ed2b9a9a",
+  },
+];
+
+function gitBlobSha(value) {
+  const bytes = Buffer.byteLength(value, "utf8");
+  return createHash("sha1").update(`blob ${bytes}\\0`).update(value).digest("hex");
+}
+
+for (const migration of restoredHostedMigrations) {
+  const sql = await readFile(new URL(migration.file, migrationsDirectory), "utf8");
+  assert.equal(
+    gitBlobSha(sql),
+    migration.gitBlobSha,
+    `${migration.file} no longer matches the hosted migration statement restored from migration history`,
+  );
+}
+
 const aliasFiles = (await readdir(migrationsDirectory))
   .filter((file) => file.includes("_compatibility_alias_"))
   .sort();
@@ -100,5 +129,5 @@ assert.deepEqual(
 );
 
 console.log(
-  "[qa-migration-reconciliation-parity] Seven canonical migrations match their verified hosted semantic hashes; all aliases are SQL no-ops.",
+  "[qa-migration-reconciliation-parity] Seven compatibility aliases remain verified no-ops and three restored hosted guardian migrations match their captured Git blob hashes.",
 );
