@@ -208,8 +208,13 @@ await withQaUsers(
     const ageAccepted = await agedGuardian.client.rpc("accept_guardian_invite", {
       p_invite_code: ageInvite.data.invite_code,
     });
-    assertQa(!ageAccepted.error && typeof ageAccepted.data === "string", "age-transition invite acceptance failed");
-    const ageLinkId = ageAccepted.data;
+    assertQa(
+      !ageAccepted.error &&
+        ageAccepted.data?.ok === true &&
+        typeof ageAccepted.data?.link_id === "string",
+      "age-transition invite acceptance failed",
+    );
+    const ageLinkId = ageAccepted.data.link_id;
     await withDatabase(async (database) => {
       await database.query("begin");
       try {
