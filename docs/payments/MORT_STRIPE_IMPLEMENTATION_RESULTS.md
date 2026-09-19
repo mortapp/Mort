@@ -1,6 +1,6 @@
 # Stripe Connect Implementation Results
 
-Status: Tasks 1-31 complete on the Stripe feature branch. Task 32 regression wiring is implemented and its Task-32-specific CI gates are green; the final all-green regression is currently blocked by secret-scanner false positives that are owned by Task 33. Live payments remain disabled.
+Status: Tasks 1-31 and Task 33 are complete on the Stripe feature branch. Task 32 regression wiring is implemented and its Task-32-specific functional gates are green; its remaining manifest/local-regression verification is being closed after the Task 33 dependency. Live payments remain disabled.
 
 ## Task 31 — controlled Stripe sandbox E2E
 
@@ -50,6 +50,20 @@ Implemented:
 The secret-scan failure reports paths such as the scanner implementation itself, synthetic Stripe test fixtures, `HostedWireDTOTests.swift`, and the existing push private-key parser. The scan prints no secret values. Correcting scanner allowlisting/classification belongs to Task 33, whose declared files include `secret-scan.ps1`, `secret_extraction_scan.mjs`, and `secret-scan-git-history.mjs`. Those files were intentionally not modified as part of Task 32.
 
 Because the full regression entrypoint intentionally includes the secret scans, Task 32 must not be called fully GREEN until Task 33 corrects those scanner false positives and the complete runner is executed successfully.
+
+## Task 33 — secret hygiene and production activation freeze
+
+Task 33 is complete.
+
+- Source secret extraction passed with no classified secret values.
+- Full Git-history secret scanning passed.
+- The scanners reject Stripe secret/restricted keys, webhook secrets, PaymentIntent client secrets, live publishable keys, service-role JWTs, private-key material, and copied Stripe provider payloads while narrowly allowing exact synthetic QA fixtures.
+- The Flutter release web build completed and the post-build generated-artifact secret scan passed.
+- Both production-readiness documents now carry explicit `Gate | Owner | Evidence | Status` matrices.
+- Required blockers remain explicit: production pricing, provider fee payer, Radar Pro transaction cost/unit economics, reserve/chart of accounts, production partial-compensation values, minor Connect proof, legal/tax/privacy review, monitoring/on-call, provider pricing, and final owner approval.
+- Read-only hosted verification on 2026-09-19 confirmed `mode=sandbox`, every payment/provider/live/external approval flag false, `partial_compensation_policy_version=null`, `production_approved_at=null`, and `private.stripe_live_financial_ready()=false`.
+- CI Task 33 security-freeze verification passed source scan, extraction scan, full history scan, source-only activation-doc validation, `git diff --check`, and clean `git status --short`.
+- No live provider mutation, live credential, production pricing, production partial-compensation value, or instant payout was enabled.
 
 ## Architecture and safety state
 
