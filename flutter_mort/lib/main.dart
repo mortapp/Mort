@@ -122,10 +122,13 @@ class _MortBootstrapState extends State<MortBootstrap> {
 
   Future<Object?> _initializeSafely() async {
     try {
-      AppConfig.assertValidReleaseConfiguration();
+      // BrowserStack QA is an internal deterministic shell. It must bypass
+      // production/startup configuration validation before any external
+      // provider or hosted runtime contract is evaluated.
       if (AppConfig.browserStackQaMode) {
         return null;
       }
+      AppConfig.assertValidReleaseConfiguration();
       if (AppConfig.crashReportingEnabled &&
           !MortCrashReporting.instance.providerConfigured) {
         throw StateError('The configured crash provider is unavailable.');
