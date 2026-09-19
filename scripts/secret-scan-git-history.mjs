@@ -29,6 +29,14 @@ const syntheticFixtureTokens = new Set([
   "whsec_1234567890abcdef",
   "pk_live_1234567890abcdef",
   "pi_123_secret_1234567890abcdef",
+  "pi_12345_secret_shortlived",
+  "whsec_platform",
+  "whsec_connect",
+  "sk_test_placeholder",
+  "sk_test_REALLOOKINGVALUE123",
+  "whsec_REALLOOKINGVALUE123",
+  "pk_live_REALLOOKINGVALUE123",
+  "pi_123_secret_REALLOOKINGVALUE123",
 ]);
 const providerCredentialPattern = /\b(?:sk_(?:live|test)|rk_(?:live|test)|whsec_|pk_live_|sb_secret_)[A-Za-z0-9_-]{8,}\b/g;
 const clientSecretPattern = /\b(?:pi|seti|src)_[A-Za-z0-9]+_secret_[A-Za-z0-9_-]{8,}\b/g;
