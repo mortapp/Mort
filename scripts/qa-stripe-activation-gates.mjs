@@ -67,12 +67,22 @@ await withDatabase(async (database) => {
   }
 });
 
-const docs = (
-  await Promise.all([
-    readFile(path.join(root, "docs", "payments", "MORT_STRIPE_LIVE_READINESS.md"), "utf8"),
-    readFile(path.join(root, "docs", "MORT_PAYMENT_PRODUCTION_ACTIVATION_CHECKLIST.md"), "utf8"),
-  ])
-).join("\n").toLowerCase();
+const readinessDoc = await readFile(
+  path.join(root, "docs", "payments", "MORT_STRIPE_LIVE_READINESS.md"),
+  "utf8",
+);
+const activationChecklist = await readFile(
+  path.join(root, "docs", "MORT_PAYMENT_PRODUCTION_ACTIVATION_CHECKLIST.md"),
+  "utf8",
+);
+const docs = `${readinessDoc}\n${activationChecklist}`.toLowerCase();
+
+for (const [label, content] of [
+  ["live readiness", readinessDoc.toLowerCase()],
+  ["activation checklist", activationChecklist.toLowerCase()],
+]) {
+  assertQa(content.includes("| gate | owner | evidence | status |"), `${label} must include gate owner/evidence/status fields`);
+}
 
 for (const required of [
   "production pricing",
