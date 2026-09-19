@@ -74,6 +74,18 @@ async function processEvent(
         p_currency_code: intent.currency.toUpperCase(),
       });
     }
+    const quoteRef = intent.metadata?.mort_quote_ref;
+    const contractRef = intent.metadata?.mort_contract_ref;
+    const intentEnvironment = intent.metadata?.mort_environment;
+    if (!quoteRef || !contractRef || intentEnvironment !== environment) {
+      return complete(
+        supabase,
+        environment,
+        event.id,
+        "ignored",
+        "payment_intent_not_owned_by_mort",
+      );
+    }
     const chargeId = typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id ?? null;
     const failureCode = intent.last_payment_error?.code ?? null;
     return rpc(supabase, "stripe_server_apply_payment_event_v2", {
