@@ -6533,6 +6533,13 @@ final _settingsGroups = <_SettingsGroup>[
         icon: Icons.history_rounded,
         route: '/settings/activity',
       ),
+      _SettingsAction(
+        label: 'Job & payment history',
+        description:
+            'Review payment attempts, earnings, tips, refunds, and receipts.',
+        icon: Icons.receipt_long_outlined,
+        route: '/settings/payment-history',
+      ),
     ],
   ),
   _SettingsGroup(

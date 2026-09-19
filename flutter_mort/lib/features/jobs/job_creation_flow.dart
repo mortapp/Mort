@@ -1,3 +1,5 @@
+import '../payments/models/fair_pay.dart';
+
 enum JobCreationStep {
   basics('Job basics'),
   workDetails('Work details'),
@@ -11,6 +13,20 @@ enum JobCreationStep {
   const JobCreationStep(this.title);
 
   final String title;
+}
+
+class MortJobCreationFairPayGate {
+  const MortJobCreationFairPayGate._();
+
+  static bool canContinue(MortFairPayAssessment? assessment) =>
+      assessment != null &&
+      assessment.backendAuthoritative &&
+      !assessment.blocksContinue &&
+      (assessment.status != MortFairPayStatus.yellow ||
+          assessment.yellowMayContinue);
+
+  static bool canPublish(MortFairPayAssessment? assessment) =>
+      canContinue(assessment);
 }
 
 const jobCreationSteps = JobCreationStep.values;

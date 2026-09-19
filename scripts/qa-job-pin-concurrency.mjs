@@ -453,13 +453,18 @@ await withQaUsers(
   },
 );
 
-const remainingUsers = await withDatabase(async (database) => {
-  const result = await database.query(
-    "select count(*)::int as count from auth.users where id = any($1::uuid[])",
-    [qaUserIds],
-  );
-  return result.rows[0].count;
-});
+let remainingUsers = qaUserIds.length;
+for (let attempt = 1; attempt <= 10; attempt += 1) {
+  remainingUsers = await withDatabase(async (database) => {
+    const result = await database.query(
+      "select count(*)::int as count from auth.users where id = any($1::uuid[])",
+      [qaUserIds],
+    );
+    return result.rows[0].count;
+  });
+  if (remainingUsers === 0) break;
+  await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
+}
 assertQa(remainingUsers === 0, "one or more PIN QA auth users survived cleanup");
 qaLog(scope, "verified all isolated auth fixtures were removed");
 

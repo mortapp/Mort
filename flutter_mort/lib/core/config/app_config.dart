@@ -298,7 +298,7 @@ class AppConfig {
   );
   static const nativeAdsCompiledIn = true;
   static const nativeBillingCompiledIn = false;
-  static const nativeStripePaymentSheetCompiledIn = false;
+  static const nativeStripePaymentSheetCompiledIn = true;
   static const webPreviewMode = bool.fromEnvironment(
     'WEB_PREVIEW_MODE',
     defaultValue: false,
@@ -494,5 +494,6 @@ class AppConfig {
 
   static bool get supportsNativeAds => nativeAdsCompiledIn && !kIsWeb;
 
-  static bool get supportsStripePaymentSheet => false;
+  static bool get supportsStripePaymentSheet =>
+      nativeStripePaymentSheetCompiledIn && !kIsWeb;
 }

@@ -33,6 +33,9 @@ export async function runStripeQa(scope, scenario) {
     "resolution-role-separation": checkResolutionRoleSeparation,
     "resolution-idempotency": checkResolutionIdempotency,
     "refund-webhook-reconciliation": checkRefundWebhookReconciliation,
+    "policy-versioning": checkPolicyVersioning,
+    "funding-quote": checkFundingQuote,
+    "settlement-policy": checkSettlementPolicy,
   };
   const check = checks[scenario];
   if (!check) throw new Error(`Unknown Stripe QA scenario: ${scenario}`);
@@ -107,12 +110,13 @@ async function checkPaymentAmountForgery(scope) {
 }
 
 async function checkPaymentIdempotency(scope) {
-  const source = await functionSource("public.stripe_server_prepare_job_payment");
+  const source = await functionSource("public.stripe_server_prepare_quote_payment_v1");
   const edge = await text("supabase/functions/stripe-create-job-payment-intent/index.ts");
-  assertQa(source.includes(":funding:"), "server funding operation version is absent from the key");
-  assertQa(edge.includes("idempotencyKey: prepared.idempotency_key"), "Stripe create call lacks server idempotency");
-  await assertUnique("private", "stripe_job_payment_intents", ["contract_version_id", "environment", "operation_version"]);
-  qaLog(scope, "database and provider idempotency protect repeated funding requests");
+  assertQa(source.includes(":quote:"), "quote-bound funding idempotency key is absent");
+  assertQa(edge.includes("paymentIntents.retrieve"), "existing provider intents are not reconciled before retry");
+  assertQa(edge.includes("idempotencyKey: preparedAttempt.idempotency_key"), "Stripe create call lacks server idempotency");
+  await assertUnique("private", "stripe_job_payment_intents", ["environment", "funding_quote_id"]);
+  qaLog(scope, "quote, provider, and database idempotency protect repeated funding requests");
 }
 
 async function checkPaymentSheetContract(scope) {
@@ -121,18 +125,20 @@ async function checkPaymentSheetContract(scope) {
   const config = await text("flutter_mort/lib/core/config/app_config.dart");
   const pubspec = await text("flutter_mort/pubspec.yaml");
   assertQa(edge.includes("payment_intent_client_secret") && edge.includes("customer_ephemeral_key_secret"), "server Payment Sheet contract is incomplete");
-  assertQa(client.includes("marketplace_payments_disabled"), "closed-test Payment Sheet stub does not fail closed");
-  assertQa(config.includes("nativeStripePaymentSheetCompiledIn = false"), "native Stripe compilation boundary is not explicit");
-  assertQa(!pubspec.includes("flutter_stripe:"), "Stripe SDK is compiled into a payment-disabled release");
-  assertQa(!client.includes("initPaymentSheet") && !client.includes("presentPaymentSheet"), "payment execution remained in the signed client");
-  qaLog(scope, "server Payment Sheet contract is retained for future review while the distributed client has no payment SDK and fails closed");
+  assertQa(client.includes("stripe_sandbox_configuration_invalid"), "sandbox Payment Sheet configuration gate is absent");
+  assertQa(config.includes("nativeStripePaymentSheetCompiledIn = true"), "native Stripe compilation boundary is not explicit");
+  assertQa(pubspec.includes("flutter_stripe:"), "sandbox PaymentSheet SDK is not declared");
+  assertQa(client.includes("initPaymentSheet") && client.includes("presentPaymentSheet"), "PaymentSheet execution is not wired");
+  assertQa(client.includes("pk_test_"), "PaymentSheet does not reject non-test publishable keys");
+  qaLog(scope, "sandbox PaymentSheet is compiled and executable only behind test-key validation while public activation remains separately gated");
 }
 
 async function checkWebhookSignature(scope) {
   const webhook = await text("supabase/functions/stripe-webhook/index.ts");
+  const verification = await text("supabase/functions/stripe-webhook/verification.ts");
   assertQa(webhook.includes("await request.text()"), "webhook does not preserve raw body");
-  assertQa(webhook.includes("constructEventAsync(rawBody, signature"), "Stripe signature verification is absent");
-  assertQa(webhook.indexOf("constructEventAsync") < webhook.indexOf("processEvent("), "event is processed before signature verification");
+  assertQa(verification.includes("constructEventAsync(rawBody, signature"), "Stripe signature verification is absent");
+  assertQa(webhook.includes("verifyWebhookEvent(runtime.stripe, rawBody, signature"), "webhook source verification is not enforced before dispatch");
   qaLog(scope, "webhook verifies Stripe-Signature against the untouched raw body before dispatch");
 }
 
@@ -158,7 +164,7 @@ async function checkJobFunding(scope) {
   assertQa(preview.includes("stripe_job_funding_enabled"), "preview ignores funding shutdown");
   assertQa(event.includes("payment_intent.succeeded") && event.includes("'funded'"), "funded state lacks provider event binding");
   const client = await text("flutter_mort/lib/features/payments/stripe_marketplace_screens.dart");
-  assertQa(client.includes("waiting for Stripe webhook confirmation"), "client implies callback is authoritative");
+  assertQa(client.includes("waiting for provider confirmation"), "client implies callback is authoritative");
   qaLog(scope, "server controls gate funding and only a verified provider event marks a payment funded");
 }
 
@@ -245,8 +251,8 @@ async function checkGooglePlayBoundary(scope) {
   assertQa(!pubspec.includes("purchases_flutter"), "legacy RevenueCat SDK returned to the signed client");
   assertQa(!pubspec.includes("in_app_purchase:"), "Google Play Billing SDK is compiled into an IAP-disabled release");
   assertQa(!manifest.includes("com.android.vending.BILLING"), "Android billing permission is present in an IAP-disabled release");
-  assertQa(config.includes("nativeBillingCompiledIn = false") && config.includes("nativeStripePaymentSheetCompiledIn = false"), "native financial compilation gates are not explicit");
-  qaLog(scope, "physical-service payments remain a disabled server architecture and the signed Android client contains no digital or marketplace billing capability");
+  assertQa(config.includes("nativeBillingCompiledIn = false") && config.includes("nativeStripePaymentSheetCompiledIn = true"), "native financial compilation gates are not explicit");
+  qaLog(scope, "Google Play Billing remains absent while sandbox Stripe PaymentSheet is the separate physical-service payment surface");
 }
 
 async function checkSavedPaymentConsent(scope) {
@@ -291,6 +297,63 @@ async function checkRefundWebhookReconciliation(scope) {
   assertQa(webhook.includes('"charge.refunded"') && webhook.includes("applyRefund"), "charge/refund webhook events are not reconciled");
   assertQa(!webhook.includes('"refund_reconciliation_required"'), "refund events are still ignored");
   qaLog(scope, "verified refund and charge.refunded events reconcile idempotent private payment state");
+}
+
+async function checkPolicyVersioning(scope) {
+  await withDatabase(async (database) => {
+    const result = await database.query(`
+      select service_fee_bps, service_fee_min_cents, service_fee_max_cents,
+             quote_ttl_seconds, version
+      from private.stripe_financial_policy_versions
+      where environment = 'test' and policy_kind = 'service_fee'
+        and currency_code = 'USD' and scope_key = 'global' and active
+    `);
+    assertQa(result.rowCount === 1, "sandbox service-fee policy is missing or ambiguous");
+    assertQa(result.rows[0].service_fee_bps === 800, "sandbox service-fee rate is not 800 bps");
+    assertQa(result.rows[0].service_fee_min_cents === 100, "sandbox service-fee minimum is not 100 cents");
+    assertQa(result.rows[0].service_fee_max_cents === 500, "sandbox service-fee maximum is not 500 cents");
+    assertQa(result.rows[0].quote_ttl_seconds === 900, "sandbox quote TTL is not 900 seconds");
+  });
+  qaLog(scope, "versioned sandbox policy stores the approved fee and 900-second quote TTL while live policy remains gated");
+}
+
+async function checkFundingQuote(scope) {
+  const createArgs = await functionArguments("public.stripe_server_create_job_funding_quote_v1");
+  const createSource = await functionSource("public.stripe_server_create_job_funding_quote_v1");
+  const consumeArgs = await functionArguments("public.stripe_server_consume_job_funding_quote_v1");
+  const consumeSource = await functionSource("public.stripe_server_consume_job_funding_quote_v1");
+  for (const forbidden of ["amount", "fee", "total", "currency", "worker", "provider", "expires", "time"]) {
+    assertQa(!createArgs.toLowerCase().includes(forbidden), `quote creation accepts client ${forbidden} authority`);
+  }
+  assertQa(createSource.includes("public.job_payment_obligations"), "quote does not derive base pay from the obligation");
+  assertQa(createSource.includes("pg_advisory_xact_lock"), "quote refresh is not serialized");
+  assertQa(!consumeArgs.includes("timestamptz"), "quote consumption accepts a client clock");
+  assertQa(consumeSource.includes("clock_timestamp()"), "quote consumption does not use the server clock");
+  await assertUnique("private", "stripe_job_funding_quotes", ["environment", "payer_id", "request_id"]);
+  qaLog(scope, "funding quotes are server-priced, request-idempotent, serialized, expiring, and consumed by server clock only");
+}
+
+async function checkSettlementPolicy(scope) {
+  for (const name of [
+    "private.evaluate_fair_pay_v1",
+    "private.evaluate_tip_policy_v1",
+    "private.evaluate_cancellation_v1",
+    "private.evaluate_partial_compensation_v1",
+  ]) {
+    const source = await functionSource(name);
+    assertQa(source.includes("search_path") || source.includes("evaluate_compensation_policy_v1"), `${name} is missing hardened implementation`);
+  }
+  await withDatabase(async (database) => {
+    const result = await database.query(`
+      select count(*)::integer count
+      from private.stripe_financial_policy_versions
+      where environment = 'live'
+        and policy_kind in ('service_fee', 'fair_pay', 'tip', 'cancellation', 'partial_compensation')
+        and active
+    `);
+    assertQa(result.rows[0].count === 0, "a production financial policy is active without owner approval");
+  });
+  qaLog(scope, "Fair Pay, tip, cancellation, and partial-compensation evaluators are versioned and production remains fail-closed");
 }
 
 async function functionSource(name) {

@@ -15,6 +15,7 @@ export type StripeRuntime = {
   secretKey: string;
   publishableKey: string;
   webhookSecret?: string;
+  connectWebhookSecret?: string;
   stripe: Stripe;
 };
 
@@ -138,16 +139,21 @@ export function webhookRuntime(): StripeRuntime {
   const secretKey = Deno.env.get(environment === "test" ? "STRIPE_TEST_SECRET_KEY" : "STRIPE_LIVE_SECRET_KEY");
   const publishableKey = Deno.env.get(environment === "test" ? "STRIPE_TEST_PUBLISHABLE_KEY" : "STRIPE_LIVE_PUBLISHABLE_KEY");
   const webhookSecret = Deno.env.get(environment === "test" ? "STRIPE_TEST_WEBHOOK_SECRET" : "STRIPE_LIVE_WEBHOOK_SECRET");
+  const connectWebhookSecret = Deno.env.get(environment === "test" ? "STRIPE_TEST_CONNECT_WEBHOOK_SECRET" : "STRIPE_LIVE_CONNECT_WEBHOOK_SECRET");
   if (!secretKey || !publishableKey || !webhookSecret) throw new PublicError("stripe_webhook_not_configured", 503);
   if (!secretKey.startsWith(environment === "test" ? "sk_test_" : "sk_live_") ||
       !publishableKey.startsWith(environment === "test" ? "pk_test_" : "pk_live_") ||
       !webhookSecret.startsWith("whsec_")) throw new PublicError("stripe_key_mode_mismatch", 503);
+  if (connectWebhookSecret && !connectWebhookSecret.startsWith("whsec_")) {
+    throw new PublicError("stripe_connect_webhook_not_configured", 503);
+  }
   return {
     mode,
     environment,
     secretKey,
     publishableKey,
     webhookSecret,
+    connectWebhookSecret,
     stripe: new Stripe(secretKey, { maxNetworkRetries: 2, timeout: 20_000, telemetry: false }),
   };
 }

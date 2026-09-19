@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/errors/mort_error.dart';
+import '../models/stripe_payment_models.dart';
 import 'repository_base.dart';
 
 class StripeMarketplaceRepository extends RepositoryBase {
@@ -111,21 +112,70 @@ class StripeMarketplaceRepository extends RepositoryBase {
     return _invoke('stripe-get-connected-account-status');
   }
 
-  Future<Map<String, dynamic>> createPaymentSheet({
+  Future<MortFundingQuote> createFundingQuote({
     required String contractId,
+  }) async {
+    final response = await _invoke(
+      'stripe-create-job-funding-quote',
+      body: {'contract_id': contractId, 'request_id': _uuid.v4()},
+    );
+    return MortFundingQuote.fromJson(response);
+  }
+
+  Future<Map<String, dynamic>> createPaymentSheet({
+    required String quoteId,
     required bool savePaymentMethod,
     String? savedPaymentConsentVersion,
   }) {
     return _invoke(
       'stripe-create-job-payment-intent',
       body: {
-        'contract_id': contractId,
-        'operation_version': 1,
+        'quote_id': quoteId,
         'request_id': _uuid.v4(),
         'save_payment_method': savePaymentMethod,
         if (savePaymentMethod)
           'saved_payment_consent_version': savedPaymentConsentVersion,
       },
+    );
+  }
+
+  Future<MortFinancialHistoryPage> financialHistory({
+    String? cursor,
+    int? year,
+    String? category,
+    String? search,
+    int limit = 50,
+  }) async {
+    final response = await _invoke(
+      'stripe-list-financial-history',
+      body: {
+        'cursor': cursor,
+        'year': year,
+        'category': category,
+        'search': search,
+        'limit': limit,
+      },
+    );
+    return MortFinancialHistoryPage.fromJson(response);
+  }
+
+  Future<Map<String, dynamic>> financialDocument(String receiptId) async {
+    final response = await _invoke(
+      'stripe-get-financial-document',
+      body: {'receipt_id': receiptId},
+    );
+    return _map(response['document']);
+  }
+
+  Future<Map<String, dynamic>> paymentAttemptState(
+    String providerPaymentIntentId,
+  ) async {
+    requireUserId();
+    return _map(
+      await client.rpc(
+        'get_my_payment_attempt_state_v1',
+        params: {'p_payment_intent_id': providerPaymentIntentId},
+      ),
     );
   }
 

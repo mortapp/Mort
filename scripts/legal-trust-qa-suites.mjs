@@ -652,8 +652,48 @@ const suites = {
       assertQa(Boolean(outsiderPreview.error), "Outsider received a signed evidence preview");
 
       const adultPreview = await users.adult.client.functions.invoke("support-evidence-url", { body: { evidenceId: recordId } });
-      assertQa(!adultPreview.error && adultPreview.data?.ok === true && /^https:\/\//.test(adultPreview.data.signedUrl) && new Date(adultPreview.data.expiresAt) > new Date(), `Authorized participant preview failed: ${adultPreview.error?.message}`);
-      const downloaded = await fetch(adultPreview.data.signedUrl, { cache: "no-store" });
+      const adultPreviewSignedUrl = adultPreview.data?.signedUrl ?? "";
+      let adultPreviewUrl = null;
+      try {
+        adultPreviewUrl = new URL(adultPreviewSignedUrl);
+      } catch {
+        adultPreviewUrl = null;
+      }
+      const isLocalQa = process.env.MORT_QA_LOCAL_SUPABASE === "true";
+      const signedStoragePath =
+        adultPreviewUrl?.pathname.startsWith("/storage/v1/object/sign/support-evidence/") === true &&
+        adultPreviewUrl.searchParams.has("token");
+      const localStorageHost =
+        adultPreviewUrl !== null &&
+        (
+          ["kong", "127.0.0.1", "localhost", "host.docker.internal"].includes(adultPreviewUrl.hostname) ||
+          adultPreviewUrl.hostname.startsWith("supabase_kong_")
+        );
+      const localSignedUrl =
+        isLocalQa &&
+        adultPreviewUrl?.protocol === "http:" &&
+        localStorageHost &&
+        signedStoragePath;
+      const hostedSignedUrl =
+        !isLocalQa &&
+        adultPreviewUrl?.protocol === "https:" &&
+        signedStoragePath;
+      assertQa(
+        !adultPreview.error &&
+          adultPreview.data?.ok === true &&
+          (localSignedUrl || hostedSignedUrl) &&
+          new Date(adultPreview.data.expiresAt) > new Date(),
+        `Authorized participant preview failed: ${adultPreview.error?.message ?? adultPreview.data?.code ?? "invalid_signed_url"}`,
+      );
+      let adultPreviewDownloadUrl = adultPreviewSignedUrl;
+      if (localSignedUrl) {
+        const localApiUrl = new URL(process.env.EXPO_PUBLIC_SUPABASE_URL);
+        adultPreviewDownloadUrl = new URL(
+          `${adultPreviewUrl.pathname}${adultPreviewUrl.search}`,
+          localApiUrl.origin,
+        ).toString();
+      }
+      const downloaded = await fetch(adultPreviewDownloadUrl, { cache: "no-store" });
       assertQa(downloaded.ok && Buffer.from(await downloaded.arrayBuffer()).equals(jpegBytes), "Signed evidence URL did not return the registered private object");
       const accessEvents = await serviceClient.from("support_evidence_access_events").select("access_type,authorization_basis").eq("evidence_id", recordId).eq("actor_id", users.adult.id);
       assertQa(accessEvents.data?.some((event) => event.access_type === "signed_url_created" && event.authorization_basis === "authorized_case_participant"), "Authorized preview was not audit logged");

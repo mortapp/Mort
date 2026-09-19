@@ -80,6 +80,32 @@ class MortColors {
   static const danger = Color(0xFFD44A5C);
   static const dangerDeep = Color(0xFF912E3B);
 
+  // -- Payment-specific semantic tokens (approved Rork mapping) --
+  // Keep the MORT V7 palette intact while exposing the dedicated Payment OS
+  // color names required by the approved UI authority.
+  static const paymentSuccess = Color(0xFF46C483);
+  static const paymentSuccessDeep = Color(0xFF2E8F62);
+  static const paymentWarning = Color(0xFFD9A94F);
+  static const paymentDanger = Color(0xFFE5605E);
+  static const paymentDangerDeep = Color(0xFFB64645);
+  static const paymentInfo = Color(0xFF8FB4D9);
+  static const paymentInfoSoft = Color(0xFFC5D9ED);
+  static const paymentInfoDeep = Color(0xFF5E7EAB);
+
+  static const receiptPaper = Color(0xFFF3F0E7);
+  static const receiptInk = Color(0xFF191D22);
+  static const receiptMutedInk = Color(0xFF4E5560);
+  static const receiptRule = Color(0xFFC9C3B2);
+  static const receiptEdge = Color(0xFFDDD8C9);
+
+  static const paymentSilverHigh = Color(0xFFE9EEF4);
+  static const paymentSilverMid = Color(0xFFC4CDD7);
+  static const paymentSilverLow = Color(0xFF9BA6B2);
+  static const paymentOnSilver = Color(0xFF0B0E13);
+  static const paymentSilverCta = paymentSilverHigh;
+  static const paymentSilverCtaBright = paymentSilverHigh;
+  static const paymentSilverCtaDeep = paymentSilverLow;
+
   static const premium = accent;
 
   // -- Canonical gradients --

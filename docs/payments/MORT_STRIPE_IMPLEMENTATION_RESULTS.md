@@ -1,24 +1,82 @@
 # Stripe Connect Implementation Results
 
-Status: sandbox data architecture and application contracts implemented; external Stripe connection not configured.
+Status: Tasks 1-33 are complete on the Stripe feature branch. Task 32 full non-provider regression is GREEN in PR CI, including the complete Supabase/Stripe regression runner, Flutter validation, secret scans, and regression manifest. Live payments remain disabled.
 
-## Completed
+## Task 31 — controlled Stripe sandbox E2E
 
-- Additive migrations created private, forced-RLS runtime controls, connected accounts/requirements/onboarding sessions, customers, PaymentIntents/attempts, transfers, refunds, disputes, payouts, webhook events, reconciliation, financial roles, and audit events.
-- Authenticated Edge Functions cover config, connected-account creation/status, one-time onboarding links, server-calculated job PaymentIntents, transfers, refunds, and signed webhook processing.
-- Flutter includes a closed PaymentSheet boundary and truthful connected-account, job-funding, transfer/payout, refund, and dispute states. The distributed client has no Stripe SDK; native and web builds fail closed.
-- Amount, currency, environment, user/contract binding, capability, completion, dispute, idempotency, replay, duplicate-transfer, and public-profile boundaries are server-owned.
-- All 25 `qa-stripe-*.mjs` hosted database/contract suites passed on 2026-07-30.
-- Six payment/dispute suites and the Phase 12 financial-operations suite passed.
-- Private financial incidents, explicit production gates, safe status summaries,
-  and pre-deletion financial retention review are deployed.
+Task 31 is complete.
 
-## Not completed
+- The controlled Stripe sandbox run produced passing sanitized evidence for all 22 required scenarios.
+- The committed evidence is `docs/payments/MORT_STRIPE_TASK31_SANDBOX_EVIDENCE_2026-09-18.json`.
+- The repo validator accepted that evidence with `complete=true` and `provider_e2e_executed=true`.
+- Recent Task 31 webhook inbox reconciliation finished with zero unreconciled events.
+- No live Task 31 PaymentIntent was created and no real card data was used.
+- After QA, `sandbox_provider_qa_approved`, payments, connected onboarding, job funding, transfers, refunds, live mode, and live owner approval were restored to false.
+- The temporary Task 31 QA function was made inert and JWT-protected.
 
-No Stripe test secret, publishable key, webhook secret, or operations secret is
-present. Nine Stripe functions are deployed but disabled. No Stripe CLI event,
-provider account, hosted onboarding, PaymentSheet, test charge, transfer,
-refund, dispute, payout, or reconciliation against provider truth was
-performed. Live and sandbox-provider approval gates remain false.
+## Task 32 — full Stripe regression gate
 
-Before sandbox provider QA, follow `MORT_STRIPE_SANDBOX_SETUP.md`; before live consideration, close every gate in `MORT_STRIPE_LIVE_READINESS.md`. This implementation is not a promise of escrow, payout availability, worker classification, tax handling, minor eligibility, or financial compliance.
+Implemented:
+
+- `scripts/run-mort-stripe-regression.ps1` is the fail-fast regression entrypoint.
+- The runner verifies six hosted-aligned migration responsibility anchors without renaming already-applied migrations:
+  - `mort_stripe_policy_and_funding_v1`
+  - `mort_stripe_funding_attempts_and_state_v1`
+  - `mort_stripe_webhook_lease_v1`
+  - `mort_stripe_settlement_ledger_v1`
+  - `mort_financial_documents_history_v1`
+  - `mort_stripe_financial_access_hardening_v1`
+- It runs local Supabase start/reset and migration listing unless explicitly skipped, the full Supabase regression, the Stripe pre-provider fixture gate, all Deno Edge tests, Supabase advisors, Flutter formatting/analyzer, the focused Payment OS integration test, the full Flutter suite, source/extraction/history secret scans, the Task 32 manifest, and `git diff --check`.
+- Successful runner output contains an `evidence_matrix`; every row records `command`, `commit`, `timestamp`, `result`, and `environment`.
+- Ordinary pull-request CI does not execute provider mutations.
+- The protected/manual `stripe-provider-e2e` job is `workflow_dispatch`-only and routes through `stripe-sandbox-e2e.ps1`, which itself runs the Task 30 and Connect preflight gates.
+- The hosted non-provider regression remains a separate manual workflow-dispatch job.
+
+### Task 32 verification matrix
+
+| Command / gate | Commit tested | Timestamp (UTC) | Result | Environment |
+| --- | --- | --- | --- | --- |
+| `node scripts/qa-stripe-pre-provider-gate.mjs` | `351ab2bc` | 2026-09-19T01:31:54Z | PASS | PR CI / non-provider |
+| `deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests` | `351ab2bc` | 2026-09-19T01:31:54Z | PASS — 26 tests | PR CI / non-provider |
+| Task 31 committed sandbox evidence validation | `351ab2bc` | 2026-09-19T01:31:54Z | PASS | Stripe sandbox evidence |
+| `node scripts/qa-stripe-sandbox-e2e-evidence.mjs --regression-manifest` | `351ab2bc` | 2026-09-19T01:31:54Z | PASS | PR CI / source contract |
+| `dart format --output=none --set-exit-if-changed lib test integration_test` | `351ab2bc` | 2026-09-19T01:31:54Z | PASS | Flutter CI |
+| `flutter analyze --no-pub` | `351ab2bc` | 2026-09-19T01:31:54Z | PASS | Flutter CI |
+| `flutter test --no-pub test/features/payment_os_integration_test.dart` | `351ab2bc` | 2026-09-19T01:31:54Z | PASS | Flutter CI |
+| `flutter test --no-pub` | `351ab2bc` | 2026-09-19T01:31:54Z | PASS | Flutter CI |
+| `node scripts/build-public-legal-site.mjs && node scripts/validate-public-legal-site.mjs` | `351ab2bc` | 2026-09-19T01:31:54Z | PASS | Public-site CI |
+| `./scripts/secret-scan.ps1` | `1830b36e` | 2026-09-19T15:38:48Z | PASS — 2,266 files scanned, 0 findings | PR CI / non-provider |
+| `node scripts/secret_extraction_scan.mjs` | `1830b36e` | 2026-09-19T15:38:48Z | PASS — 2,266 files scanned, 0 findings | PR CI / non-provider |
+| `node scripts/secret-scan-git-history.mjs` | `1830b36e` | 2026-09-19T15:38:48Z | PASS — 0 findings | PR CI / non-provider |
+| `powershell -ExecutionPolicy Bypass -File scripts/run-mort-stripe-regression.ps1` | `1830b36e` | 2026-09-19T15:38:48Z | PASS — full runner complete; 615 Flutter tests passed, 2 skipped; regression manifest PASS; provider E2E not executed | PR CI / non-provider |
+
+Task 32 is complete. The ordinary PR regression intentionally excludes provider mutations; controlled provider sandbox evidence remains covered by Task 31, while live provider activation remains closed.
+
+## Task 33 — secret hygiene and production activation freeze
+
+Task 33 is complete.
+
+- Source secret extraction passed with no classified secret values.
+- Full Git-history secret scanning passed.
+- The scanners reject Stripe secret/restricted keys, webhook secrets, PaymentIntent client secrets, live publishable keys, service-role JWTs, private-key material, and copied Stripe provider payloads while narrowly allowing exact synthetic QA fixtures.
+- The Flutter release web build completed and the post-build generated-artifact secret scan passed.
+- Both production-readiness documents now carry explicit `Gate | Owner | Evidence | Status` matrices.
+- Required blockers remain explicit: production pricing, provider fee payer, Radar Pro transaction cost/unit economics, reserve/chart of accounts, production partial-compensation values, minor Connect proof, legal/tax/privacy review, monitoring/on-call, provider pricing, and final owner approval.
+- Read-only hosted verification on 2026-09-19 confirmed `mode=sandbox`, every payment/provider/live/external approval flag false, `partial_compensation_policy_version=null`, `production_approved_at=null`, and `private.stripe_live_financial_ready()=false`.
+- CI Task 33 security-freeze verification passed source scan, extraction scan, full history scan, source-only activation-doc validation, `git diff --check`, and clean `git status --short`.
+- No live provider mutation, live credential, production pricing, production partial-compensation value, or instant payout was enabled.
+
+## Architecture and safety state
+
+- Primary funding remains a pre-work platform charge/capture with a server-issued quote and `transfer_group`; the primary PaymentIntent does not use destination-charge fields.
+- Server-authoritative settlement determines compensated base, exact teen transfer, component refunds, and separate optional tips.
+- Tips remain separate post-work PaymentIntents with 100% tip principal assigned to the teen and no MORT tip fee.
+- Payment, transfer, and payout state remain distinct.
+- Webhook signature verification, leases/retries, duplicate handling, and monotonic stale-event behavior are regression-covered.
+- Production pricing, production partial-compensation values, live payment activation, instant payouts, and live provider mutations remain disabled.
+
+## Remaining sequence
+
+1. Keep Task 32 and Task 33 regression/security gates green when the feature branch is reconciled with current `main`.
+2. Keep ordinary PR CI non-provider-only; run protected provider/hosted workflows only through their explicit gates when needed.
+3. Keep live activation closed until all external legal, tax, privacy, minor-Connect, economics, monitoring/on-call, provider-pricing, and final owner-approval gates are independently satisfied.

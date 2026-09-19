@@ -1,5 +1,6 @@
 import Stripe from "npm:stripe@22.1.1";
 import { json, safeError, serviceClient, sha256, webhookRuntime } from "../_shared/stripe.ts";
+import { assertWebhookEventRoute, verifyWebhookEvent } from "./verification.ts";
 
 const maximumWebhookBytes = 512 * 1024;
 
@@ -17,16 +18,22 @@ Deno.serve(async (request: Request) => {
     const rawBody = await request.text();
     if (new TextEncoder().encode(rawBody).byteLength > maximumWebhookBytes) return json({ ok: false, code: "payload_too_large" }, 413);
 
-    const event = await runtime.stripe.webhooks.constructEventAsync(rawBody, signature, runtime.webhookSecret!);
+    const verified = await verifyWebhookEvent(runtime.stripe, rawBody, signature, {
+      platform: runtime.webhookSecret,
+      connect: runtime.connectWebhookSecret,
+    });
+    const event = verified.event;
+    assertWebhookEventRoute(event, verified.source);
     eventId = event.id;
     if (event.livemode !== (environment === "live")) return json({ ok: false, code: "stripe_environment_mismatch" }, 400);
     const supabase = serviceClient();
-    const { data: claimed, error: claimError } = await supabase.rpc("stripe_server_claim_webhook_event", {
+    const { data: claimed, error: claimError } = await supabase.rpc("stripe_server_claim_webhook_event_v2", {
       p_environment: environment,
       p_provider_event_id: event.id,
       p_event_type: event.type,
       p_provider_created_at: new Date(event.created * 1000).toISOString(),
       p_payload_sha256: await sha256(rawBody),
+      p_lease_seconds: 120,
     });
     if (claimError) throw claimError;
     if (claimed.claimed !== true) return json({ ok: true, duplicate: true });
@@ -55,11 +62,33 @@ async function processEvent(
   environment: "test" | "live",
   event: Stripe.Event,
 ) {
-  if (["payment_intent.succeeded", "payment_intent.processing", "payment_intent.payment_failed", "payment_intent.canceled"].includes(event.type)) {
+  if (["payment_intent.succeeded", "payment_intent.processing", "payment_intent.requires_action", "payment_intent.payment_failed", "payment_intent.canceled"].includes(event.type)) {
     const intent = event.data.object as Stripe.PaymentIntent;
+    const tipAttemptId = intent.metadata?.mort_tip_attempt_ref;
+    if (tipAttemptId) {
+      return rpc(supabase, "stripe_server_apply_tip_event_v1", {
+        p_tip_attempt_id: tipAttemptId,
+        p_provider_payment_intent_id: intent.id,
+        p_provider_status: event.type,
+        p_amount_cents: intent.amount,
+        p_currency_code: intent.currency.toUpperCase(),
+      });
+    }
+    const quoteRef = intent.metadata?.mort_quote_ref;
+    const contractRef = intent.metadata?.mort_contract_ref;
+    const intentEnvironment = intent.metadata?.mort_environment;
+    if (!quoteRef || !contractRef || intentEnvironment !== environment) {
+      return complete(
+        supabase,
+        environment,
+        event.id,
+        "ignored",
+        "payment_intent_not_owned_by_mort",
+      );
+    }
     const chargeId = typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id ?? null;
     const failureCode = intent.last_payment_error?.code ?? null;
-    return rpc(supabase, "stripe_server_apply_payment_event", {
+    return rpc(supabase, "stripe_server_apply_payment_event_v2", {
       p_environment: environment,
       p_provider_event_id: event.id,
       p_event_type: event.type,
@@ -129,6 +158,9 @@ async function processEvent(
     if (!accountId) throw new Error("payout connected account unavailable");
     const destination = payout.destination;
     const destinationObject = typeof destination === "object" ? destination : null;
+    const destinationLast4 = destinationObject && "last4" in destinationObject
+      ? destinationObject.last4
+      : null;
     return rpc(supabase, "stripe_server_apply_payout_event", {
       p_environment: environment,
       p_provider_event_id: event.id,
@@ -138,7 +170,7 @@ async function processEvent(
       p_currency_code: payout.currency.toUpperCase(),
       p_status: mapPayoutStatus(payout.status),
       p_destination_type: destinationObject?.object === "card" ? "debit_card" : destinationObject?.object === "bank_account" ? "bank_account" : "unknown",
-      p_destination_last4: destinationObject?.last4 ?? null,
+      p_destination_last4: destinationLast4,
       p_arrival_at: payout.arrival_date ? new Date(payout.arrival_date * 1000).toISOString() : null,
       p_failure_code: payout.failure_code ?? null,
     });
@@ -219,7 +251,7 @@ function mapDisputeStatus(status: Stripe.Dispute.Status) {
   }
 }
 
-function mapPayoutStatus(status: Stripe.Payout.Status) {
+function mapPayoutStatus(status: string) {
   switch (status) {
     case "in_transit": return "in_transit";
     case "paid": return "paid";
@@ -229,7 +261,7 @@ function mapPayoutStatus(status: Stripe.Payout.Status) {
   }
 }
 
-function mapRefundStatus(status: Stripe.Refund.Status | null) {
+function mapRefundStatus(status: string | null) {
   switch (status) {
     case "succeeded": return "succeeded";
     case "failed": return "failed";

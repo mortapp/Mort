@@ -7,35 +7,25 @@ Deno.serve(async (request: Request) => {
   try {
     requireOperationsSecret(request);
     const context = await authenticate(request);
-    const payload = await readJson<{ payment_record_id?: unknown; amount_cents?: unknown; reason_code?: unknown; operation_version?: unknown }>(request);
-    const paymentRecordId = assertUuid(payload.payment_record_id, "payment_record_id");
-    const amount = Number(payload.amount_cents);
-    const operationVersion = Number.isInteger(payload.operation_version) ? Number(payload.operation_version) : 1;
-    if (!Number.isSafeInteger(amount) || amount <= 0) return json({ ok: false, code: "invalid_refund_amount" }, 400);
+    const payload = await readJson<{ settlement_id?: unknown; reason_code?: unknown }>(request);
+    const settlementId = assertUuid(payload.settlement_id, "settlement_id");
     const reason = typeof payload.reason_code === "string" ? payload.reason_code : "";
     const stripeRuntime = await runtime(context);
-    const { data: prepared, error } = await context.serviceClient.rpc("stripe_server_prepare_refund", {
-      p_payment_record_id: paymentRecordId,
+    const { data: prepared, error } = await context.serviceClient.rpc("stripe_server_prepare_settlement_refund_v1", {
+      p_settlement_id: settlementId,
       p_environment: stripeRuntime.environment,
-      p_amount_cents: amount,
       p_reason_code: reason,
       p_requested_by: context.user.id,
-      p_operation_version: operationVersion,
     });
     if (error) throw error;
     if (prepared.existing && prepared.provider_refund_id) return json({ ok: true, duplicate: true, status: "already_recorded" });
     const refund = await stripeRuntime.stripe.refunds.create({
       payment_intent: prepared.provider_payment_intent_id,
       amount: prepared.amount_cents,
-      metadata: { mort_payment_ref: paymentRecordId, mort_environment: stripeRuntime.environment },
+      metadata: { mort_settlement_ref: settlementId, mort_environment: stripeRuntime.environment },
     }, { idempotencyKey: prepared.idempotency_key });
-    const { data: recorded, error: recordError } = await context.serviceClient.rpc("stripe_server_record_refund", {
-      p_payment_record_id: paymentRecordId,
-      p_environment: stripeRuntime.environment,
-      p_amount_cents: amount,
-      p_reason_code: reason,
-      p_requested_by: context.user.id,
-      p_operation_version: operationVersion,
+    const { data: recorded, error: recordError } = await context.serviceClient.rpc("stripe_server_record_settlement_refund_v1", {
+      p_refund_record_id: prepared.refund_record_id,
       p_provider_refund_id: refund.id,
       p_provider_status: refund.status ?? "pending",
     });

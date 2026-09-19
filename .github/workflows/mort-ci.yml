@@ -3,7 +3,19 @@ name: MORT CI
 on:
   pull_request:
   push:
-    branches: [main, mort-supreme-production-readiness]
+    branches: [main, mort-supreme-production-readiness, feature/mort-stripe-backend-integration]
+  workflow_dispatch:
+    inputs:
+      run_stripe_hosted_regression:
+        description: Run protected hosted Stripe non-provider regression
+        required: false
+        default: false
+        type: boolean
+      run_stripe_provider_e2e:
+        description: Revalidate Task 31 provider evidence during an explicitly approved sandbox QA window
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -13,6 +25,56 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  stripe-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: node scripts/qa-stripe-pre-provider-gate.mjs
+      - run: node scripts/secret_extraction_scan.mjs --self-test
+      - run: node scripts/secret-scan-git-history.mjs --self-test
+      - run: deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests
+      - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs
+      - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs docs/payments/MORT_STRIPE_TASK31_SANDBOX_EVIDENCE_2026-09-18.json
+      - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs --regression-manifest
+
+  stripe-local-regression:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: pnpm install --frozen-lockfile
+      - shell: pwsh
+        env:
+          MORT_SUPABASE_PROJECT_REF: rakjydmgwwgtdislanbt
+          MORT_STRIPE_MODE: sandbox
+        run: ./scripts/run-mort-stripe-regression.ps1
+
   expo-reference:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -57,6 +119,7 @@ jobs:
       - run: flutter pub get
       - run: dart format --output=none --set-exit-if-changed lib test integration_test
       - run: flutter analyze --no-pub
+      - run: flutter test --no-pub test/features/payment_os_integration_test.dart
       - run: flutter test --no-pub
       - name: Build provider-disabled web client
         run: >-
@@ -73,6 +136,9 @@ jobs:
           --dart-define=MORT_DETERMINISTIC_SUPPORT_ENABLED=true
           --dart-define=ADS_ENABLED=false
           --dart-define=IAP_ENABLED=false
+      - name: Scan Flutter generated artifacts for secrets
+        shell: pwsh
+        run: '& ../scripts/secret-scan.ps1'
 
   public-site:
     runs-on: ubuntu-latest
@@ -94,3 +160,115 @@ jobs:
           EXPO_PUBLIC_SUPABASE_URL: https://rakjydmgwwgtdislanbt.supabase.co
           EXPO_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYXNlIiwicmVmIjoicmFranlkbWd3d2d0ZGlzbGFuYnQiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc4MTg3MTE3NSwiZXhwIjoyMDk3NDQ3MTc1fQ.DorOgj6jdPTrPX45Vi0O1dYgx-e3zgO6_S39JDcL2Ww
       - run: node scripts/validate-public-legal-site.mjs
+
+
+  stripe-security-freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - shell: pwsh
+        run: ./scripts/secret-scan.ps1
+      - run: node scripts/secret_extraction_scan.mjs
+      - run: node scripts/secret-scan-git-history.mjs
+      - run: node scripts/qa-stripe-activation-gates.mjs --source-only
+      - run: git diff --check
+      - run: |
+          git status --short
+          test -z "$(git status --short)"
+
+  stripe-hosted-regression:
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.run_stripe_hosted_regression) || (github.event_name == 'push' && github.ref == 'refs/heads/feature/mort-stripe-backend-integration') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: pnpm install --frozen-lockfile
+      - shell: pwsh
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://rakjydmgwwgtdislanbt.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PLAY_REVIEW_TEEN_EMAIL: ${{ secrets.PLAY_REVIEW_TEEN_EMAIL }}
+          PLAY_REVIEW_TEEN_PASSWORD: ${{ secrets.PLAY_REVIEW_TEEN_PASSWORD }}
+          PLAY_REVIEW_ADULT_EMAIL: ${{ secrets.PLAY_REVIEW_ADULT_EMAIL }}
+          PLAY_REVIEW_ADULT_PASSWORD: ${{ secrets.PLAY_REVIEW_ADULT_PASSWORD }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          MORT_SUPABASE_PROJECT_REF: rakjydmgwwgtdislanbt
+          MORT_STRIPE_MODE: sandbox
+          MORT_STRIPE_TEST_WEBHOOK_URL: https://rakjydmgwwgtdislanbt.supabase.co/functions/v1/stripe-webhook
+        run: ./scripts/run-mort-stripe-regression.ps1
+
+  stripe-provider-e2e:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_stripe_provider_e2e }}
+    environment: stripe-sandbox-provider
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - shell: pwsh
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          MORT_SUPABASE_PROJECT_REF: rakjydmgwwgtdislanbt
+          MORT_STRIPE_MODE: sandbox
+          MORT_STRIPE_TEST_WEBHOOK_URL: https://rakjydmgwwgtdislanbt.supabase.co/functions/v1/stripe-webhook
+        run: >-
+          ./scripts/stripe-sandbox-e2e.ps1
+          -ProjectRef rakjydmgwwgtdislanbt
+          -ScenarioEvidencePath docs/payments/MORT_STRIPE_TASK31_SANDBOX_EVIDENCE_2026-09-18.json
+          -ExecuteProvider
+
+  android-device-test-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+      - shell: pwsh
+        run: ./scripts/build-android-device-test-apk.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mort-android-device-test-apk
+          path: build/device-test/mort-device-test.apk
+          if-no-files-found: error
+          retention-days: 7
+
+

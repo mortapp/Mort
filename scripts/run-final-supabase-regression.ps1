@@ -4,7 +4,26 @@ Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'play-review-secrets-common.ps1')
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
-Set-MortPlayReviewEnvironment
+$localQa = $env:MORT_QA_LOCAL_SUPABASE -eq 'true'
+if (-not $localQa) {
+  $requiredProcessEnvironment = @(
+    'PLAY_REVIEW_TEEN_EMAIL', 'PLAY_REVIEW_TEEN_PASSWORD',
+    'PLAY_REVIEW_ADULT_EMAIL', 'PLAY_REVIEW_ADULT_PASSWORD',
+    'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_DB_PASSWORD',
+    'EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_ANON_KEY'
+  )
+  $processEnvironmentComplete = $true
+  foreach ($name in $requiredProcessEnvironment) {
+    if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name, 'Process'))) {
+      $processEnvironmentComplete = $false
+      break
+    }
+  }
+  if (-not $processEnvironmentComplete) {
+    Set-MortPlayReviewEnvironment
+  }
+}
+
 $scripts = @(
   'qa-old-project-smoke.mjs',
   'qa-resumable-onboarding.mjs',
@@ -51,8 +70,51 @@ $scripts = @(
   'qa-play-reviewer-isolation.mjs',
   'qa-revenuecat-atomic.mjs',
   'qa-signed-media-rate-limits.mjs',
-  'qa-payment-operations-queue-boundary.mjs'
+  'qa-payment-operations-queue-boundary.mjs',
+  'qa-stripe-mode-isolation.mjs',
+  'qa-stripe-secret-boundary.mjs',
+  'qa-stripe-connected-account-isolation.mjs',
+  'qa-stripe-minor-guardian-status.mjs',
+  'qa-stripe-onboarding-link-security.mjs',
+  'qa-stripe-payment-amount-forgery.mjs',
+  'qa-stripe-payment-idempotency.mjs',
+  'qa-stripe-payment-sheet-contract.mjs',
+  'qa-stripe-webhook-signature.mjs',
+  'qa-stripe-webhook-replay.mjs',
+  'qa-stripe-webhook-idempotency.mjs',
+  'qa-stripe-job-funding.mjs',
+  'qa-stripe-transfer-eligibility.mjs',
+  'qa-stripe-transfer-duplication.mjs',
+  'qa-stripe-refund.mjs',
+  'qa-stripe-transfer-reversal.mjs',
+  'qa-stripe-dispute-hold.mjs',
+  'qa-stripe-payout-status.mjs',
+  'qa-stripe-cashapp-boundary.mjs',
+  'qa-stripe-public-profile-privacy.mjs',
+  'qa-stripe-google-play-billing-boundary.mjs',
+  'qa-stripe-saved-payment-consent.mjs',
+  'qa-stripe-resolution-role-separation.mjs',
+  'qa-stripe-resolution-idempotency.mjs',
+  'qa-stripe-refund-webhook-reconciliation.mjs',
+  'qa-stripe-policy-versioning.mjs',
+  'qa-stripe-funding-quote.mjs',
+  'qa-stripe-settlement-policy.mjs',
+  'qa-stripe-activation-gates.mjs',
+  'qa-stripe-financial-access.mjs',
+  'qa-stripe-financial-documents.mjs',
+  'qa-stripe-financial-history.mjs',
+  'qa-stripe-observability.mjs'
 )
+
+$hostedOnlyScripts = @(
+  'qa-old-project-smoke.mjs',
+  'audit-remote-storage.mjs',
+  'audit-mission-pilot-remote.mjs'
+)
+if ($localQa) {
+  $scripts = @($scripts | Where-Object { $_ -notin $hostedOnlyScripts })
+  Write-Output "Local Supabase regression: excluded hosted-only checks: $($hostedOnlyScripts -join ', ')"
+}
 
 if ($StartAt) {
   $startIndex = [Array]::IndexOf($scripts, $StartAt)
