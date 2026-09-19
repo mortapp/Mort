@@ -105,6 +105,10 @@ jobs:
           --dart-define=MORT_DETERMINISTIC_SUPPORT_ENABLED=true
           --dart-define=ADS_ENABLED=false
           --dart-define=IAP_ENABLED=false
+      - name: Scan Flutter generated artifacts for secrets
+        working-directory: .
+        shell: pwsh
+        run: ../scripts/secret-scan.ps1
 
   public-site:
     runs-on: ubuntu-latest
@@ -127,6 +131,35 @@ jobs:
           EXPO_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYXNlIiwicmVmIjoicmFranlkbWd3d2d0ZGlzbGFuYnQiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc4MTg3MTE3NSwiZXhwIjoyMDk3NDQ3MTc1fQ.DorOgj6jdPTrPX45Vi0O1dYgx-e3zgO6_S39JDcL2Ww
       - run: node scripts/validate-public-legal-site.mjs
 
+
+  stripe-security-freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - shell: pwsh
+        run: ./scripts/secret-scan.ps1
+      - run: node scripts/secret_extraction_scan.mjs
+      - run: node scripts/secret-scan-git-history.mjs
+      - run: node scripts/qa-stripe-activation-gates.mjs
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://rakjydmgwwgtdislanbt.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          MORT_SUPABASE_PROJECT_REF: rakjydmgwwgtdislanbt
+      - run: git diff --check
+      - run: |
+          git status --short
+          test -z "$(git status --short)"
 
   stripe-hosted-regression:
     if: ${{ (github.event_name == 'workflow_dispatch' && inputs.run_stripe_hosted_regression) || (github.event_name == 'push' && github.ref == 'refs/heads/feature/mort-stripe-backend-integration') }}
