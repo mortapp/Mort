@@ -836,7 +836,12 @@ export async function withQaUsers(scope, definitions, run) {
       }
     }
     const cleanupOrder = [...created].sort((left, right) => {
-      const priority = { teen: 0, guardian: 1, adult: 2, admin: 3 };
+      // Delete posters before teen applicants. Account deletion closes the
+      // poster's unfinished applications, and that transition must run while
+      // the applicant still has valid marketplace identity. Deleting teens
+      // first removes that identity and makes the production trigger reject
+      // the adult closeout with applicant_verification_required.
+      const priority = { adult: 0, guardian: 1, teen: 2, admin: 3 };
       return (priority[left.role] ?? 9) - (priority[right.role] ?? 9);
     });
     for (const user of cleanupOrder) {
