@@ -23,6 +23,10 @@ const clientSecretPattern = /\b(?:pi|seti|src)_[A-Za-z0-9]+_secret_[A-Za-z0-9_-]
 const jwtPattern = /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g;
 const privateKeyBlockPattern =
   /-----BEGIN ((?:RSA |EC |OPENSSH )?)PRIVATE KEY-----([\s\S]*?)-----END \1PRIVATE KEY-----/g;
+const providerObjectIdPattern = /\b(?:pi|ch|tr|re|dp|po|acct|evt|cus)_[A-Za-z0-9]{6,}\b/g;
+const providerObjectTypePattern =
+  /"object"\s*:\s*"(?:payment_intent|charge|transfer|refund|dispute|payout|account|customer|event)"/i;
+const providerLivemodePattern = /"livemode"\s*:\s*(?:true|false)/i;
 
 function containsPrivateKeyMaterial(content) {
   privateKeyBlockPattern.lastIndex = 0;
@@ -54,6 +58,25 @@ function isSyntheticFixture(pathname, token) {
   return allowedFixturePath && syntheticFixtureTokens.has(token);
 }
 
+function allowsSyntheticProviderPayload(pathname) {
+  const normalized = pathname.replaceAll("\\", "/");
+  return normalized.startsWith("scripts/qa-stripe-") ||
+    normalized === "scripts/secret_extraction_scan.mjs" ||
+    normalized === "scripts/secret-scan-git-history.mjs" ||
+    normalized.startsWith("supabase/functions/_tests/stripe_") ||
+    normalized === "ios/MORTIOSV8Tests/HostedWireDTOTests.swift";
+}
+
+function containsCopiedProviderPayload(pathname, content) {
+  providerObjectIdPattern.lastIndex = 0;
+  const hasProviderId = providerObjectIdPattern.test(content);
+  providerObjectIdPattern.lastIndex = 0;
+  return !allowsSyntheticProviderPayload(pathname) &&
+    hasProviderId &&
+    providerObjectTypePattern.test(content) &&
+    providerLivemodePattern.test(content);
+}
+
 export function scanText(pathname, content) {
   const findings = [];
   for (const token of content.match(providerTokenPattern) ?? []) {
@@ -70,6 +93,7 @@ export function scanText(pathname, content) {
   }
   jwtPattern.lastIndex = 0;
   if (containsPrivateKeyMaterial(content)) findings.push("private_key_material");
+  if (containsCopiedProviderPayload(pathname, content)) findings.push("copied_provider_payload");
   return [...new Set(findings)];
 }
 
