@@ -1,6 +1,6 @@
 # Stripe Connect Implementation Results
 
-Status: Tasks 1-31 and Task 33 are complete on the Stripe feature branch. Task 32 regression wiring is implemented and its Task-32-specific functional gates are green; its remaining manifest/local-regression verification is being closed after the Task 33 dependency. Live payments remain disabled.
+Status: Tasks 1-33 are complete on the Stripe feature branch. Task 32 full non-provider regression is GREEN in PR CI, including the complete Supabase/Stripe regression runner, Flutter validation, secret scans, and regression manifest. Live payments remain disabled.
 
 ## Task 31 — controlled Stripe sandbox E2E
 
@@ -45,11 +45,12 @@ Implemented:
 | `flutter test --no-pub test/features/payment_os_integration_test.dart` | `351ab2bc` | 2026-09-19T01:31:54Z | PASS | Flutter CI |
 | `flutter test --no-pub` | `351ab2bc` | 2026-09-19T01:31:54Z | PASS | Flutter CI |
 | `node scripts/build-public-legal-site.mjs && node scripts/validate-public-legal-site.mjs` | `351ab2bc` | 2026-09-19T01:31:54Z | PASS | Public-site CI |
-| `./scripts/secret-scan.ps1` | `351ab2bc` | 2026-09-19T01:31:54Z | BLOCKED — scanner classifies its own test/regex literals and existing private-key parser source as findings | Task 33 dependency |
+| `./scripts/secret-scan.ps1` | `1830b36e` | 2026-09-19T15:38:48Z | PASS — 2,266 files scanned, 0 findings | PR CI / non-provider |
+| `node scripts/secret_extraction_scan.mjs` | `1830b36e` | 2026-09-19T15:38:48Z | PASS — 2,266 files scanned, 0 findings | PR CI / non-provider |
+| `node scripts/secret-scan-git-history.mjs` | `1830b36e` | 2026-09-19T15:38:48Z | PASS — 0 findings | PR CI / non-provider |
+| `powershell -ExecutionPolicy Bypass -File scripts/run-mort-stripe-regression.ps1` | `1830b36e` | 2026-09-19T15:38:48Z | PASS — full runner complete; 615 Flutter tests passed, 2 skipped; regression manifest PASS; provider E2E not executed | PR CI / non-provider |
 
-The secret-scan failure reports paths such as the scanner implementation itself, synthetic Stripe test fixtures, `HostedWireDTOTests.swift`, and the existing push private-key parser. The scan prints no secret values. Correcting scanner allowlisting/classification belongs to Task 33, whose declared files include `secret-scan.ps1`, `secret_extraction_scan.mjs`, and `secret-scan-git-history.mjs`. Those files were intentionally not modified as part of Task 32.
-
-Because the full regression entrypoint intentionally includes the secret scans, Task 32 must not be called fully GREEN until Task 33 corrects those scanner false positives and the complete runner is executed successfully.
+Task 32 is complete. The ordinary PR regression intentionally excludes provider mutations; controlled provider sandbox evidence remains covered by Task 31, while live provider activation remains closed.
 
 ## Task 33 — secret hygiene and production activation freeze
 
@@ -76,6 +77,6 @@ Task 33 is complete.
 
 ## Remaining sequence
 
-1. Finish Task 33 secret hygiene and production-activation freeze.
-2. Re-run `scripts/run-mort-stripe-regression.ps1` and require a fully green evidence matrix.
+1. Keep Task 32 and Task 33 regression/security gates green when the feature branch is reconciled with current `main`.
+2. Keep ordinary PR CI non-provider-only; run protected provider/hosted workflows only through their explicit gates when needed.
 3. Keep live activation closed until all external legal, tax, privacy, minor-Connect, economics, monitoring/on-call, provider-pricing, and final owner-approval gates are independently satisfied.
