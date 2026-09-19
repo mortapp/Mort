@@ -4,6 +4,25 @@ Updated: 2026-09-18
 
 Current result: **NOT LIVE READY — LIVE PAYMENTS MUST REMAIN OFF**.
 
+
+## Live gate evidence matrix
+
+| Gate | Owner | Evidence | Status |
+| --- | --- | --- | --- |
+| Provider use case + minor Connect | Provider relationship owner | Written provider approval for MORT's exact marketplace and ages 13–17 representative flow | BLOCKED |
+| Production pricing + provider fee payer | Product + finance owner | Approved service fee/refund economics, provider fee payer, Connect/provider pricing | BLOCKED |
+| Radar Pro unit economics | Finance owner | Dated unit-economics review including Radar Pro transaction cost | BLOCKED |
+| Reserve + production chart of accounts | Finance/accounting owner | Approved reserve, chargeback/negative-balance plan, chart of accounts | BLOCKED |
+| Production partial compensation | Product + legal owner | Versioned approved production values and legal rationale | BLOCKED |
+| Legal | Licensed counsel | Dated legal approval | BLOCKED |
+| Tax | Tax professional | Dated tax/reporting approval | BLOCKED |
+| Privacy/retention/receipts | Privacy/legal owner | Dated privacy, retention, receipts, and deletion/de-identification approval | BLOCKED |
+| Monitoring/on-call + reconciliation | Operations owner | Named on-call/support coverage, alerts, escalation, reconciliation schedule, drills | BLOCKED |
+| Provider sandbox/physical-device proof | QA + mobile release owner | Sanitized provider evidence plus physical Android/iOS PaymentSheet/onboarding evidence | PARTIAL — provider sandbox complete; physical devices remain blocked |
+| Store/public release | Release + legal owner | Reviewed store declarations, public terms/privacy/support evidence | BLOCKED |
+| Final owner approval | MORT owner | All prior dated evidence plus reviewed activation and disable/recovery procedure | BLOCKED |
+
+
 ## Verified fail-closed state
 
 A read-only check of the hosted MORT project on 2026-09-18 shows `mode=sandbox`. Payment, connected-account onboarding, job funding, transfer, refund, live-mode, owner-live-approval, provider-use-case, legal, privacy, minor-payout, tax, negative-balance, retention, receipts, reconciliation, monitoring/on-call, and production-release approvals are all false. `partial_compensation_policy_version` and `production_approved_at` are unset.
