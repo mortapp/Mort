@@ -156,21 +156,41 @@ async function tapLabel(driver, label) {
   }
 
   // Human-readable labels can collide with non-clickable section headers
-  // (for example "Accessibility" inside Settings). Prefer a clickable
-  // semantic node first so navigation taps do not silently hit a heading.
+  // (for example "Accessibility" inside Settings). Only resolve actionable
+  // semantics for those labels, including when the target starts offscreen.
   if (!label.startsWith("qa-")) {
     const escaped = uiEscape(label);
+    const visibleActionSelectors = [
+      `//*[@clickable="true" and (contains(@content-desc,"${escaped}") or contains(@text,"${escaped}"))]`,
+      `android=new UiSelector().clickable(true).descriptionContains("${escaped}")`,
+      `android=new UiSelector().clickable(true).textContains("${escaped}")`,
+    ];
     try {
       const actionable = await firstDisplayed(
         driver,
-        [
-          `//*[@clickable="true" and (contains(@content-desc,"${escaped}") or contains(@text,"${escaped}"))]`,
-        ],
+        visibleActionSelectors,
         6000,
       );
       await actionable.click();
       return;
-    } catch {}
+    } catch (initialError) {
+      try {
+        const actionable = await firstDisplayed(
+          driver,
+          [
+            `android=new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().clickable(true).descriptionContains("${escaped}"))`,
+            `android=new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().clickable(true).textContains("${escaped}"))`,
+          ],
+          12000,
+        );
+        await actionable.click();
+        return;
+      } catch (scrollError) {
+        throw new Error(
+          `No clickable Android label resolved after scroll fallback: ${label}; initial=${safe(initialError?.message ?? initialError)}; scroll=${safe(scrollError?.message ?? scrollError)}`,
+        );
+      }
+    }
   }
 
   const el = await byLabel(driver, label);

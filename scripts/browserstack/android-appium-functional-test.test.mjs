@@ -101,5 +101,13 @@ test("tapLabel prefers clickable Android semantics over section headings", async
     source,
     /\*\[@clickable="true" and \(contains\(@content-desc,/,
   );
+  assert.match(
+    source,
+    /scrollIntoView\(new UiSelector\(\)\.clickable\(true\)\.descriptionContains/,
+  );
+  assert.match(
+    source,
+    /scrollIntoView\(new UiSelector\(\)\.clickable\(true\)\.textContains/,
+  );
   assert.match(source, /await actionable\.click\(\)/);
 });
