@@ -40,8 +40,7 @@ void main() {
     expect(
       bootstrapQaBranch,
       lessThan(releaseConfigValidation),
-      reason:
-          'BrowserStack QA must bypass release configuration validation before startup can fail closed on production-only gates.',
+      reason: 'QA bypass must precede release validation.',
     );
     expect(
       main.substring(bootstrapQaBranch, releaseConfigValidation),
