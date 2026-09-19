@@ -154,6 +154,25 @@ async function tapLabel(driver, label) {
   if (isForbiddenQaAction(label)) {
     throw new Error(`Refusing forbidden QA action: ${label}`);
   }
+
+  // Human-readable labels can collide with non-clickable section headers
+  // (for example "Accessibility" inside Settings). Prefer a clickable
+  // semantic node first so navigation taps do not silently hit a heading.
+  if (!label.startsWith("qa-")) {
+    const escaped = uiEscape(label);
+    try {
+      const actionable = await firstDisplayed(
+        driver,
+        [
+          `//*[@clickable="true" and (contains(@content-desc,"${escaped}") or contains(@text,"${escaped}"))]`,
+        ],
+        6000,
+      );
+      await actionable.click();
+      return;
+    } catch {}
+  }
+
   const el = await byLabel(driver, label);
   await el.click();
 }

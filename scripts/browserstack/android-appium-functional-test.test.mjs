@@ -90,3 +90,17 @@ test("financial checkpoint falls back to deterministic visible zero-state copy",
     /Your financial record starts when you complete work\./,
   );
 });
+
+
+test("tapLabel prefers clickable Android semantics over section headings", async () => {
+  const source = await readFile(
+    path.join(root, "scripts", "browserstack", "android-appium-functional-test.mjs"),
+    "utf8",
+  );
+  assert.match(source, /label\.startsWith\("qa-"\)/);
+  assert.match(
+    source,
+    /\*\[@clickable="true" and \(contains\(@content-desc,/,
+  );
+  assert.match(source, /await actionable\.click\(\)/);
+});
