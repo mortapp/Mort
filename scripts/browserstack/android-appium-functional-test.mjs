@@ -242,6 +242,19 @@ async function checkpointHome(driver) {
   await screenshot(driver, "home");
 }
 
+async function waitForKeyboardState(
+  driver,
+  expected,
+  attempts = 10,
+  intervalMs = 500,
+) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if ((await driver.isKeyboardShown()) === expected) return true;
+    if (attempt < attempts - 1) await driver.pause(intervalMs);
+  }
+  return false;
+}
+
 async function checkpointOnboardingKeyboard(driver) {
   await tapLabel(driver, "qa-open-onboarding");
 
@@ -252,11 +265,9 @@ async function checkpointOnboardingKeyboard(driver) {
   activeSelector = "(//android.widget.EditText)[2]";
   const displayName = await firstDisplayed(driver, [activeSelector]);
   await displayName.click();
-  await driver.pause(900);
 
-  const keyboardShown = await driver.isKeyboardShown();
   assert.equal(
-    keyboardShown,
+    await waitForKeyboardState(driver, true),
     true,
     "Android keyboard did not become visible for onboarding Display name",
   );
@@ -275,10 +286,9 @@ async function checkpointOnboardingKeyboard(driver) {
   try {
     await driver.hideKeyboard();
   } catch {}
-  await driver.pause(400);
   assert.equal(
-    await driver.isKeyboardShown(),
-    false,
+    await waitForKeyboardState(driver, false),
+    true,
     "Android keyboard remained visible after hideKeyboard",
   );
 
