@@ -116,15 +116,35 @@ async function firstDisplayed(driver, selectors, timeoutMs = 20000) {
 
 async function byLabel(driver, label, timeoutMs = 20000) {
   const escaped = uiEscape(label);
-  return firstDisplayed(
-    driver,
-    [
-      `~${label}`,
-      `android=new UiSelector().descriptionContains("${escaped}")`,
-      `android=new UiSelector().textContains("${escaped}")`,
-    ],
-    timeoutMs,
-  );
+  try {
+    return await firstDisplayed(
+      driver,
+      [
+        `~${label}`,
+        `android=new UiSelector().descriptionContains("${escaped}")`,
+        `android=new UiSelector().textContains("${escaped}")`,
+      ],
+      timeoutMs,
+    );
+  } catch (initialError) {
+    // Flutter exposes only the currently visible portion of many ScrollViews
+    // to UiAutomator. Scroll semantics into view before declaring a checkpoint
+    // missing so lower settings/role actions are tested instead of false-failed.
+    try {
+      return await firstDisplayed(
+        driver,
+        [
+          `android=new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().descriptionContains("${escaped}"))`,
+          `android=new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("${escaped}"))`,
+        ],
+        timeoutMs,
+      );
+    } catch (scrollError) {
+      throw new Error(
+        `No Android label resolved after scroll fallback: ${label}; initial=${safe(initialError?.message ?? initialError)}; scroll=${safe(scrollError?.message ?? scrollError)}`,
+      );
+    }
+  }
 }
 
 async function tapLabel(driver, label) {
