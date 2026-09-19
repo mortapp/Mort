@@ -106,9 +106,8 @@ jobs:
           --dart-define=ADS_ENABLED=false
           --dart-define=IAP_ENABLED=false
       - name: Scan Flutter generated artifacts for secrets
-        working-directory: .
         shell: pwsh
-        run: ../scripts/secret-scan.ps1
+        run: '& ../scripts/secret-scan.ps1'
 
   public-site:
     runs-on: ubuntu-latest
