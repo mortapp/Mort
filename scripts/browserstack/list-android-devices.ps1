@@ -14,7 +14,7 @@ $headers = @{ Authorization = "Basic $basicAuth" }
 
 $devices = Invoke-RestMethod -Uri "https://api-cloud.browserstack.com/app-automate/devices.json" -Headers $headers -Method Get
 $androidDevices = $devices |
-  Where-Object { $_.os -eq "android" -and $_.real_mobile -eq $true } |
+  Where-Object { $_.os -eq "android" } |
   Sort-Object -Property os_version -Descending
 
 if (-not $androidDevices) {
