@@ -840,13 +840,47 @@ export async function withQaUsers(scope, definitions, run) {
       return (priority[left.role] ?? 9) - (priority[right.role] ?? 9);
     });
     for (const user of cleanupOrder) {
-      const { error } = await serviceClient.auth.admin.deleteUser(user.id, false);
-      if (
-        error &&
-        error.code !== "user_not_found" &&
-        error.message !== "User not found"
-      ) {
-        console.error(`[${scope}] cleanup warning: ${error.message}`);
+      let deleteError = null;
+      for (let attempt = 1; attempt <= 6; attempt += 1) {
+        const { error } = await serviceClient.auth.admin.deleteUser(user.id, false);
+        deleteError = error;
+        if (
+          !error ||
+          error.code === "user_not_found" ||
+          error.message === "User not found"
+        ) {
+          deleteError = null;
+          break;
+        }
+        if (attempt < 6) {
+          await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
+        }
+      }
+
+      if (deleteError && localQa) {
+        const database = createDatabaseClient();
+        database.on("error", () => {});
+        try {
+          await database.connect();
+          const result = await database.query(
+            "delete from auth.users where id = $1::uuid returning id",
+            [user.id],
+          );
+          if (result.rowCount > 0) {
+            qaLog(scope, "removed one local-only QA auth fixture through the local database fallback");
+            deleteError = null;
+          }
+        } finally {
+          await database.end().catch(() => {});
+        }
+      }
+
+      if (deleteError) {
+        const code = typeof deleteError.code === "string" ? deleteError.code : "unknown";
+        const message = typeof deleteError.message === "string"
+          ? deleteError.message
+          : "unknown cleanup failure";
+        throw new Error(`QA auth cleanup failed (${code}): ${message}`);
       }
     }
     if (created.length > 0) {
