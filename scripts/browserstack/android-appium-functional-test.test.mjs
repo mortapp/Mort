@@ -70,7 +70,7 @@ test("Android selector fallback scrolls offscreen Flutter semantics into view", 
     "utf8",
   );
   assert.match(source, /UiSelector\(\)\.resourceId/);
-  assert.match(source, /\*\/\*\[@resource-id=/);
+  assert.match(source, /\/\/\*\[@resource-id=/);
   assert.match(source, /UiScrollable\(new UiSelector\(\)\.scrollable\(true\)\)/);
   assert.match(source, /scrollIntoView\(new UiSelector\(\)\.resourceId/);
   assert.match(source, /scrollIntoView\(new UiSelector\(\)\.descriptionContains/);
