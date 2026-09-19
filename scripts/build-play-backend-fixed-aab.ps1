@@ -19,7 +19,7 @@ $supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 $tempDir = Join-Path ([IO.Path]::GetTempPath()) ("mort-play-aab-" + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
 $keystore = Join-Path $tempDir 'mort-play-upload.jks'
-$storePass = 'mort-ci-temporary-upload-2026'
+$storePass = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(24)).Replace('/','A').Replace('+','B').Replace('=','C')
 $keyAlias = 'mort-play-upload'
 
 try {
