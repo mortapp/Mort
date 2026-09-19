@@ -277,6 +277,20 @@ async function validateRegressionManifest() {
   }
 
   for (const token of [
+    "PLAY_REVIEW_TEEN_EMAIL",
+    "PLAY_REVIEW_TEEN_PASSWORD",
+    "PLAY_REVIEW_ADULT_EMAIL",
+    "PLAY_REVIEW_ADULT_PASSWORD",
+  ]) {
+    assert(workflow.includes(token), `CI workflow missing protected QA variable ${token}`);
+  }
+  assert(
+    finalRegression.includes("Process") &&
+      finalRegression.includes("Set-MortPlayReviewEnvironment"),
+    "final Supabase regression must support CI process environment with local fallback",
+  );
+
+  for (const token of [
     "stripe-contracts:",
     "qa-stripe-pre-provider-gate.mjs",
     "deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests",
