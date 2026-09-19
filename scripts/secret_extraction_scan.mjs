@@ -145,6 +145,12 @@ function selfTest() {
   assert(scanText("app/x.ts", "sk_test_REALLOOKINGVALUE123").includes("provider_credential_pattern"));
   assert(scanText("app/x.ts", "pk_live_REALLOOKINGVALUE123").includes("provider_credential_pattern"));
   assert(scanText("app/x.ts", "pi_123_secret_REALLOOKINGVALUE123").includes("stripe_client_secret_pattern"));
+  assert(
+    scanText(
+      "artifacts/stripe/provider-dump.json",
+      '{"id":"pi_SYNTHETICPAYLOAD123","object":"payment_intent","livemode":false,"amount":3240}',
+    ).includes("copied_provider_payload"),
+  );
   console.log(JSON.stringify({ status: "PASS", mode: "self_test", secret_values_printed: false }));
 }
 
