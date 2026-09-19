@@ -149,13 +149,7 @@ jobs:
         run: ./scripts/secret-scan.ps1
       - run: node scripts/secret_extraction_scan.mjs
       - run: node scripts/secret-scan-git-history.mjs
-      - run: node scripts/qa-stripe-activation-gates.mjs
-        env:
-          EXPO_PUBLIC_SUPABASE_URL: https://rakjydmgwwgtdislanbt.supabase.co
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-          MORT_SUPABASE_PROJECT_REF: rakjydmgwwgtdislanbt
+      - run: node scripts/qa-stripe-activation-gates.mjs --source-only
       - run: git diff --check
       - run: |
           git status --short
