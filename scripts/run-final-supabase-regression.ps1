@@ -4,21 +4,24 @@ Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'play-review-secrets-common.ps1')
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
-$requiredProcessEnvironment = @(
-  'PLAY_REVIEW_TEEN_EMAIL', 'PLAY_REVIEW_TEEN_PASSWORD',
-  'PLAY_REVIEW_ADULT_EMAIL', 'PLAY_REVIEW_ADULT_PASSWORD',
-  'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_DB_PASSWORD',
-  'EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_ANON_KEY'
-)
-$processEnvironmentComplete = $true
-foreach ($name in $requiredProcessEnvironment) {
-  if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name, 'Process'))) {
-    $processEnvironmentComplete = $false
-    break
+$localQa = $env:MORT_QA_LOCAL_SUPABASE -eq 'true'
+if (-not $localQa) {
+  $requiredProcessEnvironment = @(
+    'PLAY_REVIEW_TEEN_EMAIL', 'PLAY_REVIEW_TEEN_PASSWORD',
+    'PLAY_REVIEW_ADULT_EMAIL', 'PLAY_REVIEW_ADULT_PASSWORD',
+    'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_DB_PASSWORD',
+    'EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_ANON_KEY'
+  )
+  $processEnvironmentComplete = $true
+  foreach ($name in $requiredProcessEnvironment) {
+    if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name, 'Process'))) {
+      $processEnvironmentComplete = $false
+      break
+    }
   }
-}
-if (-not $processEnvironmentComplete) {
-  Set-MortPlayReviewEnvironment
+  if (-not $processEnvironmentComplete) {
+    Set-MortPlayReviewEnvironment
+  }
 }
 
 $scripts = @(
@@ -102,6 +105,16 @@ $scripts = @(
   'qa-stripe-financial-history.mjs',
   'qa-stripe-observability.mjs'
 )
+
+$hostedOnlyScripts = @(
+  'qa-old-project-smoke.mjs',
+  'audit-remote-storage.mjs',
+  'audit-mission-pilot-remote.mjs'
+)
+if ($localQa) {
+  $scripts = @($scripts | Where-Object { $_ -notin $hostedOnlyScripts })
+  Write-Output "Local Supabase regression: excluded hosted-only checks: $($hostedOnlyScripts -join ', ')"
+}
 
 if ($StartAt) {
   $startIndex = [Array]::IndexOf($scripts, $StartAt)
