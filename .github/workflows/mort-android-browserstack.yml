@@ -1,0 +1,186 @@
+name: MORT Android BrowserStack QA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - test/android-browserstack-qa
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mort-android-browserstack-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+      - name: Build deterministic BrowserStack QA APK
+        shell: pwsh
+        run: ./scripts/build-android-device-test-apk.ps1 -BrowserStackQa
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mort-android-browserstack-qa
+          path: build/device-test/mort-device-test.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  android-real-device:
+    needs: android-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          name: mort-android-browserstack-qa
+          path: android-qa-artifact
+
+      - name: Require BrowserStack credentials
+        shell: pwsh
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:BROWSERSTACK_USERNAME) -or
+              [string]::IsNullOrWhiteSpace($env:BROWSERSTACK_ACCESS_KEY)) {
+            throw "BrowserStack credentials are required for Android real-device QA."
+          }
+
+      - name: Upload Android QA APK to BrowserStack
+        id: upload
+        shell: pwsh
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        run: ./scripts/browserstack/upload-android-app.ps1 -ApkPath "android-qa-artifact/mort-device-test.apk"
+
+      - name: Capture live Android device inventory
+        shell: pwsh
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        run: ./scripts/browserstack/list-android-devices.ps1
+
+      - name: Select deep and compact real-device targets
+        id: devices
+        shell: pwsh
+        run: |
+          $devices = @(Get-Content -LiteralPath "browserstack-android-devices.json" -Raw | ConvertFrom-Json)
+          if ($devices.Count -eq 0) { throw "BrowserStack Android inventory is empty." }
+
+          function Select-PreferredDevice([array]$inventory, [string[]]$preferredNames, [string]$exclude = "") {
+            foreach ($name in $preferredNames) {
+              $match = $inventory |
+                Where-Object { $_.device -eq $name -and $_.device -ne $exclude } |
+                Sort-Object { [version]($_.os_version -replace '[^0-9.]','') } -Descending |
+                Select-Object -First 1
+              if ($match) { return $match }
+            }
+            return $inventory |
+              Where-Object { $_.device -ne $exclude } |
+              Sort-Object { [version]($_.os_version -replace '[^0-9.]','') } -Descending |
+              Select-Object -First 1
+          }
+
+          $deep = Select-PreferredDevice $devices @(
+            "Google Pixel 9",
+            "Google Pixel 8",
+            "Google Pixel 8 Pro",
+            "Samsung Galaxy S25",
+            "Samsung Galaxy S24",
+            "Samsung Galaxy S23"
+          )
+          if (-not $deep) { throw "Could not select a deep Android QA device." }
+
+          $compact = Select-PreferredDevice $devices @(
+            "Samsung Galaxy S10e",
+            "Google Pixel 4a",
+            "Samsung Galaxy S9",
+            "Samsung Galaxy S8",
+            "Google Pixel 5",
+            "Samsung Galaxy S20",
+            "Samsung Galaxy A52",
+            "Samsung Galaxy A51",
+            "Samsung Galaxy A32"
+          ) $deep.device
+          $compactKnown = @(
+            "Samsung Galaxy S10e",
+            "Google Pixel 4a",
+            "Samsung Galaxy S9",
+            "Samsung Galaxy S8",
+            "Google Pixel 5",
+            "Samsung Galaxy S20",
+            "Samsung Galaxy A52",
+            "Samsung Galaxy A51",
+            "Samsung Galaxy A32"
+          ) -contains $compact.device
+
+          if (-not $compact -or -not $compactKnown) {
+            throw "No known compact Android device is available in the current BrowserStack inventory."
+          }
+
+          "deep_device=$($deep.device)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "deep_os=$($deep.os_version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "compact_device=$($compact.device)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "compact_os=$($compact.os_version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Deep device: $($deep.device) / Android $($deep.os_version)"
+          Write-Host "Compact device: $($compact.device) / Android $($compact.os_version)"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Install pinned Appium client
+        working-directory: scripts/browserstack
+        run: npm ci --ignore-scripts
+
+      - name: Validate Android QA harness contracts
+        working-directory: scripts/browserstack
+        run: |
+          node --check android-appium-functional-test.mjs
+          node --test android-appium-functional-test.test.mjs
+
+      - name: Deep real-device Android functional QA
+        working-directory: scripts/browserstack
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+          BROWSERSTACK_ANDROID_APP_URL: ${{ steps.upload.outputs.app_url }}
+          BS_DEVICE_NAME: ${{ steps.devices.outputs.deep_device }}
+          BS_OS_VERSION: ${{ steps.devices.outputs.deep_os }}
+          BS_QA_PROFILE: deep
+        run: node android-appium-functional-test.mjs
+
+      - name: Compact real-device Android functional QA
+        working-directory: scripts/browserstack
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+          BROWSERSTACK_ANDROID_APP_URL: ${{ steps.upload.outputs.app_url }}
+          BS_DEVICE_NAME: ${{ steps.devices.outputs.compact_device }}
+          BS_OS_VERSION: ${{ steps.devices.outputs.compact_os }}
+          BS_QA_PROFILE: compact
+        run: node android-appium-functional-test.mjs
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mort-android-browserstack-evidence
+          path: |
+            browserstack-android-devices.json
+            scripts/browserstack/browserstack-android-*.png
+            scripts/browserstack/browserstack-android-*.txt
+            scripts/browserstack/browserstack-android-*.xml
+            scripts/browserstack/browserstack-android-*.json
+          if-no-files-found: warn
+          retention-days: 14
