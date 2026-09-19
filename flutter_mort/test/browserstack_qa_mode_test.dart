@@ -10,15 +10,6 @@ void main() {
       'if (AppConfig.browserStackQaMode)',
       mainEntryPoint,
     );
-    final bootstrap = main.indexOf('Future<Object?> _initializeSafely() async');
-    final bootstrapQaBranch = main.indexOf(
-      'if (AppConfig.browserStackQaMode)',
-      bootstrap,
-    );
-    final releaseConfigValidation = main.indexOf(
-      'AppConfig.assertValidReleaseConfiguration();',
-      bootstrap,
-    );
     final supabaseInitialization = main.indexOf(
       'SupabaseService.initializeIfConfigured',
     );
@@ -32,18 +23,6 @@ void main() {
       lessThan(supabaseInitialization),
     );
     expect(main.indexOf('return;', qaBranch), lessThan(supabaseInitialization));
-    expect(bootstrap, greaterThanOrEqualTo(0));
-    expect(bootstrapQaBranch, greaterThanOrEqualTo(0));
-    expect(releaseConfigValidation, greaterThanOrEqualTo(0));
-    expect(
-      bootstrapQaBranch,
-      lessThan(releaseConfigValidation),
-      reason: 'QA bypass must precede release validation.',
-    );
-    expect(
-      main.substring(bootstrapQaBranch, releaseConfigValidation),
-      contains('return null;'),
-    );
     expect(
       main.substring(mainEntryPoint, qaBranch),
       isNot(contains('configureRemotePushBackgroundHandler')),
@@ -51,6 +30,25 @@ void main() {
     expect(
       main.substring(mainEntryPoint, qaBranch),
       isNot(contains('MortSentryCrashProvider')),
+    );
+  });
+
+  test('QA bootstrap bypasses release validation', () {
+    final main = File('lib/main.dart').readAsStringSync();
+    final bootstrap = main.substring(
+      main.indexOf('Future<Object?> _initializeSafely() async'),
+    );
+    final qaBranch = bootstrap.indexOf('if (AppConfig.browserStackQaMode)');
+    final releaseValidation = bootstrap.indexOf(
+      'AppConfig.assertValidReleaseConfiguration();',
+    );
+
+    expect(qaBranch, greaterThanOrEqualTo(0));
+    expect(releaseValidation, greaterThanOrEqualTo(0));
+    expect(qaBranch, lessThan(releaseValidation));
+    expect(
+      bootstrap.substring(qaBranch, releaseValidation),
+      contains('return null;'),
     );
   });
 }
