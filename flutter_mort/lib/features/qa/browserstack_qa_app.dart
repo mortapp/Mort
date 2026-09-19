@@ -10,6 +10,7 @@ import '../financial/financial_safety_center.dart';
 import '../legal/legal_screens.dart';
 import '../mort_screens.dart';
 import '../onboarding/compact_onboarding.dart';
+import '../settings/experience_settings_screen.dart';
 import '../settings/native_permissions_screen.dart';
 import 'browserstack_qa_fixtures.dart';
 
@@ -53,6 +54,10 @@ class BrowserStackQaApp extends StatelessWidget {
             nativeActionsDisabledMessage:
                 'Permission requests are disabled in BrowserStack QA. No device permission or setting can be changed.',
           ),
+        ),
+        GoRoute(
+          path: '/settings/accessibility',
+          builder: (_, _) => const ExperienceSettingsScreen(),
         ),
         GoRoute(
           path: '/qa/legal',

@@ -39,3 +39,7 @@ Write-Host "  app_url:      $($response.app_url)"
 Write-Host "  custom_id:    $($response.custom_id)"
 Write-Host "  shareable_id: $($response.shareable_id)"
 Write-Host "BROWSERSTACK_ANDROID_APP_URL=$($response.app_url)"
+
+if ($env:GITHUB_OUTPUT) {
+  "app_url=$($response.app_url)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+}

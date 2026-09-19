@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-  [string]$OutputPath = ''
+  [string]$OutputPath = '',
+  [switch]$BrowserStackQa
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,7 +41,11 @@ $defines = @(
   '--dart-define=ADS_ENABLED=false',
   '--dart-define=USE_TEST_ADS=true',
   '--dart-define=IAP_ENABLED=false'
-)
+) 
+
+if ($BrowserStackQa) {
+  $defines += '--dart-define=MORT_BROWSERSTACK_QA_MODE=true'
+}
 
 Push-Location $flutterRoot
 try {
