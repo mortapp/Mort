@@ -44,6 +44,37 @@ jobs:
       - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs docs/payments/MORT_STRIPE_TASK31_SANDBOX_EVIDENCE_2026-09-18.json
       - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs --regression-manifest
 
+  stripe-local-regression:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: pnpm install --frozen-lockfile
+      - shell: pwsh
+        env:
+          MORT_SUPABASE_PROJECT_REF: rakjydmgwwgtdislanbt
+          MORT_STRIPE_MODE: sandbox
+        run: ./scripts/run-mort-stripe-regression.ps1
+
   expo-reference:
     runs-on: ubuntu-latest
     timeout-minutes: 25
