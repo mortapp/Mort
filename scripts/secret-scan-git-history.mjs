@@ -85,6 +85,24 @@ function selfTest() {
   assert.deepEqual(classifyHistoricalBlob(".github/workflows/mort-ci.yml", anon), []);
   assert(classifyHistoricalBlob("app/x.ts", service).includes("service_role_jwt"));
   assert.deepEqual(classifyHistoricalBlob("scripts/qa-stripe-example.mjs", "sk_test_1234567890abcdef"), []);
+  assert.deepEqual(
+    classifyHistoricalBlob("ios/MORTIOSV8Tests/HostedWireDTOTests.swift", "pi_12345_secret_shortlived"),
+    [],
+  );
+  assert.deepEqual(
+    classifyHistoricalBlob(
+      "supabase/functions/_tests/stripe_webhook_verification_test.ts",
+      'const platformSecret = "whsec_platform"; const stripe = new Stripe("sk_test_placeholder");',
+    ),
+    [],
+  );
+  assert.deepEqual(
+    classifyHistoricalBlob(
+      "supabase/functions/send-push/index.ts",
+      'pem.replace("-----BEGIN PRIVATE KEY-----", "").replace("-----END PRIVATE KEY-----", "")',
+    ),
+    [],
+  );
   assert(classifyHistoricalBlob("app/x.ts", "whsec_REALLOOKINGVALUE123").includes("provider_credential_pattern"));
   assert(classifyHistoricalBlob("app/x.ts", "pk_live_REALLOOKINGVALUE123").includes("provider_credential_pattern"));
   assert(classifyHistoricalBlob("app/x.ts", "pi_123_secret_REALLOOKINGVALUE123").includes("stripe_client_secret_pattern"));
