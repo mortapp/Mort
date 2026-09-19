@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { assertQa, qaLog, withDatabase } from "./feature-qa-helpers.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const sourceOnly = process.argv.includes("--source-only");
+
 const falseFlags = [
   "stripe_payments_enabled",
   "stripe_connected_onboarding_enabled",
@@ -29,43 +31,46 @@ const falseFlags = [
   "production_release_approved",
 ];
 
-await withDatabase(async (database) => {
-  const result = await database.query(`
-    select *
-      from private.stripe_runtime_controls
-     where singleton
-  `);
-  const control = result.rows[0];
-  assertQa(control?.mode === "sandbox", "Stripe runtime must remain sandbox during production freeze.");
-  for (const flag of falseFlags) {
-    assertQa(control?.[flag] === false, `${flag} must remain false before production approval`);
-  }
-  assertQa(control?.partial_compensation_policy_version == null, "production partial-compensation policy must remain unset");
-  assertQa(control?.production_approved_at == null, "production approval timestamp must remain unset");
+if (!sourceOnly) {
+  await withDatabase(async (database) => {
+    const result = await database.query(`
+      select *
+        from private.stripe_runtime_controls
+       where singleton
+    `);
+    const control = result.rows[0];
+    assertQa(control?.mode === "sandbox", "Stripe runtime must remain sandbox during production freeze.");
+    for (const flag of falseFlags) {
+      assertQa(control?.[flag] === false, `${flag} must remain false before production approval`);
+    }
+    assertQa(control?.partial_compensation_policy_version == null, "production partial-compensation policy must remain unset");
+    assertQa(control?.production_approved_at == null, "production approval timestamp must remain unset");
+  
+    const functionResult = await database.query(`
+      select pg_get_functiondef(to_regprocedure('private.stripe_live_financial_ready()')) as definition
+    `);
+    const definition = functionResult.rows[0]?.definition ?? "";
+    for (const required of [
+      "control.mode = 'live'",
+      "control.stripe_live_mode_enabled",
+      "control.live_owner_approved",
+      "control.provider_use_case_approved",
+      "control.legal_financial_approved",
+      "control.privacy_financial_approved",
+      "control.minor_payout_flow_approved",
+      "control.tax_reporting_approved",
+      "control.negative_balance_plan_approved",
+      "control.reconciliation_schedule_approved",
+      "control.monitoring_on_call_approved",
+      "control.partial_compensation_policy_version is not null",
+      "control.production_release_approved",
+      "control.production_approved_at is not null",
+    ]) {
+      assertQa(definition.includes(required), `live readiness gate missing ${required}`);
+    }
+  });
+}
 
-  const functionResult = await database.query(`
-    select pg_get_functiondef(to_regprocedure('private.stripe_live_financial_ready()')) as definition
-  `);
-  const definition = functionResult.rows[0]?.definition ?? "";
-  for (const required of [
-    "control.mode = 'live'",
-    "control.stripe_live_mode_enabled",
-    "control.live_owner_approved",
-    "control.provider_use_case_approved",
-    "control.legal_financial_approved",
-    "control.privacy_financial_approved",
-    "control.minor_payout_flow_approved",
-    "control.tax_reporting_approved",
-    "control.negative_balance_plan_approved",
-    "control.reconciliation_schedule_approved",
-    "control.monitoring_on_call_approved",
-    "control.partial_compensation_policy_version is not null",
-    "control.production_release_approved",
-    "control.production_approved_at is not null",
-  ]) {
-    assertQa(definition.includes(required), `live readiness gate missing ${required}`);
-  }
-});
 
 const readinessDoc = await readFile(
   path.join(root, "docs", "payments", "MORT_STRIPE_LIVE_READINESS.md"),
@@ -103,4 +108,9 @@ for (const required of [
   assertQa(docs.includes(required), `production blocker documentation missing: ${required}`);
 }
 
-qaLog("stripe-activation-gates", "live runtime and approval controls remain closed and every required external/economic blocker is documented");
+qaLog(
+  "stripe-activation-gates",
+  sourceOnly
+    ? "production blocker documentation is complete; hosted runtime verification intentionally skipped in source-only mode"
+    : "live runtime and approval controls remain closed and every required external/economic blocker is documented",
+);
