@@ -76,3 +76,17 @@ test("Android selector fallback scrolls offscreen Flutter semantics into view", 
   assert.match(source, /scrollIntoView\(new UiSelector\(\)\.descriptionContains/);
   assert.match(source, /scrollIntoView\(new UiSelector\(\)\.textContains/);
 });
+
+
+test("financial checkpoint falls back to deterministic visible zero-state copy", async () => {
+  const source = await readFile(
+    path.join(root, "scripts", "browserstack", "android-appium-functional-test.mjs"),
+    "utf8",
+  );
+  assert.match(source, /byLabel\(driver, "Financial Safety"\)/);
+  assert.match(source, /qa-financial-zero-state/);
+  assert.match(
+    source,
+    /Your financial record starts when you complete work\./,
+  );
+});

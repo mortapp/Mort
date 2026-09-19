@@ -244,7 +244,22 @@ async function checkpointOnboardingKeyboard(driver) {
 
 async function checkpointFinancial(driver) {
   await tapLabel(driver, "qa-open-financial");
-  await byLabel(driver, "qa-financial-zero-state");
+
+  // Prove the real product surface loaded first, then prefer the QA semantics
+  // identifier when Android exports it. Some Flutter/UiAutomator combinations
+  // do not expose Semantics.identifier consistently, so fall back to the
+  // deterministic user-visible zero-state copy instead of false-failing.
+  await byLabel(driver, "Financial Safety");
+  try {
+    await byLabel(driver, "qa-financial-zero-state", 8000);
+  } catch {
+    await byLabel(
+      driver,
+      "Your financial record starts when you complete work.",
+      12000,
+    );
+  }
+
   await screenshot(driver, "financial");
   await backToHome(driver);
 }
