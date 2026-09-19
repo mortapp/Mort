@@ -34,6 +34,7 @@ jobs:
       - run: node scripts/qa-stripe-pre-provider-gate.mjs
       - run: deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests
       - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs
+      - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs docs/payments/MORT_STRIPE_TASK31_SANDBOX_EVIDENCE_2026-09-18.json
       - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs --regression-manifest
 
   expo-reference:
