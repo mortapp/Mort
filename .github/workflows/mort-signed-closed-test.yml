@@ -2,9 +2,6 @@ name: MORT Signed Closed Test
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - feature/mort-stripe-backend-integration
 
 permissions:
   contents: read
