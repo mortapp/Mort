@@ -126,3 +126,16 @@ test("tapLabel prefers clickable Android semantics over section headings", async
   );
   assert.match(source, /await actionable\.click\(\)/);
 });
+
+
+test("keyboard checkpoint polls Android IME state instead of trusting one timing sample", async () => {
+  const source = await readFile(
+    path.join(root, "scripts", "browserstack", "android-appium-functional-test.mjs"),
+    "utf8",
+  );
+  assert.match(source, /async function waitForKeyboardState/);
+  assert.match(source, /await driver\.isKeyboardShown\(\)/);
+  assert.match(source, /await driver\.pause\(intervalMs\)/);
+  assert.match(source, /await waitForKeyboardState\(driver, true/);
+  assert.match(source, /await waitForKeyboardState\(driver, false/);
+});
