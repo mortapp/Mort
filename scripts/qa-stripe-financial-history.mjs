@@ -5,14 +5,14 @@ import { assertQa, qaLog, withDatabase } from "./feature-qa-helpers.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 await withDatabase(async (database) => {
-  const result = await database.query(\`
+  const result = await database.query(`
     select p.oid,
       has_function_privilege('anon', p.oid, 'EXECUTE') as anon_execute,
       has_function_privilege('authenticated', p.oid, 'EXECUTE') as authenticated_execute,
       pg_get_functiondef(p.oid) as definition
     from pg_proc p join pg_namespace n on n.oid=p.pronamespace
     where n.nspname='public' and p.proname='get_my_financial_history_v2'
-  \`);
+  `);
   const row = result.rows[0];
   assertQa(Boolean(row), "get_my_financial_history_v2 is missing");
   assertQa(row.anon_execute === false, "financial history v2 must reject anon execution");
@@ -29,11 +29,11 @@ await withDatabase(async (database) => {
     "private.stripe_tip_attempts",
     "private.stripe_job_disputes",
     "private.stripe_payout_events",
-  ]) assertQa(source.includes(required), \`financial history v2 missing \${required}\`);
+  ]) assertQa(source.includes(required), `financial history v2 missing ${required}`);
   for (const forbidden of [
     "provider_payment_intent_id","provider_customer_id","provider_account_id",
     "provider_dispute_id","provider_payout_id",
-  ]) assertQa(!source.includes(forbidden), \`financial history v2 leaks \${forbidden}\`);
+  ]) assertQa(!source.includes(forbidden), `financial history v2 leaks ${forbidden}`);
 });
 
 const edge = await readFile(path.join(root,"supabase","functions","stripe-list-financial-history","index.ts"),"utf8");
