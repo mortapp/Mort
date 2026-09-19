@@ -271,22 +271,4 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  android-play-backend-fixed-aab:
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    steps:
-      - uses: actions/checkout@v7
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: 3.47.2
-          cache: true
-      - shell: pwsh
-        run: ./scripts/build-play-backend-fixed-aab.ps1
-      - uses: actions/upload-artifact@v4
-        with:
-          name: mort-play-console-backend-fixed-aab
-          path: build/device-test/mort-play-console-backend-fixed.aab
-          if-no-files-found: error
-          retention-days: 7
 
