@@ -10,9 +10,7 @@ void main() {
       'if (AppConfig.browserStackQaMode)',
       mainEntryPoint,
     );
-    final bootstrap = main.indexOf(
-      'Future<Object?> _initializeSafely() async',
-    );
+    final bootstrap = main.indexOf('Future<Object?> _initializeSafely() async');
     final bootstrapQaBranch = main.indexOf(
       'if (AppConfig.browserStackQaMode)',
       bootstrap,
