@@ -92,8 +92,8 @@ try {
     & node (Join-Path $PSScriptRoot 'qa-stripe-pre-provider-gate.mjs')
   }
 
-  Invoke-Step 'Stripe Edge Function Deno tests' 'deno test --allow-read --allow-env supabase/functions/_tests' {
-    & deno test --allow-read --allow-env supabase/functions/_tests
+  Invoke-Step 'Stripe Edge Function Deno tests' 'deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests' {
+    & deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests
   }
 
   Invoke-Step 'Supabase advisors' 'node scripts/audit-supabase-advisors.mjs' {
