@@ -120,6 +120,12 @@ function selfTest() {
   assert(classifyHistoricalBlob("app/x.ts", "whsec_REALLOOKINGVALUE123").includes("provider_credential_pattern"));
   assert(classifyHistoricalBlob("app/x.ts", "pk_live_REALLOOKINGVALUE123").includes("provider_credential_pattern"));
   assert(classifyHistoricalBlob("app/x.ts", "pi_123_secret_REALLOOKINGVALUE123").includes("stripe_client_secret_pattern"));
+  assert(
+    classifyHistoricalBlob(
+      "artifacts/stripe/provider-dump.json",
+      '{"id":"pi_SYNTHETICPAYLOAD123","object":"payment_intent","livemode":false,"amount":3240}',
+    ).includes("copied_provider_payload"),
+  );
   console.log(JSON.stringify({ status: "PASS", mode: "self_test", secret_values_printed: false }));
 }
 
