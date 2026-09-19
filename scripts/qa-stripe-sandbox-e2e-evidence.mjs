@@ -292,7 +292,7 @@ async function validateRegressionManifest() {
   for (const token of [
     'required("EXPO_PUBLIC_SUPABASE_URL")',
     'required("SUPABASE_SERVICE_ROLE_KEY")',
-    '"SUPABASE_DB_URL"',
+    "process.env.SUPABASE_DB_URL",
     "createDatabaseClient",
   ]) {
     assert(featureQaHelpers.includes(token), `feature QA helper missing local-capable token ${token}`);
