@@ -211,11 +211,24 @@ async function validateRegressionManifest() {
     "audit-supabase-advisors.mjs",
     "dart format --output=none --set-exit-if-changed lib test integration_test",
     "flutter analyze --no-pub",
+    "flutter test --no-pub test/features/payment_os_integration_test.dart",
     "flutter test --no-pub",
     "secret-scan.ps1",
     "secret_extraction_scan.mjs",
     "secret-scan-git-history.mjs",
     "provider_e2e_executed = $false",
+    "mort_stripe_policy_and_funding_v1",
+    "mort_stripe_funding_attempts_and_state_v1",
+    "mort_stripe_webhook_lease_v1",
+    "mort_stripe_settlement_ledger_v1",
+    "mort_financial_documents_history_v1",
+    "mort_stripe_financial_access_hardening_v1",
+    "evidence_matrix",
+    "command",
+    "commit",
+    "timestamp",
+    "result",
+    "environment",
   ];
   for (const token of requiredRunnerTokens) {
     assert(runner.includes(token), `regression runner missing ${token}`);
@@ -267,15 +280,28 @@ async function validateRegressionManifest() {
     "stripe-contracts:",
     "qa-stripe-pre-provider-gate.mjs",
     "deno test --allow-read --allow-env supabase/functions/_tests",
+    "flutter test --no-pub test/features/payment_os_integration_test.dart",
     "stripe-hosted-regression:",
+    "stripe-provider-e2e:",
     "workflow_dispatch",
     "run-mort-stripe-regression.ps1",
+    "stripe-sandbox-e2e.ps1",
   ]) {
     assert(workflow.includes(token), `CI workflow missing ${token}`);
   }
+  const ordinaryStripeJob = workflow.split("  stripe-contracts:")[1]?.split("\n  expo-reference:")[0] ?? "";
   assert(
-    !/stripe-sandbox-e2e\.ps1/.test(workflow),
-    "provider sandbox E2E must not run in ordinary CI manifest",
+    !/stripe-sandbox-e2e\.ps1/.test(ordinaryStripeJob),
+    "provider sandbox E2E must not run in ordinary pull-request Stripe contracts",
+  );
+  const providerJob = workflow.split("  stripe-provider-e2e:")[1] ?? "";
+  assert(
+    providerJob.includes("github.event_name == 'workflow_dispatch'"),
+    "provider sandbox E2E must be workflow_dispatch-only",
+  );
+  assert(
+    providerJob.includes("stripe-sandbox-e2e.ps1"),
+    "manual provider job must execute the Task 31 gated runner",
   );
   return true;
 }
