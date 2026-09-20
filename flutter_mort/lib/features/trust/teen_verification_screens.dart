@@ -166,8 +166,7 @@ class _TeenVerificationOptionsScreenState
         ),
         MortSafetyBanner(
           message:
-              collectionLabel +
-              '. School affiliation, age assurance, and identity are separate checks. Verification never guarantees safety.',
+              '${collectionLabel}. School affiliation, age assurance, and identity are separate checks. Verification never guarantees safety.',
         ),
         const SizedBox(height: MortSpacing.md),
         _StatusCard(
@@ -175,9 +174,7 @@ class _TeenVerificationOptionsScreenState
           value: status.ageStatus,
           detail: status.ageBand == null
               ? 'Start a session to establish the claimed age band from your account DOB.'
-              : 'Claimed band: ' +
-                    _humanize(status.ageBand!) +
-                    '. Final age verification requires independent reviewed evidence.',
+              : 'Claimed band: ${_humanize(status.ageBand!)}. Final age verification requires independent reviewed evidence.',
           verified: status.ageStatus == 'verified',
         ),
         const SizedBox(height: MortSpacing.sm),
@@ -479,7 +476,7 @@ class _TeenVerificationAdminReviewScreenState
         _documentBytes = null;
         _claimed = false;
         _message =
-            'Saved review result: ' + (result['status']?.toString() ?? action);
+            'Saved review result: ${result['status']?.toString() ?? action}';
       });
       ref.invalidate(accountTrustProfileProvider);
     }
@@ -493,9 +490,7 @@ class _TeenVerificationAdminReviewScreenState
           eyebrow: 'Restricted reviewer',
           title: 'Teen verification review',
           subtitle:
-              'Session ' +
-              widget.sessionId +
-              '. Raw school-ID access is assignment-bound, temporary, and audited.',
+              'Session ${widget.sessionId}. Raw school-ID access is assignment-bound, temporary, and audited.',
         ),
         MortTextField(label: 'Case ID', controller: _caseId),
         const SizedBox(height: MortSpacing.sm),

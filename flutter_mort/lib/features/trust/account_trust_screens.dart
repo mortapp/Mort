@@ -1095,8 +1095,7 @@ class _TrustAdminReviewScreenState
                           label: 'Open restricted review',
                           icon: Icons.verified_user_outlined,
                           onPressed: () => context.go(
-                            '/admin/teen-verification/' +
-                                (item['session_id'] as String),
+                            '/admin/teen-verification/${item['session_id']}',
                           ),
                         ),
                       ],
