@@ -3,7 +3,7 @@ name: MORT CI
 on:
   pull_request:
   push:
-    branches: [main, mort-supreme-production-readiness, feature/mort-stripe-backend-integration]
+    branches: [main, mort-supreme-production-readiness, feature/mort-stripe-backend-integration, feature/mort-verify-age-school]
   workflow_dispatch:
     inputs:
       run_stripe_hosted_regression:
