@@ -1,30 +1,36 @@
-# MORT Verify Privacy and Retention
+# MORT Verify privacy and retention
+
+Last audited: 2026-09-20
 
 ## Data minimization
 
-MORT Verify stores the minimum information needed to make and audit a verification decision. School affiliation, age assurance, and identity status are stored as separate results.
+MORT Verify separates school affiliation, student identity consistency, and age assurance. Public trust output does not expose the raw school ID, school email, date of birth, document path, or reviewer notes.
 
-The client re-encodes submitted school-ID images to JPEG before upload, removing ordinary source image metadata. Raw documents are stored only in the private teen-school-id Storage bucket.
+A verified school-affiliation signal explicitly states that it does not establish a government-issued legal identity.
 
-## Access
+## Raw school-ID evidence
 
-Ordinary users cannot list or download another user's school ID. A reviewer needs:
-1. an active verification-review role,
-2. an active case assignment,
-3. an access reason and case identifier, and
-4. a short-lived evidence access grant.
+Canonical evidence is stored in the private `mort-verify-evidence` bucket. The default raw-document retention period is 14 days and is server-configurable only within the bounded control-table constraint.
 
-Review decisions are also guarded by a database trigger requiring an active assignment and evidence grant.
+Reviewer links are signed for five minutes. Authenticated clients do not receive a general raw-evidence read policy.
 
-## Retention
+A preservation hold may extend retention. An active review assignment also blocks scheduled deletion so a review cannot lose its evidence mid-session.
 
-School-ID metadata receives a retention deletion timestamp, defaulting to 30 days. A preservation timestamp may defer deletion for a legitimate hold.
+## Scheduled deletion
 
-The retention worker:
-- lists only expired, unpreserved evidence with no active reviewer assignment/grant,
-- removes the object through the Storage API,
-- then finalizes metadata deletion and writes a safe audit event.
+The protected retention worker processes both:
 
-Account deletion uses the existing owner-based Storage cleanup and therefore also covers the teen-school-id bucket for user-owned objects.
+- historical `teen-school-id` evidence; and
+- canonical `mort-verify-evidence` evidence.
 
-Production collection must remain disabled until legal/privacy approval and trained reviewer operations are recorded in the server control row.
+For each eligible object it removes the Storage object first, then finalizes the database record. Canonical document metadata is marked `deleted` and a non-document audit event records the retention purge.
+
+The worker requires a valid JWT at the Edge gateway and performs a constant-time comparison against the service-role bearer token before using service privileges.
+
+## Legacy path
+
+The superseded `teen_verification_*` client/reviewer API surface is disabled. Its Storage access policies are removed. Legacy retention service functions remain available solely so historical sandbox evidence can age out safely.
+
+## Production gate
+
+Production document collection remains disabled. Enabling it requires an explicit server-side change after legal/privacy review and operational reviewer readiness; no Flutter client flag can independently activate collection.
