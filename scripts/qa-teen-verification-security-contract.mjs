@@ -5,53 +5,85 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const read = (path) => readFileSync(resolve(root, path), "utf8");
 
-const foundation = read(
+const legacyFoundation = read(
   "supabase/migrations/20260920180350_mort_verify_age_school_foundation.sql",
 );
-const review = read(
+const legacyReview = read(
   "supabase/migrations/20260920180910_mort_verify_review_access_hardening.sql",
 );
-const retention = read(
+const legacyRetention = read(
   "supabase/migrations/20260920181521_mort_verify_retention_cleanup.sql",
 );
-const binding = read(
+const legacyBinding = read(
   "supabase/migrations/20260920181647_mort_verify_storage_helper_binding.sql",
 );
-const worker = read(
+const canonical = read(
+  "supabase/migrations/20260920201000_mort_verify_first_party_age_school_v1.sql",
+);
+const canonicalStorage = read(
+  "supabase/migrations/20260920203500_mort_verify_storage_policy_hardening_v1.sql",
+);
+const canonicalEmail = read(
+  "supabase/migrations/20260920205000_mort_verify_email_challenge_hardening_v1.sql",
+);
+const canonicalHardening = read(
+  "supabase/migrations/20260920214100_mort_verify_canonical_hardening_v2.sql",
+);
+const edge = read("supabase/functions/mort-verify/index.ts");
+const retentionWorker = read(
   "supabase/functions/teen-verification-retention-processor/index.ts",
+);
+const repository = read(
+  "flutter_mort/lib/data/repositories/mort_verify_repository.dart",
 );
 const releaseProfiles = JSON.parse(read("config/mort-release-profiles.json"));
 
-assert.match(foundation, /mode text not null default 'sandbox'/);
-assert.match(foundation, /production_enabled boolean not null default false/);
-assert.match(foundation, /legal_approved boolean not null default false/);
-assert.match(foundation, /privacy_approved boolean not null default false/);
-assert.match(foundation, /trained_reviewers_ready boolean not null default false/);
-assert.match(foundation, /bucket_id = 'teen-school-id'/);
-assert.ok(foundation.includes("array['image/jpeg']::text[]"));
-assert.ok(foundation.includes("on conflict (id) do update"));
-assert.ok(foundation.includes("set public = false"));
-assert.match(foundation, /p_school_id_dob_present/);
-assert.match(foundation, /p_observed_age_band not in \('13_15','16_17'\)/);
-assert.match(foundation, /p_observed_age_band <> v_session\.age_band/);
-assert.match(foundation, /verified_school_email_required/);
-assert.match(foundation, /school_id_review_not_passed/);
+assert.match(legacyFoundation, /bucket_id = 'teen-school-id'/);
+assert.match(legacyReview, /active_school_id_access_grant_required/);
+assert.match(legacyBinding, /auth\.uid\(\) = p_user_id/);
+assert.match(legacyBinding, /auth\.uid\(\) = p_reviewer_id/);
+assert.match(legacyRetention, /preserved_until/);
+assert.match(retentionWorker, /SUPABASE_SERVICE_ROLE_KEY/);
+assert.match(retentionWorker, /constantTimeEqual/);
 
-assert.match(review, /active_school_id_access_grant_required/);
-assert.match(review, /active_teen_verification_assignment_required/);
+assert.match(canonical, /mode text not null default 'disabled'/);
+assert.match(
+  canonical,
+  /production_document_collection_approved boolean not null default false/,
+);
+assert.match(canonical, /bucket_id = 'mort-verify-evidence'/);
+assert.match(canonical, /school_domain_not_approved/);
+assert.match(canonical, /legal_identity_claimed', false/);
+assert.match(canonicalStorage, /mort_verify_storage_upload_allowed/);
+assert.match(canonicalStorage, /session\.user_id = v_user_id/);
+assert.match(canonicalEmail, /service_mort_verify_verify_email_code/);
+assert.match(canonicalEmail, /from public, anon, authenticated/);
 
-assert.match(binding, /auth\.uid\(\) = p_user_id/);
-assert.match(binding, /auth\.uid\(\) = p_reviewer_id/);
-assert.match(binding, /has_trust_admin_role/);
+assert.match(canonicalHardening, /set mode = 'disabled'/);
+assert.match(canonicalHardening, /drop policy if exists teen_school_id_insert_own/);
+assert.match(
+  canonicalHardening,
+  /revoke execute on function public\.start_my_teen_verification\(\) from authenticated, service_role/,
+);
+assert.match(canonicalHardening, /has_admin_safety_role/);
+assert.match(canonicalHardening, /verification_reviewer_required/);
+assert.doesNotMatch(canonicalHardening, /auth\.role\(\)/);
+assert.match(canonicalHardening, /auth\.jwt\(\)->>'role'/);
 
-assert.match(retention, /auth\.role\(\) <> 'service_role'/);
-assert.match(retention, /preserved_until/);
-assert.match(retention, /service_finalize_teen_school_id_purge/);
+assert.match(edge, /action: "start"|\| "start"/);
+assert.match(edge, /resend_code/);
+assert.match(edge, /verify_email/);
+assert.match(edge, /challengeDigest/);
+assert.match(edge, /HMAC/);
+assert.match(edge, /detectContentType/);
+assert.match(edge, /document_extension_mismatch/);
+assert.match(edge, /createSignedUrl\(document\.storage_path, 300\)/);
 
-assert.match(worker, /SUPABASE_SERVICE_ROLE_KEY/);
-assert.match(worker, /constantTimeEqual/);
-assert.match(worker, /service_list_expired_teen_school_id_objects/);
-assert.match(worker, /service_finalize_teen_school_id_purge/);
+assert.match(repository, /'mort-verify'/);
+assert.match(repository, /'verify_email'/);
+assert.match(repository, /'resend_code'/);
+assert.match(repository, /'finalize_document'/);
+assert.match(repository, /'mort-verify-evidence'/);
 
 for (const profileName of ["closed_test", "reviewer_demo"]) {
   const profile = releaseProfiles.profiles[profileName];
@@ -61,5 +93,5 @@ for (const profileName of ["closed_test", "reviewer_demo"]) {
 }
 
 console.log(
-  "PASS: MORT Verify stays fail-closed, caller-bound, reviewer-gated, and retention-backed.",
+  "PASS: canonical MORT Verify is fail-closed; legacy client access is retired; reviewer access is live-role checked; retention stays service-only.",
 );
