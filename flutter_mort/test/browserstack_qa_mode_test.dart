@@ -10,13 +10,23 @@ void main() {
       'if (AppConfig.browserStackQaMode)',
       mainEntryPoint,
     );
+    final edgeToEdge = main.indexOf(
+      'SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);',
+      mainEntryPoint,
+    );
     final supabaseInitialization = main.indexOf(
       'SupabaseService.initializeIfConfigured',
     );
 
     expect(mainEntryPoint, greaterThanOrEqualTo(0));
     expect(qaBranch, greaterThanOrEqualTo(0));
+    expect(edgeToEdge, greaterThanOrEqualTo(0));
     expect(supabaseInitialization, greaterThanOrEqualTo(0));
+    expect(
+      edgeToEdge,
+      lessThan(qaBranch),
+      reason: 'QA must exercise the same Android edge-to-edge window mode',
+    );
     expect(qaBranch, lessThan(supabaseInitialization));
     expect(
       main.indexOf('_runApp();', qaBranch),
