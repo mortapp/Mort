@@ -1,0 +1,43 @@
+name: MORT Teen Verification Retention
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 7 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  purge-expired-school-id-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Purge expired private school-ID evidence
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SUPABASE_URL:-}" || -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]]; then
+            echo "Required protected Supabase retention credentials are unavailable."
+            exit 1
+          fi
+
+          endpoint="${SUPABASE_URL%/}/functions/v1/teen-verification-retention-processor"
+          for attempt in {1..10}; do
+            response="$(curl --silent --show-error --fail-with-body               --request POST               --header "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}"               --header "apikey: ${SUPABASE_SERVICE_ROLE_KEY}"               --header "Content-Type: application/json"               --data '{}'               "${endpoint}")"
+
+            node -e '
+              const body = JSON.parse(process.argv[1]);
+              if (body.ok !== true) process.exit(2);
+              console.log("Retention batch removed:", Number(body.removed || 0));
+            ' "${response}"
+
+            remaining="$(node -e '
+              const body = JSON.parse(process.argv[1]);
+              process.stdout.write(body.remaining_hint === true ? "true" : "false");
+            ' "${response}")"
+            [[ "${remaining}" == "true" ]] || break
+          done
