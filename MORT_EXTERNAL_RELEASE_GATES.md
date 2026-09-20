@@ -30,14 +30,14 @@ FAIL_CLOSED_BEHAVIOR=Correct — build hard-fails rather than silently falling b
 ---
 
 GATE=Apple Developer account / signing certificates
-STATUS=UNAVAILABLE for App Store distribution; macOS CI build PASS
-WHY=This program runs on a Windows host, but [GitHub Actions run 34472297830](https://github.com/mortapp/Mort/actions/runs/34472297830) supplied the missing macOS/Xcode evidence: pub get, format, analyze, full Flutter tests, CocoaPods, `xcodebuild` validation, unsigned iOS release build, IPA packaging, BrowserStack upload, and three-device real-device QA all passed for `0180d27`. The build intentionally has no App Store signing. Separately, `test/ios_platform_parity_test.dart` deliberately asserts the Xcode project has no APNs/Sign-in-with-Apple entitlement until provider configuration and legal gates actually exist; this is intentional, not an oversight (see `MORT_IOS_NATIVE_SOURCE_AUDIT.md`).
-TECHNICAL_WORK_COMPLETE=YES for every pre-account technical check, including the real macOS build. Distribution signing remains intentionally unverified without Apple credentials.
-HUMAN_ACTION_REQUIRED=Provide Apple Developer Program membership plus signing certificates/provisioning profiles once TestFlight/App Store distribution is needed. BrowserStack real-device QA is already verified separately in run 34472297830.
-CREDENTIAL_REQUIRED=YES, for App Store distribution specifically
+STATUS=CODE PIPELINE READY; REAL APPLE SIGNING INPUTS STILL REQUIRED
+WHY=Flutter iOS now has authoritative macOS CI, a bundled privacy manifest, release/profile APNs entitlement, remote-notification background mode, and a protected signed closed-test/App Store Connect IPA workflow. The workflow deliberately cannot run to a signed artifact without real Apple distribution credentials and a provisioning profile for `com.mortapp.mobile`.
+TECHNICAL_WORK_COMPLETE=YES for code-controlled release plumbing — `.github/workflows/mort-ios-signed-closed-test.yml` validates the Apple team, exact bundle ID, production APNs entitlement, code signature, privacy manifest, exported IPA, and SHA-256 artifact. `.github/workflows/mort-ci.yml` now builds the authoritative Flutter iOS release on macOS for normal CI.
+HUMAN_ACTION_REQUIRED=Provide the protected Apple distribution P12/password, App Store provisioning profile, Apple Team ID, and keychain password; ensure the App ID/provisioning profile has Push Notifications enabled; complete the App Store Connect/TestFlight record.
+CREDENTIAL_REQUIRED=YES (`MORT_APPLE_CERTIFICATE_P12_BASE64`, `MORT_APPLE_CERTIFICATE_PASSWORD`, `MORT_APPLE_PROVISIONING_PROFILE_BASE64`, `MORT_APPLE_DEVELOPMENT_TEAM`, `MORT_APPLE_KEYCHAIN_PASSWORD`)
 PROVIDER=Apple
-LAUNCH_IMPACT=Blocks TestFlight/App Store submission; it does not block the completed BrowserStack QA evidence.
-FAIL_CLOSED_BEHAVIOR=N/A (build/distribution gate, not a runtime safety gate)
+LAUNCH_IMPACT=Blocks a signed TestFlight/App Store IPA, but no longer represents missing release automation.
+FAIL_CLOSED_BEHAVIOR=Correct — no debug-signing fallback and the workflow rejects missing/mismatched team, bundle, or APNs profile data.
 
 ---
 
