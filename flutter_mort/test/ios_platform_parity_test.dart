@@ -36,6 +36,12 @@ void main() {
   final stripePaymentSheet = File(
     'lib/features/payments/stripe_payment_sheet_service.dart',
   ).readAsStringSync();
+  final adMobService = File(
+    'lib/features/ads/data/admob_service.dart',
+  ).readAsStringSync();
+  final signedIosWorkflow = File(
+    '../.github/workflows/mort-ios-signed-closed-test.yml',
+  ).readAsStringSync();
 
   group('iOS Info.plist contract', () {
     test('registers the exact MORT URL scheme used by the OAuth callback', () {
@@ -171,6 +177,12 @@ void main() {
             'Raw card/bank details are entered into Stripe and are not collected by MORT.',
       );
       expect(infoPlist, contains('ITSAppUsesNonExemptEncryption'));
+      expect(
+        infoPlist,
+        isNot(contains('NSUserTrackingUsageDescription')),
+        reason: 'iOS production does not request ATT in this release.',
+      );
+      expect(adMobService, contains('defaultTargetPlatform == TargetPlatform.iOS || nonPersonalized'));
     });
   });
 
@@ -318,6 +330,24 @@ void main() {
       expect(ciWorkflow, contains('flutter build ios --release --no-codesign'));
       expect(ciWorkflow, contains('PrivacyInfo.xcprivacy'));
       expect(ciWorkflow, contains('Runner.release.entitlements'));
+    });
+
+    test('signed iOS release workflow fails closed on real Apple credentials', () {
+      for (final requiredInput in [
+        'MORT_APPLE_CERTIFICATE_P12_BASE64',
+        'MORT_APPLE_CERTIFICATE_PASSWORD',
+        'MORT_APPLE_PROVISIONING_PROFILE_BASE64',
+        'MORT_APPLE_DEVELOPMENT_TEAM',
+        'MORT_APPLE_KEYCHAIN_PASSWORD',
+      ]) {
+        expect(signedIosWorkflow, contains(requiredInput));
+      }
+      expect(signedIosWorkflow, contains('BLOCKED-EXTERNAL'));
+      expect(signedIosWorkflow, contains('Apple Distribution'));
+      expect(signedIosWorkflow, contains('aps-environment'));
+      expect(signedIosWorkflow, contains('codesign --verify --deep --strict'));
+      expect(signedIosWorkflow, contains('com.mortapp.mobile'));
+      expect(signedIosWorkflow, isNot(contains('CODE_SIGNING_ALLOWED=NO')));
     });
   });
 
