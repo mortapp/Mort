@@ -151,6 +151,31 @@ Existing components that must be reused rather than duplicated include:
 
 ---
 
+# 3.1 Restore the original product personality
+
+The earliest MORT product direction must remain visible in the final implementation:
+
+- premium and serious, not childish;
+- teen-coded without looking like a school app or allowance tracker;
+- dark/high-contrast MORT atmosphere using the current canonical design tokens rather than resurrecting obsolete colors blindly;
+- short, declarative copy;
+- XP/level counters may animate subtly;
+- no casino treatment;
+- no loot boxes;
+- no random paid rewards;
+- no mascot-driven gamification;
+- no noisy confetti dependency;
+- motion should generally remain fast/subtle and respect Reduced Motion;
+- abstract/original geometric achievement art is preferred to cartoon art.
+
+The original concept also separated **XP/progression** from **trust**. Keep that separation.
+
+- XP answers: how far has this user progressed through legitimate MORT activity?
+- Trust/reputation answers: what does MORT's evidence say about reliability/safety-related marketplace history?
+- Verification answers: what identity/age/affiliation evidence has actually been verified?
+
+A high rank must never substitute for trust or verification, and trust must never be purchasable.
+
 # 4. Restore MORT progression: levels, XP, ranks, badges, streaks, goals, tokens
 
 This is the missing product layer.
@@ -389,6 +414,8 @@ Do not punish users for taking breaks.
 A safety report must not reset the streak.
 
 ## 4.9 Goals / missions
+
+The earliest MORT concept also used an earnings/independence goal progress bar. Preserve the concept, but keep it separate from XP and never expose it publicly by default. Existing earnings goals/Future Independence features remain the financial-goal authority; progression may celebrate a user reaching their own private milestone, but it must not turn earnings into leaderboard score.
 
 Restore goals as a voluntary progression aid.
 
@@ -949,6 +976,22 @@ After implementation:
 - no advertising identifier required by progression.
 
 ---
+
+# 13.1 Social identity / Motion layer
+
+The original MORT vision included social identity and a lightweight “Motion” feeling around progress. Restore this carefully without creating an open minor directory or random chat system.
+
+Allowed directions:
+
+- an authenticated personal activity/progression feed;
+- safe milestone cards from users the viewer already has an authorized MORT relationship with, if privacy rules permit;
+- category/community milestones;
+- progress/badge presentation on a user’s own profile and safe public profile projection;
+- shareable external milestone cards controlled by the user.
+
+Do **not** add global random teen discovery, dating/matchmaking, anonymous chat, or unrestricted direct messaging as part of gamification.
+
+A future “Motion Feed” should be relationship/context aware and moderation aware. If Codex implements any feed now, it must be built from safe allowlisted event types and must not expose job addresses, earnings, school details, verification evidence, reports, or message content.
 
 # 14. Growth: make MORT bigger without breaking trust
 
