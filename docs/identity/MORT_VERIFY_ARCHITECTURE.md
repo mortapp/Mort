@@ -1,46 +1,53 @@
-# MORT Verify Architecture
+# MORT Verify architecture
 
-## Purpose
+Last audited: 2026-09-20
 
-MORT Verify is a teen-specific verification subsystem for ages 13–17. It keeps three claims separate:
+## Canonical verification path
 
-- school affiliation
-- age-band assurance
-- identity assurance
+MORT Verify is a first-party teen school-affiliation and age-assurance flow. Production collection is fail-closed. The canonical path is:
 
-No single school-domain signal grants marketplace access, and a school email does not prove age.
+1. The authenticated teen enters an approved school email.
+2. The `mort-verify` Edge Function starts a server-gated session.
+3. An eight-digit school-email challenge is generated in the Edge Function. Only an HMAC-SHA256 digest is stored; raw codes are not stored in Postgres.
+4. After the school-email challenge succeeds, the teen may upload a school ID to the private `mort-verify-evidence` Storage bucket.
+5. Upload paths are bound to `{user_id}/{session_id}/{front|back}/{uuid}.{ext}`. The server validates object ownership, byte size, extension, magic bytes, MIME type, and SHA-256 before registering evidence.
+6. The teen submits the session for manual review.
+7. An authorized reviewer claims a short-lived assignment. Raw evidence is exposed only through a five-minute signed URL, and the server re-checks the reviewer's current safety role when that URL is requested.
+8. Review decisions keep three claims separate: school affiliation, student identity consistency, and age assurance. A school email alone never proves age.
+9. A verified age result is restricted to the 13–15 or 16–17 bands. A `manual_exception` age decision requires a current senior safety moderator role.
+10. Verification does not claim a government-issued legal identity and does not itself grant marketplace access.
 
-## Current deployment state
+## Fail-closed controls
 
-The hosted schema is installed, but production collection is disabled. The control row defaults to sandbox mode and requires legal approval, privacy approval, trained reviewers, and an explicit production enable before ordinary accounts can submit real school-ID evidence.
+`private.mort_verify_control` defaults to:
 
-Synthetic/test accounts can exercise the sandbox path without opening the public marketplace or payments.
+- `mode = disabled`
+- `school_email_enabled = false`
+- `school_id_enabled = false`
+- `manual_review_enabled = false`
+- `production_document_collection_approved = false`
 
-## Verification flow
+Production collection therefore requires an explicit server-side activation decision after legal, privacy, reviewer-operations, and release gates are complete.
 
-A teen session starts from the DOB already stored on the account. Under-13 and 18+ claims are rejected from the teen flow. A session records only the claimed band 13–15 or 16–17.
+## Evidence access
 
-School affiliation uses the existing approved school-domain system. The account email must already be confirmed by Supabase Auth and match an approved school/program domain. Unknown domains go to restricted affiliation review and grant no trust signal.
+Raw school IDs are not public profile data. Authenticated users receive no read policy on the canonical evidence bucket. Review access requires both:
 
-School-ID capture is normalized on-device before upload: orientation is baked, dimensions are capped, and the image is re-encoded as JPEG. The object is written to a private user/session path in the private teen-school-id bucket.
+- a current `verification_reviewer` or `senior_safety_moderator` role; and
+- a live, unrevoked review assignment.
 
-The teen then submits the session to a restricted verification queue. A reviewer must claim the case, obtain a short-lived document grant, and inspect the evidence before a decision can change verification state.
+The service helper re-validates both conditions before document metadata is returned to the Edge Function for signed-URL creation.
 
-Approval requires all of the following:
-- verified school affiliation
-- current school ID
-- school matches the affiliation
-- name match
-- no suspected tampering
-- usable DOB evidence on the reviewed ID
-- observed age band matches the account-derived teen band
+## Retention
 
-If the school ID does not independently support age, the result is age_evidence_required rather than guessed or auto-approved.
+Canonical raw school-ID evidence has a default 14-day retention deadline. A scheduled protected worker removes Storage objects after expiration and then marks their metadata deleted, unless a preservation hold or active review assignment blocks deletion.
 
-## Trust boundaries
+The older `teen_verification_*` implementation is retained only for historical records and cleanup compatibility. Its authenticated client/reviewer RPCs and Storage policies are revoked, its control row is disabled, and only service-role retention cleanup remains available.
 
-Client code cannot update private verification state directly. Authoritative state changes occur through SECURITY DEFINER RPCs with a pinned empty search_path and caller/role checks.
+## Canonical components
 
-Raw school-ID objects are never public profile data. Reviewer reads require both an active review assignment and an unexpired document access grant.
-
-Production identity-provider activation, live marketplace payments, public marketplace activation, ads/IAP, and external AI are not enabled by this feature.
+- Flutter repository: `flutter_mort/lib/data/repositories/mort_verify_repository.dart`
+- Flutter flow: `flutter_mort/lib/features/trust/teen_verification_screens.dart`
+- Edge Function: `supabase/functions/mort-verify/index.ts`
+- Retention worker: `supabase/functions/teen-verification-retention-processor/index.ts`
+- Canonical migrations: `20260920201000`, `20260920203500`, `20260920205000`, `20260920214100`, `20260920214728`
