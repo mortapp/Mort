@@ -29,6 +29,9 @@ const canonicalEmail = read(
 const canonicalHardening = read(
   "supabase/migrations/20260920214100_mort_verify_canonical_hardening_v2.sql",
 );
+const retentionReviewHardening = read(
+  "supabase/migrations/20260920214728_mort_verify_retention_and_review_hardening_v3.sql",
+);
 const edge = read("supabase/functions/mort-verify/index.ts");
 const retentionWorker = read(
   "supabase/functions/teen-verification-retention-processor/index.ts",
@@ -70,7 +73,22 @@ assert.match(canonicalHardening, /verification_reviewer_required/);
 assert.doesNotMatch(canonicalHardening, /auth\.role\(\)/);
 assert.match(canonicalHardening, /auth\.jwt\(\)->>'role'/);
 
-assert.match(edge, /action: "start"|\| "start"/);
+assert.match(
+  retentionReviewHardening,
+  /service_list_expired_mort_verify_documents/,
+);
+assert.match(
+  retentionReviewHardening,
+  /service_finalize_mort_verify_document_purge/,
+);
+assert.match(
+  retentionReviewHardening,
+  /senior_review_required_for_age_exception/,
+);
+assert.match(retentionReviewHardening, /school_id_front_required/);
+assert.match(retentionReviewHardening, /review_result='accepted'/);
+
+assert.match(edge, /\| "start"/);
 assert.match(edge, /resend_code/);
 assert.match(edge, /verify_email/);
 assert.match(edge, /challengeDigest/);
@@ -93,5 +111,5 @@ for (const profileName of ["closed_test", "reviewer_demo"]) {
 }
 
 console.log(
-  "PASS: canonical MORT Verify is fail-closed; legacy client access is retired; reviewer access is live-role checked; retention stays service-only.",
+  "PASS: canonical MORT Verify is fail-closed; legacy client access is retired; reviewer access is live-role checked; canonical and legacy retention stay service-only; age exceptions require senior review.",
 );
