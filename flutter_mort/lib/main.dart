@@ -21,21 +21,16 @@ import 'services/push/remote_push_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Android 15+ (targetSdk 35+, which MORT uses) enforces edge-to-edge
+  // display regardless of app preference -- content draws behind system
+  // bars whether or not the app asks for it. Keep this before the
+  // BrowserStack QA early return so real-device QA exercises the same window
+  // inset/system-bar mode as the normal app.
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   if (AppConfig.browserStackQaMode) {
     _runApp();
     return;
   }
-  // Android 15+ (targetSdk 35+, which MORT uses) enforces edge-to-edge
-  // display regardless of app preference -- content draws behind system
-  // bars whether or not the app asks for it. Without explicitly opting
-  // in here, Flutter's own inset plumbing can end up mismatched with
-  // what the OS is already doing, which is exactly what caused a real,
-  // physically-confirmed bug: the Welcome screen's second button
-  // ("I already have an account") rendered behind the system navigation
-  // bar with SafeArea reporting zero bottom inset. This call keeps
-  // Flutter's MediaQuery.viewPadding/SafeArea calculations in sync with
-  // the OS's actual (mandatory) edge-to-edge behavior.
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   configureRemotePushBackgroundHandler();
   if (MortSentryCrashProvider.canInitialize) {
     try {
