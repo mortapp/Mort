@@ -46,6 +46,8 @@ test("BrowserStack APK build mode remains explicit and opt-in", async () => {
   assert.match(source, /\[switch\]\$BrowserStackQa/);
   assert.match(source, /MORT_BROWSERSTACK_QA_MODE=true/);
   assert.match(source, /if \(\$BrowserStackQa\)/);
+  assert.match(source, /GOOGLE_AUTH_ENABLED=\$googleAuthEnabled/);
+  assert.match(source, /\$googleAuthEnabled = if \(\$BrowserStackQa\)/);
 });
 
 test("QA router exposes the accessibility screen used for reduced-motion proof", async () => {

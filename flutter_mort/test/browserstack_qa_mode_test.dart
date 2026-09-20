@@ -33,7 +33,7 @@ void main() {
     );
   });
 
-  test('QA bootstrap bypasses release validation', () {
+  test('QA bootstrap still validates its fail-closed release contract', () {
     final main = File('lib/main.dart').readAsStringSync();
     final bootstrap = main.substring(
       main.indexOf('Future<Object?> _initializeSafely() async'),
@@ -45,10 +45,6 @@ void main() {
 
     expect(qaBranch, greaterThanOrEqualTo(0));
     expect(releaseValidation, greaterThanOrEqualTo(0));
-    expect(qaBranch, lessThan(releaseValidation));
-    expect(
-      bootstrap.substring(qaBranch, releaseValidation),
-      contains('return null;'),
-    );
+    expect(releaseValidation, lessThan(qaBranch));
   });
 }
