@@ -65,7 +65,9 @@ void main() {
       expect(infoPlist, contains('NSLocationWhenInUseUsageDescription'));
     });
 
-    test('never requests background location and limits background work to push', () {
+    test(
+      'never requests background location and limits background work to push',
+      () {
       expect(
         infoPlist,
         isNot(contains('NSLocationAlwaysAndWhenInUseUsageDescription')),
@@ -74,7 +76,8 @@ void main() {
       expect(infoPlist, contains('<string>remote-notification</string>'));
       expect(infoPlist, isNot(contains('<string>location</string>')));
       expect(infoPlist, isNot(contains('<string>audio</string>')));
-    });
+      },
+    );
 
     test('keeps App Transport Security strict', () {
       expect(infoPlist, isNot(contains('NSAllowsArbitraryLoads')));
@@ -134,14 +137,16 @@ void main() {
           r'CODE_SIGN_ENTITLEMENTS = Runner/Runner\.release\.entitlements;',
         ).allMatches(pbxproj).length,
         2,
-        reason: 'Release and Profile must sign with the production APNs entitlement.',
+        reason:
+            'Release and Profile must sign with the production APNs entitlement.',
       );
       expect(releaseEntitlements, contains('<key>aps-environment</key>'));
       expect(releaseEntitlements, contains('<string>production</string>'));
       expect(
         releaseEntitlements,
         isNot(contains('com.apple.developer.applesignin')),
-        reason: 'Apple OAuth uses the existing PKCE browser flow, not native Sign in with Apple.',
+        reason:
+            'Apple OAuth uses the existing PKCE browser flow, not native Sign in with Apple.',
       );
       expect(
         releaseEntitlements,
@@ -182,7 +187,12 @@ void main() {
         isNot(contains('NSUserTrackingUsageDescription')),
         reason: 'iOS production does not request ATT in this release.',
       );
-      expect(adMobService, contains('defaultTargetPlatform == TargetPlatform.iOS || nonPersonalized'));
+      expect(
+        adMobService,
+        contains(
+          'defaultTargetPlatform == TargetPlatform.iOS || nonPersonalized',
+        ),
+      );
     });
   });
 
@@ -318,12 +328,15 @@ void main() {
   });
 
   group('shared Android/iOS release parity', () {
-    test('Stripe PaymentSheet stays platform-neutral and provider-authoritative', () {
+    test(
+      'Stripe PaymentSheet stays platform-neutral and provider-authoritative',
+      () {
       expect(stripePaymentSheet, contains('package:flutter_stripe'));
       expect(stripePaymentSheet, contains("startsWith('pk_test_')"));
       expect(stripePaymentSheet, isNot(contains('TargetPlatform.android')));
       expect(stripePaymentSheet, isNot(contains('Platform.isAndroid')));
-    });
+      },
+    );
 
     test('normal CI includes an authoritative macOS iOS release build', () {
       expect(ciWorkflow, contains('ios-authoritative:'));
@@ -332,7 +345,9 @@ void main() {
       expect(ciWorkflow, contains('Runner.release.entitlements'));
     });
 
-    test('signed iOS release workflow fails closed on real Apple credentials', () {
+    test(
+      'signed iOS release workflow fails closed on real Apple credentials',
+      () {
       for (final requiredInput in [
         'MORT_APPLE_CERTIFICATE_P12_BASE64',
         'MORT_APPLE_CERTIFICATE_PASSWORD',
@@ -348,7 +363,8 @@ void main() {
       expect(signedIosWorkflow, contains('codesign --verify --deep --strict'));
       expect(signedIosWorkflow, contains('com.mortapp.mobile'));
       expect(signedIosWorkflow, isNot(contains('CODE_SIGNING_ALLOWED=NO')));
-    });
+      },
+    );
   });
 
   group('MORT iOS BrowserStack workflow contract', () {
