@@ -6,16 +6,16 @@ const root = resolve(import.meta.dirname, "..");
 const read = (path) => readFileSync(resolve(root, path), "utf8");
 
 const foundation = read(
-  "supabase/migrations/20260920180000_mort_verify_age_school_foundation.sql",
+  "supabase/migrations/20260920180350_mort_verify_age_school_foundation.sql",
 );
 const review = read(
-  "supabase/migrations/20260920181000_mort_verify_review_access_hardening.sql",
+  "supabase/migrations/20260920180910_mort_verify_review_access_hardening.sql",
 );
 const retention = read(
-  "supabase/migrations/20260920182000_mort_verify_retention_cleanup.sql",
+  "supabase/migrations/20260920181521_mort_verify_retention_cleanup.sql",
 );
 const binding = read(
-  "supabase/migrations/20260920183000_mort_verify_storage_helper_binding.sql",
+  "supabase/migrations/20260920181647_mort_verify_storage_helper_binding.sql",
 );
 const worker = read(
   "supabase/functions/teen-verification-retention-processor/index.ts",
