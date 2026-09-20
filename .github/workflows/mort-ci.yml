@@ -117,7 +117,12 @@ jobs:
           flutter-version: 3.47.2
           cache: true
       - run: flutter pub get
-      - run: dart format --output=none --set-exit-if-changed lib test integration_test
+      - name: Show Dart formatter diff for MORT Verify
+        shell: bash
+        run: |
+          dart format lib test integration_test
+          git diff -- lib/data/repositories/mort_verify_repository.dart lib/features/trust/teen_verification_screens.dart test/mort_verify_contract_test.dart
+          exit 1
       - run: flutter analyze --no-pub
       - run: flutter test --no-pub test/features/payment_os_integration_test.dart
       - run: flutter test --no-pub
