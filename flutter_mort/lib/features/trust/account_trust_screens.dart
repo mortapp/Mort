@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_colors.dart';
@@ -1000,7 +999,6 @@ class _TrustAdminReviewScreenState
     'risk_signals': 'Risk signals',
     'account_security': 'Account security events',
     'provider_events': 'Provider events',
-    'teen_verifications': 'Teen age & school verification',
   };
 
   @override
@@ -1020,17 +1018,13 @@ class _TrustAdminReviewScreenState
     }
     setState(() => _busy = true);
     try {
-      final repository = ref.read(accountTrustRepositoryProvider);
-      final items = _queue == 'teen_verifications'
-          ? await repository.getTeenVerificationReviewQueue(
-              accessReason: _reason.text,
-              caseId: _caseId.text,
-            )
-          : await repository.getAdminQueue(
-              queue: _queue,
-              accessReason: _reason.text,
-              caseId: _caseId.text,
-            );
+      final items = await ref
+          .read(accountTrustRepositoryProvider)
+          .getAdminQueue(
+            queue: _queue,
+            accessReason: _reason.text,
+            caseId: _caseId.text,
+          );
       if (mounted) setState(() => _items = items);
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
@@ -1083,25 +1077,7 @@ class _TrustAdminReviewScreenState
             ..._items!.map(
               (item) => Padding(
                 padding: const EdgeInsets.only(bottom: MortSpacing.sm),
-                child: MortCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SelectableText(_formatAdminItem(item)),
-                      if (_queue == 'teen_verifications' &&
-                          item['session_id'] is String) ...[
-                        const SizedBox(height: MortSpacing.sm),
-                        MortButton(
-                          label: 'Open restricted review',
-                          icon: Icons.verified_user_outlined,
-                          onPressed: () => context.go(
-                            '/admin/teen-verification/${item['session_id']}',
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+                child: MortCard(child: SelectableText(_formatAdminItem(item))),
               ),
             ),
         ],
