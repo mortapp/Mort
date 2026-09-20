@@ -18,7 +18,8 @@ void main() {
       expect(screen, contains('Age:'));
       expect(screen, contains('A school email alone never proves your age.'));
       expect(repository, contains("'get_mort_verify_status'"));
-      expect(repository, contains("'verify_mort_school_email_code'"));
+      expect(repository, contains("'verify_email'"));
+      expect(repository, contains("'resend_code'"));
       expect(repository, contains("'submit_mort_verify_session'"));
       expect(repository, contains("'mort-verify-evidence'"));
     },
@@ -40,6 +41,15 @@ void main() {
       expect(migration, contains("'adult_account_required'"));
       expect(migration, contains("'school_domain_not_approved'"));
       expect(migration, contains("'active_review_assignment_required'"));
+      final hardening = File(
+        '../supabase/migrations/20260920205000_mort_verify_email_challenge_hardening_v1.sql',
+      ).readAsStringSync();
+      expect(hardening, contains('service_mort_verify_verify_email_code'));
+      expect(
+        hardening,
+        contains('from public, anon, authenticated'),
+        reason: 'Raw verification-code RPC must not remain client executable.',
+      );
       expect(
         migration,
         contains("legal_identity_claimed', false"),

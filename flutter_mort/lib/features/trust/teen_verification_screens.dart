@@ -287,6 +287,16 @@ class _MortVerifyTeenScreenState extends ConsumerState<MortVerifyTeenScreen> {
     await _refresh();
   });
 
+  Future<void> _resendCode() => _run(() async {
+    final sessionId = _sessionId;
+    if (sessionId == null) return;
+    await ref
+        .read(mortVerifyRepositoryProvider)
+        .resendSchoolEmailCode(sessionId);
+    if (!mounted) return;
+    setState(() => _message = 'A new school verification code was sent.');
+  });
+
   Future<void> _verifyCode() => _run(() async {
     final sessionId = _sessionId;
     if (sessionId == null) return;
@@ -420,6 +430,14 @@ class _MortVerifyTeenScreenState extends ConsumerState<MortVerifyTeenScreen> {
               icon: Icons.mark_email_read_outlined,
               busy: _busy,
               onPressed: _busy ? null : _verifyCode,
+            ),
+            const SizedBox(height: MortSpacing.sm),
+            MortButton(
+              label: 'Resend code',
+              icon: Icons.refresh,
+              style: MortButtonStyle.secondary,
+              busy: _busy,
+              onPressed: _busy ? null : _resendCode,
             ),
           ] else if (state == 'school_id_required' ||
               state == 'document_pending') ...[

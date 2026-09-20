@@ -31,13 +31,24 @@ class MortVerifyRepository extends RepositoryBase {
     required String code,
   }) async {
     requireUserId();
-    final value = await client.rpc(
-      'verify_mort_school_email_code',
-      params: {'p_session_id': sessionId, 'p_code': code.trim()},
+    final response = await client.functions.invoke(
+      'mort-verify',
+      body: {
+        'action': 'verify_email',
+        'session_id': sessionId,
+        'code': code.trim(),
+      },
     );
-    final result = _map(value);
-    _requireSuccess(result);
-    return result;
+    return _requireFunctionMap(response);
+  }
+
+  Future<Map<String, dynamic>> resendSchoolEmailCode(String sessionId) async {
+    requireUserId();
+    final response = await client.functions.invoke(
+      'mort-verify',
+      body: {'action': 'resend_code', 'session_id': sessionId},
+    );
+    return _requireFunctionMap(response);
   }
 
   Future<Map<String, dynamic>> uploadSchoolId({

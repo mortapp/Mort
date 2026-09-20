@@ -12,12 +12,15 @@ const bucket = "mort-verify-evidence";
 
 type Action =
   | "start"
+  | "resend_code"
+  | "verify_email"
   | "finalize_document"
   | "review_document_url";
 
 type RequestBody = {
   action?: Action;
   email?: string;
+  code?: string;
   session_id?: string;
   storage_path?: string;
   side?: "front" | "back";
@@ -51,6 +54,20 @@ Deno.serve(async (request: Request) => {
         return await startVerification(
           user.id,
           userClient,
+          serviceClient,
+          body,
+          traceId,
+        );
+      case "resend_code":
+        return await resendCode(
+          user.id,
+          serviceClient,
+          body,
+          traceId,
+        );
+      case "verify_email":
+        return await verifyEmailCode(
+          user.id,
           serviceClient,
           body,
           traceId,
@@ -183,13 +200,167 @@ async function startVerification(
     );
   }
 
+  await issueEmailChallenge({
+    userId,
+    sessionId: started.session_id,
+    serviceClient,
+    apiKey,
+    from,
+    to: email,
+    schoolName: started.school ?? "your school",
+    traceId,
+  });
+
+  structuredLog("info", "mort_verify.school_email_sent", traceId, {
+    session_id: started.session_id,
+  });
+  return correlatedJson(
+    {
+      ok: true,
+      session_id: started.session_id,
+      status: "email_pending",
+      school: started.school,
+      email_masked: started.email_masked,
+      code_expires_in_seconds: 900,
+      next_step: "verify_school_email_code",
+    },
+    200,
+    traceId,
+    corsHeaders(),
+  );
+}
+
+async function resendCode(
+  userId: string,
+  serviceClient: ReturnType<typeof createClient>,
+  body: RequestBody,
+  traceId: string,
+) {
+  const sessionId = body.session_id ?? "";
+  if (!uuidPattern.test(sessionId)) {
+    throw new VerifyError("invalid_session_id", 400);
+  }
+
+  const apiKey = Deno.env.get("MORT_VERIFY_EMAIL_API_KEY");
+  const from = Deno.env.get("MORT_VERIFY_EMAIL_FROM");
+  if (!apiKey || !from) {
+    throw new VerifyError("school_email_delivery_not_configured", 503);
+  }
+
+  const { data: session, error } = await serviceClient.rpc(
+    "service_mort_verify_get_session_for_delivery",
+    { p_user_id: userId, p_session_id: sessionId },
+  );
+  if (error || session?.ok !== true || typeof session?.email !== "string") {
+    throw new VerifyError(session?.code ?? "session_not_available", 400);
+  }
+  if (session.status !== "email_pending") {
+    throw new VerifyError("school_email_already_verified", 409);
+  }
+
+  await issueEmailChallenge({
+    userId,
+    sessionId,
+    serviceClient,
+    apiKey,
+    from,
+    to: session.email,
+    schoolName: session.school_name ?? "your school",
+    traceId,
+  });
+
+  return correlatedJson(
+    {
+      ok: true,
+      session_id: sessionId,
+      status: "email_pending",
+      code_expires_in_seconds: 900,
+    },
+    200,
+    traceId,
+    corsHeaders(),
+  );
+}
+
+async function verifyEmailCode(
+  userId: string,
+  serviceClient: ReturnType<typeof createClient>,
+  body: RequestBody,
+  traceId: string,
+) {
+  const sessionId = body.session_id ?? "";
+  const code = body.code?.trim() ?? "";
+  if (!uuidPattern.test(sessionId) || !/^[0-9]{8}$/.test(code)) {
+    throw new VerifyError("invalid_verification_code", 400);
+  }
+
+  const digest = await challengeDigest(code);
+  const { data, error } = await serviceClient.rpc(
+    "service_mort_verify_verify_email_code",
+    {
+      p_user_id: userId,
+      p_session_id: sessionId,
+      p_code_digest: digest,
+    },
+  );
+  if (error) {
+    structuredLog("warn", "mort_verify.code_verify_rpc_failed", traceId, {
+      database_code: error.code,
+    });
+    throw new VerifyError("verification_code_check_failed", 503);
+  }
+  if (data?.ok !== true) {
+    const codeValue = data?.code ?? "verification_code_invalid";
+    const status = codeValue === "verification_code_attempts_exhausted"
+      ? 429
+      : codeValue === "session_not_available"
+      ? 404
+      : 400;
+    throw new VerifyError(codeValue, status);
+  }
+
+  structuredLog("info", "mort_verify.school_email_verified", traceId, {
+    session_id: sessionId,
+  });
+  return correlatedJson(
+    {
+      ok: true,
+      status: data.status,
+      school_email_verified: true,
+      next_step: data.next_step,
+    },
+    200,
+    traceId,
+    corsHeaders(),
+  );
+}
+
+async function issueEmailChallenge({
+  userId,
+  sessionId,
+  serviceClient,
+  apiKey,
+  from,
+  to,
+  schoolName,
+  traceId,
+}: {
+  userId: string;
+  sessionId: string;
+  serviceClient: ReturnType<typeof createClient>;
+  apiKey: string;
+  from: string;
+  to: string;
+  schoolName: string;
+  traceId: string;
+}) {
   const code = randomEightDigitCode();
-  const codeHash = await sha256Hex(code);
+  const codeHash = await challengeDigest(code);
   const { data: challenge, error: challengeError } = await serviceClient.rpc(
     "service_mort_verify_issue_email_challenge",
     {
       p_user_id: userId,
-      p_session_id: started.session_id,
+      p_session_id: sessionId,
       p_code_hash: codeHash,
     },
   );
@@ -210,40 +381,21 @@ async function startVerification(
   const emailSent = await sendSchoolEmail({
     apiKey,
     from,
-    to: challenge.email,
-    schoolName: started.school ?? challenge.school_name ?? "your school",
+    to,
+    schoolName,
     code,
   });
   await serviceClient.rpc("service_mort_verify_mark_email_delivery", {
-    p_session_id: started.session_id,
+    p_session_id: sessionId,
     p_code_hash: codeHash,
     p_sent: emailSent,
   });
-
   if (!emailSent) {
     structuredLog("error", "mort_verify.email_delivery_failed", traceId, {
-      session_id: started.session_id,
+      session_id: sessionId,
     });
     throw new VerifyError("school_email_delivery_failed", 503);
   }
-
-  structuredLog("info", "mort_verify.school_email_sent", traceId, {
-    session_id: started.session_id,
-  });
-  return correlatedJson(
-    {
-      ok: true,
-      session_id: started.session_id,
-      status: "email_pending",
-      school: started.school,
-      email_masked: started.email_masked,
-      code_expires_in_seconds: 900,
-      next_step: "verify_school_email_code",
-    },
-    200,
-    traceId,
-    corsHeaders(),
-  );
 }
 
 async function finalizeDocument(
@@ -415,8 +567,24 @@ function randomEightDigitCode() {
   return String(values[0] % 100_000_000).padStart(8, "0");
 }
 
-async function sha256Hex(value: string) {
-  return sha256Bytes(new TextEncoder().encode(value));
+async function challengeDigest(code: string) {
+  const pepper = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!pepper) throw new VerifyError("server_not_configured", 503);
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(pepper),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const digest = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(code),
+  );
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 async function sha256Bytes(bytes: Uint8Array) {
