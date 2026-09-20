@@ -74,11 +74,11 @@ class MortVerifyRepository extends RepositoryBase {
       final response = await client.functions.invoke(
         'mort-verify',
         body: {
-        'action': 'finalize_document',
-        'session_id': sessionId,
-        'storage_path': path,
-        'side': side,
-      },
+          'action': 'finalize_document',
+          'session_id': sessionId,
+          'storage_path': path,
+          'side': side,
+        },
       );
       return _requireFunctionMap(response);
     } catch (_) {

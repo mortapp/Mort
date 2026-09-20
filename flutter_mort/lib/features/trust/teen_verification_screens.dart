@@ -290,10 +290,12 @@ class _MortVerifyTeenScreenState extends ConsumerState<MortVerifyTeenScreen> {
   Future<void> _verifyCode() => _run(() async {
     final sessionId = _sessionId;
     if (sessionId == null) return;
-    await ref.read(mortVerifyRepositoryProvider).verifySchoolEmailCode(
-      sessionId: sessionId,
-      code: _codeController.text,
-    );
+    await ref
+        .read(mortVerifyRepositoryProvider)
+        .verifySchoolEmailCode(
+          sessionId: sessionId,
+          code: _codeController.text,
+        );
     if (!mounted) return;
     setState(() => _message = 'School email confirmed. Add your school ID.');
     await _refresh();
@@ -309,11 +311,13 @@ class _MortVerifyTeenScreenState extends ConsumerState<MortVerifyTeenScreen> {
     );
     if (file == null) return;
     final bytes = await file.readAsBytes();
-    await ref.read(mortVerifyRepositoryProvider).uploadSchoolId(
-      sessionId: sessionId,
-      side: side,
-      source: Uint8List.fromList(bytes),
-    );
+    await ref
+        .read(mortVerifyRepositoryProvider)
+        .uploadSchoolId(
+          sessionId: sessionId,
+          side: side,
+          source: Uint8List.fromList(bytes),
+        );
     if (!mounted) return;
     setState(() {
       if (side == 'front') _frontUploaded = true;
