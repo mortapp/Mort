@@ -348,9 +348,7 @@ final teenVerificationStatusProvider = FutureProvider<TeenVerificationStatus>((
   ref,
 ) {
   ref.watch(authStateProvider);
-  return ref
-      .watch(accountTrustRepositoryProvider)
-      .getTeenVerificationStatus();
+  return ref.watch(accountTrustRepositoryProvider).getTeenVerificationStatus();
 });
 
 void invalidateUserScopedProviders(WidgetRef ref) {

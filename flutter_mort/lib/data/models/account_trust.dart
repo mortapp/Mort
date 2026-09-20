@@ -69,7 +69,6 @@ class TrustIndicator {
   final String? environment;
 }
 
-
 class TeenVerificationStatus {
   const TeenVerificationStatus({
     required this.mode,

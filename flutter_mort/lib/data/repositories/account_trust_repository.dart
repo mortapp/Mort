@@ -101,14 +101,16 @@ class AccountTrustRepository extends RepositoryBase {
     final digest = sha256.convert(bytes).toString();
 
     try {
-      await client.storage.from('teen-school-id').uploadBinary(
-        path,
-        bytes,
-        fileOptions: const FileOptions(
-          contentType: 'image/jpeg',
-          upsert: false,
-        ),
-      );
+      await client.storage
+          .from('teen-school-id')
+          .uploadBinary(
+            path,
+            bytes,
+            fileOptions: const FileOptions(
+              contentType: 'image/jpeg',
+              upsert: false,
+            ),
+          );
       return await _action('register_my_teen_school_id', {
         'p_session_id': sessionId,
         'p_storage_path': path,

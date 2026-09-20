@@ -122,8 +122,7 @@ class _TeenVerificationOptionsScreenState
     ref.invalidate(teenVerificationStatusProvider);
     if (mounted) {
       setState(
-        () => _message =
-            'Submitted for restricted review. Your raw school ID stays private.',
+        () => _message = 'Submitted for restricted review. Your raw school ID stays private.',
       );
     }
   });
@@ -161,13 +160,10 @@ class _TeenVerificationOptionsScreenState
         const MortHeader(
           eyebrow: 'MORT Verify',
           title: 'Verify age and school affiliation',
-          subtitle:
-              'Teen verification requires a confirmed school email and a current school ID. Age is only marked verified when reviewed evidence actually supports the 13–17 age band.',
+          subtitle: 'Teen verification requires a confirmed school email and a current school ID. Age is only marked verified when reviewed evidence actually supports the 13–17 age band.',
         ),
         MortSafetyBanner(
-          message:
-              collectionLabel +
-              '. School affiliation, age assurance, and identity are separate checks. Verification never guarantees safety.',
+          message: collectionLabel + '. School affiliation, age assurance, and identity are separate checks. Verification never guarantees safety.',
         ),
         const SizedBox(height: MortSpacing.md),
         _StatusCard(
@@ -175,25 +171,21 @@ class _TeenVerificationOptionsScreenState
           value: status.ageStatus,
           detail: status.ageBand == null
               ? 'Start a session to establish the claimed age band from your account DOB.'
-              : 'Claimed band: ' +
-                    _humanize(status.ageBand!) +
-                    '. Final age verification requires independent reviewed evidence.',
+              : 'Claimed band: ' + _humanize(status.ageBand!) + '. Final age verification requires independent reviewed evidence.',
           verified: status.ageStatus == 'verified',
         ),
         const SizedBox(height: MortSpacing.sm),
         _StatusCard(
           title: 'School email',
           value: status.schoolEmailVerified ? 'verified' : 'required',
-          detail:
-              'Your confirmed MORT account email must use an approved school or program domain. Unknown domains go to restricted review.',
+          detail: 'Your confirmed MORT account email must use an approved school or program domain. Unknown domains go to restricted review.',
           verified: status.schoolEmailVerified,
         ),
         const SizedBox(height: MortSpacing.sm),
         _StatusCard(
           title: 'School ID',
           value: status.schoolIdStatus,
-          detail:
-              'A current school ID is required. MORT re-encodes the photo to remove ordinary image metadata, stores it in a private bucket, and never publishes it.',
+          detail: 'A current school ID is required. MORT re-encodes the photo to remove ordinary image metadata, stores it in a private bucket, and never publishes it.',
           verified: status.schoolIdStatus == 'reviewed',
         ),
         const SizedBox(height: MortSpacing.sm),
@@ -307,7 +299,10 @@ class _StatusCard extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+              child: Text(
+                title,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             ),
             MortTrustBadge(label: _humanize(value), verified: verified),
           ],
@@ -328,8 +323,7 @@ class TeenVerificationCapturePreparationScreen extends StatelessWidget {
       MortHeader(
         eyebrow: 'MORT Verify privacy',
         title: 'Before you capture a school ID',
-        subtitle:
-            'Only submit your own current school ID. Do not include unrelated documents.',
+        subtitle: 'Only submit your own current school ID. Do not include unrelated documents.',
       ),
       MortCard(
         child: Text(
@@ -344,19 +338,14 @@ class TeenVerificationCapturePreparationScreen extends StatelessWidget {
       ),
       SizedBox(height: MortSpacing.md),
       MortSafetyBanner(
-        message:
-            'Raw school-ID images are never public profile data. Production collection remains server-gated until legal, privacy, and trained-reviewer controls are approved.',
+        message: 'Raw school-ID images are never public profile data. Production collection remains server-gated until legal, privacy, and trained-reviewer controls are approved.',
       ),
     ],
   );
 }
 
-
 class TeenVerificationAdminReviewScreen extends ConsumerStatefulWidget {
-  const TeenVerificationAdminReviewScreen({
-    super.key,
-    required this.sessionId,
-  });
+  const TeenVerificationAdminReviewScreen({super.key, required this.sessionId});
 
   final String sessionId;
 
@@ -447,8 +436,7 @@ class _TeenVerificationAdminReviewScreenState
       setState(() {
         _claimed = true;
         _documentBytes = bytes;
-        _message =
-            'Private document loaded in memory under a short-lived audited grant.';
+        _message = 'Private document loaded in memory under a short-lived audited grant.';
       });
     }
   });
@@ -479,7 +467,8 @@ class _TeenVerificationAdminReviewScreenState
       setState(() {
         _documentBytes = null;
         _claimed = false;
-        _message = 'Saved review result: ' + (result['status']?.toString() ?? action);
+        _message =
+            'Saved review result: ' + (result['status']?.toString() ?? action);
       });
       ref.invalidate(accountTrustProfileProvider);
     }
@@ -492,10 +481,7 @@ class _TeenVerificationAdminReviewScreenState
         MortHeader(
           eyebrow: 'Restricted reviewer',
           title: 'Teen verification review',
-          subtitle:
-              'Session ' +
-              widget.sessionId +
-              '. Raw school-ID access is assignment-bound, temporary, and audited.',
+          subtitle: 'Session ' + widget.sessionId + '. Raw school-ID access is assignment-bound, temporary, and audited.',
         ),
         MortTextField(label: 'Case ID', controller: _caseId),
         const SizedBox(height: MortSpacing.sm),
@@ -542,8 +528,7 @@ class _TeenVerificationAdminReviewScreenState
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             value: _schoolMatch,
-            onChanged: (value) =>
-                setState(() => _schoolMatch = value ?? false),
+            onChanged: (value) => setState(() => _schoolMatch = value ?? false),
             title: const Text('School matches verified affiliation'),
           ),
           CheckboxListTile(
@@ -556,16 +541,15 @@ class _TeenVerificationAdminReviewScreenState
             contentPadding: EdgeInsets.zero,
             value: _dobPresent,
             onChanged: (value) => setState(() => _dobPresent = value ?? false),
-            title: const Text('School ID contains usable date-of-birth evidence'),
+            title: const Text(
+              'School ID contains usable date-of-birth evidence',
+            ),
           ),
           if (_dobPresent)
             MortDropdown<String>(
               label: 'Observed age band',
               value: _ageBand,
-              items: const {
-                '13_15': '13–15',
-                '16_17': '16–17',
-              },
+              items: const {'13_15': '13–15', '16_17': '16–17'},
               onChanged: (value) =>
                   setState(() => _ageBand = value ?? _ageBand),
             ),

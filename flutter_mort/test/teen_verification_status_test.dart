@@ -31,26 +31,29 @@ void main() {
     expect(status.schoolNamePublic, isFalse);
   });
 
-  test('teen verification becomes verified only when every required result passes', () {
-    final status = TeenVerificationStatus.fromMap({
-      'mode': 'production',
-      'environment': 'production',
-      'submissions_enabled': true,
-      'school_id_required': true,
-      'school_email_required': true,
-      'session_id': '2a91f02b-ecfa-4d84-af7f-a128d651fa73',
-      'status': 'verified',
-      'age_band': '13_15',
-      'school_email_verified': true,
-      'school_id_status': 'reviewed',
-      'age_status': 'verified',
-      'identity_status': 'verified',
-      'production_collection_enabled': true,
-      'raw_document_public': false,
-      'school_name_public': false,
-    });
+  test(
+    'teen verification becomes verified only when every required result passes',
+    () {
+      final status = TeenVerificationStatus.fromMap({
+        'mode': 'production',
+        'environment': 'production',
+        'submissions_enabled': true,
+        'school_id_required': true,
+        'school_email_required': true,
+        'session_id': '2a91f02b-ecfa-4d84-af7f-a128d651fa73',
+        'status': 'verified',
+        'age_band': '13_15',
+        'school_email_verified': true,
+        'school_id_status': 'reviewed',
+        'age_status': 'verified',
+        'identity_status': 'verified',
+        'production_collection_enabled': true,
+        'raw_document_public': false,
+        'school_name_public': false,
+      });
 
-    expect(status.verified, isTrue);
-    expect(status.isSandbox, isFalse);
-  });
+      expect(status.verified, isTrue);
+      expect(status.isSandbox, isFalse);
+    },
+  );
 }
