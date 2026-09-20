@@ -1,33 +1,35 @@
-# MORT Verify Threat Model
+# MORT Verify threat model
 
-## Protected assets
+Last audited: 2026-09-20
 
-- minor school-ID images
-- school affiliation
-- claimed and reviewed age band
-- reviewer decisions
-- internal review/audit state
+## Assets
 
-## Primary threats and controls
+The highest-sensitivity assets are raw school-ID images/PDFs, school email addresses, age evidence, reviewer access, and verification decisions.
 
-**Self-verification forgery.** Private state has no client table access. Final decisions require reviewer-only RPCs and a trigger that verifies assignment plus document access.
+## Adversarial cases and controls
 
-**Cross-user ID theft.** Storage upload paths are owner/session bound. Reads have no owner-facing public policy; reviewer reads require current role, assignment, and short-lived grant.
+| Threat | Control |
+|---|---|
+| Cross-user upload path | Storage path must start with the authenticated user ID and reference that user's live session. |
+| Path traversal / malformed path | Exact four-segment path shape, UUID checks, extension allowlist, and traversal rejection. |
+| MIME or extension spoofing | Server downloads the uploaded object and validates magic bytes, detected MIME, extension, size, and SHA-256 before registration. |
+| Reading another teen's raw ID | No general authenticated SELECT policy on canonical evidence. |
+| Reviewer role revoked after assignment | Raw-document service helper re-checks the reviewer's current safety role at signed-URL request time. |
+| Stale reviewer assignment | Assignment must be unrevoked and unexpired; review decisions require the same. |
+| Verification-code database leak | Only an HMAC-SHA256 digest of the eight-digit code is stored; raw code is generated/delivered server-side. |
+| Online code guessing | Challenge expiry, attempt cap, resend cooldown, and hourly issuance cap. |
+| School email treated as age proof | School-email verification only advances to school-ID collection; final age proof requires independent reviewer evidence. |
+| Ordinary reviewer uses age exception | `manual_exception` requires a current senior safety moderator role. |
+| Approval without evidence | School/age approval requires a verified school email, active front document, current reviewer role, and active assignment. |
+| Accidental production activation | Canonical control row defaults disabled with all collection/review gates false. |
+| Legacy bypass | Superseded authenticated RPCs are revoked and legacy Storage policies are removed. |
+| Raw evidence retained indefinitely | Canonical and legacy buckets are covered by service-only scheduled retention cleanup with preservation/active-review exclusions. |
+| Migration drift | Hosted canonical migration history was reconciled to the source migration timestamps after byte-equivalence verification. |
 
-**Reviewer misuse.** Queue access requires role, case ID, and access reason. Document access is separately granted and expires. Decisions revoke assignments and evidence grants after use.
+## Deliberate limitations
 
-**School-email overclaiming.** A school-domain signal is only affiliation. It never proves age by itself and never grants marketplace access alone.
+MORT Verify does not perform liveness, biometric face matching, or government-identity proofing. It must not be represented as proving legal identity.
 
-**Age guessing.** Approval requires reviewed DOB evidence that independently supports the same 13–15 or 16–17 band. Otherwise age remains unresolved.
+Email delivery depends on protected provider configuration. Production collection is intentionally off until that operational dependency and the external legal/privacy/reviewer gates are approved.
 
-**Duplicate/replayed document.** Exact processed-image SHA-256 reuse across accounts is flagged for review. It is a risk signal, not automatic guilt or automatic rejection.
-
-**Indefinite raw-document retention.** Evidence gets a deletion deadline and a service-only purge path. Active review grants temporarily prevent cleanup; explicit preservation can extend retention.
-
-**Production accidental activation.** Production submissions require server control mode production plus legal, privacy, reviewer-readiness, and production-enable flags. Default state is sandbox/fail-closed.
-
-## Known limitations
-
-Exact image hashing does not detect perceptually similar photos, crops, or re-photographed IDs. No automated face-recognition decision is made. No model is allowed to independently establish legal identity or age.
-
-A separate school-email address challenge is not yet delivered by a transactional-email provider; the current affiliation route requires the confirmed MORT account email itself to be the approved school email. This limitation must remain visible until a dedicated delivery adapter is configured and tested.
+A real authenticated-device upload/review exercise remains a release-validation activity; static controls are designed to fail closed if the provider or activation prerequisites are missing.
