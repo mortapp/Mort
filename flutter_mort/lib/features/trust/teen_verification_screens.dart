@@ -208,7 +208,6 @@ class _TeenVerificationCapturePreparationScreenState
   );
 }
 
-
 class MortVerifyTeenScreen extends ConsumerStatefulWidget {
   const MortVerifyTeenScreen({super.key});
 
@@ -340,13 +339,15 @@ class _MortVerifyTeenScreenState extends ConsumerState<MortVerifyTeenScreen> {
   Widget build(BuildContext context) {
     final available = _status?['available'] == true;
     final session = _status?['session'];
-    final sessionMap =
-        session is Map ? Map<String, dynamic>.from(session) : const <String, dynamic>{};
+    final sessionMap = session is Map
+        ? Map<String, dynamic>.from(session)
+        : const <String, dynamic>{};
     final state = sessionMap['status'] as String?;
     final emailVerified = sessionMap['school_email_verified'] == true;
     final ageVerified = sessionMap['age_verified'] == true;
     final schoolVerified = sessionMap['school_affiliation_verified'] == true;
-    final studentIdentityVerified = sessionMap['student_identity_verified'] == true;
+    final studentIdentityVerified =
+        sessionMap['student_identity_verified'] == true;
 
     return MortScreen(
       children: [
@@ -389,8 +390,12 @@ class _MortVerifyTeenScreenState extends ConsumerState<MortVerifyTeenScreen> {
                 Text('Session status: ${state ?? 'starting'}'),
                 const SizedBox(height: MortSpacing.xs),
                 Text('School email: ${emailVerified ? 'Verified' : 'Pending'}'),
-                Text('School affiliation: ${schoolVerified ? 'Verified' : 'Pending'}'),
-                Text('Student identity: ${studentIdentityVerified ? 'Verified' : 'Pending'}'),
+                Text(
+                  'School affiliation: ${schoolVerified ? 'Verified' : 'Pending'}',
+                ),
+                Text(
+                  'Student identity: ${studentIdentityVerified ? 'Verified' : 'Pending'}',
+                ),
                 Text(
                   'Age: ${ageVerified ? (sessionMap['age_band'] ?? 'Verified') : 'Not yet verified'}',
                 ),

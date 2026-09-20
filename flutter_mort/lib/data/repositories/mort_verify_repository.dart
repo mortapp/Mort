@@ -21,10 +21,7 @@ class MortVerifyRepository extends RepositoryBase {
     requireUserId();
     final response = await client.functions.invoke(
       'mort-verify',
-      body: {
-        'action': 'start',
-        'email': schoolEmail.trim().toLowerCase(),
-      },
+      body: {'action': 'start', 'email': schoolEmail.trim().toLowerCase()},
     );
     return _requireFunctionMap(response);
   }
@@ -77,11 +74,11 @@ class MortVerifyRepository extends RepositoryBase {
       final response = await client.functions.invoke(
         'mort-verify',
         body: {
-          'action': 'finalize_document',
-          'session_id': sessionId,
-          'storage_path': path,
-          'side': side,
-        },
+        'action': 'finalize_document',
+        'session_id': sessionId,
+        'storage_path': path,
+        'side': side,
+      },
       );
       return _requireFunctionMap(response);
     } catch (_) {
@@ -114,9 +111,7 @@ class MortVerifyRepository extends RepositoryBase {
     return result;
   }
 
-  static Map<String, dynamic> _requireFunctionMap(
-    FunctionResponse response,
-  ) {
+  static Map<String, dynamic> _requireFunctionMap(FunctionResponse response) {
     if (response.data is! Map) {
       throw const MortCodedError(
         'invalid_response',
