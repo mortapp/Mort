@@ -127,7 +127,10 @@ jobs:
           flutter-version: 3.47.2
           cache: true
       - run: flutter pub get
-      - run: dart format --output=none --set-exit-if-changed lib test integration_test
+      - name: Verify Dart formatting
+        run: |
+          dart format lib test integration_test
+          git diff --exit-code -- lib test integration_test
       - run: flutter analyze --no-pub
       - run: flutter test --no-pub test/features/payment_os_integration_test.dart
       - run: flutter test --no-pub
@@ -170,7 +173,10 @@ jobs:
       - name: Prepare iOS plugin directory
         run: mkdir -p build/ios/SourcePackages
       - run: flutter pub get
-      - run: dart format --output=none --set-exit-if-changed lib test integration_test
+      - name: Verify Dart formatting
+        run: |
+          dart format lib test integration_test
+          git diff --exit-code -- lib test integration_test
       - run: flutter analyze --no-pub
       - name: Run iOS release-parity contracts
         run: >-
