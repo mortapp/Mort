@@ -166,7 +166,7 @@ class _TeenVerificationOptionsScreenState
         ),
         MortSafetyBanner(
           message:
-              '${collectionLabel}. School affiliation, age assurance, and identity are separate checks. Verification never guarantees safety.',
+              '$collectionLabel. School affiliation, age assurance, and identity are separate checks. Verification never guarantees safety.',
         ),
         const SizedBox(height: MortSpacing.md),
         _StatusCard(
