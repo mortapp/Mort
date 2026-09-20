@@ -344,12 +344,22 @@ final accountTrustProfileProvider = FutureProvider<AccountTrustProfile>((ref) {
   return ref.watch(accountTrustRepositoryProvider).getMyProfile();
 });
 
+final teenVerificationStatusProvider = FutureProvider<TeenVerificationStatus>((
+  ref,
+) {
+  ref.watch(authStateProvider);
+  return ref
+      .watch(accountTrustRepositoryProvider)
+      .getTeenVerificationStatus();
+});
+
 void invalidateUserScopedProviders(WidgetRef ref) {
   ref.invalidate(authStateProvider);
   ref.invalidate(oauthFlowStateProvider);
   ref.invalidate(currentProfileProvider);
   ref.invalidate(onboardingProgressProvider);
   ref.invalidate(accountTrustProfileProvider);
+  ref.invalidate(teenVerificationStatusProvider);
   ref.invalidate(openJobsProvider);
   ref.invalidate(myApplicationsProvider);
   ref.invalidate(myJobsProvider);
