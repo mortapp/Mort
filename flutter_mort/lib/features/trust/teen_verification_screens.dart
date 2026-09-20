@@ -1,204 +1,352 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:image_picker/image_picker.dart';
 
-import '../../core/config/app_config.dart';
-import '../../core/theme/mort_colors.dart';
+import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/widgets/mort_widgets.dart';
-import '../../services/native_permissions_service.dart';
+import '../../data/models/account_trust.dart';
+import '../../data/repositories/providers.dart';
+import '../../data/services/supabase_service.dart';
 
-class TeenVerificationOptionsScreen extends StatelessWidget {
+class TeenVerificationOptionsScreen extends ConsumerStatefulWidget {
   const TeenVerificationOptionsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => MortScreen(
-    children: [
-      const MortHeader(
-        eyebrow: 'Teen trust options',
-        title: 'Choose an evidence route',
-        subtitle:
-            'A current middle-school or high-school ID review is recommended when available, but it is not mandatory.',
-      ),
-      const MortSafetyBanner(
-        message:
-            'This screen uses synthetic examples only. It does not establish legal identity or guarantee safety.',
-      ),
-      const SizedBox(height: MortSpacing.md),
-      const _VerificationOption(
-        title: 'Current school ID review',
-        badge: 'Recommended',
-        description:
-            'Middle school, junior high, high school, secondary school, or a vocational secondary program. Visual review can support the label “School document reviewed”; it does not prove current enrollment, attendance, legal identity, age, or account ownership.',
-        icon: Icons.school_outlined,
-      ),
-      const SizedBox(height: MortSpacing.sm),
-      const _VerificationOption(
-        title: 'Verified school email',
-        description:
-            'Where an approved school domain is available, a confirmed account email may support “School affiliation confirmed.”',
-        icon: Icons.alternate_email,
-      ),
-      const SizedBox(height: MortSpacing.sm),
-      const _VerificationOption(
-        title: 'Partner or youth-program attestation',
-        description:
-            'An approved organization may provide a current, auditable affiliation signal without giving that organization access to private job activity.',
-        icon: Icons.groups_outlined,
-      ),
-      const SizedBox(height: MortSpacing.sm),
-      const _VerificationOption(
-        title: 'Government or youth-program ID',
-        description:
-            'A future reviewed route. MORT is not accepting real government, school, or youth-program documents in this release.',
-        icon: Icons.badge_outlined,
-      ),
-      const SizedBox(height: MortSpacing.sm),
-      const _VerificationOption(
-        title: 'Manual exception or no-document review',
-        description:
-            'For homeschool, online-school, transitional, dual-enrollment, or other eligible teens without a traditional school ID. Access requires a reviewed policy decision.',
-        icon: Icons.support_agent,
-      ),
-      const SizedBox(height: MortSpacing.md),
-      MortButton(
-        label: 'Review capture and privacy steps',
-        icon: Icons.camera_alt_outlined,
-        onPressed: () => context.go('/trust/teen-verification/capture'),
-      ),
-      const SizedBox(height: MortSpacing.sm),
-      MortButton(
-        label: 'Request a manual route',
-        icon: Icons.support_agent,
-        style: MortButtonStyle.secondary,
-        onPressed: () => context.go('/support'),
-      ),
-    ],
-  );
+  ConsumerState<TeenVerificationOptionsScreen> createState() =>
+      _TeenVerificationOptionsScreenState();
 }
 
-class _VerificationOption extends StatelessWidget {
-  const _VerificationOption({
+class _TeenVerificationOptionsScreenState
+    extends ConsumerState<TeenVerificationOptionsScreen> {
+  final _schoolEmail = TextEditingController();
+  final _picker = ImagePicker();
+  bool _busy = false;
+  String? _message;
+
+  @override
+  void initState() {
+    super.initState();
+    _schoolEmail.text = SupabaseService.client.auth.currentUser?.email ?? '';
+  }
+
+  @override
+  void dispose() {
+    _schoolEmail.dispose();
+    super.dispose();
+  }
+
+  Future<TeenVerificationStatus> _ensureSession() async {
+    var status = await ref.read(teenVerificationStatusProvider.future);
+    if (status.hasSession) return status;
+    await ref.read(accountTrustRepositoryProvider).startTeenVerification();
+    ref.invalidate(teenVerificationStatusProvider);
+    status = await ref.read(teenVerificationStatusProvider.future);
+    return status;
+  }
+
+  Future<void> _run(Future<void> Function() action) async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _message = null;
+    });
+    try {
+      await action();
+    } catch (error) {
+      if (mounted) setState(() => _message = userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _start() => _run(() async {
+    await ref.read(accountTrustRepositoryProvider).startTeenVerification();
+    ref.invalidate(teenVerificationStatusProvider);
+    if (mounted) setState(() => _message = 'MORT Verify session started.');
+  });
+
+  Future<void> _verifySchoolEmail() => _run(() async {
+    final status = await _ensureSession();
+    final result = await ref
+        .read(accountTrustRepositoryProvider)
+        .requestSchoolAffiliation(_schoolEmail.text);
+    await ref
+        .read(accountTrustRepositoryProvider)
+        .syncTeenSchoolAffiliation(status.sessionId!);
+    ref.invalidate(teenVerificationStatusProvider);
+    if (mounted) {
+      setState(() {
+        _message = result['affiliation_verified'] == true
+            ? 'School email verified.'
+            : (result['message'] as String? ??
+                  'That school domain is waiting for restricted review.');
+      });
+    }
+  });
+
+  Future<void> _pickSchoolId(ImageSource source) => _run(() async {
+    final status = await _ensureSession();
+    if (!status.submissionsEnabled) {
+      throw StateError(
+        'School-ID collection is not enabled for this account or release.',
+      );
+    }
+    final photo = await _picker.pickImage(
+      source: source,
+      imageQuality: 100,
+      maxWidth: 4096,
+      maxHeight: 4096,
+    );
+    if (photo == null) return;
+    await ref
+        .read(accountTrustRepositoryProvider)
+        .uploadTeenSchoolId(
+          sessionId: status.sessionId!,
+          sourceBytes: await photo.readAsBytes(),
+        );
+    ref.invalidate(teenVerificationStatusProvider);
+    if (mounted) {
+      setState(
+        () => _message =
+            'School ID uploaded privately. It is not visible on your profile.',
+      );
+    }
+  });
+
+  Future<void> _submit() => _run(() async {
+    await ref.read(accountTrustRepositoryProvider).submitTeenVerification();
+    ref.invalidate(teenVerificationStatusProvider);
+    if (mounted) {
+      setState(
+        () => _message =
+            'Submitted for restricted review. Your raw school ID stays private.',
+      );
+    }
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final verification = ref.watch(teenVerificationStatusProvider);
+    return verification.when(
+      loading: () => const MortScreen(
+        children: [Center(child: CircularProgressIndicator())],
+      ),
+      error: (error, _) => MortScreen(
+        children: [
+          const MortHeader(
+            eyebrow: 'MORT Verify',
+            title: 'Teen verification',
+            subtitle: 'Verification status could not be loaded.',
+          ),
+          MortSafetyBanner(message: userFacingError(error)),
+        ],
+      ),
+      data: (status) => _buildLoaded(context, status),
+    );
+  }
+
+  Widget _buildLoaded(BuildContext context, TeenVerificationStatus status) {
+    final collectionLabel = status.submissionsEnabled
+        ? status.isSandbox
+              ? 'Synthetic test collection enabled'
+              : 'Verification collection enabled'
+        : 'Collection not enabled';
+
+    return MortScreen(
+      children: [
+        const MortHeader(
+          eyebrow: 'MORT Verify',
+          title: 'Verify age and school affiliation',
+          subtitle:
+              'Teen verification requires a confirmed school email and a current school ID. Age is only marked verified when reviewed evidence actually supports the 13–17 age band.',
+        ),
+        MortSafetyBanner(
+          message:
+              collectionLabel +
+              '. School affiliation, age assurance, and identity are separate checks. Verification never guarantees safety.',
+        ),
+        const SizedBox(height: MortSpacing.md),
+        _StatusCard(
+          title: 'Age eligibility',
+          value: status.ageStatus,
+          detail: status.ageBand == null
+              ? 'Start a session to establish the claimed age band from your account DOB.'
+              : 'Claimed band: ' +
+                    _humanize(status.ageBand!) +
+                    '. Final age verification requires independent reviewed evidence.',
+          verified: status.ageStatus == 'verified',
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        _StatusCard(
+          title: 'School email',
+          value: status.schoolEmailVerified ? 'verified' : 'required',
+          detail:
+              'Your confirmed MORT account email must use an approved school or program domain. Unknown domains go to restricted review.',
+          verified: status.schoolEmailVerified,
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        _StatusCard(
+          title: 'School ID',
+          value: status.schoolIdStatus,
+          detail:
+              'A current school ID is required. MORT re-encodes the photo to remove ordinary image metadata, stores it in a private bucket, and never publishes it.',
+          verified: status.schoolIdStatus == 'reviewed',
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        _StatusCard(
+          title: 'Final result',
+          value: status.status,
+          detail: status.verified
+              ? 'Age, school affiliation, and reviewed school-ID checks passed.'
+              : 'No final verified result is granted until every required check passes.',
+          verified: status.verified,
+        ),
+        const SizedBox(height: MortSpacing.md),
+        if (!status.hasSession)
+          MortButton(
+            label: 'Start MORT Verify',
+            icon: Icons.verified_user_outlined,
+            busy: _busy,
+            onPressed: status.submissionsEnabled ? _start : null,
+          )
+        else ...[
+          MortTextField(
+            label: 'School email',
+            controller: _schoolEmail,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.done,
+            autocorrect: false,
+            enableSuggestions: false,
+            enabled: !_busy && !status.schoolEmailVerified,
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          MortButton(
+            label: status.schoolEmailVerified
+                ? 'School email verified'
+                : 'Verify school email',
+            icon: Icons.alternate_email,
+            busy: _busy,
+            onPressed: status.schoolEmailVerified ? null : _verifySchoolEmail,
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          MortButton(
+            label: 'Photograph school ID',
+            icon: Icons.camera_alt_outlined,
+            busy: _busy,
+            onPressed: status.submissionsEnabled
+                ? () => _pickSchoolId(ImageSource.camera)
+                : null,
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          MortButton(
+            label: 'Choose school-ID photo',
+            icon: Icons.photo_library_outlined,
+            style: MortButtonStyle.secondary,
+            busy: _busy,
+            onPressed: status.submissionsEnabled
+                ? () => _pickSchoolId(ImageSource.gallery)
+                : null,
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          MortButton(
+            label: 'Submit for review',
+            icon: Icons.policy_outlined,
+            busy: _busy,
+            onPressed:
+                status.schoolEmailVerified &&
+                    status.schoolIdStatus == 'submitted'
+                ? _submit
+                : null,
+          ),
+        ],
+        if (_message != null) ...[
+          const SizedBox(height: MortSpacing.md),
+          MortCard(child: Text(_message!)),
+        ],
+        const SizedBox(height: MortSpacing.md),
+        MortButton(
+          label: 'Capture & privacy details',
+          icon: Icons.privacy_tip_outlined,
+          style: MortButtonStyle.secondary,
+          onPressed: () => context.go('/trust/teen-verification/capture'),
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        MortButton(
+          label: 'Get verification help',
+          icon: Icons.support_agent,
+          style: MortButtonStyle.secondary,
+          onPressed: () => context.go('/support'),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatusCard extends StatelessWidget {
+  const _StatusCard({
     required this.title,
-    required this.description,
-    required this.icon,
-    this.badge,
+    required this.value,
+    required this.detail,
+    required this.verified,
   });
 
   final String title;
-  final String description;
-  final IconData icon;
-  final String? badge;
+  final String value;
+  final String detail;
+  final bool verified;
 
   @override
   Widget build(BuildContext context) => MortCard(
-    child: Row(
+    child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: MortColors.accent),
-        const SizedBox(width: MortSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                  if (badge != null) MortBadge(label: badge!),
-                ],
-              ),
-              const SizedBox(height: MortSpacing.xs),
-              Text(description),
-            ],
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+            ),
+            MortTrustBadge(label: _humanize(value), verified: verified),
+          ],
         ),
+        const SizedBox(height: MortSpacing.sm),
+        Text(detail),
       ],
     ),
   );
 }
 
-class TeenVerificationCapturePreparationScreen extends StatefulWidget {
+class TeenVerificationCapturePreparationScreen extends StatelessWidget {
   const TeenVerificationCapturePreparationScreen({super.key});
 
   @override
-  State<TeenVerificationCapturePreparationScreen> createState() =>
-      _TeenVerificationCapturePreparationScreenState();
-}
-
-class _TeenVerificationCapturePreparationScreenState
-    extends State<TeenVerificationCapturePreparationScreen> {
-  final _permissions = const NativePermissionsService();
-  String? _permissionMessage;
-  bool _requesting = false;
-
-  Future<void> _requestCameraAfterExplicitAction() async {
-    if (!AppConfig.identityVerificationEnabled || _requesting) return;
-    setState(() => _requesting = true);
-    final result = await _permissions.requestCamera();
-    if (!mounted) return;
-    setState(() {
-      _requesting = false;
-      _permissionMessage = result.isGranted
-          ? 'Camera permission granted. Only an approved capture session may continue.'
-          : result.isPermanentlyDenied
-          ? 'Camera permission is blocked. Use Photo Picker or open device Settings later.'
-          : 'Camera permission was not granted. Photo Picker remains available when a reviewed capture route is enabled.';
-    });
-  }
-
-  @override
   Widget build(BuildContext context) => MortScreen(
-    children: [
-      const MortHeader(
-        eyebrow: 'Before capture',
-        title: 'Document capture and privacy',
+    children: const [
+      MortHeader(
+        eyebrow: 'MORT Verify privacy',
+        title: 'Before you capture a school ID',
         subtitle:
-            'MORT requests camera access only after you choose a permitted document route and tap Use camera.',
+            'Only submit your own current school ID. Do not include unrelated documents.',
       ),
-      const MortCard(
+      MortCard(
         child: Text(
-          'MORT uses your camera to capture the document or photo you choose to submit. Do not include unrelated documents or sensitive information. Images require private storage, size and dimension checks, metadata stripping, random object names, and a user-bound server record.',
+          'Before upload, the app re-encodes the image as JPEG to remove ordinary image metadata and caps its dimensions. The server accepts it only into a private user/session path and stores restricted metadata separately.',
         ),
       ),
-      const SizedBox(height: MortSpacing.md),
-      const MortCard(
+      SizedBox(height: MortSpacing.md),
+      MortCard(
         child: Text(
-          'Future capture checks may warn about blur, glare, cutoff, or low resolution. “Document quality passed,” “School document reviewed,” “Age evidence reviewed,” and “Live-presence challenge completed” are limited signals. They do not mean authoritative identity confirmed.',
+          'A school ID and school email are not automatically treated as proof of exact age. If the school ID does not contain reliable age evidence, MORT keeps age status unresolved instead of guessing.',
         ),
       ),
-      const SizedBox(height: MortSpacing.md),
-      MortButton(
-        label: AppConfig.identityVerificationEnabled
-            ? 'Use camera'
-            : 'Use camera - Real collection disabled',
-        icon: Icons.camera_alt_outlined,
-        busy: _requesting,
-        onPressed: AppConfig.identityVerificationEnabled
-            ? _requestCameraAfterExplicitAction
-            : null,
+      SizedBox(height: MortSpacing.md),
+      MortSafetyBanner(
+        message:
+            'Raw school-ID images are never public profile data. Production collection remains server-gated until legal, privacy, and trained-reviewer controls are approved.',
       ),
-      const SizedBox(height: MortSpacing.sm),
-      MortButton(
-        label: 'Photo Picker - unavailable for real IDs',
-        icon: Icons.photo_library_outlined,
-        style: MortButtonStyle.disabled,
-      ),
-      if (_permissionMessage != null) ...[
-        const SizedBox(height: MortSpacing.md),
-        Text(_permissionMessage!),
-      ],
-      if (!AppConfig.identityVerificationEnabled) ...[
-        const SizedBox(height: MortSpacing.md),
-        const MortSafetyBanner(
-          message:
-              'This release collects no real ID or face media. Synthetic QA is controlled by server-only test routes.',
-        ),
-      ],
     ],
   );
 }
+
+String _humanize(String value) => value.replaceAll('_', ' ');
