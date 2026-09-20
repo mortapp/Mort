@@ -23,6 +23,7 @@ import 'leaderboard_repository.dart';
 import 'legal_contract_repository.dart';
 import 'messaging_repository.dart';
 import 'mission_pilot_repository.dart';
+import 'mort_verify_repository.dart';
 import 'mort_guide_repository.dart';
 import 'monetization_repository.dart';
 import 'notifications_repository.dart';
@@ -229,6 +230,9 @@ final myLeaderboardRankProvider = FutureProvider.autoDispose(
 final accountTrustRepositoryProvider = Provider<AccountTrustRepository>(
   (ref) => AccountTrustRepository(),
 );
+final mortVerifyRepositoryProvider = Provider<MortVerifyRepository>(
+  (ref) => MortVerifyRepository(),
+);
 final accountDeletionRepositoryProvider = Provider<AccountDeletionRepository>(
   (ref) => AccountDeletionRepository(),
 );
@@ -344,20 +348,12 @@ final accountTrustProfileProvider = FutureProvider<AccountTrustProfile>((ref) {
   return ref.watch(accountTrustRepositoryProvider).getMyProfile();
 });
 
-final teenVerificationStatusProvider = FutureProvider<TeenVerificationStatus>((
-  ref,
-) {
-  ref.watch(authStateProvider);
-  return ref.watch(accountTrustRepositoryProvider).getTeenVerificationStatus();
-});
-
 void invalidateUserScopedProviders(WidgetRef ref) {
   ref.invalidate(authStateProvider);
   ref.invalidate(oauthFlowStateProvider);
   ref.invalidate(currentProfileProvider);
   ref.invalidate(onboardingProgressProvider);
   ref.invalidate(accountTrustProfileProvider);
-  ref.invalidate(teenVerificationStatusProvider);
   ref.invalidate(openJobsProvider);
   ref.invalidate(myApplicationsProvider);
   ref.invalidate(myJobsProvider);
