@@ -61,8 +61,20 @@ jobs:
           PROFILE_PLIST="$RUNNER_TEMP/mort-appstore-profile.plist"
           KEYCHAIN_PATH="$RUNNER_TEMP/mort-signing.keychain-db"
 
-          printf '%s' "$MORT_APPLE_CERTIFICATE_P12_BASE64" | base64 --decode > "$CERT_PATH"
-          printf '%s' "$MORT_APPLE_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
+          python3 - "$CERT_PATH" "$PROFILE_PATH" <<'PY'
+          import base64
+          import os
+          import sys
+
+          inputs = (
+              ("MORT_APPLE_CERTIFICATE_P12_BASE64", sys.argv[1]),
+              ("MORT_APPLE_PROVISIONING_PROFILE_BASE64", sys.argv[2]),
+          )
+          for environment_name, output_path in inputs:
+              encoded = os.environ[environment_name].strip()
+              with open(output_path, "wb") as output:
+                  output.write(base64.b64decode(encoded, validate=True))
+          PY
 
           security create-keychain -p "$MORT_APPLE_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
