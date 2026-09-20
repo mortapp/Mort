@@ -186,6 +186,13 @@ jobs:
       - name: Install CocoaPods dependencies
         working-directory: flutter_mort/ios
         run: pod install --repo-update
+      - name: Upload resolved CocoaPods lock for parity bootstrap
+        uses: actions/upload-artifact@v7
+        with:
+          name: mort-ios-podfile-lock
+          path: flutter_mort/ios/Podfile.lock
+          if-no-files-found: error
+          retention-days: 7
       - name: Validate Xcode workspace
         working-directory: flutter_mort/ios
         run: xcodebuild -list -workspace Runner.xcworkspace
