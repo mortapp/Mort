@@ -1135,6 +1135,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       _guarded(
         '/trust/teen-verification',
         const TeenVerificationOptionsScreen(),
+        role: UserRole.teen,
       ),
       _guarded(
         '/trust/teen-verification/capture',
