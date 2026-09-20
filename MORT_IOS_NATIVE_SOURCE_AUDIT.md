@@ -33,51 +33,21 @@ once pushed and triggered).
   over-broad "always" location usage.
 - **ATS stays strict**: no `NSAllowsArbitraryLoads`/`NSExceptionDomains`.
 
-## A mistake made and caught by the existing test suite (not committed)
+## Store-parity capability update — 2026-09-20
 
-Initially treated the complete absence of an entitlements file
-(`grep -rn "CODE_SIGN_ENTITLEMENTS|entitlements" Runner.xcodeproj/project.pbxproj`
-returned nothing) as a gap, reasoning that `firebase_messaging` is a real dependency
-and remote push needs `aps-environment` to register an APNs token on a real device.
-Added `Runner.entitlements` + wired `CODE_SIGN_ENTITLEMENTS` into all three build
-configurations + added `UIBackgroundModes` to `Info.plist`.
+The earlier fail-closed decision to omit APNs capabilities was correct while no App Store signing/release path existed. That premise changed when the owner requested iOS release parity with Android.
 
-**`flutter test` immediately caught this as wrong**: `test/ios_platform_parity_test.dart`
-already has an explicit contract test for exactly this, with the reasoning inline —
+Current Flutter iOS now includes:
 
-```
-test('fabricates no capabilities it cannot back', () {
-  expect(pbxproj, isNot(contains('CODE_SIGN_ENTITLEMENTS')),
-    reason: 'no APNs or Sign in with Apple entitlement until provider '
-            'configuration and legal gates actually exist');
-  ...
-test('never requests background location or background modes', () {
-  ...
-  expect(infoPlist, isNot(contains('UIBackgroundModes')));
-```
+- `Runner.release.entitlements` with production APNs, wired to Runner Release/Profile only;
+- `UIBackgroundModes = remote-notification`, with no background-location or audio mode;
+- `PrivacyInfo.xcprivacy` bundled as a Runner resource;
+- a normal macOS `ios-authoritative` CI job;
+- a protected signed iOS closed-test workflow that rejects a provisioning profile unless it targets `com.mortapp.mobile`, matches the configured Apple team, and includes production APNs.
 
-This is a **deliberate, already-tested architectural decision**, not an oversight:
-declaring an entitlement capability in the Xcode project without the App ID actually
-being provisioned for that capability in the Apple Developer portal causes real
-provisioning-profile validation failures at archive/distribution time — i.e., adding
-this prematurely would *break* a real signed build, not fix one. It follows the exact
-same "don't claim a capability we can't back" fail-closed philosophy verified
-everywhere else in this codebase (Stripe live-mode gate, identity verification
-provider config, etc.), just expressed as an Xcode-project-level contract test instead
-of a database constraint.
+This is capability preparation, not provider activation. Runtime push remains fail-closed behind `MORT_REMOTE_PUSH_ENABLED` plus complete Firebase iOS configuration. Debug builds do not use the production APNs entitlement.
 
-**Reverted all three changes** (`project.pbxproj`, `Info.plist`, deleted
-`Runner.entitlements`) before committing anything. Full `flutter test` regression
-confirmed clean again afterward (452 passed / 2 skipped / 0 failed). Recording this
-plainly rather than quietly dropping it: it's a real example of "focused verify → full
-regression" catching a wrong fix before it shipped, and it confirms the existing test
-suite's `ios_platform_parity_test.dart` is doing real, load-bearing work — not
-decorative coverage.
-
-Wiring APNs entitlements + background modes correctly remains real future work, but
-it belongs together with the actual Apple Developer Program provisioning
-(`MORT_EXTERNAL_RELEASE_GATES.md`), at the point the App ID is registered for Push
-Notifications capability — not before.
+Apple OAuth remains the existing Supabase PKCE browser flow, so this pass does not fabricate the native `com.apple.developer.applesignin` entitlement.
 
 ## Not verified this session
 
