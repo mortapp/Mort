@@ -177,6 +177,27 @@ class AccountTrustRepository extends RepositoryBase {
     }, 'Temporary school-ID access could not be authorized.');
   }
 
+  Future<Uint8List> downloadTeenSchoolIdForReview({
+    required String sessionId,
+    required String accessReason,
+    required String caseId,
+  }) async {
+    final grant = await authorizeTeenSchoolIdAccess(
+      sessionId: sessionId,
+      accessReason: accessReason,
+      caseId: caseId,
+    );
+    final bucket = grant['bucket_id'] as String?;
+    final path = grant['storage_path'] as String?;
+    if (bucket == null || path == null || bucket != 'teen-school-id') {
+      throw const MortCodedError(
+        'invalid_school_id_access_grant',
+        'The temporary school-ID access grant was invalid.',
+      );
+    }
+    return client.storage.from(bucket).download(path);
+  }
+
   Future<Map<String, dynamic>> reviewTeenVerification({
     required String sessionId,
     required String action,
