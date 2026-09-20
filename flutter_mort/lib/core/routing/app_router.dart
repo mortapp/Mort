@@ -932,17 +932,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         const TrustAdminReviewScreen(),
         role: UserRole.admin,
       ),
-      GoRoute(
-        path: '/admin/teen-verification/:sessionId',
-        builder: (_, state) => GuardedRoute(
-          requiredRole: UserRole.admin,
-          child: SensitiveScreenProtection(
-            child: TeenVerificationAdminReviewScreen(
-              sessionId: state.pathParameters['sessionId'] ?? '',
-            ),
-          ),
-        ),
-      ),
       _guarded('/settings/safety-circle', const SafetyCircleScreen()),
       _guarded(
         '/settings/safety-cases',
@@ -1146,11 +1135,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       _guarded(
         '/trust/teen-verification',
         const TeenVerificationOptionsScreen(),
-        role: UserRole.teen,
       ),
       _guarded(
         '/trust/teen-verification/capture',
         const TeenVerificationCapturePreparationScreen(),
+      ),
+      _guarded(
+        '/trust/teen-verification/verify',
+        const MortVerifyTeenScreen(),
+        role: UserRole.teen,
       ),
       _guarded('/trust/device-auth', const DeviceAuthExplanationScreen()),
       GoRoute(path: '/support', builder: (_, _) => const SupportHomeScreen()),
