@@ -13,6 +13,12 @@ import 'package:flutter_test/flutter_test.dart';
 /// target-platform behavior of shared platform services.
 void main() {
   final infoPlist = File('ios/Runner/Info.plist').readAsStringSync();
+  final privacyManifest = File(
+    'ios/Runner/PrivacyInfo.xcprivacy',
+  ).readAsStringSync();
+  final releaseEntitlements = File(
+    'ios/Runner/Runner.release.entitlements',
+  ).readAsStringSync();
   final pbxproj = File(
     'ios/Runner.xcodeproj/project.pbxproj',
   ).readAsStringSync();
@@ -23,6 +29,12 @@ void main() {
   ).readAsStringSync();
   final browserStackWorkflow = File(
     '../.github/workflows/mort-ios-browserstack.yml',
+  ).readAsStringSync();
+  final ciWorkflow = File(
+    '../.github/workflows/mort-ci.yml',
+  ).readAsStringSync();
+  final stripePaymentSheet = File(
+    'lib/features/payments/stripe_payment_sheet_service.dart',
   ).readAsStringSync();
 
   group('iOS Info.plist contract', () {
@@ -47,12 +59,15 @@ void main() {
       expect(infoPlist, contains('NSLocationWhenInUseUsageDescription'));
     });
 
-    test('never requests background location or background modes', () {
+    test('never requests background location and limits background work to push', () {
       expect(
         infoPlist,
         isNot(contains('NSLocationAlwaysAndWhenInUseUsageDescription')),
       );
-      expect(infoPlist, isNot(contains('UIBackgroundModes')));
+      expect(infoPlist, contains('UIBackgroundModes'));
+      expect(infoPlist, contains('<string>remote-notification</string>'));
+      expect(infoPlist, isNot(contains('<string>location</string>')));
+      expect(infoPlist, isNot(contains('<string>audio</string>')));
     });
 
     test('keeps App Transport Security strict', () {
@@ -107,15 +122,55 @@ void main() {
       );
     });
 
-    test('fabricates no capabilities it cannot back', () {
+    test('release/profile wire only the production push entitlement', () {
       expect(
-        pbxproj,
-        isNot(contains('CODE_SIGN_ENTITLEMENTS')),
-        reason:
-            'no APNs or Sign in with Apple entitlement until provider '
-            'configuration and legal gates actually exist',
+        RegExp(
+          r'CODE_SIGN_ENTITLEMENTS = Runner/Runner\.release\.entitlements;',
+        ).allMatches(pbxproj).length,
+        2,
+        reason: 'Release and Profile must sign with the production APNs entitlement.',
       );
+      expect(releaseEntitlements, contains('<key>aps-environment</key>'));
+      expect(releaseEntitlements, contains('<string>production</string>'));
+      expect(
+        releaseEntitlements,
+        isNot(contains('com.apple.developer.applesignin')),
+        reason: 'Apple OAuth uses the existing PKCE browser flow, not native Sign in with Apple.',
+      );
+      expect(
+        releaseEntitlements,
+        isNot(contains('com.apple.developer.associated-domains')),
+      );
+      expect(pbxproj, contains('PrivacyInfo.xcprivacy in Resources'));
       expect(pbxproj, contains('GENERATE_INFOPLIST_FILE = YES;'));
+    });
+  });
+
+  group('iOS App Store privacy contract', () {
+    test('bundles an explicit non-tracking privacy manifest', () {
+      expect(privacyManifest, contains('<key>NSPrivacyTracking</key>'));
+      expect(privacyManifest, contains('<false/>'));
+      for (final dataType in [
+        'NSPrivacyCollectedDataTypeName',
+        'NSPrivacyCollectedDataTypeEmailAddress',
+        'NSPrivacyCollectedDataTypePhysicalAddress',
+        'NSPrivacyCollectedDataTypePreciseLocation',
+        'NSPrivacyCollectedDataTypePhotosorVideos',
+        'NSPrivacyCollectedDataTypeCustomerSupport',
+        'NSPrivacyCollectedDataTypeOtherUserContent',
+        'NSPrivacyCollectedDataTypeUserID',
+        'NSPrivacyCollectedDataTypePurchaseHistory',
+        'NSPrivacyCollectedDataTypeOtherFinancialInfo',
+      ]) {
+        expect(privacyManifest, contains(dataType));
+      }
+      expect(
+        privacyManifest,
+        isNot(contains('NSPrivacyCollectedDataTypePaymentInfo')),
+        reason:
+            'Raw card/bank details are entered into Stripe and are not collected by MORT.',
+      );
+      expect(infoPlist, contains('ITSAppUsesNonExemptEncryption'));
     });
   });
 
@@ -248,6 +303,22 @@ void main() {
     const channel = MethodChannel('mort/native_security');
     expect(channel.name, 'mort/native_security');
     expect(appDelegate, contains('mort/native_security'));
+  });
+
+  group('shared Android/iOS release parity', () {
+    test('Stripe PaymentSheet stays platform-neutral and provider-authoritative', () {
+      expect(stripePaymentSheet, contains('package:flutter_stripe'));
+      expect(stripePaymentSheet, contains("startsWith('pk_test_')"));
+      expect(stripePaymentSheet, isNot(contains('TargetPlatform.android')));
+      expect(stripePaymentSheet, isNot(contains('Platform.isAndroid')));
+    });
+
+    test('normal CI includes an authoritative macOS iOS release build', () {
+      expect(ciWorkflow, contains('ios-authoritative:'));
+      expect(ciWorkflow, contains('flutter build ios --release --no-codesign'));
+      expect(ciWorkflow, contains('PrivacyInfo.xcprivacy'));
+      expect(ciWorkflow, contains('Runner.release.entitlements'));
+    });
   });
 
   group('MORT iOS BrowserStack workflow contract', () {
