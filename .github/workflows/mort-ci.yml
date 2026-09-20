@@ -181,6 +181,8 @@ jobs:
           test/stripe_marketplace_contract_test.dart
           test/remote_push_contract_test.dart
           test/mort_verify_contract_test.dart
+          test/features/payment_os_integration_test.dart
+          test/monetization_safety_test.dart
       - name: Install CocoaPods dependencies
         working-directory: flutter_mort/ios
         run: pod install --repo-update
