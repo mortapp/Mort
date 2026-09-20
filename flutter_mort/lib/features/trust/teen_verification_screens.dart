@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -347,6 +349,277 @@ class TeenVerificationCapturePreparationScreen extends StatelessWidget {
       ),
     ],
   );
+}
+
+
+class TeenVerificationAdminReviewScreen extends ConsumerStatefulWidget {
+  const TeenVerificationAdminReviewScreen({
+    super.key,
+    required this.sessionId,
+  });
+
+  final String sessionId;
+
+  @override
+  ConsumerState<TeenVerificationAdminReviewScreen> createState() =>
+      _TeenVerificationAdminReviewScreenState();
+}
+
+class _TeenVerificationAdminReviewScreenState
+    extends ConsumerState<TeenVerificationAdminReviewScreen> {
+  final _caseId = TextEditingController();
+  final _reason = TextEditingController();
+  final _decisionCode = TextEditingController();
+  bool _busy = false;
+  bool _claimed = false;
+  bool _schoolIdCurrent = false;
+  bool _schoolMatch = false;
+  bool _nameMatch = false;
+  bool _dobPresent = false;
+  bool _suspectedTamper = false;
+  String _ageBand = '13_15';
+  Uint8List? _documentBytes;
+  String? _message;
+
+  @override
+  void dispose() {
+    _caseId.dispose();
+    _reason.dispose();
+    _decisionCode.dispose();
+    super.dispose();
+  }
+
+  bool get _contextReady =>
+      _caseId.text.trim().length >= 4 && _reason.text.trim().length >= 12;
+
+  Future<void> _run(Future<void> Function() action) async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _message = null;
+    });
+    try {
+      await action();
+    } catch (error) {
+      if (mounted) setState(() => _message = userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _claim() => _run(() async {
+    if (!_contextReady) {
+      throw StateError('Enter a case ID and a specific access reason first.');
+    }
+    await ref
+        .read(accountTrustRepositoryProvider)
+        .claimTeenVerificationReview(
+          sessionId: widget.sessionId,
+          accessReason: _reason.text,
+          caseId: _caseId.text,
+        );
+    if (mounted) {
+      setState(() {
+        _claimed = true;
+        _message = 'Case claimed for 30 minutes.';
+      });
+    }
+  });
+
+  Future<void> _loadDocument() => _run(() async {
+    if (!_claimed) {
+      await ref
+          .read(accountTrustRepositoryProvider)
+          .claimTeenVerificationReview(
+            sessionId: widget.sessionId,
+            accessReason: _reason.text,
+            caseId: _caseId.text,
+          );
+    }
+    final bytes = await ref
+        .read(accountTrustRepositoryProvider)
+        .downloadTeenSchoolIdForReview(
+          sessionId: widget.sessionId,
+          accessReason: _reason.text,
+          caseId: _caseId.text,
+        );
+    if (mounted) {
+      setState(() {
+        _claimed = true;
+        _documentBytes = bytes;
+        _message =
+            'Private document loaded in memory under a short-lived audited grant.';
+      });
+    }
+  });
+
+  Future<void> _review(String action) => _run(() async {
+    if (_documentBytes == null) {
+      throw StateError('Open the private school ID before making a decision.');
+    }
+    if (_decisionCode.text.trim().length < 3) {
+      throw StateError('Enter a decision code.');
+    }
+    final result = await ref
+        .read(accountTrustRepositoryProvider)
+        .reviewTeenVerification(
+          sessionId: widget.sessionId,
+          action: action,
+          schoolIdCurrent: _schoolIdCurrent,
+          schoolMatch: _schoolMatch,
+          nameMatch: _nameMatch,
+          schoolIdDobPresent: _dobPresent,
+          observedAgeBand: _dobPresent ? _ageBand : null,
+          suspectedTamper: _suspectedTamper,
+          decisionCode: _decisionCode.text,
+          accessReason: _reason.text,
+          caseId: _caseId.text,
+        );
+    if (mounted) {
+      setState(() {
+        _documentBytes = null;
+        _claimed = false;
+        _message = 'Saved review result: ' + (result['status']?.toString() ?? action);
+      });
+      ref.invalidate(accountTrustProfileProvider);
+    }
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return MortScreen(
+      children: [
+        MortHeader(
+          eyebrow: 'Restricted reviewer',
+          title: 'Teen verification review',
+          subtitle:
+              'Session ' +
+              widget.sessionId +
+              '. Raw school-ID access is assignment-bound, temporary, and audited.',
+        ),
+        MortTextField(label: 'Case ID', controller: _caseId),
+        const SizedBox(height: MortSpacing.sm),
+        MortTextArea(
+          label: 'Access reason',
+          controller: _reason,
+          maxLength: 800,
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        MortButton(
+          label: _claimed ? 'Case claimed' : 'Claim review case',
+          icon: Icons.assignment_ind_outlined,
+          busy: _busy,
+          onPressed: _claimed ? null : _claim,
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        MortButton(
+          label: 'Open private school ID',
+          icon: Icons.badge_outlined,
+          busy: _busy,
+          onPressed: _contextReady ? _loadDocument : null,
+        ),
+        if (_documentBytes != null) ...[
+          const SizedBox(height: MortSpacing.md),
+          MortCard(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.memory(
+                _documentBytes!,
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) =>
+                    const Text('The school-ID image could not be rendered.'),
+              ),
+            ),
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _schoolIdCurrent,
+            onChanged: (value) =>
+                setState(() => _schoolIdCurrent = value ?? false),
+            title: const Text('School ID is current'),
+          ),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _schoolMatch,
+            onChanged: (value) =>
+                setState(() => _schoolMatch = value ?? false),
+            title: const Text('School matches verified affiliation'),
+          ),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _nameMatch,
+            onChanged: (value) => setState(() => _nameMatch = value ?? false),
+            title: const Text('Name matches the account evidence'),
+          ),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _dobPresent,
+            onChanged: (value) => setState(() => _dobPresent = value ?? false),
+            title: const Text('School ID contains usable date-of-birth evidence'),
+          ),
+          if (_dobPresent)
+            MortDropdown<String>(
+              label: 'Observed age band',
+              value: _ageBand,
+              items: const {
+                '13_15': '13–15',
+                '16_17': '16–17',
+              },
+              onChanged: (value) =>
+                  setState(() => _ageBand = value ?? _ageBand),
+            ),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _suspectedTamper,
+            onChanged: (value) =>
+                setState(() => _suspectedTamper = value ?? false),
+            title: const Text('Possible tampering or mismatch'),
+          ),
+          MortTextField(
+            label: 'Decision code',
+            hint: 'approved_school_id_dob_match',
+            controller: _decisionCode,
+          ),
+          const SizedBox(height: MortSpacing.md),
+          MortButton(
+            label: 'Approve verified teen',
+            icon: Icons.verified_outlined,
+            busy: _busy,
+            onPressed: () => _review('approve'),
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          MortButton(
+            label: 'Age evidence still required',
+            icon: Icons.hourglass_bottom_outlined,
+            style: MortButtonStyle.secondary,
+            busy: _busy,
+            onPressed: () => _review('age_evidence_required'),
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          MortButton(
+            label: 'Request new school-ID photo',
+            icon: Icons.refresh_outlined,
+            style: MortButtonStyle.secondary,
+            busy: _busy,
+            onPressed: () => _review('request_recapture'),
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          MortButton(
+            label: 'Reject verification',
+            icon: Icons.block_outlined,
+            style: MortButtonStyle.secondary,
+            busy: _busy,
+            onPressed: () => _review('reject'),
+          ),
+        ],
+        if (_message != null) ...[
+          const SizedBox(height: MortSpacing.md),
+          MortCard(child: Text(_message!)),
+        ],
+      ],
+    );
+  }
 }
 
 String _humanize(String value) => value.replaceAll('_', ' ');
