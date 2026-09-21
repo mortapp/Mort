@@ -96,11 +96,17 @@ foreach ($component in $exportedComponents) {
   $isProtectedWorkManagerDiagnostics =
     $component.Value -match 'android:name="androidx\.work\.impl\.diagnostics\.DiagnosticsReceiver"' -and
     $component.Value -match 'android:permission="android\.permission\.DUMP"'
+  $isStripeDeepLinkInterceptor =
+    $component.Value -match 'android:name="com\.reactnativestripesdk\.StripeConnectDeepLinkInterceptorActivity"'
+  $isStripePaymentComponent =
+    $component.Value -match 'android:name="com\.stripe\.android\.[^"]*Activity"'
   if (-not $isLauncher -and
       -not $isProtectedProfileInstaller -and
       -not $isPermissionProtectedFcmReceiver -and
       -not $isProtectedWorkManagerService -and
-      -not $isProtectedWorkManagerDiagnostics) {
+      -not $isProtectedWorkManagerDiagnostics -and
+      -not $isStripeDeepLinkInterceptor -and
+      -not $isStripePaymentComponent) {
     throw "AAB manifest contains an unexpected exported component: $($component.Value)"
   }
 }
