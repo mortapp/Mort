@@ -154,7 +154,7 @@ jobs:
         run: '& ../scripts/secret-scan.ps1'
 
   ios-authoritative:
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 55
     defaults:
       run:
@@ -163,8 +163,8 @@ jobs:
       FLUTTER_SWIFT_PACKAGE_MANAGER: "false"
     steps:
       - uses: actions/checkout@v7
-      - name: Select Xcode 16.2
-        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+      - name: Select Xcode 26.3
+        run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
