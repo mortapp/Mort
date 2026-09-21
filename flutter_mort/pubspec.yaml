@@ -112,6 +112,10 @@ flutter:
   assets:
     - assets/branding/google_g.svg
     - assets/branding/mort_arrow_adaptive_monochrome.png
+    - assets/gamification/ranks/
+    - assets/gamification/tokens/
+    - assets/gamification/badges/
+    - assets/gamification/icons/
 
 flutter_launcher_icons:
   android: true

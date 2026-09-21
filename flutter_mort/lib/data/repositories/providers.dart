@@ -29,6 +29,7 @@ import 'monetization_repository.dart';
 import 'notifications_repository.dart';
 import 'observability_repository.dart';
 import 'profile_repository.dart';
+import 'progression_repository.dart';
 import 'reviews_repository.dart';
 import 'safety_repository.dart';
 import 'support_repository.dart';
@@ -220,6 +221,16 @@ final trustSafetyRepositoryProvider = Provider<TrustSafetyRepository>(
 );
 final leaderboardRepositoryProvider = Provider<LeaderboardRepository>(
   (ref) => LeaderboardRepository(),
+);
+final progressionRepositoryProvider = Provider<ProgressionRepository>(
+  (ref) => ProgressionRepository(),
+);
+final myProgressionProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(progressionRepositoryProvider).getMyProgression(),
+);
+final progressionBoardProvider = FutureProvider.autoDispose.family(
+  (ref, String board) =>
+      ref.watch(progressionRepositoryProvider).getBoard(board),
 );
 final leaderboardProvider = FutureProvider.autoDispose(
   (ref) => ref.watch(leaderboardRepositoryProvider).getLeaderboard(limit: 5),
