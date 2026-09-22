@@ -52,6 +52,9 @@ import '../../features/settings/release_diagnostics_screen.dart';
 import '../../features/trust/account_trust_screens.dart';
 import '../../features/trust/teen_verification_screens.dart';
 import '../../features/teen/teen_profile_screen.dart';
+import '../../features/teen/progression_hub_screen.dart';
+import '../../features/teen/progression_leaderboard_screen.dart';
+import '../../features/teen/progression_share_screen.dart';
 import '../../features/teen/teen_shell.dart';
 import '../../services/screen_security_service.dart';
 import '../widgets/mort_widgets.dart';
@@ -258,6 +261,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         role: UserRole.teen,
       ),
       _guarded('/teen/goals', const EarningsGoalsScreen(), role: UserRole.teen),
+      _guarded(
+        '/teen/progression',
+        const ProgressionHubScreen(),
+        role: UserRole.teen,
+      ),
+      _guarded(
+        '/teen/progression/leaderboard',
+        const ProgressionLeaderboardScreen(),
+        role: UserRole.teen,
+      ),
+      _guarded(
+        '/teen/progression/share',
+        const ProgressionShareScreen(),
+        role: UserRole.teen,
+      ),
       _guarded(
         '/financial',
         const FinancialSafetyCenterScreen(),

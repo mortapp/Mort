@@ -90,9 +90,23 @@ foreach ($component in $exportedComponents) {
   $isPermissionProtectedFcmReceiver =
     $component.Value -match 'android:name="(?:io\.flutter\.plugins\.firebase\.messaging\.FlutterFirebaseMessagingReceiver|com\.google\.firebase\.iid\.FirebaseInstanceIdReceiver)"' -and
     $component.Value -match 'android:permission="com\.google\.android\.c2dm\.permission\.SEND"'
+  $isProtectedWorkManagerService =
+    $component.Value -match 'android:name="androidx\.work\.impl\.background\.systemjob\.SystemJobService"' -and
+    $component.Value -match 'android:permission="android\.permission\.BIND_JOB_SERVICE"'
+  $isProtectedWorkManagerDiagnostics =
+    $component.Value -match 'android:name="androidx\.work\.impl\.diagnostics\.DiagnosticsReceiver"' -and
+    $component.Value -match 'android:permission="android\.permission\.DUMP"'
+  $isStripeDeepLinkInterceptor =
+    $component.Value -match 'android:name="com\.reactnativestripesdk\.StripeConnectDeepLinkInterceptorActivity"'
+  $isStripePaymentComponent =
+    $component.Value -match 'android:name="(?:com\.stripe\.android\.financialconnections\.FinancialConnectionsSheetRedirectActivity|com\.stripe\.android\.financialconnections\.lite\.FinancialConnectionsSheetLiteRedirectActivity|com\.stripe\.android\.link\.LinkRedirectHandlerActivity|com\.stripe\.android\.payments\.StripeBrowserProxyReturnActivity)"'
   if (-not $isLauncher -and
       -not $isProtectedProfileInstaller -and
-      -not $isPermissionProtectedFcmReceiver) {
+      -not $isPermissionProtectedFcmReceiver -and
+      -not $isProtectedWorkManagerService -and
+      -not $isProtectedWorkManagerDiagnostics -and
+      -not $isStripeDeepLinkInterceptor -and
+      -not $isStripePaymentComponent) {
     throw "AAB manifest contains an unexpected exported component: $($component.Value)"
   }
 }

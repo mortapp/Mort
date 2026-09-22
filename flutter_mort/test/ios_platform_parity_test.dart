@@ -68,14 +68,14 @@ void main() {
     test(
       'never requests background location and limits background work to push',
       () {
-      expect(
-        infoPlist,
-        isNot(contains('NSLocationAlwaysAndWhenInUseUsageDescription')),
-      );
-      expect(infoPlist, contains('UIBackgroundModes'));
-      expect(infoPlist, contains('<string>remote-notification</string>'));
-      expect(infoPlist, isNot(contains('<string>location</string>')));
-      expect(infoPlist, isNot(contains('<string>audio</string>')));
+        expect(
+          infoPlist,
+          isNot(contains('NSLocationAlwaysAndWhenInUseUsageDescription')),
+        );
+        expect(infoPlist, contains('UIBackgroundModes'));
+        expect(infoPlist, contains('<string>remote-notification</string>'));
+        expect(infoPlist, isNot(contains('<string>location</string>')));
+        expect(infoPlist, isNot(contains('<string>audio</string>')));
       },
     );
 
@@ -331,10 +331,10 @@ void main() {
     test(
       'Stripe PaymentSheet stays platform-neutral and provider-authoritative',
       () {
-      expect(stripePaymentSheet, contains('package:flutter_stripe'));
-      expect(stripePaymentSheet, contains("startsWith('pk_test_')"));
-      expect(stripePaymentSheet, isNot(contains('TargetPlatform.android')));
-      expect(stripePaymentSheet, isNot(contains('Platform.isAndroid')));
+        expect(stripePaymentSheet, contains('package:flutter_stripe'));
+        expect(stripePaymentSheet, contains("startsWith('pk_test_')"));
+        expect(stripePaymentSheet, isNot(contains('TargetPlatform.android')));
+        expect(stripePaymentSheet, isNot(contains('Platform.isAndroid')));
       },
     );
 
@@ -348,21 +348,24 @@ void main() {
     test(
       'signed iOS release workflow fails closed on real Apple credentials',
       () {
-      for (final requiredInput in [
-        'MORT_APPLE_CERTIFICATE_P12_BASE64',
-        'MORT_APPLE_CERTIFICATE_PASSWORD',
-        'MORT_APPLE_PROVISIONING_PROFILE_BASE64',
-        'MORT_APPLE_DEVELOPMENT_TEAM',
-        'MORT_APPLE_KEYCHAIN_PASSWORD',
-      ]) {
-        expect(signedIosWorkflow, contains(requiredInput));
-      }
-      expect(signedIosWorkflow, contains('BLOCKED-EXTERNAL'));
-      expect(signedIosWorkflow, contains('Apple Distribution'));
-      expect(signedIosWorkflow, contains('aps-environment'));
-      expect(signedIosWorkflow, contains('codesign --verify --deep --strict'));
-      expect(signedIosWorkflow, contains('com.mortapp.mobile'));
-      expect(signedIosWorkflow, isNot(contains('CODE_SIGNING_ALLOWED=NO')));
+        for (final requiredInput in [
+          'MORT_APPLE_CERTIFICATE_P12_BASE64',
+          'MORT_APPLE_CERTIFICATE_PASSWORD',
+          'MORT_APPLE_PROVISIONING_PROFILE_BASE64',
+          'MORT_APPLE_DEVELOPMENT_TEAM',
+          'MORT_APPLE_KEYCHAIN_PASSWORD',
+        ]) {
+          expect(signedIosWorkflow, contains(requiredInput));
+        }
+        expect(signedIosWorkflow, contains('BLOCKED-EXTERNAL'));
+        expect(signedIosWorkflow, contains('Apple Distribution'));
+        expect(signedIosWorkflow, contains('aps-environment'));
+        expect(
+          signedIosWorkflow,
+          contains('codesign --verify --deep --strict'),
+        );
+        expect(signedIosWorkflow, contains('com.mortapp.mobile'));
+        expect(signedIosWorkflow, isNot(contains('CODE_SIGNING_ALLOWED=NO')));
       },
     );
   });
