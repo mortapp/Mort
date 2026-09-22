@@ -1,104 +1,68 @@
-# MORT progression final certification report
+# MORT progression and Android release certification
 
-Date: September 21, 2026
+Date: September 22, 2026
 
 ## Verdict
 
 `PASS_CODE_COMPLETE_EXTERNAL_GATES_REMAIN`
 
-The progression implementation and its release hardening pass local certification. Production remains unchanged. Hosted migration deployment, hosted JWT attacks, exact-head CI, and macOS/iOS build and device validation remain external gates.
+The progression code, restored MORT UI/UX, and Android closed-test artifacts are complete. Production Supabase was not modified by this pass. Play Console upload and production activation approvals remain external steps.
 
-## Exact Git state
+## Source and integration
 
-- Repository: `C:\Users\micha\Mort`
-- Branch: `feature/compact-onboarding-and-screen-polish`
-- HEAD: `fe9c3110c2ae8c501e136714b1072b616826fbaa`
-- The checkout contained a large mixed uncommitted UI, UX, platform, and backend worktree before this pass. It was preserved without reset or merge.
-- No hosted migration was applied.
-- Database ordering was validated in the isolated complete-history worktree `C:\Users\micha\Mort\.worktrees\mort-progression-db-validation` because the UI branch is missing 53 hosted migration versions.
+- Repository: `mortapp/Mort`
+- PR #21: merged into `feature/ios-android-release-parity`
+- Progression merge commit: `07d674b17e46a7bad37a3dc42bc31ee5a3b25442`
+- Final Android artifact source: `bb0afee35b8d3cf74cc0445dd0120f73bd2aaf9b`
+- Release source checkout: `C:\Users\micha\Mort-release-final`
+- Original mixed checkout: `C:\Users\micha\Mort`, preserved without reset or cleanup.
+- Version: `0.9.16+112`. Version code 111 was previously used for Google Play.
+- The newer black/silver UI, atmospheric background, thin motion mark, monoline wordmark, compact screens, and updated launcher icons were restored before the final build. The release APK was visually checked on the Pixel 6 emulator against the owner's recording.
 
-## Progression and security
+## Exact-source CI and local checks
 
-- Server-authoritative XP covers completed work, first completion, first category completion, complete safety sequences, and eligible post-job reviews.
-- Fifty levels map only to Bronze, Silver, Gold, Platinum, and Diamond. Level 50 is the cap.
-- Deterministic event keys, account row locks, exact event/source/XP constraints, and request UUIDs prevent award and spend replay.
-- Every crossed level receives its token reward; multi-level corrections record crossed levels and rank transitions.
-- Motion Tokens are noncash, nontransferable, and spendable only on the private allowlisted cosmetic catalog.
-- Private progression tables have RLS, no client policies, and no client table grants. Internal award functions remain unavailable to anonymous and authenticated users.
-- Public RPCs bind to `auth.uid()`. The admin correction RPC additionally requires an authenticated admin, a teen target, a bounded reason, a request UUID, and bounded positive XP.
-- Leaderboard participation defaults to hidden. Public responses use the approved field allowlist only.
-- Progression has no trigger or award source for payment amount, tips, refunds, disputes, subscriptions, ads, verification, reports, blocks, or login frequency.
+- [MORT CI run 35781354607](https://github.com/mortapp/Mort/actions/runs/35781354607): success at artifact source `bb0afee35b8d3cf74cc0445dd0120f73bd2aaf9b`.
+- [MORT CI run 35781359226](https://github.com/mortapp/Mort/actions/runs/35781359226): success at the same source. Mandatory Flutter, Android device APK, iOS, Stripe, Expo, public-site, and teen-verification jobs passed. Protected provider/hosted Stripe jobs were intentionally skipped.
+- Flutter analysis: no issues.
+- Full Flutter suite: 702 passed, 2 intentional skips, 0 failures.
+- Docker-backed local Supabase regression: 76 scripts passed, including Stripe authority, replay, payment, privacy, and isolation contracts.
+- Stripe Edge Function tests: 26 passed, 0 failed.
+- Local source and extraction secret scans: 14,517 files scanned, 0 findings. The full Git history scan passed in CI; a redundant local scan was stopped after the CI result was confirmed.
+- iOS authoritative CI selected Xcode 26.3, resolved CocoaPods, built the provider-disabled Release app, validated the app bundle, and packaged an unsigned CI IPA. Apple distribution signing was not performed.
 
-## Database evidence
+## Progression and safety
 
-- PostgreSQL 17 clean baseline migration execution: passed.
-- Full `supabase/tests/progression_v1.sql`: passed.
-- Second progression migration application: expected one-shot rejection.
-- Level boundaries 1, 10, 11, 20, 21, 30, 31, 40, 41, and 50: passed below, at, and above thresholds.
-- First qualifying job: exactly 235 XP; replay: 0 XP.
-- Review: 15 XP once; duplicate source: 0 XP.
-- Second completion in the same category: no category bonus.
-- Incomplete safety: no safety XP and current streak reset.
-- Admin correction crossing 30 levels: expected rank transitions and 60 tokens; replay: no-op.
-- Direct writes, internal calls, cross-user access, malformed UUIDs, invalid cosmetics, duplicate keys/badges, negative balance, invalid rank/level, and non-admin corrections: rejected.
-- Concurrent spending: one winner, idempotent replay, 12 unaffordable burst requests denied, final balance zero.
-- Complete-history linked dry run reports exactly two pending migrations:
-  - `20260920235334_mort_progression_v1.sql`
-  - `20260921090000_account_deletion_financial_fk_repair.sql`
+- XP and Motion Tokens remain server-authoritative, replay-safe, and separate from payments, tips, purchases, and subscriptions.
+- Fifty levels map to Bronze, Silver, Gold, Platinum, and Diamond; Diamond is highest.
+- Progression private tables enforce RLS and deny direct client mutations. Leaderboard participation defaults to hidden and public fields are minimized.
+- Local migration and security regression covered concurrent token spending, invalid identifiers, cross-user denial, replay, leaderboard privacy, and account deletion financial foreign keys.
+- Production progression and account-deletion migrations remain pending approval; neither was deployed to production by this pass.
 
-## Regression evidence
+## APK
 
-- Cross-user RLS, jobs, applications, messaging, optional Guardian Mode, reporting, avatars, reviews, moderation/legal controls, and verification storage passed.
-- Five later financial foreign keys using `RESTRICT` were repaired with a guarded migration. Disposable PostgreSQL proved deletion succeeds while retained financial records are deidentified.
-- All 25 Stripe regression scripts passed.
-- RevenueCat configuration, live API inventory, atomic fulfillment, entitlement forgery, token replay, review entitlement, and free-core boundaries passed. Live webhook replay remains gated by the unavailable protected `REVENUECAT_WEBHOOK_AUTH_HEADER`.
-- AdMob disabled mode, future test mode, sensitive placement, and teen treatment passed. Runtime ads default off, AD_ID is stripped, teen decisions are non-personalized, and ads cannot mutate progression.
+- Source: `C:\Users\micha\Mort-release-final\build\play\mort-closed-test-0.9.16-112.apk`
+- Downloads: `C:\Users\micha\Downloads\MORT-0.9.16-112-release.apk`
+- Size: 85,108,883 bytes.
+- SHA-256: `499EEF21527F42C2350EE1D4D6AE522B5B958E7926CD67B0879D62353E61D109`
+- Package: `com.mortapp.mobile`; version name `0.9.16`; version code `112`; min SDK 24; target SDK 36.
+- Upload signer SHA-256: `04:42:C2:21:38:B0:D6:23:F9:A6:F4:78:1A:44:2B:F4:A9:33:27:8F:AB:8E:85:76:74:4D:C1:FD:7C:33:4D:EF`.
+- Repository APK verification: pass. Pixel 6 emulator install, startup, and navigation to the welcome screen: pass; MORT remained foreground and logcat showed no app fatal or Flutter exception. The emulator's System UI briefly displayed an unresponsive dialog, then recovered.
+- ELF 16 KB alignment: 30 native libraries checked, 0 failures.
+- Artifact secret scan: 0 findings.
 
-## Flutter test forensics
+## Google Play AAB
 
-- Merge base and current HEAD: 88 Dart test files.
-- Working tree: 109 Dart test files: 108 unit/widget files and 1 Android integration file.
-- Relative to HEAD: 21 new test files and 0 deleted test files.
-- Ordinary Flutter suite: 566 passed, 2 skipped, 0 failed.
-- Intentional skips: `closed-test compile configuration activates approved Google Auth`; `Continue with Google is visible and enabled`.
-- Android integration: 2 passed, 0 failed.
-- Formatting: 309 Dart files, 0 changes.
-- Analyzer: no issues.
+- Source: `C:\Users\micha\Mort-release-final\build\play\mort-closed-test-0.9.16-112.aab`
+- Downloads: `C:\Users\micha\Downloads\MORT-0.9.16-112-play.aab`
+- Size: 85,662,171 bytes.
+- SHA-256: `A6C036425263F457961397AA36ED66B71B02CAAC4FBC3C875EB42F29B7499F0F`
+- Package and version: `com.mortapp.mobile`, `0.9.16+112`.
+- Signed with the same MORT upload certificate. `jarsigner`, `keytool`, and repository AAB manifest/exported-component checks passed. Strict closed-test verification also passed with Play reviewer mode disabled.
+- Artifact secret scan: 0 findings. The source and Downloads artifact hashes match byte for byte.
 
-## Android release certification
+## Remaining external gates
 
-- Upload-signed closed-test APK: `C:\Users\micha\Mort\build\play\mort-closed-test-0.9.16-107.apk`
-- APK SHA-256: `F1D2E91430CFAD83A40102A8B3FFF6B39DA501E26273ABEE3001831B31656681`
-- Upload-signed closed-test AAB: `C:\Users\micha\Mort\build\play\mort-closed-test-0.9.16-107.aab`
-- AAB SHA-256: `8F98F3A3E1D479618B37D400A6030052AA109C31BF5703090302BA822E324B0F`
-- Package, version, SDK, permissions, signature, exported components, forbidden capabilities, and all 18 native library 16 KB alignments passed.
-- Signed release installed and launched on the Pixel 6 emulator with `MainActivity` foreground and no fatal/plugin exceptions.
-- Device integration passed secure storage, authentication capability, permissions, screen security, package/version, and six safety acknowledgements at 160% text scale.
-
-## iOS and privacy
-
-- Added and project-wired `PrivacyInfo.xcprivacy` with tracking disabled and progression represented as product interaction data.
-- Added Release/Profile push entitlements without changing Debug signing behavior.
-- Rank, token, and badge asset directories are bundled.
-- App Store privacy and Google Play Data Safety preparation include progression data.
-- Xcode, CocoaPods, archive signing, physical iPhone, and TestFlight remain macOS external gates.
-
-## Defects repaired
-
-- Fixed invalid PL/pgSQL syntax and an inverted privacy assertion exposed by PostgreSQL execution.
-- Added correct multi-level token accounting, correction authority, and event/metadata/catalog constraints.
-- Tightened safety sequence validation.
-- Added missing iOS privacy and release entitlement files.
-- Updated stale AdMob, RevenueCat, and free-core QA assumptions.
-- Fixed the AAB verifier for exact system-permission-protected WorkManager components.
-- Fixed the Android integration test's perpetual-animation wait and stale five-checkbox expectation.
-- Repaired five later account-deletion financial foreign keys.
-
-## External gates
-
-- Apply both migrations to an approved non-production Supabase project, then run hosted progression and leaderboard attacks with real QA JWTs.
-- Reconcile the UI branch with 53 hosted migration files before production deployment.
-- Back up and review production before applying migrations.
-- Supply the protected RevenueCat webhook header for live replay testing.
-- Run exact-head CI from a clean committed branch. The mixed pre-existing worktree was not committed or pushed because that would combine unrelated unreviewed changes.
-- Complete macOS/Xcode archive, signing, and iPhone/TestFlight validation.
+- Upload `MORT-0.9.16-112-play.aab` to Google Play Console for review and distribution. The APK is for direct installation and QA.
+- Approve and apply pending progression/account-deletion migrations to the intended hosted environment, then run hosted JWT/RLS attack tests before production activation.
+- Complete production legal, marketplace, identity, payment, and provider activation approvals. Current release flags remain closed.
+- Complete Apple distribution signing, physical iPhone validation, and TestFlight/App Store submission separately.
