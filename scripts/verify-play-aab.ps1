@@ -99,7 +99,7 @@ foreach ($component in $exportedComponents) {
   $isStripeDeepLinkInterceptor =
     $component.Value -match 'android:name="com\.reactnativestripesdk\.StripeConnectDeepLinkInterceptorActivity"'
   $isStripePaymentComponent =
-    $component.Value -match 'android:name="com\.stripe\.android\.[^"]*Activity"'
+    $component.Value -match 'android:name="(?:com\.stripe\.android\.financialconnections\.FinancialConnectionsSheetRedirectActivity|com\.stripe\.android\.financialconnections\.lite\.FinancialConnectionsSheetLiteRedirectActivity|com\.stripe\.android\.link\.LinkRedirectHandlerActivity|com\.stripe\.android\.payments\.StripeBrowserProxyReturnActivity)"'
   if (-not $isLauncher -and
       -not $isProtectedProfileInstaller -and
       -not $isPermissionProtectedFcmReceiver -and

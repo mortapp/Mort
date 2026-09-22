@@ -1,8 +1,8 @@
 # MORT Master Execution Blueprint
 
-Status: executable engineering blueprint  
-Branch seed: `feature/mort-master-blueprint-gamification`  
-Authoritative client: `flutter_mort`  
+Status: executable engineering blueprint
+Branch seed: `feature/mort-master-blueprint-gamification`
+Authoritative client: `flutter_mort`
 Backend: hosted Supabase project `rakjydmgwwgtdislanbt`
 
 This is not a brainstorm and not a prompt. It is the implementation contract for the next MORT completion pass.

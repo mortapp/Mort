@@ -1,7 +1,7 @@
 # MORT Master Blueprint Execution Progress
 
-Blueprint: `docs/blueprints/MORT_MASTER_EXECUTION_BLUEPRINT.md`  
-Execution branch: `feature/mort-master-blueprint-gamification`  
+Blueprint: `docs/blueprints/MORT_MASTER_EXECUTION_BLUEPRINT.md`
+Execution branch: `feature/mort-master-blueprint-gamification`
 Execution mode: single Codex agent, no sub-agents.
 
 ## Baseline
