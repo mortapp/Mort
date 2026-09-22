@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_mort/core/atmosphere/mort_atmospheric_background.dart';
 import 'package:flutter_mort/core/theme/mort_spacing.dart';
 import 'package:flutter_mort/core/theme/mort_theme.dart';
 import 'package:flutter_mort/core/widgets/mort_widgets.dart';
@@ -23,7 +24,7 @@ void main() {
       ),
     );
 
-    expect(find.byType(MortSpaceBackground), findsOneWidget);
+    expect(find.byType(MortAtmosphericBackground), findsOneWidget);
     expect(find.byType(SingleChildScrollView), findsOneWidget);
     expect(
       tester

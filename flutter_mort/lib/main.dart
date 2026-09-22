@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'app.dart';
 import 'core/observability/crash_reporting.dart';
@@ -89,9 +90,21 @@ void _runAppWithFallbackHandlers() {
 }
 
 class MortBootstrap extends StatefulWidget {
-  const MortBootstrap({super.key, this.initialize});
+  const MortBootstrap({
+    super.key,
+    this.initialize,
+    this.maintenanceMode,
+    this.currentAppVersion,
+  });
 
   final Future<void> Function()? initialize;
+
+  /// Test/preview override for [AppConfig.maintenanceMode].
+  final bool? maintenanceMode;
+
+  /// Test/preview override for the running app version used by the
+  /// mandatory-update gate. Null defers to PackageInfo at runtime.
+  final String? currentAppVersion;
 
   @override
   State<MortBootstrap> createState() => _MortBootstrapState();
@@ -107,6 +120,11 @@ class _MortBootstrapState extends State<MortBootstrap> {
   }
 
   void _start() {
+    // Maintenance mode is a fail-closed terminal state: no backend calls,
+    // no initialization work until the flag is lifted at build time.
+    if (widget.maintenanceMode ?? AppConfig.maintenanceMode) {
+      return;
+    }
     _initialization = _initializeAfterFirstFrame();
   }
 
@@ -124,6 +142,9 @@ class _MortBootstrapState extends State<MortBootstrap> {
       if (AppConfig.browserStackQaMode) {
         return null;
       }
+      await AppConfig.assertSupportedAppVersion(
+        currentVersion: widget.currentAppVersion,
+      );
       if (AppConfig.crashReportingEnabled &&
           !MortCrashReporting.instance.providerConfigured) {
         throw StateError('The configured crash provider is unavailable.');
@@ -171,8 +192,45 @@ class _MortBootstrapState extends State<MortBootstrap> {
     });
   }
 
+  Future<void> _openPlayStore() async {
+    final uri = Uri.parse(AppConfig.playStoreListingUrl);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      MortStructuredLog.instance.record(
+        'mort.startup.store_link_failed',
+        level: MortLogLevel.warning,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (widget.maintenanceMode ?? AppConfig.maintenanceMode) {
+      return MaterialApp(
+        title: 'MORT',
+        debugShowCheckedModeBanner: false,
+        theme: MortTheme.dark(),
+        home: MortScreen(
+          children: [
+            const MortHeader(
+              eyebrow: 'Earn nearby. Move smart.',
+              title: 'MORT',
+              subtitle: 'Brief maintenance',
+            ),
+            const MortErrorState(
+              title: 'MORT is briefly offline',
+              message:
+                  'We are making MORT better right now. Please check back again shortly.',
+            ),
+            const SizedBox(height: 16),
+            MortButton(
+              label: 'Try again',
+              icon: Icons.refresh,
+              onPressed: _retry,
+            ),
+          ],
+        ),
+      );
+    }
     return FutureBuilder<Object?>(
       future: _initialization,
       builder: (context, snapshot) {
@@ -185,6 +243,11 @@ class _MortBootstrapState extends State<MortBootstrap> {
           }
           return const MortApp();
         }
+        final error = snapshot.data;
+        final updateRequired = error is AppUpdateRequiredException
+            ? error
+            : null;
+        final configFailure = error is AppConfigValidationException;
 
         return MaterialApp(
           title: 'MORT',
@@ -197,11 +260,35 @@ class _MortBootstrapState extends State<MortBootstrap> {
                 title: 'MORT',
                 subtitle: 'Connecting securely...',
               ),
-              if (failed) ...[
-                const MortErrorState(
-                  title: 'MORT could not start',
+              if (updateRequired != null) ...[
+                MortErrorState(
+                  title: 'MORT needs an update',
                   message:
-                      'Check your connection and try again. No private key is required in the app.',
+                      'You are using version ${updateRequired.currentVersion}. '
+                      'Update to the latest version of MORT to keep '
+                      'earning safely.',
+                ),
+                const SizedBox(height: 16),
+                MortButton(
+                  label: 'Update MORT',
+                  icon: Icons.system_update_alt,
+                  onPressed: _openPlayStore,
+                ),
+                const SizedBox(height: 8),
+                MortButton(
+                  label: 'Retry startup',
+                  icon: Icons.refresh,
+                  onPressed: _retry,
+                ),
+              ] else if (failed) ...[
+                MortErrorState(
+                  title: 'MORT could not start',
+                  message: configFailure
+                      ? 'MORT could not finish its secure setup on this '
+                            'device. Check the app store for an update, then '
+                            'try again. No private key is required in the app.'
+                      : 'Check your connection and try again. No private key '
+                            'is required in the app.',
                 ),
                 const SizedBox(height: 16),
                 MortButton(

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +13,9 @@ import '../../core/utils/safe_uri.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/repositories/mort_guide_repository.dart';
 import '../../data/repositories/providers.dart';
+import 'mascot_preference.dart';
+import 'mort_guide_intro.dart';
+import 'mort_mascots.dart';
 
 class MortGuideEntryButton extends StatelessWidget {
   const MortGuideEntryButton({super.key});
@@ -41,18 +46,40 @@ class _MortGuideViewState extends ConsumerState<MortGuideView> {
   bool _loading = true;
   bool _sending = false;
   bool _safetyEscalation = false;
+  bool _justAnswered = false;
+  bool _composing = false;
 
   @override
   void initState() {
     super.initState();
     _conversationId = widget.initialConversationId;
+    _question.addListener(_onComposerChanged);
     _load();
+  }
+
+  void _onComposerChanged() {
+    if (!mounted) return;
+    final composing = _question.text.trim().isNotEmpty;
+    if (composing != _composing) setState(() => _composing = composing);
   }
 
   @override
   void dispose() {
-    _question.dispose();
+    _question
+      ..removeListener(_onComposerChanged)
+      ..dispose();
+    _successTimer?.cancel();
     super.dispose();
+  }
+
+  Timer? _successTimer;
+
+  void _flashSuccess() {
+    _successTimer?.cancel();
+    setState(() => _justAnswered = true);
+    _successTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _justAnswered = false);
+    });
   }
 
   Future<void> _load() async {
@@ -105,6 +132,7 @@ class _MortGuideViewState extends ConsumerState<MortGuideView> {
         _safetyEscalation = reply.safetyEscalation;
         _messages.add(reply.message);
       });
+      _flashSuccess();
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -119,7 +147,24 @@ class _MortGuideViewState extends ConsumerState<MortGuideView> {
 
   @override
   Widget build(BuildContext context) {
+    final mascotPreference = ref.watch(mascotPreferenceProvider);
+    if (mascotPreference.isLoading && !mascotPreference.hasValue) {
+      return const MortLoading(label: 'Opening MORT Guide...');
+    }
+    if (mascotPreference.value == null &&
+        _conversationId == null &&
+        _messages.isEmpty) {
+      // First-open introduction: stays until the teen picks a companion.
+      return MortGuideWelcomeView(onStart: () => setState(() {}));
+    }
     if (_loading) return const MortLoading(label: 'Opening MORT Guide...');
+    final mascot = mascotPreference.value ?? MortMascotId.pip;
+    final mascotState = guideMascotStateFor(
+      safetyEscalation: _safetyEscalation,
+      sending: _sending,
+      justAnswered: _justAnswered,
+      composing: _composing,
+    );
     return MortScreen(
       children: [
         MortHeader(
@@ -127,6 +172,10 @@ class _MortGuideViewState extends ConsumerState<MortGuideView> {
           title: 'MORT Guide',
           subtitle:
               'Ask about MORT, jobs, applications, contracts, payments, reports, or account controls.',
+          leading: GestureDetector(
+            onTap: () => context.go('/guide/mascot'),
+            child: MortMascotView(mascot: mascot, state: mascotState, size: 52),
+          ),
           trailing: MortIconButton(
             icon: Icons.history,
             tooltip: 'MORT Guide history',
@@ -138,9 +187,25 @@ class _MortGuideViewState extends ConsumerState<MortGuideView> {
               'AI may make mistakes. Do not share IDs, passwords, exact addresses, or emergency evidence. MORT Guide is not emergency, legal, or medical assistance.',
         ),
         const SizedBox(height: MortSpacing.md),
-        if (_messages.isEmpty)
-          MortGuideSuggestedQuestions(onSelected: _ask)
-        else
+        if (_messages.isEmpty) ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Subtle companion presence beside the empty state; never
+              // blocks or overlaps the suggested questions.
+              MortMascotView(mascot: mascot, state: mascotState, size: 56),
+              const SizedBox(width: MortSpacing.sm),
+              Expanded(
+                child: Text(
+                  '${mascot.displayName} is here with approved MORT help. '
+                  'Pick a question or ask your own.',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          MortGuideSuggestedQuestions(onSelected: _ask),
+        ] else
           for (final message in _messages) ...[
             MortGuideMessageBubble(
               message: message,
@@ -187,6 +252,11 @@ class _MortGuideViewState extends ConsumerState<MortGuideView> {
               label: 'Privacy',
               icon: Icons.privacy_tip_outlined,
               onPressed: () => MortGuidePrivacySheet.show(context),
+            ),
+            MortAction(
+              label: 'Choose your Guide UI',
+              icon: Icons.face_outlined,
+              onPressed: () => context.go('/guide/mascot'),
             ),
             const MortAction(
               label: 'Human support',

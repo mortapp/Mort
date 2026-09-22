@@ -4,9 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../core/config/app_config.dart';
 import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
@@ -496,7 +496,8 @@ class _CompactOnboardingScreenState
             );
             return;
           }
-          final package = await PackageInfo.fromPlatform();
+          // Bounded read: a hung plugin call must never wedge completion.
+          final package = await AppConfig.tryReadPackageInfo();
           final platform = kIsWeb
               ? 'flutter_web'
               : 'flutter_${defaultTargetPlatform.name}';
@@ -510,7 +511,9 @@ class _CompactOnboardingScreenState
               'teen_summary_viewed': _resolvedRole() == UserRole.teen,
               'signature': _signature.text.trim(),
               'platform': platform,
-              'app_version': '${package.version}+${package.buildNumber}',
+              'app_version': package == null
+                  ? 'unknown'
+                  : '${package.version}+${package.buildNumber}',
             },
           );
           ref.invalidate(currentProfileProvider);
@@ -1385,6 +1388,7 @@ class _CompactOnboardingScreenState
   Widget build(BuildContext context) {
     final liveProfile = ref.watch(currentProfileProvider).value;
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.midnight,
       scrollController: _scrollController,
       onWillPop: _handleSystemBack,
       bottom: _buildBottomActions(),
@@ -1469,24 +1473,37 @@ class _OnboardingNotice extends StatelessWidget {
     return Semantics(
       container: true,
       liveRegion: liveRegion,
-      child: MortCard(
-        color: color.withValues(alpha: 0.12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color),
-            const SizedBox(width: MortSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: MortSpacing.xxs),
-                  Text(message, style: Theme.of(context).textTheme.bodyMedium),
-                ],
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(left: BorderSide(color: color, width: 2)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            MortSpacing.md,
+            MortSpacing.xs,
+            MortSpacing.xs,
+            MortSpacing.xs,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: color),
+              const SizedBox(width: MortSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: MortSpacing.xxs),
+                    Text(
+                      message,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

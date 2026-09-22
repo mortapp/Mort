@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_mort/core/atmosphere/mort_wordmark_reveal.dart';
 import 'package:flutter_mort/core/theme/mort_theme.dart';
 import 'package:flutter_mort/core/widgets/mort_widgets.dart';
+import 'package:flutter_mort/core/widgets/mort_motion_mark.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('MortLogo exposes the approved asset, semantics, and wordmark', (
+  testWidgets('MortLogo exposes the motion mark, semantics, and wordmark', (
     tester,
   ) async {
     final semantics = tester.ensureSemantics();
@@ -12,15 +14,14 @@ void main() {
       _host(const MortLogo(size: 64, showWordmark: true)),
     );
 
-    final image = tester.widget<Image>(find.byType(Image));
-    final provider = image.image as AssetImage;
-    expect(provider.assetName, MortLogo.assetPath);
-    expect(find.text('M O R T'), findsOneWidget);
-    final logoSemantics = find.bySemanticsLabel('MORT arrow logo');
+    expect(find.byType(Image), findsNothing);
+    expect(find.byType(MortMotionMark), findsOneWidget);
+    expect(find.byType(MortWordmarkReveal), findsOneWidget);
+    final logoSemantics = find.bySemanticsLabel('MORT motion mark');
     expect(logoSemantics, findsOneWidget);
     expect(
       tester.getSemantics(logoSemantics),
-      matchesSemantics(label: 'MORT arrow logo', isImage: true),
+      matchesSemantics(label: 'MORT motion mark', isImage: true),
     );
     semantics.dispose();
   });
@@ -60,7 +61,7 @@ void main() {
       ),
       findsNothing,
     );
-    expect(find.text('M O R T'), findsOneWidget);
+    expect(find.byType(MortWordmarkReveal), findsOneWidget);
   });
 }
 

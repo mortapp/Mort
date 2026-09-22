@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_mort/core/atmosphere/mort_atmospheric_background.dart';
 import 'package:flutter_mort/core/theme/mort_theme.dart';
 import 'package:flutter_mort/core/widgets/mort_widgets.dart';
 import 'package:flutter_mort/data/models/application.dart';
@@ -10,7 +11,6 @@ import 'package:flutter_mort/data/models/leaderboard.dart';
 import 'package:flutter_mort/data/models/profile.dart';
 import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/features/mort_screens.dart';
-import 'package:flutter_mort/features/teen/teen_shell.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -26,9 +26,9 @@ void main() {
         textScaler: TextScaler.linear(2),
       );
 
-      expect(find.byType(MortSpaceBackground), findsOneWidget);
-      expect(find.byType(MortTeenDestinationHeader), findsOneWidget);
-      expect(find.byType(MortBrandMark), findsNothing);
+      expect(find.byType(MortAtmosphericBackground), findsOneWidget);
+      expect(find.byType(MortHeader), findsOneWidget);
+      expect(find.byType(MortBrandMark), findsOneWidget);
       expect(find.textContaining('123 Exact Street'), findsNothing);
       expect(find.textContaining('Carmel, IN'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -38,7 +38,7 @@ void main() {
         'AVAILABLE NEARBY WORK',
         'Safety',
         'QUICK LINKS',
-        'LEADERBOARD',
+        'COMMUNITY LEADERBOARD',
       ]) {
         expect(find.text(label), findsOneWidget, reason: label);
         await tester.ensureVisible(find.text(label));
@@ -58,7 +58,7 @@ void main() {
       textScaler: const TextScaler.linear(1.3),
     );
 
-    expect(find.byType(MortTeenDestinationHeader), findsOneWidget);
+    expect(find.byType(MortHeader), findsOneWidget);
     expect(find.textContaining('123 Exact Street'), findsNothing);
     expect(tester.takeException(), isNull);
   });
@@ -105,8 +105,8 @@ void main() {
         'class _DashboardActionDefinition',
       );
 
-      expect(teenHome, contains('MortTeenDestinationHeader('));
-      expect(teenHome, contains('if (role != UserRole.teen) ...['));
+      expect(teenHome, contains('MortHeader('));
+      expect(teenHome, isNot(contains('MortTeenDestinationHeader(')));
       expect(teenHome, isNot(contains('MortColors.roseGold')));
       expect(teenHome, isNot(contains('MortColors.godPink')));
       expect(teenHome, isNot(contains('MortColors.neon')));

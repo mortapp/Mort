@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,6 +17,7 @@ import '../../features/guardian/guardian_mode_screens.dart';
 import '../../features/financial/financial_safety_center.dart';
 import '../../features/financial/financial_section_screens.dart';
 import '../../features/guardian/guardian_safety_pings_screen.dart';
+import '../../features/guide/mascot_picker_screen.dart';
 import '../../features/guide/mort_guide_screens.dart';
 import '../../features/jobs/job_screens.dart';
 import '../../features/jobs/job_progress_screen.dart';
@@ -58,6 +60,7 @@ import '../../features/teen/progression_share_screen.dart';
 import '../../features/teen/teen_shell.dart';
 import '../../services/screen_security_service.dart';
 import '../widgets/mort_widgets.dart';
+import '../atmosphere/mort_atmosphere_preview_screen.dart';
 import '../reviewer/reviewer_session.dart';
 import 'route_access.dart';
 
@@ -85,6 +88,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/', builder: (_, _) => const SplashScreen()),
       GoRoute(path: '/splash', builder: (_, _) => const SplashScreen()),
       GoRoute(path: '/welcome', builder: (_, _) => const WelcomeScreen()),
+      if (kDebugMode)
+        GoRoute(
+          path: '/debug/atmosphere',
+          builder: (_, _) => const MortAtmospherePreviewScreen(),
+        ),
       GoRoute(
         path: '/auth/sign-in',
         builder: (_, _) => const UnifiedAuthScreen(),
@@ -1206,6 +1214,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       _guarded('/guide', const MortGuideView()),
+      _guarded('/guide/mascot', const MortMascotPickerScreen()),
       _guarded('/guide/history', const MortGuideHistoryView()),
       _guarded('/guide/delete-history', const MortGuideDeleteHistoryView()),
       GoRoute(

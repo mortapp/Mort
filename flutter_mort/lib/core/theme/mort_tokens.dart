@@ -49,25 +49,31 @@ class MortIconSizes {
 class MortShadows {
   const MortShadows._();
 
+  /// Deep black elevation with a barely-there silver rim — polished dark
+  /// material, never a colored bloom.
   static const card = <BoxShadow>[
-    BoxShadow(color: Color(0x52000000), blurRadius: 10, offset: Offset(0, 4)),
+    BoxShadow(color: Color(0x99000000), blurRadius: 26, offset: Offset(0, 12)),
+    BoxShadow(color: Color(0x14D6DAE0), blurRadius: 1, offset: Offset(0, -1)),
   ];
 
+  /// Silver specular bloom for the primary CTA — reads as light reflecting
+  /// off polished metal, not a cobalt neon halo.
   static const glow = <BoxShadow>[
-    BoxShadow(color: Color(0x2EB8C1CB), blurRadius: 18),
-    BoxShadow(color: Color(0x1475C7F7), blurRadius: 26),
+    BoxShadow(color: Color(0x2ED6DAE0), blurRadius: 18),
+    BoxShadow(color: Color(0x59000000), blurRadius: 26, offset: Offset(0, 10)),
   ];
 }
 
 class MortGradients {
   const MortGradients._();
 
-  /// Primary neutral metallic treatment.
+  /// Restrained cobalt CTA: dark edges, a short brighter-blue reflection,
+  /// and no white/ice hotspot.
   static const metallic = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: MortColors.metallicGradient,
-    stops: [0, 0.18, 0.38, 0.5, 0.62, 0.82, 1],
+    stops: [0, 0.30, 0.52, 0.58, 1],
   );
 
   static const darkRoseGold = LinearGradient(
@@ -107,15 +113,17 @@ class MortGradients {
     colors: MortColors.signatureGradient,
   );
 
+  /// Graphite-black glass — surfaces stay neutral; midnight blue lives in
+  /// the atmosphere layer only.
   static const glass = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xD9151217), Color(0xD9111116), Color(0xE00A0A0D)],
+    colors: [Color(0xE0080A0D), Color(0xE0090B0F), Color(0xF0000208)],
   );
 
   static const infoGlass = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xF20D2432), Color(0xF2111116)],
+    colors: [Color(0xF2090B0F), Color(0xF207090C)],
   );
 }

@@ -19,14 +19,13 @@ class TeenProfileDestinationScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(currentProfileProvider);
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.quiet,
       children: [
         MortTeenDestinationHeader(
           eyebrow: 'Your MORT identity',
           title: 'Profile',
           subtitle: 'Your work history, trust signals, and account controls.',
-          trailing: MortIconButton(
-            icon: Icons.settings_outlined,
-            tooltip: 'Settings',
+          trailing: MortSettingsButton(
             onPressed: () => context.push('/settings'),
           ),
         ),

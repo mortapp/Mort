@@ -184,6 +184,14 @@ class AuthRepository {
         ),
       );
     }
+    if (!SupabaseService.isInitialized) {
+      return _setOAuth(
+        OAuthFlowSnapshot(
+          OAuthFlowStage.providerDisabled,
+          'MORT cannot connect securely right now. Use email and password, then try ${providerInfo.displayName} again later.',
+        ),
+      );
+    }
     if (!_launchGate.tryAcquire()) return _oauthState;
 
     _oauthPurpose = purpose;
