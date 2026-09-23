@@ -19,6 +19,10 @@ void main() {
     await tester.pump();
 
     expect(find.byType(MortMotionMark), findsOneWidget);
+    expect(
+      tester.widget<MortMotionMark>(find.byType(MortMotionMark)).outlinedUp,
+      isTrue,
+    );
     expect(find.byType(MortWordmarkReveal), findsOneWidget);
     expect(find.text('Earn nearby. Move smart.'), findsOneWidget);
     expect(find.text('Enter MORT'), findsOneWidget);

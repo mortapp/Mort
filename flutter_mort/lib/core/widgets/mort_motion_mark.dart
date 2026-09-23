@@ -5,10 +5,16 @@ import '../theme/mort_colors.dart';
 /// A small original forward-motion symbol drawn as transparent vector paths.
 /// It deliberately has no raster tile or rectangular background.
 class MortMotionMark extends StatelessWidget {
-  const MortMotionMark({super.key, this.size = 44, this.settled = false});
+  const MortMotionMark({
+    super.key,
+    this.size = 44,
+    this.settled = false,
+    this.outlinedUp = false,
+  });
 
   final double size;
   final bool settled;
+  final bool outlinedUp;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -16,15 +22,24 @@ class MortMotionMark extends StatelessWidget {
     label: 'MORT motion mark',
     child: SizedBox.square(
       dimension: size,
-      child: CustomPaint(painter: _MortMotionMarkPainter(settled: settled)),
+      child: CustomPaint(
+        painter: _MortMotionMarkPainter(
+          settled: settled,
+          outlinedUp: outlinedUp,
+        ),
+      ),
     ),
   );
 }
 
 class _MortMotionMarkPainter extends CustomPainter {
-  const _MortMotionMarkPainter({required this.settled});
+  const _MortMotionMarkPainter({
+    required this.settled,
+    required this.outlinedUp,
+  });
 
   final bool settled;
+  final bool outlinedUp;
 
   // One chevron of the double-arrow mark: a concave dart pointing right,
   // matching the app icon's brushed-silver double-chevron silhouette.
@@ -42,6 +57,24 @@ class _MortMotionMarkPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (outlinedUp) {
+      final front = Path()
+        ..moveTo(size.width * 0.12, size.height * 0.56)
+        ..lineTo(size.width * 0.50, size.height * 0.18)
+        ..lineTo(size.width * 0.88, size.height * 0.56);
+      final back = Path()
+        ..moveTo(size.width * 0.22, size.height * 0.82)
+        ..lineTo(size.width * 0.50, size.height * 0.54)
+        ..lineTo(size.width * 0.78, size.height * 0.82);
+      final stroke = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      canvas.drawPath(front, stroke..color = MortColors.ice);
+      canvas.drawPath(back, stroke..color = MortColors.silverDark);
+      return;
+    }
     const frontOffset = 0.42;
     final path = Path()
       ..addPath(_chevron(size, 0.20, frontOffset), Offset.zero)
@@ -80,5 +113,5 @@ class _MortMotionMarkPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _MortMotionMarkPainter oldDelegate) =>
-      oldDelegate.settled != settled;
+      oldDelegate.settled != settled || oldDelegate.outlinedUp != outlinedUp;
 }

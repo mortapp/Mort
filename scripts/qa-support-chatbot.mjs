@@ -679,7 +679,9 @@ await withQaUsers(
     );
 
     let rateLimited = false;
-    for (let index = 0; index < 22; index += 1) {
+    // The database uses fixed ten-minute windows. CI can cross a window
+    // boundary during this burst, so allow enough calls to fill two windows.
+    for (let index = 0; index < 45; index += 1) {
       const attempt = await invoke(adult.client, "support-tool-execute", {
         tool: "open_route",
         route: "/support",

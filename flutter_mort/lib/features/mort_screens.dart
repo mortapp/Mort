@@ -68,7 +68,7 @@ class SplashScreen extends ConsumerWidget {
     return MortScreen(
       scroll: false,
       padding: const EdgeInsets.symmetric(horizontal: MortSpacing.xl),
-      atmosphereIntensity: MortAtmosphereIntensity.quiet,
+      atmosphereIntensity: MortAtmosphereIntensity.settings,
       children: [
         Expanded(
           child: CustomScrollView(
@@ -78,10 +78,7 @@ class SplashScreen extends ConsumerWidget {
                 child: Column(
                   children: [
                     const Spacer(),
-                    const RotatedBox(
-                      quarterTurns: 3,
-                      child: MortMotionMark(size: 34),
-                    ),
+                    const MortMotionMark(size: 34, outlinedUp: true),
                     const SizedBox(height: MortSpacing.md),
                     const MortWordmarkReveal(
                       width: 148,
@@ -118,8 +115,14 @@ class SplashScreen extends ConsumerWidget {
                           backgroundColor: MortColors.graphite2.withValues(
                             alpha: 0.72,
                           ),
-                          side: const BorderSide(
-                            color: MortColors.borderSilver,
+                          side: BorderSide(
+                            color: MortColors.borderSilver.withValues(
+                              alpha: 0.6,
+                            ),
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
@@ -131,6 +134,13 @@ class SplashScreen extends ConsumerWidget {
                     const SizedBox(height: MortSpacing.xs),
                     TextButton(
                       onPressed: () => context.push('/auth/sign-in'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: MortColors.textSecondary,
+                        textStyle: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
                       child: const Text('Sign in'),
                     ),
                     const SizedBox(height: MortSpacing.lg),
@@ -7128,9 +7138,11 @@ class _BackendStatusCard extends ConsumerWidget {
                       ? 'Checking secure connection...'
                       : 'Connection unavailable. Account features will wait safely.',
                   textAlign: TextAlign.center,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(color: MortColors.textMuted),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: MortColors.textMuted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w400,
+                  ),
                 ),
               ),
             ],
