@@ -66,48 +66,85 @@ class SplashScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MortScreen(
-      atmosphereIntensity: MortAtmosphereIntensity.midnight,
-      atmosphereFocalLayer: Align(
-        alignment: const Alignment(0, -0.42),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            MortMotionMark(size: 42),
-            SizedBox(height: MortSpacing.sm),
-            MortWordmarkReveal(width: 244, height: 82),
-          ],
-        ),
-      ),
+      scroll: false,
+      padding: const EdgeInsets.symmetric(horizontal: MortSpacing.xl),
+      atmosphereIntensity: MortAtmosphereIntensity.quiet,
       children: [
-        const SizedBox(height: 350),
-        Text(
-          'Earn nearby. Move smart.',
-          textAlign: TextAlign.center,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(color: MortColors.textSecondary),
-        ),
-        const SizedBox(height: MortSpacing.md),
-        Text(
-          'Real local work. Private messages. Built-in safety tools.',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyLarge,
-        ),
-        const SizedBox(height: MortSpacing.lg),
-        MortButton(
-          label: 'Enter MORT',
-          icon: Icons.arrow_forward_rounded,
-          onPressed: () => context.go('/welcome'),
-        ),
-        const SizedBox(height: MortSpacing.sm),
-        Center(
-          child: TextButton(
-            onPressed: () => context.push('/auth/sign-in'),
-            child: const Text('Sign in'),
+        Expanded(
+          child: CustomScrollView(
+            slivers: [
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Column(
+                  children: [
+                    const Spacer(),
+                    const RotatedBox(
+                      quarterTurns: 3,
+                      child: MortMotionMark(size: 34),
+                    ),
+                    const SizedBox(height: MortSpacing.md),
+                    const MortWordmarkReveal(
+                      width: 148,
+                      height: 48,
+                      showTagline: false,
+                      restOpacity: 0.82,
+                      strokeWidth: 1.6,
+                    ),
+                    const SizedBox(height: MortSpacing.xl),
+                    Text(
+                      'Earn nearby. Move smart.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: MortColors.text,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: MortSpacing.xs),
+                    Text(
+                      'Real work near you, with safety and clear conversations built in from the start.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: MortColors.textSecondary,
+                      ),
+                    ),
+                    const Spacer(),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: OutlinedButton(
+                        onPressed: () => context.go('/welcome'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: MortColors.text,
+                          backgroundColor: MortColors.graphite2.withValues(
+                            alpha: 0.72,
+                          ),
+                          side: const BorderSide(
+                            color: MortColors.borderSilver,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: const Text('Enter MORT'),
+                      ),
+                    ),
+                    const SizedBox(height: MortSpacing.xs),
+                    TextButton(
+                      onPressed: () => context.push('/auth/sign-in'),
+                      child: const Text('Sign in'),
+                    ),
+                    const SizedBox(height: MortSpacing.lg),
+                    Semantics(
+                      liveRegion: true,
+                      child: const _BackendStatusCard(compact: true),
+                    ),
+                    const SizedBox(height: MortSpacing.md),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: MortSpacing.sm),
-        Semantics(liveRegion: true, child: _BackendStatusCard()),
       ],
     );
   }
@@ -7050,7 +7087,9 @@ class MortErrorStateScreen extends StatelessWidget {
 }
 
 class _BackendStatusCard extends ConsumerWidget {
-  const _BackendStatusCard();
+  const _BackendStatusCard({this.compact = false});
+
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -7060,6 +7099,50 @@ class _BackendStatusCard extends ConsumerWidget {
       _ => false,
     };
     final checking = status.isLoading;
+    if (compact) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                connected
+                    ? Icons.circle
+                    : checking
+                    ? Icons.circle_outlined
+                    : Icons.error_outline,
+                size: 9,
+                color: connected
+                    ? MortColors.silverBright
+                    : checking
+                    ? MortColors.silver
+                    : MortColors.warning,
+              ),
+              const SizedBox(width: MortSpacing.xs),
+              Flexible(
+                child: Text(
+                  connected
+                      ? 'Secure connection ready.'
+                      : checking
+                      ? 'Checking secure connection...'
+                      : 'Connection unavailable. Account features will wait safely.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: MortColors.textMuted),
+                ),
+              ),
+            ],
+          ),
+          if (!connected && !checking)
+            TextButton(
+              onPressed: () => ref.invalidate(backendConnectionStatusProvider),
+              child: const Text('Retry connection'),
+            ),
+        ],
+      );
+    }
     return MortCard(
       padding: const EdgeInsets.symmetric(
         horizontal: MortSpacing.sm,

@@ -9,7 +9,12 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   testWidgets('entry presents one concise midnight hierarchy', (tester) async {
     await tester.pumpWidget(
-      const ProviderScope(child: MaterialApp(home: SplashScreen())),
+      ProviderScope(
+        overrides: [
+          backendConnectionStatusProvider.overrideWith((ref) async => true),
+        ],
+        child: const MaterialApp(home: SplashScreen()),
+      ),
     );
     await tester.pump();
 
@@ -20,7 +25,45 @@ void main() {
     expect(find.text('Sign in'), findsOneWidget);
     expect(find.byType(Image), findsNothing);
     final screen = tester.widget<MortScreen>(find.byType(MortScreen));
-    expect(screen.atmosphereFocalLayer, isNotNull);
+    expect(screen.atmosphereFocalLayer, isNull);
+    expect(find.byType(OutlinedButton), findsOneWidget);
+    final wordmark = tester.widget<MortWordmarkReveal>(
+      find.byType(MortWordmarkReveal),
+    );
+    expect(wordmark.width, lessThanOrEqualTo(160));
+    expect(wordmark.height, lessThanOrEqualTo(52));
+    expect(wordmark.showTagline, isFalse);
+  });
+
+  testWidgets('entry matches the compact mobile landing composition', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          backendConnectionStatusProvider.overrideWith((ref) async => true),
+        ],
+        child: const MaterialApp(home: SplashScreen()),
+      ),
+    );
+    await tester.pump();
+
+    final mark = tester.getRect(find.byType(MortMotionMark));
+    final wordmark = tester.getRect(find.byType(MortWordmarkReveal));
+    final cta = tester.getRect(find.byType(OutlinedButton));
+    final signIn = tester.getRect(find.widgetWithText(TextButton, 'Sign in'));
+    expect(mark.center.dx, closeTo(180, 2));
+    expect(wordmark.center.dx, closeTo(180, 2));
+    expect(mark.top, inInclusiveRange(170, 310));
+    expect(cta.top, greaterThan(570));
+    expect(cta.height, inInclusiveRange(44, 56));
+    expect(signIn.top, greaterThan(cta.bottom));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('entry remains scroll-safe at 150 percent text scale', (

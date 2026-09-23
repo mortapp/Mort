@@ -25,12 +25,16 @@ class MortWordmarkReveal extends StatefulWidget {
     this.width = 220,
     this.height = 64,
     this.showTagline = true,
+    this.restOpacity = MortAtmosphereTuning.wordmarkRestOpacity,
+    this.strokeWidth = 3.2,
     this.onComplete,
   });
 
   final double width;
   final double height;
   final bool showTagline;
+  final double restOpacity;
+  final double strokeWidth;
   final VoidCallback? onComplete;
 
   @override
@@ -111,6 +115,8 @@ class _MortWordmarkRevealState extends State<MortWordmarkReveal>
             letterStarts: _letterStarts,
             letterDurations: _letterDurations,
             showTagline: widget.showTagline,
+            restOpacity: widget.restOpacity,
+            strokeWidth: widget.strokeWidth,
             settled: _alreadySettled,
           ),
         ),
@@ -125,6 +131,8 @@ class _MortWordmarkPainter extends CustomPainter {
     required this.letterStarts,
     required this.letterDurations,
     required this.showTagline,
+    required this.restOpacity,
+    required this.strokeWidth,
     required this.settled,
   }) : super(repaint: animation);
 
@@ -132,6 +140,8 @@ class _MortWordmarkPainter extends CustomPainter {
   final List<Duration> letterStarts;
   final List<Duration> letterDurations;
   final bool showTagline;
+  final double restOpacity;
+  final double strokeWidth;
   final bool settled;
 
   static final List<List<Path>> _letters = MortWordmarkPaths.all;
@@ -157,12 +167,12 @@ class _MortWordmarkPainter extends CustomPainter {
 
     final strokePaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.2
+      ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..color = MortAtmosphereTuning.wordmarkPenCore.withValues(
         alpha: settled || animation.value >= 1
-            ? MortAtmosphereTuning.wordmarkRestOpacity
+            ? restOpacity
             : MortAtmosphereTuning.wordmarkPenCoreOpacity,
       );
 
@@ -337,6 +347,8 @@ class _MortWordmarkPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _MortWordmarkPainter oldDelegate) {
     return !identical(oldDelegate.animation, animation) ||
-        oldDelegate.settled != settled;
+        oldDelegate.settled != settled ||
+        oldDelegate.restOpacity != restOpacity ||
+        oldDelegate.strokeWidth != strokeWidth;
   }
 }

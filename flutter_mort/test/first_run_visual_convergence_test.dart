@@ -38,10 +38,7 @@ void main() {
     expect(find.byType(MortWordmarkReveal), findsOneWidget);
     expect(find.text('Enter MORT'), findsOneWidget);
     expect(find.text('Sign in'), findsOneWidget);
-    final enter = tester.widget<MortButton>(
-      find.widgetWithText(MortButton, 'Enter MORT'),
-    );
-    expect(enter.style, MortButtonStyle.primary);
+    expect(find.widgetWithText(OutlinedButton, 'Enter MORT'), findsOneWidget);
     expect(find.widgetWithText(TextButton, 'Sign in'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -106,10 +103,10 @@ void main() {
       backendStatus: Future.value(true),
     );
 
-    expect(find.byIcon(Icons.cloud_done), findsOneWidget);
+    expect(find.byIcon(Icons.circle), findsOneWidget);
     expect(
-      tester.widget<Icon>(find.byIcon(Icons.cloud_done)).color,
-      MortColors.accent,
+      tester.widget<Icon>(find.byIcon(Icons.circle)).color,
+      MortColors.silverBright,
     );
     expect(find.text('Secure connection ready.'), findsOneWidget);
     expect(find.text('Retry connection'), findsNothing);
@@ -126,9 +123,9 @@ void main() {
       backendStatus: Future.value(false),
     );
 
-    expect(find.byIcon(Icons.cloud_off), findsOneWidget);
+    expect(find.byIcon(Icons.error_outline), findsOneWidget);
     expect(
-      tester.widget<Icon>(find.byIcon(Icons.cloud_off)).color,
+      tester.widget<Icon>(find.byIcon(Icons.error_outline)).color,
       MortColors.warning,
     );
     expect(
@@ -151,9 +148,9 @@ void main() {
       settle: false,
     );
 
-    expect(find.byIcon(Icons.cloud_sync), findsOneWidget);
+    expect(find.byIcon(Icons.circle_outlined), findsOneWidget);
     expect(
-      tester.widget<Icon>(find.byIcon(Icons.cloud_sync)).color,
+      tester.widget<Icon>(find.byIcon(Icons.circle_outlined)).color,
       MortColors.silver,
     );
     expect(find.text('Checking secure connection...'), findsOneWidget);
