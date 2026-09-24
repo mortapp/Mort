@@ -265,7 +265,7 @@ const sdkRows = [
   ['image_picker','Yes','On user action','Selected/captured media sent only after user submits','CAMERA','Declare photos/files','pubspec.lock; uploads_repository.dart'],
   ['geolocator / geocoding','Yes','On user action','Foreground location/area only','COARSE, FINE','Declare optional location; verify geocoding provider terms','pubspec.lock; location service'],
   ['flutter_local_notifications','Yes','Contextual','Local notification display; no FCM SDK detected','POST_NOTIFICATIONS, VIBRATE','Sensitive preview QA','pubspec.lock'],
-  ['purchases_flutter / RevenueCat','Yes','No (IAP_ENABLED=false)','No intended runtime purchase collection; native code remains bundled','BILLING removed','Check final AAB/Play SDK declaration; do not enable','AppConfig and RevenueCatService guard'],
+  ['purchases_flutter / RevenueCat','Yes','No (IAP_ENABLED=false)','Native billing bundled; no intended runtime purchase collection while disabled','BILLING may be present through SDK manifest merge','Check final AAB/Play Billing and Data Safety declaration before activation','AppConfig and RevenueCatService guard'],
   ['google_mobile_ads','Yes','No (ADS_ENABLED=false)','No intended ad request; native code remains bundled','AD_ID/AdServices removed; WAKE_LOCK removed','Check final AAB/Play SDK declaration; do not enable','AppConfig and manifest remove rules'],
   ['device_info_plus / package_info_plus','Yes','Feature dependent','Local device/app metadata; only declared server submission counts','None','Verify no analytics submission','pubspec.lock/source'],
   ['cached_network_image','Yes','On approved image display','Fetches approved HTTPS media','INTERNET','Ensure signed/private URLs and cache policy','pubspec.lock'],

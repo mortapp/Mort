@@ -3,7 +3,6 @@ import { join } from "node:path";
 import {
   entitlementProductMap,
   entitlements,
-  expectedFlutterSdkKey,
   findByLookup,
   findProductByStoreIdentifier,
   freeForeverFeatures,
@@ -60,7 +59,8 @@ try {
     appId,
     appType: app.type,
     appName: app.name ?? "(unnamed)",
-    flutterSdkKeyMatchesExpected: context.sdkKey === expectedFlutterSdkKey,
+    publicSdkKeyTypeValid: context.sdkKey.startsWith(context.targetStore === "play_store" ? "goog_" : "test_"),
+    targetStore: context.targetStore,
     secretEnvName: context.secretEnvName,
     envLocalSupabaseUrl,
     webhookAuthHeaderVisible: Boolean(webhookAuthHeader),
@@ -92,7 +92,7 @@ try {
   }
 
   if (inventory.permissions.offerings && inventory.permissions.products) {
-    await ensureOfferingsAndPackages(api, projectId, productByStoreId, offeringByLookup);
+    await ensureOfferingsAndPackages(api, projectId, appId, productByStoreId, offeringByLookup);
   } else {
     markCatalogSkipped(report.offerings, offerings, "lookupKey", "permission_missing");
     report.packages.push({ offering: "all", package: "all", status: "skipped_permission_missing" });
@@ -294,7 +294,7 @@ async function ensureEntitlementAttachments(api, projectId, productByStoreId, en
   }
 }
 
-async function ensureOfferingsAndPackages(api, projectId, productByStoreId, offeringByLookup) {
+async function ensureOfferingsAndPackages(api, projectId, appId, productByStoreId, offeringByLookup) {
   for (const catalogOffering of offerings) {
     let offering = offeringByLookup.get(catalogOffering.lookupKey);
     if (!offering && !verifyOnly) {
@@ -324,7 +324,30 @@ async function ensureOfferingsAndPackages(api, projectId, productByStoreId, offe
       continue;
     }
 
-    if (!verifyOnly && catalogOffering.isCurrent && offering && !offering.is_current) {
+    await ensurePackagesForOffering(api, projectId, appId, productByStoreId, catalogOffering, offering);
+
+    const actualPackages = await api.listAll(
+      `/projects/${encodeURIComponent(projectId)}/offerings/${encodeURIComponent(offering.id)}/packages`,
+    );
+    const expectedPackageKeys = new Set(catalogOffering.packages.map((item) => item.lookupKey));
+    const unexpectedPackages = catalogOffering.lookupKey === "default"
+      ? actualPackages.filter((item) => !expectedPackageKeys.has(item.lookup_key))
+      : [];
+    if (unexpectedPackages.length > 0) {
+      report.errors.push({
+        scope: "offering_packages",
+        id: catalogOffering.lookupKey,
+        message: "Default Offering contains legacy or inactive packages; review them before activation.",
+      });
+    }
+    const complete = unexpectedPackages.length === 0 && catalogOffering.packages.every((item) =>
+      report.packageAttachments.some((row) =>
+        row.offering === catalogOffering.lookupKey &&
+        row.package === item.lookupKey &&
+        (row.status === "attached" || row.status === "already_attached")
+      )
+    );
+    if (!verifyOnly && catalogOffering.isCurrent && offering && !offering.is_current && complete) {
       try {
         offering = await api.request(`/projects/${encodeURIComponent(projectId)}/offerings/${encodeURIComponent(offering.id)}`, {
           method: "POST",
@@ -339,11 +362,17 @@ async function ensureOfferingsAndPackages(api, projectId, productByStoreId, offe
       }
     }
 
-    await ensurePackagesForOffering(api, projectId, productByStoreId, catalogOffering, offering);
+    if (!verifyOnly && catalogOffering.isCurrent && !complete) {
+      report.errors.push({
+        scope: "offering_current",
+        id: catalogOffering.lookupKey,
+        message: "Offering was not activated because at least one package product is missing.",
+      });
+    }
   }
 }
 
-async function ensurePackagesForOffering(api, projectId, productByStoreId, catalogOffering, offering) {
+async function ensurePackagesForOffering(api, projectId, appId, productByStoreId, catalogOffering, offering) {
   const existingPackages = await api.listAll(
     `/projects/${encodeURIComponent(projectId)}/offerings/${encodeURIComponent(offering.id)}/packages`,
   );
@@ -399,6 +428,18 @@ async function ensurePackagesForOffering(api, projectId, productByStoreId, catal
         product: catalogPackage.productIdentifier,
         status: "already_attached",
       });
+      continue;
+    }
+    if (attached.some((item) => item.product?.id !== product.id &&
+      (!item.product?.app_id || item.product.app_id === appId))) {
+      const message = `Package ${catalogOffering.lookupKey}/${catalogPackage.lookupKey} still has a different product for this app; review the legacy attachment before activating MORT Pro.`;
+      report.packageAttachments.push({
+        offering: catalogOffering.lookupKey,
+        package: catalogPackage.lookupKey,
+        product: catalogPackage.productIdentifier,
+        status: "conflicting_existing_product",
+      });
+      report.errors.push({ scope: "package_attachment", id: `${catalogOffering.lookupKey}/${catalogPackage.lookupKey}`, message });
       continue;
     }
 
@@ -550,7 +591,8 @@ Generated: ${new Date().toISOString()}
 - RevenueCat project ID: ${report.context.projectId ?? "not resolved"}
 - RevenueCat app ID: ${report.context.appId ?? "not resolved"}
 - RevenueCat app type: ${report.context.appType ?? "not resolved"}
-- Flutter public/test SDK key matched expected value: ${report.context.flutterSdkKeyMatchesExpected ? "yes" : "no"}
+- Target store: ${report.context.targetStore ?? "unresolved"}
+- Public SDK key format valid: ${report.context.publicSdkKeyTypeValid ? "yes" : "no"}
 - Public SDK key is not used as the RevenueCat secret API key.
 - RevenueCat secret API key env source: ${report.context.secretEnvName ?? "not resolved"}.
 - RevenueCat secret API key was read from environment only and was not printed or written.
@@ -640,11 +682,11 @@ RevenueCat paywalls must avoid dark patterns, fake urgency, fake discounts, and 
 The RevenueCat API returned \`422 parameter_error Paywall validation failed\` for the visual paywall creation attempts. Finish paywall design in the Dashboard:
 
 1. Open RevenueCat Dashboard.
-2. Select project \`${report.context.projectId ?? "b2454250"}\`.
+2. Select the project resolved by the matching RevenueCat API key: \`${report.context.projectId ?? "unresolved"}\`.
 3. Open **Paywalls**.
 4. Click **Create paywall**.
 5. Choose a template, start from scratch, or use AI Editor.
-6. Attach the paywall to the matching offering: \`default\`, \`teen_perks\`, \`adult_pro\`, \`guardian_plus\`, \`ad_free\`, \`username_change\`, or \`job_boost\`.
+6. Attach the paywall to the \`default\` MORT Pro offering only.
 7. Use the matching copy from \`docs/REVENUECAT_PAYWALL_BUILDER_PROMPTS.md\`.
 8. Use RevenueCat/App Store returned package price strings; the pricing numbers in docs are targets, not final app truth.
 9. Confirm the copy says free remains useful and safety tools stay free.
@@ -708,7 +750,7 @@ Repeat these steps for each offering listed above:
 3. Open **Paywalls**.
 4. Click **Create paywall**.
 5. Choose **Use a template**, **Create from scratch**, or **AI Editor**.
-6. Select the target offering: \`default\`, \`teen_perks\`, \`adult_pro\`, \`guardian_plus\`, \`ad_free\`, \`username_change\`, or \`job_boost\`.
+6. Select the \`default\` MORT Pro offering.
 7. Paste or adapt the matching prompt from \`docs/REVENUECAT_PAYWALL_BUILDER_PROMPTS.md\`.
 8. Verify the package selector uses the offering's packages.
 9. Use RevenueCat/App Store price strings; do not hardcode target prices as final truth.

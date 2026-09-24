@@ -19,7 +19,7 @@ for (const dependency of [
   assert(pubspec.includes(`${dependency}:`), `Expected dependency ${dependency} changed without inventory review.`);
 }
 for (const dependency of ['purchases_flutter', 'purchases_ui_flutter', 'google_mobile_ads']) {
-  assert(!pubspec.includes(`${dependency}:`), `Excluded dependency ${dependency} returned without inventory review.`);
+  assert(pubspec.includes(`${dependency}:`), `Bundled dependency ${dependency} is missing from inventory review.`);
 }
 for (const sdkName of [
   'Supabase',
@@ -30,10 +30,10 @@ for (const sdkName of [
 ]) {
   assert(sdk.toLowerCase().includes(sdkName.toLowerCase()), `SDK inventory omits ${sdkName}.`);
 }
-for (const excludedRow of [
-  '"purchases_flutter / RevenueCat","No"',
-  '"google_mobile_ads","No"',
+for (const bundledRow of [
+  '"purchases_flutter / RevenueCat","Yes"',
+  '"google_mobile_ads","Yes"',
 ]) {
-  assert(sdk.includes(excludedRow), `SDK inventory does not mark ${excludedRow} as excluded.`);
+  assert(sdk.includes(bundledRow), `SDK inventory does not mark ${bundledRow} as bundled.`);
 }
 pass(scope, 'declared data categories and detected privacy-relevant Flutter SDKs are inventoried');

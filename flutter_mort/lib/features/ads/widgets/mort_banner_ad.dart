@@ -5,6 +5,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../../../core/config/app_config.dart';
 import '../../../data/repositories/providers.dart';
 import '../data/admob_service.dart';
+import '../../monetization/providers/revenuecat_providers.dart';
 
 class MortBannerAd extends ConsumerStatefulWidget {
   const MortBannerAd({
@@ -33,9 +34,17 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
   }
 
   Future<void> _loadRealAd() async {
+    bool adFree;
+    try {
+      adFree = widget.userAdFree || await ref.read(isAdFreeProvider.future);
+    } catch (_) {
+      // If client entitlement state is unknown, do not request an ad.
+      return;
+    }
+    if (!mounted || adFree) return;
     final local = const AdMobService().bannerDecision(
       placement: widget.placement,
-      userAdFree: widget.userAdFree,
+      userAdFree: adFree,
     );
     final decision = await const AdMobService().confirmWithServer(
       decision: local,
@@ -80,7 +89,24 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(isAdFreeProvider, (previous, next) {
+      if (next.asData?.value == true) {
+        _ad?.dispose();
+        if (mounted) {
+          setState(() {
+            _ad = null;
+            _loaded = false;
+          });
+        }
+      } else if (previous?.asData?.value == true &&
+          next.asData?.value == false) {
+        _loadRealAd();
+      }
+    });
     if (!AppConfig.nativeAdsCompiledIn || !AppConfig.adsEnabled) {
+      return const SizedBox.shrink();
+    }
+    if (ref.watch(isAdFreeProvider).asData?.value != false) {
       return const SizedBox.shrink();
     }
     if (!_loaded || _ad == null) return const SizedBox.shrink();

@@ -112,6 +112,12 @@ class AdMobService {
     required String placement,
     bool userAdFree = false,
   }) {
+    if (!AppConfig.admobSsvEnabled) {
+      return const AdMobDecision(
+        canShow: false,
+        reason: 'MORT Spark is not available yet.',
+      );
+    }
     if (sensitivePlacements.contains(placement)) {
       return const AdMobDecision(
         canShow: false,

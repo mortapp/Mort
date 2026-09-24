@@ -19,20 +19,30 @@ void main() {
   final sparkMigration = File(
     '${root.path}/supabase/migrations/20260820120000_mort_spark_rewarded_ads.sql',
   ).readAsStringSync();
+  final ssvMigration = File(
+    '${root.path}/supabase/migrations/20260923160000_mort_pro_revenuecat_and_ad_eligibility.sql',
+  ).readAsStringSync();
 
-  test('the reward is granted only inside the SDK earned-reward callback', () {
-    expect(rewardedButton, contains('onUserEarnedReward: (ad, reward) {'));
-    expect(sparkSection, contains('MortNativeRewardedAdButton('));
-    expect(sparkSection, contains('onReward: _handleReward'));
-    expect(sparkSection, isNot(contains('onPressed: _handleReward')));
-  });
+  test(
+    'the SDK callback only observes the reward; the server grants Spark',
+    () {
+      expect(rewardedButton, contains('onUserEarnedReward: (ad, reward) {'));
+      expect(rewardedButton, contains('setServerSideOptions('));
+      expect(rewardedButton, contains("customData: 'mort_spark'"));
+      expect(sparkSection, contains('MortNativeRewardedAdButton('));
+      expect(sparkSection, contains('onReward: _handleReward'));
+      expect(sparkSection, isNot(contains('onPressed: _handleReward')));
+    },
+  );
 
-  test('the grant call never fabricates the entitlement on failure', () {
-    expect(sparkSection, contains('grantSparkReward()'));
-    expect(sparkSection, contains('} catch (_) {'));
+  test('the client cannot invoke the old grant RPC', () {
+    expect(sparkSection, isNot(contains('grantSparkReward()')));
+    expect(monetizationRepository, isNot(contains('grant_mort_spark_reward')));
     expect(
-      sparkSection,
-      contains('never fabricate the cosmetic entitlement locally'),
+      ssvMigration,
+      contains(
+        'revoke execute on function public.grant_mort_spark_reward(uuid)',
+      ),
     );
   });
 
@@ -44,12 +54,7 @@ void main() {
     expect(sparkSection, contains('return const SizedBox.shrink();'));
   });
 
-  test('the repository is idempotent and does not fabricate client state', () {
-    expect(monetizationRepository, contains('grant_mort_spark_reward'));
-    expect(
-      monetizationRepository,
-      contains("params: {'p_client_request_id': _uuid.v4()}"),
-    );
+  test('the repository reads only server-authoritative Spark state', () {
     expect(monetizationRepository, contains('getActiveSparkExpiry'));
     expect(monetizationRepository, contains('mort_spark_grants'));
   });
@@ -87,6 +92,15 @@ void main() {
       expect(
         sparkMigration,
         contains('revoke all on function public.grant_mort_spark_reward(uuid)'),
+      );
+      expect(ssvMigration, contains('create table public.admob_reward_events'));
+      expect(
+        ssvMigration,
+        contains('create or replace function public.process_mort_spark_ssv('),
+      );
+      expect(
+        ssvMigration,
+        contains("if (select auth.role()) <> 'service_role' then"),
       );
     },
   );

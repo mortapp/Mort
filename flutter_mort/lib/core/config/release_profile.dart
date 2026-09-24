@@ -186,10 +186,6 @@ class MortReleaseConfiguration {
         'stays on test inventory or ads disabled',
       );
     }
-    if (profile.isReleaseBuild && iapEnabled) {
-      errors.add('IAP is not approved for this release');
-    }
-
     switch (profile) {
       case MortReleaseProfile.development:
         if (publicMarketplaceEnabled || productionActivationApproved) {

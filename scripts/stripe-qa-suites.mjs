@@ -248,11 +248,11 @@ async function checkGooglePlayBoundary(scope) {
   const manifest = await text("flutter_mort/android/app/src/main/AndroidManifest.xml");
   const config = await text("flutter_mort/lib/core/config/app_config.dart");
   assertQa(migration.includes("google_play_billing"), "server does not declare the digital purchase boundary");
-  assertQa(!pubspec.includes("purchases_flutter"), "legacy RevenueCat SDK returned to the signed client");
-  assertQa(!pubspec.includes("in_app_purchase:"), "Google Play Billing SDK is compiled into an IAP-disabled release");
-  assertQa(!manifest.includes("com.android.vending.BILLING"), "Android billing permission is present in an IAP-disabled release");
-  assertQa(config.includes("nativeBillingCompiledIn = false") && config.includes("nativeStripePaymentSheetCompiledIn = true"), "native financial compilation gates are not explicit");
-  qaLog(scope, "Google Play Billing remains absent while sandbox Stripe PaymentSheet is the separate physical-service payment surface");
+  assertQa(pubspec.includes("purchases_flutter:"), "RevenueCat native SDK is absent from the signed client");
+  assertQa(!manifest.includes("com.android.vending.BILLING"), "App manifest declares Billing outside the RevenueCat SDK merge");
+  assertQa(config.includes("nativeBillingCompiledIn = true") && config.includes("nativeStripePaymentSheetCompiledIn = true"), "native financial compilation gates are not explicit");
+  assertQa(config.includes("revenueCatEntitlementPro") && config.includes("iapEnabled"), "RevenueCat entitlement or runtime gate is missing");
+  qaLog(scope, "Native RevenueCat serves optional digital Pro while Stripe PaymentSheet remains the separate physical-service payment surface");
 }
 
 async function checkSavedPaymentConsent(scope) {

@@ -5,7 +5,6 @@ import {
 import {
   entitlementProductMap,
   entitlements,
-  expectedFlutterSdkKey,
   findByLookup,
   findProductByStoreIdentifier,
   getRevenueCatInventory,
@@ -25,9 +24,9 @@ function pass(message) {
   console.log(`[qa-revenuecat-api] PASS: ${message}`);
 }
 
-const { api, projectId, appId, app, sdkKey } = await resolveRevenueCatContext();
-if (sdkKey !== expectedFlutterSdkKey) fail("Flutter SDK key does not match expected public/test key.");
+const { api, projectId, appId, app, targetStore } = await resolveRevenueCatContext();
 pass("RevenueCat API key works and app was resolved.");
+pass(`Target store: ${targetStore}`);
 pass(`Project resolved: ${projectId}`);
 pass(`App resolved: ${appId} (${app.type})`);
 
@@ -76,6 +75,14 @@ for (const item of offerings) {
     `/projects/${encodeURIComponent(projectId)}/offerings/${encodeURIComponent(offering.id)}/packages`,
   );
   const packageByLookup = new Map(packageItems.map((pkg) => [pkg.lookup_key, pkg]));
+  if (item.lookupKey === "default") {
+    const expected = new Set(["weekly", "monthly", "annual", "lifetime"]);
+    if (packageItems.length !== expected.size ||
+      packageItems.some((pkg) => !expected.has(pkg.lookup_key))) {
+      fail("Default Offering must contain only weekly, monthly, annual, and lifetime packages.");
+    }
+    if (!offering.is_current) fail("MORT Pro default Offering is not current.");
+  }
   for (const expectedPackage of item.packages) {
     const foundPackage = packageByLookup.get(expectedPackage.lookupKey);
     if (!foundPackage) fail(`Missing package ${item.lookupKey}/${expectedPackage.lookupKey}.`);

@@ -113,6 +113,18 @@ if ($ReleaseStage -eq 'production_public' -and (-not $IdentityVerificationEnable
   throw 'Public production requires approved identity verification and public activation evidence.'
 }
 
+$playBillingEnabled = $env:MORT_ENABLE_PLAY_BILLING -eq 'true'
+$playBillingKey = ''
+if ($playBillingEnabled) {
+  if ($ReleaseProfile -ne 'closed_test') {
+    throw 'Play billing activation is limited to the ordinary closed-test release profile.'
+  }
+  $playBillingKey = [Environment]::GetEnvironmentVariable('REVENUECAT_ANDROID_API_KEY')
+  if ($playBillingKey -notmatch '^goog_[A-Za-z0-9]+$') {
+    throw 'Play billing requires the matching RevenueCat Android public SDK key.'
+  }
+}
+
 $versionLabel = '{0}+{1}' -f $version.versionName, $version.versionCode
 $symbolsDirectory = Join-Path $env:USERPROFILE (Join-Path 'MortSymbols\android' $versionLabel)
 New-Item -ItemType Directory -Force -Path $outputDirectory, $symbolsDirectory | Out-Null
@@ -146,7 +158,7 @@ $defines = [ordered]@{
   MORT_DEBUG_ENDPOINTS_ENABLED = ([bool]$profile.debugEndpointsEnabled).ToString().ToLowerInvariant()
   PLAY_REVIEW_MODE_ENABLED = $PlayReviewModeEnabled.ToString().ToLowerInvariant()
   GOOGLE_AUTH_ENABLED = $GoogleAuthEnabled.ToString().ToLowerInvariant()
-  IAP_ENABLED = 'false'
+  IAP_ENABLED = $playBillingEnabled.ToString().ToLowerInvariant()
   ADS_ENABLED = $AdsEnabled.ToString().ToLowerInvariant()
   # USE_TEST_ADS is intentionally not yet wired to its own parameter --
   # this keeps every build serving Google's official test ads even once
@@ -156,6 +168,9 @@ $defines = [ordered]@{
   # rollout requires a deliberate follow-up change here, not an
   # accidental one.
   USE_TEST_ADS = 'true'
+}
+if ($playBillingEnabled) {
+  $defines.REVENUECAT_ANDROID_API_KEY = $playBillingKey
 }
 foreach ($name in $defines.Keys) {
   if ($name -match '(?i)(SERVICE.?ROLE|ACCESS.?TOKEN|REFRESH.?TOKEN|PASSWORD|CLIENT.?SECRET|PRIVATE.?KEY|WEBHOOK.?SECRET)') {
@@ -236,7 +251,7 @@ $manifest = [ordered]@{
     publicActivationApproved = $PublicActivationApproved
     googleAuthEnabled = $GoogleAuthEnabled
     adsEnabled = $false
-    iapEnabled = $false
+    iapEnabled = $playBillingEnabled
   }
   legalVersions = [ordered]@{
     terms = [string]$profile.termsVersion

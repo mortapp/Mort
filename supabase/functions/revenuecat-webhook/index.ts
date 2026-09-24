@@ -41,6 +41,7 @@ const eventTypes = new Set([
   "non_renewing_purchase",
   "product_change",
   "refund",
+  "refund_reversed",
   "renewal",
   "revocation",
   "subscription_extended",
@@ -53,6 +54,10 @@ const eventTypes = new Set([
   "virtual_currency_transaction",
 ]);
 const productEntitlements: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  "mort_pro:weekly": ["mort_pro"],
+  "mort_pro:monthly": ["mort_pro"],
+  "mort_pro:annual": ["mort_pro"],
+  lifetime: ["mort_pro"],
   mort_plus_monthly: ["mort_plus", "mort_ad_free"],
   mort_plus_yearly: ["mort_plus", "mort_ad_free"],
   mort_plus_lifetime: ["mort_plus", "mort_ad_free", "mort_lifetime"],
@@ -198,7 +203,15 @@ function normalizeEvent(payload: RevenueCatPayload): NormalizedEvent {
     throw new WebhookError("unsupported_product", 400);
   }
 
-  const appUserIdValue = stringValue(source.app_user_id ?? source.original_app_user_id);
+  const aliases = Array.isArray(source.aliases)
+    ? source.aliases.filter((value): value is string => typeof value === "string")
+    : [];
+  const candidates = [
+    stringValue(source.app_user_id),
+    stringValue(source.original_app_user_id),
+    ...aliases,
+  ].filter((value) => uuidPattern.test(value));
+  const appUserIdValue = candidates[0] ?? "";
   const appUserId = uuidPattern.test(appUserIdValue) ? appUserIdValue : null;
   const entitlementIds = productId ? [...productEntitlements[productId]] : [];
   const eventTimestampMs = integerTimestamp(

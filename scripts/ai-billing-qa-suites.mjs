@@ -293,13 +293,14 @@ async function admobDisabledMode(scope) {
   const config = await text("flutter_mort/lib/core/config/app_config.dart");
   const manifest = await text("flutter_mort/android/app/src/main/AndroidManifest.xml");
   const progression = await text("supabase/migrations/20260920235334_mort_progression_v1.sql");
-  assertQa(config.includes("static const nativeAdsCompiledIn = false"), "native ads are compiled in");
+  assertQa(config.includes("static const nativeAdsCompiledIn = true"), "native ads SDK is missing");
   assertQa(config.match(/ADS_ENABLED[\s\S]{0,100}defaultValue: false/), "ads do not default disabled");
+  assertQa(config.match(/ADMOB_SSV_ENABLED[\s\S]{0,100}defaultValue: false/), "rewarded ads do not default disabled");
   assertQa(manifest.match(/AD_ID[^>]+tools:node="remove"/), "advertising ID is not explicitly stripped");
   for (const forbidden of ["ad_impression", "ad_click", "rewarded_ad"]) {
     assertQa(!progression.toLowerCase().includes(forbidden), `ads can mutate progression through ${forbidden}`);
   }
-  qaLog(scope, "AdMob SDK/runtime remains disabled and Android advertising IDs are stripped");
+  qaLog(scope, "AdMob runtime defaults off, Spark requires signed callbacks, and Android advertising IDs are stripped");
 }
 
 async function admobTestMode(scope) {
