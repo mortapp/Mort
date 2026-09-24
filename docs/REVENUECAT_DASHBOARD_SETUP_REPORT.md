@@ -1,28 +1,29 @@
 # RevenueCat Dashboard Setup Report
 
-Generated: 2026-07-09T17:34:32.479Z
+Generated: 2026-09-24T01:46:28.560Z
 
 ## Context
 
-- RevenueCat project ID: b2454250
-- RevenueCat app ID: app3003d6adf6
-- RevenueCat app type: test_store
-- Flutter public/test SDK key matched expected value: yes
+- RevenueCat project ID: projc545d148
+- RevenueCat app ID: app8eaa6ee77f
+- RevenueCat app type: play_store
+- Target store: play_store
+- Public SDK key format valid: yes
 - Public SDK key is not used as the RevenueCat secret API key.
 - RevenueCat secret API key env source: REVENUECAT_V2_SECRET_API_KEY.
 - RevenueCat secret API key was read from environment only and was not printed or written.
-- Webhook authorization header visible to setup script: yes
+- Webhook authorization header visible to setup script: no
 
 ## API Result Summary
 
-- Products: {"already_exists":9}
-- Entitlements: {"already_exists":8}
-- Product-entitlement attachments: {"already_attached":8}
-- Offerings: {"already_exists":7}
-- Packages: {"already_exists":15}
-- Package-product attachments: {"already_attached":15}
-- Paywalls: {"already_exists":7}
-- Webhook: {"updated":1}
+- Products: {"created":4}
+- Entitlements: {"already_exists":1}
+- Product-entitlement attachments: {"attached":1}
+- Offerings: {"already_exists":1}
+- Packages: {"already_exists":4}
+- Package-product attachments: {"attached":4}
+- Paywalls: {"created_shell":1}
+- Webhook: {"manual_secret_missing":1}
 
 ## Errors
 
@@ -30,7 +31,8 @@ Generated: 2026-07-09T17:34:32.479Z
 
 ## Manual Actions
 
-- None recorded by the setup script.
+- Review and finish the default paywall design in RevenueCat Paywalls Builder using docs/REVENUECAT_PAYWALL_BUILDER_PROMPTS.md.
+- Set REVENUECAT_WEBHOOK_AUTH_HEADER as a Supabase Edge Function secret and pass it to this setup script only when creating/updating the RevenueCat webhook integration.
 
 ## Notes
 

@@ -59,10 +59,19 @@ void main() {
         expect(catalog, contains('"$product"'));
       }
       expect(catalog, isNot(contains('mort_pro:yearly')));
-      expect(service, contains("'annual': 'mort_pro:annual'"));
+      expect(service, contains("r'\$rc_annual': 'mort_pro:annual'"));
       expect(service, contains("getOffering('default')"));
       expect(manifest, contains('android:scheme="rc-8eaa6ee77f"'));
       expect(manifest, contains('android:scheme="com.mortapp.mobile"'));
+      expect(manifest, contains('com.amazon.device.iap.ResponseReceiver'));
+      expect(
+        manifest,
+        matches(
+          RegExp(
+            r'com\.amazon\.device\.iap\.ResponseReceiver"\s+tools:node="remove"',
+          ),
+        ),
+      );
       final releaseBuild = _read(
         '../scripts/android-release-profile-common.ps1',
       );

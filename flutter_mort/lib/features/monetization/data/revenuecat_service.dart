@@ -249,10 +249,10 @@ class RevenueCatService {
     final offering = offerings?.getOffering('default');
     if (offering == null) return null;
     const expected = {
-      'weekly': 'mort_pro:weekly',
-      'monthly': 'mort_pro:monthly',
-      'annual': 'mort_pro:annual',
-      'lifetime': 'lifetime',
+      r'$rc_weekly': 'mort_pro:weekly',
+      r'$rc_monthly': 'mort_pro:monthly',
+      r'$rc_annual': 'mort_pro:annual',
+      r'$rc_lifetime': 'lifetime',
     };
     final packages = offering.availablePackages;
     if (packages.length != expected.length ||

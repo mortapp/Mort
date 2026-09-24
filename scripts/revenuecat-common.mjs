@@ -25,10 +25,10 @@ export const entitlementProductMap = {
 
 export const offerings = [
   offering("default", "MORT Pro", true, [
-    pkg("weekly", "MORT Pro Weekly", "mort_pro:weekly", 1),
-    pkg("monthly", "MORT Pro Monthly", "mort_pro:monthly", 2),
-    pkg("annual", "MORT Pro Annual", "mort_pro:annual", 3),
-    pkg("lifetime", "MORT Pro Lifetime", "lifetime", 4),
+    pkg("$rc_weekly", "MORT Pro Weekly", "mort_pro:weekly", 1),
+    pkg("$rc_monthly", "MORT Pro Monthly", "mort_pro:monthly", 2),
+    pkg("$rc_annual", "MORT Pro Annual", "mort_pro:annual", 3),
+    pkg("$rc_lifetime", "MORT Pro Lifetime", "lifetime", 4),
   ]),
 ];
 

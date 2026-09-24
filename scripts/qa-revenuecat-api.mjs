@@ -76,10 +76,10 @@ for (const item of offerings) {
   );
   const packageByLookup = new Map(packageItems.map((pkg) => [pkg.lookup_key, pkg]));
   if (item.lookupKey === "default") {
-    const expected = new Set(["weekly", "monthly", "annual", "lifetime"]);
+    const expected = new Set(["$rc_weekly", "$rc_monthly", "$rc_annual", "$rc_lifetime"]);
     if (packageItems.length !== expected.size ||
       packageItems.some((pkg) => !expected.has(pkg.lookup_key))) {
-      fail("Default Offering must contain only weekly, monthly, annual, and lifetime packages.");
+      fail("Default Offering must contain only weekly, monthly, annual, and lifetime package types.");
     }
     if (!offering.is_current) fail("MORT Pro default Offering is not current.");
   }

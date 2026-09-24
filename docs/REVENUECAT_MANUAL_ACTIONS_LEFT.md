@@ -1,6 +1,7 @@
 # RevenueCat Manual Actions Left
 
-- No manual action was detected by the latest setup script run.
+- Review and finish the default paywall design in RevenueCat Paywalls Builder using docs/REVENUECAT_PAYWALL_BUILDER_PROMPTS.md.
+- Set REVENUECAT_WEBHOOK_AUTH_HEADER as a Supabase Edge Function secret and pass it to this setup script only when creating/updating the RevenueCat webhook integration.
 
 ## Always Manual Before Real Users
 
@@ -14,11 +15,11 @@
 Repeat these steps for each offering listed above:
 
 1. Open RevenueCat Dashboard.
-2. Select project `b2454250`.
+2. Select project `projc545d148`.
 3. Open **Paywalls**.
 4. Click **Create paywall**.
 5. Choose **Use a template**, **Create from scratch**, or **AI Editor**.
-6. Select the target offering: `default`, `teen_perks`, `adult_pro`, `guardian_plus`, `ad_free`, `username_change`, or `job_boost`.
+6. Select the `default` MORT Pro offering.
 7. Paste or adapt the matching prompt from `docs/REVENUECAT_PAYWALL_BUILDER_PROMPTS.md`.
 8. Verify the package selector uses the offering's packages.
 9. Use RevenueCat/App Store price strings; do not hardcode target prices as final truth.
