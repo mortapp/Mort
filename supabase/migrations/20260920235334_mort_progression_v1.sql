@@ -223,7 +223,9 @@ declare
   v_streak integer;
 begin
   select * into v_application from public.applications where id = p_application_id;
-  if v_application.id is null or v_application.status <> 'completed' then return; end if;
+  -- Account deletion retains completed applications but clears their teen ID.
+  if v_application.id is null or v_application.status <> 'completed'
+    or v_application.teen_id is null then return; end if;
   select job.category into v_category from public.jobs job where job.id = v_application.job_id;
   v_event := private.progression_award(v_application.teen_id,'completed_job',
     'application',p_application_id,100,'completed_job:' || p_application_id,v_category);
@@ -403,6 +405,7 @@ begin
       where ev.application_id = a.id and ev.to_status = 'completed'
     ) history on true
     where a.status = 'completed'
+      and a.teen_id is not null
       and exists (select 1 from public.application_status_events verified
         where verified.application_id = a.id and verified.to_status = 'completed')
     order by coalesce(history.completed_at,a.updated_at),a.id

@@ -52,7 +52,10 @@ try {
   const context = await resolveRevenueCatContext();
   const { api, projectId, appId, app } = context;
   const envLocalSupabaseUrl = readEnvLocalPublicSupabaseUrl();
-  const webhookAuthHeader = envValue("REVENUECAT_WEBHOOK_AUTH_HEADER");
+  const webhookSecretEnvName = context.targetStore === "play_store"
+    ? "REVENUECAT_PLAY_WEBHOOK_AUTH_HEADER"
+    : "REVENUECAT_WEBHOOK_AUTH_HEADER";
+  const webhookAuthHeader = envValue(webhookSecretEnvName);
 
   report.context = {
     projectId,
@@ -64,6 +67,7 @@ try {
     secretEnvName: context.secretEnvName,
     envLocalSupabaseUrl,
     webhookAuthHeaderVisible: Boolean(webhookAuthHeader),
+    webhookSecretEnvName,
   };
 
   log(`RevenueCat project/app resolved: project=${projectId}, app=${appId}, type=${app.type}`);
@@ -105,7 +109,7 @@ try {
     markCatalogSkipped(report.paywalls, offerings, "lookupKey", "permission_missing", "offering");
   }
 
-  await ensureWebhook(api, projectId, appId, webhookAuthHeader, envLocalSupabaseUrl);
+  await ensureWebhook(api, projectId, appId, webhookAuthHeader, webhookSecretEnvName, envLocalSupabaseUrl);
 
   writeReports();
   log(`Products: ${JSON.stringify(statusLine(report.products))}`);
@@ -518,11 +522,11 @@ async function ensurePaywalls(api, projectId, offeringByLookup) {
   }
 }
 
-async function ensureWebhook(api, projectId, appId, webhookAuthHeader, envLocalSupabaseUrl) {
+async function ensureWebhook(api, projectId, appId, webhookAuthHeader, webhookSecretEnvName, envLocalSupabaseUrl) {
   const functionUrl = `${mortSupabaseUrl}/functions/v1/revenuecat-webhook`;
   if (!webhookAuthHeader) {
     report.webhook.push({ status: "manual_secret_missing", url: functionUrl });
-    report.manualActions.push("Set REVENUECAT_WEBHOOK_AUTH_HEADER as a Supabase Edge Function secret and pass it to this setup script only when creating/updating the RevenueCat webhook integration.");
+    report.manualActions.push(`Set ${webhookSecretEnvName} as a Supabase Edge Function secret and pass it to this setup script only when creating/updating the RevenueCat webhook integration.`);
     return;
   }
 
@@ -596,6 +600,7 @@ Generated: ${new Date().toISOString()}
 - Public SDK key is not used as the RevenueCat secret API key.
 - RevenueCat secret API key env source: ${report.context.secretEnvName ?? "not resolved"}.
 - RevenueCat secret API key was read from environment only and was not printed or written.
+- Webhook authorization env name: ${report.context.webhookSecretEnvName ?? "unresolved"}.
 - Webhook authorization header visible to setup script: ${report.context.webhookAuthHeaderVisible ? "yes" : "no"}
 
 ## API Result Summary

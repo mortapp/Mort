@@ -114,7 +114,8 @@ for (const item of offerings) {
   pass(`Paywall exists or is attached: ${item.lookupKey}`);
 }
 
-const webhook = inventory.webhooks.find((item) => item.url?.includes("/functions/v1/revenuecat-webhook"));
+const webhook = inventory.webhooks.find((item) =>
+  item.url?.includes("/functions/v1/revenuecat-webhook") && item.app_id === appId);
 if (!webhook) fail("RevenueCat webhook integration for Supabase function is missing.");
 pass("RevenueCat webhook integration exists.");
 

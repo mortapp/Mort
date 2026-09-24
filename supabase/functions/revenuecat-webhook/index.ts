@@ -1,10 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.110.1";
 import {
-  constantTimeEqual,
   correlatedJson,
   correlationId,
   structuredLog,
 } from "../_shared/observability.ts";
+import { acceptsRevenueCatWebhookAuthorization } from "../_shared/revenuecat_webhook_auth.ts";
 
 type RevenueCatPayload = {
   api_version?: unknown;
@@ -78,13 +78,16 @@ Deno.serve(async (request: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const expectedAuthorization = Deno.env.get("REVENUECAT_WEBHOOK_AUTH_HEADER");
-    if (!supabaseUrl || !serviceRoleKey || !expectedAuthorization) {
+    const expectedLegacyAuthorization = Deno.env.get("REVENUECAT_WEBHOOK_AUTH_HEADER");
+    const expectedPlayAuthorization = Deno.env.get("REVENUECAT_PLAY_WEBHOOK_AUTH_HEADER");
+    if (!supabaseUrl || !serviceRoleKey || (!expectedLegacyAuthorization && !expectedPlayAuthorization)) {
       throw new WebhookError("revenuecat_not_configured", 503);
     }
 
     const suppliedAuthorization = request.headers.get("authorization") ?? "";
-    if (!constantTimeEqual(expectedAuthorization, suppliedAuthorization)) {
+    if (!acceptsRevenueCatWebhookAuthorization(
+      suppliedAuthorization, expectedLegacyAuthorization, expectedPlayAuthorization
+    )) {
       structuredLog("warn", "revenuecat.authorization_rejected", traceId);
       throw new WebhookError("webhook_authorization_required", 401);
     }
