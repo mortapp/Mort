@@ -484,7 +484,6 @@ async function ensurePackagesForOffering(api, projectId, appId, productByStoreId
 
 async function ensurePaywalls(api, projectId, offeringByLookup) {
   const paywalls = await api.listAll(`/projects/${encodeURIComponent(projectId)}/paywalls`);
-  const paywallOfferingIds = new Set(paywalls.map((item) => item.offering_id).filter(Boolean));
 
   for (const catalogOffering of offerings) {
     const offering = offeringByLookup.get(catalogOffering.lookupKey);
@@ -493,8 +492,13 @@ async function ensurePaywalls(api, projectId, offeringByLookup) {
       continue;
     }
 
-    if (offering.paywall_id || paywallOfferingIds.has(offering.id)) {
-      report.paywalls.push({ offering: catalogOffering.lookupKey, status: "already_exists", paywallId: offering.paywall_id ?? "listed" });
+    const existing = paywalls.find((item) => item.id === offering.paywall_id || item.offering_id === offering.id);
+    if (existing) {
+      const status = existing.published_at ? "published" : "draft_only";
+      report.paywalls.push({ offering: catalogOffering.lookupKey, status, paywallId: existing.id });
+      if (status === "draft_only") {
+        report.manualActions.push(`Finish and publish the ${catalogOffering.lookupKey} MORT paywall; its current draft is not served to customers.`);
+      }
       continue;
     }
 
@@ -524,9 +528,17 @@ async function ensurePaywalls(api, projectId, offeringByLookup) {
 
 async function ensureWebhook(api, projectId, appId, webhookAuthHeader, webhookSecretEnvName, envLocalSupabaseUrl) {
   const functionUrl = `${mortSupabaseUrl}/functions/v1/revenuecat-webhook`;
+  const webhooks = await api.listAll(`/projects/${encodeURIComponent(projectId)}/integrations/webhooks`);
+  const existing = webhooks.find((item) =>
+    item.url === functionUrl && item.app_id === appId);
+
+  if (verifyOnly) {
+    report.webhook.push({ status: existing ? "already_exists" : "missing", url: functionUrl, id: existing?.id ?? "" });
+    return;
+  }
   if (!webhookAuthHeader) {
-    report.webhook.push({ status: "manual_secret_missing", url: functionUrl });
-    report.manualActions.push(`Set ${webhookSecretEnvName} as a Supabase Edge Function secret and pass it to this setup script only when creating/updating the RevenueCat webhook integration.`);
+    report.webhook.push({ status: existing ? "already_exists" : "manual_secret_missing", url: functionUrl });
+    if (!existing) report.manualActions.push(`Set ${webhookSecretEnvName} as a Supabase Edge Function secret and pass it to this setup script only when creating/updating the RevenueCat webhook integration.`);
     return;
   }
 
@@ -536,8 +548,6 @@ async function ensureWebhook(api, projectId, appId, webhookAuthHeader, webhookSe
     return;
   }
 
-  const webhooks = await api.listAll(`/projects/${encodeURIComponent(projectId)}/integrations/webhooks`);
-  const existing = webhooks.find((item) => item.url === functionUrl || item.name === "MORT Supabase RevenueCat Webhook");
   const body = {
     name: "MORT Supabase RevenueCat Webhook",
     url: functionUrl,
@@ -546,11 +556,6 @@ async function ensureWebhook(api, projectId, appId, webhookAuthHeader, webhookSe
     event_types: webhookEventTypes,
     app_id: appId,
   };
-
-  if (verifyOnly) {
-    report.webhook.push({ status: existing ? "already_exists" : "missing", url: functionUrl, id: existing?.id ?? "" });
-    return;
-  }
 
   try {
     if (existing) {
@@ -620,20 +625,20 @@ ${report.errors.length ? report.errors.map((error) => `- ${error.scope}: ${error
 
 ## Manual Actions
 
-${report.manualActions.length ? report.manualActions.map((item) => `- ${item}`).join("\n") : "- None recorded by the setup script."}
+${report.manualActions.length ? report.manualActions.map((item) => `- ${item}`).join("\n") : "- No additional API setup action recorded; see the provider testing gates in REVENUECAT_MANUAL_ACTIONS_LEFT.md."}
 
 ## Notes
 
 - The setup is idempotent and never deletes RevenueCat objects.
-- App Store Connect approval, sandbox purchase testing, TestFlight, and legal/privacy/teen-safety review are not completed by this script.
-- Paywall shells can be created by API, but final visual/content review remains a RevenueCat dashboard task.
+- Google Play Console product activation, license-tester purchases, App Store Connect approval, TestFlight, and legal/privacy/teen-safety review are not completed by this script.
+- The published paywall requires visual review on a real device before production monetization is enabled for users.
 `;
 }
 
 function productsReport() {
   return `# RevenueCat Products And Entitlements
 
-Products use RevenueCat/App Store price strings at runtime. Suggested prices below are planning targets only.
+Products use RevenueCat/store price strings at runtime. Suggested prices below are planning targets only.
 
 ${markdownTable(["Product", "Type", "Suggested docs price", "Setup status"], products.map((item) => {
   const status = report.products.find((row) => row.storeIdentifier === item.storeIdentifier)?.status ?? "not run";
@@ -680,29 +685,14 @@ ${markdownTable(["Offering", "Status"], offerings.map((item) => {
   return [item.lookupKey, status];
 }))}
 
-RevenueCat paywalls must avoid dark patterns, fake urgency, fake discounts, and any "pay to be safe" copy.
-
-## Manual Paywall Setup
-
-The RevenueCat API returned \`422 parameter_error Paywall validation failed\` for the visual paywall creation attempts. Finish paywall design in the Dashboard:
-
-1. Open RevenueCat Dashboard.
-2. Select the project resolved by the matching RevenueCat API key: \`${report.context.projectId ?? "unresolved"}\`.
-3. Open **Paywalls**.
-4. Click **Create paywall**.
-5. Choose a template, start from scratch, or use AI Editor.
-6. Attach the paywall to the \`default\` MORT Pro offering only.
-7. Use the matching copy from \`docs/REVENUECAT_PAYWALL_BUILDER_PROMPTS.md\`.
-8. Use RevenueCat/App Store returned package price strings; the pricing numbers in docs are targets, not final app truth.
-9. Confirm the copy says free remains useful and safety tools stay free.
-10. Save and publish the paywall, then rerun \`node scripts/qa-revenuecat-api.mjs\`.
+RevenueCat paywalls must avoid dark patterns, fake urgency, fake discounts, and any "pay to be safe" copy. The published default paywall uses MORT branding and store-returned prices. Run \`node scripts/qa-revenuecat-api.mjs\` after each remote paywall edit.
 `;
 }
 
 function paywallPromptReport() {
   return `# RevenueCat Paywall Builder Prompts
 
-Use these prompts in RevenueCat Paywalls Builder. Hosted visual paywall creation still needs Dashboard work if the API returns \`422 parameter_error Paywall validation failed\`.
+Use these prompts when reviewing or revising the published MORT paywall in RevenueCat. The current four-plan draft was applied and published through \`scripts/configure-mort-paywall.mjs\`.
 
 ${offerings.map((item) => {
   const copy = paywallCopy[item.lookupKey] ?? paywallCopy.default;
@@ -737,30 +727,20 @@ Rules: no dark patterns, no fake urgency, no fake discounts, no pressure copy, a
 function manualActionsReport() {
   return `# RevenueCat Manual Actions Left
 
-${report.manualActions.length ? report.manualActions.map((item) => `- ${item}`).join("\n") : "- No manual action was detected by the latest setup script run."}
+${report.manualActions.length ? report.manualActions.map((item) => `- ${item}`).join("\n") : "- No additional RevenueCat API setup action was detected by the latest script run."}
 
 ## Always Manual Before Real Users
 
+- Create and activate the matching Google Play Console products/base plans.
+- Run a license-tester purchase, renewal, cancellation, restoration, and webhook delivery on a real Android device.
 - Create/approve matching App Store Connect IAP products for real iOS builds.
 - Connect the real App Store app instead of relying only on the RevenueCat Test Store.
 - Run sandbox purchases on a real iPhone or TestFlight build.
 - Review App Store privacy, legal, teen-safety, and monetization copy.
 
-## Exact Paywall Dashboard Steps
+## Paywall maintenance
 
-Repeat these steps for each offering listed above:
-
-1. Open RevenueCat Dashboard.
-2. Select project \`${report.context.projectId ?? "b2454250"}\`.
-3. Open **Paywalls**.
-4. Click **Create paywall**.
-5. Choose **Use a template**, **Create from scratch**, or **AI Editor**.
-6. Select the \`default\` MORT Pro offering.
-7. Paste or adapt the matching prompt from \`docs/REVENUECAT_PAYWALL_BUILDER_PROMPTS.md\`.
-8. Verify the package selector uses the offering's packages.
-9. Use RevenueCat/App Store price strings; do not hardcode target prices as final truth.
-10. Confirm no safety feature, basic applying, basic Guardian Mode, report/block, or Safety Ping is paywalled.
-11. Save, publish, then rerun \`node scripts/qa-revenuecat-api.mjs\`.
+The default MORT Pro paywall is managed with \`scripts/configure-mort-paywall.mjs\`. Review the remote draft, published status, copy, and all four package selectors before changing it. Rerun \`node scripts/qa-revenuecat-api.mjs\` after a change.
 `;
 }
 

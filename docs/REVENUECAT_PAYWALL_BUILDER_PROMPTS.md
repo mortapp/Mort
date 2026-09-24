@@ -1,6 +1,6 @@
 # RevenueCat Paywall Builder Prompts
 
-Use these prompts in RevenueCat Paywalls Builder. Hosted visual paywall creation still needs Dashboard work if the API returns `422 parameter_error Paywall validation failed`.
+Use these prompts when reviewing or revising the published MORT paywall in RevenueCat. The current four-plan draft was applied and published through `scripts/configure-mort-paywall.mjs`.
 
 ## default
 

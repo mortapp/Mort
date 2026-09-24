@@ -1,6 +1,6 @@
 # RevenueCat Dashboard Setup Report
 
-Generated: 2026-09-24T01:46:28.560Z
+Generated: 2026-09-24T18:11:38.234Z
 
 ## Context
 
@@ -12,18 +12,19 @@ Generated: 2026-09-24T01:46:28.560Z
 - Public SDK key is not used as the RevenueCat secret API key.
 - RevenueCat secret API key env source: REVENUECAT_V2_SECRET_API_KEY.
 - RevenueCat secret API key was read from environment only and was not printed or written.
+- Webhook authorization env name: REVENUECAT_PLAY_WEBHOOK_AUTH_HEADER.
 - Webhook authorization header visible to setup script: no
 
 ## API Result Summary
 
-- Products: {"created":4}
+- Products: {"already_exists":4}
 - Entitlements: {"already_exists":1}
-- Product-entitlement attachments: {"attached":1}
+- Product-entitlement attachments: {"already_attached":1}
 - Offerings: {"already_exists":1}
 - Packages: {"already_exists":4}
-- Package-product attachments: {"attached":4}
-- Paywalls: {"created_shell":1}
-- Webhook: {"manual_secret_missing":1}
+- Package-product attachments: {"already_attached":4}
+- Paywalls: {"published":1}
+- Webhook: {"already_exists":1}
 
 ## Errors
 
@@ -31,11 +32,10 @@ Generated: 2026-09-24T01:46:28.560Z
 
 ## Manual Actions
 
-- Review and finish the default paywall design in RevenueCat Paywalls Builder using docs/REVENUECAT_PAYWALL_BUILDER_PROMPTS.md.
-- Set REVENUECAT_WEBHOOK_AUTH_HEADER as a Supabase Edge Function secret and pass it to this setup script only when creating/updating the RevenueCat webhook integration.
+- No additional API setup action recorded; see the provider testing gates in REVENUECAT_MANUAL_ACTIONS_LEFT.md.
 
 ## Notes
 
 - The setup is idempotent and never deletes RevenueCat objects.
-- App Store Connect approval, sandbox purchase testing, TestFlight, and legal/privacy/teen-safety review are not completed by this script.
-- Paywall shells can be created by API, but final visual/content review remains a RevenueCat dashboard task.
+- Google Play Console product activation, license-tester purchases, App Store Connect approval, TestFlight, and legal/privacy/teen-safety review are not completed by this script.
+- The published paywall requires visual review on a real device before production monetization is enabled for users.

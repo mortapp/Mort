@@ -1,13 +1,13 @@
 # RevenueCat Products And Entitlements
 
-Products use RevenueCat/App Store price strings at runtime. Suggested prices below are planning targets only.
+Products use RevenueCat/store price strings at runtime. Suggested prices below are planning targets only.
 
 | Product | Type | Suggested docs price | Setup status |
 | --- | --- | --- | --- |
-| mort_pro:weekly | subscription | Store price | created |
-| mort_pro:monthly | subscription | Store price | created |
-| mort_pro:annual | subscription | Store price | created |
-| lifetime | non_consumable | Store price | created |
+| mort_pro:weekly | subscription | Store price | already_exists |
+| mort_pro:monthly | subscription | Store price | already_exists |
+| mort_pro:annual | subscription | Store price | already_exists |
+| lifetime | non_consumable | Store price | already_exists |
 
 ## Entitlements
 
