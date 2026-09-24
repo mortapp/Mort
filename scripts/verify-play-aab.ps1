@@ -66,7 +66,6 @@ foreach ($required in @(
 $manifestText = $manifest -join "`n"
 foreach ($forbidden in @(
   'android:debuggable="true"',
-  'com.android.vending.BILLING',
   'com.google.android.gms.permission.AD_ID',
   'android.permission.RECORD_AUDIO',
   'android.permission.READ_EXTERNAL_STORAGE',

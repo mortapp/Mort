@@ -57,7 +57,8 @@ create table public.jobs (
 
 create table public.applications (
   id uuid primary key,
-  teen_id uuid not null references public.profiles(id),
+  -- Account deletion retains historical applications after removing the user ID.
+  teen_id uuid references public.profiles(id),
   job_id uuid not null references public.jobs(id),
   status text not null,
   updated_at timestamptz not null default now()
@@ -127,3 +128,12 @@ grant execute on function public.set_leaderboard_opt_out_v1(boolean) to authenti
 -- Existing visible teen used to verify the migration's one-time privacy reset.
 insert into public.profiles(id,role,username,leaderboard_opt_out)
 values ('00000000-0000-0000-0000-0000000000e5','teen','prior_visible',false);
+
+-- A retained completion with a deleted account must never receive progression.
+insert into public.jobs(id,category)
+values ('10000000-0000-0000-0000-0000000000ff','lawn care');
+insert into public.applications(id,teen_id,job_id,status)
+values ('20000000-0000-0000-0000-0000000000ff',null,
+  '10000000-0000-0000-0000-0000000000ff','completed');
+insert into public.application_status_events(application_id,to_status)
+values ('20000000-0000-0000-0000-0000000000ff','completed');

@@ -225,6 +225,16 @@ class AppConfig {
     'REVENUECAT_ENTITLEMENT_PLUS',
     defaultValue: 'mort_plus',
   );
+  static const revenueCatEntitlementPro = 'mort_pro';
+  static const revenueCatTestStoreApiKey = String.fromEnvironment(
+    'REVENUECAT_TEST_STORE_API_KEY',
+  );
+  static const revenueCatAndroidApiKey = String.fromEnvironment(
+    'REVENUECAT_ANDROID_API_KEY',
+  );
+  static const revenueCatIosApiKey = String.fromEnvironment(
+    'REVENUECAT_IOS_API_KEY',
+  );
   static const revenueCatEntitlementAdFree = String.fromEnvironment(
     'REVENUECAT_ENTITLEMENT_AD_FREE',
     defaultValue: 'mort_ad_free',
@@ -293,6 +303,10 @@ class AppConfig {
     'ADS_ENABLED',
     defaultValue: false,
   );
+  static const admobSsvEnabled = bool.fromEnvironment(
+    'ADMOB_SSV_ENABLED',
+    defaultValue: false,
+  );
   static const useTestAds = bool.fromEnvironment(
     'USE_TEST_ADS',
     defaultValue: true,
@@ -302,7 +316,7 @@ class AppConfig {
     defaultValue: false,
   );
   static const nativeAdsCompiledIn = true;
-  static const nativeBillingCompiledIn = false;
+  static const nativeBillingCompiledIn = true;
   static const nativeStripePaymentSheetCompiledIn = true;
   static const webPreviewMode = bool.fromEnvironment(
     'WEB_PREVIEW_MODE',
@@ -408,8 +422,8 @@ class AppConfig {
           );
         }
       }
-      if (iapEnabled || nativeBillingCompiledIn) {
-        errors.add('native billing must be absent from this release');
+      if (revenueCatTestStoreApiKey.isNotEmpty) {
+        errors.add('RevenueCat Test Store key is forbidden in release builds');
       }
       // Ads SDK being compiled in is a deliberate, owner-authorized product
       // decision (MORT ships real Banner/Rewarded ads) -- no longer
@@ -442,6 +456,12 @@ class AppConfig {
           authRedirectUrl != expectedNativeAuthRedirectUrl) {
         errors.add('Apple Auth must use the approved native callback');
       }
+    }
+    if (kReleaseMode && revenueCatTestStoreApiKey.isNotEmpty && !isRelease) {
+      errors.add('RevenueCat Test Store key is forbidden in release builds');
+    }
+    if (iapEnabled && !hasValidRevenueCatKey) {
+      errors.add('IAP requires a matching RevenueCat public SDK key');
     }
 
     if (releaseStage == 'closed_test' && publicMarketplaceEnabled) {
@@ -562,7 +582,61 @@ class AppConfig {
     return parsed;
   }
 
-  static bool get supportsNativePurchases => false;
+  static String get revenueCatApiKey => selectRevenueCatKey(
+    enabled: iapEnabled,
+    isWeb: kIsWeb,
+    platform: defaultTargetPlatform,
+    isDevelopment: releaseStage == 'development',
+    isReleaseBinary: kReleaseMode,
+    testKey: revenueCatTestStoreApiKey,
+    androidKey: revenueCatAndroidApiKey,
+    iosKey: revenueCatIosApiKey,
+  );
+
+  static String selectRevenueCatKey({
+    required bool enabled,
+    required bool isWeb,
+    required TargetPlatform platform,
+    required bool isDevelopment,
+    required bool isReleaseBinary,
+    required String testKey,
+    required String androidKey,
+    required String iosKey,
+  }) {
+    if (!enabled ||
+        isWeb ||
+        (platform != TargetPlatform.android &&
+            platform != TargetPlatform.iOS)) {
+      return '';
+    }
+    if (isDevelopment && !isReleaseBinary && testKey.startsWith('test_')) {
+      return testKey;
+    }
+    return platform == TargetPlatform.android ? androidKey : iosKey;
+  }
+
+  static bool get hasValidRevenueCatKey {
+    final key = revenueCatApiKey;
+    if (key.isEmpty) return false;
+    if ((defaultTargetPlatform != TargetPlatform.android &&
+            defaultTargetPlatform != TargetPlatform.iOS) ||
+        kIsWeb) {
+      return false;
+    }
+    if (releaseStage == 'development' &&
+        !kReleaseMode &&
+        key == revenueCatTestStoreApiKey) {
+      return key.startsWith('test_');
+    }
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.android => key.startsWith('goog_'),
+      TargetPlatform.iOS => key.startsWith('appl_'),
+      _ => false,
+    };
+  }
+
+  static bool get supportsNativePurchases =>
+      nativeBillingCompiledIn && iapEnabled && !kIsWeb && hasValidRevenueCatKey;
 
   static bool get supportsNativeAds => nativeAdsCompiledIn && !kIsWeb;
 

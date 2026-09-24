@@ -1,17 +1,11 @@
 import {
-  existsSync,
-  readFileSync,
-} from "node:fs";
-import {
   entitlementProductMap,
   entitlements,
-  expectedFlutterSdkKey,
   findByLookup,
   findProductByStoreIdentifier,
   getRevenueCatInventory,
   offerings,
   products,
-  repoRoot,
   resolveRevenueCatContext,
   sanitizeRevenueCatError,
 } from "./revenuecat-common.mjs";
@@ -25,9 +19,9 @@ function pass(message) {
   console.log(`[qa-revenuecat-api] PASS: ${message}`);
 }
 
-const { api, projectId, appId, app, sdkKey } = await resolveRevenueCatContext();
-if (sdkKey !== expectedFlutterSdkKey) fail("Flutter SDK key does not match expected public/test key.");
+const { api, projectId, appId, app, targetStore } = await resolveRevenueCatContext();
 pass("RevenueCat API key works and app was resolved.");
+pass(`Target store: ${targetStore}`);
 pass(`Project resolved: ${projectId}`);
 pass(`App resolved: ${appId} (${app.type})`);
 
@@ -76,6 +70,14 @@ for (const item of offerings) {
     `/projects/${encodeURIComponent(projectId)}/offerings/${encodeURIComponent(offering.id)}/packages`,
   );
   const packageByLookup = new Map(packageItems.map((pkg) => [pkg.lookup_key, pkg]));
+  if (item.lookupKey === "default") {
+    const expected = new Set(["$rc_weekly", "$rc_monthly", "$rc_annual", "$rc_lifetime"]);
+    if (packageItems.length !== expected.size ||
+      packageItems.some((pkg) => !expected.has(pkg.lookup_key))) {
+      fail("Default Offering must contain only weekly, monthly, annual, and lifetime package types.");
+    }
+    if (!offering.is_current) fail("MORT Pro default Offering is not current.");
+  }
   for (const expectedPackage of item.packages) {
     const foundPackage = packageByLookup.get(expectedPackage.lookupKey);
     if (!foundPackage) fail(`Missing package ${item.lookupKey}/${expectedPackage.lookupKey}.`);
@@ -91,23 +93,40 @@ for (const item of offerings) {
   pass(`Packages verified: ${item.lookupKey}`);
 }
 
-const paywallOfferingIds = new Set(inventory.paywalls.map((item) => item.offering_id).filter(Boolean));
-const manualPaywallDocPath = `${repoRoot}\\docs\\REVENUECAT_PAYWALL_BUILDER_PROMPTS.md`;
-const manualPaywallDoc = existsSync(manualPaywallDocPath) ? readFileSync(manualPaywallDocPath, "utf8") : "";
 for (const item of offerings) {
   const offering = offeringByLookup.get(item.lookupKey);
   if (!offering) continue;
-  if (!offering.paywall_id && !paywallOfferingIds.has(offering.id)) {
-    if (!manualPaywallDoc.includes(`## ${item.lookupKey}`)) {
-      fail(`Missing paywall shell for offering ${item.lookupKey}, and manual dashboard steps are not documented.`);
-    }
-    pass(`Paywall manual dashboard steps documented: ${item.lookupKey}`);
-    continue;
+  const paywallSummary = inventory.paywalls.find((candidate) =>
+    candidate.id === offering.paywall_id || candidate.offering_id === offering.id);
+  if (!paywallSummary) {
+    fail(`Missing published paywall for offering ${item.lookupKey}.`);
   }
-  pass(`Paywall exists or is attached: ${item.lookupKey}`);
+  const paywall = await api.request(
+    `/projects/${encodeURIComponent(projectId)}/paywalls/${encodeURIComponent(paywallSummary.id)}?expand=components`,
+  );
+  if (!paywall.published_at || !paywall.components?.published) {
+    fail(`Paywall for ${item.lookupKey} is not published.`);
+  }
+  const published = paywall.components.published;
+  const config = published.components_config?.base;
+  const packageStack = config?.sticky_footer?.stack?.components?.find((component) =>
+    component.name === "Package stack");
+  const selectedPackages = packageStack?.components?.map((component) => component.package_id);
+  const requiredPackages = ["$rc_weekly", "$rc_monthly", "$rc_annual", "$rc_lifetime"];
+  if (JSON.stringify(selectedPackages) !== JSON.stringify(requiredPackages)) {
+    fail(`Published paywall for ${item.lookupKey} does not show all four MORT plans.`);
+  }
+  const publishedStrings = JSON.stringify(published.components_localizations ?? {});
+  if (!publishedStrings.includes("MORT Pro") ||
+      !publishedStrings.includes("Core work and safety stay free") ||
+      /Cat\.io|feline|purrroduct|free trial|revenuecat\.com\/terms/i.test(publishedStrings)) {
+    fail(`Published paywall for ${item.lookupKey} has incorrect MORT copy or template content.`);
+  }
+  pass(`Published MORT paywall verified: ${item.lookupKey} (${requiredPackages.join(", ")})`);
 }
 
-const webhook = inventory.webhooks.find((item) => item.url?.includes("/functions/v1/revenuecat-webhook"));
+const webhook = inventory.webhooks.find((item) =>
+  item.url?.includes("/functions/v1/revenuecat-webhook") && item.app_id === appId);
 if (!webhook) fail("RevenueCat webhook integration for Supabase function is missing.");
 pass("RevenueCat webhook integration exists.");
 

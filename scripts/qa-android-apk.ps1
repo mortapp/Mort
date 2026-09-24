@@ -30,7 +30,6 @@ $forbidden = @(
   'android.permission.ACCESS_BACKGROUND_LOCATION',
   'android.permission.FOREGROUND_SERVICE_LOCATION',
   'android.permission.FOREGROUND_SERVICE',
-  'com.android.vending.BILLING',
   'com.google.android.gms.permission.AD_ID',
   'android.permission.ACCESS_ADSERVICES_AD_ID',
   'android.permission.ACCESS_ADSERVICES_ATTRIBUTION',

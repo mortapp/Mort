@@ -252,7 +252,7 @@ void main() {
         iapEnabled: true,
         deterministicChatbotFallbackEnabled: false,
       );
-      expect(invalid.validationErrors.length, greaterThanOrEqualTo(4));
+      expect(invalid.validationErrors.length, greaterThanOrEqualTo(3));
     },
   );
 
@@ -319,10 +319,7 @@ void main() {
         communityVersion: 'community-2026-08-approved',
         safetyVersion: 'safety-2026-08-approved',
       );
-      expect(
-        productionWithIap.validationErrors,
-        contains('IAP is not approved for this release'),
-      );
+      expect(productionWithIap.validationErrors, isEmpty);
     },
   );
 

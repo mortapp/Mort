@@ -214,7 +214,7 @@ async function validateRegressionManifest() {
     "SUPABASE_DB_URL",
     "run-final-supabase-regression.ps1",
     "qa-stripe-pre-provider-gate.mjs",
-    "deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests",
+    "deno test --node-modules-dir=none --frozen --allow-read --allow-env supabase/functions/_tests",
     "audit-supabase-advisors.mjs",
     "dart format --output=none --set-exit-if-changed lib test integration_test",
     "flutter analyze --no-pub",
@@ -301,7 +301,7 @@ async function validateRegressionManifest() {
   for (const token of [
     "stripe-contracts:",
     "qa-stripe-pre-provider-gate.mjs",
-    "deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests",
+    "deno test --node-modules-dir=none --frozen --allow-read --allow-env supabase/functions/_tests",
     "flutter test --no-pub test/features/payment_os_integration_test.dart",
     "stripe-local-regression:",
     "stripe-hosted-regression:",

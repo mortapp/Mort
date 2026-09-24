@@ -2,6 +2,15 @@
 -- disposable PostgreSQL database. psql must use -v ON_ERROR_STOP=1.
 
 -- Formula, rank boundaries, privileges, and privacy default.
+-- Retained completions from deleted accounts are ineligible for progression.
+select private.progression_complete_job('20000000-0000-0000-0000-0000000000ff');
+do $$ begin
+  if exists (select 1 from private.progression_events
+      where source_id = '20000000-0000-0000-0000-0000000000ff') then
+    raise exception 'deleted account completion received progression';
+  end if;
+end $$;
+
 do $$
 declare
   v_level integer;

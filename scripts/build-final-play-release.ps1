@@ -10,7 +10,7 @@ $artifactVersion = "$($version.versionName)-$($version.versionCode)"
 $builtApk = Join-Path $play "mort-closed-test-$artifactVersion.apk"
 $builtAab = Join-Path $play "mort-closed-test-$artifactVersion.aab"
 
-& (Join-Path $PSScriptRoot 'build-closed-test-apk.ps1')
+& (Join-Path $PSScriptRoot 'build-standard-closed-test-apk.ps1')
 if ($LASTEXITCODE -ne 0) { throw 'Signed QA APK build failed.' }
 & (Join-Path $PSScriptRoot 'qa-android-apk.ps1') -ApkPath $builtApk -RequireSigned
 if ($LASTEXITCODE -ne 0) { throw 'Signed QA APK verification failed.' }
@@ -19,8 +19,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Signed QA APK verification failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Signed Play AAB build failed.' }
 & (Join-Path $PSScriptRoot 'verify-play-aab.ps1') `
   -BundlePath $builtAab `
-  -ReleaseStage closed_test `
-  -PlayReviewModeEnabled
+  -ReleaseStage closed_test
 if ($LASTEXITCODE -ne 0) { throw 'Signed Play AAB verification failed.' }
 
 Write-Output "Created final closed-test APK: $builtApk"

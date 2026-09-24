@@ -17,6 +17,7 @@ Updated: 2026-07-09
 Configured in Supabase/server environment only:
 
 - `REVENUECAT_WEBHOOK_AUTH_HEADER`
+- `REVENUECAT_PLAY_WEBHOOK_AUTH_HEADER` for the Play Store RevenueCat project. The webhook accepts either configured header so the older Test Store integration can continue using its existing secret.
 - `SUPABASE_SERVICE_ROLE_KEY` is required by the function runtime. The Supabase CLI skipped setting a `SUPABASE_`-prefixed secret directly, but the deployed function read the runtime service role value successfully during QA.
 
 Not allowed in Flutter/mobile:

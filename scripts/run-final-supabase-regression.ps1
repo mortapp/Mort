@@ -69,6 +69,7 @@ $scripts = @(
   'qa-google-auth-controls.mjs',
   'qa-play-reviewer-isolation.mjs',
   'qa-revenuecat-atomic.mjs',
+  'qa-mort-pro-ssv.mjs',
   'qa-signed-media-rate-limits.mjs',
   'qa-payment-operations-queue-boundary.mjs',
   'qa-stripe-mode-isolation.mjs',

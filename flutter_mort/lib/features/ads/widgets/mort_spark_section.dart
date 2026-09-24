@@ -11,8 +11,7 @@ import 'mort_rewarded_ad_button.dart';
 /// Optional, purely cosmetic 24h profile accent unlocked by watching a
 /// rewarded ad to completion. No job ranking, Quick Accept, leaderboard,
 /// safety, moderation, marketplace-priority, or job-eligibility effect --
-/// decoration only. State is server-authoritative (grant_mort_spark_reward)
-/// so it is correct across devices and cannot be forged client-side.
+/// decoration only. A verified AdMob server callback grants the accent.
 class MortSparkSection extends ConsumerStatefulWidget {
   const MortSparkSection({super.key});
 
@@ -33,13 +32,8 @@ class _MortSparkSectionState extends ConsumerState<MortSparkSection> {
       ref.read(monetizationRepositoryProvider).getActiveSparkExpiry();
 
   Future<void> _handleReward() async {
-    try {
-      await ref.read(monetizationRepositoryProvider).grantSparkReward();
-    } catch (_) {
-      // Fail closed: never fabricate the cosmetic entitlement locally if
-      // the server call fails. The status refresh below will simply show
-      // the entitlement as still inactive.
-    }
+    // Google's signed callback runs asynchronously. Refreshing may still
+    // show the previous state until the server has processed the event.
     if (!mounted) return;
     setState(() => _statusFuture = _loadStatus());
   }

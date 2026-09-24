@@ -1,5 +1,24 @@
 # MORT progression and Android release certification
 
+## Current Android 113 release (September 24, 2026)
+
+Status: signed artifacts built and verified; provider activation and real-device purchase tests remain external gates. The material below this section records the historical version 112 release and is superseded for Android distribution by version 113.
+
+- Source branch: `feature/mort-monetization-convergence-113`, PR [#23](https://github.com/mortapp/Mort/pull/23). The original mixed checkout at `C:\Users\micha\Mort` was preserved; the clean release worktree is `C:\Users\micha\Mort-monetization-113`.
+- APK/AAB source commit: `cdb0c7e8613bbd01d4122464934dfd0b3b390cfd` (`gitDirty=false` in both build manifests). This source retains the newer black/silver MORT UI and the intended landing copy, “Real work near you, with safety and clear conversations built in from the start.” Backend-only migration/webhook and RevenueCat provider work followed the binary build.
+- Version `0.9.16+113`, package `com.mortapp.mobile`, minimum SDK 24, target SDK 36. Android Play Billing is enabled with the Play app's public RevenueCat SDK key. The Test Store key and privileged keys are absent from the release artifacts.
+- [Google Play AAB](C:/Users/micha/Mort/build/play/MORT-0.9.16-113-play.aab): 90,586,869 bytes; SHA-256 `569D3D1AA0D958EE0B3C43E63D32194DF41F1F8F87E587FDF3F15E58A213B3D6`.
+- [QA APK](C:/Users/micha/Mort/build/play/MORT-0.9.16-113-release.apk): 87,047,635 bytes; SHA-256 `6858D9E7CE8EF69E2B12CCE9A260A867A62C25981116E8C6607D95C207CCD8E7`.
+- APK and AAB signature, package/version/manifest, exported component, and 16 KB ELF alignment checks passed. The artifact secret scan checked 2,918 entries with zero findings against the five available sensitive values. Upload certificate SHA-256: `04:42:C2:21:38:B0:D6:23:F9:A6:F4:78:1A:44:2B:F4:A9:33:27:8F:AB:8E:85:76:74:4D:C1:FD:7C:33:4D:EF`.
+- The progression, account-deletion financial-FK repair, and MORT Pro/ad-eligibility migrations are applied to the intended hosted Supabase project. The corrected progression migration passed an isolated Docker PostgreSQL red/green regression before the hosted retry; the hosted migration list then matched locally. The MORT RevenueCat webhook is deployed with a dedicated Play authorization value while preserving the older Test Store integration.
+- RevenueCat Play project `projc545d148` / app `app8eaa6ee77f`: weekly, monthly, annual, and lifetime products are attached to `mort_pro` and the current `default` offering. The MORT-branded four-plan paywall is published. Catalog/attachment/webhook configuration QA and synthetic hosted Play webhook authorization, persistence, and replay tests passed. Synthetic tests do not prove a real Google Play transaction.
+- MORT local Supabase Docker containers and preserved database volumes were restored with the `mort-mobile` project label and container-name suffix. Studio `http://127.0.0.1:54323` and API `http://127.0.0.1:54321` returned HTTP 200; database and core containers are healthy. The optional Vector log collector restarts because Docker Desktop does not expose the TCP endpoint it expects. The separate Loop stack was left untouched.
+- Remaining external gates: configure/activate matching Google Play Console products/base plans and tester access; upload the version 113 AAB; run real-device license-tester purchase, renewal, cancellation, restore, and RevenueCat-to-Supabase delivery; review the paywall on a device; complete production legal/payment/safety approvals. Apple distribution signing and App Store IAP remain separate.
+
+---
+
+## Historical version 112 certification
+
 Date: September 22, 2026
 
 ## Verdict

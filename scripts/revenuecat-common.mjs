@@ -3,138 +3,46 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const expectedFlutterSdkKey = ["test", "YKOBjNITvzPEMKMDpFUTnSZHDQn"].join("_");
 export const revenueCatBaseUrl = "https://api.revenuecat.com/v2";
 export const mortSupabaseProjectRef = "rakjydmgwwgtdislanbt";
 export const mortSupabaseUrl = `https://${mortSupabaseProjectRef}.supabase.co`;
 export const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 
 export const products = [
-  product("mort_plus_monthly", "MORT Plus Monthly", "subscription", "$0.99/month", "P1M"),
-  product("mort_plus_yearly", "MORT Plus Yearly", "subscription", "$7.99/year", "P1Y"),
-  product("mort_plus_lifetime", "MORT Lifetime", "non_consumable", "$14.99 one-time"),
-  product("mort_ad_free_lifetime", "Ad-Free Lifetime", "non_consumable", "$1.99 one-time"),
-  product("mort_username_change_token_1", "Username Change Token", "consumable", "$1.99"),
-  product("mort_profile_style_pack", "Profile Style Pack", "non_consumable", "$0.99"),
-  product("mort_adult_pro_monthly", "Adult Pro Monthly", "subscription", "$2.99/month", "P1M"),
-  product("mort_guardian_plus_monthly", "Guardian Plus Monthly", "subscription", "$1.99/month", "P1M"),
-  product("mort_job_boost_1", "Job Boost", "consumable", "$1.99"),
+  product("mort_pro:weekly", "MORT Pro Weekly", "subscription", "Store price", "P1W"),
+  product("mort_pro:monthly", "MORT Pro Monthly", "subscription", "Store price", "P1M"),
+  product("mort_pro:annual", "MORT Pro Annual", "subscription", "Store price", "P1Y"),
+  product("lifetime", "MORT Pro Lifetime", "non_consumable", "Store price"),
 ];
 
 export const entitlements = [
-  entitlement("mort_plus", "MORT Plus"),
-  entitlement("mort_ad_free", "Ad-Free"),
-  entitlement("mort_adult_pro", "Adult Pro"),
-  entitlement("mort_guardian_plus", "Guardian Plus"),
-  entitlement("mort_lifetime", "MORT Lifetime"),
-  entitlement("mort_profile_style_pack", "Profile Style Pack"),
-  entitlement("mort_username_change_token", "Username Change Token"),
-  entitlement("mort_job_boost", "Job Boost"),
+  entitlement("mort_pro", "MORT Pro"),
 ];
 
 export const entitlementProductMap = {
-  mort_plus: ["mort_plus_monthly", "mort_plus_yearly", "mort_plus_lifetime"],
-  mort_ad_free: ["mort_ad_free_lifetime", "mort_plus_monthly", "mort_plus_yearly", "mort_plus_lifetime"],
-  mort_adult_pro: ["mort_adult_pro_monthly"],
-  mort_guardian_plus: ["mort_guardian_plus_monthly"],
-  mort_lifetime: ["mort_plus_lifetime"],
-  mort_profile_style_pack: ["mort_profile_style_pack"],
-  mort_username_change_token: ["mort_username_change_token_1"],
-  mort_job_boost: ["mort_job_boost_1"],
+  mort_pro: ["mort_pro:weekly", "mort_pro:monthly", "mort_pro:annual", "lifetime"],
 };
 
 export const offerings = [
-  offering("default", "Default MORT Perks", true, [
-    pkg("monthly", "MORT Plus Monthly", "mort_plus_monthly", 1),
-    pkg("annual", "MORT Plus Yearly", "mort_plus_yearly", 2),
-    pkg("lifetime", "MORT Lifetime", "mort_plus_lifetime", 3),
-    pkg("ad_free", "Ad-Free Lifetime", "mort_ad_free_lifetime", 4),
-  ]),
-  offering("teen_perks", "Teen Perks", false, [
-    pkg("monthly", "MORT Plus Monthly", "mort_plus_monthly", 1),
-    pkg("annual", "MORT Plus Yearly", "mort_plus_yearly", 2),
-    pkg("lifetime", "MORT Lifetime", "mort_plus_lifetime", 3),
-    pkg("username_change", "Username Change Token", "mort_username_change_token_1", 4),
-    pkg("profile_style", "Profile Style Pack", "mort_profile_style_pack", 5),
-  ]),
-  offering("adult_pro", "Adult Pro", false, [
-    pkg("monthly", "Adult Pro Monthly", "mort_adult_pro_monthly", 1),
-    pkg("job_boost", "Job Boost", "mort_job_boost_1", 2),
-  ]),
-  offering("guardian_plus", "Guardian Plus", false, [
-    pkg("monthly", "Guardian Plus Monthly", "mort_guardian_plus_monthly", 1),
-  ]),
-  offering("ad_free", "Ad-Free", false, [
-    pkg("lifetime", "Ad-Free Lifetime", "mort_ad_free_lifetime", 1),
-  ]),
-  offering("username_change", "Username Change", false, [
-    pkg("token", "Username Change Token", "mort_username_change_token_1", 1),
-  ]),
-  offering("job_boost", "Job Boost", false, [
-    pkg("boost", "Job Boost", "mort_job_boost_1", 1),
+  offering("default", "MORT Pro", true, [
+    pkg("$rc_weekly", "MORT Pro Weekly", "mort_pro:weekly", 1),
+    pkg("$rc_monthly", "MORT Pro Monthly", "mort_pro:monthly", 2),
+    pkg("$rc_annual", "MORT Pro Annual", "mort_pro:annual", 3),
+    pkg("$rc_lifetime", "MORT Pro Lifetime", "lifetime", 4),
   ]),
 ];
 
 export const paywallCopy = {
   default: {
-    header: "Make MORT yours.",
-    subheader: "Free stays useful. Plus just gives you extra style, control, and convenience.",
-    primaryCta: "Upgrade if you want",
+    header: "MORT Pro",
+    subheader: "Optional style and convenience. Core work and safety remain free.",
+    primaryCta: "Upgrade to MORT Pro",
     secondaryCta: "Keep using free",
     perks: [
-      "Ad-free browsing on safe screens",
-      "1 extra username change per month",
-      "Premium profile themes",
-      "Premium badge",
-      "Extra portfolio slots",
-      "Saved job folders",
-      "Advanced filters",
-      "Goal analytics",
-      "Profile insights",
-      "Early access perks",
+      "Ad-free browsing on eligible screens",
+      "Profile style",
+      "Personal analytics",
     ],
-  },
-  username_change: {
-    header: "Need another name change?",
-    subheader: "You get 3 free username changes. After that, grab a cheap token if you want another one.",
-    primaryCta: "Get username token",
-    secondaryCta: "Keep current username",
-    perks: ["Optional username token", "Safety scanner still applies"],
-  },
-  adult_pro: {
-    header: "Post smarter, not harder.",
-    subheader: "Adult Pro gives you templates, applicant sorting, and job insights.",
-    primaryCta: "Upgrade if you want",
-    secondaryCta: "Keep using free",
-    perks: ["Applicant sorting", "Job insights", "Posting templates"],
-  },
-  guardian_plus: {
-    header: "More visibility, still optional.",
-    subheader: "Basic Guardian Mode stays free. Plus adds deeper digests and extra organization.",
-    primaryCta: "Upgrade if you want",
-    secondaryCta: "Keep basic Guardian Mode",
-    perks: ["Weekly digest", "Extra organization", "More visibility"],
-  },
-  ad_free: {
-    header: "Keep the browsing quieter.",
-    subheader: "Ad-free removes ads on safe screens. Safety tools stay free.",
-    primaryCta: "Go ad-free",
-    secondaryCta: "Keep using free",
-    perks: ["Ad-free browsing on safe screens", "No safety feature is locked"],
-  },
-  job_boost: {
-    header: "Boost this job.",
-    subheader: "Give this job extra visibility. Boosts never bypass safety review.",
-    primaryCta: "Boost job",
-    secondaryCta: "Skip boost",
-    perks: ["Extra visibility", "Still requires moderation", "No safety bypass"],
-  },
-  teen_perks: {
-    header: "Make MORT yours.",
-    subheader: "Free stays useful. Perks are optional.",
-    primaryCta: "Upgrade if you want",
-    secondaryCta: "Keep using free",
-    perks: ["Premium themes", "Username token", "Ad-free on safe screens"],
   },
 };
 
@@ -267,22 +175,23 @@ export function requireEnvValue(name) {
 }
 
 export function requireRevenueCatSecretKey() {
-  const v1SecretKey = envValue("REVENUECAT_V1_SECRET_API_KEY");
-  if (v1SecretKey) return { value: v1SecretKey, envName: "REVENUECAT_V1_SECRET_API_KEY" };
-
   const v2SecretKey = envValue("REVENUECAT_V2_SECRET_API_KEY");
   if (v2SecretKey) return { value: v2SecretKey, envName: "REVENUECAT_V2_SECRET_API_KEY" };
-
-  throw new Error("Set REVENUECAT_V2_SECRET_API_KEY or REVENUECAT_V1_SECRET_API_KEY.");
+  throw new Error("Set a RevenueCat V2 secret API key for the matching project.");
 }
 
 export async function resolveRevenueCatContext() {
   const secretKey = requireRevenueCatSecretKey();
   const projectId = requireEnvValue("REVENUECAT_PROJECT_ID");
-  const sdkKey = requireEnvValue("REVENUECAT_FLUTTER_IOS_SDK_KEY");
-
-  if (sdkKey !== expectedFlutterSdkKey) {
-    throw new Error("REVENUECAT_FLUTTER_IOS_SDK_KEY does not match the expected MORT public/test SDK key.");
+  const targetStore = envValue("REVENUECAT_TARGET_STORE") || "test_store";
+  if (targetStore !== "test_store" && targetStore !== "play_store") {
+    throw new Error("REVENUECAT_TARGET_STORE must be test_store or play_store.");
+  }
+  const sdkKey = targetStore === "play_store"
+    ? requireEnvValue("REVENUECAT_ANDROID_API_KEY")
+    : requireEnvValue("REVENUECAT_TEST_STORE_API_KEY");
+  if (!sdkKey.startsWith(targetStore === "play_store" ? "goog_" : "test_")) {
+    throw new Error("RevenueCat public SDK key does not match target store.");
   }
 
   const api = new RevenueCatApi(secretKey.value);
@@ -303,11 +212,21 @@ export async function resolveRevenueCatContext() {
     }
   }
 
-  if (!app || !appId) {
+  if (!app || !appId || app.type !== targetStore) {
     throw new Error("REVENUECAT_APP_ID could not be discovered from the project apps and public SDK key.");
   }
+  const publicKeys = await api.listAll(
+    `/projects/${encodeURIComponent(projectId)}/apps/${encodeURIComponent(appId)}/public_api_keys`,
+  );
+  if (!publicKeys.some((key) => key.key === sdkKey)) {
+    throw new Error("RevenueCat public SDK key does not belong to the selected app.");
+  }
+  if (targetStore === "play_store" &&
+      (app.name !== "Mort (Play Store)" || app.custom_url_scheme !== "rc-8eaa6ee77f")) {
+    throw new Error("RevenueCat Play app identity or custom URL scheme does not match MORT.");
+  }
 
-  return { api, projectId, appId, app, sdkKey, secretEnvName: secretKey.envName };
+  return { api, projectId, appId, app, sdkKey, targetStore, secretEnvName: secretKey.envName };
 }
 
 export async function getRevenueCatInventory(api, projectId, appId) {

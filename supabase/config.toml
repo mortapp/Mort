@@ -48,6 +48,9 @@ verify_jwt = true
 [functions.revenuecat-webhook]
 verify_jwt = false
 
+[functions.admob-reward-ssv]
+verify_jwt = false
+
 [functions.stripe-webhook]
 verify_jwt = false
 
