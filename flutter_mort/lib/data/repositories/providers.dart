@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/auth/oauth_flow.dart';
+import '../../core/config/app_config.dart';
 import '../models/profile.dart';
 import '../models/onboarding_progress.dart';
 import '../models/job.dart';
@@ -29,6 +30,7 @@ import 'monetization_repository.dart';
 import 'notifications_repository.dart';
 import 'observability_repository.dart';
 import 'profile_repository.dart';
+import 'progression_repository.dart';
 import 'reviews_repository.dart';
 import 'safety_repository.dart';
 import 'support_repository.dart';
@@ -221,6 +223,16 @@ final trustSafetyRepositoryProvider = Provider<TrustSafetyRepository>(
 final leaderboardRepositoryProvider = Provider<LeaderboardRepository>(
   (ref) => LeaderboardRepository(),
 );
+final progressionRepositoryProvider = Provider<ProgressionRepository>(
+  (ref) => ProgressionRepository(),
+);
+final myProgressionProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(progressionRepositoryProvider).getMyProgression(),
+);
+final progressionBoardProvider = FutureProvider.autoDispose.family(
+  (ref, String board) =>
+      ref.watch(progressionRepositoryProvider).getBoard(board),
+);
 final leaderboardProvider = FutureProvider.autoDispose(
   (ref) => ref.watch(leaderboardRepositoryProvider).getLeaderboard(limit: 5),
 );
@@ -331,6 +343,12 @@ final oauthFlowStateProvider = StreamProvider<OAuthFlowSnapshot>((ref) async* {
   yield repository.oauthState;
   yield* repository.oauthStates;
 });
+
+/// Owner configured Google sign in availability. Tests override this provider
+/// without changing production authentication behavior.
+final googleAuthEnabledProvider = Provider<bool>(
+  (ref) => AppConfig.googleAuthEnabled,
+);
 
 final currentProfileProvider = FutureProvider<Profile?>((ref) async {
   ref.watch(authStateProvider);

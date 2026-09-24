@@ -1,0 +1,230 @@
+name: MORT Signed iOS Closed Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  signed-ios:
+    environment: closed-test-release
+    runs-on: macos-14
+    timeout-minutes: 70
+    env:
+      FLUTTER_SWIFT_PACKAGE_MANAGER: "false"
+    steps:
+      - uses: actions/checkout@v7
+      - name: Select Xcode 16.2
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+      - name: Validate protected signing inputs
+        shell: bash
+        env:
+          MORT_APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.MORT_APPLE_CERTIFICATE_P12_BASE64 }}
+          MORT_APPLE_CERTIFICATE_PASSWORD: ${{ secrets.MORT_APPLE_CERTIFICATE_PASSWORD }}
+          MORT_APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.MORT_APPLE_PROVISIONING_PROFILE_BASE64 }}
+          MORT_APPLE_DEVELOPMENT_TEAM: ${{ secrets.MORT_APPLE_DEVELOPMENT_TEAM }}
+          MORT_APPLE_KEYCHAIN_PASSWORD: ${{ secrets.MORT_APPLE_KEYCHAIN_PASSWORD }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          for name in             MORT_APPLE_CERTIFICATE_P12_BASE64             MORT_APPLE_CERTIFICATE_PASSWORD             MORT_APPLE_PROVISIONING_PROFILE_BASE64             MORT_APPLE_DEVELOPMENT_TEAM             MORT_APPLE_KEYCHAIN_PASSWORD             SUPABASE_URL             SUPABASE_ANON_KEY
+          do
+            if [[ -z "${!name:-}" ]]; then
+              echo "BLOCKED-EXTERNAL: missing protected iOS release input $name" >&2
+              exit 1
+            fi
+          done
+          [[ "$SUPABASE_URL" == "https://rakjydmgwwgtdislanbt.supabase.co" ]] || {
+            echo "BLOCKED-EXTERNAL: SUPABASE_URL is not the approved MORT project." >&2
+            exit 1
+          }
+
+      - name: Install Apple distribution certificate and provisioning profile
+        shell: bash
+        env:
+          MORT_APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.MORT_APPLE_CERTIFICATE_P12_BASE64 }}
+          MORT_APPLE_CERTIFICATE_PASSWORD: ${{ secrets.MORT_APPLE_CERTIFICATE_PASSWORD }}
+          MORT_APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.MORT_APPLE_PROVISIONING_PROFILE_BASE64 }}
+          MORT_APPLE_DEVELOPMENT_TEAM: ${{ secrets.MORT_APPLE_DEVELOPMENT_TEAM }}
+          MORT_APPLE_KEYCHAIN_PASSWORD: ${{ secrets.MORT_APPLE_KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          CERT_PATH="$RUNNER_TEMP/mort-apple-distribution.p12"
+          PROFILE_PATH="$RUNNER_TEMP/mort-appstore.mobileprovision"
+          PROFILE_PLIST="$RUNNER_TEMP/mort-appstore-profile.plist"
+          KEYCHAIN_PATH="$RUNNER_TEMP/mort-signing.keychain-db"
+
+          python3 - "$CERT_PATH" "$PROFILE_PATH" <<'PY'
+          import base64
+          import os
+          import sys
+
+          inputs = (
+              ("MORT_APPLE_CERTIFICATE_P12_BASE64", sys.argv[1]),
+              ("MORT_APPLE_PROVISIONING_PROFILE_BASE64", sys.argv[2]),
+          )
+          for environment_name, output_path in inputs:
+              encoded = os.environ[environment_name].strip()
+              with open(output_path, "wb") as output:
+                  output.write(base64.b64decode(encoded, validate=True))
+          PY
+
+          security create-keychain -p "$MORT_APPLE_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$MORT_APPLE_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH"             -P "$MORT_APPLE_CERTIFICATE_PASSWORD"             -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list             -S apple-tool:,apple:             -s -k "$MORT_APPLE_KEYCHAIN_PASSWORD"             "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" "$HOME/Library/Keychains/login.keychain-db"
+
+          security cms -D -i "$PROFILE_PATH" > "$PROFILE_PLIST"
+          PROFILE_UUID="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$PROFILE_PLIST")"
+          PROFILE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$PROFILE_PLIST")"
+          PROFILE_TEAM="$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$PROFILE_PLIST")"
+          PROFILE_BUNDLE="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$PROFILE_PLIST")"
+
+          [[ "$PROFILE_TEAM" == "$MORT_APPLE_DEVELOPMENT_TEAM" ]] || {
+            echo "Provisioning profile team does not match MORT_APPLE_DEVELOPMENT_TEAM." >&2
+            exit 1
+          }
+          [[ "$PROFILE_BUNDLE" == "$MORT_APPLE_DEVELOPMENT_TEAM.com.mortapp.mobile" ]] || {
+            echo "Provisioning profile does not target com.mortapp.mobile." >&2
+            exit 1
+          }
+          PROFILE_APNS="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:aps-environment' "$PROFILE_PLIST" 2>/dev/null || true)"
+          [[ "$PROFILE_APNS" == "production" ]] || {
+            echo "Provisioning profile is missing the production APNs entitlement." >&2
+            exit 1
+          }
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+
+          echo "MORT_IOS_KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+          echo "MORT_IOS_PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+
+      - name: Prepare Flutter and CocoaPods
+        working-directory: flutter_mort
+        run: |
+          set -euo pipefail
+          mkdir -p build/ios/SourcePackages
+          flutter pub get
+          dart format --output=none --set-exit-if-changed lib test integration_test
+          flutter analyze --no-pub
+          (cd ios && pod install --repo-update)
+
+      - name: Generate closed-test Flutter release configuration
+        working-directory: flutter_mort
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: >-
+          flutter build ios --release --config-only
+          --dart-define=MORT_RELEASE_STAGE=closed_test
+          --dart-define=MORT_RELEASE_PROFILE=closed_test
+          --dart-define=MORT_OPERATIONAL_MODE=closed_test
+          --dart-define=MORT_PUBLIC_MARKETPLACE_ENABLED=false
+          --dart-define=MORT_IDENTITY_VERIFICATION_ENABLED=false
+          --dart-define=MORT_MARKETPLACE_PAYMENTS_ENABLED=false
+          --dart-define=MORT_REMOTE_PUSH_ENABLED=false
+          --dart-define=MORT_CRASH_REPORTING_ENABLED=false
+          --dart-define=MORT_PRODUCT_ANALYTICS_ENABLED=false
+          --dart-define=MORT_SUPPORT_AI_ENABLED=false
+          --dart-define=MORT_DETERMINISTIC_SUPPORT_ENABLED=true
+          --dart-define=MORT_PUBLIC_ACTIVATION_APPROVED=false
+          --dart-define=MORT_SUPABASE_PROJECT_REF=rakjydmgwwgtdislanbt
+          --dart-define=SUPABASE_URL="$SUPABASE_URL"
+          --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+          --dart-define=GOOGLE_AUTH_ENABLED=false
+          --dart-define=APPLE_AUTH_ENABLED=false
+          --dart-define=ADS_ENABLED=false
+          --dart-define=USE_TEST_ADS=true
+          --dart-define=IAP_ENABLED=false
+          --dart-define=PLAY_REVIEW_MODE_ENABLED=false
+
+      - name: Archive signed iOS app
+        working-directory: flutter_mort
+        shell: bash
+        env:
+          MORT_APPLE_DEVELOPMENT_TEAM: ${{ secrets.MORT_APPLE_DEVELOPMENT_TEAM }}
+        run: |
+          set -euo pipefail
+          ARCHIVE="$RUNNER_TEMP/MORT.xcarchive"
+          xcodebuild archive             -workspace ios/Runner.xcworkspace             -scheme Runner             -configuration Release             -destination 'generic/platform=iOS'             -archivePath "$ARCHIVE"             DEVELOPMENT_TEAM="$MORT_APPLE_DEVELOPMENT_TEAM"             CODE_SIGN_STYLE=Manual             CODE_SIGN_IDENTITY="Apple Distribution"             PROVISIONING_PROFILE_SPECIFIER="$MORT_IOS_PROFILE_NAME"             OTHER_CODE_SIGN_FLAGS="--keychain $MORT_IOS_KEYCHAIN_PATH"
+          echo "MORT_IOS_ARCHIVE=$ARCHIVE" >> "$GITHUB_ENV"
+
+      - name: Verify signed archive privacy and entitlement contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="$MORT_IOS_ARCHIVE/Products/Applications/Runner.app"
+          test -d "$APP"
+          test -f "$APP/PrivacyInfo.xcprivacy"
+          plutil -lint "$APP/Info.plist"
+          plutil -lint "$APP/PrivacyInfo.xcprivacy"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")" = "com.mortapp.mobile"
+          codesign --verify --deep --strict "$APP"
+          codesign -d --entitlements :- "$APP" > "$RUNNER_TEMP/mort-signed-entitlements.plist" 2>/dev/null
+          test "$(plutil -extract aps-environment raw "$RUNNER_TEMP/mort-signed-entitlements.plist")" = "production"
+
+      - name: Export App Store Connect IPA
+        shell: bash
+        env:
+          MORT_APPLE_DEVELOPMENT_TEAM: ${{ secrets.MORT_APPLE_DEVELOPMENT_TEAM }}
+        run: |
+          set -euo pipefail
+          EXPORT_OPTIONS="$RUNNER_TEMP/MORT-ExportOptions.plist"
+          EXPORT_DIR="$GITHUB_WORKSPACE/build/ios-signed"
+          mkdir -p "$EXPORT_DIR"
+          cat > "$EXPORT_OPTIONS" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>teamID</key>
+            <string>$MORT_APPLE_DEVELOPMENT_TEAM</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.mortapp.mobile</key>
+              <string>$MORT_IOS_PROFILE_NAME</string>
+            </dict>
+            <key>uploadSymbols</key>
+            <true/>
+            <key>manageAppVersionAndBuildNumber</key>
+            <false/>
+          </dict>
+          </plist>
+          PLIST
+          plutil -lint "$EXPORT_OPTIONS"
+          xcodebuild -exportArchive             -archivePath "$MORT_IOS_ARCHIVE"             -exportPath "$EXPORT_DIR"             -exportOptionsPlist "$EXPORT_OPTIONS"
+          IPA="$(find "$EXPORT_DIR" -maxdepth 1 -name '*.ipa' -print -quit)"
+          test -n "$IPA"
+          shasum -a 256 "$IPA" | tee "$EXPORT_DIR/MORT.ipa.sha256"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mort-signed-ios-closed-test
+          path: |
+            build/ios-signed/*.ipa
+            build/ios-signed/*.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Remove temporary signing material
+        if: always()
+        shell: bash
+        run: |
+          if [[ -n "${MORT_IOS_KEYCHAIN_PATH:-}" ]]; then
+            security delete-keychain "$MORT_IOS_KEYCHAIN_PATH" || true
+          fi
+          rm -f "$RUNNER_TEMP/mort-apple-distribution.p12"                 "$RUNNER_TEMP/mort-appstore.mobileprovision"                 "$RUNNER_TEMP/mort-appstore-profile.plist"                 "$RUNNER_TEMP/mort-signed-entitlements.plist"

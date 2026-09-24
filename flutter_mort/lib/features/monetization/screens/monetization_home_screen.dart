@@ -15,14 +15,14 @@ class MonetizationHomeScreen extends StatelessWidget {
           eyebrow: 'Optional perks',
           title: 'Make MORT yours.',
           subtitle:
-              'Free stays useful. Premium is only for style, convenience, ad-free, analytics, and boosts.',
+              'Free stays useful. Pro adds optional style, convenience, ad-free browsing, and personal analytics.',
         ),
         MonetizationDisclaimer(),
         SizedBox(height: MortSpacing.md),
         MortActionRow(
           actions: [
             MortAction(
-              label: 'MORT Plus',
+              label: 'MORT Pro',
               icon: Icons.auto_awesome,
               route: '/monetization/paywall',
             ),

@@ -3,7 +3,7 @@ name: MORT CI
 on:
   pull_request:
   push:
-    branches: [main, mort-supreme-production-readiness, feature/mort-stripe-backend-integration, feature/mort-verify-age-school]
+    branches: [main, mort-supreme-production-readiness, fix/android-browserstack-bootstrap, feature/mort-stripe-backend-integration, feature/mort-verify-age-school, feature/ios-android-release-parity]
   workflow_dispatch:
     inputs:
       run_stripe_hosted_regression:
@@ -49,7 +49,9 @@ jobs:
       - run: node scripts/qa-stripe-pre-provider-gate.mjs
       - run: node scripts/secret_extraction_scan.mjs --self-test
       - run: node scripts/secret-scan-git-history.mjs --self-test
-      - run: deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests
+      - run: deno test --node-modules-dir=none --frozen --allow-read --allow-env supabase/functions/_tests
+        env:
+          DENO_NO_PACKAGE_JSON: '1'
       - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs
       - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs docs/payments/MORT_STRIPE_TASK31_SANDBOX_EVIDENCE_2026-09-18.json
       - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs --regression-manifest
@@ -127,7 +129,10 @@ jobs:
           flutter-version: 3.47.2
           cache: true
       - run: flutter pub get
-      - run: dart format --output=none --set-exit-if-changed lib test integration_test
+      - name: Verify Dart formatting
+        run: |
+          dart format lib test integration_test
+          git diff --exit-code -- lib test integration_test
       - run: flutter analyze --no-pub
       - run: flutter test --no-pub test/features/payment_os_integration_test.dart
       - run: flutter test --no-pub
@@ -149,6 +154,102 @@ jobs:
       - name: Scan Flutter generated artifacts for secrets
         shell: pwsh
         run: '& ../scripts/secret-scan.ps1'
+
+  ios-authoritative:
+    runs-on: macos-15
+    timeout-minutes: 55
+    defaults:
+      run:
+        working-directory: flutter_mort
+    env:
+      FLUTTER_SWIFT_PACKAGE_MANAGER: "false"
+    steps:
+      - uses: actions/checkout@v7
+      - name: Select Xcode 26.3
+        run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+      - name: Prepare iOS plugin directory
+        run: mkdir -p build/ios/SourcePackages
+      - run: flutter pub get
+      - name: Verify Dart formatting
+        run: |
+          dart format lib test integration_test
+          git diff --exit-code -- lib test integration_test
+      - run: flutter analyze --no-pub
+      - name: Run iOS release-parity contracts
+        run: >-
+          flutter test --no-pub
+          test/ios_platform_contract_test.dart
+          test/ios_platform_parity_test.dart
+          test/apple_auth_contract_test.dart
+          test/stripe_marketplace_contract_test.dart
+          test/remote_push_contract_test.dart
+          test/mort_verify_contract_test.dart
+          test/features/payment_os_integration_test.dart
+          test/monetization_safety_test.dart
+      - name: Install CocoaPods dependencies
+        working-directory: flutter_mort/ios
+        run: pod install --repo-update
+      - name: Upload resolved CocoaPods lock for parity bootstrap
+        uses: actions/upload-artifact@v7
+        with:
+          name: mort-ios-podfile-lock
+          path: flutter_mort/ios/Podfile.lock
+          if-no-files-found: error
+          retention-days: 7
+      - name: Validate Xcode workspace
+        working-directory: flutter_mort/ios
+        run: xcodebuild -list -workspace Runner.xcworkspace
+      - name: Validate App Store property lists
+        run: >-
+          plutil -lint
+          ios/Runner/Info.plist
+          ios/Runner/PrivacyInfo.xcprivacy
+          ios/Runner/Runner.release.entitlements
+      - name: Build provider-disabled iOS release
+        run: >-
+          flutter build ios --release --no-codesign
+          --dart-define=MORT_RELEASE_STAGE=internal_test
+          --dart-define=MORT_RELEASE_PROFILE=automated_test
+          --dart-define=MORT_OPERATIONAL_MODE=automated_test
+          --dart-define=MORT_BROWSERSTACK_QA_MODE=true
+          --dart-define=MORT_PUBLIC_MARKETPLACE_ENABLED=false
+          --dart-define=MORT_IDENTITY_VERIFICATION_ENABLED=false
+          --dart-define=MORT_MARKETPLACE_PAYMENTS_ENABLED=false
+          --dart-define=MORT_REMOTE_PUSH_ENABLED=false
+          --dart-define=MORT_CRASH_REPORTING_ENABLED=false
+          --dart-define=MORT_SUPPORT_AI_ENABLED=false
+          --dart-define=MORT_DETERMINISTIC_SUPPORT_ENABLED=true
+          --dart-define=ADS_ENABLED=false
+          --dart-define=IAP_ENABLED=false
+      - name: Verify built iOS bundle contract
+        run: |
+          set -euo pipefail
+          APP="build/ios/iphoneos/Runner.app"
+          test -d "$APP"
+          test -f "$APP/PrivacyInfo.xcprivacy"
+          plutil -lint "$APP/Info.plist"
+          plutil -lint "$APP/PrivacyInfo.xcprivacy"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")" = "com.mortapp.mobile"
+          grep -q 'NSPrivacyCollectedDataTypeEmailAddress' "$APP/PrivacyInfo.xcprivacy"
+          grep -q 'NSPrivacyCollectedDataTypePhotosorVideos' "$APP/PrivacyInfo.xcprivacy"
+      - name: Package unsigned iOS CI artifact
+        run: |
+          set -euo pipefail
+          rm -rf build/ios/ci-ipa
+          mkdir -p build/ios/ci-ipa/Payload
+          cp -R build/ios/iphoneos/Runner.app build/ios/ci-ipa/Payload/
+          (cd build/ios/ci-ipa && zip -qr ../mort-ios-authoritative-unsigned.ipa Payload)
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mort-ios-authoritative-unsigned-ipa
+          path: flutter_mort/build/ios/mort-ios-authoritative-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
 
   public-site:
     runs-on: ubuntu-latest

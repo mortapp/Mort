@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../theme/mort_colors.dart';
+import '../atmosphere/mort_wordmark_reveal.dart';
 import '../theme/mort_tokens.dart';
+import 'mort_motion_mark.dart';
 
 class MortLogo extends StatelessWidget {
   const MortLogo({super.key, this.size = 72, this.showWordmark = false});
 
-  static const assetPath = 'assets/branding/mort_arrow_adaptive_monochrome.png';
+  static const assetPath = 'assets/branding/mort_mark_adaptive_monochrome.png';
 
   final double size;
   final bool showWordmark;
@@ -14,35 +15,20 @@ class MortLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final safeSize = _finiteDimension(size, fallback: 72, min: 24, max: 320);
-    final mark = Semantics(
-      image: true,
-      label: 'MORT arrow logo',
-      child: SizedBox.square(
-        dimension: safeSize,
-        child: Image.asset(
-          assetPath,
-          fit: BoxFit.cover,
-          filterQuality: FilterQuality.high,
-          errorBuilder: (_, _, _) => Icon(
-            Icons.north_east_rounded,
-            size: safeSize * 0.58,
-            color: MortColors.silver,
-          ),
-        ),
-      ),
-    );
+    final mark = MortMotionMark(size: safeSize);
     if (!showWordmark) return mark;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         mark,
-        Text(
-          'M O R T',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            color: MortColors.godWhite,
-            letterSpacing: 7,
-            fontWeight: FontWeight.w500,
-          ),
+        const SizedBox(height: 4),
+        // Sized to the footprint of a single text line (roughly what the
+        // previous static "M O R T" headlineSmall occupied), not the full
+        // brand-mark size, so this never overflows tight layouts.
+        MortWordmarkReveal(
+          width: safeSize * 1.6,
+          height: safeSize * 0.22,
+          showTagline: false,
         ),
       ],
     );

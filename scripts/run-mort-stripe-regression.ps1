@@ -116,8 +116,14 @@ try {
     & node (Join-Path $PSScriptRoot 'qa-stripe-pre-provider-gate.mjs')
   }
 
-  Invoke-Step 'Stripe Edge Function Deno tests' 'deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests' {
-    & deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests
+  Invoke-Step 'Stripe Edge Function Deno tests' 'deno test --node-modules-dir=none --frozen --allow-read --allow-env supabase/functions/_tests' {
+    $previousNoPackageJson = $env:DENO_NO_PACKAGE_JSON
+    try {
+      $env:DENO_NO_PACKAGE_JSON = '1'
+      & deno test --node-modules-dir=none --frozen --allow-read --allow-env supabase/functions/_tests
+    } finally {
+      $env:DENO_NO_PACKAGE_JSON = $previousNoPackageJson
+    }
   }
 
   if (-not [string]::IsNullOrWhiteSpace($env:SUPABASE_ACCESS_TOKEN)) {

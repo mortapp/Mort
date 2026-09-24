@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 0.9.16+111
+version: 0.9.16+113
 environment:
   sdk: ^3.11.0
 
@@ -49,6 +49,7 @@ dependencies:
   uuid: ^4.5.3
   url_launcher: ^6.3.2
   package_info_plus: ^10.2.0
+  device_info_plus: ^13.2.0
   permission_handler: ^12.0.3
   flutter_svg: ^2.3.0
   image: 4.9.1
@@ -64,22 +65,16 @@ dependencies:
   # compatible v7 release until upstream ships a compile-safe guard.
   connectivity_plus: 7.0.0
   google_mobile_ads: ^5.3.1
-  # Direct dependencies required for iOS: google_mobile_ads' iOS podspec
-  # hard-declares a CocoaPods dependency on webview_flutter_wkwebview, but
-  # that federated-plugin implementation package only gets registered as a
-  # local Flutter pod (satisfying that requirement) when the app-facing
-  # umbrella package (webview_flutter) is itself a *direct* pubspec
-  # dependency -- being merely transitive (as it was) is not enough for
-  # Flutter's plugin-endorsement resolution to wire it up, even with
-  # webview_flutter_wkwebview also listed directly. Without this,
-  # `pod install` fails with "Unable to find a specification for
-  # `webview_flutter_wkwebview`". Known upstream issue, closed as not
-  # planned: https://github.com/googleads/googleads-mobile-flutter/issues/1222
+  # Direct dependencies required for iOS plugin registration.
   webview_flutter: ^4.14.1
   webview_flutter_wkwebview: ^3.25.1
   pdf: ^3.13.0
+  printing: ^5.15.0
   share_plus: ^13.3.0
+  path_provider: ^2.1.6
   flutter_stripe: ^14.0.0
+  purchases_flutter: ^10.13.1
+  purchases_ui_flutter: ^10.13.1
 
 dev_dependencies:
   flutter_test:
@@ -104,6 +99,9 @@ dev_dependencies:
 flutter:
   generate: true
 
+  shaders:
+    - shaders/mort_cloud_bank.frag
+
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
@@ -111,22 +109,25 @@ flutter:
 
   assets:
     - assets/branding/google_g.svg
-    - assets/branding/mort_arrow_adaptive_monochrome.png
+    - assets/gamification/ranks/
+    - assets/gamification/tokens/
+    - assets/gamification/badges/
+    - assets/gamification/icons/
 
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/branding/mort_arrow_adaptive_monochrome.png
-  adaptive_icon_background: "#050505"
-  adaptive_icon_foreground: assets/branding/mort_arrow_adaptive_foreground.png
-  adaptive_icon_monochrome: assets/branding/mort_arrow_adaptive_monochrome.png
+  image_path: assets/branding/mort_icon_midnight.png
+  adaptive_icon_background: "#000208"
+  adaptive_icon_foreground: assets/branding/mort_mark_adaptive_foreground.png
+  adaptive_icon_monochrome: assets/branding/mort_mark_adaptive_monochrome.png
   min_sdk_android: 26
   remove_alpha_ios: true
   web:
     generate: true
-    image_path: assets/branding/mort_arrow_adaptive_monochrome.png
-    background_color: "#050505"
-    theme_color: "#050505"
+    image_path: assets/branding/mort_icon_midnight.png
+    background_color: "#000208"
+    theme_color: "#000208"
 
   # To add assets to your application, add an assets section, like this:
   # assets:

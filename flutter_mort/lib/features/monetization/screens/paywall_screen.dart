@@ -17,7 +17,7 @@ class RevenueCatPaywallScreen extends ConsumerWidget {
     this.placement = 'main',
     this.title = 'Optional MORT perks',
     this.subtitle =
-        'The free experience remains available. Optional purchases are not available right now.',
+        'The free experience remains available. MORT Pro adds optional style and convenience.',
   });
 
   final String placement;
@@ -38,9 +38,13 @@ class RevenueCatPaywallScreen extends ConsumerWidget {
         if (isTeen) const SizedBox(height: MortSpacing.md),
         _PaywallValueCard(placement: placement),
         const SizedBox(height: MortSpacing.md),
+        if (placement == 'main' || placement == 'ad-free') ...[
+          const _ProPurchaseControls(),
+          const SizedBox(height: MortSpacing.md),
+        ],
         const MortSafetyBanner(
           message:
-              'Purchases and paid subscriptions are disabled for this release. No safety, applying, messaging, reporting, blocking, or basic Guardian Mode feature requires payment.',
+              'No safety, applying, messaging, reporting, blocking, or basic Guardian Mode feature requires payment.',
         ),
         if (placement == 'username-change') ...[
           const SizedBox(height: MortSpacing.md),
@@ -62,6 +66,82 @@ class RevenueCatPaywallScreen extends ConsumerWidget {
   }
 }
 
+class _ProPurchaseControls extends ConsumerStatefulWidget {
+  const _ProPurchaseControls();
+
+  @override
+  ConsumerState<_ProPurchaseControls> createState() =>
+      _ProPurchaseControlsState();
+}
+
+class _ProPurchaseControlsState extends ConsumerState<_ProPurchaseControls> {
+  bool _busy = false;
+  String? _message;
+
+  Future<void> _showPaywall() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final result = await ref.read(purchaseControllerProvider).presentPaywall();
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _message = result.message;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final status = ref.watch(revenueCatStatusProvider).asData?.value;
+    final offering = ref.watch(currentOfferingProvider).asData?.value;
+    final isPro = ref.watch(isMortProProvider).asData?.value == true;
+    final ready =
+        status?.available == true &&
+        offering != null &&
+        offering.availablePackages.isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (isPro)
+          const MortCard(child: Text('MORT Pro is active on this account.'))
+        else if (offering != null)
+          MortCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Available plans'),
+                for (final package in offering.availablePackages)
+                  Text(
+                    '${package.storeProduct.title}: '
+                    '${package.storeProduct.priceString}',
+                  ),
+              ],
+            ),
+          ),
+        if (isPro || offering != null) const SizedBox(height: MortSpacing.md),
+        MortButton(
+          label: _busy
+              ? 'Opening plans...'
+              : isPro
+              ? 'MORT Pro active'
+              : 'Upgrade to MORT Pro',
+          icon: Icons.workspace_premium_outlined,
+          onPressed: ready && !_busy && !isPro ? _showPaywall : null,
+          style: ready && !isPro
+              ? MortButtonStyle.primary
+              : MortButtonStyle.disabled,
+        ),
+        if (_message != null) ...[
+          const SizedBox(height: MortSpacing.sm),
+          Text(_message!),
+        ] else if (!ready && !isPro) ...[
+          const SizedBox(height: MortSpacing.sm),
+          Text(status?.message ?? 'Checking available plans...'),
+        ],
+      ],
+    );
+  }
+}
+
 class _PaywallValueCard extends StatelessWidget {
   const _PaywallValueCard({required this.placement});
 
@@ -71,7 +151,7 @@ class _PaywallValueCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = switch (placement) {
       'ad-free' => const [
-        'No ads are bundled or displayed in this release.',
+        'MORT Pro hides eligible browse ads.',
         'Safety messages, report, block, and Safety Ping always remain free.',
       ],
       'username-change' => const [
@@ -85,7 +165,7 @@ class _PaywallValueCard extends StatelessWidget {
       _ => const [
         'Core MORT features remain available without a subscription.',
         'No safety feature is locked behind a paid plan.',
-        'Optional paid perks may return in a later, separately reviewed release.',
+        'MORT Pro is optional and does not change XP, rank, or job priority.',
       ],
     };
 

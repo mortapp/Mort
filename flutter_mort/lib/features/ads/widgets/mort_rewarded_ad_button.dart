@@ -28,6 +28,7 @@ class _MortNativeRewardedAdButtonState
     extends ConsumerState<MortNativeRewardedAdButton> {
   RewardedAd? _ad;
   String? _pendingAdUnitId;
+  String? _pendingUserId;
   bool _pendingNonPersonalized = true;
   bool _loading = false;
 
@@ -47,6 +48,8 @@ class _MortNativeRewardedAdButtonState
 
   Future<void> _loadIfNeeded() async {
     if (_ad != null || _loading) return;
+    final userId = ref.read(authRepositoryProvider).currentUser?.id;
+    if (userId == null) return;
     final local = const AdMobService().rewardedDecision(
       placement: widget.placement,
     );
@@ -62,14 +65,28 @@ class _MortNativeRewardedAdButtonState
       adUnitId: decision.adUnitId!,
       request: AdRequest(nonPersonalizedAds: decision.requestNonPersonalized),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
-        onAdLoaded: (ad) {
-          if (!mounted) {
+        onAdLoaded: (ad) async {
+          try {
+            await ad.setServerSideOptions(
+              ServerSideVerificationOptions(
+                userId: userId,
+                customData: 'mort_spark',
+              ),
+            );
+          } catch (_) {
+            ad.dispose();
+            if (mounted) setState(() => _loading = false);
+            return;
+          }
+          if (!mounted ||
+              ref.read(authRepositoryProvider).currentUser?.id != userId) {
             ad.dispose();
             return;
           }
           setState(() {
             _ad = ad;
             _pendingAdUnitId = decision.adUnitId;
+            _pendingUserId = userId;
             _pendingNonPersonalized = decision.requestNonPersonalized;
             _loading = false;
           });
@@ -84,6 +101,11 @@ class _MortNativeRewardedAdButtonState
   void _show() {
     final ad = _ad;
     if (ad == null) return;
+    if (_pendingUserId != ref.read(authRepositoryProvider).currentUser?.id) {
+      ad.dispose();
+      setState(() => _ad = null);
+      return;
+    }
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
@@ -96,9 +118,8 @@ class _MortNativeRewardedAdButtonState
     );
     ad.show(
       onUserEarnedReward: (ad, reward) {
-        // The reward is granted only here, inside the SDK's own
-        // earned-reward callback -- never on tap, and never before the ad
-        // has actually been watched to completion.
+        // This SDK callback is only for local telemetry and refresh. The
+        // cosmetic reward is granted by Google's signed server callback.
         ref
             .read(monetizationRepositoryProvider)
             .recordAdImpression(

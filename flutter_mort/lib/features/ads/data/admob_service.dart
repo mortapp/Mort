@@ -112,6 +112,12 @@ class AdMobService {
     required String placement,
     bool userAdFree = false,
   }) {
+    if (!AppConfig.admobSsvEnabled) {
+      return const AdMobDecision(
+        canShow: false,
+        reason: 'MORT Spark is not available yet.',
+      );
+    }
     if (sensitivePlacements.contains(placement)) {
       return const AdMobDecision(
         canShow: false,
@@ -181,6 +187,13 @@ class AdMobService {
       final result = await repository.adEligibility(placement, adFormat);
       final allowed = result['allowed'] == true;
       final nonPersonalized = result['request_non_personalized'] != false;
+      // iOS currently declares no cross-app tracking and does not request ATT.
+      // Until an explicitly reviewed release adds ATT + matching App Store
+      // disclosures, never let a server response widen iOS into a personalized
+      // ad request. Android keeps the existing server-authoritative adult path;
+      // teens and unknown-age users already resolve non-personalized server-side.
+      final requestNonPersonalized =
+          defaultTargetPlatform == TargetPlatform.iOS || nonPersonalized;
       if (!allowed) {
         return AdMobDecision(
           canShow: false,
@@ -191,7 +204,7 @@ class AdMobService {
         canShow: true,
         adUnitId: decision.adUnitId,
         reason: decision.reason,
-        requestNonPersonalized: nonPersonalized,
+        requestNonPersonalized: requestNonPersonalized,
       );
     } catch (_) {
       return const AdMobDecision(

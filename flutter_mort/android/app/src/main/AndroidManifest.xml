@@ -35,6 +35,11 @@
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-9883419411387958~1048817736" />
+        <!-- The shared RevenueCat SDK includes Amazon's purchase receiver.
+             This package is distributed through Google Play only. -->
+        <receiver
+            android:name="com.amazon.device.iap.ResponseReceiver"
+            tools:node="remove" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -59,6 +64,12 @@
             <meta-data
                 android:name="flutter_deeplinking_enabled"
                 android:value="true" />
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="rc-8eaa6ee77f" />
+            </intent-filter>
             <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

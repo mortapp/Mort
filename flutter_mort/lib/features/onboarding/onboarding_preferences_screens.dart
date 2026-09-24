@@ -90,6 +90,7 @@ class _OnboardingPreferencesScreenState
   Widget build(BuildContext context) {
     if (_loading) return const MortLoading(label: 'Loading preferences');
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.midnight,
       children: [
         const MortHeader(
           eyebrow: 'Preferences',
@@ -196,6 +197,7 @@ class _OnboardingReviewScreenState
     }
     if (profile.hasError || progress.hasError) {
       return MortScreen(
+        atmosphereIntensity: MortAtmosphereIntensity.midnight,
         children: [
           MortErrorState(
             title: 'Setup review unavailable',
@@ -208,6 +210,7 @@ class _OnboardingReviewScreenState
     final savedProgress = progress.value;
     if (savedProfile == null || savedProgress == null) {
       return const MortScreen(
+        atmosphereIntensity: MortAtmosphereIntensity.midnight,
         children: [
           MortErrorState(
             title: 'Profile required',
@@ -217,6 +220,7 @@ class _OnboardingReviewScreenState
       );
     }
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.midnight,
       children: [
         const MortHeader(
           eyebrow: 'Final review',

@@ -112,9 +112,7 @@ class LiquidGlassContainer extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: const Alignment(0.25, 0.25),
                   colors: [
-                    MortColors.silverBright.withValues(
-                      alpha: highContrast ? 0.02 : 0.16,
-                    ),
+                    Colors.white.withValues(alpha: highContrast ? 0.02 : 0.04),
                     Colors.transparent,
                   ],
                 ),

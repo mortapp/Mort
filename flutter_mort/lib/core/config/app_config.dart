@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'release_profile.dart';
 
@@ -9,6 +12,8 @@ class AppConfig {
 
   static const appName = 'MORT';
   static const slogan = 'Earn nearby. Move smart.';
+  static const playStoreListingUrl =
+      'https://play.google.com/store/apps/details?id=com.mortapp.mobile';
   static const releaseStage = String.fromEnvironment(
     'MORT_RELEASE_STAGE',
     defaultValue: 'development',
@@ -198,7 +203,7 @@ class AppConfig {
   );
   static const publicWebOrigin = String.fromEnvironment(
     'MORT_PUBLIC_WEB_ORIGIN',
-    defaultValue: 'https://mort-web.vercel.app',
+    defaultValue: 'https://mortapp.org',
   );
 
   static String get resolvedAuthRedirectUrl => kIsWeb
@@ -219,6 +224,16 @@ class AppConfig {
   static const revenueCatEntitlementPlus = String.fromEnvironment(
     'REVENUECAT_ENTITLEMENT_PLUS',
     defaultValue: 'mort_plus',
+  );
+  static const revenueCatEntitlementPro = 'mort_pro';
+  static const revenueCatTestStoreApiKey = String.fromEnvironment(
+    'REVENUECAT_TEST_STORE_API_KEY',
+  );
+  static const revenueCatAndroidApiKey = String.fromEnvironment(
+    'REVENUECAT_ANDROID_API_KEY',
+  );
+  static const revenueCatIosApiKey = String.fromEnvironment(
+    'REVENUECAT_IOS_API_KEY',
   );
   static const revenueCatEntitlementAdFree = String.fromEnvironment(
     'REVENUECAT_ENTITLEMENT_AD_FREE',
@@ -288,6 +303,10 @@ class AppConfig {
     'ADS_ENABLED',
     defaultValue: false,
   );
+  static const admobSsvEnabled = bool.fromEnvironment(
+    'ADMOB_SSV_ENABLED',
+    defaultValue: false,
+  );
   static const useTestAds = bool.fromEnvironment(
     'USE_TEST_ADS',
     defaultValue: true,
@@ -297,7 +316,7 @@ class AppConfig {
     defaultValue: false,
   );
   static const nativeAdsCompiledIn = true;
-  static const nativeBillingCompiledIn = false;
+  static const nativeBillingCompiledIn = true;
   static const nativeStripePaymentSheetCompiledIn = true;
   static const webPreviewMode = bool.fromEnvironment(
     'WEB_PREVIEW_MODE',
@@ -403,8 +422,8 @@ class AppConfig {
           );
         }
       }
-      if (iapEnabled || nativeBillingCompiledIn) {
-        errors.add('native billing must be absent from this release');
+      if (revenueCatTestStoreApiKey.isNotEmpty) {
+        errors.add('RevenueCat Test Store key is forbidden in release builds');
       }
       // Ads SDK being compiled in is a deliberate, owner-authorized product
       // decision (MORT ships real Banner/Rewarded ads) -- no longer
@@ -437,6 +456,12 @@ class AppConfig {
           authRedirectUrl != expectedNativeAuthRedirectUrl) {
         errors.add('Apple Auth must use the approved native callback');
       }
+    }
+    if (kReleaseMode && revenueCatTestStoreApiKey.isNotEmpty && !isRelease) {
+      errors.add('RevenueCat Test Store key is forbidden in release builds');
+    }
+    if (iapEnabled && !hasValidRevenueCatKey) {
+      errors.add('IAP requires a matching RevenueCat public SDK key');
     }
 
     if (releaseStage == 'closed_test' && publicMarketplaceEnabled) {
@@ -485,15 +510,165 @@ class AppConfig {
   static void assertValidReleaseConfiguration() {
     final errors = validationErrors;
     if (errors.isEmpty) return;
-    throw StateError(
-      'Invalid MORT release configuration: ${errors.join('; ')}.',
-    );
+    throw AppConfigValidationException(errors);
   }
 
-  static bool get supportsNativePurchases => false;
+  /// Bounded, best-effort read of platform package info. Returns null when
+  /// the read is unavailable or slow (tests, exotic platforms, hung plugin) —
+  /// callers fail open; a hung version read must never wedge a user flow.
+  static Future<PackageInfo?> tryReadPackageInfo() async {
+    try {
+      return await PackageInfo.fromPlatform().timeout(
+        const Duration(seconds: 3),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Checks the running app version against the approved minimum
+  /// ([minimumSupportedAppVersion], supplied at build time).
+  ///
+  /// Throws [AppUpdateRequiredException] when the running version is below
+  /// the minimum. When version metadata cannot be read at all (tests, exotic
+  /// platforms), this fails open: an unreadable version cannot be proven
+  /// unsupported, and blocking startup would make the app unusable.
+  static Future<void> assertSupportedAppVersion({
+    String? currentVersion,
+  }) async {
+    final String running;
+    if (currentVersion != null) {
+      running = currentVersion;
+    } else {
+      final info = await tryReadPackageInfo();
+      if (info == null) return;
+      running = info.version;
+    }
+    if (!isAppVersionSupported(running)) {
+      throw AppUpdateRequiredException(
+        currentVersion: running,
+        minimumVersion: minimumSupportedAppVersion,
+      );
+    }
+  }
+
+  /// True when [current] is greater than or equal to [minimum] (defaults to
+  /// [minimumSupportedAppVersion]). Versions are dotted numeric triples; an
+  /// unparseable value fails closed — it cannot be proven supported.
+  static bool isAppVersionSupported(String current, {String? minimum}) {
+    final currentParts = _versionParts(current);
+    final minimumParts = _versionParts(minimum ?? minimumSupportedAppVersion);
+    if (currentParts == null || minimumParts == null) return false;
+    for (var i = 0; i < 3; i++) {
+      if (currentParts[i] != minimumParts[i]) {
+        return currentParts[i] > minimumParts[i];
+      }
+    }
+    return true;
+  }
+
+  static List<int>? _versionParts(String value) {
+    final parts = value.trim().split('-').first.split('.');
+    if (parts.isEmpty || parts.length > 3) return null;
+    final parsed = <int>[];
+    for (final part in parts) {
+      final number = int.tryParse(part);
+      if (number == null || number < 0) return null;
+      parsed.add(number);
+    }
+    while (parsed.length < 3) {
+      parsed.add(0);
+    }
+    return parsed;
+  }
+
+  static String get revenueCatApiKey => selectRevenueCatKey(
+    enabled: iapEnabled,
+    isWeb: kIsWeb,
+    platform: defaultTargetPlatform,
+    isDevelopment: releaseStage == 'development',
+    isReleaseBinary: kReleaseMode,
+    testKey: revenueCatTestStoreApiKey,
+    androidKey: revenueCatAndroidApiKey,
+    iosKey: revenueCatIosApiKey,
+  );
+
+  static String selectRevenueCatKey({
+    required bool enabled,
+    required bool isWeb,
+    required TargetPlatform platform,
+    required bool isDevelopment,
+    required bool isReleaseBinary,
+    required String testKey,
+    required String androidKey,
+    required String iosKey,
+  }) {
+    if (!enabled ||
+        isWeb ||
+        (platform != TargetPlatform.android &&
+            platform != TargetPlatform.iOS)) {
+      return '';
+    }
+    if (isDevelopment && !isReleaseBinary && testKey.startsWith('test_')) {
+      return testKey;
+    }
+    return platform == TargetPlatform.android ? androidKey : iosKey;
+  }
+
+  static bool get hasValidRevenueCatKey {
+    final key = revenueCatApiKey;
+    if (key.isEmpty) return false;
+    if ((defaultTargetPlatform != TargetPlatform.android &&
+            defaultTargetPlatform != TargetPlatform.iOS) ||
+        kIsWeb) {
+      return false;
+    }
+    if (releaseStage == 'development' &&
+        !kReleaseMode &&
+        key == revenueCatTestStoreApiKey) {
+      return key.startsWith('test_');
+    }
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.android => key.startsWith('goog_'),
+      TargetPlatform.iOS => key.startsWith('appl_'),
+      _ => false,
+    };
+  }
+
+  static bool get supportsNativePurchases =>
+      nativeBillingCompiledIn && iapEnabled && !kIsWeb && hasValidRevenueCatKey;
 
   static bool get supportsNativeAds => nativeAdsCompiledIn && !kIsWeb;
 
   static bool get supportsStripePaymentSheet =>
       nativeStripePaymentSheetCompiledIn && !kIsWeb;
+}
+
+/// Thrown when release-configuration validation fails at startup.
+///
+/// The [errors] list is for crash/structured logging only. It must never be
+/// rendered to users: entries describe internal configuration categories.
+class AppConfigValidationException implements Exception {
+  const AppConfigValidationException(this.errors);
+
+  final List<String> errors;
+
+  @override
+  String toString() =>
+      'Invalid MORT release configuration: ${errors.join('; ')}.';
+}
+
+/// Thrown when the running app version is below the approved minimum.
+class AppUpdateRequiredException implements Exception {
+  const AppUpdateRequiredException({
+    required this.currentVersion,
+    required this.minimumVersion,
+  });
+
+  final String currentVersion;
+  final String minimumVersion;
+
+  @override
+  String toString() =>
+      'App update required: $currentVersion is below $minimumVersion.';
 }

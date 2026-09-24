@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/config/app_config.dart';
+import '../core/atmosphere/mort_wordmark_reveal.dart';
 import '../core/errors/mort_error.dart';
 import '../core/errors/user_facing_error.dart';
 import '../core/money/mort_service_fee.dart';
@@ -21,12 +22,14 @@ import '../core/utils/validators.dart';
 import '../core/utils/date_of_birth.dart';
 import '../core/widgets/date_of_birth_field.dart';
 import '../core/widgets/mort_widgets.dart';
+import '../core/widgets/mort_motion_mark.dart';
 import '../data/models/application.dart';
 import '../data/models/job.dart';
 import '../data/models/message.dart';
 import '../data/models/onboarding_progress.dart';
 import '../data/models/profile.dart';
 import '../data/repositories/providers.dart';
+import 'financial/financial_safety_center.dart';
 import '../data/repositories/messaging_repository.dart';
 import '../data/repositories/uploads_repository.dart';
 import '../data/services/supabase_service.dart';
@@ -63,39 +66,95 @@ class SplashScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MortScreen(
+      scroll: false,
+      padding: const EdgeInsets.symmetric(horizontal: MortSpacing.xl),
+      atmosphereIntensity: MortAtmosphereIntensity.settings,
       children: [
-        const SizedBox(height: MortSpacing.xl),
-        const Center(
-          child: MortAnimatedBrandMark(size: 176, showWordmark: true),
+        Expanded(
+          child: CustomScrollView(
+            slivers: [
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Column(
+                  children: [
+                    const Spacer(),
+                    const MortMotionMark(size: 34, outlinedUp: true),
+                    const SizedBox(height: MortSpacing.md),
+                    const MortWordmarkReveal(
+                      width: 148,
+                      height: 48,
+                      showTagline: false,
+                      restOpacity: 0.82,
+                      strokeWidth: 1.6,
+                    ),
+                    const SizedBox(height: MortSpacing.xl),
+                    Text(
+                      'Earn nearby. Move smart.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: MortColors.text,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: MortSpacing.xs),
+                    Text(
+                      'Real work near you, with safety and clear conversations built in from the start.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: MortColors.textSecondary,
+                      ),
+                    ),
+                    const Spacer(),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: OutlinedButton(
+                        onPressed: () => context.go('/welcome'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: MortColors.text,
+                          backgroundColor: MortColors.graphite2.withValues(
+                            alpha: 0.72,
+                          ),
+                          side: BorderSide(
+                            color: MortColors.borderSilver.withValues(
+                              alpha: 0.6,
+                            ),
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: const Text('Enter MORT'),
+                      ),
+                    ),
+                    const SizedBox(height: MortSpacing.xs),
+                    TextButton(
+                      onPressed: () => context.push('/auth/sign-in'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: MortColors.textSecondary,
+                        textStyle: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                      child: const Text('Sign in'),
+                    ),
+                    const SizedBox(height: MortSpacing.lg),
+                    Semantics(
+                      liveRegion: true,
+                      child: const _BackendStatusCard(compact: true),
+                    ),
+                    const SizedBox(height: MortSpacing.md),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: MortSpacing.lg),
-        Text(
-          AppConfig.slogan,
-          textAlign: TextAlign.center,
-          style: Theme.of(
-            context,
-          ).textTheme.bodyLarge?.copyWith(color: MortColors.textSoft),
-        ),
-        const SizedBox(height: MortSpacing.xl),
-        const MortSafetyBanner(
-          message:
-              'Real local work, protected messages, PIN check-in, and free safety tools.',
-        ),
-        const SizedBox(height: MortSpacing.xl),
-        MortButton(
-          label: 'Enter MORT',
-          icon: Icons.arrow_forward_rounded,
-          onPressed: () => context.go('/welcome'),
-        ),
-        const SizedBox(height: MortSpacing.sm),
-        MortButton(
-          label: 'Sign in',
-          icon: Icons.person_outline_rounded,
-          style: MortButtonStyle.ghost,
-          onPressed: () => context.push('/auth/sign-in'),
-        ),
-        const SizedBox(height: MortSpacing.md),
-        Semantics(liveRegion: true, child: _BackendStatusCard()),
       ],
     );
   }
@@ -115,8 +174,8 @@ class _WelcomeFeature extends StatelessWidget {
   final bool accented;
 
   @override
-  Widget build(BuildContext context) => MortGlassCard(
-    infoAccent: accented,
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: MortSpacing.sm),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -155,6 +214,7 @@ class WelcomeScreen extends StatelessWidget {
     // protect against this; only content the system bar can never reach
     // (Scaffold.bottomNavigationBar territory) reliably does.
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.quiet,
       bottom: SafeArea(
         minimum: const EdgeInsets.fromLTRB(
           MortSpacing.md,
@@ -184,20 +244,23 @@ class WelcomeScreen extends StatelessWidget {
         ),
       ),
       children: [
-        const Center(child: MortLogo(size: 96, showWordmark: true)),
-        const SizedBox(height: MortSpacing.xl),
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: MortMotionMark(size: 38, settled: true),
+        ),
+        const SizedBox(height: MortSpacing.md),
         const MortHeader(
-          eyebrow: 'Earn nearby. Move smart.',
-          title: 'Welcome to MORT',
+          eyebrow: 'MOVE WITH PURPOSE',
+          title: 'Built for local work',
           subtitle:
-              'Safe neighborhood jobs for teens, supported by adults, guardians, and accountable moderation.',
+              'Find nearby opportunities, keep conversations private, and use safety tools when you need them.',
         ),
         const _WelcomeFeature(
           icon: Icons.schedule_rounded,
           title: 'Flexible local work',
           body: 'Find age-appropriate jobs that fit your schedule and area.',
         ),
-        const SizedBox(height: MortSpacing.sm),
+        const Divider(),
         const _WelcomeFeature(
           icon: Icons.shield_outlined,
           title: 'Safety stays free',
@@ -205,7 +268,7 @@ class WelcomeScreen extends StatelessWidget {
               'Report, block, Safety Ping, and core Guardian Mode are never paywalled.',
           accented: true,
         ),
-        const SizedBox(height: MortSpacing.sm),
+        const Divider(),
         const _WelcomeFeature(
           icon: Icons.pin_outlined,
           title: 'Verified job handoff',
@@ -380,7 +443,7 @@ class AccountStatusScreen extends ConsumerWidget {
               )
             else
               MortButton(
-                label: 'Continue',
+                label: 'Enter MORT',
                 icon: Icons.arrow_forward,
                 onPressed: () => context.go(route),
               ),
@@ -2148,6 +2211,11 @@ class RoleHomeScreen extends ConsumerWidget {
           route: '/teen/safety',
         ),
         MortAction(label: 'Messages', icon: Icons.chat, route: '/messages'),
+        MortAction(
+          label: 'MORT Guide',
+          icon: Icons.assistant_outlined,
+          route: '/guide',
+        ),
       ],
       UserRole.adult => [
         const MortAction(
@@ -2259,35 +2327,33 @@ class RoleHomeScreen extends ConsumerWidget {
     };
     final dashboard = _roleDashboardDefinition(role, hasPartnerWorkspace);
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.quiet,
       children: [
-        if (role != UserRole.teen) ...[
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: MortBrandMark(size: 46),
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: MortBrandMark(size: 46),
+        ),
+        const SizedBox(height: MortSpacing.xs),
+        MortHeader(
+          eyebrow: profile?.displayName ?? userRoleToString(role) ?? 'MORT',
+          title: title,
+          subtitle:
+              'Safety-first workflows and optional perks without paywalling core safety.',
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              MortNotificationBell(
+                onPressed: () => context.push('/notifications'),
+              ),
+              const SizedBox(width: MortSpacing.xs),
+              MortSettingsButton(onPressed: () => context.push('/settings')),
+            ],
           ),
-          const SizedBox(height: MortSpacing.xs),
+        ),
+        if (role == UserRole.teen) ...[
+          const SizedBox(height: MortSpacing.md),
+          const FinancialDashboardCard(),
         ],
-        if (role == UserRole.teen)
-          MortTeenDestinationHeader(
-            eyebrow: profile?.displayName ?? 'MORT',
-            title: title,
-            subtitle:
-                'Safety-first workflows and optional perks without paywalling core safety.',
-            trailing: MortNotificationBell(
-              onPressed: () => context.push('/notifications'),
-            ),
-          )
-        else
-          MortGlassHeader(
-            eyebrow: profile?.displayName ?? userRoleToString(role) ?? 'MORT',
-            title: title,
-            subtitle:
-                'Safety-first workflows and optional perks without paywalling core safety.',
-            trailing: MortNotificationBell(
-              onPressed: () => context.push('/notifications'),
-            ),
-          ),
-        const SizedBox(height: MortSpacing.md),
         if (role == UserRole.adult) const MortVerificationDisclaimer(),
         if (role == UserRole.guardian) const MortGuardianBanner(),
         if (role == UserRole.admin)
@@ -2488,7 +2554,7 @@ class _TeenLeaderboardSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        MortSectionLabel(label: 'Leaderboard'),
+        MortSectionLabel(label: 'Community leaderboard'),
         myRankAsync.when(
           loading: () => const MortSkeletonCard(),
           error: (_, _) => const SizedBox.shrink(),
@@ -2496,38 +2562,57 @@ class _TeenLeaderboardSection extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final completedWork = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Completed work',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(color: MortColors.silverBright),
+                        ),
+                        Text(
+                          rank.completedCount == 0
+                              ? 'Complete a job to join the leaderboard.'
+                              : '${rank.completedCount} verified completed jobs'
+                                    '${rank.reviewCount > 0 ? ' · ${rank.averageRating.toStringAsFixed(1)}★ avg' : ''}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    );
+                    final showRank = rank.rank > 0 && !rank.leaderboardOptOut;
+                    final rankView = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '#${rank.rank}',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                        const Text('board position'),
+                      ],
+                    );
+                    final largeText =
+                        MediaQuery.textScalerOf(context).scale(1) > 1.5;
+                    if (largeText || constraints.maxWidth < 300) {
+                      return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            rank.tierLabel,
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(color: MortColors.silverBright),
-                          ),
-                          Text(
-                            rank.completedCount == 0
-                                ? 'Complete a job to join the leaderboard.'
-                                : '${rank.completedCount} verified completed jobs'
-                                      '${rank.reviewCount > 0 ? ' · ${rank.averageRating.toStringAsFixed(1)}★ avg' : ''}',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
+                          completedWork,
+                          if (showRank) ...[
+                            const SizedBox(height: MortSpacing.sm),
+                            rankView,
+                          ],
                         ],
-                      ),
-                    ),
-                    if (rank.rank > 0 && !rank.leaderboardOptOut)
-                      Column(
-                        children: [
-                          Text(
-                            '#${rank.rank}',
-                            style: Theme.of(context).textTheme.headlineSmall,
-                          ),
-                          const Text('your rank'),
-                        ],
-                      ),
-                  ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        Expanded(child: completedWork),
+                        if (showRank) rankView,
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: MortSpacing.xs),
                 TextButton(
@@ -2542,7 +2627,7 @@ class _TeenLeaderboardSection extends ConsumerWidget {
                         MortToast.show(
                           context,
                           rank.leaderboardOptOut
-                              ? 'You are visible on the public leaderboard again.'
+                              ? 'You opted in to the public leaderboard.'
                               : 'You are hidden from the public leaderboard. Your own rank is still visible to you.',
                         );
                       }
@@ -2554,8 +2639,8 @@ class _TeenLeaderboardSection extends ConsumerWidget {
                   },
                   child: Text(
                     rank.leaderboardOptOut
-                        ? 'Show me on the public leaderboard'
-                        : 'Hide me from the public leaderboard',
+                        ? 'Opt in to the public leaderboard'
+                        : 'Opt out of the public leaderboard',
                   ),
                 ),
               ],
@@ -2975,6 +3060,7 @@ class _JobFeedScreenState extends ConsumerState<JobFeedScreen> {
         .watch(jobsRepositoryProvider)
         .listOpenJobs(category: _category);
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.quiet,
       children: [
         const MortHeader(
           eyebrow: 'Teen-safe feed',
@@ -3243,6 +3329,7 @@ class ApplicationsScreen extends ConsumerWidget {
         ? ref.watch(applicationsRepositoryProvider).listApplicationsForMyJobs()
         : ref.watch(applicationsRepositoryProvider).listMyApplications();
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.quiet,
       children: [
         MortHeader(
           eyebrow: adultReview
@@ -4055,6 +4142,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
             ),
           );
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.quiet,
       children: [
         header,
         if (inTeenShell) const SizedBox(height: MortSpacing.md),
@@ -4381,6 +4469,7 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
     final counterpartyName = thread?.counterpartyDisplayName?.trim();
     final jobTitle = thread?.jobTitle?.trim();
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.quiet,
       scrollController: _scrollController,
       children: [
         MortHeader(
@@ -4793,6 +4882,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     }
 
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.midnight,
       children: [
         const MortHeader(
           eyebrow: 'Free safety tool',
@@ -4998,7 +5088,10 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
               'Blocking limits normal interaction. Reports and preserved safety evidence remain separate.',
         ),
         if (_loading)
-          const Center(child: CircularProgressIndicator())
+          const MortLoading(
+            label: 'Loading blocked accounts',
+            fullScreen: false,
+          )
         else if (_rows.isEmpty)
           const MortEmptyState(
             title: 'No blocked accounts',
@@ -5233,6 +5326,7 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
                 'Safety Ping is not an emergency service. Call local emergency services for immediate danger.',
           );
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.midnight,
       children: [
         header,
         if (inTeenShell) const SizedBox(height: MortSpacing.md),
@@ -6381,27 +6475,17 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MortScreen(
+    atmosphereIntensity: MortAtmosphereIntensity.settings,
     children: [
-      Semantics(
-        identifier: 'qa-settings-header',
-        child: const MortGlassHeader(
-          eyebrow: 'Settings',
-          title: 'Control your account',
-          subtitle:
-              'Privacy, safety, accessibility, security, support, and legal controls in one place.',
-        ),
+      const MortHeader(
+        eyebrow: 'SETTINGS',
+        title: 'Control your account',
+        subtitle:
+            'Privacy, safety, accessibility, security, support, and legal controls in one place.',
       ),
       for (final group in _settingsGroups) ...[
         MortSectionLabel(label: group.label),
-        for (final action in group.actions) ...[
-          MortDashboardActionTile(
-            label: action.label,
-            description: action.description,
-            icon: action.icon,
-            onPressed: () => context.push(action.route),
-          ),
-          const SizedBox(height: MortSpacing.sm),
-        ],
+        _SettingsGroupSurface(group: group),
       ],
       const MortSectionLabel(label: 'Account closure'),
       MortGlassButton(
@@ -6472,6 +6556,13 @@ final _settingsGroups = <_SettingsGroup>[
             'Open Safety Center, Safety Circle, cases, reporting, and standards.',
         icon: Icons.health_and_safety_outlined,
         route: '/settings/safety',
+      ),
+      _SettingsAction(
+        label: 'Financial Safety',
+        description:
+            'Earnings records, expenses, receipts, checks, and exports.',
+        icon: Icons.receipt_long_outlined,
+        route: '/financial',
       ),
       _SettingsAction(
         label: 'Device permissions',
@@ -6593,6 +6684,13 @@ final _settingsGroups = <_SettingsGroup>[
           icon: Icons.monitor_heart_outlined,
           route: '/settings/release-diagnostics',
         ),
+      if (kDebugMode)
+        const _SettingsAction(
+          label: 'Atmosphere preview',
+          description: 'Inspect production renderer presets and fallbacks.',
+          icon: Icons.nights_stay_outlined,
+          route: '/debug/atmosphere',
+        ),
       _SettingsAction(
         label: 'About MORT',
         description: 'Review version details and open-source licenses.',
@@ -6608,6 +6706,38 @@ class _SettingsGroup {
 
   final String label;
   final List<_SettingsAction> actions;
+}
+
+class _SettingsGroupSurface extends StatelessWidget {
+  const _SettingsGroupSurface({required this.group});
+
+  final _SettingsGroup group;
+
+  @override
+  Widget build(BuildContext context) => MortCard(
+    padding: EdgeInsets.zero,
+    color: MortColors.surface.withValues(alpha: 0.92),
+    child: Column(
+      children: [
+        for (var index = 0; index < group.actions.length; index++) ...[
+          ListTile(
+            minTileHeight: 64,
+            leading: Icon(group.actions[index].icon, color: MortColors.primary),
+            title: Text(group.actions[index].label),
+            subtitle: Text(
+              group.actions[index].description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => context.push(group.actions[index].route),
+          ),
+          if (index != group.actions.length - 1)
+            const Divider(height: 1, indent: 56),
+        ],
+      ],
+    ),
+  );
 }
 
 class _SettingsAction {
@@ -6967,7 +7097,9 @@ class MortErrorStateScreen extends StatelessWidget {
 }
 
 class _BackendStatusCard extends ConsumerWidget {
-  const _BackendStatusCard();
+  const _BackendStatusCard({this.compact = false});
+
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -6977,8 +7109,58 @@ class _BackendStatusCard extends ConsumerWidget {
       _ => false,
     };
     final checking = status.isLoading;
+    if (compact) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                connected
+                    ? Icons.circle
+                    : checking
+                    ? Icons.circle_outlined
+                    : Icons.error_outline,
+                size: 9,
+                color: connected
+                    ? MortColors.silverBright
+                    : checking
+                    ? MortColors.silver
+                    : MortColors.warning,
+              ),
+              const SizedBox(width: MortSpacing.xs),
+              Flexible(
+                child: Text(
+                  connected
+                      ? 'Secure connection ready.'
+                      : checking
+                      ? 'Checking secure connection...'
+                      : 'Connection unavailable. Account features will wait safely.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: MortColors.textMuted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (!connected && !checking)
+            TextButton(
+              onPressed: () => ref.invalidate(backendConnectionStatusProvider),
+              child: const Text('Retry connection'),
+            ),
+        ],
+      );
+    }
     return MortCard(
-      color: MortColors.cardAlt,
+      padding: const EdgeInsets.symmetric(
+        horizontal: MortSpacing.sm,
+        vertical: MortSpacing.xs,
+      ),
+      color: MortColors.surface.withValues(alpha: 0.88),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -7001,11 +7183,11 @@ class _BackendStatusCard extends ConsumerWidget {
               children: [
                 Text(
                   connected
-                      ? 'Connected securely. Marketplace actions may still require account eligibility or verification.'
+                      ? 'Secure connection ready.'
                       : checking
-                      ? 'Checking the secure service connection...'
-                      : 'MORT cannot connect right now. Account features remain unavailable until service returns.',
-                  style: Theme.of(context).textTheme.bodyMedium,
+                      ? 'Checking secure connection...'
+                      : 'Connection unavailable. Account features will wait safely.',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
                 if (!connected && !checking) ...[
                   const SizedBox(height: MortSpacing.sm),

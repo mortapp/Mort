@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/widgets/mort_widgets.dart';
 
 class ManageSubscriptionButton extends StatelessWidget {
@@ -6,11 +7,11 @@ class ManageSubscriptionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MortButton(
-      label: 'Subscriptions unavailable',
-      icon: Icons.block,
-      style: MortButtonStyle.disabled,
-      onPressed: null,
+    return MortButton(
+      label: 'Manage subscription',
+      icon: Icons.manage_accounts,
+      style: MortButtonStyle.secondary,
+      onPressed: () => context.go('/monetization/manage'),
     );
   }
 }

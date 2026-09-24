@@ -22,18 +22,13 @@ void main() {
     expect(AppConfig.identityVerificationEnabled, isFalse);
   });
 
-  test('native billing stays excluded and Stripe SDK is sandbox-gated', () {
+  test('native billing and Stripe SDKs remain independently gated', () {
     final pubspec = _read('pubspec.yaml');
-    final pluginRegistry = _read(
-      'android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java',
-    );
-
     for (final dependency in ['purchases_flutter', 'purchases_ui_flutter']) {
-      expect(pubspec, isNot(contains(dependency)));
-      expect(pluginRegistry, isNot(contains(dependency)));
+      expect(pubspec, contains(dependency));
     }
     expect(pubspec, contains('flutter_stripe'));
-    expect(AppConfig.nativeBillingCompiledIn, isFalse);
+    expect(AppConfig.nativeBillingCompiledIn, isTrue);
     expect(AppConfig.supportsNativePurchases, isFalse);
     expect(pubspec, isNot(contains('in_app_purchase:')));
     expect(AppConfig.nativeStripePaymentSheetCompiledIn, isTrue);
@@ -93,9 +88,12 @@ void main() {
     },
   );
 
-  test('Android manifest removes Billing and explicitly strips ad IDs', () {
+  test('Android manifest retains SDK billing and explicitly strips ad IDs', () {
     final manifest = _read('android/app/src/main/AndroidManifest.xml');
-    expect(manifest, isNot(contains('com.android.vending.BILLING')));
+    expect(
+      manifest,
+      isNot(contains('com.android.vending.BILLING" tools:node="remove')),
+    );
     for (final permission in [
       'com.google.android.gms.permission.AD_ID',
       'android.permission.ACCESS_ADSERVICES_AD_ID',

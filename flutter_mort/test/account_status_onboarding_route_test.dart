@@ -140,7 +140,7 @@ void main() {
       expect(find.text('Job payment processing unavailable'), findsOneWidget);
       expect(find.textContaining('Not started'), findsOneWidget);
 
-      await tester.tap(find.text('Continue'));
+      await tester.tap(find.text('Enter MORT'));
       await tester.pumpAndSettle();
       expect(find.text('Teen home'), findsOneWidget);
       expect(router.routeInformationProvider.value.uri.path, '/teen/home');
@@ -213,6 +213,7 @@ void main() {
       expect(find.text('Account restricted'), findsOneWidget);
       expect(find.text('Support'), findsOneWidget);
       expect(find.text('Continue'), findsNothing);
+      expect(find.text('Enter MORT'), findsNothing);
       expect(find.text('Continue onboarding'), findsNothing);
 
       await tester.tap(find.text('Support'));

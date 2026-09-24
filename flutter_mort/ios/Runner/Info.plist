@@ -26,8 +26,14 @@
 	<string>MORT lets you select job proof, a profile photo, or a safety report attachment from your photo library.</string>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>MORT sends safety, guardian approval, application, and message notifications.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<!-- Google Mobile Ads SDK (google_mobile_ads, compiled in via
 	     AppConfig.nativeAdsCompiledIn) hard-requires this key to be present
 	     at process launch -- it crashes with GADInvalidInitializationException

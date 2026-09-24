@@ -23,6 +23,7 @@ class ReleaseDiagnosticsScreen extends ConsumerWidget {
     final serverStatus = ref.watch(_serverReleaseStatusProvider);
     final local = AppConfig.safeReleaseDiagnostics;
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.settings,
       children: [
         const MortHeader(
           eyebrow: 'Non-secret diagnostics',

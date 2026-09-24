@@ -44,6 +44,7 @@ class _IdentityVerificationScreenState
       return const MortLoading(label: 'Loading verification status');
     }
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.midnight,
       children: [
         MortHeader(
           eyebrow: 'PRIVATE TRUST CHECK',
@@ -339,6 +340,7 @@ class _SafetyCasesScreenState extends ConsumerState<SafetyCasesScreen> {
   @override
   Widget build(BuildContext context) {
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.midnight,
       children: [
         const MortHeader(
           eyebrow: 'RESTRICTED STATUS',
@@ -494,6 +496,7 @@ class _SafetyCircleScreenState extends ConsumerState<SafetyCircleScreen> {
   @override
   Widget build(BuildContext context) {
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.midnight,
       children: [
         const MortHeader(
           eyebrow: 'OPTIONAL AND CONSENTED',
@@ -751,6 +754,7 @@ class _JobSafetyWorkspaceScreenState
   @override
   Widget build(BuildContext context) {
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.midnight,
       children: [
         const MortHeader(
           eyebrow: 'TWO-SIDED JOB SAFETY',
@@ -1224,6 +1228,7 @@ class _AccountSessionsScreenState extends ConsumerState<AccountSessionsScreen> {
   @override
   Widget build(BuildContext context) {
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.midnight,
       children: [
         const MortHeader(
           eyebrow: 'ACCOUNT SECURITY',

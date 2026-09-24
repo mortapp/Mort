@@ -60,7 +60,11 @@ void main() {
       contains("'digital_purchases_provider', 'google_play_billing'"),
     );
     expect(pubspec, contains('flutter_stripe'));
-    expect(pubspec, isNot(contains('purchases_flutter')));
+    expect(pubspec, contains('purchases_flutter'));
+    expect(
+      _read('lib/features/monetization/data/revenuecat_service.dart'),
+      isNot(contains('stripe_payment')),
+    );
     // google_mobile_ads is deliberately allowed here -- see
     // release_candidate_policy_test.dart for the current, real ads-shipping
     // contract (SDK present, fail-closed eligibility, no ads on sensitive
