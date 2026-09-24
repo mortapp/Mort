@@ -32,3 +32,6 @@
 *.png binary
 *.webp binary
 *.zip binary
+
+# Preserve the existing workflow's mixed line endings until it can be normalized with workflow scope.
+.github/workflows/mort-ci.yml -text
