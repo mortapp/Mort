@@ -10,6 +10,7 @@ import '../../../data/models/profile.dart';
 import '../../../data/repositories/providers.dart';
 import '../providers/revenuecat_providers.dart';
 import '../widgets/monetization_disclaimer.dart';
+import '../widgets/mort_pro_paywall_content.dart';
 import '../widgets/teen_purchase_notice.dart';
 
 class RevenueCatPaywallScreen extends ConsumerWidget {
@@ -30,6 +31,10 @@ class RevenueCatPaywallScreen extends ConsumerWidget {
     final profile = ref.watch(currentProfileProvider).asData?.value;
     final isTeen = profile?.role == UserRole.teen;
 
+    if (placement == 'main' || placement == 'ad-free') {
+      return _MortProPaywall(isTeen: isTeen);
+    }
+
     return MortScreen(
       children: [
         MortHeader(eyebrow: 'Optional perks', title: title, subtitle: subtitle),
@@ -39,10 +44,6 @@ class RevenueCatPaywallScreen extends ConsumerWidget {
         if (isTeen) const SizedBox(height: MortSpacing.md),
         _PaywallValueCard(placement: placement),
         const SizedBox(height: MortSpacing.md),
-        if (placement == 'main' || placement == 'ad-free') ...[
-          const _ProPurchaseControls(),
-          const SizedBox(height: MortSpacing.md),
-        ],
         const MortSafetyBanner(
           message:
               'No safety, applying, messaging, reporting, blocking, or basic Guardian Mode feature requires payment.',
@@ -67,15 +68,16 @@ class RevenueCatPaywallScreen extends ConsumerWidget {
   }
 }
 
-class _ProPurchaseControls extends ConsumerStatefulWidget {
-  const _ProPurchaseControls();
+class _MortProPaywall extends ConsumerStatefulWidget {
+  const _MortProPaywall({required this.isTeen});
+
+  final bool isTeen;
 
   @override
-  ConsumerState<_ProPurchaseControls> createState() =>
-      _ProPurchaseControlsState();
+  ConsumerState<_MortProPaywall> createState() => _MortProPaywallState();
 }
 
-class _ProPurchaseControlsState extends ConsumerState<_ProPurchaseControls> {
+class _MortProPaywallState extends ConsumerState<_MortProPaywall> {
   bool _busy = false;
   String? _message;
 
@@ -92,10 +94,12 @@ class _ProPurchaseControlsState extends ConsumerState<_ProPurchaseControls> {
     });
   }
 
-  Future<void> _showPaywall() async {
+  Future<void> _restore() async {
     if (_busy) return;
     setState(() => _busy = true);
-    final result = await ref.read(purchaseControllerProvider).presentPaywall();
+    final result = await ref
+        .read(purchaseControllerProvider)
+        .restorePurchases();
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -103,67 +107,76 @@ class _ProPurchaseControlsState extends ConsumerState<_ProPurchaseControls> {
     });
   }
 
+  void _close() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/monetization');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final status = ref.watch(revenueCatStatusProvider).asData?.value;
-    final offering = ref.watch(currentOfferingProvider).asData?.value;
-    final isPro = ref.watch(isMortProProvider).asData?.value == true;
-    final weekly = offering?.getPackage(r'$rc_weekly');
-    final ready =
-        status?.available == true &&
-        offering != null &&
-        offering.availablePackages.isNotEmpty;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (isPro)
-          const MortCard(child: Text('MORT Pro is active on this account.'))
-        else if (offering != null)
-          MortCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Available plans'),
-                for (final package in offering.availablePackages)
-                  Text(
-                    '${package.storeProduct.title}: '
-                    '${package.storeProduct.priceString}',
-                  ),
-              ],
-            ),
-          ),
-        if (isPro || offering != null) const SizedBox(height: MortSpacing.md),
-        MortButton(
-          label: _busy
-              ? 'Opening plans...'
-              : isPro
-              ? 'MORT Pro active'
-              : 'Upgrade to MORT Pro',
-          icon: Icons.workspace_premium_outlined,
-          onPressed: ready && !_busy && !isPro ? _showPaywall : null,
-          style: ready && !isPro
-              ? MortButtonStyle.primary
-              : MortButtonStyle.disabled,
+    final offeringState = ref.watch(currentOfferingProvider);
+    final offering = offeringState.asData?.value;
+    final proState = ref.watch(isMortProProvider);
+    final isPro = proState.asData?.value == true;
+    const labels = <String, String>{
+      r'$rc_weekly': 'Weekly',
+      r'$rc_monthly': 'Monthly',
+      r'$rc_annual': 'Annual',
+      r'$rc_lifetime': 'Lifetime',
+    };
+    final packages = <String, rc.Package>{};
+    for (final id in labels.keys) {
+      final package = offering?.getPackage(id);
+      if (package != null) packages[id] = package;
+    }
+    return PopScope(
+      canPop: context.canPop(),
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _close();
+      },
+      child: Scaffold(
+        backgroundColor: MortColors.ink2,
+        body: MortProPaywallContent(
+          plans: [
+            for (final entry in packages.entries)
+              MortProPlan(
+                id: entry.key,
+                name: labels[entry.key]!,
+                price: entry.value.storeProduct.priceString,
+              ),
+          ],
+          loading: offeringState.isLoading || proState.isLoading,
+          busy: _busy,
+          isPro: isPro,
+          isTeen: widget.isTeen,
+          message:
+              _message ??
+              (offeringState.isLoading ||
+                      proState.isLoading ||
+                      isPro ||
+                      packages.isNotEmpty ||
+                      status?.available == true
+                  ? null
+                  : status?.message),
+          onPurchase: (id) {
+            final package = packages[id];
+            if (package != null) _purchasePackage(package);
+          },
+          onRestore: _restore,
+          onRetry: () {
+            ref.invalidate(offeringsProvider);
+            ref.invalidate(currentOfferingProvider);
+            ref.invalidate(revenueCatStatusProvider);
+          },
+          onClose: _close,
+          onTerms: () => context.push('/legal/terms'),
+          onPrivacy: () => context.push('/legal/privacy'),
         ),
-        if (!isPro && weekly != null) ...[
-          const SizedBox(height: MortSpacing.sm),
-          MortButton(
-            label: _busy
-                ? 'Processing purchase...'
-                : 'Buy weekly · ${weekly.storeProduct.priceString}',
-            icon: Icons.shopping_bag_outlined,
-            onPressed: ready && !_busy ? () => _purchasePackage(weekly) : null,
-            style: ready ? MortButtonStyle.secondary : MortButtonStyle.disabled,
-          ),
-        ],
-        if (_message != null) ...[
-          const SizedBox(height: MortSpacing.sm),
-          Text(_message!),
-        ] else if (!ready && !isPro) ...[
-          const SizedBox(height: MortSpacing.sm),
-          Text(status?.message ?? 'Checking available plans...'),
-        ],
-      ],
+      ),
     );
   }
 }
