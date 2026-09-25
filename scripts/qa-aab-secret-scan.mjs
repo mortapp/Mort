@@ -22,7 +22,8 @@ const secretNames = [
   'SUPABASE_SERVICE_ROLE_KEY','SUPABASE_ACCESS_TOKEN','SUPABASE_DB_PASSWORD',
   'MORT_UPLOAD_STORE_PASSWORD','MORT_UPLOAD_KEY_PASSWORD','REVENUECAT_V1_SECRET_API_KEY',
   'REVENUECAT_V2_SECRET_API_KEY',
-  'REVENUECAT_WEBHOOK_AUTH_HEADER','REVENUECAT_PLAY_WEBHOOK_AUTH_HEADER','SEND_PUSH_INVOKE_SECRET',
+  'REVENUECAT_WEBHOOK_AUTH_HEADER','REVENUECAT_PLAY_WEBHOOK_AUTH_HEADER',
+  'REVENUECAT_TEST_WEBHOOK_AUTH_HEADER','SEND_PUSH_INVOKE_SECRET',
 ];
 const secrets = secretNames.map((name) => process.env[name]).filter((value) => value && value.length >= 8).map((value) => Buffer.from(value));
 const forbiddenCredentialMarkers = [Buffer.from('GOCSPX-')];
@@ -53,6 +54,10 @@ for (const artifact of [
     scannedEntries += extracted.length;
     for (const path of extracted) {
       const data = readFileSync(path);
+      assert(
+        !/test_[A-Za-z0-9]{20,}/.test(data.toString('latin1')),
+        `RevenueCat Test Store key detected in ${artifact.label} entry ${path.slice(work.length + 1)}.`,
+      );
       for (const secret of secrets) {
         assert(
           data.indexOf(secret) === -1,

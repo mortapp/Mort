@@ -4,7 +4,10 @@ import {
   correlationId,
   structuredLog,
 } from "../_shared/observability.ts";
-import { acceptsRevenueCatWebhookAuthorization } from "../_shared/revenuecat_webhook_auth.ts";
+import {
+  revenueCatWebhookCredential,
+  testStoreWebhookUserAllowed,
+} from "../_shared/revenuecat_webhook_auth.ts";
 
 type RevenueCatPayload = {
   api_version?: unknown;
@@ -31,7 +34,8 @@ class WebhookError extends Error {
 
 const maximumBodyBytes = 128 * 1024;
 const eventIdPattern = /^[A-Za-z0-9._:-]{8,200}$/;
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const eventTypes = new Set([
   "billing_issue",
   "cancellation",
@@ -53,21 +57,25 @@ const eventTypes = new Set([
   "uncancellation",
   "virtual_currency_transaction",
 ]);
-const productEntitlements: Readonly<Record<string, readonly string[]>> = Object.freeze({
-  "mort_pro:weekly": ["mort_pro"],
-  "mort_pro:monthly": ["mort_pro"],
-  "mort_pro:annual": ["mort_pro"],
-  lifetime: ["mort_pro"],
-  mort_plus_monthly: ["mort_plus", "mort_ad_free"],
-  mort_plus_yearly: ["mort_plus", "mort_ad_free"],
-  mort_plus_lifetime: ["mort_plus", "mort_ad_free", "mort_lifetime"],
-  mort_ad_free_lifetime: ["mort_ad_free"],
-  mort_username_change_token_1: ["mort_username_change_token"],
-  mort_profile_style_pack: ["mort_profile_style_pack"],
-  mort_adult_pro_monthly: ["mort_adult_pro"],
-  mort_guardian_plus_monthly: ["mort_guardian_plus"],
-  mort_job_boost_1: ["mort_job_boost"],
-});
+const productEntitlements: Readonly<Record<string, readonly string[]>> = Object
+  .freeze({
+    "mort_pro:weekly": ["mort_pro"],
+    "mort_pro:monthly": ["mort_pro"],
+    "mort_pro:annual": ["mort_pro"],
+    weekly: ["mort_pro"],
+    monthly: ["mort_pro"],
+    yearly: ["mort_pro"],
+    lifetime: ["mort_pro"],
+    mort_plus_monthly: ["mort_plus", "mort_ad_free"],
+    mort_plus_yearly: ["mort_plus", "mort_ad_free"],
+    mort_plus_lifetime: ["mort_plus", "mort_ad_free", "mort_lifetime"],
+    mort_ad_free_lifetime: ["mort_ad_free"],
+    mort_username_change_token_1: ["mort_username_change_token"],
+    mort_profile_style_pack: ["mort_profile_style_pack"],
+    mort_adult_pro_monthly: ["mort_adult_pro"],
+    mort_guardian_plus_monthly: ["mort_guardian_plus"],
+    mort_job_boost_1: ["mort_job_boost"],
+  });
 
 Deno.serve(async (request: Request) => {
   const traceId = correlationId(request);
@@ -78,23 +86,75 @@ Deno.serve(async (request: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const expectedLegacyAuthorization = Deno.env.get("REVENUECAT_WEBHOOK_AUTH_HEADER");
-    const expectedPlayAuthorization = Deno.env.get("REVENUECAT_PLAY_WEBHOOK_AUTH_HEADER");
-    if (!supabaseUrl || !serviceRoleKey || (!expectedLegacyAuthorization && !expectedPlayAuthorization)) {
+    const expectedLegacyAuthorization = Deno.env.get(
+      "REVENUECAT_WEBHOOK_AUTH_HEADER",
+    );
+    const expectedPlayAuthorization = Deno.env.get(
+      "REVENUECAT_PLAY_WEBHOOK_AUTH_HEADER",
+    );
+    const expectedTestAuthorization = Deno.env.get(
+      "REVENUECAT_TEST_WEBHOOK_AUTH_HEADER",
+    );
+    if (
+      !supabaseUrl || !serviceRoleKey ||
+      (!expectedLegacyAuthorization && !expectedPlayAuthorization &&
+        !expectedTestAuthorization)
+    ) {
       throw new WebhookError("revenuecat_not_configured", 503);
     }
 
     const suppliedAuthorization = request.headers.get("authorization") ?? "";
-    if (!acceptsRevenueCatWebhookAuthorization(
-      suppliedAuthorization, expectedLegacyAuthorization, expectedPlayAuthorization
-    )) {
+    const credential = revenueCatWebhookCredential(
+      suppliedAuthorization,
+      expectedLegacyAuthorization,
+      expectedPlayAuthorization,
+      expectedTestAuthorization,
+    );
+    if (credential === null) {
       structuredLog("warn", "revenuecat.authorization_rejected", traceId);
       throw new WebhookError("webhook_authorization_required", 401);
     }
 
     const rawBody = await readBody(request);
     const payload = parsePayload(rawBody);
+    const source = payload.event;
+    if (!source || typeof source !== "object" || Array.isArray(source)) {
+      throw new WebhookError("event_required", 400);
+    }
+    const testAppId = Deno.env.get("REVENUECAT_TEST_STORE_APP_ID") ?? "";
+    if (credential === "test") {
+      const allowedIds =
+        Deno.env.get("REVENUECAT_TEST_WEBHOOK_ALLOWED_USER_IDS") ?? "";
+      if (!testAppId || !allowedIds) {
+        throw new WebhookError("revenuecat_test_not_configured", 503);
+      }
+      if (
+        source.app_id !== testAppId || source.store !== "TEST_STORE" ||
+        source.environment !== "SANDBOX"
+      ) {
+        throw new WebhookError("test_store_event_required", 403);
+      }
+      if (!testStoreWebhookUserAllowed(source, testAppId, allowedIds)) {
+        return correlatedJson(
+          { ok: true, processed: false, code: "test_user_not_allowed" },
+          200,
+          traceId,
+        );
+      }
+    } else if (
+      source.store === "TEST_STORE" ||
+      (testAppId && source.app_id === testAppId)
+    ) {
+      throw new WebhookError("test_store_credential_required", 403);
+    }
     const event = normalizeEvent(payload);
+    if (
+      credential !== "test" &&
+      (event.productId === "weekly" || event.productId === "monthly" ||
+        event.productId === "yearly")
+    ) {
+      throw new WebhookError("test_store_credential_required", 403);
+    }
     const payloadSha256 = await sha256(rawBody);
     const normalizedPayload = {
       api_version: stringValue(payload.api_version) || null,
@@ -103,6 +163,9 @@ Deno.serve(async (request: Request) => {
         type: event.eventType,
         app_user_id: event.appUserId,
         product_id: event.productId,
+        app_id: source.app_id ?? null,
+        store: source.store ?? null,
+        environment: source.environment ?? null,
         entitlement_ids: event.entitlementIds,
         event_timestamp_ms: event.eventTimestampMs,
         active_until: event.activeUntil,
@@ -112,17 +175,20 @@ Deno.serve(async (request: Request) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    const { data, error } = await supabase.rpc("process_revenuecat_provider_event", {
-      p_event_id: event.eventId,
-      p_app_user_id: event.appUserId,
-      p_event_type: event.eventType,
-      p_product_id: event.productId,
-      p_entitlement_ids: event.entitlementIds,
-      p_active_until: event.activeUntil,
-      p_event_timestamp: event.eventTimestamp,
-      p_payload_sha256: payloadSha256,
-      p_normalized_event: normalizedPayload,
-    });
+    const { data, error } = await supabase.rpc(
+      "process_revenuecat_provider_event",
+      {
+        p_event_id: event.eventId,
+        p_app_user_id: event.appUserId,
+        p_event_type: event.eventType,
+        p_product_id: event.productId,
+        p_entitlement_ids: event.entitlementIds,
+        p_active_until: event.activeUntil,
+        p_event_timestamp: event.eventTimestamp,
+        p_payload_sha256: payloadSha256,
+        p_normalized_event: normalizedPayload,
+      },
+    );
 
     if (error) {
       structuredLog("error", "revenuecat.database_failure", traceId, {
@@ -147,19 +213,31 @@ Deno.serve(async (request: Request) => {
       processed: result.processed,
       resultCode: result.code,
     });
-    return correlatedJson({
-      ok: result.ok,
-      processed: result.processed,
-      code: result.code,
-    }, 200, traceId);
+    return correlatedJson(
+      {
+        ok: result.ok,
+        processed: result.processed,
+        code: result.code,
+      },
+      200,
+      traceId,
+    );
   } catch (error) {
     if (error instanceof WebhookError) {
-      return correlatedJson({ ok: false, code: error.code }, error.status, traceId);
+      return correlatedJson(
+        { ok: false, code: error.code },
+        error.status,
+        traceId,
+      );
     }
     structuredLog("error", "revenuecat.unhandled_failure", traceId, {
       kind: error instanceof Error ? error.name : "unknown",
     });
-    return correlatedJson({ ok: false, code: "revenuecat_webhook_failed" }, 500, traceId);
+    return correlatedJson(
+      { ok: false, code: "revenuecat_webhook_failed" },
+      500,
+      traceId,
+    );
   }
 });
 
@@ -195,19 +273,27 @@ function normalizeEvent(payload: RevenueCatPayload): NormalizedEvent {
   }
 
   const eventId = stringValue(source.id ?? source.event_id);
-  if (!eventIdPattern.test(eventId)) throw new WebhookError("invalid_event_id", 400);
+  if (!eventIdPattern.test(eventId)) {
+    throw new WebhookError("invalid_event_id", 400);
+  }
 
   const eventType = stringValue(source.type ?? source.event_type).toLowerCase();
-  if (!eventTypes.has(eventType)) throw new WebhookError("unsupported_event_type", 400);
+  if (!eventTypes.has(eventType)) {
+    throw new WebhookError("unsupported_event_type", 400);
+  }
 
-  const productIdValue = stringValue(source.product_id ?? source.product_identifier);
+  const productIdValue = stringValue(
+    source.product_id ?? source.product_identifier,
+  );
   const productId = productIdValue || null;
   if (productId && !(productId in productEntitlements)) {
     throw new WebhookError("unsupported_product", 400);
   }
 
   const aliases = Array.isArray(source.aliases)
-    ? source.aliases.filter((value): value is string => typeof value === "string")
+    ? source.aliases.filter((value): value is string =>
+      typeof value === "string"
+    )
     : [];
   const candidates = [
     stringValue(source.app_user_id),
@@ -272,14 +358,20 @@ function asResult(value: unknown) {
   }
   const result = value as Record<string, unknown>;
   const code = stringValue(result.code);
-  if (!code || typeof result.ok !== "boolean" || typeof result.processed !== "boolean") {
+  if (
+    !code || typeof result.ok !== "boolean" ||
+    typeof result.processed !== "boolean"
+  ) {
     throw new WebhookError("invalid_processing_result", 503);
   }
   return { ok: result.ok, processed: result.processed, code };
 }
 
 async function sha256(value: string) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
   return Array.from(new Uint8Array(digest))
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:purchases_flutter/purchases_flutter.dart' as rc;
 
 import '../../../core/theme/mort_colors.dart';
 import '../../../core/theme/mort_spacing.dart';
@@ -78,6 +79,19 @@ class _ProPurchaseControlsState extends ConsumerState<_ProPurchaseControls> {
   bool _busy = false;
   String? _message;
 
+  Future<void> _purchasePackage(rc.Package package) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final result = await ref
+        .read(purchaseControllerProvider)
+        .purchasePackage(package);
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _message = result.message;
+    });
+  }
+
   Future<void> _showPaywall() async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -94,6 +108,7 @@ class _ProPurchaseControlsState extends ConsumerState<_ProPurchaseControls> {
     final status = ref.watch(revenueCatStatusProvider).asData?.value;
     final offering = ref.watch(currentOfferingProvider).asData?.value;
     final isPro = ref.watch(isMortProProvider).asData?.value == true;
+    final weekly = offering?.getPackage(r'$rc_weekly');
     final ready =
         status?.available == true &&
         offering != null &&
@@ -130,6 +145,17 @@ class _ProPurchaseControlsState extends ConsumerState<_ProPurchaseControls> {
               ? MortButtonStyle.primary
               : MortButtonStyle.disabled,
         ),
+        if (!isPro && weekly != null) ...[
+          const SizedBox(height: MortSpacing.sm),
+          MortButton(
+            label: _busy
+                ? 'Processing purchase...'
+                : 'Buy weekly · ${weekly.storeProduct.priceString}',
+            icon: Icons.shopping_bag_outlined,
+            onPressed: ready && !_busy ? () => _purchasePackage(weekly) : null,
+            style: ready ? MortButtonStyle.secondary : MortButtonStyle.disabled,
+          ),
+        ],
         if (_message != null) ...[
           const SizedBox(height: MortSpacing.sm),
           Text(_message!),

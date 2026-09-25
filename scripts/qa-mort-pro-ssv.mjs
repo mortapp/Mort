@@ -76,6 +76,7 @@ await withQaUsers(scope, [
 
   for (const product of [
     "mort_pro:weekly", "mort_pro:monthly", "mort_pro:annual", "lifetime",
+    "weekly", "monthly", "yearly",
   ]) {
     const purchase = providerEvent(adult.id, product,
       product === "lifetime" ? "non_renewing_purchase" : "initial_purchase");
@@ -107,7 +108,7 @@ await withQaUsers(scope, [
   assertQa(Boolean(badPlan.error), "inactive yearly base plan was accepted");
   assertQa(await progressionState(adult.id) === beforeProgression,
     "RevenueCat events changed XP or Motion Tokens");
-  qaLog(scope, "all four Pro products activate; refunds, replay, bad plan, and progression rules hold");
+  qaLog(scope, "Play and Test Store Pro products activate; refunds, replay, bad plan, and progression rules hold");
 
   const transactionId = randomUUID().replaceAll("-", "");
   const reward = {

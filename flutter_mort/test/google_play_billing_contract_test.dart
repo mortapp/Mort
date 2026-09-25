@@ -59,8 +59,8 @@ void main() {
         expect(catalog, contains('"$product"'));
       }
       expect(catalog, isNot(contains('mort_pro:yearly')));
-      expect(service, contains("r'\$rc_annual': 'mort_pro:annual'"));
-      expect(service, contains("getOffering('default')"));
+      expect(service, contains("testStore ? 'yearly' : 'mort_pro:annual'"));
+      expect(service, contains("offering.identifier != 'default'"));
       expect(manifest, contains('android:scheme="rc-8eaa6ee77f"'));
       expect(manifest, contains('android:scheme="com.mortapp.mobile"'));
       expect(manifest, contains('com.amazon.device.iap.ResponseReceiver'));

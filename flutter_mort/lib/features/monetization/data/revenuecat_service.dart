@@ -246,14 +246,11 @@ class RevenueCatService {
   }
 
   static rc.Offering? proOffering(rc.Offerings? offerings) {
-    final offering = offerings?.getOffering('default');
-    if (offering == null) return null;
-    const expected = {
-      r'$rc_weekly': 'mort_pro:weekly',
-      r'$rc_monthly': 'mort_pro:monthly',
-      r'$rc_annual': 'mort_pro:annual',
-      r'$rc_lifetime': 'lifetime',
-    };
+    final offering = offerings?.current;
+    if (offering == null || offering.identifier != 'default') return null;
+    final expected = expectedProductIds(
+      testStore: AppConfig.revenueCatApiKey.startsWith('test_'),
+    );
     final packages = offering.availablePackages;
     if (packages.length != expected.length ||
         packages.map((item) => item.identifier).toSet().length !=
@@ -265,6 +262,13 @@ class RevenueCatService {
     }
     return offering;
   }
+
+  static Map<String, String> expectedProductIds({required bool testStore}) => {
+    r'$rc_weekly': testStore ? 'weekly' : 'mort_pro:weekly',
+    r'$rc_monthly': testStore ? 'monthly' : 'mort_pro:monthly',
+    r'$rc_annual': testStore ? 'yearly' : 'mort_pro:annual',
+    r'$rc_lifetime': 'lifetime',
+  };
 
   Future<RevenueCatOperationResult> purchasePackage({
     required String userId,
