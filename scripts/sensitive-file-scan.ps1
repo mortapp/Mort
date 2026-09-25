@@ -22,6 +22,9 @@ $mediaExtensions = @('.png', '.jpg', '.jpeg', '.heic', '.tif', '.tiff', '.webp',
 $identityNamePattern = '(?i)(passport|driver.?licen[cs]e|government.?id|school.?id|student.?id|selfie|liveness|identity.?evidence|identity.?document|address.?evidence|residential.?document)'
 $forbiddenExtensions = @('.pem', '.p12', '.pfx', '.key', '.mobileprovision', '.sqlite', '.sqlite3', '.db', '.dump', '.bak')
 $reviewedMediaHashes = @{
+  'flutter_mort/assets/branding/mort_icon_midnight.png' = 'E311D4FE6B7A1EB78CA05430709F6E61EC97B9913D4E0EE5426E678A5D7BF0B4'
+  'flutter_mort/assets/branding/mort_mark_adaptive_foreground.png' = 'AF2DC94425CE32DF66D30BE2FFF09C021BCD5B7D7D04967E70AD15DFE0E4BC52'
+  'flutter_mort/assets/branding/mort_mark_adaptive_monochrome.png' = 'E5782BFBAEF55C2299FDEC1EF11CA7817AF5C1ABB2AA8F89E4A4D53D5D96388C'
   'flutter_mort/assets/branding/mort_arrow_adaptive_foreground.png' = 'BCAE9EDFD57B676D97EA0A41500937F67704A87370F03D20A1755EBB551A34D5'
   'flutter_mort/assets/branding/mort_arrow_adaptive_monochrome.png' = '78C72C2B49698ED36351E51324D8EFF89276F7D65873CE9931615B7C78C93D24'
   'artifacts/native-qa/mort-api36-launch.png' = '35A9DFC922AD29D82E79CEB58A7F6CD5FECEDDD0D99A086CA5345B9664C34466'
@@ -109,6 +112,7 @@ function Get-SecretValues {
     'REVENUECAT_V1_SECRET_API_KEY', 'REVENUECAT_V2_SECRET_API_KEY',
     'REVENUECAT_WEBHOOK_AUTH_HEADER',
     'REVENUECAT_PLAY_WEBHOOK_AUTH_HEADER',
+    'REVENUECAT_TEST_WEBHOOK_AUTH_HEADER',
     'REVENUECAT_FLUTTER_IOS_SDK_KEY', 'REVENUECAT_IOS_API_KEY',
     'REVENUECAT_WEBHOOK_SECRET', 'SEND_PUSH_INVOKE_SECRET',
     'IDENTITY_VERIFICATION_WEBHOOK_SECRET', 'OPENAI_API_KEY',

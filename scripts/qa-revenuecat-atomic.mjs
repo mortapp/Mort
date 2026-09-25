@@ -24,6 +24,8 @@ function providerEvent({
   const entitlements = {
     mort_username_change_token_1: ["mort_username_change_token"],
     mort_guardian_plus_monthly: ["mort_guardian_plus"],
+    monthly: ["mort_pro"],
+    lifetime: ["mort_pro"],
   }[productId] ?? [];
   const normalized = {
     api_version: "1.0",
@@ -194,6 +196,74 @@ await withQaUsers(
         "Mobile provider-state mutation attempt must leave server state unchanged.",
       );
       qaLog(scope, "provider fulfillment and state writes are server-only");
+
+      const monthlyId = `qa_${randomUUID()}`;
+      const lifetimeId = `qa_${randomUUID()}`;
+      const monthlyExpirationId = `qa_${randomUUID()}`;
+      eventIds.push(monthlyId, lifetimeId, monthlyExpirationId);
+      const subscriptionStart = new Date();
+      await invoke(providerEvent({
+        eventId: monthlyId,
+        userId: adult.id,
+        eventType: "initial_purchase",
+        productId: "monthly",
+        eventTimestamp: subscriptionStart,
+        activeUntil: new Date(subscriptionStart.getTime() + 60 * 60 * 1000),
+      }));
+      await invoke(providerEvent({
+        eventId: lifetimeId,
+        userId: adult.id,
+        eventType: "non_renewing_purchase",
+        productId: "lifetime",
+        eventTimestamp: new Date(subscriptionStart.getTime() + 1000),
+      }));
+      const { data: lifetimeCache, error: lifetimeCacheError } =
+        await serviceClient
+          .from("monetization_entitlements_cache")
+          .select("entitlements,active_until")
+          .eq("user_id", adult.id)
+          .single();
+      if (lifetimeCacheError) throw lifetimeCacheError;
+      assertQa(
+        lifetimeCache.entitlements.includes("mort_pro") &&
+          lifetimeCache.active_until === null,
+        "A lifetime Pro purchase must not inherit an active subscription expiration.",
+      );
+      const { data: lifetimeStatus, error: lifetimeStatusError } =
+        await serviceClient
+          .from("user_subscription_status")
+          .select("premium_active,current_product_id,current_period_ends_at")
+          .eq("user_id", adult.id)
+          .single();
+      if (lifetimeStatusError) throw lifetimeStatusError;
+      assertQa(
+        lifetimeStatus.premium_active === true &&
+          lifetimeStatus.current_product_id === "lifetime" &&
+          lifetimeStatus.current_period_ends_at === null,
+        "Lifetime Pro status must have no subscription end date.",
+      );
+      qaLog(scope, "lifetime Pro does not inherit a subscription expiration");
+
+      await invoke(providerEvent({
+        eventId: monthlyExpirationId,
+        userId: adult.id,
+        eventType: "expiration",
+        productId: "monthly",
+        eventTimestamp: new Date(subscriptionStart.getTime() + 2000),
+      }));
+      const { data: retainedCache, error: retainedCacheError } =
+        await serviceClient
+          .from("monetization_entitlements_cache")
+          .select("entitlements,active_until")
+          .eq("user_id", adult.id)
+          .single();
+      if (retainedCacheError) throw retainedCacheError;
+      assertQa(
+        retainedCache.entitlements.includes("mort_pro") &&
+          retainedCache.active_until === null,
+        "Subscription expiration must retain the lifetime Pro entitlement.",
+      );
+      qaLog(scope, "subscription expiration preserves lifetime Pro");
     } finally {
       await serviceClient
         .from("purchase_audit_logs")

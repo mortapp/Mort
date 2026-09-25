@@ -97,6 +97,21 @@ void main() {
     },
   );
 
+  test('Test Store and Google Play validate their own four products', () {
+    expect(RevenueCatService.expectedProductIds(testStore: true), {
+      r'$rc_weekly': 'weekly',
+      r'$rc_monthly': 'monthly',
+      r'$rc_annual': 'yearly',
+      r'$rc_lifetime': 'lifetime',
+    });
+    expect(RevenueCatService.expectedProductIds(testStore: false), {
+      r'$rc_weekly': 'mort_pro:weekly',
+      r'$rc_monthly': 'mort_pro:monthly',
+      r'$rc_annual': 'mort_pro:annual',
+      r'$rc_lifetime': 'lifetime',
+    });
+  });
+
   test('sensitive placements always block banner and rewarded ads', () {
     const service = AdMobService();
     for (final placement in AdMobService.sensitivePlacements) {
