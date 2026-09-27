@@ -17,6 +17,8 @@ import 'core/preferences/mort_experience_preferences.dart';
 import 'data/repositories/providers.dart';
 import 'services/app_lock_controller.dart';
 import 'services/push/push_notification_coordinator.dart';
+import 'features/safety/safety_device_monitor.dart';
+import 'features/safety/safety_device_status.dart';
 
 class MortApp extends ConsumerStatefulWidget {
   const MortApp({super.key});
@@ -130,17 +132,25 @@ class _MortAppState extends ConsumerState<MortApp> with WidgetsBindingObserver {
       builder: (context, child) {
         final preferences = experience ?? const MortExperiencePreferences();
         final deviceMedia = MediaQuery.of(context);
-        return MediaQuery(
-          data: deviceMedia.copyWith(
-            disableAnimations:
-                deviceMedia.disableAnimations || preferences.reducedMotion,
-            highContrast: deviceMedia.highContrast || preferences.highContrast,
-          ),
-          child: MortExperiencePreferencesScope(
-            preferences: preferences,
-            child: AuthStartupGate(
-              controller: startup,
-              child: AppLockGate(child: child ?? const SizedBox.shrink()),
+        return ValueListenableBuilder<SafetyDeviceStatus>(
+          valueListenable: safetyDeviceStatus,
+          builder: (context, deviceSafety, _) => MediaQuery(
+            data: deviceMedia.copyWith(
+              disableAnimations:
+                  deviceMedia.disableAnimations ||
+                  preferences.reducedMotion ||
+                  deviceSafety.saver,
+              highContrast:
+                  deviceMedia.highContrast || preferences.highContrast,
+            ),
+            child: MortExperiencePreferencesScope(
+              preferences: preferences,
+              child: AuthStartupGate(
+                controller: startup,
+                child: SafetyDeviceMonitor(
+                  child: AppLockGate(child: child ?? const SizedBox.shrink()),
+                ),
+              ),
             ),
           ),
         );

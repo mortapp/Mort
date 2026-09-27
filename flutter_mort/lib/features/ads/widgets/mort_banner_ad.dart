@@ -6,6 +6,7 @@ import '../../../core/config/app_config.dart';
 import '../../../data/repositories/providers.dart';
 import '../data/admob_service.dart';
 import '../../monetization/providers/revenuecat_providers.dart';
+import '../../safety/safety_device_status.dart';
 
 class MortBannerAd extends ConsumerStatefulWidget {
   const MortBannerAd({
@@ -28,12 +29,27 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
   @override
   void initState() {
     super.initState();
+    safetyDeviceStatus.addListener(_safetyChanged);
     if (AppConfig.nativeAdsCompiledIn && AppConfig.adsEnabled) {
       _loadRealAd();
     }
   }
 
+  void _safetyChanged() {
+    if (!mounted) return;
+    if (safetyDeviceStatus.value.saver) {
+      _ad?.dispose();
+      setState(() {
+        _ad = null;
+        _loaded = false;
+      });
+    } else if (_ad == null) {
+      _loadRealAd();
+    }
+  }
+
   Future<void> _loadRealAd() async {
+    if (safetyDeviceStatus.value.saver) return;
     bool adFree;
     try {
       adFree = widget.userAdFree || await ref.read(isAdFreeProvider.future);
@@ -52,7 +68,11 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
       placement: widget.placement,
       adFormat: 'banner',
     );
-    if (!mounted || !decision.canShow || decision.adUnitId == null) return;
+    if (!mounted ||
+        safetyDeviceStatus.value.saver ||
+        !decision.canShow ||
+        decision.adUnitId == null)
+      return;
 
     final ad = BannerAd(
       adUnitId: decision.adUnitId!,
@@ -83,12 +103,14 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
 
   @override
   void dispose() {
+    safetyDeviceStatus.removeListener(_safetyChanged);
     _ad?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (safetyDeviceStatus.value.saver) return const SizedBox.shrink();
     ref.listen(isAdFreeProvider, (previous, next) {
       if (next.asData?.value == true) {
         _ad?.dispose();

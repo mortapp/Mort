@@ -1,9 +1,235 @@
 import 'package:uuid/uuid.dart';
+import 'dart:typed_data';
 
 import 'repository_base.dart';
 
 class SafetyRepository extends RepositoryBase {
   static const _uuid = Uuid();
+  Future<Map<String, dynamic>> adultSafetyExit(
+    String applicationId,
+    String requestId,
+  ) async => _requireSuccess(
+    await client.rpc(
+      'perform_adult_safety_exit',
+      params: {
+        'p_application_id': applicationId,
+        'p_client_request_id': requestId,
+      },
+    ),
+    'Safety end not confirmed',
+  );
+  Future<void> refreshTravelEta(String applicationId) async {
+    requireUserId();
+    // The service returns only an acknowledgment. Status is read from scoped
+    // RPCs; no route, provider key or destination coordinates reach the app.
+    await client.functions.invoke(
+      'safety-travel-eta',
+      body: {'applicationId': applicationId},
+    );
+  }
+
+  Future<Map<String, dynamic>> recordPosterConnectionResponse(
+    String applicationId,
+    String response,
+    String requestId,
+  ) async => _requireSuccess(
+    await client.rpc(
+      'record_worker_connection_response',
+      params: {
+        'p_application_id': applicationId,
+        'p_response': response,
+        'p_client_request_id': requestId,
+      },
+    ),
+    'Connection response not confirmed',
+  );
+  Future<List<Map<String, dynamic>>> staffEvidenceManifest(
+    String incidentId,
+  ) async {
+    requireUserId();
+    final rows = await client.rpc(
+      'get_incident_evidence_manifest',
+      params: {'p_incident_id': incidentId},
+    );
+    return (rows as List)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
+  }
+
+  Future<Uint8List> staffEvidenceImage(String evidenceId, String reason) async {
+    final actor = requireUserId();
+    final grant = _requireSuccess(
+      await client.rpc(
+        'authorize_incident_evidence_access',
+        params: {'p_evidence_id': evidenceId, 'p_reason': reason},
+      ),
+      'Evidence access denied',
+    );
+    if (requireUserId() != actor ||
+        grant['bucket_id'] != 'incident-evidence' ||
+        grant['content_type'] != 'image/jpeg')
+      throw StateError('Evidence preview unavailable');
+    final bytes = await client.storage
+        .from('incident-evidence')
+        .download(grant['storage_path'] as String);
+    if (requireUserId() != actor || bytes.length > 10 * 1024 * 1024)
+      throw StateError('Evidence preview unavailable');
+    return bytes;
+  }
+
+  Future<Map<String, dynamic>> getStaffSafetyContext(
+    String incidentId,
+    String reason,
+  ) async => _requireSuccess(
+    await client.rpc(
+      'get_staff_safety_context',
+      params: {'p_incident_id': incidentId, 'p_reason': reason},
+    ),
+    'Staff Safety context unavailable',
+  );
+  Future<List<Map<String, dynamic>>> listGuardianStatus() async {
+    final value = _requireSuccess(
+      await client.rpc('list_guardian_safety_status'),
+      'Guardian safety unavailable',
+    );
+    return (value['teens'] as List)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> getSafetyContact(String threadId) async =>
+      _requireSuccess(
+        await client.rpc(
+          'get_safety_contact_thread',
+          params: {'p_thread_id': threadId},
+        ),
+        'Safety Contact unavailable',
+      );
+  Future<String> openSafetyContact(String eventId, String target) async {
+    final response = _requireSuccess(
+      await client.rpc(
+        'open_safety_contact',
+        params: {'p_event_id': eventId, 'p_target': target},
+      ),
+      'Safety Contact unavailable',
+    );
+    return response['thread_id'] as String;
+  }
+
+  Future<Map<String, dynamic>> createReportCategories({
+    required List<String> categories,
+    String details = '',
+    String? targetUserId,
+    String? targetJobId,
+    String? targetMessageId,
+    String? targetReviewId,
+    bool immediateDanger = false,
+    required String clientRequestId,
+  }) async => _requireSuccess(
+    await client.rpc(
+      'submit_safety_report_categories',
+      params: {
+        'p_categories': categories,
+        'p_details': details,
+        'p_target_user_id': targetUserId,
+        'p_target_job_id': targetJobId,
+        'p_target_message_id': targetMessageId,
+        'p_target_review_id': targetReviewId,
+        'p_immediate_danger': immediateDanger,
+        'p_client_request_id': clientRequestId,
+      },
+    ),
+    'Safety report not confirmed',
+  );
+
+  Future<Map<String, dynamic>> getJobRuntime(String applicationId) async =>
+      _requireSuccess(
+        await client.rpc(
+          'get_job_safety_runtime',
+          params: {'p_application_id': applicationId},
+        ),
+        'Job safety unavailable',
+      );
+
+  Future<List<Map<String, dynamic>>> listSafetyEvents() async {
+    requireUserId();
+    final result = await client.rpc('list_my_safety_events');
+    return (result as List)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> getSafetyEvent(String id) async =>
+      _requireSuccess(
+        await client.rpc('get_safety_event_status', params: {'p_event_id': id}),
+        'Safety event unavailable',
+      );
+
+  Future<void> recordContactReached(String id) async {
+    _requireSuccess(
+      await client.rpc(
+        'record_safety_contact_reached',
+        params: {'p_event_id': id},
+      ),
+      'Contact response not confirmed',
+    );
+  }
+
+  Future<Map<String, dynamic>> getRuntime() async {
+    requireUserId();
+    return _requireSuccess(
+      await client.rpc('get_my_safety_runtime'),
+      'Safety status unavailable',
+    );
+  }
+
+  Future<Map<String, dynamic>> performAction({
+    required String action,
+    String? applicationId,
+    Map<String, dynamic> payload = const {},
+    required String clientRequestId,
+  }) async {
+    final actorId = requireUserId();
+    return _requireSuccess(
+      await client.rpc(
+        'perform_safety_action',
+        params: {
+          'p_action': action,
+          'p_application_id': applicationId,
+          'p_payload': {'actor_id': actorId, ...payload},
+          'p_client_request_id': clientRequestId,
+        },
+      ),
+      'Safety action was not confirmed',
+    );
+  }
+
+  Future<Map<String, dynamic>> recordDeviceSnapshot({
+    String? applicationId,
+    int? batteryPercent,
+    bool saverEnabled = false,
+    double? latitude,
+    double? longitude,
+    DateTime? locationAt,
+    required String expectedActorId,
+  }) async {
+    requireUserId();
+    return _requireSuccess(
+      await client.rpc(
+        'record_safety_device_snapshot',
+        params: {
+          'p_application_id': applicationId,
+          'p_battery_percent': batteryPercent,
+          'p_saver_enabled': saverEnabled,
+          'p_latitude': latitude,
+          'p_longitude': longitude,
+          'p_location_at': locationAt?.toUtc().toIso8601String(),
+          'p_expected_actor_id': expectedActorId,
+        },
+      ),
+      'Device safety snapshot was not confirmed',
+    );
+  }
 
   Map<String, dynamic> _requireSuccess(dynamic value, String fallback) {
     if (value is Map && value['ok'] == true) {

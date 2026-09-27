@@ -15,6 +15,10 @@ import '../../core/theme/mort_tokens.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/repositories/job_execution_repository.dart';
 import '../../data/repositories/providers.dart';
+import '../safety/manual_travel_card.dart';
+import '../safety/emergency_access_button.dart';
+import '../safety/safety_device_status.dart';
+import '../safety/safety_device_card.dart';
 
 class JobProgressScreen extends ConsumerStatefulWidget {
   const JobProgressScreen({
@@ -46,6 +50,7 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
   String? _finishConfirmationRequestId;
   String? _finishConfirmationPin;
   bool _busy = false;
+  String? _adultSafetyExitRequest;
   bool _statusFetchInFlight = false;
   bool _statusRefreshPending = false;
   bool _pollingEnabled = true;
@@ -92,7 +97,8 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
         (state != null && _terminalStates.contains(state))) {
       return;
     }
-    final delay = state == 'completion_pending_release'
+    final delay =
+        state == 'completion_pending_release' || safetyDeviceStatus.value.saver
         ? _settlementPollInterval
         : _pollInterval;
     _pollTimer = Timer(delay, () async {
@@ -161,6 +167,58 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
         _statusRefreshPending = false;
         await _fetchStatus(showSpinner: false);
       }
+    }
+  }
+
+  Future<void> _rescheduleForConnection(JobExecutionStatus status) async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: now.add(const Duration(days: 1)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (time == null || !mounted) return;
+    final start = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+    if (!start.isAfter(now)) {
+      MortToast.show(context, 'Choose a future time for the proposal.');
+      return;
+    }
+    try {
+      await ref
+          .read(legalContractRepositoryProvider)
+          .requestContractChange(
+            contractId: status.contractId,
+            patch: {
+              'service_date':
+                  '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
+              'start_window': start.toUtc().toIso8601String(),
+            },
+            reason:
+                'Reschedule requested for a worker connection or safety issue.',
+          );
+      if (mounted)
+        MortToast.show(
+          context,
+          'Reschedule proposal recorded. Both participants must confirm the new agreement.',
+        );
+    } catch (_) {
+      if (mounted)
+        MortToast.show(
+          context,
+          'Reschedule proposal not confirmed. Try again or use job support.',
+        );
     }
   }
 
@@ -252,6 +310,7 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
         }
       });
       MortHaptics.success(context);
+      safetyMonitorRefresh.value++;
     } else {
       MortHaptics.warning(context);
     }
@@ -354,6 +413,41 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
           'Cancellation request recorded. No money moved from this action.',
     );
     _openReturnedSupportTicket(result);
+  }
+
+  Future<void> _endForSafety() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      animationStyle: AnimationStyle.noAnimation,
+      builder: (dialog) => AlertDialog(
+        title: const Text('End this job for Safety?'),
+        content: const Text(
+          'You can stop work now without a Finish PIN. MORT opens private review, preserves evidence and does not determine fault or payment.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('Go back'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('End for Safety'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final result = await _perform(
+      () => ref
+          .read(safetyRepositoryProvider)
+          .adultSafetyExit(
+            widget.applicationId,
+            _adultSafetyExitRequest ??= const Uuid().v4(),
+          ),
+      success:
+          'Safety end recorded for private review. No fault or payment decision was made.',
+    );
+    if (result?['ok'] == true) _adultSafetyExitRequest = null;
   }
 
   Future<void> _reportAbandonment() async {
@@ -484,6 +578,20 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
           const SizedBox(height: MortSpacing.md),
           _FundingCard(status: status),
           const SizedBox(height: MortSpacing.md),
+          EmergencyAccessButton(applicationId: status.applicationId),
+          const SizedBox(height: MortSpacing.md),
+          if (status.isTeen) ...[
+            const SafetyDeviceCard(),
+            const SizedBox(height: MortSpacing.md),
+          ],
+          ManualTravelCard(
+            applicationId: status.applicationId,
+            isTeen: status.isTeen,
+            onReschedule: status.isAdult
+                ? () => _rescheduleForConnection(status)
+                : null,
+          ),
+          const SizedBox(height: MortSpacing.md),
           _ProgressTimeline(state: status.state),
           const SizedBox(height: MortSpacing.md),
           if ({
@@ -565,6 +673,14 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const MortSectionTitle(title: 'Adult actions'),
+        MortButton(
+          label: 'End Job for Safety',
+          style: MortButtonStyle.danger,
+          onPressed:
+              _busy || const {'completed', 'cancelled'}.contains(status.state)
+              ? null
+              : _endForSafety,
+        ),
         MortActionRow(
           actions: [
             MortAction(

@@ -109,8 +109,23 @@ class SafeImageProcessor {
       );
     }
     try {
-      final decoded = img.decodeImage(source);
+      final decoder = img.findDecoderForData(source);
+      final info = decoder?.startDecode(source);
+      // Bound pixel allocation before decoding compressed image data. Only
+      // the first frame is needed for photo/screenshot evidence.
+      if (info != null &&
+          (info.width > 8192 ||
+              info.height > 8192 ||
+              info.width * info.height > 20000000)) {
+        throw MortCodedError(
+          sizeCode,
+          'Choose an image under 20 megapixels and 8192 pixels per side.',
+        );
+      }
+      final decoded = info == null ? null : decoder!.decodeFrame(0);
       if (decoded != null) return decoded;
+    } on MortCodedError {
+      rethrow;
     } catch (_) {
       // Decoder details are intentionally normalized below.
     }

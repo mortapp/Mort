@@ -5,6 +5,7 @@ import '../../services/app_lock_controller.dart';
 import '../theme/mort_colors.dart';
 import '../theme/mort_spacing.dart';
 import 'mort_widgets.dart';
+import '../../features/safety/emergency_access_button.dart';
 
 class AppLockGate extends StatelessWidget {
   const AppLockGate({super.key, required this.child});
@@ -94,6 +95,8 @@ class _LockedView extends StatelessWidget {
                     busyLabel: 'Authenticating...',
                     onPressed: controller.unlock,
                   ),
+                  const SizedBox(height: MortSpacing.md),
+                  const EmergencyAccessButton(),
                   if (controller.failureMessage != null) ...[
                     const SizedBox(height: MortSpacing.md),
                     Text(

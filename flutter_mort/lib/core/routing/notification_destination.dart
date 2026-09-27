@@ -6,6 +6,11 @@ final _notificationUuid = RegExp(
 );
 
 String notificationDestination(Map<String, dynamic> data, UserRole? role) {
+  final safetyEvent = _uuid(data['safetyEventId']);
+  final safetyContact = _uuid(data['safetyContactThreadId']);
+  if (safetyContact != null) return '/safety/contact/$safetyContact';
+  if (safetyEvent != null && role != UserRole.admin)
+    return '/safety/events/$safetyEvent';
   final threadId = _uuid(data['threadId']);
   if (threadId != null) return '/messages/$threadId';
 

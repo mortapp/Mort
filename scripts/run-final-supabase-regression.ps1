@@ -114,6 +114,8 @@ $hostedOnlyScripts = @(
 )
 if ($localQa) {
   $scripts = @($scripts | Where-Object { $_ -notin $hostedOnlyScripts })
+  $scripts += 'qa-safety-center-runtime.mjs'
+  $scripts += 'qa-safety-travel-edge.mjs'
   Write-Output "Local Supabase regression: excluded hosted-only checks: $($hostedOnlyScripts -join ', ')"
 }
 

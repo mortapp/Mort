@@ -10,6 +10,7 @@ import '../../data/models/profile.dart';
 import '../../data/models/trust_safety.dart';
 import '../../data/repositories/providers.dart';
 import '../../services/identity_verification_provider.dart';
+import 'safety_evidence_button.dart';
 
 class IdentityVerificationScreen extends ConsumerStatefulWidget {
   const IdentityVerificationScreen({super.key});
@@ -396,6 +397,7 @@ class _SafetyCasesScreenState extends ConsumerState<SafetyCasesScreen> {
                       ? null
                       : () => _appeal(incident),
                 ),
+                SafetyEvidenceButton(incidentId: incident.id),
               ],
             ),
           ),
@@ -1113,7 +1115,7 @@ class _JobSafetyWorkspaceScreenState
             publicMeeting: _publicMeeting,
             daylight: _daylight,
             transportationPlan: _transportController.text,
-            checkinMinutes: 30,
+            checkinMinutes: 6,
           ),
       'Safety Plan saved. Both people must reconfirm.',
     );
