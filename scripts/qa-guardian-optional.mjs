@@ -164,8 +164,29 @@ await withQaUsers(
       .contains("data", { safetyPingId });
     assertQa(guardianPing.data?.length === 1, "linked guardian cannot read an enabled Safety Ping");
     assertQa(unrelatedPing.data?.length === 0, "unrelated guardian can read another teen's Safety Ping");
-    assertQa(guardianNotification.data?.length === 1, "linked guardian did not receive a Safety Ping notification");
-    qaLog(scope, "Safety Ping visibility and notification delivery follow active link preferences");
+    const runtime = await teen.client.rpc("get_my_safety_runtime");
+    const safetyCenterAvailable = !runtime.error && runtime.data?.ok === true;
+    if (process.env.MORT_QA_LOCAL_SUPABASE === "true") {
+      assertQa(safetyCenterAvailable, "Local Safety Center runtime is missing");
+    }
+    assertQa(guardianNotification.data?.length === (safetyCenterAvailable ? 0 : 1),
+      safetyCenterAvailable
+        ? "Routine successful check-in unexpectedly notified the guardian"
+        : "Legacy linked guardian did not receive a Safety Ping notification");
+    const alert = await teen.client.rpc("create_safety_ping_v2", {
+      p_status: "needs_help", p_note: "Explicit guardian Safety Alert QA",
+      p_job_id: null, p_immediate_danger: false, p_client_request_id: randomUUID(),
+    });
+    assertQa(!alert.error && alert.data?.ok === true, "Explicit guardian Safety Alert failed");
+    const alertNotification = await guardian.client.from("notifications").select("id")
+      .contains("data", { safetyPingId: alert.data.safety_ping_id });
+    const unrelatedAlert = await unrelatedGuardian.client.from("safety_pings").select("id")
+      .eq("id", alert.data.safety_ping_id);
+    assertQa(!alertNotification.error && alertNotification.data?.length === 1,
+      "Explicit Safety Alert was not queued for the enabled guardian");
+    assertQa(!unrelatedAlert.error && unrelatedAlert.data?.length === 0,
+      "Unrelated guardian read the explicit Safety Alert");
+    qaLog(scope, "Routine status visibility is private; explicit Safety Alert queue follows active link preferences (not device delivery proof)");
 
     const unlinked = await teen.client.rpc("unlink_guardian", {
       p_link_id: activeLink.data.id,

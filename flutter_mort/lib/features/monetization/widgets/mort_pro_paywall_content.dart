@@ -78,8 +78,15 @@ class _MortProPaywallContentState extends State<MortProPaywallContent> {
   Widget build(BuildContext context) {
     final selected = _selected;
     final textScale = MediaQuery.textScalerOf(context).scale(1);
-    return ColoredBox(
-      color: MortColors.ink2,
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: RadialGradient(
+          center: Alignment(0, -0.6),
+          radius: 1.1,
+          colors: [Color(0xFF111A25), MortColors.ink2],
+          stops: [0, 0.78],
+        ),
+      ),
       child: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -113,7 +120,7 @@ class _MortProPaywallContentState extends State<MortProPaywallContent> {
                         border: Border.all(color: MortColors.silverDark),
                         borderRadius: BorderRadius.circular(19),
                         boxShadow: const [
-                          BoxShadow(color: Color(0x151A5A9A), blurRadius: 18),
+                          BoxShadow(color: Color(0x281A5A9A), blurRadius: 20),
                         ],
                       ),
                       child: const Center(
@@ -134,7 +141,7 @@ class _MortProPaywallContentState extends State<MortProPaywallContent> {
                         ),
                         TextSpan(
                           text: 'Pro',
-                          style: TextStyle(color: MortColors.silverBright),
+                          style: TextStyle(color: MortColors.paymentInfoSoft),
                         ),
                       ],
                     ),
@@ -200,41 +207,100 @@ class _MortProPaywallContentState extends State<MortProPaywallContent> {
                     const SizedBox(height: 8),
                     ConstrainedBox(
                       constraints: const BoxConstraints(minHeight: 60),
-                      child: FilledButton(
-                        key: const Key('pro-continue'),
-                        onPressed: widget.busy || selected == null
-                            ? null
-                            : () => widget.onPurchase(selected.id),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: MortColors.ice1,
-                          foregroundColor: MortColors.ink2,
-                          disabledBackgroundColor: MortColors.graphite4,
-                          disabledForegroundColor: MortColors.silverDark,
-                          minimumSize: const Size.fromHeight(60),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(19),
-                          ),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: widget.busy
+                              ? null
+                              : const LinearGradient(
+                                  colors: [
+                                    MortColors.ice2,
+                                    MortColors.ice1,
+                                    Color(0xFFD5E6F7),
+                                  ],
+                                  stops: [0, 0.68, 1],
+                                ),
+                          color: widget.busy ? MortColors.graphite4 : null,
+                          borderRadius: BorderRadius.circular(19),
+                          boxShadow: widget.busy
+                              ? null
+                              : const [
+                                  BoxShadow(
+                                    color: Color(0x245E7EAB),
+                                    blurRadius: 16,
+                                  ),
+                                ],
                         ),
-                        child: widget.busy
-                            ? const SizedBox.square(
-                                dimension: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: MortColors.silver,
+                        child: FilledButton(
+                          key: const Key('pro-continue'),
+                          onPressed: widget.busy || selected == null
+                              ? null
+                              : () => widget.onPurchase(selected.id),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            foregroundColor: MortColors.ink2,
+                            disabledBackgroundColor: Colors.transparent,
+                            disabledForegroundColor: MortColors.silverDark,
+                            elevation: 0,
+                            minimumSize: const Size.fromHeight(60),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(19),
+                            ),
+                          ),
+                          child: widget.busy
+                              ? const SizedBox.square(
+                                  dimension: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: MortColors.silver,
+                                  ),
+                                )
+                              : Wrap(
+                                  alignment: WrapAlignment.center,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 9,
+                                  children: [
+                                    Text(
+                                      selected!.isLifetime
+                                          ? 'Unlock Lifetime'
+                                          : 'Continue with ${selected.name}',
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      style: const TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.arrow_forward_rounded,
+                                      size: 20,
+                                    ),
+                                  ],
                                 ),
-                              )
-                            : Text(
-                                selected!.isLifetime
-                                    ? 'Unlock Lifetime'
-                                    : 'Continue with ${selected.name}',
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                style: const TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
+                        ),
                       ),
+                    ),
+                  ],
+                  if (!widget.isPro) ...[
+                    const SizedBox(height: 10),
+                    OutlinedButton(
+                      key: const Key('pro-continue-free'),
+                      onPressed: widget.onClose,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: MortColors.silverBright,
+                        minimumSize: const Size.fromHeight(52),
+                        side: BorderSide(
+                          color: MortColors.borderSilver.withValues(alpha: .6),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(19),
+                        ),
+                        textStyle: const TextStyle(
+                          fontFamily: 'Roboto',
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      child: const Text('Continue with Free'),
                     ),
                   ],
                   if (widget.message != null && widget.plans.isNotEmpty) ...[
@@ -442,6 +508,15 @@ class _PlanCard extends StatelessWidget {
                 width: selected ? 1.5 : 1,
               ),
               borderRadius: BorderRadius.circular(17),
+              boxShadow: selected
+                  ? const [
+                      BoxShadow(
+                        color: Color(0x335E91C6),
+                        blurRadius: 16,
+                        spreadRadius: 1,
+                      ),
+                    ]
+                  : null,
             ),
             child: Row(
               children: [

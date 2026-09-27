@@ -1,6 +1,8 @@
 package com.mortapp.mobile
 
 import android.view.WindowManager
+import android.os.BatteryManager
+import android.os.PowerManager
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -13,6 +15,13 @@ class MainActivity : FlutterFragmentActivity() {
             "mort/native_security",
         ).setMethodCallHandler { call, result ->
             when (call.method) {
+                "readSafetyPower" -> {
+                    val battery = getSystemService(BATTERY_SERVICE) as BatteryManager
+                    val power = getSystemService(POWER_SERVICE) as PowerManager
+                    val percent = battery.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                    result.success(mapOf("percent" to percent.takeIf { it in 0..100 },
+                        "systemSaver" to power.isPowerSaveMode))
+                }
                 "setSecureScreen" -> {
                     val enabled = call.argument<Boolean>("enabled") == true
                     runOnUiThread {

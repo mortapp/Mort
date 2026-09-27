@@ -28,6 +28,7 @@ import '../../features/legal/contract_payment_screens.dart';
 import '../../features/legal/legal_screens.dart';
 import '../../features/legal/trust_foundation_screens.dart';
 import '../../features/mort_screens.dart';
+import '../../features/safety/safety_calm_surface.dart';
 import '../../features/mission/mission_pilot_screens.dart';
 import '../../features/mission/partner_staff_screens.dart';
 import '../../features/profile/review_screens.dart';
@@ -45,6 +46,8 @@ import '../../features/admin/admin_operational_alerts_screen.dart';
 import '../../features/auth/google_auth_screens.dart';
 import '../../features/auth/unified_auth_screen.dart';
 import '../../features/safety/trust_safety_screens.dart';
+import '../../features/safety/safety_event_screen.dart';
+import '../../features/safety/safety_contact_screen.dart';
 import '../../features/support/support_screens.dart';
 import '../../features/support/support_assistant_screen.dart';
 import '../../features/settings/account_management_screens.dart';
@@ -845,7 +848,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       _guarded(
         '/safety',
-        const SensitiveScreenProtection(child: SafetyCenterScreen()),
+        const SensitiveScreenProtection(
+          child: SafetyCalmSurface(child: SafetyCenterScreen()),
+        ),
+      ),
+      GoRoute(
+        path: '/safety/events/:eventId',
+        builder: (_, state) => GuardedRoute(
+          child: SensitiveScreenProtection(
+            child: SafetyCalmSurface(
+              child: SafetyEventScreen(
+                eventId: state.pathParameters['eventId'] ?? '',
+              ),
+            ),
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/safety/contact/:threadId',
+        builder: (_, state) => GuardedRoute(
+          child: SensitiveScreenProtection(
+            child: SafetyCalmSurface(
+              child: SafetyContactScreen(
+                threadId: state.pathParameters['threadId'] ?? '',
+              ),
+            ),
+          ),
+        ),
       ),
       _guarded(
         '/messages',

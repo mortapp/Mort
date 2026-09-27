@@ -38,6 +38,16 @@ import 'mission/partner_staff_screens.dart';
 import 'onboarding/mort_rules_copy.dart';
 import 'profile/profile_avatar_widgets.dart';
 import 'teen/teen_shell.dart';
+import 'safety/emergency_panel.dart';
+import 'safety/safety_outbox.dart';
+import 'safety/safety_device_status.dart';
+import 'safety/safety_contact_call.dart';
+import 'safety/safety_device_card.dart';
+import 'safety/safety_location_consent.dart';
+import 'safety/safety_evidence_button.dart';
+import 'safety/safety_home_card.dart';
+import 'safety/staff_safety_context_button.dart';
+import 'safety/safety_sharing_countdown.dart';
 
 bool get _backendReady => SupabaseService.isInitialized;
 
@@ -2356,6 +2366,10 @@ class RoleHomeScreen extends ConsumerWidget {
         ],
         if (role == UserRole.adult) const MortVerificationDisclaimer(),
         if (role == UserRole.guardian) const MortGuardianBanner(),
+        if (role == UserRole.guardian || role == UserRole.adult) ...[
+          const SizedBox(height: MortSpacing.md),
+          SafetyHomeCard(guardian: role == UserRole.guardian),
+        ],
         if (role == UserRole.admin)
           const MortSafetyBanner(
             message:
@@ -4787,7 +4801,20 @@ class ReportScreen extends ConsumerStatefulWidget {
 
 class _ReportScreenState extends ConsumerState<ReportScreen> {
   final _details = TextEditingController();
-  String _reason = 'unsafe_job';
+  final Set<String> _categories = {'unsafe_job_conditions'};
+  static const _categoryLabels = {
+    'unsafe_job_conditions': 'Unsafe or prohibited job',
+    'scam': 'Scam or upfront fee',
+    'off_platform_pressure': 'Off-platform contact pressure',
+    'harassment': 'Harassment',
+    'threats': 'Threats or coercion',
+    'stalking': 'Stalking or repeated contact',
+    'sexual_conduct': 'Sexual content',
+    'child_safety_concern': 'Grooming or exploitation concern',
+    'inappropriate_images': 'Private or inappropriate images',
+    'weapons': 'Weapons or dangerous tools',
+    'other_urgent_concern': 'Other concern',
+  };
   bool _busy = false;
   bool _submitted = false;
   bool _immediateDanger = false;
@@ -4796,7 +4823,9 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   Map<String, dynamic>? _result;
 
   String _stableRequestId() {
-    final payload = '$_reason|$_immediateDanger|${_details.text.trim()}';
+    final ordered = _categories.toList()..sort();
+    final payload =
+        '${ordered.join(',')}|$_immediateDanger|${_details.text.trim()}';
     if (_requestId == null || _requestPayload != payload) {
       _requestId = const Uuid().v4();
       _requestPayload = payload;
@@ -4812,20 +4841,23 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
 
   Future<void> _submit() async {
     if (_busy) return;
-    if (_details.text.trim().length < 10) {
-      MortToast.show(context, 'Add at least 10 characters of useful detail.');
+    if (_categories.isEmpty) {
+      MortToast.show(
+        context,
+        'Select at least one concern. Additional text is optional.',
+      );
       return;
     }
     setState(() => _busy = true);
     try {
       final result = await ref
           .read(safetyRepositoryProvider)
-          .createReport(
+          .createReportCategories(
             targetUserId: widget.targetUserId,
             targetJobId: widget.targetJobId,
             targetMessageId: widget.targetMessageId,
             targetReviewId: widget.targetReviewId,
-            reason: _reason,
+            categories: _categories.toList()..sort(),
             details: _details.text.trim(),
             immediateDanger: _immediateDanger,
             clientRequestId: _stableRequestId(),
@@ -4863,6 +4895,17 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
             ),
             const SizedBox(height: MortSpacing.md),
           ],
+          if (_result?['incident_id'] != null) ...[
+            SafetyEvidenceButton(
+              incidentId: _result!['incident_id'].toString(),
+            ),
+            const SizedBox(height: MortSpacing.md),
+            MortButton(
+              label: 'View My Safety Cases',
+              style: MortButtonStyle.secondary,
+              onPressed: () => context.push('/settings/safety-cases'),
+            ),
+          ],
           if (_immediateDanger) ...[
             const MortSafetyBanner(
               message:
@@ -4895,30 +4938,26 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
               'For immediate danger, contact local emergency services and a trusted adult.',
         ),
         const SizedBox(height: MortSpacing.md),
-        MortDropdown<String>(
-          label: 'Reason',
-          value: _reason,
-          items: const {
-            'unsafe_job': 'Unsafe or prohibited job',
-            'scam': 'Scam or upfront fee',
-            'contact_sharing': 'Off-platform contact pressure',
-            'harassment': 'Harassment',
-            'threats': 'Threats or coercion',
-            'stalking': 'Stalking or repeated contact',
-            'sexual_content': 'Sexual content',
-            'grooming_exploitation': 'Grooming or exploitation concern',
-            'private_images': 'Private or inappropriate images',
-            'weapons_substances': 'Weapons, substances, or dangerous tools',
-            'other': 'Other',
-          },
-          onChanged: (value) => setState(() {
-            _reason = value ?? 'other';
-            _requestId = null;
-          }),
-        ),
+        const MortSectionTitle(title: 'Select all concerns that apply'),
+        for (final category in _categoryLabels.entries)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(category.value),
+            value: _categories.contains(category.key),
+            onChanged: _busy
+                ? null
+                : (checked) => setState(() {
+                    if (checked == true) {
+                      _categories.add(category.key);
+                    } else {
+                      _categories.remove(category.key);
+                    }
+                    _requestId = null;
+                  }),
+          ),
         const SizedBox(height: MortSpacing.sm),
         MortTextArea(
-          label: 'What happened?',
+          label: 'What happened? (optional)',
           controller: _details,
           maxLines: 5,
           maxLength: 1000,
@@ -5147,15 +5186,261 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
   String? _selectedJobId = '';
   String? _pingRequestId;
   String? _pingPayload;
+  Map<String, dynamic>? _runtime;
+  Timer? _runtimePoll;
+  bool _runtimeLoading = false;
+  bool _runtimeStale = false;
+  final Map<String, String> _runtimeRequestIds = {};
+  final Map<String, DateTime> _runtimeRequestTimes = {};
+
+  Future<void> _loadRuntime() async {
+    if (_runtimeLoading || !mounted) return;
+    final owner = ref.read(currentProfileProvider).asData?.value?.id;
+    _runtimeLoading = true;
+    try {
+      final runtime = await ref
+          .read(safetyRepositoryProvider)
+          .getRuntime()
+          .timeout(const Duration(seconds: 8));
+      if (mounted &&
+          ref.read(currentProfileProvider).asData?.value?.id == owner) {
+        setState(() {
+          _runtime = runtime;
+          _runtimeStale = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _runtimeStale = true);
+      // Keep last-known context for an offline Safety Exit; label it as stale.
+    } finally {
+      _runtimeLoading = false;
+    }
+  }
+
+  String? get _activeApplication =>
+      _runtime?['application_id']?.toString() ??
+      (_checkins.isEmpty
+          ? null
+          : _checkins.first['application_id']?.toString());
+
+  Future<SafetyActionReceipt> _runtimeAction(String action) async {
+    final application = _activeApplication;
+    final owner = ref.read(currentProfileProvider).asData?.value?.id;
+    final key = '$owner:$action:$application';
+    final requestId = _runtimeRequestIds.putIfAbsent(
+      key,
+      () => const Uuid().v4(),
+    );
+    final requestedAt = _runtimeRequestTimes.putIfAbsent(
+      key,
+      () => DateTime.now().toUtc(),
+    );
+    final queued = owner != null && (action == 'alert' || action == 'exit');
+    Future<Map<String, dynamic>> dispatch() => ref
+        .read(safetyRepositoryProvider)
+        .performAction(
+          action: action,
+          applicationId: application,
+          payload: owner == null
+              ? const {}
+              : {
+                  'actor_id': owner,
+                  'requested_at': requestedAt.toIso8601String(),
+                },
+          clientRequestId: requestId,
+        )
+        .timeout(const Duration(seconds: 10));
+    final result = queued
+        ? await ref
+              .read(safetyOutboxProvider)
+              .dispatchCritical(
+                userId: owner,
+                requestId: requestId,
+                action: action,
+                applicationId: application,
+                requestedAt: requestedAt,
+                dispatch: dispatch,
+              )
+        : await dispatch();
+    _runtimeRequestIds.remove(key);
+    _runtimeRequestTimes.remove(key);
+    safetyMonitorRefresh.value++;
+    if (action == 'share') {
+      unawaited(
+        requestSafetyLocationConsent().then((allowed) {
+          if (!allowed && mounted)
+            MortToast.show(
+              context,
+              'Sharing window recorded. Location permission is off; live coordinates are unavailable.',
+            );
+        }),
+      );
+    }
+    unawaited(_loadRuntime());
+    return SafetyActionReceipt.fromMap(result);
+  }
+
+  Future<void> _leaveForSafety() async {
+    final leave = await showDialog<bool>(
+      context: context,
+      animationStyle: AnimationStyle.noAnimation,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Leave this job for safety?'),
+        content: const Text(
+          "You do not need the poster's permission or Finish PIN to leave.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Stay at Job'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Leave Now'),
+          ),
+        ],
+      ),
+    );
+    if (leave != true || !mounted) return;
+    try {
+      await _runtimeAction('exit');
+      if (!mounted) return;
+      MortToast.show(context, 'Safety Exit recorded. You can leave now.');
+      final next = await showDialog<String>(
+        context: context,
+        animationStyle: AnimationStyle.noAnimation,
+        builder: (dialog) => SimpleDialog(
+          title: const Text('You can leave now'),
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'You can add details later. Your private Safety case stays open for review.',
+              ),
+            ),
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(dialog, '/report'),
+              child: const Text('Add a private report'),
+            ),
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(dialog, '/settings/safety-cases'),
+              child: const Text('Add evidence to my Safety case'),
+            ),
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(dialog, '/support/chat'),
+              child: const Text('Open MORT Support'),
+            ),
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(dialog),
+              child: const Text('Later'),
+            ),
+          ],
+        ),
+      );
+      if (mounted && next != null) context.push(next);
+    } catch (_) {
+      if (mounted)
+        MortToast.show(
+          context,
+          'You can leave now. Safety Exit was not confirmed; use calling options and retry when connected.',
+        );
+    }
+  }
+
+  void _openEmergency() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: MortColors.ink2,
+      sheetAnimationStyle: AnimationStyle.noAnimation,
+      builder: (_) => SizedBox(
+        height: MediaQuery.sizeOf(context).height * .92,
+        child: ValueListenableBuilder<SafetyDeviceStatus>(
+          valueListenable: safetyDeviceStatus,
+          builder: (_, status, _) => EmergencyPanel(
+            canSendContacts:
+                ref.read(currentProfileProvider).asData?.value?.role ==
+                UserRole.teen,
+            offline: !status.connected,
+            onAlert: () => _runtimeAction('alert'),
+            onShare: () => _runtimeAction('share'),
+            onCallEmergency: _callEmergencyServices,
+            onCallGuardian: () =>
+                openKnownSafetyContactCall(context, 'Guardian'),
+            onCallTrusted: () =>
+                openKnownSafetyContactCall(context, 'Trusted Contact'),
+            onLeave: _activeApplication == null ? null : _leaveForSafety,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _manageSafetyAction(String action) async {
+    try {
+      await _runtimeAction(action);
+      if (mounted)
+        MortToast.show(
+          context,
+          action == 'stop_sharing'
+              ? 'Live location sharing stopped.'
+              : action == 'extend_sharing'
+              ? 'Sharing extended for 60 minutes.'
+              : 'Safety response recorded.',
+        );
+    } catch (_) {
+      if (mounted)
+        MortToast.show(context, 'Safety change not confirmed. Try again.');
+    }
+  }
+
+  Widget _liveSharingCard() {
+    final ends = DateTime.tryParse(
+      _runtime?['sharing_expires_at']?.toString() ?? '',
+    );
+    final active = ends != null && ends.isAfter(DateTime.now());
+    return MortCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const MortSectionTitle(title: 'Live Safety Sharing'),
+          SafetySharingCountdown(expiresAt: ends),
+          if (active) ...[
+            const SizedBox(height: MortSpacing.sm),
+            MortButton(
+              label: 'Stop Sharing',
+              style: MortButtonStyle.secondary,
+              onPressed: () => _manageSafetyAction('stop_sharing'),
+            ),
+            const SizedBox(height: MortSpacing.sm),
+            MortButton(
+              label: 'Extend 60 Minutes',
+              style: MortButtonStyle.secondary,
+              onPressed: () => _manageSafetyAction('extend_sharing'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 
   @override
   void initState() {
     super.initState();
     unawaited(_load());
+    unawaited(_loadRuntime());
+    _runtimePoll = Timer.periodic(const Duration(seconds: 30), (_) {
+      final lifecycle = WidgetsBinding.instance.lifecycleState;
+      if (mounted &&
+          (lifecycle == null || lifecycle == AppLifecycleState.resumed)) {
+        unawaited(_loadRuntime());
+      }
+    });
   }
 
   @override
   void dispose() {
+    _runtimePoll?.cancel();
     _note.dispose();
     super.dispose();
   }
@@ -5208,6 +5493,8 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
       if (mounted) {
         MortToast.show(context, 'Open your Phone app and call 911.');
       }
+    } else if (mounted) {
+      MortToast.show(context, 'Emergency call opened');
     }
   }
 
@@ -5267,26 +5554,8 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
           .completeActiveJobCheckin(checkinId: checkinId);
       if (mounted) MortToast.show(context, 'Check-in completed.');
       await _load();
-    } catch (error) {
-      if (mounted) MortToast.show(context, userFacingError(error));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _scheduleCheckin(String applicationId) async {
-    if (_busy) return;
-    setState(() => _busy = true);
-    try {
-      await ref
-          .read(safetyRepositoryProvider)
-          .scheduleActiveJobCheckin(
-            applicationId: applicationId,
-            minutesFromNow: 60,
-          );
-      if (mounted)
-        MortToast.show(context, 'Next check-in scheduled for 60 minutes.');
-      await _load();
+      unawaited(_loadRuntime());
+      safetyMonitorRefresh.value++;
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
     } finally {
@@ -5329,6 +5598,104 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
       atmosphereIntensity: MortAtmosphereIntensity.midnight,
       children: [
         header,
+        const SizedBox(height: MortSpacing.md),
+        MortButton(
+          label: 'Emergency',
+          icon: Icons.emergency_outlined,
+          style: MortButtonStyle.danger,
+          onPressed: _openEmergency,
+        ),
+        const SizedBox(height: MortSpacing.md),
+        MortCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                _runtime == null
+                    ? 'Safety status needs a refresh'
+                    : _runtime?['safety_state'] != 'normal'
+                    ? titleCase(
+                        _runtime?['safety_state']?.toString() ??
+                            'Status unavailable',
+                      )
+                    : _activeApplication == null
+                    ? 'No active Safety alert'
+                    : 'Job Safety Active',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              Text(
+                _runtime == null
+                    ? 'Emergency actions remain available.'
+                    : _runtimeStale
+                    ? 'Last confirmed state. Refresh when connected.'
+                    : _runtime?['safety_state'] == 'normal'
+                    ? 'No active safety alerts'
+                    : titleCase(
+                        _runtime?['safety_state']?.toString() ??
+                            'Status unavailable',
+                      ),
+              ),
+              if (_runtime?['job_title'] != null)
+                Text(_runtime!['job_title'].toString()),
+              if (_runtime?['review_hold'] == true)
+                const Text(
+                  'Safety Review Hold: support, evidence and dispute work remain available. Ratings and completion require case review.',
+                ),
+              if (_runtime?['next_checkin_at'] != null)
+                Text(
+                  'Next safety check: ${formatDateTime(_runtime!['next_checkin_at'])}',
+                ),
+              if (isTeen) ...[
+                const SizedBox(height: MortSpacing.sm),
+                MortButton(
+                  label: "I'm Safe",
+                  style: MortButtonStyle.secondary,
+                  onPressed: () => _manageSafetyAction('safe'),
+                ),
+              ],
+              if (_activeApplication != null) ...[
+                const SizedBox(height: MortSpacing.sm),
+                MortButton(
+                  label: 'Leave This Job',
+                  style: MortButtonStyle.secondary,
+                  onPressed: _leaveForSafety,
+                ),
+              ],
+              if (_runtime?['final_safety_pending'] == true) ...[
+                const Text('Did you leave the job safely?'),
+                MortButton(
+                  label: "Yes, I'm Safe",
+                  onPressed: () => _manageSafetyAction('final_safe'),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: MortSpacing.md),
+        MortCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const MortSectionTitle(title: 'People Looking Out for You'),
+              Text(
+                'Guardian: ${_runtime?['guardian_count'] ?? 'status unavailable'}',
+              ),
+              Text(
+                'Trusted contacts: ${_runtime?['trusted_count'] ?? 'status unavailable'}',
+              ),
+              const SizedBox(height: MortSpacing.sm),
+              const Text('Who Can See What'),
+              const Text(
+                'Guardian: job safety, travel and check-in status. Trusted contact: safety events only.',
+              ),
+              const Text('The poster does not see your exact moving location.'),
+            ],
+          ),
+        ),
+        const SizedBox(height: MortSpacing.md),
+        _liveSharingCard(),
+        const SizedBox(height: MortSpacing.md),
+        const SafetyDeviceCard(),
         if (inTeenShell) const SizedBox(height: MortSpacing.md),
         Semantics(
           identifier: 'qa-safety-no-dispatch',
@@ -5441,13 +5808,9 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
                                 ),
                         ),
                         MortAction(
-                          label: 'Add 60-minute check-in',
-                          icon: Icons.add_alarm,
-                          onPressed: _busy
-                              ? null
-                              : () => _scheduleCheckin(
-                                  checkin['application_id'].toString(),
-                                ),
+                          label: 'I Need Help',
+                          icon: Icons.emergency_outlined,
+                          onPressed: _openEmergency,
                         ),
                         MortAction(
                           label: 'Open job safety',
@@ -6004,27 +6367,6 @@ class _AdminRowCardState extends ConsumerState<_AdminRowCard> {
     AdminModerationQueueAction.none => 'Update',
   };
 
-  Future<bool> _confirm(String title, String message) async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: Text(title),
-            content: Text(message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text('Confirm'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
-  }
-
   Future<({String reasonCode, String note})?> _moderationDecision() async {
     final noteController = TextEditingController();
     var selectedReason = _reasonCodes.isEmpty ? null : _reasonCodes.first;
@@ -6135,11 +6477,11 @@ class _AdminRowCardState extends ConsumerState<_AdminRowCard> {
       _ =>
         'The current safety review is resolved. Appeal options remain available where applicable.',
     };
-    final confirmed = await _confirm(
+    final rationale = await requestSafetyReviewReason(
+      context,
       'Update restricted incident?',
-      'This audited action changes the participant-visible case status. It does not publish allegations or raw evidence.',
     );
-    if (!confirmed) return;
+    if (rationale == null) return;
     setState(() => _busy = true);
     try {
       await ref
@@ -6148,6 +6490,7 @@ class _AdminRowCardState extends ConsumerState<_AdminRowCard> {
             incidentId: id,
             status: status,
             publicNote: publicNote,
+            restrictedNote: rationale,
           );
       if (!mounted) return;
       MortToast.show(context, 'Incident status updated.');
@@ -6199,6 +6542,8 @@ class _AdminRowCardState extends ConsumerState<_AdminRowCard> {
             ),
           ] else if (id != null &&
               widget.sensitiveAction == AdminSensitiveQueueAction.incident) ...[
+            const SizedBox(height: MortSpacing.md),
+            StaffSafetyContextButton(incidentId: id),
             const SizedBox(height: MortSpacing.md),
             MortActionRow(
               actions: [

@@ -9,6 +9,7 @@ import '../../data/repositories/observability_repository.dart';
 import '../../data/services/supabase_service.dart';
 import '../config/app_config.dart';
 import 'structured_log.dart';
+import '../../features/safety/safety_device_status.dart';
 
 class MortProductAnalytics {
   MortProductAnalytics._();
@@ -87,10 +88,11 @@ class MortProductAnalytics {
     required String surface,
     required String outcome,
   }) async {
-    if (!buildEnabled || !_optedIn) return;
+    if (!buildEnabled || !_optedIn || safetyDeviceStatus.value.saver) return;
     if (SupabaseService.client.auth.currentUser == null) return;
     try {
       final package = _packageInfo ??= await PackageInfo.fromPlatform();
+      if (safetyDeviceStatus.value.saver) return;
       await _repository.recordProductEvent(
         eventName: eventName,
         surface: surface,

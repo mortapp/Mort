@@ -44,6 +44,15 @@ import UIKit
       binaryMessenger: engineBridge.applicationRegistrar.messenger()
     )
     channel.setMethodCallHandler { [weak self] call, result in
+      if call.method == "readSafetyPower" {
+        UIDevice.current.isBatteryMonitoringEnabled = true
+        let level = UIDevice.current.batteryLevel
+        result([
+          "percent": level >= 0 ? Int((level * 100).rounded()) as Any : NSNull(),
+          "systemSaver": ProcessInfo.processInfo.isLowPowerModeEnabled,
+        ])
+        return
+      }
       guard call.method == "setSecureScreen" else {
         result(FlutterMethodNotImplemented)
         return

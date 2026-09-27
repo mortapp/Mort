@@ -4,6 +4,7 @@ import '../../l10n/mort_l10n.dart';
 import '../auth/auth_startup.dart';
 import '../theme/mort_spacing.dart';
 import 'mort_widgets.dart';
+import '../../features/safety/emergency_access_button.dart';
 
 class AuthStartupGate extends StatelessWidget {
   const AuthStartupGate({
@@ -39,6 +40,8 @@ class AuthStartupGate extends StatelessWidget {
             icon: Icons.refresh,
             onPressed: controller.retry,
           ),
+          const SizedBox(height: MortSpacing.md),
+          const EmergencyAccessButton(),
         ],
       );
     }
@@ -55,6 +58,7 @@ class AuthStartupGate extends StatelessWidget {
             title: 'Secure startup stopped',
             message: snapshot.message ?? strings.installConfiguredBuild,
           ),
+          const EmergencyAccessButton(),
         ],
       );
     }
@@ -73,6 +77,7 @@ class AuthStartupGate extends StatelessWidget {
           subtitle: strings.checkingDevice,
         ),
         MortLoading(label: label, fullScreen: false),
+        const EmergencyAccessButton(),
       ],
     );
   }

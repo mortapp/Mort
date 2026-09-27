@@ -255,6 +255,25 @@ await withQaUsers(
       "Safety Center configuration implied physical intervention or lacked local emergency routing",
     );
     const initialCheckins = await teen.client.rpc("get_my_active_job_checkins");
+    const centerRuntime = await teen.client.rpc('get_my_safety_runtime');
+    const centerAvailable = !centerRuntime.error && centerRuntime.data?.ok === true;
+    if (process.env.MORT_QA_LOCAL_SUPABASE === 'true') {
+      assertQa(centerAvailable, 'Current local Safety runtime is required for PIN regression');
+    }
+    if (centerAvailable) {
+      const next = new Date(centerRuntime.data.next_checkin_at).getTime();
+      assertQa(next > Date.now() + 330000 && next <= Date.now() + 360000,
+        'Real Start PIN did not establish the six-minute cadence');
+      const connected = await withDatabase(async db => (await db.query(
+        'select last_seen_at,travel_state from private.safety_device_state where teen_id=$1', [teen.id])).rows[0]);
+      assertQa(connected.last_seen_at != null && connected.travel_state === 'off',
+        'Start PIN failed to establish a connection or left travel active');
+      const earlyFinal = await teen.client.rpc('perform_safety_action', {
+        p_action: 'final_safe', p_application_id: execution.applicationId,
+        p_payload: {}, p_client_request_id: randomUUID(),
+      });
+      assertQa(earlyFinal.data?.code === 'final_safety_check_not_pending', 'Final departure accepted before Finish PIN');
+    }
     assertQa(
       !initialCheckins.error && initialCheckins.data.length >= 1,
       "start PIN did not schedule active-job cadence check-ins",
@@ -312,6 +331,16 @@ await withQaUsers(
         [scheduled.checkin_id],
       ),
     );
+    if (centerAvailable) {
+      await withDatabase(db => db.query(`update private.safety_device_state
+        set next_checkin_at=now()-interval '1 second',last_seen_at=now(),missed_online_checks=0 where teen_id=$1`, [teen.id]));
+      const firstMiss = await serviceClient.rpc('escalate_missed_job_checkins');
+      assertQa(!firstMiss.error, 'First six-minute check worker failed');
+      const firstState = await teen.client.rpc('get_my_safety_runtime');
+      assertQa(firstState.data?.safety_state === 'checkin_missed', 'First online miss was not a teen-only reminder');
+      await withDatabase(db => db.query(`update private.safety_device_state
+        set next_checkin_at=now()-interval '1 second',last_seen_at=now() where teen_id=$1`, [teen.id]));
+    }
     const escalated = await serviceClient.rpc("escalate_missed_job_checkins");
     assertQa(
       !escalated.error && escalated.data >= 1,
@@ -331,7 +360,7 @@ await withQaUsers(
     assertQa(
       missedCheckin.data?.status === "missed" &&
         missedCheckin.data?.escalation_sent_at &&
-        missedPing.data?.some((ping) => /not emergency dispatch/i.test(ping.note)),
+        missedPing.data?.some((ping) => /not (automatic )?emergency dispatch/i.test(ping.note)),
       "missed check-in did not create a bounded no-dispatch safety alert",
     );
     const lateCompletion = expectRpc(
@@ -430,6 +459,26 @@ await withQaUsers(
       "finish PIN left pending cadence check-ins that could later false-alert",
     );
     qaLog(scope, "concurrent finish confirmation performs one transition and moves no money");
+    if (centerAvailable) {
+      const pendingFinal = await teen.client.rpc('get_my_safety_runtime');
+      assertQa(pendingFinal.data?.final_safety_pending === true && pendingFinal.data.next_checkin_at == null,
+        'Real Finish PIN did not stop cadence and request a final departure check');
+      const finalArgs = { p_action: 'final_safe', p_application_id: execution.applicationId,
+        p_payload: {}, p_client_request_id: randomUUID() };
+      const posterOverride = await adult.client.rpc('perform_safety_action', finalArgs);
+      assertQa(posterOverride.data?.code === 'active_teen_required', 'Poster marked the teen finally safe');
+      const safe = await teen.client.rpc('perform_safety_action', finalArgs);
+      const safeReplay = await teen.client.rpc('perform_safety_action', finalArgs);
+      assertQa(safe.data?.ok === true && safeReplay.data?.replayed === true,
+        'Final safe departure was not confirmed idempotently by the teen');
+      const finalState = await teen.client.rpc('get_my_safety_runtime');
+      assertQa(finalState.data?.final_safety_pending === false, 'Final departure remained pending');
+      await withDatabase(db => db.query("update private.safety_device_state set last_seen_at=now()-interval '16 minutes' where teen_id=$1", [teen.id]));
+      await serviceClient.rpc('escalate_missed_job_checkins');
+      const afterDeparture = await teen.client.rpc('get_my_safety_runtime');
+      assertQa(afterDeparture.data?.safety_state === 'normal', 'Finished and safely departed worker was re-escalated');
+      qaLog(scope, 'Start cadence, Finish PIN final check, caller isolation, retry, and stop-after-departure verified');
+    }
 
     const oldStart = await teen.client.rpc("confirm_job_start_pin", {
       p_application_id: execution.applicationId,

@@ -122,3 +122,6 @@ verify_jwt = true
 
 [functions.support-evaluation-runner]
 verify_jwt = true
+
+[functions.safety-travel-eta]
+verify_jwt = true

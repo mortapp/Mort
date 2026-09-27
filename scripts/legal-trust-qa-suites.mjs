@@ -362,6 +362,32 @@ const suites = {
     const latest = await serviceClient.from("job_contract_versions").select("version_number,fixed_total_cents,agreed_scope,status").eq("contract_id", fixture.contract.id).order("version_number", { ascending: false }).limit(1).single();
     assertQa(latest.data.version_number === 2 && latest.data.fixed_total_cents === 2000 && latest.data.status === "active", "Mutually accepted change version was not created");
     qaLog(scope, "amount and scope change required both exact-hash confirmations");
+    const rescheduledStart = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+    const reschedule = await users.adult.client.rpc("request_job_contract_change", {
+      p_contract_id: fixture.contract.id,
+      p_patch: { service_date: rescheduledStart.slice(0, 10), start_window: rescheduledStart },
+      p_reason: "Reschedule requested for a worker connection or safety issue.",
+    });
+    assertQa(!reschedule.error && reschedule.data?.ok === true && reschedule.data.both_parties_must_accept === true,
+      "Connection/Safety reschedule proposal failed or bypassed mutual consent");
+    const adultReschedule = await users.adult.client.rpc("respond_job_contract_change", {
+      p_change_request_id: reschedule.data.change_request_id, p_accept:true,p_affirmative_checkbox:true,
+    });
+    assertQa(adultReschedule.data?.status === "awaiting_other_party", "Poster unilaterally rescheduled the worker");
+    const beforeReschedule = await serviceClient.from("job_contract_versions").select("version_number")
+      .eq("contract_id",fixture.contract.id).eq("status","active").single();
+    assertQa(beforeReschedule.data?.version_number === 2, "Unconfirmed reschedule replaced the active agreement");
+    const teenReschedule = await users.teen.client.rpc("respond_job_contract_change", {
+      p_change_request_id:reschedule.data.change_request_id,p_accept:true,p_affirmative_checkbox:true,
+    });
+    assertQa(!teenReschedule.error && teenReschedule.data?.status === "accepted", "Worker could not confirm the reschedule");
+    const newSchedule = await serviceClient.from("job_contract_versions")
+      .select("version_number,service_date,start_window,fixed_total_cents,status")
+      .eq("contract_id",fixture.contract.id).eq("status","active").single();
+    assertQa(newSchedule.data?.version_number === 3 && newSchedule.data.service_date === rescheduledStart.slice(0,10) &&
+      new Date(newSchedule.data.start_window).getTime() === new Date(rescheduledStart).getTime() &&
+      newSchedule.data.fixed_total_cents === 2000, "Accepted reschedule did not preserve amount and exact proposed time");
+    qaLog(scope, "connection/Safety reschedule required both parties and preserved the exact agreed date/time and amount");
   }),
 
   "qa-payment-obligation": async (scope) => withQaUsers(scope, [{ key: "teen", role: "teen" }, { key: "adult", role: "adult" }], async (users) => {

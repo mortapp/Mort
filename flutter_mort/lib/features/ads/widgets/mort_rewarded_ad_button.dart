@@ -6,6 +6,7 @@ import '../../../core/config/app_config.dart';
 import '../../../core/widgets/mort_widgets.dart';
 import '../../../data/repositories/providers.dart';
 import '../data/admob_service.dart';
+import '../../safety/safety_device_status.dart';
 
 class MortNativeRewardedAdButton extends ConsumerStatefulWidget {
   const MortNativeRewardedAdButton({
@@ -35,18 +36,34 @@ class _MortNativeRewardedAdButtonState
   @override
   void initState() {
     super.initState();
+    safetyDeviceStatus.addListener(_safetyChanged);
     if (AppConfig.nativeAdsCompiledIn && AppConfig.adsEnabled) {
+      _loadIfNeeded();
+    }
+  }
+
+  void _safetyChanged() {
+    if (!mounted) return;
+    if (safetyDeviceStatus.value.saver) {
+      _ad?.dispose();
+      setState(() {
+        _ad = null;
+        _loading = false;
+      });
+    } else {
       _loadIfNeeded();
     }
   }
 
   @override
   void dispose() {
+    safetyDeviceStatus.removeListener(_safetyChanged);
     _ad?.dispose();
     super.dispose();
   }
 
   Future<void> _loadIfNeeded() async {
+    if (safetyDeviceStatus.value.saver) return;
     if (_ad != null || _loading) return;
     final userId = ref.read(authRepositoryProvider).currentUser?.id;
     if (userId == null) return;
@@ -59,7 +76,11 @@ class _MortNativeRewardedAdButtonState
       placement: widget.placement,
       adFormat: 'rewarded',
     );
-    if (!mounted || !decision.canShow || decision.adUnitId == null) return;
+    if (!mounted ||
+        safetyDeviceStatus.value.saver ||
+        !decision.canShow ||
+        decision.adUnitId == null)
+      return;
     setState(() => _loading = true);
     RewardedAd.load(
       adUnitId: decision.adUnitId!,
@@ -79,6 +100,7 @@ class _MortNativeRewardedAdButtonState
             return;
           }
           if (!mounted ||
+              safetyDeviceStatus.value.saver ||
               ref.read(authRepositoryProvider).currentUser?.id != userId) {
             ad.dispose();
             return;
@@ -99,6 +121,7 @@ class _MortNativeRewardedAdButtonState
   }
 
   void _show() {
+    if (safetyDeviceStatus.value.saver) return;
     final ad = _ad;
     if (ad == null) return;
     if (_pendingUserId != ref.read(authRepositoryProvider).currentUser?.id) {
@@ -135,6 +158,7 @@ class _MortNativeRewardedAdButtonState
 
   @override
   Widget build(BuildContext context) {
+    if (safetyDeviceStatus.value.saver) return const SizedBox.shrink();
     if (!AppConfig.nativeAdsCompiledIn || !AppConfig.adsEnabled) {
       final decision = const AdMobService().rewardedDecision(
         placement: widget.placement,
