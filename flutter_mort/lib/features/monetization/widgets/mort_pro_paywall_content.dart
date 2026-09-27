@@ -280,6 +280,29 @@ class _MortProPaywallContentState extends State<MortProPaywallContent> {
                       ),
                     ),
                   ],
+                  if (!widget.isPro) ...[
+                    const SizedBox(height: 10),
+                    OutlinedButton(
+                      key: const Key('pro-continue-free'),
+                      onPressed: widget.onClose,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: MortColors.silverBright,
+                        minimumSize: const Size.fromHeight(52),
+                        side: BorderSide(
+                          color: MortColors.borderSilver.withValues(alpha: .6),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(19),
+                        ),
+                        textStyle: const TextStyle(
+                          fontFamily: 'Roboto',
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      child: const Text('Continue with Free'),
+                    ),
+                  ],
                   if (widget.message != null && widget.plans.isNotEmpty) ...[
                     const SizedBox(height: 10),
                     _StateMessage(widget.message!),

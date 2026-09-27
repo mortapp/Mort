@@ -82,7 +82,42 @@ All evidence is under C:\Users\micha\Mort\build\qa:
 - SAFETY_qa-rls-cross-user-exploit_2026-09-27.log
 - SAFETY_MIGRATION_TRANSACTION_VALIDATION_2026-09-27.log
 
-The local working tree contains an untracked flutter_mort/node_modules junction.
-It is excluded from staging and artifacts. Automatic approval review previously
+The local working tree contains a flutter_mort/node_modules dependency junction.
+It is ignored as a dependency, excluded from staging and artifacts, and retained
+on disk. Automatic approval review previously
 rejected its removal; this review does not bypass that rejection or claim a
 completely clean worktree.
+
+## CI follow-up review
+
+The first exact-head clean migration CI reset succeeded, but the older Guardian
+Mode QA expected a notification for a routine successful ping. That assertion
+was reproduced locally. The supplied Safety skill explicitly restricts routine
+successful check-in notifications. The QA now proves quiet routine status and
+also requires an explicit Safety Alert to queue exactly one enabled guardian
+notification, with unrelated guardian access denied. Hosted legacy behavior
+remains tested until the new runtime is deployed.
+
+Additional authenticated local checks verify travel reconnect requires explicit
+Continue/Cancel, request replay, poster arrival denial and teen I'm Here without
+work start. The canonical contract-change test now also exercises both-party
+consent for the exact Safety reschedule date/time and unchanged agreed amount.
+This follow-up changes verification and dependency exclusion, not production
+Safety or paywall behavior. The four review perspectives retain the same
+production and external-gate verdict, subject to the corrected head's CI.
+
+## Requested free continuation
+
+The user requested Continue with Free directly below the paid-plan action. The
+preserved paywall now provides an outlined free action using the existing close
+navigation callback; it never calls the purchase callback or changes entitlement
+state. It is also available when offerings are loading/unavailable. Accounts
+already showing active Pro retain the existing close action; this button does
+not cancel a subscription or revoke Pro.
+
+Sequential review: Believer checked placement and preserved styling; Skeptic
+checked the close/purchase callbacks and account state boundaries; Investor
+checked that free continuation does not mutate billing; Judge requires the
+current focused widget, render/callback and exact-head CI results. The six
+focused paywall contracts passed after this change. Native artifacts from
+0f7b383 predate the free button and must not be presented as the newest UI.

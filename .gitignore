@@ -8,6 +8,7 @@
 /coverage/
 /outputs/
 /node_modules/
+/flutter_mort/node_modules/
 /backups/
 /artifacts/
 /qa/recordings/

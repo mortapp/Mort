@@ -61,7 +61,8 @@ void main() {
         }
         await loader.load();
         // Widget tests default unspecified text styles to the square Ahem face.
-        // Use Flutter's normal Material font for those fallback styles too.
+        // Try normal Material fonts for fallback styles. The test engine may
+        // retain preloaded Ahem; this is not native font certification.
         final fallback = FontLoader('Ahem');
         for (final file in ['roboto-regular.ttf', 'roboto-bold.ttf']) {
           fallback.addFont(
@@ -101,6 +102,7 @@ void main() {
         String label,
         Widget child, {
         double height = 844,
+        Future<void> Function()? check,
       }) async {
         await tester.binding.setSurfaceSize(Size(390, height));
         final boundaryKey = GlobalKey();
@@ -158,6 +160,7 @@ void main() {
             '$output/$filename',
           ).writeAsBytes(bytes!.buffer.asUint8List());
         });
+        if (check != null) await check();
         await tester.pumpWidget(const SizedBox.shrink());
       }
 
@@ -183,6 +186,8 @@ void main() {
           onLeave: () async {},
         ),
       );
+      var freeContinues = 0;
+      var purchases = 0;
       await render(
         'MORT_PRO_PAYWALL_QA_SAMPLE_PRICES_2026-09-27.png',
         'QA render • sample prices • no purchase performed',
@@ -199,14 +204,28 @@ void main() {
           ],
           loading: false,
           busy: false,
-          onPurchase: (_) {},
+          onPurchase: (_) => purchases++,
           onRestore: () {},
           onRetry: () {},
-          onClose: () {},
+          onClose: () => freeContinues++,
           onTerms: () {},
           onPrivacy: () {},
         ),
         height: 1200,
+        check: () async {
+          final free = find.byKey(const Key('pro-continue-free'));
+          expect(free, findsOneWidget);
+          await tester.ensureVisible(free);
+          expect(
+            tester.getTopLeft(free).dy,
+            greaterThan(
+              tester.getBottomLeft(find.byKey(const Key('pro-continue'))).dy,
+            ),
+          );
+          await tester.tap(free);
+          expect(freeContinues, 1);
+          expect(purchases, 0);
+        },
       );
     },
   );

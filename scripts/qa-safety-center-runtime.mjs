@@ -188,6 +188,38 @@ await withQaUsers(scope, [
       assertQa(stale.nearby === false && stale.eta_range_min == null, 'Expired route still claimed the worker was Nearby');
     } finally { await db.query('rollback'); }
   });
+  // Arrival is the worker's explicit statement, never a work-start/PIN bypass.
+  const forgedArrivalAction = await poster.client.rpc('perform_safety_action', {
+    ...params, p_action:'arrived', p_application_id:appId, p_client_request_id:randomUUID(),
+  });
+  assertQa(forgedArrivalAction.data?.ok === false, 'Poster fabricated the teen arrival action');
+  await withDatabase(db => db.query("update private.safety_device_state set last_seen_at=now()-interval '3 minutes' where teen_id=$1", [teen.id]));
+  const reconnected = await teen.client.rpc('record_safety_device_snapshot', {
+    p_application_id:appId,p_battery_percent:45,p_saver_enabled:false,
+    p_latitude:null,p_longitude:null,p_location_at:null,p_expected_actor_id:teen.id,
+  });
+  assertQa(reconnected.data?.ok === true, 'Travel reconnect heartbeat failed');
+  const reconfirm = await teen.client.rpc('get_job_safety_runtime', {p_application_id:appId});
+  assertQa(reconfirm.data?.travel_state === 'reconfirm', 'Reconnect silently resumed location/travel consent');
+  const continueArgs = {...params,p_action:'continue_trip',p_application_id:appId,p_client_request_id:randomUUID()};
+  const continued = await teen.client.rpc('perform_safety_action', continueArgs);
+  const continuedReplay = await teen.client.rpc('perform_safety_action', continueArgs);
+  assertQa(continued.data?.ok === true && continuedReplay.data?.replayed === true,
+    'Explicit Continue Trip did not confirm idempotently');
+  const stoppedTrip = await teen.client.rpc('perform_safety_action', {
+    ...params,p_action:'stop_trip',p_application_id:appId,p_client_request_id:randomUUID(),
+  });
+  const stoppedState = await teen.client.rpc('get_job_safety_runtime', {p_application_id:appId});
+  assertQa(stoppedTrip.data?.ok === true && stoppedState.data?.travel_state === 'off' && stoppedState.data?.job_status === 'accepted',
+    'Cancel Trip changed attendance or failed to stop travel');
+  const arrivalActionArgs = {...params,p_action:'arrived',p_application_id:appId,p_client_request_id:randomUUID()};
+  const arrived = await teen.client.rpc('perform_safety_action', arrivalActionArgs);
+  const arrivedReplay = await teen.client.rpc('perform_safety_action', arrivalActionArgs);
+  const arrivedState = await teen.client.rpc('get_job_safety_runtime', {p_application_id:appId});
+  assertQa(arrived.data?.ok === true && arrivedReplay.data?.replayed === true &&
+    arrivedState.data?.travel_state === 'arrived' && arrivedState.data?.job_status === 'accepted',
+    "I'm Here started work or failed to record only the worker's explicit arrival");
+  qaLog(scope, 'manual travel reconnect consent, Continue/Cancel replay and teen-only arrival without work start verified');
   const version = await withDatabase(async db => (await db.query(`select v.id from public.job_contract_versions v
     join public.job_contracts c on c.id=v.contract_id where c.application_id=$1 order by v.version_number desc limit 1`, [appId])).rows[0]);
   assertQa(version, 'Accepted Safety fixture did not create a contract version');
