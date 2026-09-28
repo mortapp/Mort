@@ -25,7 +25,8 @@ The authoritative app is `flutter_mort`. Its checked-in `pubspec.yaml` says `0.9
 2. **Android QA accessibility:** added a stable semantics identifier to onboarding Display name and removed the Appium second-EditText selector. Focused Flutter and Node tests pass; a real BrowserStack session is still required to prove the Android accessibility bridge on hardware.
 3. **Paywall regression:** added tests that tap Continue with Free with plans present and while offerings load. Neither case calls purchase or restore; each calls the existing close callback once. Paywall UI and production callback code were not changed.
 4. **Migration parity checker:** fixed its Git blob hash preamble from a literal backslash-zero to the required NUL byte. The seven compatibility aliases and three restored hosted guardian migrations now pass; no SQL migration was edited or deployed.
-5. **Documentation:** marked old blueprint and Data Safety workbooks as historical where they contradict the 114 billing-enabled client. The ledger above records current technical data classes and outstanding gates.
+5. **Companion Studio:** inspected the owner-supplied `Create_Unique_Pet_Animations.zip` as a design reference and built the separate Flutter Studio. It includes 14 original vector companions, cosmetic customization, account-scoped saved looks, short interactions, and 15/25/45/60 minute Focus timers with no reward path. Wix is free; the other pets rely on the existing RevenueCat Pro entitlement and never unlock from local storage alone. Studio is entered through Settings; no global floating companion is mounted over Safety, evidence, verification or urgent Guardian routes. The existing Guide and MORT visual language remain intact. Focused tests cover catalog, isolation, locked selection, reduced motion, interactions, saved looks, Focus options, and compact layout. Actual device appearance and motion still need review.
+6. **Documentation:** marked old blueprint and Data Safety workbooks as historical where they contradict the 114 billing-enabled client. The ledger above records current technical data classes and outstanding gates.
 
 ## Test and security evidence
 
@@ -33,7 +34,7 @@ The authoritative app is `flutter_mort`. Its checked-in `pubspec.yaml` says `0.9
 | --- | --- |
 | Dart formatting | Changed Dart files formatted, zero changes after format. |
 | Flutter analyze | PASS, no issues, after the last test-only additions. |
-| Full Flutter test | PASS, **736 passed / 2 existing skips / 0 failed** after two paywall tests and one Display name test. Baseline was 733 / 2. |
+| Full Flutter test | PASS, **749 passed / 2 existing skips / 0 failed** after paywall, Display name and Companion Studio tests. Baseline was 733 / 2. |
 | Android BrowserStack harness | PASS, 10 deterministic Node tests. Provider session remains blocked by issue #18 quota. |
 | Deno Edge tests | PASS, 29 / 0, using CI-equivalent frozen test invocation. |
 | MORT Verify source contract | PASS; production document collection remains disabled. |
@@ -57,7 +58,7 @@ The authoritative app is `flutter_mort`. Its checked-in `pubspec.yaml` says `0.9
 | RevenueCat / Play | Free-dismiss callback contract verified; products and entitlements untouched | Build-114 tester must verify Settings → Optional subscription → Continue with Free → Settings and no reopen. Separate licensed Play tester must verify purchase, cancel, expiry and restore. No local Pro grants. |
 | Verify / progression | Merged architecture preserved; source/Flutter checks pass | Identity provider and document-collection activation remain disabled; DB replay, multi-user RLS and concurrency require the MORT local stack. |
 | Stripe | Source freeze and separation checks pass | Live marketplace remains disabled. No settlement/refund/transfer provider claim from synthetic tests. |
-| Companion Studio | **CODE_GAP**: only three Guide mascots; 14-companion Studio, saved looks and Focus are not in this head | Improved Figma export not found locally; no design parity claim. |
+| Companion Studio | Separate Flutter route implements the 14-companion core, cosmetics, local saved looks, interactions and Focus. Guide remains separate. Free/Pro selection uses RevenueCat entitlements; no local entitlement grant. | The attached ZIP is a React prototype, used as reference only. Physical Android/iOS visual, animation and accessibility review is still required. Floating companion and profile-wide placement were intentionally left out because this completion branch has no global suppression contract for sensitive screens. |
 | Support / moderation | Existing client/backend/runbooks retained | Human staffing, training, tabletops and actual escalation receipts remain operations gates. External AI stays disabled. |
 | Notifications / crash | In-app and backend paths exist | Push and crash collection remain disabled until real Firebase/APNs/Sentry configuration and disclosure. |
 | Legal / store privacy | Technical inventories and stale-source corrections prepared | Attorney and owner store-answer approval remain. No Play/App Store forms submitted. |
@@ -65,20 +66,20 @@ The authoritative app is `flutter_mort`. Its checked-in `pubspec.yaml` says `0.9
 
 ## Sequential review
 
-**Believer.** The frozen artifact was protected, all modified code has focused tests, 736 Flutter tests and 29 Edge tests passed, public marketplace and sensitive provider features stayed closed, and secret scans found no privileged credential in source, Git objects or the scanned artifacts.
+**Believer.** The frozen artifact was protected, all modified code has focused tests, 749 Flutter tests and 29 Edge tests passed, public marketplace and sensitive provider features stayed closed, and secret scans found no privileged credential in source, Git objects or the scanned artifacts.
 
 **Skeptic.** Flutter/Node tests cannot prove BrowserStack semantics, physical Safety behavior, recipient delivery, licensed Play billing, hosted Safety RLS or deletion races. The sample iOS AdMob ID prevents startup failure but does not certify live iOS ads. Older Data Safety workbooks were misleading for build 114 and are now marked historical. A privileged provider key shared earlier in chat needs provider-side rotation under a controlled maintenance window; no rotation or credential disclosure occurred in this run.
 
 **Investor / operations.** The remaining hard gates belong to Google Play license testers, BrowserStack capacity, Apple signing/TestFlight/APNs, Safety recipients and staff, legal/privacy owners, real push/crash providers and marketplace business approval. The Docker service also blocks local certification on this host. None can be replaced by a synthetic green test.
 
-**Judge.** `CODE_CONTROLLED_NOT_READY` for the full product sweep: Companion Studio remains a product code gap, completion-head CI and local database adversarial/race suites are pending, and the physical/provider gates prevent broader certification. The narrower security-scanner, Android selector, paywall-regression and migration-checker changes are reviewable and locally verified as stated. Public-production readiness is not claimed.
+**Judge.** `CODE_CONTROLLED_NOT_READY` for the full product sweep: completion-head CI and local database adversarial/race suites are pending, and the physical/provider gates prevent broader certification. The security-scanner, Android selector, paywall-regression, migration-checker and Companion Studio core are reviewable with their stated local tests. Global companion placement needs a separate sensitive-screen suppression design before inclusion. Public-production readiness is not claimed.
 
 ## Required next sequence
 
 1. Wait for build-114 tester free-dismissal evidence. Do not build or upload 115 until that feedback is reviewed.
 2. Restore BrowserStack quota and run deep plus compact Android profiles on the completion head; resolve QA-only dependency advisories with a compatible upstream release and a real-device regression.
 3. Start the **MORT** Docker engine with sufficient host privilege; run full migration replay, Safety/Verify/progression/Stripe/RevenueCat/Guardian/support/deletion RLS and race suites, then resolve reproducible defects.
-4. Complete the 14-companion Studio only against approved design/product behavior; keep it cosmetic, separate from Safety/payments/trust, and test reduced motion and sensitive-screen suppression.
+4. Review the Flutter Companion Studio visually on physical Android/iOS against the owner-supplied prototype. Add any future profile or floating placement only with a tested suppression contract for every sensitive screen; the current route is isolated by construction.
 5. Run exact completion-head macOS CI, then review draft PR order #17 → #20 → #24 → #25 → completion branch. Recheck merge bases and conflicts before any later owner-approved merge.
 
 **Next Play version if a verified fix requires a new upload:** 115. **Do not build it yet.**

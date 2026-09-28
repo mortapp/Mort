@@ -18,6 +18,7 @@ import '../../features/financial/financial_safety_center.dart';
 import '../../features/financial/financial_section_screens.dart';
 import '../../features/guardian/guardian_safety_pings_screen.dart';
 import '../../features/guide/mascot_picker_screen.dart';
+import '../../features/companion/companion_studio_screen.dart';
 import '../../features/guide/mort_guide_screens.dart';
 import '../../features/jobs/job_screens.dart';
 import '../../features/jobs/job_progress_screen.dart';
@@ -1243,6 +1244,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       _guarded('/guide', const MortGuideView()),
+      _guarded('/companion', const CompanionStudioScreen()),
       _guarded('/guide/mascot', const MortMascotPickerScreen()),
       _guarded('/guide/history', const MortGuideHistoryView()),
       _guarded('/guide/delete-history', const MortGuideDeleteHistoryView()),

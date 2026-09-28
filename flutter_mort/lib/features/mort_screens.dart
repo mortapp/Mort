@@ -6994,6 +6994,12 @@ final _settingsGroups = <_SettingsGroup>[
         route: '/guide',
       ),
       _SettingsAction(
+        label: 'Companion Studio',
+        description: 'Choose a cosmetic companion, save looks, and focus.',
+        icon: Icons.auto_awesome_outlined,
+        route: '/companion',
+      ),
+      _SettingsAction(
         label: 'Optional subscription',
         description: 'Review voluntary perks without safety paywalls.',
         icon: Icons.workspace_premium_outlined,
