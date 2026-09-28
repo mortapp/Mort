@@ -18,7 +18,7 @@ const syntheticFixtureTokens = new Set([
   "pi_123_secret_REALLOOKINGVALUE123",
 ]);
 
-const providerTokenPattern = /\b(?:sk_(?:test|live)|rk_(?:test|live)|whsec_|pk_live_|sb_secret_)[A-Za-z0-9_-]{8,}\b/g;
+const providerTokenPattern = /\b(?:sk_[A-Za-z0-9]{20,}|sk_(?:test|live)_[A-Za-z0-9_-]{8,}|rk_(?:test|live)_[A-Za-z0-9_-]{8,}|whsec_[A-Za-z0-9_-]{8,}|pk_live_[A-Za-z0-9_-]{8,}|sb_secret_[A-Za-z0-9_-]{8,})\b/g;
 const clientSecretPattern = /\b(?:pi|seti|src)_[A-Za-z0-9]+_secret_[A-Za-z0-9_-]{8,}\b/g;
 const jwtPattern = /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g;
 const privateKeyBlockPattern =
@@ -167,6 +167,7 @@ function selfTest() {
     [],
   );
   assert(scanText("app/x.ts", "sk_test_REALLOOKINGVALUE123").includes("provider_credential_pattern"));
+  assert(scanText("app/x.ts", `sk_${"R".repeat(28)}`).includes("provider_credential_pattern"));
   assert(scanText("app/x.ts", "pk_live_REALLOOKINGVALUE123").includes("provider_credential_pattern"));
   assert(scanText("app/x.ts", "pi_123_secret_REALLOOKINGVALUE123").includes("stripe_client_secret_pattern"));
   assert(
