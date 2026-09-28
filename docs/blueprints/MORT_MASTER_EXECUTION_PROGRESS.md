@@ -1,5 +1,11 @@
 # MORT Master Blueprint Execution Progress
 
+> Historical branch snapshot. The unchecked implementation boxes below describe
+> the original blueprint branch, not the current post-114 product. PR #21 was
+> merged on 2026-09-22 and its progression implementation is present in the
+> frozen build-114 source. Use `docs/completion/MORT_POST_114_COMPLETION_LEDGER.md`
+> for current status; do not rebuild progression from these old checkboxes.
+
 Blueprint: `docs/blueprints/MORT_MASTER_EXECUTION_BLUEPRINT.md`
 Execution branch: `feature/mort-master-blueprint-gamification`
 Execution mode: single Codex agent, no sub-agents.

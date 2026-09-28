@@ -1,5 +1,10 @@
 # MORT Google Play Data Safety Workbook
 
+> Historical July 2026 candidate. The claims below that Billing/RevenueCat
+> were disabled or absent do not describe Play build 0.9.16+114. Use the
+> post-114 completion ledger's technical inventory before owner review or any
+> Play Console Data Safety submission.
+
 > Status: closed-test publication candidate dated 2026-07-20, advertising section revised 2026-08-20 to match the real `google_mobile_ads` SDK integration. Not legal approval, not a public launch, and not a production-readiness claim.
 
 This is a source-and-backend inventory, not a Play Console submission. The adult account owner must reconcile it against the exact uploaded AAB and current Google form. Data stored in Supabase is still collected because it leaves the device. HTTPS is enforced. Service-provider processing is not marked as third-party sharing here, subject to contract/legal confirmation.

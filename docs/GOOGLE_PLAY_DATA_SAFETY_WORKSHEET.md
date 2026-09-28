@@ -1,5 +1,12 @@
 # Google Play Data Safety Worksheet — 2026-08-29
 
+> Historical worksheet for an earlier billing-disabled candidate. It is not
+> accurate for the Play-installed 0.9.16+114 build: that build bundles Google
+> Play Billing/RevenueCat and can collect purchase status after a real sandbox
+> transaction. Its statements below that purchase history is not collected or
+> the SDK is absent must not be copied into Play Console. See the build-114
+> technical inventory in `docs/completion/MORT_POST_114_COMPLETION_LEDGER.md`.
+
 **Not for submission.** This prepares exact owner answers for the Play
 Console Data Safety form, grounded in `docs/PRODUCTION_DATA_FLOW_MAP.md` and
 direct code/schema evidence. Every category below distinguishes "collected"
