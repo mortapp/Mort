@@ -141,3 +141,12 @@ test("keyboard checkpoint polls Android IME state instead of trusting one timing
   assert.match(source, /await waitForKeyboardState\(driver, true/);
   assert.match(source, /await waitForKeyboardState\(driver, false/);
 });
+
+test("keyboard checkpoint selects Display name by accessibility ID", async () => {
+  const source = await readFile(
+    path.join(root, "scripts", "browserstack", "android-appium-functional-test.mjs"),
+    "utf8",
+  );
+  assert.match(source, /qa-onboarding-display-name/);
+  assert.doesNotMatch(source, /\(\/\/android\.widget\.EditText\)\[2\]/);
+});

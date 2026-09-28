@@ -367,6 +367,26 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('Display name exposes a stable accessible QA identifier', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await _pumpOnboarding(tester, disableAnimations: true);
+
+    final field = find.byWidgetPredicate(
+      (widget) =>
+          widget is Semantics &&
+          widget.properties.identifier == 'qa-onboarding-display-name',
+    );
+    expect(field, findsOneWidget);
+    expect(
+      find.descendant(of: field, matching: find.byType(TextFormField)),
+      findsOneWidget,
+    );
+    expect(find.text('Display name'), findsOneWidget);
+    semantics.dispose();
+  });
+
   testWidgets(
     'onboarding action stays above and dismisses keyboard on iPhone SE at 200 percent',
     (tester) async {

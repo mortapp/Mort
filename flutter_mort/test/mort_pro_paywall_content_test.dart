@@ -17,6 +17,7 @@ void main() {
     bool busy = false,
     void Function(String)? purchase,
     VoidCallback? restore,
+    VoidCallback? close,
     VoidCallback? terms,
     VoidCallback? privacy,
     Size size = const Size(390, 844),
@@ -39,7 +40,7 @@ void main() {
               onPurchase: purchase ?? (_) {},
               onRestore: restore ?? () {},
               onRetry: () {},
-              onClose: () {},
+              onClose: close ?? () {},
               onTerms: terms ?? () {},
               onPrivacy: privacy ?? () {},
             ),
@@ -80,6 +81,46 @@ void main() {
     await tester.ensureVisible(find.byKey(const Key('pro-continue')));
     await tester.tap(find.byKey(const Key('pro-continue')));
     expect(purchased, r'$rc_lifetime');
+  });
+
+  testWidgets('Continue with Free only invokes close with plans available', (
+    tester,
+  ) async {
+    var closed = 0;
+    var purchased = 0;
+    var restored = 0;
+    await show(
+      tester,
+      close: () => closed++,
+      purchase: (_) => purchased++,
+      restore: () => restored++,
+    );
+    await tester.ensureVisible(find.byKey(const Key('pro-continue-free')));
+    await tester.tap(find.byKey(const Key('pro-continue-free')));
+    expect(closed, 1);
+    expect(purchased, 0);
+    expect(restored, 0);
+  });
+
+  testWidgets('Continue with Free remains usable while plans load', (
+    tester,
+  ) async {
+    var closed = 0;
+    var purchased = 0;
+    var restored = 0;
+    await show(
+      tester,
+      available: const [],
+      loading: true,
+      close: () => closed++,
+      purchase: (_) => purchased++,
+      restore: () => restored++,
+    );
+    await tester.ensureVisible(find.byKey(const Key('pro-continue-free')));
+    await tester.tap(find.byKey(const Key('pro-continue-free')));
+    expect(closed, 1);
+    expect(purchased, 0);
+    expect(restored, 0);
   });
 
   testWidgets('missing annual falls back and restore remains available', (

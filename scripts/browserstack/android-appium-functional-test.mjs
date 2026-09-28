@@ -262,8 +262,16 @@ async function checkpointOnboardingKeyboard(driver) {
   // like a date control on newer Android versions, so it is not a reliable IME
   // target. Use the ordinary Display name field to prove real soft-keyboard
   // behavior while still exercising the same onboarding screen.
-  activeSelector = "(//android.widget.EditText)[2]";
-  const displayName = await firstDisplayed(driver, [activeSelector]);
+  const tagged = await byLabel(driver, "qa-onboarding-display-name");
+  const displayName =
+    (await tagged.getAttribute("class")) === "android.widget.EditText"
+      ? tagged
+      : await tagged.$(".//android.widget.EditText");
+  assert.equal(
+    await displayName.isExisting(),
+    true,
+    "Accessible Display name control has no editable child",
+  );
   await displayName.click();
 
   assert.equal(

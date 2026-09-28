@@ -743,15 +743,18 @@ class _CompactOnboardingScreenState
               'Use a display name you are comfortable sharing. Your username must be unique.',
         ),
         const SizedBox(height: MortSpacing.lg),
-        MortTextField(
-          label: 'Display name',
-          hint: 'How your name appears in MORT',
-          controller: _displayName,
-          enabled: !_busy,
-          textInputAction: TextInputAction.next,
-          autofillHints: const [AutofillHints.name],
-          textCapitalization: TextCapitalization.words,
-          maxLength: 60,
+        Semantics(
+          identifier: 'qa-onboarding-display-name',
+          child: MortTextField(
+            label: 'Display name',
+            hint: 'How your name appears in MORT',
+            controller: _displayName,
+            enabled: !_busy,
+            textInputAction: TextInputAction.next,
+            autofillHints: const [AutofillHints.name],
+            textCapitalization: TextCapitalization.words,
+            maxLength: 60,
+          ),
         ),
         const SizedBox(height: MortSpacing.sm),
         MortTextField(
