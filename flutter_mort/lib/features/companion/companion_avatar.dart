@@ -369,17 +369,87 @@ class _CompanionPainter extends CustomPainter {
 
   void _item(Canvas canvas) {
     if (look.itemId == 'none') return;
-    final paint = Paint()..color = MortColors.silverBright;
-    if (look.itemId == 'star') {
-      _star(canvas, const Offset(82, 72), 8, MortColors.silverBright);
-    } else {
-      _roundRect(canvas, paint, const Rect.fromLTWH(77, 67, 12, 13), 3);
-      canvas.drawLine(
-        const Offset(80, 70),
-        const Offset(86, 70),
-        Paint()..color = MortColors.graphite3,
-      );
+    canvas.save();
+    canvas.translate(76, 65);
+    final silver = Paint()..color = MortColors.silverBright;
+    final line = Paint()
+      ..color = MortColors.silverBright
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    switch (look.itemId) {
+      case 'star':
+        _star(canvas, const Offset(8, 8), 8, MortColors.silverBright);
+      case 'book':
+        _roundRect(canvas, silver, const Rect.fromLTWH(2, 2, 13, 15), 1);
+        canvas.drawLine(
+          const Offset(5, 3),
+          const Offset(5, 16),
+          Paint()..color = MortColors.graphite3,
+        );
+      case 'watering_can':
+        _roundRect(canvas, silver, const Rect.fromLTWH(4, 7, 10, 9), 2);
+        canvas.drawLine(const Offset(4, 8), const Offset(0, 6), line);
+        canvas.drawArc(
+          const Rect.fromLTWH(5, 2, 7, 9),
+          math.pi,
+          math.pi,
+          false,
+          line,
+        );
+      case 'acorn':
+        _oval(canvas, silver, const Rect.fromLTWH(3, 5, 11, 12));
+        _oval(
+          canvas,
+          Paint()..color = MortColors.silverDark,
+          const Rect.fromLTWH(2, 4, 13, 5),
+        );
+      case 'lantern':
+        _roundRect(canvas, silver, const Rect.fromLTWH(4, 6, 9, 11), 2);
+        canvas.drawArc(
+          const Rect.fromLTWH(5, 1, 7, 9),
+          math.pi,
+          math.pi,
+          false,
+          line,
+        );
+      case 'telescope':
+        canvas.drawLine(
+          const Offset(2, 5),
+          const Offset(15, 10),
+          Paint()
+            ..color = MortColors.silverBright
+            ..strokeWidth = 5,
+        );
+        canvas.drawLine(const Offset(9, 10), const Offset(6, 17), line);
+        canvas.drawLine(const Offset(9, 10), const Offset(14, 17), line);
+      case 'laptop':
+        _roundRect(canvas, silver, const Rect.fromLTWH(3, 2, 12, 10), 1);
+        canvas.drawLine(
+          const Offset(1, 15),
+          const Offset(17, 15),
+          Paint()
+            ..color = MortColors.silverBright
+            ..strokeWidth = 3,
+        );
+      case 'pillow':
+        _roundRect(canvas, silver, const Rect.fromLTWH(2, 4, 14, 11), 4);
+      case 'crystal':
+        _polygon(canvas, silver, const [
+          Offset(8, 0),
+          Offset(16, 7),
+          Offset(9, 18),
+          Offset(1, 8),
+        ]);
+        canvas.drawLine(
+          const Offset(8, 0),
+          const Offset(9, 18),
+          Paint()..color = MortColors.silverDark,
+        );
+      case 'moon_charm':
+        _circle(canvas, silver, 8, 8, 8);
+        _circle(canvas, Paint()..color = MortColors.ink2, 12, 5, 7);
     }
+    canvas.restore();
   }
 
   void _aura(Canvas canvas) {
@@ -391,10 +461,63 @@ class _CompanionPainter extends CustomPainter {
       Offset(85, 36),
       Offset(27, 87),
     ]) {
-      if (look.auraId == 'stars' || look.auraId == 'sparkles') {
-        _star(canvas, offset, 3.5, paint.color);
-      } else {
-        canvas.drawCircle(offset, 2.5, paint);
+      switch (look.auraId) {
+        case 'stars':
+          _star(canvas, offset, 3.5, paint.color);
+        case 'sparkles':
+          canvas.drawLine(
+            offset.translate(-4, 0),
+            offset.translate(4, 0),
+            Paint()
+              ..color = paint.color
+              ..strokeWidth = 1.2,
+          );
+          canvas.drawLine(
+            offset.translate(0, -4),
+            offset.translate(0, 4),
+            Paint()
+              ..color = paint.color
+              ..strokeWidth = 1.2,
+          );
+        case 'hearts':
+          final heart = Path()
+            ..moveTo(offset.dx, offset.dy + 3)
+            ..cubicTo(
+              offset.dx - 8,
+              offset.dy - 2,
+              offset.dx - 2,
+              offset.dy - 5,
+              offset.dx,
+              offset.dy - 1,
+            )
+            ..cubicTo(
+              offset.dx + 2,
+              offset.dy - 5,
+              offset.dx + 8,
+              offset.dy - 2,
+              offset.dx,
+              offset.dy + 3,
+            );
+          canvas.drawPath(heart, paint);
+        case 'bubbles':
+          canvas.drawCircle(
+            offset,
+            3.5,
+            Paint()
+              ..color = paint.color
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1,
+          );
+        case 'leaves':
+          _leaf(
+            canvas,
+            offset.translate(-3, 3),
+            offset.translate(3, -3),
+            paint,
+          );
+        case 'moon_dust':
+          _star(canvas, offset, 2.5, paint.color);
+          canvas.drawCircle(offset.translate(5, 3), 1, paint);
       }
     }
   }

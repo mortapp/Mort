@@ -273,7 +273,7 @@ class _CompanionStudioBodyState extends State<CompanionStudioBody> {
           eyebrow: 'COMPANION STUDIO',
           title: 'A little space of your own',
           subtitle: 'Cosmetic companions for comfort and focus.',
-          showBackButton: false,
+          backFallbackRoute: '/settings',
         ),
         if (_loading)
           const MortSkeletonCard()
