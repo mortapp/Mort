@@ -23,6 +23,7 @@ import 'leaderboard_repository.dart';
 import 'legal_contract_repository.dart';
 import 'messaging_repository.dart';
 import 'mission_pilot_repository.dart';
+import 'mort_verify_repository.dart';
 import 'mort_guide_repository.dart';
 import 'monetization_repository.dart';
 import 'notifications_repository.dart';
@@ -228,6 +229,9 @@ final myLeaderboardRankProvider = FutureProvider.autoDispose(
 );
 final accountTrustRepositoryProvider = Provider<AccountTrustRepository>(
   (ref) => AccountTrustRepository(),
+);
+final mortVerifyRepositoryProvider = Provider<MortVerifyRepository>(
+  (ref) => MortVerifyRepository(),
 );
 final accountDeletionRepositoryProvider = Provider<AccountDeletionRepository>(
   (ref) => AccountDeletionRepository(),

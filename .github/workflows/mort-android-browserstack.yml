@@ -40,6 +40,23 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v7
+
+      # Keep deterministic harness verification independent of BrowserStack
+      # account state so provider quota/trial failures cannot hide code failures.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Install pinned Appium client
+        working-directory: scripts/browserstack
+        run: npm ci --ignore-scripts
+
+      - name: Validate Android QA harness contracts
+        working-directory: scripts/browserstack
+        run: |
+          node --check android-appium-functional-test.mjs
+          node --test android-appium-functional-test.test.mjs
+
       - uses: actions/download-artifact@v7
         with:
           name: mort-android-browserstack-qa
@@ -135,20 +152,6 @@ jobs:
           "compact_os=$($compact.os_version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           Write-Host "Deep device: $($deep.device) / Android $($deep.os_version)"
           Write-Host "Compact device: $($compact.device) / Android $($compact.os_version)"
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-
-      - name: Install pinned Appium client
-        working-directory: scripts/browserstack
-        run: npm ci --ignore-scripts
-
-      - name: Validate Android QA harness contracts
-        working-directory: scripts/browserstack
-        run: |
-          node --check android-appium-functional-test.mjs
-          node --test android-appium-functional-test.test.mjs
 
       - name: Deep real-device Android functional QA
         working-directory: scripts/browserstack
