@@ -1,6 +1,6 @@
 # MORT post-114 engineering report
 
-Evidence date: 2026-09-28. Read with `MORT_POST_114_COMPLETION_LEDGER.md`. This is a code and evidence handoff, not a production approval or Play Console submission.
+Evidence date: 2026-09-29. Read with `MORT_POST_114_COMPLETION_LEDGER.md`. This is a code and evidence handoff, not a production approval or Play Console submission.
 
 | Release fact | Result |
 | --- | --- |
@@ -16,7 +16,7 @@ Evidence date: 2026-09-28. Read with `MORT_POST_114_COMPLETION_LEDGER.md`. This 
 
 ## PR and client state
 
-GitHub on 2026-09-28: #17 Android BrowserStack QA, #20 iOS parity, #24 RevenueCat certification and #25 Safety Center are **OPEN DRAFT** in that order, each reported mergeable. #19 Verify, #21 progression and #23 monetization convergence are **MERGED**. Do not rebuild their features from old checklists. Frozen-head CI run 36333397345 was successful, including `ios-authoritative`, `flutter-authoritative` and Android device-test APK jobs. Completion code head `78ed407205cfa8bd6e5f3ba7af04f56ac2954da1` passed MORT CI run 36498915584. Subsequent evidence-only head `b265794887c5341a0c627a2cadd51ee25266364d` passed MORT CI run 36507867108. The later pricing notes are documentation only.
+GitHub on 2026-09-29: #17 Android BrowserStack QA, #20 iOS parity, #24 RevenueCat certification and #25 Safety Center are **OPEN DRAFT** in that order with the expected bases. #20, #24 and #25 report `MERGEABLE`; #17 currently reports `UNKNOWN`, so the full chain is not certified mergeable. #19 Verify, #21 progression and #23 monetization convergence are **MERGED**. Do not rebuild their features from old checklists. Frozen-head CI run 36333397345 was successful, including `ios-authoritative`, `flutter-authoritative` and Android device-test APK jobs. Completion code head `78ed407205cfa8bd6e5f3ba7af04f56ac2954da1` passed MORT CI run 36498915584. Subsequent evidence-only head `b265794887c5341a0c627a2cadd51ee25266364d` passed MORT CI run 36507867108. The later pricing notes are documentation only.
 
 The authoritative app is `flutter_mort`. Its checked-in `pubspec.yaml` says `0.9.16+113`; the uploaded 114 bundle was built with an explicit build-number override, verified by the signed artifact report. No version file was bumped in this sweep. `com.mortapp.mobile` remains the package/bundle ID.
 
@@ -58,7 +58,7 @@ On 2026-09-28, the owner reported testing the Google Play Closed Testing build 1
 | Continue with Free | `IMPLEMENTED_AND_DEVICE_VERIFIED` | Closed Testing build 114 physical Android, Settings return and free navigation. |
 | Paywall dismissal/no-reopen | `IMPLEMENTED_AND_DEVICE_VERIFIED` | No automatic reopen; manual reopening still works. |
 | Google Play billing sheet launch | `IMPLEMENTED_AND_DEVICE_VERIFIED` | Real sheet opened and safe exit observed; no transaction completed. |
-| Actual sandbox purchase, entitlement receipt, subscription cancellation lifecycle, renewal, expiration, restore | `PROVIDER_GATE` | No transaction or lifecycle evidence supplied. Exiting the billing sheet is not subscription cancellation. |
+| Actual sandbox purchase, entitlement receipt, subscription cancellation lifecycle, renewal, expiration, restore | `DEVICE_GATE` | The owner confirmed License testing, Closed Testing opt-in and Play Store sign-in, but the device is currently unavailable. No transaction or lifecycle evidence supplied. Exiting the billing sheet is not subscription cancellation. |
 
 | Price evidence | Amount |
 | --- | --- |
@@ -74,6 +74,16 @@ The owner corrected the **Google Play Annual base-plan configuration from $30.99
 
 The Play Console correction and device retest are owner-attested; this session has no direct Play Console catalog access. The available RevenueCat V2 credential lists only a separate Test Store project. The device result verifies the user-visible store prices, while actual purchase, entitlement receipt and lifecycle still need separate evidence. No client price change or new build was made.
 
+## Licensed purchase-test preparation, 2026-09-29
+
+The owner confirmed that the same Android Google account is listed in Play Console License testing, opted into the MORT Closed Testing track and signed into the device Play Store. This is owner attestation; no Play Console screen or transaction receipt was inspected here. The owner authorized a sandbox purchase only after the physical Google Play sheet clearly shows test-purchase wording or Google Play test payment methods. A sheet presenting a real charge is a stop condition.
+
+For purchase QA, a separate synthetic adult MORT account was created: `purchase-3kuxcerg1q5v-adult@mort.test` (`fe2c749a-f17b-4507-9ef5-21dcade00ce7`). It is distinct from the shared reviewer account, has a synthetic name/location/date of birth, completed onboarding, active test-account status, and no Pro cache, subscription or review grant in read-only hosted checks. Supabase Auth sign-in and the app's `ensure_my_profile` RPC were verified. Direct table selection is restricted; no table permissions were changed. The temporary credential is stored as Windows DPAPI-encrypted SecureString outside Git at `C:\Users\micha\MortSecrets\play-purchase-qa\play-purchase-qa.credentials.xml`, accessible only to the current Windows user and SYSTEM. The owner can retrieve it locally when ready using `C:\Users\micha\MortSecrets\play-purchase-qa\Show-PlayPurchaseQaCredential.ps1`; that helper is likewise ACL-limited and is not in Git. No password or auth token is in this report or Git. The account can be reset or revoked by Auth Admin using the UUID above.
+
+`adb devices -l` shows no attached device; the owner is at school and explicitly requested no emulator. No Play purchase was attempted. Weekly purchase, RevenueCat `mort_pro` receipt, server entitlement/cache/webhook, cancellation, renewal, expiration, restore and negative paths remain pending. This account has no locally granted Pro entitlement.
+
+The 2026-09-29 completion-branch rerun passed: `flutter analyze` with no issues; full `flutter test --no-pub` with 749 passed and two existing skips; 29 Deno Edge tests; 10 Android BrowserStack harness unit tests; 18 Stripe pre-provider cases with no provider mutation; the MORT Verify and production-client contracts; and the source secret scan across 2,427 files with zero findings. This is local/source evidence, not a physical BrowserStack session or hosted database replay. The frozen AAB hash matched the recorded value, and `git diff --check` passed. Docker still lacks the MORT Linux engine pipe; no local database test was claimed.
+
 After the pricing update, the frozen build-114 AAB SHA-256 still matched `F8BA6E1CDE5CDD6BF51706B0E45A71B6A224EF6640C7870E274EC58EBCC57E3D`. The source secret scan passed with **2,427 files / zero findings**, RevenueCat source configuration QA passed, and `git diff --check` passed. Full CI on the unchanged app code is already green in run 36507867108. The MORT Docker Linux engine pipe remains absent, and BrowserStack capacity issue #18 remains open, so the local database replay and BrowserStack physical runs are still external gates.
 
 ## Subsystem verdicts
@@ -83,7 +93,7 @@ After the pricing update, the frozen build-114 AAB SHA-256 still matched `F8BA6E
 | iOS parity | Shared Flutter and macOS CI green at frozen head | Apple distribution certificate/profile, App Store Connect, TestFlight, APNs, privacy answers and physical iPhone gate remain. iOS AdMob has a sample startup ID with ads disabled; real IDs are gated. |
 | Safety | Prior Safety implementation and 29 Edge tests preserved | New Safety migration `20260927003338` is absent from hosted MORT; default Supabase branch only. Do not deploy during tester window. Real contacts, GPS, battery, background and dialer tests plus legal/operations signoff remain. |
 | Android QA | Display name selector defect fixed | BrowserStack capacity issue #18, real deep/compact sessions and no fatal/overflow device logs remain. Six high advisories in QA-only WebdriverIO transitive `extract-zip` have no safe compatible fix in the current audit. |
-| RevenueCat / Play | Free-dismiss callback contract and owner-attested build-114 device dismissal, no-reopen, real billing-sheet launch and corrected store pricing verified; app products and entitlements untouched | Licensed Play tester must still prove an actual purchase and entitlement receipt, subscription cancellation lifecycle, renewal, expiration and restore. No local Pro grants. |
+| RevenueCat / Play | Free-dismiss callback contract and owner-attested build-114 device dismissal, no-reopen, real billing-sheet launch and corrected store pricing verified; app products and entitlements untouched. A separate synthetic adult account is ready, and the owner confirmed license testing, closed-track opt-in and Play Store sign-in. | A physical device must still show test-payment wording before any actual purchase and prove entitlement receipt, subscription cancellation lifecycle, renewal, expiration and restore. No local Pro grants. |
 | Verify / progression | Merged architecture preserved; source/Flutter checks pass | Identity provider and document-collection activation remain disabled; DB replay, multi-user RLS and concurrency require the MORT local stack. |
 | Stripe | Source freeze and separation checks pass | Live marketplace remains disabled. No settlement/refund/transfer provider claim from synthetic tests. |
 | Companion Studio | Separate Flutter route implements the 14-companion core, cosmetics, local saved looks, interactions and Focus. Guide remains separate. Free/Pro selection uses RevenueCat entitlements; no local entitlement grant. | The attached ZIP is a React prototype, used as reference only. Physical Android/iOS visual, animation and accessibility review is still required. Floating companion and profile-wide placement were intentionally left out because this completion branch has no global suppression contract for sensitive screens. |
@@ -91,6 +101,7 @@ After the pricing update, the frozen build-114 AAB SHA-256 still matched `F8BA6E
 | Notifications / crash | In-app and backend paths exist | Push and crash collection remain disabled until real Firebase/APNs/Sentry configuration and disclosure. |
 | Legal / store privacy | Technical inventories and stale-source corrections prepared | Attorney and owner store-answer approval remain. No Play/App Store forms submitted. |
 | Deletion / retention | Existing processor and FK QA retained | Full local synthetic deletion/FK/RLS suite could not run without Docker. No real user deletion. |
+| Hosted Supabase security advisors | Read-only advisor results reviewed at category level; no secret or user data exposed. The two anonymous-executable security-definer status RPCs are intentionally public in source. | 112 no-policy INFO entries and 328 authenticated security-definer warnings need function-by-function scope review; leaked-password protection is disabled and requires an Auth dashboard setting change. No blanket privilege change was made. |
 
 ## Sequential review
 
@@ -104,7 +115,7 @@ After the pricing update, the frozen build-114 AAB SHA-256 still matched `F8BA6E
 
 ## Required next sequence
 
-1. Record the owner-attested build-114 free-dismissal, billing-sheet launch and corrected store prices above. No client fix or 115 build is needed for pricing. A licensed Play sandbox tester must still complete purchase, entitlement receipt, cancellation lifecycle, renewal, expiration and restore checks without local entitlement grants.
+1. On the available physical Android device, sign into the separate synthetic MORT purchase account, open Settings → Optional subscription, select Weekly, and inspect the Google Play sheet for explicit test-payment wording before proceeding. Stop if it indicates a real charge. If sandboxed, capture purchase, entitlement receipt, cancellation lifecycle, renewal, expiration and restore evidence without local entitlement grants. No client fix or 115 build is needed for pricing.
 2. Restore BrowserStack quota and run deep plus compact Android profiles on the completion head; resolve QA-only dependency advisories with a compatible upstream release and a real-device regression.
 3. Start the **MORT** Docker engine with sufficient host privilege; run full migration replay, Safety/Verify/progression/Stripe/RevenueCat/Guardian/support/deletion RLS and race suites, then resolve reproducible defects.
 4. Review the Flutter Companion Studio visually on physical Android/iOS against the owner-supplied prototype. Add any future profile or floating placement only with a tested suppression contract for every sensitive screen; the current route is isolated by construction.
