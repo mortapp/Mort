@@ -26,9 +26,14 @@ class MortBackNavigation {
     '/teen/availability',
     '/adult/home',
     '/adult/jobs',
+    '/adult/messages',
+    '/adult/safety',
     '/adult/applicants',
     '/adult/profile',
     '/guardian/home',
+    '/guardian/safety',
+    '/guardian/messages',
+    '/guardian/profile',
     '/guardian/linked-teens',
     '/guardian/approvals',
     '/guardian/permissions',
@@ -97,6 +102,10 @@ class MortBackNavigation {
       return '/teen/safety';
     }
     if (normalized.startsWith('/teen/messages/')) return '/teen/messages';
+    if (normalized.startsWith('/adult/messages/')) return '/adult/messages';
+    if (normalized.startsWith('/guardian/messages/')) {
+      return '/guardian/messages';
+    }
     if (normalized.startsWith('/teen/applications/'))
       return '/teen/applications';
     if (normalized.startsWith('/teen/proof/')) return '/teen/applications';

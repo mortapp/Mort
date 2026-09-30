@@ -152,26 +152,132 @@ class MortBottomNavigation extends StatelessWidget {
   final ValueChanged<int> onDestinationSelected;
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-    top: false,
-    child: Container(
-      decoration: BoxDecoration(
-        border: const Border(top: BorderSide(color: MortColors.lineStrong)),
-        boxShadow: [
-          const BoxShadow(color: Color(0xB8000000), blurRadius: 24),
-          BoxShadow(
-            color: MortColors.babyBlueDeep.withValues(alpha: 0.12),
-            blurRadius: 28,
+  Widget build(BuildContext context) {
+    assert(index >= 0 && index < destinations.length);
+    if (Theme.of(context).brightness != Brightness.light) {
+      return SafeArea(
+        top: false,
+        child: NavigationBar(
+          selectedIndex: index,
+          destinations: destinations,
+          onDestinationSelected: onDestinationSelected,
+        ),
+      );
+    }
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    final textTheme = Theme.of(context).textTheme;
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+      child: Material(
+        color: MortClassicColors.canvas,
+        child: Container(
+          decoration: const BoxDecoration(
+            border: Border(top: BorderSide(color: MortClassicColors.line)),
           ),
-        ],
+          padding: const EdgeInsets.only(top: 4),
+          child: Row(
+            children: [
+              for (
+                var itemIndex = 0;
+                itemIndex < destinations.length;
+                itemIndex++
+              )
+                Expanded(
+                  child: _ClassicNavigationItem(
+                    destination: destinations[itemIndex],
+                    selected: itemIndex == index,
+                    disableAnimations: disableAnimations,
+                    labelStyle: textTheme.labelSmall,
+                    onTap: () => onDestinationSelected(itemIndex),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
-      child: NavigationBar(
-        selectedIndex: index,
-        destinations: destinations,
-        onDestinationSelected: onDestinationSelected,
+    );
+  }
+}
+
+class _ClassicNavigationItem extends StatelessWidget {
+  const _ClassicNavigationItem({
+    required this.destination,
+    required this.selected,
+    required this.disableAnimations,
+    required this.labelStyle,
+    required this.onTap,
+  });
+
+  final NavigationDestination destination;
+  final bool selected;
+  final bool disableAnimations;
+  final TextStyle? labelStyle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? MortClassicColors.ink : MortClassicColors.muted;
+    return Semantics(
+      label: destination.label,
+      selected: selected,
+      enabled: destination.enabled,
+      button: true,
+      child: Tooltip(
+        message: destination.tooltip ?? destination.label,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(MortRadii.medium),
+          onTap: destination.enabled ? onTap : null,
+          child: AnimatedContainer(
+            duration: disableAnimations ? Duration.zero : MortMotion.control,
+            constraints: const BoxConstraints(minHeight: 64),
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+            decoration: BoxDecoration(
+              color: selected ? MortClassicColors.surface : Colors.transparent,
+              borderRadius: BorderRadius.circular(MortRadii.medium),
+              border: selected
+                  ? Border.all(color: MortClassicColors.line)
+                  : null,
+              boxShadow: selected
+                  ? const [
+                      BoxShadow(
+                        color: Color(0x1A000000),
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconTheme(
+                  data: IconThemeData(
+                    color: color,
+                    size: MortIconSizes.standard,
+                  ),
+                  child: selected
+                      ? destination.selectedIcon ?? destination.icon
+                      : destination.icon,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  destination.label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: labelStyle?.copyWith(
+                    color: color,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class MortPriceDisplay extends StatelessWidget {

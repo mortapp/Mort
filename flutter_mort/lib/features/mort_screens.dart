@@ -2783,7 +2783,7 @@ _RoleDashboardDefinition _roleDashboardDefinition(
             label: 'Messages',
             description: 'Use scanner-protected job conversations.',
             icon: Icons.chat_bubble_outline_rounded,
-            route: '/messages',
+            route: '/adult/messages',
           ),
           _DashboardActionDefinition(
             label: 'Contracts and payment status',
@@ -2805,8 +2805,8 @@ _RoleDashboardDefinition _roleDashboardDefinition(
             route: '/adult/verification',
           ),
           _DashboardActionDefinition(
-            label: 'Business profile',
-            description: 'Update public-safe poster and business information.',
+            label: 'Profile',
+            description: 'Review your profile and account controls.',
             icon: Icons.storefront_outlined,
             route: '/adult/profile',
           ),
@@ -4051,10 +4051,16 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     final avatarLabel = displayName.characters.first.toUpperCase();
     final jobTitle = thread.jobTitle?.trim();
     final preview = thread.lastMessagePreview?.trim();
+    final location = GoRouter.maybeOf(context)?.state.uri.path ?? '/messages';
+    final messagesRoute = inTeenShell
+        ? '/teen/messages'
+        : location.startsWith('/adult/messages')
+        ? '/adult/messages'
+        : location.startsWith('/guardian/messages')
+        ? '/guardian/messages'
+        : '/messages';
     return MortCard(
-      onTap: () => context.push(
-        '${inTeenShell ? '/teen/messages' : '/messages'}/${thread.id}',
-      ),
+      onTap: () => context.push('$messagesRoute/${thread.id}'),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

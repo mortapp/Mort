@@ -1926,6 +1926,7 @@ class MortSettingsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final classic = Theme.of(context).brightness == Brightness.light;
     return Semantics(
       button: true,
       label: 'Settings',
@@ -1935,8 +1936,12 @@ class MortSettingsButton extends StatelessWidget {
         onPressed: onPressed,
         style: IconButton.styleFrom(
           backgroundColor: Colors.transparent,
-          foregroundColor: MortColors.silverBright,
-          highlightColor: MortColors.glass,
+          foregroundColor: classic
+              ? MortClassicColors.ink
+              : MortColors.silverBright,
+          highlightColor: classic
+              ? MortClassicColors.surface
+              : MortColors.glass,
           minimumSize: const Size.square(MortSpacing.minTouchTarget),
         ),
       ),

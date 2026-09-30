@@ -22,7 +22,7 @@ void main() {
       addTearDown(router.dispose);
       await tester.pumpWidget(
         MaterialApp.router(
-          theme: mortTestTheme(MortTheme.dark()),
+          theme: mortTestTheme(MortTheme.classic()),
           routerConfig: router,
           builder: (context, child) => MediaQuery(
             data: MediaQuery.of(
@@ -34,17 +34,17 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Dashboard content'), findsOneWidget);
+      expect(find.text('Home content'), findsOneWidget);
       await tester.enterText(find.byKey(const Key('dashboard-search')), 'Yard');
 
       await tester.tap(find.text('Jobs').last);
       await tester.pumpAndSettle();
-      expect(find.text('Applications content'), findsOneWidget);
+      expect(find.text('Jobs content'), findsOneWidget);
       expect(find.byTooltip('Back'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
-      expect(find.text('Dashboard content'), findsOneWidget);
+      expect(find.text('Home content'), findsOneWidget);
       expect(find.text('Yard'), findsOneWidget);
 
       await tester.tap(find.text('Safety').last);
@@ -53,7 +53,7 @@ void main() {
 
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      expect(find.text('Dashboard content'), findsOneWidget);
+      expect(find.text('Home content'), findsOneWidget);
       expect(find.text('Yard'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
@@ -73,7 +73,7 @@ void main() {
       addTearDown(router.dispose);
       await tester.pumpWidget(
         MaterialApp.router(
-          theme: mortTestTheme(MortTheme.dark()),
+          theme: mortTestTheme(MortTheme.classic()),
           routerConfig: router,
         ),
       );
@@ -83,28 +83,46 @@ void main() {
         await tester.tap(find.text('Profile').last);
         await tester.pumpAndSettle();
         expect(find.text('Profile content'), findsOneWidget);
-        await tester.tap(find.text('Dashboard').last);
+        await tester.tap(find.text('Home').last);
         await tester.pumpAndSettle();
-        expect(find.text('Dashboard content'), findsOneWidget);
+        expect(find.text('Home content'), findsOneWidget);
       }
 
-      expect(find.byType(MortGlassNavigationBar), findsOneWidget);
+      expect(find.byType(MortBottomNavigation), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('teen Messages deep link selects the Messages tab', (
+    tester,
+  ) async {
+    final router = _teenRouter(initialLocation: '/teen/messages');
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      MaterialApp.router(theme: MortTheme.classic(), routerConfig: router),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Messages content'), findsOneWidget);
+    final navigation = tester.widget<MortBottomNavigation>(
+      find.byType(MortBottomNavigation),
+    );
+    expect(navigation.index, 2);
+    expect(find.text('Safety'), findsOneWidget);
+  });
 }
 
-GoRouter _teenRouter() => GoRouter(
-  initialLocation: '/teen/home',
+GoRouter _teenRouter({String initialLocation = '/teen/home'}) => GoRouter(
+  initialLocation: initialLocation,
   routes: [
     StatefulShellRoute.indexedStack(
       builder: (_, _, navigationShell) =>
           TeenShell(navigationShell: navigationShell),
       branches: [
-        _branch('/teen/home', 'Dashboard', includeSearch: true),
-        _branch('/teen/applications', 'Applications'),
-        _branch('/teen/safety', 'Safety'),
+        _branch('/teen/home', 'Home', includeSearch: true),
+        _branch('/teen/jobs', 'Jobs'),
         _branch('/teen/messages', 'Messages'),
+        _branch('/teen/safety', 'Safety'),
         _branch('/teen/profile', 'Profile'),
       ],
     ),

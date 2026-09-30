@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/theme/mort_colors.dart';
 import '../../core/widgets/mort_widgets.dart';
 
 class TeenShell extends StatefulWidget {
@@ -58,12 +57,12 @@ class _TeenShellState extends State<TeenShell> {
           if (!didPop) _returnToPreviousDestination();
         },
         child: Scaffold(
-          backgroundColor: MortColors.bg,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: widget.navigationShell,
           bottomNavigationBar: keyboardVisible
               ? null
-              : MortGlassNavigationBar(
-                  currentIndex: widget.navigationShell.currentIndex,
+              : MortBottomNavigation(
+                  index: widget.navigationShell.currentIndex,
                   destinations: _teenDestinations,
                   onDestinationSelected: _selectDestination,
                 ),
@@ -135,29 +134,29 @@ class MortTeenDestinationHeader extends StatelessWidget {
 }
 
 const _teenDestinations = [
-  MortNavigationDestination(
-    label: 'Dashboard',
-    icon: Icons.grid_view_outlined,
-    selectedIcon: Icons.grid_view_rounded,
+  NavigationDestination(
+    label: 'Home',
+    icon: Icon(Icons.home_outlined),
+    selectedIcon: Icon(Icons.home_rounded),
   ),
-  MortNavigationDestination(
+  NavigationDestination(
     label: 'Jobs',
-    icon: Icons.assignment_outlined,
-    selectedIcon: Icons.assignment_rounded,
+    icon: Icon(Icons.assignment_outlined),
+    selectedIcon: Icon(Icons.assignment_rounded),
   ),
-  MortNavigationDestination(
-    label: 'Safety',
-    icon: Icons.shield_outlined,
-    selectedIcon: Icons.shield_rounded,
-  ),
-  MortNavigationDestination(
+  NavigationDestination(
     label: 'Messages',
-    icon: Icons.chat_bubble_outline_rounded,
-    selectedIcon: Icons.chat_bubble_rounded,
+    icon: Icon(Icons.chat_bubble_outline_rounded),
+    selectedIcon: Icon(Icons.chat_bubble_rounded),
   ),
-  MortNavigationDestination(
+  NavigationDestination(
+    label: 'Safety',
+    icon: Icon(Icons.shield_outlined),
+    selectedIcon: Icon(Icons.shield_rounded),
+  ),
+  NavigationDestination(
     label: 'Profile',
-    icon: Icons.person_outline_rounded,
-    selectedIcon: Icons.person_rounded,
+    icon: Icon(Icons.person_outline_rounded),
+    selectedIcon: Icon(Icons.person_rounded),
   ),
 ];

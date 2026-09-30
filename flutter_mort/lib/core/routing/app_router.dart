@@ -62,6 +62,8 @@ import '../../features/teen/progression_hub_screen.dart';
 import '../../features/teen/progression_leaderboard_screen.dart';
 import '../../features/teen/progression_share_screen.dart';
 import '../../features/teen/teen_shell.dart';
+import '../../features/navigation/role_navigation_shell.dart';
+import '../../features/navigation/role_profile_destination_screen.dart';
 import '../../services/screen_security_service.dart';
 import '../widgets/mort_widgets.dart';
 import '../atmosphere/mort_atmosphere_preview_screen.dart';
@@ -174,15 +176,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/teen/safety',
-                builder: (_, _) => const SafetyCenterScreen(),
+                path: '/teen/messages',
+                builder: (_, _) =>
+                    const SensitiveScreenProtection(child: MessagesScreen()),
                 routes: [
                   GoRoute(
-                    path: 'applications/:applicationId',
+                    path: ':conversationId',
                     builder: (_, state) => SensitiveScreenProtection(
-                      child: JobSafetyWorkspaceScreen(
-                        applicationId:
-                            state.pathParameters['applicationId'] ?? '',
+                      child: MessageThreadScreen(
+                        threadId: state.pathParameters['conversationId'] ?? '',
                       ),
                     ),
                   ),
@@ -193,15 +195,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/teen/messages',
-                builder: (_, _) =>
-                    const SensitiveScreenProtection(child: MessagesScreen()),
+                path: '/teen/safety',
+                builder: (_, _) => const SafetyCenterScreen(),
                 routes: [
                   GoRoute(
-                    path: ':conversationId',
+                    path: 'applications/:applicationId',
                     builder: (_, state) => SensitiveScreenProtection(
-                      child: MessageThreadScreen(
-                        threadId: state.pathParameters['conversationId'] ?? '',
+                      child: JobSafetyWorkspaceScreen(
+                        applicationId:
+                            state.pathParameters['applicationId'] ?? '',
                       ),
                     ),
                   ),
@@ -329,17 +331,76 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         role: UserRole.teen,
       ),
       _guarded('/teen/hustle-academy', _academy(), role: UserRole.teen),
-      _guarded(
-        '/adult/home',
-        const RoleHomeScreen(role: UserRole.adult),
-        role: UserRole.adult,
+      StatefulShellRoute.indexedStack(
+        builder: (_, _, navigationShell) => GuardedRoute(
+          requiredRole: UserRole.adult,
+          child: MortRoleShell(
+            navigationShell: navigationShell,
+            tabs: MortRoleTabs.adult,
+          ),
+        ),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/adult/home',
+                builder: (_, _) => const RoleHomeScreen(role: UserRole.adult),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/adult/jobs',
+                builder: (_, _) => const AdultJobsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/adult/messages',
+                builder: (_, _) =>
+                    const SensitiveScreenProtection(child: MessagesScreen()),
+                routes: [
+                  GoRoute(
+                    path: ':conversationId',
+                    builder: (_, state) => SensitiveScreenProtection(
+                      child: MessageThreadScreen(
+                        threadId: state.pathParameters['conversationId'] ?? '',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/adult/safety',
+                builder: (_, _) => const SensitiveScreenProtection(
+                  child: SafetyCalmSurface(child: SafetyCenterScreen()),
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/adult/profile',
+                builder: (_, _) =>
+                    const RoleProfileDestinationScreen(role: UserRole.adult),
+              ),
+            ],
+          ),
+        ],
       ),
       _guarded(
         '/adult/post-job',
         const JobCreationScreen(),
         role: UserRole.adult,
       ),
-      _guarded('/adult/jobs', const AdultJobsScreen(), role: UserRole.adult),
       GoRoute(
         path: '/adult/jobs/:id',
         builder: (_, state) => GuardedRoute(
@@ -393,11 +454,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         role: UserRole.adult,
       ),
       _guarded(
-        '/adult/profile',
-        const ProfileSetupScreen(initialRole: UserRole.adult),
-        role: UserRole.adult,
-      ),
-      _guarded(
         '/adult/business',
         _pilotUnavailable(
           'Business profile',
@@ -413,10 +469,63 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
         role: UserRole.adult,
       ),
-      _guarded(
-        '/guardian/home',
-        const RoleHomeScreen(role: UserRole.guardian),
-        role: UserRole.guardian,
+      StatefulShellRoute.indexedStack(
+        builder: (_, _, navigationShell) => GuardedRoute(
+          requiredRole: UserRole.guardian,
+          child: MortRoleShell(
+            navigationShell: navigationShell,
+            tabs: MortRoleTabs.guardian,
+          ),
+        ),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/guardian/home',
+                builder: (_, _) =>
+                    const RoleHomeScreen(role: UserRole.guardian),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/guardian/safety',
+                builder: (_, _) => const SensitiveScreenProtection(
+                  child: SafetyCalmSurface(child: SafetyCenterScreen()),
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/guardian/messages',
+                builder: (_, _) =>
+                    const SensitiveScreenProtection(child: MessagesScreen()),
+                routes: [
+                  GoRoute(
+                    path: ':conversationId',
+                    builder: (_, state) => SensitiveScreenProtection(
+                      child: MessageThreadScreen(
+                        threadId: state.pathParameters['conversationId'] ?? '',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/guardian/profile',
+                builder: (_, _) =>
+                    const RoleProfileDestinationScreen(role: UserRole.guardian),
+              ),
+            ],
+          ),
+        ],
       ),
       _guarded(
         '/guardian/linked-teens',
