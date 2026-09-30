@@ -75,6 +75,68 @@ class SplashScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (Theme.of(context).brightness == Brightness.light) {
+      return MortScreen(
+        scroll: false,
+        padding: const EdgeInsets.symmetric(horizontal: MortSpacing.xl),
+        children: [
+          Expanded(
+            child: CustomScrollView(
+              slivers: [
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Column(
+                    children: [
+                      const Spacer(),
+                      const Icon(
+                        Icons.keyboard_double_arrow_up_rounded,
+                        size: 34,
+                      ),
+                      const SizedBox(height: MortSpacing.sm),
+                      Text(
+                        'MORT',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.displayLarge?.copyWith(letterSpacing: 4),
+                      ),
+                      const SizedBox(height: MortSpacing.lg),
+                      Text(
+                        'Earn nearby. Move smart.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: MortSpacing.xs),
+                      Text(
+                        'Real work near you, with safety and clear conversations built in from the start.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const Spacer(),
+                      MortButton(
+                        label: 'Enter MORT',
+                        onPressed: () => context.go('/welcome'),
+                      ),
+                      const SizedBox(height: MortSpacing.sm),
+                      TextButton(
+                        onPressed: () => context.push('/auth/sign-in'),
+                        child: const Text('Sign in'),
+                      ),
+                      const SizedBox(height: MortSpacing.md),
+                      Semantics(
+                        liveRegion: true,
+                        child: const _BackendStatusCard(compact: true),
+                      ),
+                      const SizedBox(height: MortSpacing.md),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
     return MortScreen(
       scroll: false,
       padding: const EdgeInsets.symmetric(horizontal: MortSpacing.xl),
@@ -189,7 +251,12 @@ class _WelcomeFeature extends StatelessWidget {
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: accented ? MortColors.lightBlue : MortColors.silver),
+        Icon(
+          icon,
+          color: Theme.of(context).brightness == Brightness.light
+              ? (accented ? MortClassicColors.info : MortClassicColors.ink)
+              : (accented ? MortColors.lightBlue : MortColors.silver),
+        ),
         const SizedBox(width: MortSpacing.sm),
         Expanded(
           child: Column(
@@ -211,6 +278,7 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final classic = Theme.of(context).brightness == Brightness.light;
     // The primary CTAs are pinned in `bottom:` (matching the same
     // always-visible, safe-area-respecting pattern used for e.g. the job
     // detail Apply button) rather than living inside the scrollable
@@ -233,7 +301,9 @@ class WelcomeScreen extends StatelessWidget {
           MortSpacing.md,
         ),
         child: DecoratedBox(
-          decoration: const BoxDecoration(color: MortColors.bg),
+          decoration: BoxDecoration(
+            color: classic ? MortClassicColors.canvas : MortColors.bg,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -254,9 +324,11 @@ class WelcomeScreen extends StatelessWidget {
         ),
       ),
       children: [
-        const Align(
+        Align(
           alignment: Alignment.centerLeft,
-          child: MortMotionMark(size: 38, settled: true),
+          child: classic
+              ? const Icon(Icons.keyboard_double_arrow_up_rounded, size: 38)
+              : const MortMotionMark(size: 38, settled: true),
         ),
         const SizedBox(height: MortSpacing.md),
         const MortHeader(
@@ -289,9 +361,9 @@ class WelcomeScreen extends StatelessWidget {
         Center(
           child: TextButton.icon(
             onPressed: () => context.push('/legal/teen-safety'),
-            icon: const Icon(
+            icon: Icon(
               Icons.shield_outlined,
-              color: MortColors.lightBlue,
+              color: classic ? MortClassicColors.info : MortColors.lightBlue,
             ),
             label: const Text('Read teen safety'),
           ),
@@ -7461,6 +7533,7 @@ class _BackendStatusCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(backendConnectionStatusProvider);
+    final classic = Theme.of(context).brightness == Brightness.light;
     final connected = switch (status) {
       AsyncData(value: final value) => value,
       _ => false,
@@ -7481,10 +7554,14 @@ class _BackendStatusCard extends ConsumerWidget {
                     : Icons.error_outline,
                 size: 9,
                 color: connected
-                    ? MortColors.silverBright
+                    ? (classic
+                          ? MortClassicColors.success
+                          : MortColors.silverBright)
                     : checking
-                    ? MortColors.silver
-                    : MortColors.warning,
+                    ? (classic ? MortClassicColors.muted : MortColors.silver)
+                    : (classic
+                          ? MortClassicColors.warning
+                          : MortColors.warning),
               ),
               const SizedBox(width: MortSpacing.xs),
               Flexible(
@@ -7496,7 +7573,9 @@ class _BackendStatusCard extends ConsumerWidget {
                       : 'Connection unavailable. Account features will wait safely.',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: MortColors.textMuted,
+                    color: classic
+                        ? MortClassicColors.muted
+                        : MortColors.textMuted,
                     fontSize: 10,
                     fontWeight: FontWeight.w400,
                   ),

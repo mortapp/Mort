@@ -528,6 +528,7 @@ class MortSegmentedControl<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     assert(options.isNotEmpty);
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    final classic = Theme.of(context).brightness == Brightness.light;
     return LiquidGlassContainer(
       variant: MortGlassVariant.soft,
       padding: const EdgeInsets.all(MortSpacing.xxs),
@@ -557,12 +558,18 @@ class MortSegmentedControl<T> extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: option.value == value
-                          ? MortColors.silverBright.withValues(alpha: 0.16)
+                          ? (classic
+                                ? MortClassicColors.surface
+                                : MortColors.silverBright.withValues(
+                                    alpha: 0.16,
+                                  ))
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(MortRadii.pill),
                       border: option.value == value
                           ? Border.all(
-                              color: MortColors.silver.withValues(alpha: 0.5),
+                              color: classic
+                                  ? MortClassicColors.line
+                                  : MortColors.silver.withValues(alpha: 0.5),
                             )
                           : null,
                     ),
@@ -573,8 +580,12 @@ class MortSegmentedControl<T> extends StatelessWidget {
                           option.icon,
                           size: 18,
                           color: option.value == value
-                              ? MortColors.silverBright
-                              : MortColors.silver,
+                              ? (classic
+                                    ? MortClassicColors.ink
+                                    : MortColors.silverBright)
+                              : (classic
+                                    ? MortClassicColors.muted
+                                    : MortColors.silver),
                         ),
                         const SizedBox(width: MortSpacing.xs),
                         Flexible(
@@ -585,8 +596,12 @@ class MortSegmentedControl<T> extends StatelessWidget {
                             style: Theme.of(context).textTheme.labelLarge
                                 ?.copyWith(
                                   color: option.value == value
-                                      ? MortColors.silverBright
-                                      : MortColors.silver,
+                                      ? (classic
+                                            ? MortClassicColors.ink
+                                            : MortColors.silverBright)
+                                      : (classic
+                                            ? MortClassicColors.muted
+                                            : MortColors.silver),
                                 ),
                           ),
                         ),
@@ -617,24 +632,33 @@ class MortChip extends StatelessWidget {
   final IconData? icon;
 
   @override
-  Widget build(BuildContext context) => ChoiceChip(
-    label: Text(label),
-    avatar: icon == null ? null : Icon(icon, size: 16),
-    selected: selected,
-    onSelected: onSelected,
-    showCheckmark: false,
-    selectedColor: MortColors.silverBright.withValues(alpha: 0.16),
-    backgroundColor: MortColors.glass,
-    side: BorderSide(
-      color: selected
-          ? MortColors.silver.withValues(alpha: 0.5)
-          : MortColors.lineStrong,
-    ),
-    labelStyle: TextStyle(
-      color: selected ? MortColors.silverBright : MortColors.silver,
-      fontWeight: FontWeight.w600,
-    ),
-  );
+  Widget build(BuildContext context) {
+    final classic = Theme.of(context).brightness == Brightness.light;
+    return ChoiceChip(
+      label: Text(label),
+      avatar: icon == null ? null : Icon(icon, size: 16),
+      selected: selected,
+      onSelected: onSelected,
+      showCheckmark: false,
+      selectedColor: classic
+          ? MortClassicColors.surface
+          : MortColors.silverBright.withValues(alpha: 0.16),
+      backgroundColor: classic ? MortClassicColors.canvas : MortColors.glass,
+      side: BorderSide(
+        color: classic
+            ? MortClassicColors.line
+            : selected
+            ? MortColors.silver.withValues(alpha: 0.5)
+            : MortColors.lineStrong,
+      ),
+      labelStyle: TextStyle(
+        color: classic
+            ? (selected ? MortClassicColors.ink : MortClassicColors.muted)
+            : (selected ? MortColors.silverBright : MortColors.silver),
+        fontWeight: FontWeight.w600,
+      ),
+    );
+  }
 }
 
 class MortStatusPill extends StatelessWidget {
@@ -650,35 +674,44 @@ class MortStatusPill extends StatelessWidget {
   final IconData? icon;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: label,
-    child: Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: MortSpacing.sm,
-        vertical: MortSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(MortRadii.pill),
-        border: Border.all(color: color.withValues(alpha: 0.34)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon ?? Icons.circle, size: icon == null ? 8 : 15, color: color),
-          const SizedBox(width: MortSpacing.xs),
-          Flexible(
-            child: Text(
-              label,
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: color),
+  Widget build(BuildContext context) {
+    final effectiveColor = Theme.of(context).brightness == Brightness.light
+        ? MortClassicColors.readableAccent(color)
+        : color;
+    return Semantics(
+      label: label,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: MortSpacing.sm,
+          vertical: MortSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          color: effectiveColor.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(MortRadii.pill),
+          border: Border.all(color: effectiveColor.withValues(alpha: 0.34)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon ?? Icons.circle,
+              size: icon == null ? 8 : 15,
+              color: effectiveColor,
             ),
-          ),
-        ],
+            const SizedBox(width: MortSpacing.xs),
+            Flexible(
+              child: Text(
+                label,
+                style: Theme.of(
+                  context,
+                ).textTheme.labelMedium?.copyWith(color: effectiveColor),
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class MortSectionLabel extends StatelessWidget {
@@ -692,7 +725,9 @@ class MortSectionLabel extends StatelessWidget {
     child: Text(
       label.toUpperCase(),
       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-        color: MortColors.textMuted,
+        color: Theme.of(context).brightness == Brightness.light
+            ? MortClassicColors.muted
+            : MortColors.textMuted,
         letterSpacing: 1.1,
       ),
     ),

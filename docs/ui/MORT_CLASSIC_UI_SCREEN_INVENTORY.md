@@ -20,9 +20,9 @@ Existing `/adult/profile` now presents RoleProfileDestinationScreen; the guarded
 
 | Route | Feature | Role | Entry point | Existing design | Existing behavior / widget | Backend dependency | Sensitive | Gate | Router line | Redesign |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---: | --- |
-| / | Auth | Public/auth | App startup | Dark atmospheric auth presentation | SplashScreen: startup flow, retaining current route actions | Supabase Auth/profile | Inspect | Always mapped | 92 | Pending |
-| /splash | Auth | Public/auth | In-app link or deep link | Dark atmospheric auth presentation | SplashScreen: splash flow, retaining current route actions | Supabase Auth/profile | Inspect | Always mapped | 93 | Pending |
-| /welcome | Auth | Public/auth | In-app link or deep link | Dark atmospheric auth presentation | WelcomeScreen: welcome flow, retaining current route actions | Supabase Auth/profile | Inspect | Always mapped | 94 | Pending |
+| / | Auth | Public/auth | App startup | Dark atmospheric auth presentation | SplashScreen: startup flow, retaining current route actions | Supabase Auth/profile | Inspect | Always mapped | 92 | Classic entry implemented; device audit pending |
+| /splash | Auth | Public/auth | In-app link or deep link | Dark atmospheric auth presentation | SplashScreen: splash flow, retaining current route actions | Supabase Auth/profile | Inspect | Always mapped | 93 | Classic entry implemented; device audit pending |
+| /welcome | Auth | Public/auth | In-app link or deep link | Dark atmospheric auth presentation | WelcomeScreen: welcome flow, retaining current route actions | Supabase Auth/profile | Inspect | Always mapped | 94 | Classic entry implemented; device audit pending |
 | /debug/atmosphere | Debug | Authenticated/role gated | In-app link or deep link | Debug atmosphere preview | MortAtmospherePreviewScreen: atmosphere flow, retaining current route actions | Local debug only | Inspect | Debug only | 96 | Pending |
 | /auth/sign-in | Auth | Public/auth | Landing / sign-in | Dark atmospheric auth presentation | UnifiedAuthScreen: sign in flow, retaining current route actions | Supabase Auth/profile | Inspect | Always mapped | 100 | Pending |
 | /auth/sign-up | Auth | Public/auth | Landing / sign-in | Dark atmospheric auth presentation | UnifiedAuthScreen: sign up flow, retaining current route actions | Supabase Auth/profile | Inspect | Always mapped | 104 | Pending |

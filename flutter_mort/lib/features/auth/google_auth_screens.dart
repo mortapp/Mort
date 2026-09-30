@@ -98,6 +98,7 @@ class _GoogleAuthSectionState extends ConsumerState<GoogleAuthSection> {
   @override
   Widget build(BuildContext context) {
     if (!ref.watch(googleAuthEnabledProvider)) return const SizedBox.shrink();
+    final classic = Theme.of(context).brightness == Brightness.light;
     final repository = ref.watch(authRepositoryProvider);
     final state = ref
         .watch(oauthFlowStateProvider)
@@ -127,12 +128,26 @@ class _GoogleAuthSectionState extends ConsumerState<GoogleAuthSection> {
             child: OutlinedButton(
               onPressed: enabled ? _launch : null,
               style: OutlinedButton.styleFrom(
-                backgroundColor: MortColors.cardAlt,
-                foregroundColor: MortColors.text,
-                disabledBackgroundColor: MortColors.line,
-                disabledForegroundColor: MortColors.textMuted,
-                side: const BorderSide(color: MortColors.borderSilver),
-                overlayColor: MortColors.primary.withValues(alpha: 0.08),
+                backgroundColor: classic
+                    ? MortClassicColors.canvas
+                    : MortColors.cardAlt,
+                foregroundColor: classic
+                    ? MortClassicColors.ink
+                    : MortColors.text,
+                disabledBackgroundColor: classic
+                    ? MortClassicColors.surface
+                    : MortColors.line,
+                disabledForegroundColor: classic
+                    ? MortClassicColors.muted
+                    : MortColors.textMuted,
+                side: BorderSide(
+                  color: classic
+                      ? MortClassicColors.line
+                      : MortColors.borderSilver,
+                ),
+                overlayColor: classic
+                    ? MortClassicColors.ink.withValues(alpha: 0.06)
+                    : MortColors.primary.withValues(alpha: 0.08),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(MortRadii.medium),
                 ),

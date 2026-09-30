@@ -1,72 +1,41 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_mort/core/atmosphere/mort_wordmark_reveal.dart';
-import 'package:flutter_mort/core/widgets/mort_motion_mark.dart';
+import 'package:flutter_mort/core/theme/mort_theme.dart';
 import 'package:flutter_mort/core/widgets/mort_widgets.dart';
 import 'package:flutter_mort/features/mort_screens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('entry presents one concise midnight hierarchy', (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          backendConnectionStatusProvider.overrideWith((ref) async => true),
-        ],
-        child: const MaterialApp(home: SplashScreen()),
-      ),
-    );
-    await tester.pump();
+  testWidgets('entry presents the classic white hierarchy', (tester) async {
+    await _pumpEntry(tester);
 
-    expect(find.byType(MortMotionMark), findsOneWidget);
-    expect(
-      tester.widget<MortMotionMark>(find.byType(MortMotionMark)).outlinedUp,
-      isTrue,
-    );
-    expect(find.byType(MortWordmarkReveal), findsOneWidget);
+    expect(find.text('MORT'), findsOneWidget);
     expect(find.text('Earn nearby. Move smart.'), findsOneWidget);
-    expect(find.text('Enter MORT'), findsOneWidget);
-    expect(find.text('Sign in'), findsOneWidget);
-    expect(find.byType(Image), findsNothing);
-    final screen = tester.widget<MortScreen>(find.byType(MortScreen));
-    expect(screen.atmosphereFocalLayer, isNull);
-    expect(find.byType(OutlinedButton), findsOneWidget);
-    final wordmark = tester.widget<MortWordmarkReveal>(
-      find.byType(MortWordmarkReveal),
+    expect(find.widgetWithText(MortButton, 'Enter MORT'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Sign in'), findsOneWidget);
+    expect(
+      tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
+      Colors.white,
     );
-    expect(wordmark.width, lessThanOrEqualTo(160));
-    expect(wordmark.height, lessThanOrEqualTo(52));
-    expect(wordmark.showTagline, isFalse);
+    expect(find.byType(Image), findsNothing);
   });
 
-  testWidgets('entry matches the compact mobile landing composition', (
-    tester,
-  ) async {
+  testWidgets('entry keeps actions visible on a compact phone', (tester) async {
     tester.view.physicalSize = const Size(360, 800);
     tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    await _pumpEntry(tester);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          backendConnectionStatusProvider.overrideWith((ref) async => true),
-        ],
-        child: const MaterialApp(home: SplashScreen()),
-      ),
-    );
-    await tester.pump();
-
-    final mark = tester.getRect(find.byType(MortMotionMark));
-    final wordmark = tester.getRect(find.byType(MortWordmarkReveal));
-    final cta = tester.getRect(find.byType(OutlinedButton));
+    final wordmark = tester.getRect(find.text('MORT'));
+    final cta = tester.getRect(find.widgetWithText(MortButton, 'Enter MORT'));
     final signIn = tester.getRect(find.widgetWithText(TextButton, 'Sign in'));
-    expect(mark.center.dx, closeTo(180, 2));
     expect(wordmark.center.dx, closeTo(180, 2));
-    expect(mark.top, inInclusiveRange(170, 310));
-    expect(cta.top, greaterThan(570));
-    expect(cta.height, inInclusiveRange(44, 56));
+    expect(cta.top, greaterThan(wordmark.bottom));
     expect(signIn.top, greaterThan(cta.bottom));
+    expect(signIn.bottom, lessThanOrEqualTo(800));
     expect(tester.takeException(), isNull);
   });
 
@@ -75,20 +44,31 @@ void main() {
   ) async {
     tester.view.physicalSize = const Size(320, 640);
     tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    await tester.pumpWidget(
-      const ProviderScope(
-        child: MediaQuery(
-          data: MediaQueryData(textScaler: TextScaler.linear(1.5)),
-          child: MaterialApp(home: SplashScreen()),
-        ),
-      ),
-    );
-    await tester.pump();
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    await _pumpEntry(tester, scale: 1.5);
 
     expect(tester.takeException(), isNull);
     expect(find.text('Enter MORT'), findsOneWidget);
   });
+}
+
+Future<void> _pumpEntry(WidgetTester tester, {double scale = 1}) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        backendConnectionStatusProvider.overrideWith((ref) async => true),
+      ],
+      child: MaterialApp(
+        theme: MortTheme.classic(),
+        home: MediaQuery(
+          data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+          child: const SplashScreen(),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
 }
