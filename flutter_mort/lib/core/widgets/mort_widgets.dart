@@ -161,51 +161,59 @@ class MortScaffold extends StatelessWidget {
         ? SingleChildScrollView(controller: scrollController, child: content)
         : content;
 
+    final protectedBody = PopScope<Object?>(
+      canPop: allowImmediatePop,
+      onPopInvokedWithResult: (didPop, _) =>
+          _handlePopInvoked(context, didPop: didPop),
+      child: showFloatingBack
+          ? Stack(
+              children: [
+                body,
+                SafeArea(
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.all(MortSpacing.sm),
+                      child: MortBackButton(
+                        fallbackRoute: MortBackNavigation.fallbackRoute(
+                          location,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : body,
+    );
+    final classic = Theme.of(context).brightness == Brightness.light;
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: classic
+          ? Theme.of(context).scaffoldBackgroundColor
+          : Colors.transparent,
       bottomNavigationBar: bottom,
-      body: DecoratedBox(
-        // Cheap flat base beneath the animated atmosphere: covers the
-        // frame before the atmosphere's own LayoutBuilder settles, and
-        // is what remains visible if the atmosphere ever fails to build.
-        decoration: const BoxDecoration(gradient: MortGradients.background),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Positioned.fill(
-              child: MortAtmosphericBackground(
-                intensity: atmosphereIntensity,
-                focalLayer: atmosphereFocalLayer,
+      body: classic
+          ? protectedBody
+          : DecoratedBox(
+              // Cheap flat base beneath the animated atmosphere: covers the
+              // frame before the atmosphere's own LayoutBuilder settles, and
+              // is what remains visible if the atmosphere ever fails to build.
+              decoration: const BoxDecoration(
+                gradient: MortGradients.background,
+              ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Positioned.fill(
+                    child: MortAtmosphericBackground(
+                      intensity: atmosphereIntensity,
+                      focalLayer: atmosphereFocalLayer,
+                    ),
+                  ),
+                  protectedBody,
+                ],
               ),
             ),
-            PopScope<Object?>(
-              canPop: allowImmediatePop,
-              onPopInvokedWithResult: (didPop, _) =>
-                  _handlePopInvoked(context, didPop: didPop),
-              child: showFloatingBack
-                  ? Stack(
-                      children: [
-                        body,
-                        SafeArea(
-                          child: Align(
-                            alignment: Alignment.topLeft,
-                            child: Padding(
-                              padding: const EdgeInsets.all(MortSpacing.sm),
-                              child: MortBackButton(
-                                fallbackRoute: MortBackNavigation.fallbackRoute(
-                                  location,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
-                  : body,
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -276,7 +284,9 @@ class MortHeader extends StatelessWidget {
                   Text(
                     eyebrow!,
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: MortColors.primaryBright,
+                      color: Theme.of(context).brightness == Brightness.light
+                          ? MortClassicColors.muted
+                          : MortColors.primaryBright,
                       letterSpacing: 1.4,
                     ),
                   ),
@@ -401,23 +411,31 @@ class MortButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final classic = Theme.of(context).brightness == Brightness.light;
+    final scheme = Theme.of(context).colorScheme;
     final enabled =
         onPressed != null && style != MortButtonStyle.disabled && !busy;
     final bg = switch (style) {
-      MortButtonStyle.primary => MortColors.silverBright,
-      MortButtonStyle.secondary => MortColors.cardAlt,
+      MortButtonStyle.primary =>
+        classic ? scheme.primary : MortColors.silverBright,
+      MortButtonStyle.secondary =>
+        classic ? scheme.surface : MortColors.cardAlt,
       MortButtonStyle.tertiary => Colors.transparent,
-      MortButtonStyle.danger => MortColors.dangerDeep,
+      MortButtonStyle.danger => classic ? scheme.error : MortColors.dangerDeep,
       MortButtonStyle.ghost => Colors.transparent,
-      MortButtonStyle.disabled => MortColors.line,
+      MortButtonStyle.disabled => classic ? scheme.outline : MortColors.line,
     };
     final fg = switch (style) {
-      MortButtonStyle.primary => MortColors.godBlack,
-      MortButtonStyle.secondary => MortColors.text,
-      MortButtonStyle.tertiary => MortColors.silverBright,
-      MortButtonStyle.danger => MortColors.godWhite,
-      MortButtonStyle.ghost => MortColors.silverBright,
-      MortButtonStyle.disabled => MortColors.textMuted,
+      MortButtonStyle.primary =>
+        classic ? scheme.onPrimary : MortColors.godBlack,
+      MortButtonStyle.secondary => classic ? scheme.onSurface : MortColors.text,
+      MortButtonStyle.tertiary =>
+        classic ? scheme.onSurface : MortColors.silverBright,
+      MortButtonStyle.danger => classic ? scheme.onError : MortColors.godWhite,
+      MortButtonStyle.ghost =>
+        classic ? scheme.onSurface : MortColors.silverBright,
+      MortButtonStyle.disabled =>
+        classic ? scheme.onSurfaceVariant : MortColors.textMuted,
     };
 
     // Canonical press feedback: one preference-gated selection tick per
@@ -437,17 +455,23 @@ class MortButton extends StatelessWidget {
           : Icon(icon ?? Icons.arrow_forward_rounded, size: 18),
       label: Text(busy ? busyLabel ?? label : label),
       style: ElevatedButton.styleFrom(
-        backgroundColor: style == MortButtonStyle.primary
+        backgroundColor: style == MortButtonStyle.primary && !classic
             ? Colors.transparent
             : bg,
         foregroundColor: fg,
-        disabledBackgroundColor: MortColors.line,
-        disabledForegroundColor: MortColors.textMuted,
+        disabledBackgroundColor: classic
+            ? scheme.surfaceContainer
+            : MortColors.line,
+        disabledForegroundColor: classic
+            ? scheme.onSurfaceVariant
+            : MortColors.textMuted,
         minimumSize: const Size(48, 52),
         elevation: 0,
         shadowColor: Colors.transparent,
         side: style == MortButtonStyle.secondary
-            ? const BorderSide(color: MortColors.lineStrong)
+            ? BorderSide(
+                color: classic ? scheme.outline : MortColors.lineStrong,
+              )
             : BorderSide.none,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(MortRadii.medium),
@@ -462,7 +486,7 @@ class MortButton extends StatelessWidget {
       opacity: enabled ? 1 : 0.58,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          gradient: style == MortButtonStyle.primary
+          gradient: style == MortButtonStyle.primary && !classic
               ? MortGradients.metallic
               : null,
           color: style == MortButtonStyle.primary ? null : bg,
@@ -532,6 +556,7 @@ class MortIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final classic = Theme.of(context).brightness == Brightness.light;
     return IconButton.filledTonal(
       tooltip: tooltip,
       onPressed: onPressed == null
@@ -542,9 +567,13 @@ class MortIconButton extends StatelessWidget {
             },
       icon: Icon(icon),
       style: IconButton.styleFrom(
-        backgroundColor: MortColors.glass,
-        foregroundColor: MortColors.silverBright,
-        side: const BorderSide(color: MortColors.lineStrong),
+        backgroundColor: classic ? MortClassicColors.canvas : MortColors.glass,
+        foregroundColor: classic
+            ? MortClassicColors.ink
+            : MortColors.silverBright,
+        side: BorderSide(
+          color: classic ? MortClassicColors.line : MortColors.lineStrong,
+        ),
         minimumSize: const Size.square(MortSpacing.minTouchTarget),
       ),
     );
@@ -569,6 +598,7 @@ class MortToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final classic = Theme.of(context).brightness == Brightness.light;
     return SwitchListTile.adaptive(
       contentPadding: EdgeInsets.zero,
       minTileHeight: MortSpacing.minTouchTarget,
@@ -576,10 +606,12 @@ class MortToggle extends StatelessWidget {
       subtitle: subtitle == null ? null : Text(subtitle!),
       value: value,
       onChanged: enabled ? onChanged : null,
-      activeThumbColor: MortColors.bg,
-      activeTrackColor: MortColors.silver,
-      inactiveThumbColor: MortColors.textMuted,
-      inactiveTrackColor: MortColors.line,
+      activeThumbColor: classic ? MortClassicColors.canvas : MortColors.bg,
+      activeTrackColor: classic ? MortClassicColors.ink : MortColors.silver,
+      inactiveThumbColor: classic
+          ? MortClassicColors.muted
+          : MortColors.textMuted,
+      inactiveTrackColor: classic ? MortClassicColors.line : MortColors.line,
     );
   }
 }
@@ -760,7 +792,9 @@ class MortDropdown<T> extends StatelessWidget {
       isExpanded: true,
       focusNode: focusNode,
       decoration: InputDecoration(labelText: label, errorText: errorText),
-      dropdownColor: MortColors.cardAlt,
+      dropdownColor: Theme.of(context).brightness == Brightness.light
+          ? MortClassicColors.canvas
+          : MortColors.cardAlt,
       items: items.entries
           .map(
             (entry) => DropdownMenuItem<T>(
@@ -813,7 +847,9 @@ class MortSearchableDropdown<T> extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: MortColors.cardAlt,
+      backgroundColor: Theme.of(context).brightness == Brightness.light
+          ? MortClassicColors.canvas
+          : MortColors.cardAlt,
       builder: (context) => _MortSearchPicker<T>(
         title: label,
         selected: value,
@@ -944,21 +980,26 @@ class MortBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effectiveSemanticLabel = semanticLabel ?? label;
+    final effectiveColor = Theme.of(context).brightness == Brightness.light
+        ? MortClassicColors.readableAccent(color)
+        : color;
     return Semantics(
       container: true,
       label: effectiveSemanticLabel,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          border: Border.all(color: color.withValues(alpha: 0.45)),
+          color: effectiveColor.withValues(alpha: 0.08),
+          border: Border.all(color: effectiveColor.withValues(alpha: 0.35)),
           borderRadius: BorderRadius.circular(999),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              ExcludeSemantics(child: Icon(icon, size: 13, color: color)),
+              ExcludeSemantics(
+                child: Icon(icon, size: 13, color: effectiveColor),
+              ),
               const SizedBox(width: 5),
             ],
             Flexible(
@@ -969,7 +1010,7 @@ class MortBadge extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(
                     context,
-                  ).textTheme.labelMedium?.copyWith(color: color),
+                  ).textTheme.labelMedium?.copyWith(color: effectiveColor),
                 ),
               ),
             ),
@@ -1095,11 +1136,15 @@ class MortAvatar extends StatelessWidget {
 
     return CircleAvatar(
       radius: radius,
-      backgroundColor: MortColors.raisedBlack,
+      backgroundColor: Theme.of(context).brightness == Brightness.light
+          ? MortClassicColors.ink
+          : MortColors.raisedBlack,
       child: Text(
         initials,
         style: TextStyle(
-          color: MortColors.silverBright,
+          color: Theme.of(context).brightness == Brightness.light
+              ? MortClassicColors.canvas
+              : MortColors.silverBright,
           fontWeight: FontWeight.w800,
           fontSize: radius * 0.7,
         ),
@@ -1140,10 +1185,10 @@ class MortLoading extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const SizedBox.square(
+            SizedBox.square(
               dimension: 22,
               child: CircularProgressIndicator(
-                color: MortColors.silverBright,
+                color: Theme.of(context).colorScheme.primary,
                 strokeWidth: 2.5,
               ),
             ),
@@ -1199,7 +1244,7 @@ class MortEmptyState extends StatelessWidget {
           if (icon == null)
             const MortBrandMark(size: 64)
           else
-            Icon(icon, color: MortColors.lightBlue, size: 34),
+            Icon(icon, color: Theme.of(context).colorScheme.primary, size: 34),
           const SizedBox(height: MortSpacing.sm),
           Text(title, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: MortSpacing.xs),
@@ -1233,7 +1278,7 @@ class MortErrorState extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_outline, color: MortColors.danger),
+          Icon(Icons.error_outline, color: Theme.of(context).colorScheme.error),
           const SizedBox(height: MortSpacing.sm),
           Text(title, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: MortSpacing.xs),
@@ -1289,7 +1334,12 @@ class MortSafetyBanner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.shield_outlined, color: MortColors.safetyBlue),
+          Icon(
+            Icons.shield_outlined,
+            color: Theme.of(context).brightness == Brightness.light
+                ? MortClassicColors.info
+                : MortColors.safetyBlue,
+          ),
           const SizedBox(width: MortSpacing.sm),
           Expanded(
             child: Text(message, style: Theme.of(context).textTheme.bodyMedium),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_mort/core/preferences/mort_experience_preferences.dart';
+import 'package:flutter_mort/core/theme/mort_theme.dart';
 import 'package:flutter_mort/core/widgets/mort_widgets.dart';
 import 'package:flutter_mort/features/mort_screens.dart';
 import 'package:flutter_mort/features/settings/experience_settings_screen.dart';
@@ -108,6 +109,7 @@ void main() {
 
   testWidgets('reduced transparency removes live blur', (tester) async {
     Widget app(bool reducedTransparency) => MaterialApp(
+      theme: MortTheme.dark(),
       home: Scaffold(
         body: MortExperiencePreferencesScope(
           preferences: MortExperiencePreferences(
@@ -126,6 +128,21 @@ void main() {
     expect(find.byType(BackdropFilter), findsOneWidget);
 
     await tester.pumpWidget(app(true));
+    expect(find.byType(BackdropFilter), findsNothing);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: MortTheme.classic(),
+        home: const Scaffold(
+          body: LiquidGlassContainer(
+            liveBlur: true,
+            allowAndroidBlur: true,
+            child: Text('Classic surface'),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
     expect(find.byType(BackdropFilter), findsNothing);
   });
 }

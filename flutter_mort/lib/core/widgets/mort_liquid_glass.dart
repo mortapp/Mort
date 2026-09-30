@@ -53,6 +53,35 @@ class LiquidGlassContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = borderRadius ?? BorderRadius.circular(MortRadii.card);
+    if (Theme.of(context).brightness == Brightness.light) {
+      final contents = Padding(padding: padding, child: child);
+      Widget surface = Material(
+        color: MortClassicColors.canvas,
+        shape: RoundedRectangleBorder(
+          borderRadius: radius,
+          side: const BorderSide(color: MortClassicColors.line),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: onTap == null
+            ? contents
+            : InkWell(borderRadius: radius, onTap: onTap, child: contents),
+      );
+      if (onTap != null) {
+        surface = ConstrainedBox(
+          constraints: const BoxConstraints(
+            minWidth: MortSpacing.minTouchTarget,
+            minHeight: MortSpacing.minTouchTarget,
+          ),
+          child: surface,
+        );
+      }
+      return Semantics(
+        label: semanticLabel,
+        button: onTap != null,
+        container: true,
+        child: surface,
+      );
+    }
     final highContrast = MediaQuery.highContrastOf(context);
     final blur = _useLiveBlur(context);
     final base = switch (variant) {

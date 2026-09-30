@@ -208,7 +208,7 @@ class _MortBootstrapState extends State<MortBootstrap> {
       return MaterialApp(
         title: 'MORT',
         debugShowCheckedModeBanner: false,
-        theme: MortTheme.dark(),
+        theme: MortTheme.classic(),
         home: MortScreen(
           children: [
             const MortHeader(
@@ -252,7 +252,7 @@ class _MortBootstrapState extends State<MortBootstrap> {
         return MaterialApp(
           title: 'MORT',
           debugShowCheckedModeBanner: false,
-          theme: MortTheme.dark(),
+          theme: MortTheme.classic(),
           home: MortScreen(
             children: [
               const MortHeader(

@@ -1,5 +1,48 @@
 import 'package:flutter/material.dart';
 
+/// Neutral colors for the classic MORT presentation. Keep legacy [MortColors]
+/// while each feature is migrated so old dark surfaces never silently acquire
+/// unreadable foreground colors.
+class MortClassicColors {
+  const MortClassicColors._();
+
+  static const canvas = Color(0xFFFFFFFF);
+  static const ink = Color(0xFF111111);
+  static const muted = Color(0xFF616161);
+  static const subtle = Color(0xFF757575);
+  static const surface = Color(0xFFF7F7F7);
+  static const line = Color(0xFFE2E2E2);
+  static const danger = Color(0xFFB3261E);
+  static const success = Color(0xFF216E45);
+  static const warning = Color(0xFF915800);
+  static const info = Color(0xFF215A9B);
+
+  /// Darken legacy accent colors when their existing light tint would disappear
+  /// against the classic white canvas.
+  static Color readableAccent(Color candidate) {
+    if (candidate == MortColors.danger ||
+        candidate == MortColors.paymentDanger ||
+        candidate == MortColors.paymentDangerDeep) {
+      return danger;
+    }
+    if (candidate == MortColors.warning ||
+        candidate == MortColors.paymentWarning) {
+      return warning;
+    }
+    if (candidate == MortColors.success ||
+        candidate == MortColors.paymentSuccess ||
+        candidate == MortColors.paymentSuccessDeep) {
+      return success;
+    }
+    if (candidate == MortColors.lightBlue ||
+        candidate == MortColors.safetyBlue ||
+        candidate == MortColors.paymentInfo) {
+      return info;
+    }
+    return candidate.computeLuminance() > 0.28 ? ink : candidate;
+  }
+}
+
 /// MORT canonical palette — BLACK + SILVER.
 ///
 /// Visual balance target:

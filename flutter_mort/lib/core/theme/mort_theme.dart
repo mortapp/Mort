@@ -9,6 +9,159 @@ import '../routing/mort_page_transitions.dart';
 class MortTheme {
   const MortTheme._();
 
+  static ThemeData classic() {
+    const ink = MortClassicColors.ink;
+    const muted = MortClassicColors.muted;
+    const line = MortClassicColors.line;
+    const surface = MortClassicColors.canvas;
+    const secondarySurface = MortClassicColors.surface;
+    const danger = MortClassicColors.danger;
+    const scheme = ColorScheme(
+      brightness: Brightness.light,
+      primary: ink,
+      onPrimary: surface,
+      secondary: muted,
+      onSecondary: surface,
+      error: danger,
+      onError: surface,
+      surface: surface,
+      onSurface: ink,
+    );
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      colorScheme: scheme.copyWith(
+        surfaceContainerLowest: surface,
+        surfaceContainerLow: secondarySurface,
+        surfaceContainer: secondarySurface,
+        surfaceContainerHigh: secondarySurface,
+        outline: line,
+        outlineVariant: line,
+      ),
+      scaffoldBackgroundColor: surface,
+      textTheme: MortTypography.classicTextTheme().apply(
+        bodyColor: ink,
+        displayColor: ink,
+      ),
+      fontFamily: 'Roboto',
+      iconTheme: const IconThemeData(color: ink, size: MortIconSizes.standard),
+      visualDensity: VisualDensity.standard,
+      materialTapTargetSize: MaterialTapTargetSize.padded,
+      pageTransitionsTheme: MortPageTransitions.theme,
+      appBarTheme: const AppBarTheme(
+        backgroundColor: surface,
+        foregroundColor: ink,
+        surfaceTintColor: surface,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: surface,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: MortSpacing.md,
+          vertical: MortSpacing.md,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(MortRadii.medium),
+          borderSide: const BorderSide(color: line),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(MortRadii.medium),
+          borderSide: const BorderSide(color: line),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(MortRadii.medium),
+          borderSide: const BorderSide(color: ink, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(MortRadii.medium),
+          borderSide: const BorderSide(color: danger),
+        ),
+        labelStyle: const TextStyle(color: ink),
+        hintStyle: const TextStyle(color: muted),
+        prefixIconColor: muted,
+        suffixIconColor: muted,
+      ),
+      dividerTheme: const DividerThemeData(color: line, space: 1),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: ink,
+          foregroundColor: surface,
+          disabledBackgroundColor: secondarySurface,
+          disabledForegroundColor: muted,
+          minimumSize: const Size(
+            MortSpacing.minTouchTarget,
+            MortSpacing.fieldHeight,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(MortRadii.medium),
+          ),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: surface,
+        selectedColor: secondarySurface,
+        disabledColor: secondarySurface,
+        side: const BorderSide(color: line),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(MortRadii.pill),
+        ),
+        labelStyle: const TextStyle(color: ink),
+        secondaryLabelStyle: const TextStyle(color: ink),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        height: MortSpacing.navigationHeight,
+        backgroundColor: surface,
+        indicatorColor: secondarySurface,
+        elevation: 0,
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => TextStyle(
+            color: states.contains(WidgetState.selected) ? ink : muted,
+            fontSize: 12,
+            fontWeight: states.contains(WidgetState.selected)
+                ? FontWeight.w700
+                : FontWeight.w500,
+          ),
+        ),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            color: states.contains(WidgetState.selected) ? ink : muted,
+          ),
+        ),
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: ink,
+        linearTrackColor: line,
+      ),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: ink,
+        selectionColor: ink.withValues(alpha: 0.16),
+        selectionHandleColor: ink,
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: surface,
+        modalBackgroundColor: surface,
+        surfaceTintColor: surface,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: surface,
+        surfaceTintColor: surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(MortRadii.card),
+        ),
+      ),
+      snackBarTheme: const SnackBarThemeData(
+        backgroundColor: ink,
+        contentTextStyle: TextStyle(color: surface),
+      ),
+      focusColor: ink.withValues(alpha: 0.16),
+      hoverColor: ink.withValues(alpha: 0.05),
+      splashColor: ink.withValues(alpha: 0.08),
+    );
+  }
+
   static ThemeData dark() {
     final colorScheme =
         const ColorScheme(

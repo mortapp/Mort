@@ -5,6 +5,84 @@ import 'mort_colors.dart';
 class MortTypography {
   const MortTypography._();
 
+  static TextTheme classicTextTheme() => const TextTheme(
+    displayLarge: TextStyle(
+      fontSize: 40,
+      fontWeight: FontWeight.w700,
+      height: 1.1,
+    ),
+    displayMedium: TextStyle(
+      fontSize: 34,
+      fontWeight: FontWeight.w700,
+      height: 1.12,
+    ),
+    displaySmall: TextStyle(
+      fontSize: 29,
+      fontWeight: FontWeight.w700,
+      height: 1.15,
+    ),
+    headlineLarge: TextStyle(
+      fontSize: 27,
+      fontWeight: FontWeight.w700,
+      height: 1.15,
+    ),
+    headlineMedium: TextStyle(
+      fontSize: 24,
+      fontWeight: FontWeight.w700,
+      height: 1.2,
+    ),
+    headlineSmall: TextStyle(
+      fontSize: 21,
+      fontWeight: FontWeight.w700,
+      height: 1.25,
+    ),
+    titleLarge: TextStyle(
+      fontSize: 19,
+      fontWeight: FontWeight.w600,
+      height: 1.25,
+    ),
+    titleMedium: TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
+      height: 1.3,
+    ),
+    titleSmall: TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+      height: 1.3,
+    ),
+    bodyLarge: TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w400,
+      height: 1.5,
+    ),
+    bodyMedium: TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w400,
+      height: 1.45,
+    ),
+    bodySmall: TextStyle(
+      fontSize: 13,
+      fontWeight: FontWeight.w400,
+      height: 1.4,
+    ),
+    labelLarge: TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+      height: 1.3,
+    ),
+    labelMedium: TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      height: 1.3,
+    ),
+    labelSmall: TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w600,
+      height: 1.3,
+    ),
+  );
+
   static TextTheme textTheme() {
     return const TextTheme(
       displayLarge: TextStyle(

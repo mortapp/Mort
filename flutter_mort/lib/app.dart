@@ -120,7 +120,7 @@ class _MortAppState extends ConsumerState<MortApp> with WidgetsBindingObserver {
     return MaterialApp.router(
       onGenerateTitle: (context) => MortLocalizations.of(context).appTitle,
       debugShowCheckedModeBanner: false,
-      theme: MortTheme.dark(),
+      theme: MortTheme.classic(),
       localizationsDelegates: const [
         MortLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,

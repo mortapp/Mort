@@ -73,7 +73,9 @@ class MortFilterChip extends StatelessWidget {
         : Icon(
             icon,
             size: MortIconSizes.small,
-            color: selected ? MortColors.silverBright : MortColors.textMuted,
+            color: Theme.of(context).brightness == Brightness.light
+                ? (selected ? MortClassicColors.ink : MortClassicColors.muted)
+                : (selected ? MortColors.silverBright : MortColors.textMuted),
           ),
     label: Text(label),
     selected: selected,
@@ -115,17 +117,26 @@ class MortTopBar extends StatelessWidget implements PreferredSizeWidget {
   Size get preferredSize => const Size.fromHeight(64);
 
   @override
-  Widget build(BuildContext context) => AppBar(
-    leading: leading,
-    title: Text(title),
-    actions: actions,
-    flexibleSpace: DecoratedBox(
-      decoration: BoxDecoration(
-        color: MortColors.bg.withValues(alpha: 0.9),
-        border: const Border(bottom: BorderSide(color: MortColors.line)),
+  Widget build(BuildContext context) {
+    final classic = Theme.of(context).brightness == Brightness.light;
+    return AppBar(
+      leading: leading,
+      title: Text(title),
+      actions: actions,
+      flexibleSpace: DecoratedBox(
+        decoration: BoxDecoration(
+          color: classic
+              ? MortClassicColors.canvas
+              : MortColors.bg.withValues(alpha: 0.9),
+          border: Border(
+            bottom: BorderSide(
+              color: classic ? MortClassicColors.line : MortColors.line,
+            ),
+          ),
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class MortBottomNavigation extends StatelessWidget {
@@ -189,7 +200,9 @@ class MortPriceDisplay extends StatelessWidget {
                   ? Theme.of(context).textTheme.headlineSmall
                   : Theme.of(context).textTheme.titleMedium)
               ?.copyWith(
-                color: emphasized ? MortColors.silverBright : MortColors.text,
+                color: Theme.of(context).brightness == Brightness.light
+                    ? MortClassicColors.ink
+                    : (emphasized ? MortColors.silverBright : MortColors.text),
               ),
     );
 
