@@ -7,9 +7,11 @@ import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/account_trust.dart';
+import '../../data/models/school_directory_entry.dart';
 import '../../data/repositories/providers.dart';
 import '../../services/passkey_capability.dart';
 import '../../services/app_lock_controller.dart';
+import '../auth/school_directory_picker.dart';
 
 class AccountTrustScreen extends ConsumerWidget {
   const AccountTrustScreen({super.key});
@@ -497,6 +499,7 @@ class SchoolEmailVerificationScreen extends ConsumerStatefulWidget {
 class _SchoolEmailVerificationScreenState
     extends ConsumerState<SchoolEmailVerificationScreen> {
   final _email = TextEditingController();
+  SchoolDirectoryEntry? _school;
   bool _busy = false;
   String? _result;
 
@@ -506,24 +509,66 @@ class _SchoolEmailVerificationScreenState
     super.dispose();
   }
 
+  Future<void> _pickSchool() async {
+    final selected = await Navigator.of(context).push<SchoolDirectoryEntry>(
+      MaterialPageRoute(builder: (_) => const SchoolDirectoryPicker()),
+    );
+    if (mounted && selected != null) {
+      setState(() {
+        _school = selected;
+        _result = null;
+      });
+    }
+  }
+
   Future<void> _submit() async {
-    if (!_email.text.contains('@')) {
+    final school = _school;
+    final email = _email.text.trim();
+    if (school == null) {
+      MortToast.show(context, 'Find and select your school first.');
+      return;
+    }
+    if (!email.contains('@')) {
       MortToast.show(
         context,
-        'Enter the confirmed email used by this account.',
+        'Enter the confirmed email issued by your school.',
       );
       return;
     }
     setState(() => _busy = true);
     try {
-      final value = await ref
-          .read(accountTrustRepositoryProvider)
-          .requestSchoolAffiliation(_email.text);
-      if (!mounted) return;
-      setState(
-        () => _result = value['message'] as String? ?? 'Request recorded.',
+      final repository = ref.read(schoolDirectoryRepositoryProvider);
+      final eligible = await repository.isEmailEligible(
+        schoolId: school.id,
+        email: email,
       );
-      ref.invalidate(accountTrustProfileProvider);
+      if (!mounted) return;
+      if (!eligible) {
+        setState(
+          () => _result =
+              'That email does not match a verified student domain for ${school.displayName}.',
+        );
+        return;
+      }
+      final value = await repository.verifyCurrentEmail(
+        schoolId: school.id,
+        email: email,
+      );
+      if (!mounted) return;
+      final verified = value['ok'] == true;
+      setState(
+        () => _result = verified
+            ? 'School email verified for ${school.displayName}.'
+            : switch (value['code']) {
+                'school_email_not_confirmed' =>
+                  'Confirm this email from your inbox, then try again.',
+                'school_email_must_match_confirmed_account_email' =>
+                  'Use the confirmed email on this MORT account.',
+                _ =>
+                  'School email could not be verified. Check your school and email.',
+              },
+      );
+      if (verified) ref.invalidate(accountTrustProfileProvider);
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
     } finally {
@@ -536,31 +581,46 @@ class _SchoolEmailVerificationScreenState
     return MortScreen(
       children: [
         const MortHeader(
-          eyebrow: 'Affiliation',
-          title: 'School email',
+          eyebrow: 'Account eligibility',
+          title: 'Verify your school email',
           subtitle:
-              'An approved school domain can confirm affiliation. It does not verify government identity, age, enrollment status, or safety.',
+              'Teen accounts require a confirmed email issued by a listed school with an approved student domain.',
         ),
+        MortButton(
+          label: _school == null ? 'Find your school' : 'Change school',
+          icon: Icons.search_rounded,
+          onPressed: _busy ? null : _pickSchool,
+        ),
+        if (_school != null) ...[
+          const SizedBox(height: MortSpacing.sm),
+          MortCard(
+            child: Text(
+              '${_school!.displayName} · ${_school!.city}, ${_school!.state}',
+            ),
+          ),
+        ],
+        const SizedBox(height: MortSpacing.md),
         MortTextField(
-          label: 'Confirmed account email',
+          label: 'School email',
           controller: _email,
+          enabled: !_busy,
           keyboardType: TextInputType.emailAddress,
           autofillHints: const [AutofillHints.email],
         ),
         const SizedBox(height: MortSpacing.md),
         MortButton(
-          label: 'Check approved domain',
+          label: 'Verify school email',
           icon: Icons.school_outlined,
           busy: _busy,
           onPressed: _submit,
         ),
         if (_result != null) ...[
           const SizedBox(height: MortSpacing.md),
-          MortCard(child: Text(_result!)),
+          Semantics(liveRegion: true, child: MortCard(child: Text(_result!))),
         ],
         const SizedBox(height: MortSpacing.md),
         const Text(
-          'The address must already be the confirmed email for this account. MORT does not collect school documents or expose school names publicly by default.',
+          'Use the confirmed primary email on this MORT account. School email does not replace MORT Verify age or identity checks.',
         ),
       ],
     );

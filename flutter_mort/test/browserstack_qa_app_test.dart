@@ -570,15 +570,16 @@ void main() {
       await tester.pumpAndSettle();
 
       final today = DateTime.now();
-      final teenBirthday =
+      final adultBirthday =
           '${today.month.toString().padLeft(2, '0')}/'
-          '${today.day.toString().padLeft(2, '0')}/${today.year - 16}';
+          '${today.day.toString().padLeft(2, '0')}/${today.year - 30}';
       final fields = find.byType(TextFormField);
-      await tester.enterText(fields.at(0), teenBirthday);
+      await tester.enterText(fields.at(0), adultBirthday);
       await tester.pumpAndSettle();
       await tester.enterText(fields.at(1), 'QA Tester');
       await tester.enterText(fields.at(2), 'qa_tester');
-      await tester.enterText(fields.at(3), '46204');
+      await tester.enterText(fields.at(3), 'Indianapolis');
+      await tester.enterText(fields.at(4), 'IN');
       await tester.pumpAndSettle();
 
       await tester.tap(find.widgetWithText(MortButton, 'Save account'));

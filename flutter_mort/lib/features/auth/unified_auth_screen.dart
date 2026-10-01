@@ -8,13 +8,16 @@ import '../../core/config/app_config.dart';
 import '../../core/reviewer/reviewer_session.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
+import '../../core/utils/date_of_birth.dart';
 import '../../core/utils/validators.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/onboarding_progress.dart';
+import '../../data/models/school_directory_entry.dart';
 import '../../data/repositories/providers.dart';
 import '../../data/services/supabase_service.dart';
 import 'apple_auth_screens.dart';
 import 'google_auth_screens.dart';
+import 'school_directory_picker.dart';
 
 enum UnifiedAuthMode { signIn, signUp }
 
@@ -34,6 +37,8 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
   final _signInForm = GlobalKey<FormState>();
   final _signUpForm = GlobalKey<FormState>();
   final _email = TextEditingController();
+  final _signupDob = TextEditingController();
+  SchoolDirectoryEntry? _signupSchool;
   final _signInPassword = TextEditingController();
   final _signUpPassword = TextEditingController();
   late UnifiedAuthMode _mode;
@@ -46,6 +51,15 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
 
   bool get _backendReady => SupabaseService.isInitialized;
   bool get _isSignIn => _mode == UnifiedAuthMode.signIn;
+  int? get _signupAge {
+    final dob = DateOfBirthParser.tryParse(_signupDob.text);
+    return dob == null ? null : DateOfBirthParser.ageOn(dob, DateTime.now());
+  }
+
+  bool get _signupIdentityReady =>
+      _signupAge != null &&
+      _signupAge! >= 13 &&
+      (_signupAge! >= 18 || _signupSchool != null);
   GlobalKey<FormState> get _form => _isSignIn ? _signInForm : _signUpForm;
   TextEditingController get _activePassword =>
       _isSignIn ? _signInPassword : _signUpPassword;
@@ -54,6 +68,7 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
   void initState() {
     super.initState();
     _mode = widget.initialMode;
+    _signupDob.addListener(_onSignupDobChanged);
   }
 
   @override
@@ -67,6 +82,8 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
   @override
   void dispose() {
     _email.dispose();
+    _signupDob.removeListener(_onSignupDobChanged);
+    _signupDob.dispose();
     _signInPassword.dispose();
     _signUpPassword.dispose();
     super.dispose();
@@ -98,6 +115,21 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
     if (isReviewer == _reviewerIdentifierEntered) return;
     if (isReviewer) _signInPassword.clear();
     setState(() => _reviewerIdentifierEntered = isReviewer);
+  }
+
+  void _onSignupDobChanged() {
+    if (mounted) setState(() => _formError = null);
+  }
+
+  Future<void> _pickSignupSchool() async {
+    final selected = await Navigator.of(context).push<SchoolDirectoryEntry>(
+      MaterialPageRoute(builder: (_) => const SchoolDirectoryPicker()),
+    );
+    if (!mounted || selected == null) return;
+    setState(() {
+      _signupSchool = selected;
+      _formError = null;
+    });
   }
 
   Future<void> _recordAcknowledgement() async {
@@ -156,9 +188,40 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
         });
         return;
       }
+      final signupEmail = _email.text.trim();
+      final age = _signupAge;
+      if (age == null) {
+        setState(() => _formError = 'Enter a valid date of birth first.');
+        return;
+      }
+      if (age < 13) {
+        setState(
+          () => _formError =
+              'MORT is only available to people ages 13 and older.',
+        );
+        return;
+      }
+      if (age < 18) {
+        final school = _signupSchool;
+        if (school == null) {
+          setState(() => _formError = 'Find and select your school first.');
+          return;
+        }
+        final eligible = await ref
+            .read(schoolDirectoryRepositoryProvider)
+            .isEmailEligible(schoolId: school.id, email: signupEmail);
+        if (!mounted) return;
+        if (!eligible) {
+          setState(
+            () => _formError =
+                'Use a verified student email issued by ${school.displayName}.',
+          );
+          return;
+        }
+      }
       final response = await ref
           .read(authRepositoryProvider)
-          .signUp(email: _email.text.trim(), password: _signUpPassword.text);
+          .signUp(email: signupEmail, password: _signUpPassword.text);
       if (!mounted) return;
       if (response.session == null) {
         MortToast.show(
@@ -231,12 +294,43 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
             ],
             onChanged: _switchMode,
           ),
+        if (!_isSignIn && !_reviewerIdentifierEntered) ...[
+          const SizedBox(height: MortSpacing.md),
+          MortDateField(controller: _signupDob, enabled: !_busy),
+          if (_signupAge != null && _signupAge! < 13) ...[
+            const SizedBox(height: MortSpacing.xs),
+            const MortSafetyBanner(
+              message: 'MORT is only available to people ages 13 and older.',
+            ),
+          ] else if (_signupAge != null && _signupAge! < 18) ...[
+            const SizedBox(height: MortSpacing.sm),
+            MortButton(
+              label: _signupSchool == null
+                  ? 'Find your school'
+                  : 'Change school',
+              icon: Icons.search_rounded,
+              style: MortButtonStyle.ghost,
+              onPressed: _busy ? null : _pickSignupSchool,
+            ),
+            if (_signupSchool != null)
+              Text(
+                '${_signupSchool!.displayName} · ${_signupSchool!.city}, ${_signupSchool!.state}',
+              ),
+            const SizedBox(height: MortSpacing.xs),
+            const Text(
+              'Use your confirmed school-issued email to create a teen account.',
+            ),
+          ],
+        ],
         // Real Google OAuth, top of the auth form, above the manual
         // email/password fields (the section itself renders the "or"
         // divider between the Google button and the form).
         if (!_reviewerIdentifierEntered) ...[
           const SizedBox(height: MortSpacing.md),
-          GoogleAuthSection(signUp: !_isSignIn),
+          GoogleAuthSection(
+            signUp: !_isSignIn,
+            signupEligibilityReady: _isSignIn || _signupIdentityReady,
+          ),
         ],
         if (!_backendReady) ...[
           const SizedBox(height: MortSpacing.md),
@@ -255,6 +349,7 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
                 MortTextField(
                   label: 'Email',
                   controller: _email,
+                  enabled: !_busy,
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   autofillHints: [
@@ -302,6 +397,7 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
                     key: ValueKey(_mode),
                     label: 'Password',
                     controller: _activePassword,
+                    enabled: !_busy,
                     obscureText: _obscurePassword,
                     textInputAction: TextInputAction.done,
                     autofillHints: [
@@ -397,7 +493,9 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
         ),
         if (!_reviewerIdentifierEntered) ...[
           const SizedBox(height: MortSpacing.md),
-          const AppleAuthSection(),
+          AppleAuthSection(
+            signupEligibilityReady: _isSignIn || _signupIdentityReady,
+          ),
         ],
         const SizedBox(height: MortSpacing.sm),
         Row(

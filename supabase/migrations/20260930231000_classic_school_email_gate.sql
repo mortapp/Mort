@@ -107,7 +107,10 @@ revoke all on function public.check_school_email_for_signup(uuid, text)
 grant execute on function public.check_school_email_for_signup(uuid, text)
   to anon, authenticated;
 
-create or replace function public.verify_my_school_email(p_school_id uuid)
+create or replace function public.verify_my_school_email(
+  p_school_id uuid,
+  p_school_email text
+)
 returns jsonb
 language plpgsql
 security definer
@@ -135,6 +138,9 @@ begin
   if v_email is null or v_confirmed_at is null then
     return jsonb_build_object('ok', false, 'code', 'school_email_not_confirmed');
   end if;
+  if lower(btrim(coalesce(p_school_email, ''))) <> v_email then
+    return jsonb_build_object('ok', false, 'code', 'school_email_must_match_confirmed_account_email');
+  end if;
   v_environment := private.user_trust_environment(auth.uid());
   v_domain_id := private.school_domain_id_for_email(
     p_school_id, v_email, v_environment
@@ -157,9 +163,9 @@ begin
   return jsonb_build_object('ok', true, 'code', 'school_email_verified');
 end;
 $$;
-revoke all on function public.verify_my_school_email(uuid)
+revoke all on function public.verify_my_school_email(uuid, text)
   from public, anon, authenticated;
-grant execute on function public.verify_my_school_email(uuid) to authenticated;
+grant execute on function public.verify_my_school_email(uuid, text) to authenticated;
 
 create or replace function private.has_current_teen_school_email(p_user_id uuid)
 returns boolean

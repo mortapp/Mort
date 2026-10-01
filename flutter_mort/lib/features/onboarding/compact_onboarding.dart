@@ -14,9 +14,11 @@ import '../../core/utils/date_of_birth.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/onboarding_progress.dart';
 import '../../data/models/profile.dart';
+import '../../data/models/school_directory_entry.dart';
 import '../../data/repositories/providers.dart';
 import '../../services/native_permissions_service.dart';
 import '../profile/profile_avatar_widgets.dart';
+import '../auth/school_directory_picker.dart';
 import 'mort_rules_copy.dart';
 
 /// MORT's production onboarding path. Four primary screens render the v2
@@ -65,6 +67,8 @@ class _CompactOnboardingScreenState
   int _step = 0;
   final _scrollController = ScrollController();
   final _dob = TextEditingController();
+  final _schoolEmail = TextEditingController();
+  SchoolDirectoryEntry? _school;
   final _displayName = TextEditingController();
   final _username = TextEditingController();
   final _city = TextEditingController();
@@ -112,6 +116,7 @@ class _CompactOnboardingScreenState
   void initState() {
     super.initState();
     _dob.addListener(_handleDobChanged);
+    _schoolEmail.addListener(_handleTextChanged);
     for (final controller in _trackedTextControllers) {
       controller.addListener(_handleTextChanged);
     }
@@ -222,11 +227,13 @@ class _CompactOnboardingScreenState
   @override
   void dispose() {
     _dob.removeListener(_handleDobChanged);
+    _schoolEmail.removeListener(_handleTextChanged);
     for (final controller in _trackedTextControllers) {
       controller.removeListener(_handleTextChanged);
     }
     _scrollController.dispose();
     _dob.dispose();
+    _schoolEmail.dispose();
     _displayName.dispose();
     _username.dispose();
     _city.dispose();
@@ -418,6 +425,41 @@ class _CompactOnboardingScreenState
               ? UserRole.teen
               : (_adultWantsGuardianRole ? UserRole.guardian : UserRole.adult);
           final isTeen = _role == UserRole.teen;
+          if (isTeen) {
+            final school = _school;
+            if (school == null) {
+              _showStepError('Find and select your school first.');
+              return;
+            }
+            final email = _schoolEmail.text.trim();
+            final schoolRepository = ref.read(
+              schoolDirectoryRepositoryProvider,
+            );
+            if (!await schoolRepository.isEmailEligible(
+              schoolId: school.id,
+              email: email,
+            )) {
+              _showStepError(
+                'Use a verified student email issued by ${school.displayName}.',
+              );
+              return;
+            }
+            await repo.saveOnboardingAge(dob);
+            final verification = await schoolRepository.verifyCurrentEmail(
+              schoolId: school.id,
+              email: email,
+            );
+            if (verification['ok'] != true) {
+              _showStepError(switch (verification['code']) {
+                'school_email_not_confirmed' =>
+                  'Confirm your school email from your inbox, then try again.',
+                'school_email_must_match_confirmed_account_email' =>
+                  'Use the confirmed email on this MORT account.',
+                _ => 'Your school email could not be verified yet.',
+              });
+              return;
+            }
+          }
           progress = await repo.saveOnboardingAccountV2(
             clientRequestId: requestId,
             payload: {
@@ -686,6 +728,31 @@ class _CompactOnboardingScreenState
             message:
                 'You will see age-appropriate jobs and MORT safety tools. Guardian Mode stays optional.',
           ),
+          const SizedBox(height: MortSpacing.md),
+          MortButton(
+            label: _school == null ? 'Find your school' : 'Change school',
+            icon: Icons.search_rounded,
+            style: MortButtonStyle.ghost,
+            onPressed: _busy ? null : _pickSchool,
+          ),
+          if (_school != null) ...[
+            const SizedBox(height: MortSpacing.xs),
+            Text(
+              '${_school!.displayName} · ${_school!.city}, ${_school!.state}',
+            ),
+          ],
+          const SizedBox(height: MortSpacing.sm),
+          MortTextField(
+            label: 'School-issued email',
+            controller: _schoolEmail,
+            keyboardType: TextInputType.emailAddress,
+            autofillHints: const [AutofillHints.email],
+            enabled: !_busy,
+          ),
+          const SizedBox(height: MortSpacing.xs),
+          const Text(
+            'This must be the confirmed email on your MORT account. A listed school alone does not grant teen access.',
+          ),
         ] else if (age != null) ...[
           const SizedBox(height: MortSpacing.lg),
           Text(
@@ -728,6 +795,18 @@ class _CompactOnboardingScreenState
         ],
       ],
     );
+  }
+
+  Future<void> _pickSchool() async {
+    final selected = await Navigator.of(context).push<SchoolDirectoryEntry>(
+      MaterialPageRoute(builder: (_) => const SchoolDirectoryPicker()),
+    );
+    if (!mounted || selected == null) return;
+    setState(() {
+      _school = selected;
+      _stepError = null;
+      _dirtySteps.add(0);
+    });
   }
 
   Widget _buildProfileStep(Profile? liveProfile) {

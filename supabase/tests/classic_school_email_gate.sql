@@ -24,7 +24,7 @@ begin
   ) or pg_catalog.has_table_privilege(
     'authenticated', 'private.teen_school_email_bindings', 'SELECT'
   ) or pg_catalog.has_function_privilege(
-    'anon', 'public.verify_my_school_email(uuid)', 'EXECUTE'
+    'anon', 'public.verify_my_school_email(uuid,text)', 'EXECUTE'
   ) then
     raise exception 'Private school binding privileges are too broad';
   end if;
@@ -80,7 +80,11 @@ begin
     raise exception 'Personal email was accepted';
   end if;
 
-  v_result := public.verify_my_school_email(v_school);
+  v_result := public.verify_my_school_email(v_school, 'another-student@mort.test');
+  if coalesce((v_result->>'ok')::boolean, false) then
+    raise exception 'A different email on the same domain was accepted';
+  end if;
+  v_result := public.verify_my_school_email(v_school, 'classic-school-qa@mort.test');
   if not coalesce((v_result->>'ok')::boolean, false)
      or not private.has_current_teen_school_email(v_user) then
     raise exception 'Confirmed, approved teen email did not bind: %', v_result;

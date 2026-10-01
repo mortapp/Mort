@@ -13,9 +13,14 @@ import '../../data/repositories/providers.dart';
 /// Mirrors `GoogleAuthSection` in `google_auth_screens.dart` -- same
 /// browser-based Supabase PKCE flow, Apple's own provider and branding.
 class AppleAuthSection extends ConsumerStatefulWidget {
-  const AppleAuthSection({super.key, this.successRoute = '/account-status'});
+  const AppleAuthSection({
+    super.key,
+    this.successRoute = '/account-status',
+    this.signupEligibilityReady = true,
+  });
 
   final String successRoute;
+  final bool signupEligibilityReady;
 
   @override
   ConsumerState<AppleAuthSection> createState() => _AppleAuthSectionState();
@@ -64,7 +69,7 @@ class _AppleAuthSectionState extends ConsumerState<AppleAuthSection> {
             'Apple sign-in status is unavailable. Use email and password.',
           ),
         );
-    final enabled = !state.isBusy;
+    final enabled = !state.isBusy && widget.signupEligibilityReady;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

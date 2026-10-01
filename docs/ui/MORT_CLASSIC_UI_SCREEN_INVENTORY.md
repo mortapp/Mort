@@ -4,6 +4,8 @@ Baseline: `feature/mort-post-114-completion` at `9d6480c8a8f01d73a1b600082c79219
 
 The frozen baseline router mapped **217 literal destinations** and **11 legacy onboarding redirects**. The redesign branch currently maps **224 literal destinations** and the same 11 redirects. Teen and adult each have five guarded bottom-tab branches; guardian has four. Admin and reviewer destinations retain their existing guards. A mapped route is not proof that its content is reachable for every account: role, onboarding, release and provider gates still apply.
 
+2026-09-30 progress: classic shared theme, landing, role tabs, and profile destinations are implemented. Signup, onboarding, and school-affiliation routes now expose the school picker and server-gated teen email flow; missing schools enter a private suggestion queue. Their full visual and accessibility audits, and most route-specific screen redesigns in the baseline table, remain pending. No build or hosted migration was produced from this branch.
+
 Current branch route additions beyond the baseline table below:
 
 | Route | Role | Wrapper / destination | Redesign status |

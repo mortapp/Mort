@@ -32,6 +32,7 @@ import 'observability_repository.dart';
 import 'profile_repository.dart';
 import 'progression_repository.dart';
 import 'reviews_repository.dart';
+import 'school_directory_repository.dart';
 import 'safety_repository.dart';
 import 'support_repository.dart';
 import 'support_assistant_repository.dart';
@@ -55,6 +56,9 @@ final avatarRepositoryProvider = Provider<AvatarRepository>(
 );
 final profileRepositoryProvider = Provider<ProfileRepository>(
   (ref) => ProfileRepository(),
+);
+final schoolDirectoryRepositoryProvider = Provider<SchoolDirectoryRepository>(
+  (ref) => SchoolDirectoryRepository(),
 );
 final secureDraftStorageProvider = Provider<MortSecureDraftStorage>(
   (ref) => MortSecureDraftStorage(),

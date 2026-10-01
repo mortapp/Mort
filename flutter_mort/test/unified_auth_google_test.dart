@@ -136,7 +136,11 @@ void main() {
       // flow, and the sign-up variant is wired to the sign-up mode.
       expect('GoogleAuthSection('.allMatches(unified).length, 1);
       expect(unified, contains('if (!_reviewerIdentifierEntered) ...['));
-      expect(unified, contains('GoogleAuthSection(signUp: !_isSignIn),'));
+      expect(unified, contains('signUp: !_isSignIn,'));
+      expect(
+        unified,
+        contains('signupEligibilityReady: _isSignIn || _signupIdentityReady'),
+      );
 
       // Existing and new users both land on the single account-status
       // decision point, which routes into the canonical onboarding flow.

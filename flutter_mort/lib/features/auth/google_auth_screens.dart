@@ -21,6 +21,7 @@ class GoogleAuthSection extends ConsumerStatefulWidget {
     super.key,
     this.successRoute = '/account-status',
     this.signUp = false,
+    this.signupEligibilityReady = true,
   });
 
   final String successRoute;
@@ -28,6 +29,7 @@ class GoogleAuthSection extends ConsumerStatefulWidget {
   /// Copy variant for the account-creation mode of the unified auth
   /// screen. The underlying OAuth flow is identical in both modes.
   final bool signUp;
+  final bool signupEligibilityReady;
 
   @override
   ConsumerState<GoogleAuthSection> createState() => _GoogleAuthSectionState();
@@ -110,7 +112,7 @@ class _GoogleAuthSectionState extends ConsumerState<GoogleAuthSection> {
             'Google sign-in status is unavailable. Use email and password.',
           ),
         );
-    final enabled = !state.isBusy;
+    final enabled = !state.isBusy && widget.signupEligibilityReady;
     _scrollCancelIntoViewIfNeeded(state);
     final buttonLabel = widget.signUp
         ? 'Sign up with Google'

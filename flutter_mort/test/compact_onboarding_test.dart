@@ -7,8 +7,10 @@ import 'package:flutter_mort/core/utils/date_of_birth.dart';
 import 'package:flutter_mort/core/widgets/mort_widgets.dart';
 import 'package:flutter_mort/data/models/onboarding_progress.dart';
 import 'package:flutter_mort/data/models/profile.dart';
+import 'package:flutter_mort/data/models/school_directory_entry.dart';
 import 'package:flutter_mort/data/repositories/legal_contract_repository.dart';
 import 'package:flutter_mort/data/repositories/profile_repository.dart';
+import 'package:flutter_mort/data/repositories/school_directory_repository.dart';
 import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/features/auth/unified_auth_screen.dart';
 import 'package:flutter_mort/features/onboarding/compact_onboarding.dart';
@@ -172,9 +174,47 @@ class _FakeLegalContractRepository extends LegalContractRepository {
   };
 }
 
+class _FakeSchoolDirectoryRepository extends SchoolDirectoryRepository {
+  int verifications = 0;
+  bool eligible = true;
+  bool verified = true;
+
+  @override
+  Future<List<SchoolDirectoryEntry>> search(String query) async => const [
+    SchoolDirectoryEntry(
+      id: 'school-a',
+      officialName: 'Pike High School',
+      displayName: 'Pike High School',
+      city: 'Indianapolis',
+      state: 'IN',
+      schoolType: 'high_school',
+    ),
+  ];
+
+  @override
+  Future<bool> isEmailEligible({
+    required String schoolId,
+    required String email,
+  }) async =>
+      eligible && schoolId == 'school-a' && email == 'teen@school.example';
+
+  @override
+  Future<Map<String, dynamic>> verifyCurrentEmail({
+    required String schoolId,
+    required String email,
+  }) async {
+    verifications++;
+    return {
+      'ok': verified,
+      'code': verified ? 'school_email_verified' : 'school_email_not_confirmed',
+    };
+  }
+}
+
 Future<void> _pumpOnboarding(
   WidgetTester tester, {
   _FakeProfileRepository? repository,
+  _FakeSchoolDirectoryRepository? schoolRepository,
   TextScaler textScaler = TextScaler.noScaling,
   bool disableAnimations = false,
   double keyboardInset = 0,
@@ -185,6 +225,9 @@ Future<void> _pumpOnboarding(
     ProviderScope(
       overrides: [
         profileRepositoryProvider.overrideWithValue(fakeRepository),
+        schoolDirectoryRepositoryProvider.overrideWithValue(
+          schoolRepository ?? _FakeSchoolDirectoryRepository(),
+        ),
         currentProfileProvider.overrideWith((ref) async => null),
         legalContractRepositoryProvider.overrideWithValue(
           _FakeLegalContractRepository(),
@@ -453,9 +496,27 @@ void main() {
 
       await tester.enterText(find.byType(TextFormField).at(0), _teenDob());
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextFormField).at(1), 'Alex');
-      await tester.enterText(find.byType(TextFormField).at(2), 'alex_local');
-      await tester.enterText(find.byType(TextFormField).at(3), 'Indianapolis');
+      await tester.ensureVisible(find.text('Find your school'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Find your school'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Pike High School'));
+      await tester.pump();
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'School-issued email'),
+        'teen@school.example',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Display name'),
+        'Alex',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Username'),
+        'alex_local',
+      );
+      await tester.enterText(find.byType(TextFormField).last, 'Indianapolis');
       await tester.ensureVisible(find.text('Save account'));
       await tester.tap(find.text('Save account'));
       await tester.pumpAndSettle();
@@ -465,6 +526,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repository.accountSaves, 1);
+      expect(repository.ageSaves, 1);
       expect(find.text('Step 2 of 4'), findsOneWidget);
       expect(find.text('Work preferences'), findsOneWidget);
       await tester.ensureVisible(find.widgetWithText(FilterChip, 'Yard work'));
@@ -531,6 +593,36 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('teen account save stops when no school is selected', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2408);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = _FakeProfileRepository();
+    await _pumpOnboarding(tester, repository: repository);
+    await tester.enterText(find.byType(TextFormField).first, _teenDob());
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Display name'),
+      'Alex',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Username'),
+      'alex_local',
+    );
+    await tester.enterText(find.byType(TextFormField).last, 'Indianapolis');
+    await tester.ensureVisible(find.text('Save account'));
+    await tester.tap(find.text('Save account'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save account').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Find and select your school first.'), findsOneWidget);
+    expect(repository.ageSaves, 0);
+    expect(repository.accountSaves, 0);
+  });
 
   testWidgets('reduced motion jumps safely between restored steps', (
     tester,
