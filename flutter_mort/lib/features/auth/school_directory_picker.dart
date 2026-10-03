@@ -44,6 +44,8 @@ class _SchoolDirectoryPickerState extends ConsumerState<SchoolDirectoryPicker> {
 
   void _onQueryChanged(String value) {
     _debounce?.cancel();
+    // A choice from a previous result set must not survive a new search.
+    if (_selected != null) setState(() => _selected = null);
     _debounce = Timer(const Duration(milliseconds: 250), () => _search(value));
   }
 
@@ -61,6 +63,10 @@ class _SchoolDirectoryPickerState extends ConsumerState<SchoolDirectoryPicker> {
       if (!mounted || serial != _requestSerial) return;
       setState(() {
         _schools = schools;
+        if (_selected != null &&
+            !schools.any((school) => school.id == _selected!.id)) {
+          _selected = null;
+        }
         _loading = false;
       });
     } catch (_) {

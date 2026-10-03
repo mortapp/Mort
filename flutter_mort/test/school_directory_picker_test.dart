@@ -161,4 +161,49 @@ void main() {
       isNull,
     );
   });
+
+  testWidgets('changing search clears a previously selected school', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          schoolDirectoryRepositoryProvider.overrideWithValue(
+            _FakeSchoolDirectoryRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          theme: MortTheme.classic(),
+          home: const SchoolDirectoryPicker(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pike High School'));
+    await tester.pump();
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Continue'))
+          .onPressed,
+      isNotNull,
+    );
+
+    await tester.enterText(find.byType(TextField).first, 'no school found');
+    await tester.pump();
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Continue'))
+          .onPressed,
+      isNull,
+    );
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+    expect(find.text('No matching schools found.'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Continue'))
+          .onPressed,
+      isNull,
+    );
+  });
 }

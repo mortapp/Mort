@@ -7,7 +7,8 @@ MORT is a safety-sensitive local job marketplace for teens ages 13-17, adults an
 The production-track mobile client is the Flutter application in `flutter_mort`.
 
 - Android package: `com.mortapp.mobile`
-- Current version: `0.9.7+97`
+- Google Play Closed Testing build: `0.9.16+114` (frozen; this branch does not rebuild it)
+- Source default in `flutter_mort/pubspec.yaml`: `0.9.16+113`; the verified Play build used release build-number `114`
 - Hosted backend: Supabase project `rakjydmgwwgtdislanbt`
 - Android target SDK: 36
 - Android minimum SDK: 24
@@ -16,14 +17,12 @@ The root Expo project and `swift_mort` are retained as legacy/reference clients.
 
 ## Current release boundary
 
-The verified profile is a free, isolated closed-test build. It keeps all of the following disabled:
+The verified Play Closed Testing build 114 has real Google Play Billing and RevenueCat MORT Pro plan loading enabled. The owner verified the billing sheet opens and Continue with Free dismisses the paywall. A completed sandbox purchase, restore, renewal, expiration, and cancellation lifecycle remain unverified. Marketplace revenue and safety-sensitive provider features remain gated:
 
 - public marketplace activation
 - marketplace payment processing and platform fees
-- Google Play Billing and RevenueCat purchases
 - AdMob
 - production identity-document collection
-- Google sign-in
 - production remote push and crash reporting
 
 MORT does not process, hold, guarantee, or escrow job compensation in this release. Personal Cash App and Square handles are not collected. Public adult-to-teen marketplace access remains closed until identity, legal, moderation, provider, and native-device gates have objective evidence.

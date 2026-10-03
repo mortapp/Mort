@@ -4,16 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "node ../../scripts/build-public-legal-site.mjs",
-    "check": "node --check archive.js && node --check shell.mjs",
-    "test": "node --test archive.test.mjs",
-    "test:browser": "node browser-qa.cjs"
-  },
-  "dependencies": {
-    "three": "0.180.0"
-  },
-  "devDependencies": {
-    "@playwright/test": "^1.63.0",
-    "esbuild": "0.25.12",
-    "sharp": "^0.35.3"
+    "check": "node --check shell.mjs && node --check ../../scripts/build-public-legal-site.mjs",
+    "test": "node --test archive.test.mjs route.test.mjs"
   }
 }
