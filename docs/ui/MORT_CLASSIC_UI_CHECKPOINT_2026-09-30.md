@@ -36,6 +36,20 @@ Branch: `feature/mort-classic-ui-redesign`, isolated from the primary MORT check
 - Docker became available later in this continuation. The exact current school migrations and three SQL tests passed inside a single `BEGIN`/`ROLLBACK` against `supabase_db_mort-mobile` with `ON_ERROR_STOP=1`; no Loop container was used and no local schema changes were retained. The school-request abuse-control gate and hosted school/domain approvals from the prior checkpoint remain open. The majority of route-specific Flutter redesign work, real devices, and all provider/production gates also remain open.
 - No version 115 build, hosted migration, merge, Play upload, or public production rollout occurred.
 
+## Continuation — school request queue bound
+
+- Added a new migration that serializes anonymous suggestion inserts and caps the shared private queue at 30 new rows per hour and 200 per day. Duplicate suggestions still return the same opaque receipt and consume no new slot. The form now explains when the queue is busy.
+- A rollback-only MORT Docker PostgreSQL replay passed the original school suite plus hourly cap, daily cap, duplicate-at-cap, and cap-expiry checks. The added index was absent afterward, confirming rollback. No Loop database or hosted database was changed.
+- This is a bounded growth control, not complete bot protection. A malicious caller can exhaust a global quota; trusted gateway challenge/rate limiting and staff review remain gates before hosted activation.
+- Flutter analysis: no issues. Full Flutter suite: 772 passed, 2 skipped. The focused school picker/request suite: 4 passed. Dart format check: clean. Source secret scan: 2,494 files, zero findings. Staged diff check: clean.
+
+### Sequential review of the queue bound
+
+1. **Believer:** The additive RPC change preserves the existing pre-account request behavior and duplicate privacy while preventing unbounded accepted rows in an hour or day. The client has a clear retry state.
+2. **Skeptic:** The shared quota can be exhausted by an attacker and does not throttle requests that never insert a row. It needs a trusted gateway challenge or provider rate control before hosted activation.
+3. **Investor/operations:** The queue bound limits storage and review workload without an external service or caller-controlled IP. Operators still need a staff review workflow and an escalation path for legitimate users when the shared quota is exhausted.
+4. **Judge:** Accept this as a locally tested source checkpoint only. It does not authorize hosted migration, production student-domain approval, or a new Play build.
+
 ### Sequential review of this continuation
 
 1. **Believer:** The picker can no longer continue with a school hidden by a new query. The legal site renders 13 routes without the old animation, and the 12 document article bodies match the previous generated output. Flutter tests, legal tests, web build, and secret scans pass.

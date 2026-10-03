@@ -71,6 +71,8 @@ class _SchoolDirectoryRequestScreenState
           () => _error = switch (result['code']) {
             'school_already_listed' =>
               'This school is already listed. Go back and search for it.',
+            'rate_limited' =>
+              'School requests are busy right now. Please try again later.',
             _ => 'Check the school details and try again.',
           },
         );

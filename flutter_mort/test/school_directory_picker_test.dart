@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 class _FakeSchoolDirectoryRepository extends SchoolDirectoryRepository {
   final queries = <String>[];
   int requestCalls = 0;
+  Map<String, dynamic> requestResult = {'ok': true, 'code': 'request_received'};
 
   @override
   Future<Map<String, dynamic>> requestSchool({
@@ -20,7 +21,7 @@ class _FakeSchoolDirectoryRepository extends SchoolDirectoryRepository {
     String? studentDomain,
   }) async {
     requestCalls++;
-    return {'ok': true, 'code': 'request_received'};
+    return requestResult;
   }
 
   @override
@@ -205,5 +206,40 @@ void main() {
           .onPressed,
       isNull,
     );
+  });
+
+  testWidgets('full school request queue gives a retry message', (
+    tester,
+  ) async {
+    final repository = _FakeSchoolDirectoryRepository()
+      ..requestResult = {'ok': false, 'code': 'rate_limited'};
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          schoolDirectoryRepositoryProvider.overrideWithValue(repository),
+        ],
+        child: MaterialApp(
+          theme: MortTheme.classic(),
+          home: const SchoolDirectoryPicker(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text("Can't find your school? Request your school"));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'School name'),
+      'Synthetic Unknown Academy',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'City'),
+      'Indianapolis',
+    );
+    await tester.ensureVisible(find.text('Submit school request'));
+    await tester.tap(find.text('Submit school request'));
+    await tester.pumpAndSettle();
+    expect(repository.requestCalls, 1);
+    expect(find.textContaining('Please try again later.'), findsOneWidget);
+    expect(find.textContaining('Request received.'), findsNothing);
   });
 }
