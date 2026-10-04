@@ -178,12 +178,22 @@ async function runSchoolAffiliation(scope) {
       assertQa(profile.identity_status !== "provider_identity_verified", "school affiliation appeared as provider identity");
       assertQa(profile.school_name_public_by_default === false, "school name became public by default");
 
-      const pending = await ordinaryTeen.client.rpc("request_school_email_affiliation", {
-        p_school_email: ordinaryTeen.email,
+      const schoolId = await withDatabase(async (database) => {
+        const school = await database.query(
+          "select id from public.schools where official_name = $1",
+          ["MORT Isolated QA School"],
+        );
+        assertQa(school.rowCount === 1, "local synthetic school fixture is missing");
+        return school.rows[0].id;
       });
-      assertQa(!pending.error && pending.data?.status === "pending_domain_review", "unapproved production domain did not fail closed to review");
-      assertQa(pending.data?.affiliation_verified === false, "unapproved production domain granted affiliation");
-      qaLog(scope, "confirmed approved-domain email grants private affiliation only; unknown production domains remain pending");
+      const unapproved = await ordinaryTeen.client.rpc("check_school_email_for_signup", {
+        p_school_id: schoolId,
+        p_email: "unapproved@mort.test",
+      });
+      assertQa(!unapproved.error && unapproved.data?.eligible === false &&
+        unapproved.data?.code === "school_email_not_eligible",
+      "unapproved production domain passed the current school-email gate");
+      qaLog(scope, "approved sandbox email grants private affiliation; an unapproved production domain fails the signup gate");
     },
   );
 }

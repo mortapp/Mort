@@ -276,9 +276,11 @@ async function billingReviewEntitlement(scope) {
 
 async function billingFreeCore(scope) {
   const access = await text("flutter_mort/lib/features/monetization/domain/feature_access.dart");
-  const paywall = await text("flutter_mort/lib/features/monetization/screens/google_play_billing_screens.dart");
+  const paywall = await text("flutter_mort/lib/features/monetization/widgets/mort_pro_paywall_content.dart");
+  const paywallRoute = await text("flutter_mort/lib/features/monetization/screens/paywall_screen.dart");
   for (const marker of ["safetyToolsFree", "basicApplyingFree", "basicGuardianModeFree", "proofUploadFree", "reportBlockSafetyPingFree"]) assertQa(access.includes(marker), `missing free-core contract: ${marker}`);
-  assertQa(paywall.includes("Core app, jobs, and safety remain free"), "paywall omits free-core disclosure");
+  assertQa(paywall.includes("Core work and safety stay free.") && paywall.includes("Continue with Free"), "paywall omits free-core disclosure or free dismissal");
+  assertQa(paywallRoute.includes("No safety, applying, messaging, reporting, blocking, or basic Guardian Mode feature requires payment."), "paywall route omits explicit free safety contract");
   qaLog(scope, "job, proof, Guardian, report, block, and Safety Ping access remains independent of billing");
 }
 

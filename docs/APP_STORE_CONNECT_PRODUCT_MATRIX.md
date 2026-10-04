@@ -1,5 +1,12 @@
 # App Store Connect Product Matrix
 
+> **Historical planning reference, not an approved setup list (2026-10-04).**
+> The `mort_plus_monthly`, `mort_plus_yearly`, and `mort_plus_lifetime` IDs
+> below are reserved pending a customer-history audit. Their prices and the
+> other proposed products are not verified live catalog entries. Use
+> `docs/completion/MORT_MONETIZATION_INTEGRATION_2026-10-04.md` for the current
+> release gate; do not create, repurpose, or activate these IDs from this table.
+
 Pricing targets are planning targets only. App Store Connect and RevenueCat package price strings are the runtime source of truth.
 
 | Product ID | Type | Target price | RevenueCat entitlement | Offering/package | App copy | Review notes | Screenshot needed |

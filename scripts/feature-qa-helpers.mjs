@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
+import { bindLocalTeenSchool } from "./local-teen-school-qa-fixture.mjs";
 
 export const supabaseUrl = required("EXPO_PUBLIC_SUPABASE_URL");
 export const projectRef =
@@ -13,7 +14,14 @@ const dbUrl = process.env.SUPABASE_DB_URL || "";
 const dbPassword = process.env.SUPABASE_DB_PASSWORD || "";
 const localQa = process.env.MORT_QA_LOCAL_SUPABASE === "true";
 
-if (!localQa && supabaseUrl !== `https://${projectRef}.supabase.co`) {
+if (localQa) {
+  const api = new URL(supabaseUrl);
+  const database = dbUrl ? new URL(dbUrl) : null;
+  if (!['127.0.0.1', 'localhost'].includes(api.hostname) ||
+      !database || !['127.0.0.1', 'localhost'].includes(database.hostname)) {
+    throw new Error('Local QA requires both API and database to be loopback targets.');
+  }
+} else if (supabaseUrl !== `https://${projectRef}.supabase.co`) {
   throw new Error(`EXPO_PUBLIC_SUPABASE_URL must target ${projectRef}.`);
 }
 if (!dbUrl && !dbPassword) {
@@ -650,7 +658,9 @@ export async function withQaUsers(scope, definitions, run) {
 
   try {
     for (const definition of definitions) {
-      const email = `qa-feature-${definition.key}-${suffix}@mort.test`;
+      const ordinaryTeen = localQa && definition.role === "teen" &&
+        definition.isTest === false;
+      const email = `qa-feature-${definition.key}-${suffix}@${ordinaryTeen ? "qa-school.mort.test" : "mort.test"}`;
       const { data, error } = await withRateLimitRetry(
         scope,
         `creating QA user ${definition.key}`,
@@ -695,6 +705,9 @@ export async function withQaUsers(scope, definitions, run) {
         const marketplaceRole = definition.role === "teen" || definition.role === "adult" || definition.identityVerified === true;
         const identityStatus = definition.identityStatus ?? (definition.identityVerified === false ? "unverified" : "verified");
         const identityVerified = marketplaceRole && identityStatus === "verified";
+        if (teen && localQa) {
+          await bindLocalTeenSchool(database, user.id, "2011-01-15", user.isTest);
+        }
         await database.query(
           `
             update public.profiles

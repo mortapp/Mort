@@ -1,5 +1,9 @@
 # RevenueCat Setup
 
+> **Historical setup reference (2026-10-04):** Do not activate or repurpose
+> `mort_plus_*` IDs from this page. Their sale history is unverified and the
+> distinct Plus catalog has no approved products or prices yet.
+
 MORT uses RevenueCat for app premium features only. It does not use RevenueCat for job payments, escrow, payouts, split payments, or guarantees.
 
 Official docs used:

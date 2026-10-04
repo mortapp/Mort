@@ -1,5 +1,10 @@
 # Flutter RevenueCat Setup
 
+> **Historical setup reference (2026-10-04).** Listed `mort_plus_*` IDs are
+> reserved pending a purchase-history audit. They are not the approved new
+> Plus catalog. The current Pro paywall uses its separate verified products;
+> see the monetization integration ledger before configuring any Plus offer.
+
 ## SDK Install
 
 Installed in `flutter_mort/`:

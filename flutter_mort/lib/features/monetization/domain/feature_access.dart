@@ -5,6 +5,7 @@ class FeatureAccess {
   const FeatureAccess({
     required this.canShowAds,
     required this.canUsePlus,
+    required this.canUseAdultPlus,
     required this.canUseAdFree,
     required this.canUseAdultPro,
     required this.canUseGuardianPlus,
@@ -21,6 +22,7 @@ class FeatureAccess {
 
   final bool canShowAds;
   final bool canUsePlus;
+  final bool canUseAdultPlus;
   final bool canUseAdFree;
   final bool canUseAdultPro;
   final bool canUseGuardianPlus;
@@ -36,13 +38,15 @@ class FeatureAccess {
 
   factory FeatureAccess.fromEntitlements(RevenueCatEntitlementState state) {
     final plus = state.hasPlusOrHigher;
+    final adultPlus = state.hasAdultPlusOrHigher;
     final adFree = state.isAdFree;
-    final adultPro = state.isAdultPro;
+    final adultPro = state.hasAdultPro;
     final guardianPlus = state.isGuardianPlus;
 
     return FeatureAccess(
       canShowAds: AppConfig.adsEnabled && !adFree,
       canUsePlus: plus,
+      canUseAdultPlus: adultPlus,
       canUseAdFree: adFree,
       canUseAdultPro: adultPro,
       canUseGuardianPlus: guardianPlus,
@@ -53,7 +57,7 @@ class FeatureAccess {
       canUseSavedJobFolders: plus,
       canUseAdvancedFilters: plus,
       canUseGoalAnalytics: plus,
-      canUseAdultApplicantSorting: adultPro,
+      canUseAdultApplicantSorting: adultPlus,
       canUseGuardianWeeklyDigest: guardianPlus,
     );
   }

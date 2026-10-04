@@ -19,6 +19,15 @@ Products use RevenueCat/store price strings at runtime. Suggested prices below a
 
 - mort_pro: mort_pro:weekly, mort_pro:monthly, mort_pro:annual, lifetime
 
+## Distinct MORT Plus planning
+
+There are no approved Plus Play/RevenueCat product IDs or prices. The three
+historical `mort_plus_*` identifiers are reserved until customer history is
+audited; they must not be reused for a reduced tier. A **$1.99/month planning
+target** keeps Plus below the currently verified $2.99/month Pro option. It is
+not an active store price. Annual Plus pricing is unapproved. The client and
+private backend product map are empty by default, so no Plus checkout is live.
+
 ## Free Forever
 
 - basic account

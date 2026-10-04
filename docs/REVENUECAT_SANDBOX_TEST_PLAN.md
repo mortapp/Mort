@@ -1,5 +1,9 @@
 # RevenueCat Sandbox Test Plan
 
+> **Historical test plan (2026-10-04):** Plus product IDs mentioned below are
+> reserved pending a purchase-history audit. The current Play closed test has
+> only the verified Pro offering; no distinct Plus sandbox purchase is ready.
+
 Run only on a real iPhone/TestFlight/sandbox environment. Codex did not perform real purchases.
 
 ## Setup

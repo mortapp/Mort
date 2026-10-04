@@ -1,5 +1,13 @@
 # MORT post-114 completion ledger
 
+2026-10-04 monetization integration update: see
+`docs/completion/MORT_MONETIZATION_INTEGRATION_2026-10-04.md`. The current
+integration branch separates Free/Plus/Pro entitlements, retains active
+historical Plus SKU client benefits, and corrects deferred RevenueCat
+`PRODUCT_CHANGE` processing in an additive local-only migration. A distinct
+live Plus catalog, completed sandbox purchases, final three-tier UI, and a
+new signed artifact remain open gates. Build 114 remains unchanged.
+
 Evidence date: 2026-09-29. This ledger describes the frozen `ae43047d3dd0c9805340fa70d794651f32dcae87` source and the separate `feature/mort-post-114-completion` branch. It is technical evidence, not public launch approval. The uploaded `0.9.16+114` bundle remains unchanged.
 
 Status terms: `IMPLEMENTED_AND_VERIFIED` means the named code contract passed the listed check; it never substitutes for provider, hosted, or physical-device proof. `IMPLEMENTED_AND_DEVICE_VERIFIED` means the owner reported the named behavior on physical Android with the Google Play Closed Testing build 114; it does not certify adjacent purchase lifecycle behavior. `IMPLEMENTED_NEEDS_REVALIDATION` means code exists but that proof has not run on this completion head. `CODE_GAP` requires engineering work. Other gates name the authority or environment needed.

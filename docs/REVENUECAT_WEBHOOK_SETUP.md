@@ -1,5 +1,10 @@
 # RevenueCat Webhook Setup
 
+> **Historical configuration reference (2026-10-04):** See the monetization
+> integration ledger for the separate Pro/Plus client interpretation and the
+> empty, private Plus product map. Do not infer that legacy `mort_plus_*`
+> products are approved for a new lower-tier offer.
+
 Updated: 2026-07-09
 
 ## Current Status

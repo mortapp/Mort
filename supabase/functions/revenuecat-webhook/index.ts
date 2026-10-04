@@ -286,8 +286,10 @@ function normalizeEvent(payload: RevenueCatPayload): NormalizedEvent {
     source.product_id ?? source.product_identifier,
   );
   const productId = productIdValue || null;
-  if (productId && !(productId in productEntitlements)) {
-    throw new WebhookError("unsupported_product", 400);
+  // Unknown products can only proceed to the provider-only database writer,
+  // which resolves approved Play Plus IDs from a private, empty-by-default map.
+  if (productId && !/^[A-Za-z0-9._:-]{3,200}$/.test(productId)) {
+    throw new WebhookError("invalid_product", 400);
   }
 
   const aliases = Array.isArray(source.aliases)
@@ -302,7 +304,9 @@ function normalizeEvent(payload: RevenueCatPayload): NormalizedEvent {
   ].filter((value) => uuidPattern.test(value));
   const appUserIdValue = candidates[0] ?? "";
   const appUserId = uuidPattern.test(appUserIdValue) ? appUserIdValue : null;
-  const entitlementIds = productId ? [...productEntitlements[productId]] : [];
+  const entitlementIds = productId
+    ? [...(productEntitlements[productId] ?? [])]
+    : [];
   const eventTimestampMs = integerTimestamp(
     source.event_timestamp_ms ?? source.purchased_at_ms,
     "event_timestamp",

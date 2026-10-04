@@ -223,6 +223,17 @@ class AppConfig {
 
   static const revenueCatEntitlementPlus = 'mort_plus';
   static const revenueCatEntitlementPro = 'mort_pro';
+  // Empty until the distinct Plus catalog is approved in Play/RevenueCat.
+  // These are public product identifiers, never provider credentials.
+  static const revenueCatPlusOfferingId = String.fromEnvironment(
+    'REVENUECAT_PLUS_OFFERING_ID',
+  );
+  static const revenueCatPlusMonthlyProductId = String.fromEnvironment(
+    'REVENUECAT_PLUS_MONTHLY_PRODUCT_ID',
+  );
+  static const revenueCatPlusAnnualProductId = String.fromEnvironment(
+    'REVENUECAT_PLUS_ANNUAL_PRODUCT_ID',
+  );
   static const revenueCatTestStoreApiKey = String.fromEnvironment(
     'REVENUECAT_TEST_STORE_API_KEY',
   );

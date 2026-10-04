@@ -87,6 +87,37 @@ void main() {
     expect(FeatureAccess.fromEntitlements(pro).canUsePremiumThemes, isTrue);
   });
 
+  test('adult role shares universal tier without changing worker benefits', () {
+    const free = RevenueCatEntitlementState(activeEntitlements: {});
+    const plus = RevenueCatEntitlementState(
+      activeEntitlements: {AppConfig.revenueCatEntitlementPlus},
+    );
+    const pro = RevenueCatEntitlementState(
+      activeEntitlements: {AppConfig.revenueCatEntitlementPro},
+    );
+    const legacyAdultPro = RevenueCatEntitlementState(
+      activeEntitlements: {AppConfig.revenueCatEntitlementAdultPro},
+    );
+
+    expect(free.hasAdultPlusOrHigher, isFalse);
+    expect(free.hasAdultPro, isFalse);
+    expect(
+      FeatureAccess.fromEntitlements(free).canUseAdultApplicantSorting,
+      isFalse,
+    );
+    expect(plus.hasAdultPlusOrHigher, isTrue);
+    expect(plus.hasAdultPro, isFalse);
+    expect(
+      FeatureAccess.fromEntitlements(plus).canUseAdultApplicantSorting,
+      isTrue,
+    );
+    expect(pro.hasAdultPlusOrHigher, isTrue);
+    expect(pro.hasAdultPro, isTrue);
+    expect(legacyAdultPro.hasAdultPro, isTrue);
+    expect(legacyAdultPro.hasPro, isFalse);
+    expect(legacyAdultPro.hasPlusOrHigher, isFalse);
+  });
+
   test('unknown entitlement cannot promote an account', () {
     const state = RevenueCatEntitlementState(
       activeEntitlements: {'unknown_premium'},
@@ -245,6 +276,41 @@ void main() {
       r'$rc_monthly': 'mort_pro:monthly',
       r'$rc_annual': 'mort_pro:annual',
       r'$rc_lifetime': 'lifetime',
+    });
+  });
+
+  test('Plus catalog remains closed without distinct approved identifiers', () {
+    const missing = PlusCatalogConfiguration(
+      offeringId: '',
+      monthlyProductId: '',
+      annualProductId: '',
+    );
+    expect(missing.isConfigured, isFalse);
+    expect(
+      RevenueCatService.plusOffering(null, configuration: missing),
+      isNull,
+    );
+    const reusedPro = PlusCatalogConfiguration(
+      offeringId: 'future_plus',
+      monthlyProductId: 'mort_pro:monthly',
+      annualProductId: 'mort_plus_yearly',
+    );
+    expect(reusedPro.isConfigured, isFalse);
+    const malformed = PlusCatalogConfiguration(
+      offeringId: 'future_plus',
+      monthlyProductId: 'unapproved product with spaces',
+      annualProductId: 'approved_annual',
+    );
+    expect(malformed.isConfigured, isFalse);
+    const distinct = PlusCatalogConfiguration(
+      offeringId: 'future_plus',
+      monthlyProductId: 'approved_monthly',
+      annualProductId: 'approved_annual',
+    );
+    expect(distinct.isConfigured, isTrue);
+    expect(distinct.expectedProductIds, {
+      r'$rc_monthly': 'approved_monthly',
+      r'$rc_annual': 'approved_annual',
     });
   });
 

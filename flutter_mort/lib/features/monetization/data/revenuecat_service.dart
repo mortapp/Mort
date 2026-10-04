@@ -40,6 +40,48 @@ enum MortSubscriptionState {
   billingIssueActive,
 }
 
+/// Public catalog identifiers only. An empty or historical configuration is
+/// unavailable; purchase activation also requires matching server allowlists.
+class PlusCatalogConfiguration {
+  const PlusCatalogConfiguration({
+    required this.offeringId,
+    required this.monthlyProductId,
+    required this.annualProductId,
+  });
+
+  final String offeringId;
+  final String monthlyProductId;
+  final String annualProductId;
+  static final RegExp _identifier = RegExp(r'^[A-Za-z0-9._:-]{3,200}$');
+
+  bool get isConfigured {
+    const reservedProducts = <String>{
+      'mort_plus_monthly',
+      'mort_plus_yearly',
+      'mort_plus_lifetime',
+      'mort_pro:weekly',
+      'mort_pro:monthly',
+      'mort_pro:annual',
+      'lifetime',
+      'weekly',
+      'monthly',
+      'yearly',
+    };
+    return _identifier.hasMatch(offeringId) &&
+        offeringId != 'default' &&
+        _identifier.hasMatch(monthlyProductId) &&
+        _identifier.hasMatch(annualProductId) &&
+        monthlyProductId != annualProductId &&
+        !reservedProducts.contains(monthlyProductId) &&
+        !reservedProducts.contains(annualProductId);
+  }
+
+  Map<String, String> get expectedProductIds => {
+    r'$rc_monthly': monthlyProductId,
+    r'$rc_annual': annualProductId,
+  };
+}
+
 class RevenueCatEntitlementState {
   const RevenueCatEntitlementState({
     required this.activeEntitlements,
@@ -86,7 +128,12 @@ class RevenueCatEntitlementState {
   bool get isPro => tier == MortSubscriptionTier.pro;
   bool get isAdFree =>
       has(AppConfig.revenueCatEntitlementAdFree) || hasPlusOrHigher;
-  bool get isAdultPro => has(AppConfig.revenueCatEntitlementAdultPro);
+  // Universal subscriptions unlock benefits for the active role. Preserve the
+  // older adult-specific entitlement without promoting it to worker Pro.
+  bool get hasAdultPro =>
+      hasPro || has(AppConfig.revenueCatEntitlementAdultPro);
+  bool get hasAdultPlusOrHigher => hasPlusOrHigher || hasAdultPro;
+  bool get isAdultPro => hasAdultPro;
   bool get isGuardianPlus => has(AppConfig.revenueCatEntitlementGuardianPlus);
   bool get hasUsernameToken =>
       has(AppConfig.revenueCatEntitlementUsernameToken);
@@ -323,6 +370,30 @@ class RevenueCatService {
     final expected = expectedProductIds(
       testStore: AppConfig.revenueCatApiKey.startsWith('test_'),
     );
+    final packages = offering.availablePackages;
+    if (packages.length != expected.length ||
+        packages.map((item) => item.identifier).toSet().length !=
+            expected.length ||
+        packages.any(
+          (item) => expected[item.identifier] != item.storeProduct.identifier,
+        )) {
+      return null;
+    }
+    return offering;
+  }
+
+  static rc.Offering? plusOffering(
+    rc.Offerings? offerings, {
+    PlusCatalogConfiguration configuration = const PlusCatalogConfiguration(
+      offeringId: AppConfig.revenueCatPlusOfferingId,
+      monthlyProductId: AppConfig.revenueCatPlusMonthlyProductId,
+      annualProductId: AppConfig.revenueCatPlusAnnualProductId,
+    ),
+  }) {
+    if (!configuration.isConfigured) return null;
+    final offering = offerings?.getOffering(configuration.offeringId);
+    if (offering == null) return null;
+    final expected = configuration.expectedProductIds;
     final packages = offering.availablePackages;
     if (packages.length != expected.length ||
         packages.map((item) => item.identifier).toSet().length !=

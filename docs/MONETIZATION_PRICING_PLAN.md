@@ -1,5 +1,9 @@
 # MORT Monetization Pricing Plan
 
+> **Historical proposal (2026-10-04):** The `mort_plus_*` products and prices
+> below are unverified and reserved. They are not the approved distinct Plus
+> catalog. Use the monetization integration ledger for current release status.
+
 MORT monetization is voluntary. Safety, basic applications, Guardian Mode basics, report/block, Safety Ping, proof basics, notifications, payment preferences, and message scanning stay free.
 
 Prices below are suggested setup targets for RevenueCat/App Store Connect. The app must show RevenueCat/App Store product prices at checkout.

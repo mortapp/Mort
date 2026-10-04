@@ -78,7 +78,12 @@ final isAdFreeProvider = FutureProvider<bool>((ref) async {
 
 final isAdultProProvider = FutureProvider<bool>((ref) async {
   final entitlements = await ref.watch(entitlementStateProvider.future);
-  return entitlements.isAdultPro;
+  return entitlements.hasAdultPro;
+});
+
+final isAdultPlusOrHigherProvider = FutureProvider<bool>((ref) async {
+  final entitlements = await ref.watch(entitlementStateProvider.future);
+  return entitlements.hasAdultPlusOrHigher;
 });
 
 final isGuardianPlusProvider = FutureProvider<bool>((ref) async {

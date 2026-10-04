@@ -233,6 +233,16 @@ void main() {
         retryDelay: Duration.zero,
       );
 
+      final authenticated = Completer<void>();
+      void onChange() {
+        if (startup.snapshot.stage == MortAuthStartupStage.authenticated &&
+            !authenticated.isCompleted) {
+          authenticated.complete();
+        }
+      }
+
+      startup.addListener(onChange);
+
       final startupFuture = startup.start();
       await Future<void>.delayed(const Duration(milliseconds: 700));
       gateway.controller.add(
@@ -246,9 +256,11 @@ void main() {
         'account_status': 'active',
       };
       await startupFuture;
+      await authenticated.future.timeout(const Duration(seconds: 3));
 
       expect(startup.snapshot.stage, MortAuthStartupStage.authenticated);
       expect(startup.snapshot.destination, '/adult/home');
+      startup.removeListener(onChange);
       startup.dispose();
       await gateway.close();
     },

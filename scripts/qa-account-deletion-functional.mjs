@@ -19,6 +19,7 @@
 // Run against local: SUPABASE_DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
 import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
+import { bindLocalTeenSchool } from "./local-teen-school-qa-fixture.mjs";
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "http://127.0.0.1:54321";
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -27,7 +28,8 @@ if (!serviceRoleKey || !dbUrl) {
   console.error("Set SUPABASE_SERVICE_ROLE_KEY and SUPABASE_DB_URL (local stack).");
   process.exit(1);
 }
-if (!/127\.0\.0\.1|localhost/.test(url) && !/127\.0\.0\.1|localhost/.test(dbUrl)) {
+if (!['127.0.0.1', 'localhost'].includes(new URL(url).hostname) ||
+    !['127.0.0.1', 'localhost'].includes(new URL(dbUrl).hostname)) {
   console.error("Refusing to run: this script is for the local stack only.");
   process.exit(1);
 }
@@ -72,6 +74,7 @@ async function tx(fn) {
 
 async function makeProfile(id, displayName, role = "adult") {
   const dob = role === "teen" ? "2010-01-01" : "1990-01-01";
+  if (role === "teen") await bindLocalTeenSchool(db, id, dob);
   await db.query(
     `insert into public.profiles (id, role, display_name, dob, city, state, onboarding_completed, is_test_account)
      values ($1,$2,$3,$4,'Carmel','IN',true,true)

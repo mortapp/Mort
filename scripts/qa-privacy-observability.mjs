@@ -9,6 +9,9 @@ import {
 } from "./feature-qa-helpers.mjs";
 
 const scope = "privacy-observability";
+if (process.env.MORT_QA_TARGET !== "local") {
+  throw new Error("Privacy observability QA requires MORT_QA_TARGET=local.");
+}
 
 function expectOk(result, message) {
   assertQa(!result.error, `${message}: ${result.error?.message ?? "RPC error"}`);
@@ -110,15 +113,23 @@ await withQaUsers(scope, [{ key: "teen", role: "teen" }], async ({ teen }) => {
       p_outcome: "$rc_annual",
     },
   );
+  assertQa(recorded.recorded === true, "initial analytics event was not recorded");
+  assertQa(replayed.replayed === true, "analytics replay was not idempotent");
   assertQa(
-    recorded.recorded === true &&
-      replayed.replayed === true &&
-      substituted.data?.code === "analytics_request_id_reused" &&
-      invalidEvent.data?.code === "invalid_analytics_event" &&
-      monetizationEvent.data?.ok === true &&
-      monetizationEvent.data?.recorded === true &&
-      rejectedFreeFormMonetization.data?.code === "invalid_analytics_event",
-    "analytics idempotency, payload binding, or taxonomy failed",
+    substituted.data?.code === "analytics_request_id_reused",
+    "analytics payload substitution was not rejected",
+  );
+  assertQa(
+    invalidEvent.data?.code === "invalid_analytics_event",
+    "unknown analytics event was not rejected",
+  );
+  assertQa(
+    monetizationEvent.data?.ok === true && monetizationEvent.data?.recorded === true,
+    `bounded monetization event was not recorded (${monetizationEvent.data?.code ?? monetizationEvent.error?.code ?? "unknown"})`,
+  );
+  assertQa(
+    rejectedFreeFormMonetization.data?.code === "invalid_analytics_event",
+    "free-form monetization payload was not rejected",
   );
   qaLog(scope, "product events are idempotent, payload-bound, and fixed-taxonomy");
 

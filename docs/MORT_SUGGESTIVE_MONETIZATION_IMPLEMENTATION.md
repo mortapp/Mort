@@ -1,5 +1,10 @@
 # MORT suggestive monetization implementation map
 
+2026-10-04 integration follow-up: the current Free/Plus/Pro split, legacy
+product compatibility, and remaining catalog/UI/store gates are recorded in
+`docs/completion/MORT_MONETIZATION_INTEGRATION_2026-10-04.md`. Statements below
+describe the original isolated suggestion branch where dated.
+
 Date: 2026-10-03
 
 ## Existing

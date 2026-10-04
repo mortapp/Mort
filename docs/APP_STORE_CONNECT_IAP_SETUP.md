@@ -1,5 +1,10 @@
 # App Store Connect IAP Setup
 
+> **Historical checklist, paused (2026-10-04).** The Plus IDs below are
+> reserved pending a customer-history audit and are not approved for the new
+> lower Plus tier. Do not run these setup steps until the current monetization
+> integration ledger and store owner approve distinct product IDs.
+
 No App Store Connect API credentials were visible in this Codex session, so Apple-side setup was not automated.
 
 Expected credentials for future automation:

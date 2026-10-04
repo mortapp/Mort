@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
 import { randomUUID } from "node:crypto";
+import { bindLocalTeenSchool } from "./local-teen-school-qa-fixture.mjs";
 
 const { Client } = pg;
 
@@ -150,6 +151,9 @@ try {
   await client.query("select set_config('mort.onboarding_completion', 'true', true)");
 
   for (const user of users) {
+    if (user.role === "teen") {
+      await bindLocalTeenSchool(client, authUsers[user.key], user.dob);
+    }
     await client.query(
       `
         insert into public.profiles (id, role, display_name, dob, city, state, onboarding_completed, verification_status, is_test_account)
