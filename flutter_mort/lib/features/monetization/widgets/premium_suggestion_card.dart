@@ -8,6 +8,7 @@ import '../../../core/observability/product_analytics.dart';
 import '../../../core/theme/mort_colors.dart';
 import '../../../core/theme/mort_spacing.dart';
 import '../../../core/widgets/mort_widgets.dart';
+import '../data/revenuecat_service.dart';
 import '../domain/premium_suggestion.dart';
 import '../providers/premium_suggestion_providers.dart';
 import '../providers/revenuecat_providers.dart';
@@ -40,11 +41,20 @@ class _PremiumSuggestionCardState extends ConsumerState<PremiumSuggestionCard> {
   }
 
   Future<void> _evaluate() async {
-    final isSubscriber = await ref
-        .read(isMortProProvider.future)
-        .catchError((_) => false);
+    // Unknown entitlement state is not permission to market. RevenueCat must
+    // return customer information before an optional suggestion can render.
+    final customerInfo = await ref
+        .read(customerInfoProvider.future)
+        .catchError((_) => null);
+    if (!mounted || customerInfo == null) {
+      if (mounted) setState(() => _checked = true);
+      return;
+    }
+    final isSubscriber = RevenueCatEntitlementState.fromCustomerInfo(
+      customerInfo,
+    ).isPro;
     final engine = ref.read(premiumSuggestionEngineProvider);
-    final show = await engine.shouldShow(
+    final show = await engine.claimImpression(
       userId: widget.userId,
       suggestion: widget.suggestion,
       isSubscriber: isSubscriber,
@@ -56,7 +66,6 @@ class _PremiumSuggestionCardState extends ConsumerState<PremiumSuggestionCard> {
       _visible = show;
     });
     if (show) {
-      await engine.recordImpression(widget.userId, widget.suggestion);
       unawaited(
         MortProductAnalytics.instance.record(
           eventName: 'premium_suggestion_impression',

@@ -193,4 +193,67 @@ void main() {
       isFalse,
     );
   });
+
+  test('global caps apply across different suggestion IDs', () async {
+    for (var index = 0; index < 3; index++) {
+      final suggestion = PremiumSuggestion(
+        id: 'inline_$index',
+        surface: PremiumSuggestionSurface.values[index],
+        presentation: PremiumSuggestionPresentation.inline,
+        title: 'Optional benefit',
+        message: 'Benefit details',
+        cta: 'Explore',
+      );
+      expect(
+        await engine.claimImpression(
+          userId: 'user-a',
+          suggestion: suggestion,
+          isSubscriber: false,
+        ),
+        isTrue,
+      );
+      now = now.add(const Duration(days: 1, minutes: 1));
+    }
+    expect(
+      await engine.shouldShow(
+        userId: 'user-a',
+        suggestion: const PremiumSuggestion(
+          id: 'fourth_inline',
+          surface: PremiumSuggestionSurface.analytics,
+          presentation: PremiumSuggestionPresentation.inline,
+          title: 'Another benefit',
+          message: 'More details',
+          cta: 'Explore',
+        ),
+        isSubscriber: false,
+      ),
+      isFalse,
+    );
+  });
+
+  test(
+    'simultaneous interruptive claims reserve only one impression',
+    () async {
+      final results = await Future.wait([
+        engine.claimImpression(
+          userId: 'user-a',
+          suggestion: sheet,
+          isSubscriber: false,
+        ),
+        engine.claimImpression(
+          userId: 'user-a',
+          suggestion: const PremiumSuggestion(
+            id: 'completion_v1',
+            surface: PremiumSuggestionSurface.jobCompletion,
+            presentation: PremiumSuggestionPresentation.fullScreen,
+            title: 'Job complete',
+            message: 'Optional benefits',
+            cta: 'Explore',
+          ),
+          isSubscriber: false,
+        ),
+      ]);
+      expect(results.where((value) => value), hasLength(1));
+    },
+  );
 }

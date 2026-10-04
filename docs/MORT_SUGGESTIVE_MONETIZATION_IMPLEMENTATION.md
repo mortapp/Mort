@@ -21,10 +21,14 @@ Date: 2026-10-03
 ## Implemented in this branch
 
 - A centralized premium suggestion policy with account-scoped persistence,
-  per-suggestion impression history, dismissal state, conversion state,
-  24-hour spacing, seven-day inline caps, and stricter interruptive caps.
-- Subscriber, safety-critical, and converted-state suppression. Local prompt
-  state only suppresses marketing; it cannot grant access.
+  per-suggestion and global impression history, dismissal state, conversion
+  state, 24-hour spacing, seven-day inline caps, and stricter interruptive
+  caps. Concurrent prompt claims are serialized to avoid two placements both
+  reserving the final available impression.
+- Subscriber, safety-critical, unknown-entitlement, and converted-state
+  suppression. Local prompt state only suppresses marketing; it cannot grant
+  access. RevenueCat errors and missing customer information fail closed for
+  marketing.
 - A reusable, dismissible MORT-styled inline suggestion card. It records
   consent-gated impression, dismissal, and click events with surface names.
 - A progression surface shown after the user's authoritative progress loads.
@@ -65,8 +69,8 @@ Date: 2026-10-03
 
 | Presentation | Minimum spacing | Seven-day maximum | After dismissal |
 | --- | ---: | ---: | ---: |
-| Inline card | 24 hours | 3 | 7 days |
-| Sheet/full screen | 24 hours | 1 | 14 days |
+| Inline card | 24 hours globally | 3 globally | 7 days per suggestion |
+| Sheet/full screen | 24 hours globally | 1 globally | 14 days per suggestion |
 
 Explicit user navigation to Optional subscription remains available and does
 not use suggestion throttling.

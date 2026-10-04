@@ -1,3 +1,5 @@
+import 'dart:async';
+
 enum PremiumSuggestionSurface {
   profile,
   jobFeed,
@@ -61,6 +63,10 @@ class PremiumSuggestionEngine {
 
   final PremiumSuggestionStore store;
   final DateTime Function() _now;
+  Future<void> _queue = Future<void>.value();
+
+  static const _globalInlineId = '__global_inline__';
+  static const _globalInterruptiveId = '__global_interruptive__';
 
   static const inlineCooldown = Duration(hours: 24);
   static const dismissedInlineCooldown = Duration(days: 7);
@@ -74,6 +80,18 @@ class PremiumSuggestionEngine {
     required PremiumSuggestion suggestion,
     required bool isSubscriber,
     bool isSafetyCriticalSurface = false,
+  }) => _shouldShow(
+    userId: userId,
+    suggestion: suggestion,
+    isSubscriber: isSubscriber,
+    isSafetyCriticalSurface: isSafetyCriticalSurface,
+  );
+
+  Future<bool> _shouldShow({
+    required String userId,
+    required PremiumSuggestion suggestion,
+    required bool isSubscriber,
+    required bool isSafetyCriticalSurface,
   }) async {
     if (userId.isEmpty || isSubscriber || isSafetyCriticalSurface) return false;
     final state = await store.read(userId, suggestion.id);
@@ -98,10 +116,44 @@ class PremiumSuggestionEngine {
         now.difference(recent.last.toUtc()) < inlineCooldown) {
       return false;
     }
+    final global = await store.read(
+      userId,
+      isInline ? _globalInlineId : _globalInterruptiveId,
+    );
+    final globalRecent = global.impressions
+        .where((value) => now.difference(value.toUtc()) < impressionWindow)
+        .toList();
+    if (globalRecent.length >= maximum) return false;
+    if (globalRecent.isNotEmpty &&
+        now.difference(globalRecent.last.toUtc()) < inlineCooldown) {
+      return false;
+    }
     return true;
   }
 
-  Future<void> recordImpression(
+  /// Atomically checks and reserves an impression across all suggestion IDs
+  /// handled by this engine instance.
+  Future<bool> claimImpression({
+    required String userId,
+    required PremiumSuggestion suggestion,
+    required bool isSubscriber,
+    bool isSafetyCriticalSurface = false,
+  }) => _serialized(() async {
+    final eligible = await _shouldShow(
+      userId: userId,
+      suggestion: suggestion,
+      isSubscriber: isSubscriber,
+      isSafetyCriticalSurface: isSafetyCriticalSurface,
+    );
+    if (!eligible) return false;
+    await _recordImpression(userId, suggestion);
+    return true;
+  });
+
+  Future<void> recordImpression(String userId, PremiumSuggestion suggestion) =>
+      _serialized(() => _recordImpression(userId, suggestion));
+
+  Future<void> _recordImpression(
     String userId,
     PremiumSuggestion suggestion,
   ) async {
@@ -121,6 +173,34 @@ class PremiumSuggestionEngine {
         convertedAt: state.convertedAt,
       ),
     );
+    final isInline =
+        suggestion.presentation == PremiumSuggestionPresentation.inline;
+    final globalId = isInline ? _globalInlineId : _globalInterruptiveId;
+    final global = await store.read(userId, globalId);
+    await store.write(
+      userId,
+      globalId,
+      PremiumSuggestionState(
+        impressions: [
+          ...global.impressions.where(
+            (value) => now.difference(value.toUtc()) < impressionWindow,
+          ),
+          now,
+        ],
+      ),
+    );
+  }
+
+  Future<T> _serialized<T>(Future<T> Function() action) {
+    final completer = Completer<T>();
+    _queue = _queue.then((_) async {
+      try {
+        completer.complete(await action());
+      } catch (error, stackTrace) {
+        completer.completeError(error, stackTrace);
+      }
+    });
+    return completer.future;
   }
 
   Future<void> recordDismissal(
