@@ -9,6 +9,8 @@ import '../../core/theme/mort_spacing.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/progression.dart';
 import '../../data/repositories/providers.dart';
+import '../monetization/domain/premium_suggestion.dart';
+import '../monetization/widgets/premium_suggestion_card.dart';
 import 'teen_shell.dart';
 
 class ProgressionHubScreen extends ConsumerWidget {
@@ -16,6 +18,7 @@ class ProgressionHubScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final userId = ref.watch(currentProfileProvider).asData?.value?.id;
     final progression = ref.watch(myProgressionProvider);
     return MortScreen(
       children: [
@@ -36,7 +39,8 @@ class ProgressionHubScreen extends ConsumerWidget {
               onPressed: () => ref.invalidate(myProgressionProvider),
             ),
           ),
-          data: (snapshot) => _ProgressionBody(snapshot: snapshot),
+          data: (snapshot) =>
+              _ProgressionBody(snapshot: snapshot, userId: userId),
         ),
       ],
     );
@@ -44,8 +48,9 @@ class ProgressionHubScreen extends ConsumerWidget {
 }
 
 class _ProgressionBody extends ConsumerWidget {
-  const _ProgressionBody({required this.snapshot});
+  const _ProgressionBody({required this.snapshot, required this.userId});
   final ProgressionSnapshot snapshot;
+  final String? userId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -155,6 +160,21 @@ class _ProgressionBody extends ConsumerWidget {
             padding: const EdgeInsets.only(top: MortSpacing.md),
             child: _MilestoneNotice(event: event),
           ),
+        if (userId?.isNotEmpty == true) ...[
+          const SizedBox(height: MortSpacing.md),
+          PremiumSuggestionCard(
+            userId: userId!,
+            suggestion: const PremiumSuggestion(
+              id: 'progression_customization_v1',
+              surface: PremiumSuggestionSurface.progression,
+              presentation: PremiumSuggestionPresentation.inline,
+              title: 'Make your progress feel like yours',
+              message:
+                  'MORT Pro adds optional profile customization. XP, rank, and Motion Tokens still come from real activity.',
+              cta: 'Explore MORT Pro',
+            ),
+          ),
+        ],
         const MortSectionLabel(label: 'Badges'),
         snapshot.badges.isEmpty
             ? const MortGlassSoftSurface(

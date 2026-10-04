@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:purchases_flutter/purchases_flutter.dart' as rc;
 
 import '../../../core/theme/mort_colors.dart';
+import '../../../core/observability/product_analytics.dart';
 import '../../../core/theme/mort_spacing.dart';
 import '../../../core/widgets/mort_widgets.dart';
 import '../../../data/models/profile.dart';
@@ -81,9 +84,28 @@ class _MortProPaywallState extends ConsumerState<_MortProPaywall> {
   bool _busy = false;
   String? _message;
 
+  @override
+  void initState() {
+    super.initState();
+    unawaited(
+      MortProductAnalytics.instance.record(
+        eventName: 'paywall_viewed',
+        surface: 'paywall',
+        outcome: 'opened',
+      ),
+    );
+  }
+
   Future<void> _purchasePackage(rc.Package package) async {
     if (_busy) return;
     setState(() => _busy = true);
+    unawaited(
+      MortProductAnalytics.instance.record(
+        eventName: 'purchase_started',
+        surface: 'paywall',
+        outcome: package.identifier,
+      ),
+    );
     final result = await ref
         .read(purchaseControllerProvider)
         .purchasePackage(package);
@@ -92,6 +114,13 @@ class _MortProPaywallState extends ConsumerState<_MortProPaywall> {
       _busy = false;
       _message = result.message;
     });
+    unawaited(
+      MortProductAnalytics.instance.record(
+        eventName: result.success ? 'purchase_completed' : 'purchase_failed',
+        surface: 'paywall',
+        outcome: result.cancelled ? 'cancelled' : package.identifier,
+      ),
+    );
   }
 
   Future<void> _restore() async {
@@ -105,6 +134,13 @@ class _MortProPaywallState extends ConsumerState<_MortProPaywall> {
       _busy = false;
       _message = result.message;
     });
+    unawaited(
+      MortProductAnalytics.instance.record(
+        eventName: result.success ? 'purchase_restored' : 'purchase_failed',
+        surface: 'paywall',
+        outcome: result.success ? 'restored' : 'restore_failed',
+      ),
+    );
   }
 
   void _close() {
