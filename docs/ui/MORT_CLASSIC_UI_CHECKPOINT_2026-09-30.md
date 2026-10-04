@@ -64,7 +64,20 @@ Branch: `feature/mort-classic-ui-redesign`, isolated from the primary MORT check
 1. **Believer:** The active-admin RPCs limit reads to private, paged school suggestions and make reviewing/rejected transitions auditable. The UI has no approval action, and the server rejects a forged accepted decision. The repaired dialogs close without accessing disposed controllers.
 2. **Skeptic:** This is local rollback evidence. A shared request quota can still be exhausted, and staff have no source-verified acceptance/domain approval flow. A suspended admin is denied, but hosted grants and physical navigation are not certified.
 3. **Investor/operations:** Pagination keeps older suggestions reachable. A real review team needs evidence standards, escalation for quota exhaustion, and a controlled approval process before students can use new schools.
-4. **Judge:** Accept the local triage source and regression fixes only after the final exact-head checks pass. Keep hosted deployment, new Play builds, and production eligibility unchanged.
+4. **Judge:** The exact committed `b29e6ec` passed Flutter analysis and the full 776-pass, 2-skipped Flutter suite. The local school SQL suite, legal website tests, secret scan, and diff check also passed. Accept the local triage source and regression fixes while keeping hosted deployment, new Play builds, and production eligibility unchanged.
+
+## Continuation — account deletion close-out regression
+
+- The MORT local Docker worker-state and conversation-cascade tests found that deleting a teen before the poster of an unfinished job caused the poster's Auth deletion to fail. A marketplace identity trigger rechecked the already-deleted applicant while the database tried to close the application.
+- An additive migration narrows the exception to `supabase_auth_admin`, a transaction-local UUID matching the deleted poster, and a terminal application/job status change with other fields preserved. Client updates remain subject to the existing verification trigger. The Safety Contact messaging exception from the latest function definition remains present.
+- After applying the migration only to MORT local PostgreSQL, teen-first conversation deletion, poster-first functional deletion, worker locking/replay, 373-FK contract, 30-case multi-user isolation, and the seven-user Safety runtime suite passed. The source secret scan found zero matches across 2,503 text files. No hosted database or Play artifact was changed.
+
+### Sequential review of deletion close-out
+
+1. **Believer:** Both deletion orders now complete with terminal job/application status and preserved shared history.
+2. **Skeptic:** The exception is bound to the Auth database login and deleted poster UUID; the functional regression still denies direct PostgREST identity-null updates. Hosted deployment and failure-injection of every deep contract/dispute fixture remain unverified.
+3. **Investor/operations:** The fix prevents synthetic account deletion from stalling when participants leave in a different order. The worker-state test confirms one-winner claiming and replay-safe terminal state.
+4. **Judge:** Accept the local source fix after exact-head checks; keep hosted migration, live user deletion, and production rollout behind their existing gates.
 
 ### Sequential review of this continuation
 

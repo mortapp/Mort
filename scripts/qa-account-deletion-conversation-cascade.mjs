@@ -58,5 +58,27 @@ await withQaUsers(
       "Account deletion left Auth, profile, or conversation residue.",
     );
     qaLog(scope, "Auth deletion completed across an active synthetic job conversation without residue");
+
+    const posterDeletion = await serviceClient.auth.admin.deleteUser(adult.id, false);
+    assertQa(!posterDeletion.error, "Deleting the poster after the applicant remains possible.");
+    const posterResidue = await withDatabase(async (database) => {
+      const result = await database.query(
+        `select
+           exists(select 1 from auth.users where id = $1) as auth_user_exists,
+           exists(select 1 from public.profiles where id = $1) as profile_exists,
+           (select status::text from public.jobs where id = $2) as job_status,
+           (select status::text from public.applications where job_id = $2 limit 1) as application_status`,
+        [adult.id, job.result.job.id],
+      );
+      return result.rows[0];
+    });
+    assertQa(
+      posterResidue.auth_user_exists === false &&
+        posterResidue.profile_exists === false &&
+        posterResidue.job_status === "canceled" &&
+        ["rejected", "canceled"].includes(posterResidue.application_status),
+      "Poster deletion did not finish with safe terminal job/application states.",
+    );
+    qaLog(scope, "Poster deletion closed the active job after the applicant was deidentified");
   },
 );
