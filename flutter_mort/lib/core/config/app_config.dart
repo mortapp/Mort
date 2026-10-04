@@ -221,10 +221,7 @@ class AppConfig {
   static const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
   static const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
-  static const revenueCatEntitlementPlus = String.fromEnvironment(
-    'REVENUECAT_ENTITLEMENT_PLUS',
-    defaultValue: 'mort_plus',
-  );
+  static const revenueCatEntitlementPlus = 'mort_plus';
   static const revenueCatEntitlementPro = 'mort_pro';
   static const revenueCatTestStoreApiKey = String.fromEnvironment(
     'REVENUECAT_TEST_STORE_API_KEY',
