@@ -4,6 +4,40 @@ import 'package:flutter_mort/features/ads/data/admob_service.dart';
 import 'package:flutter_mort/features/monetization/data/revenuecat_service.dart';
 import 'package:flutter_mort/features/monetization/domain/feature_access.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:purchases_flutter/purchases_flutter.dart' as rc;
+
+rc.CustomerInfo customerWith({
+  required String entitlement,
+  required String product,
+  bool active = true,
+  bool renews = true,
+  String? expiration,
+  String? billingIssue,
+}) {
+  final item = rc.EntitlementInfo(
+    entitlement,
+    active,
+    renews,
+    '2026-10-01T00:00:00Z',
+    '2026-10-01T00:00:00Z',
+    product,
+    true,
+    store: rc.Store.playStore,
+    expirationDate: expiration,
+    billingIssueDetectedAt: billingIssue,
+  );
+  return rc.CustomerInfo(
+    rc.EntitlementInfos({entitlement: item}, active ? {entitlement: item} : {}),
+    const {},
+    active ? [product] : const [],
+    [product],
+    const [],
+    '2026-10-01T00:00:00Z',
+    'user-id',
+    const {},
+    '2026-10-04T00:00:00Z',
+  );
+}
 
 void main() {
   test('all core safety access remains free without entitlements', () {
@@ -29,22 +63,124 @@ void main() {
     expect(access.safetyToolsFree, isTrue);
   });
 
-  test('MORT Pro and legacy Plus both grant only optional perks', () {
-    for (final id in [
-      AppConfig.revenueCatEntitlementPro,
-      AppConfig.revenueCatEntitlementPlus,
-    ]) {
-      final state = RevenueCatEntitlementState(activeEntitlements: {id});
-      final access = FeatureAccess.fromEntitlements(state);
-      expect(state.isPro, isTrue);
-      expect(state.isAdFree, isTrue);
-      expect(access.canUsePremiumThemes, isTrue);
-      expect(access.safetyToolsFree, isTrue);
-    }
+  test('Free, Plus, and Pro remain separate while Pro inherits Plus', () {
     const free = RevenueCatEntitlementState(activeEntitlements: {});
+    const plus = RevenueCatEntitlementState(
+      activeEntitlements: {AppConfig.revenueCatEntitlementPlus},
+    );
+    const pro = RevenueCatEntitlementState(
+      activeEntitlements: {AppConfig.revenueCatEntitlementPro},
+    );
+    expect(free.isFree, isTrue);
+    expect(free.hasPlusOrHigher, isFalse);
     expect(free.isPro, isFalse);
     expect(free.isAdFree, isFalse);
+    expect(plus.tier, MortSubscriptionTier.plus);
+    expect(plus.hasPlusOrHigher, isTrue);
+    expect(plus.hasPro, isFalse);
+    expect(plus.hasProfileStylePack, isFalse);
+    expect(FeatureAccess.fromEntitlements(plus).canUsePremiumThemes, isTrue);
+    expect(pro.tier, MortSubscriptionTier.pro);
+    expect(pro.isPlus, isFalse);
+    expect(pro.hasPlusOrHigher, isTrue);
+    expect(pro.hasProfileStylePack, isTrue);
+    expect(FeatureAccess.fromEntitlements(pro).canUsePremiumThemes, isTrue);
   });
+
+  test('unknown entitlement cannot promote an account', () {
+    const state = RevenueCatEntitlementState(
+      activeEntitlements: {'unknown_premium'},
+    );
+    expect(state.tier, MortSubscriptionTier.free);
+    expect(state.hasPlusOrHigher, isFalse);
+    expect(state.hasPro, isFalse);
+  });
+
+  test('historical Plus products retain their prior Pro-equivalent access', () {
+    for (final product
+        in RevenueCatEntitlementState.legacyProEquivalentPlusProducts) {
+      final state = RevenueCatEntitlementState(
+        activeEntitlements: const {AppConfig.revenueCatEntitlementPlus},
+        activeProducts: {product},
+      );
+      expect(state.tier, MortSubscriptionTier.pro);
+    }
+    const newPlus = RevenueCatEntitlementState(
+      activeEntitlements: {AppConfig.revenueCatEntitlementPlus},
+      activeProducts: {'distinct_future_plus_product'},
+    );
+    expect(newPlus.tier, MortSubscriptionTier.plus);
+    const staleProductOnly = RevenueCatEntitlementState(
+      activeEntitlements: {},
+      activeProducts: {'mort_plus_lifetime'},
+    );
+    expect(staleProductOnly.tier, MortSubscriptionTier.free);
+  });
+
+  test(
+    'RevenueCat active metadata distinguishes cancellation and billing issue',
+    () {
+      final cancelled = RevenueCatEntitlementState.fromCustomerInfo(
+        customerWith(
+          entitlement: AppConfig.revenueCatEntitlementPro,
+          product: 'mort_pro:annual',
+          renews: false,
+          expiration: '2027-10-01T00:00:00Z',
+        ),
+      );
+      expect(cancelled.tier, MortSubscriptionTier.pro);
+      expect(
+        cancelled.subscriptionState,
+        MortSubscriptionState.cancelledActive,
+      );
+      expect(cancelled.expiration, DateTime.utc(2027, 10, 1));
+      expect(cancelled.productIdentifier, 'mort_pro:annual');
+      expect(cancelled.store, rc.Store.playStore);
+
+      final issue = RevenueCatEntitlementState.fromCustomerInfo(
+        customerWith(
+          entitlement: AppConfig.revenueCatEntitlementPlus,
+          product: 'new_plus_monthly',
+          billingIssue: '2026-10-03T00:00:00Z',
+        ),
+      );
+      expect(issue.tier, MortSubscriptionTier.plus);
+      expect(issue.subscriptionState, MortSubscriptionState.billingIssueActive);
+      expect(issue.gracePeriod, isNull);
+
+      final expired = RevenueCatEntitlementState.fromCustomerInfo(
+        customerWith(
+          entitlement: AppConfig.revenueCatEntitlementPro,
+          product: 'mort_pro:monthly',
+          active: false,
+        ),
+      );
+      expect(expired.tier, MortSubscriptionTier.free);
+      expect(expired.subscriptionState, MortSubscriptionState.inactive);
+    },
+  );
+
+  test(
+    'historical SKU is grandfathered only with an active Plus entitlement',
+    () {
+      final legacy = RevenueCatEntitlementState.fromCustomerInfo(
+        customerWith(
+          entitlement: AppConfig.revenueCatEntitlementPlus,
+          product: 'mort_plus_lifetime',
+          renews: false,
+        ),
+      );
+      expect(legacy.tier, MortSubscriptionTier.pro);
+      final revoked = RevenueCatEntitlementState.fromCustomerInfo(
+        customerWith(
+          entitlement: AppConfig.revenueCatEntitlementPlus,
+          product: 'mort_plus_lifetime',
+          active: false,
+        ),
+      );
+      expect(revoked.tier, MortSubscriptionTier.free);
+    },
+  );
 
   test(
     'RevenueCat Test Store key can only be selected in native development',

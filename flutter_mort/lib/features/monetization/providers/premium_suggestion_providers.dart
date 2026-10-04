@@ -20,7 +20,7 @@ final premiumMarketingEligibilityProvider =
     Provider<PremiumMarketingEligibility>((ref) {
       final info = ref.watch(customerInfoProvider).asData?.value;
       if (info == null) return PremiumMarketingEligibility.unknown;
-      return RevenueCatEntitlementState.fromCustomerInfo(info).isPro
+      return RevenueCatEntitlementState.fromCustomerInfo(info).hasPlusOrHigher
           ? PremiumMarketingEligibility.subscriber
           : PremiumMarketingEligibility.free;
     });

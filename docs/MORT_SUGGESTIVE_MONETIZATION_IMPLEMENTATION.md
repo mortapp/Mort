@@ -57,11 +57,20 @@ Date: 2026-10-03
   tier, Pro tier, new monthly/annual products, upgrade/downgrade paths, and a
   maximum-three-tier comparison requires coordinated App Store, Play Console,
   RevenueCat, webhook, legal-copy, device, and owner approval work.
-- The current client treats the `mort_plus` entitlement as Pro in
-  `RevenueCatEntitlementState.isPro`. This existing compatibility behavior
-  must be split and audited across Flutter, webhook, and backend feature gates
-  before `mort_plus` can be activated as a distinct lower tier. The inactive
-  backend product row does not prove a live Plus store offering.
+- The client now separates Free, Plus, and Pro in one RevenueCat entitlement
+  interpreter. A new `mort_plus` entitlement has Plus access only; `mort_pro`
+  inherits Plus access. The historical `mort_plus_monthly`,
+  `mort_plus_yearly`, and `mort_plus_lifetime` SKUs keep the Pro-equivalent
+  client access they received in previous builds, but only while the matching
+  RevenueCat Plus entitlement is active. These legacy SKUs must not be reused
+  for a future lower-tier Plus offer. Current backend mappings remain Plus;
+  any new server-side Pro-only feature must honor the documented grandfather
+  rule before launch. A provider-side customer/SKU audit is still required.
+- The only verified live offering is the four-product Pro `default` offering.
+  Plus checkout, Plus-targeted suggestions, and Plus/Pro upgrade or downgrade
+  claims remain off until a distinct provider offering and store products are
+  verified. The current Pro suggestion is suppressed for both Plus and Pro
+  subscribers; no subscriber sees a redundant acquisition prompt.
 - Additional suggestion placements should be wired only at real success
   boundaries: application submitted, job completed, and first job posted.
   Their domain success callbacks need to be audited before UI insertion so a

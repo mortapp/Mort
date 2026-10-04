@@ -63,7 +63,7 @@ final featureAccessProvider = FutureProvider<FeatureAccess>((ref) async {
 
 final isPlusProvider = FutureProvider<bool>((ref) async {
   final entitlements = await ref.watch(entitlementStateProvider.future);
-  return entitlements.isPlus;
+  return entitlements.hasPlusOrHigher;
 });
 
 final isMortProProvider = FutureProvider<bool>((ref) async {
