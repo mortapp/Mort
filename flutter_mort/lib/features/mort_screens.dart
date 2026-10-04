@@ -2396,6 +2396,11 @@ class RoleHomeScreen extends ConsumerWidget {
           route: '/admin/operational-alerts',
         ),
         MortAction(
+          label: 'School requests',
+          icon: Icons.add_business_outlined,
+          route: '/admin/school-requests',
+        ),
+        MortAction(
           label: 'Reviews',
           icon: Icons.rate_review_outlined,
           route: '/admin/reviews',
@@ -3077,6 +3082,13 @@ _RoleDashboardDefinition _roleDashboardDefinition(
             description: 'Review backend and provider health alerts.',
             icon: Icons.monitor_heart_outlined,
             route: '/admin/operational-alerts',
+          ),
+          _DashboardActionDefinition(
+            label: 'School requests',
+            description:
+                'Triage private school suggestions without granting student eligibility.',
+            icon: Icons.add_business_outlined,
+            route: '/admin/school-requests',
           ),
           _DashboardActionDefinition(
             label: 'Payment operations',

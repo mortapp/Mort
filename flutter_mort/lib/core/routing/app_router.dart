@@ -44,6 +44,7 @@ import '../../features/history/screens/job_payment_history_screen.dart';
 import '../../features/receipts/screens/receipt_detail_screen.dart';
 import '../../features/admin/admin_moderation_detail_screen.dart';
 import '../../features/admin/admin_operational_alerts_screen.dart';
+import '../../features/admin/admin_school_requests_screen.dart';
 import '../../features/auth/google_auth_screens.dart';
 import '../../features/auth/unified_auth_screen.dart';
 import '../../features/safety/trust_safety_screens.dart';
@@ -599,6 +600,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               route: '/admin/teen-school-id',
             ),
             MortAction(
+              label: 'School requests',
+              icon: Icons.add_business_outlined,
+              route: '/admin/school-requests',
+            ),
+            MortAction(
               label: 'Teen alternatives',
               icon: Icons.alt_route,
               route: '/admin/teen-alternatives',
@@ -921,6 +927,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       _guarded(
         '/admin/operational-alerts',
         const SensitiveScreenProtection(child: AdminOperationalAlertsScreen()),
+        role: UserRole.admin,
+      ),
+      _guarded(
+        '/admin/school-requests',
+        const SensitiveScreenProtection(child: AdminSchoolRequestsScreen()),
         role: UserRole.admin,
       ),
       _guarded(

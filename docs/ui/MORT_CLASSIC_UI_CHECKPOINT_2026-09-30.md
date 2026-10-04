@@ -50,6 +50,22 @@ Branch: `feature/mort-classic-ui-redesign`, isolated from the primary MORT check
 3. **Investor/operations:** The queue bound limits storage and review workload without an external service or caller-controlled IP. Operators still need a staff review workflow and an escalation path for legitimate users when the shared quota is exhausted.
 4. **Judge:** Accept this as a locally tested source checkpoint only. It does not authorize hosted migration, production student-domain approval, or a new Play build.
 
+## Continuation — private school request triage
+
+- Added an admin-guarded classic screen with pagination for pending, reviewing, rejected, and accepted school suggestions. Staff may start review or reject with a required note. The server checks a current active admin account, records each transition in a private append-only audit table, and rejects any client attempt to mark a request accepted. No action creates a school, domain assignment, or teen eligibility.
+- The MORT local database passed non-admin and suspended-admin denial, private table grants, review/rejection transitions, closed-request denial, audit count, and no-approval checks inside the same outer rollback. The prior queue cap tests passed in that run too. No hosted database was changed.
+- Widget tests found and fixed a dialog-controller disposal bug in the new staff screen. The same vulnerable pattern in the existing operational-alert and moderation-reason dialogs was replaced with route-owned text state and scrollable content. Focused staff and operational dialog tests pass.
+- School/domain acceptance with independently verified source evidence, trusted anonymous abuse controls, hosted migrations, and physical review remain open.
+- A full Flutter regression attempt exposed an intermittent 200 ms wall-clock profile timeout in the existing startup test under full-suite load. The isolated test passed. The test now controls profile completion explicitly and asserts that startup remains in the restoring state until the profile resolves; focused auth and admin tests pass. Production timeout behavior was not changed.
+- After that repair, Flutter analysis found no issues and the full suite passed **775 tests, 2 skipped**. The separate moderation dialog regression passed. The public legal site still passes 3/3 Node tests. The source secret scan found zero matches across 2,501 text files. The latest school SQL suite passed with `ON_ERROR_STOP=1` in a MORT-only rollback transaction, including paged reads and null-input denials.
+
+### Sequential review of private triage
+
+1. **Believer:** The active-admin RPCs limit reads to private, paged school suggestions and make reviewing/rejected transitions auditable. The UI has no approval action, and the server rejects a forged accepted decision. The repaired dialogs close without accessing disposed controllers.
+2. **Skeptic:** This is local rollback evidence. A shared request quota can still be exhausted, and staff have no source-verified acceptance/domain approval flow. A suspended admin is denied, but hosted grants and physical navigation are not certified.
+3. **Investor/operations:** Pagination keeps older suggestions reachable. A real review team needs evidence standards, escalation for quota exhaustion, and a controlled approval process before students can use new schools.
+4. **Judge:** Accept the local triage source and regression fixes only after the final exact-head checks pass. Keep hosted deployment, new Play builds, and production eligibility unchanged.
+
 ### Sequential review of this continuation
 
 1. **Believer:** The picker can no longer continue with a school hidden by a new query. The legal site renders 13 routes without the old animation, and the 12 document article bodies match the previous generated output. Flutter tests, legal tests, web build, and secret scans pass.

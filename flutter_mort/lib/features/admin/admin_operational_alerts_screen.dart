@@ -36,21 +36,23 @@ class _AdminOperationalAlertsScreenState
   void _refresh() => setState(_reload);
 
   Future<String?> _reason(String action) async {
-    final controller = TextEditingController();
+    var draft = '';
     String? validation;
     final result = await showDialog<String>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text('$action alert'),
-          content: TextField(
-            controller: controller,
-            minLines: 3,
-            maxLines: 6,
-            maxLength: 500,
-            decoration: InputDecoration(
-              labelText: 'Required operational reason',
-              errorText: validation,
+          content: SingleChildScrollView(
+            child: TextField(
+              onChanged: (value) => draft = value,
+              minLines: 3,
+              maxLines: 6,
+              maxLength: 500,
+              decoration: InputDecoration(
+                labelText: 'Required operational reason',
+                errorText: validation,
+              ),
             ),
           ),
           actions: [
@@ -60,7 +62,7 @@ class _AdminOperationalAlertsScreenState
             ),
             FilledButton(
               onPressed: () {
-                final reason = controller.text.trim();
+                final reason = draft.trim();
                 if (reason.length < 10) {
                   setDialogState(
                     () => validation = 'Enter at least 10 characters.',
@@ -75,7 +77,6 @@ class _AdminOperationalAlertsScreenState
         ),
       ),
     );
-    controller.dispose();
     return result;
   }
 

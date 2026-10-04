@@ -1,6 +1,43 @@
 import 'repository_base.dart';
 
 class AdminRepository extends RepositoryBase {
+  Future<List<Map<String, dynamic>>> schoolDirectoryRequests({
+    String status = 'pending',
+    int limit = 25,
+    int offset = 0,
+  }) async {
+    requireUserId();
+    final result = await client.rpc(
+      'admin_list_school_directory_requests',
+      params: {'p_status': status, 'p_limit': limit, 'p_offset': offset},
+    );
+    final value = Map<String, dynamic>.from(result as Map);
+    _requireSuccess(value, 'The school review queue is unavailable.');
+    final items = value['items'];
+    if (items is! List) return const [];
+    return items
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
+  }
+
+  Future<void> triageSchoolDirectoryRequest({
+    required String requestId,
+    required String decision,
+    required String note,
+  }) async {
+    requireUserId();
+    final result = await client.rpc(
+      'admin_triage_school_directory_request',
+      params: {
+        'p_request_id': requestId,
+        'p_decision': decision,
+        'p_note': note.trim(),
+      },
+    );
+    _requireSuccess(result, 'The school review action was rejected.');
+  }
+
   Future<Map<String, dynamic>> moderationRecord({
     required String recordType,
     required String recordId,

@@ -61,20 +61,17 @@ class _FakeGateway implements MortAuthStartupGateway {
   Future<void> close() => controller.close();
 }
 
-class _DelayedProfileGateway extends _FakeGateway {
-  _DelayedProfileGateway({
-    super.session,
-    Object? profileError,
-    required this.delay,
-  }) {
-    this.profileError = profileError;
-  }
+class _GatedProfileGateway extends _FakeGateway {
+  _GatedProfileGateway({super.session});
 
-  final Duration delay;
+  // Keep this test independent of wall-clock scheduling under the full suite.
+  final profileRequested = Completer<void>();
+  final releaseProfile = Completer<void>();
 
   @override
   Future<Map<String, dynamic>> ensureCurrentProfile() async {
-    await Future<void>.delayed(delay);
+    profileRequested.complete();
+    await releaseProfile.future;
     return super.ensureCurrentProfile();
   }
 }
@@ -304,15 +301,12 @@ void main() {
   test(
     'startup waits for profile resolution before final destination',
     () async {
-      final gateway = _DelayedProfileGateway(
-        session: _session(),
-        delay: const Duration(milliseconds: 40),
-      );
+      final gateway = _GatedProfileGateway(session: _session());
       final startup = AuthStartupController(
         gateway,
         refreshAttempts: 2,
         refreshTimeout: const Duration(milliseconds: 100),
-        profileTimeout: const Duration(milliseconds: 200),
+        profileTimeout: const Duration(seconds: 5),
         initialRecoveryGrace: Duration.zero,
         retryDelay: Duration.zero,
       );
@@ -320,7 +314,12 @@ void main() {
       final stages = <MortAuthStartupStage>[];
       startup.addListener(() => stages.add(startup.snapshot.stage));
 
-      await startup.start();
+      final startupFuture = startup.start();
+      await gateway.profileRequested.future;
+      expect(startup.snapshot.stage, MortAuthStartupStage.restoring);
+      expect(startup.snapshot.destination, isNull);
+      gateway.releaseProfile.complete();
+      await startupFuture;
 
       expect(stages, contains(MortAuthStartupStage.restoring));
       expect(stages, contains(MortAuthStartupStage.authenticated));
