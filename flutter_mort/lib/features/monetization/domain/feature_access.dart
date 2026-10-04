@@ -35,7 +35,7 @@ class FeatureAccess {
   final bool canUseGuardianWeeklyDigest;
 
   factory FeatureAccess.fromEntitlements(RevenueCatEntitlementState state) {
-    final plus = state.isPlus;
+    final plus = state.hasPlusOrHigher;
     final adFree = state.isAdFree;
     final adultPro = state.isAdultPro;
     final guardianPlus = state.isGuardianPlus;

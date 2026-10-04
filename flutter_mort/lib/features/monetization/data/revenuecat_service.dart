@@ -31,17 +31,61 @@ class RevenueCatOperationResult {
   final String message;
 }
 
+enum MortSubscriptionTier { free, plus, pro }
+
+enum MortSubscriptionState {
+  inactive,
+  active,
+  cancelledActive,
+  billingIssueActive,
+}
+
 class RevenueCatEntitlementState {
-  const RevenueCatEntitlementState({required this.activeEntitlements});
+  const RevenueCatEntitlementState({
+    required this.activeEntitlements,
+    this.activeProducts = const <String>{},
+    this.expiration,
+    this.willRenew,
+    this.billingIssue = false,
+    this.store,
+    this.productIdentifier,
+  });
 
   final Set<String> activeEntitlements;
 
+  /// Products associated with *active* RevenueCat entitlements only.
+  final Set<String> activeProducts;
+  final DateTime? expiration;
+  final bool? willRenew;
+  final bool billingIssue;
+  final rc.Store? store;
+  final String? productIdentifier;
+
+  // These pre-existing Plus SKUs had Pro-equivalent access in earlier clients.
+  // Future Plus products must use separate SKUs so existing buyers keep access.
+  static const legacyProEquivalentPlusProducts = <String>{
+    'mort_plus_monthly',
+    'mort_plus_yearly',
+    'mort_plus_lifetime',
+  };
+
   bool has(String id) => activeEntitlements.contains(id);
-  bool get isPro =>
+  bool get hasPro =>
       has(AppConfig.revenueCatEntitlementPro) ||
-      has(AppConfig.revenueCatEntitlementPlus);
-  bool get isPlus => isPro;
-  bool get isAdFree => has(AppConfig.revenueCatEntitlementAdFree) || isPro;
+      (has(AppConfig.revenueCatEntitlementPlus) &&
+          activeProducts.any(legacyProEquivalentPlusProducts.contains));
+  bool get hasPlusOrHigher =>
+      hasPro || has(AppConfig.revenueCatEntitlementPlus);
+  MortSubscriptionTier get tier => hasPro
+      ? MortSubscriptionTier.pro
+      : hasPlusOrHigher
+      ? MortSubscriptionTier.plus
+      : MortSubscriptionTier.free;
+  bool get isFree => tier == MortSubscriptionTier.free;
+  bool get isPlus => tier == MortSubscriptionTier.plus;
+  bool get isPro => tier == MortSubscriptionTier.pro;
+  bool get isAdFree =>
+      has(AppConfig.revenueCatEntitlementAdFree) || hasPlusOrHigher;
   bool get isAdultPro => has(AppConfig.revenueCatEntitlementAdultPro);
   bool get isGuardianPlus => has(AppConfig.revenueCatEntitlementGuardianPlus);
   bool get hasUsernameToken =>
@@ -50,10 +94,38 @@ class RevenueCatEntitlementState {
   bool get hasProfileStylePack =>
       has(AppConfig.revenueCatEntitlementProfileStylePack) || isPro;
 
-  factory RevenueCatEntitlementState.fromCustomerInfo(rc.CustomerInfo info) =>
-      RevenueCatEntitlementState(
-        activeEntitlements: info.entitlements.active.keys.toSet(),
-      );
+  MortSubscriptionState get subscriptionState {
+    if (isFree) return MortSubscriptionState.inactive;
+    if (billingIssue) return MortSubscriptionState.billingIssueActive;
+    if (willRenew == false && expiration != null) {
+      return MortSubscriptionState.cancelledActive;
+    }
+    return MortSubscriptionState.active;
+  }
+
+  // RevenueCat does not expose a distinct grace-period flag in CustomerInfo.
+  // Keep this unknown rather than treating every active billing issue as grace.
+  bool? get gracePeriod => null;
+
+  factory RevenueCatEntitlementState.fromCustomerInfo(rc.CustomerInfo info) {
+    final active = info.entitlements.active;
+    final selected =
+        active[AppConfig.revenueCatEntitlementPro] ??
+        active[AppConfig.revenueCatEntitlementPlus];
+    return RevenueCatEntitlementState(
+      activeEntitlements: active.keys.toSet(),
+      activeProducts: active.values
+          .map((value) => value.productIdentifier)
+          .toSet(),
+      expiration: selected?.expirationDate == null
+          ? null
+          : DateTime.tryParse(selected!.expirationDate!),
+      willRenew: selected?.willRenew,
+      billingIssue: selected?.billingIssueDetectedAt != null,
+      store: selected?.store,
+      productIdentifier: selected?.productIdentifier,
+    );
+  }
 }
 
 /// Only the RevenueCat webhook writes the Supabase entitlement cache.

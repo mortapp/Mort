@@ -52,7 +52,7 @@ class ObservabilityRepository extends RepositoryBase {
     required String clientRequestId,
   }) async {
     requireUserId();
-    await client.rpc(
+    final result = await client.rpc(
       'record_my_product_analytics',
       params: {
         'p_event_name': eventName,
@@ -63,6 +63,10 @@ class ObservabilityRepository extends RepositoryBase {
         'p_release_stage': releaseStage,
         'p_client_request_id': clientRequestId,
       },
+    );
+    _requireSuccess(
+      Map<String, dynamic>.from(result as Map),
+      'Product analytics event was not accepted.',
     );
   }
 
