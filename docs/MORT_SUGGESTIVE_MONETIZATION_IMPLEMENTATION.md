@@ -26,14 +26,17 @@ Date: 2026-10-03
   caps. Concurrent prompt claims are serialized to avoid two placements both
   reserving the final available impression.
 - Subscriber, safety-critical, unknown-entitlement, and converted-state
-  suppression. Local prompt state only suppresses marketing; it cannot grant
-  access. RevenueCat errors and missing customer information fail closed for
-  marketing.
+  suppression, including account switches and live entitlement changes. Local
+  prompt state only suppresses marketing; it cannot grant access. RevenueCat
+  errors and missing customer information fail closed for marketing.
 - A reusable, dismissible MORT-styled inline suggestion card. It records
   consent-gated impression, dismissal, and click events with surface names.
 - A progression surface shown after the user's authoritative progress loads.
   Copy explicitly keeps XP, rank, and Motion Tokens independent of purchases.
-- Consent-gated paywall, purchase start/result, and restore funnel events.
+- Consent-gated paywall, purchase start/result, and restore funnel events. An
+  additive SQL migration extends both the RPC taxonomy and its private table
+  constraints with bounded event, surface, and outcome values. Client RPC
+  rejection now produces a delivery failure instead of silently succeeding.
 - Focused tests for frequency caps, dismissal cooldowns, account isolation,
   subscriber suppression, safety suppression, conversion suppression, free
   safety access, localized store prices, and Continue with Free.
@@ -54,6 +57,11 @@ Date: 2026-10-03
   tier, Pro tier, new monthly/annual products, upgrade/downgrade paths, and a
   maximum-three-tier comparison requires coordinated App Store, Play Console,
   RevenueCat, webhook, legal-copy, device, and owner approval work.
+- The current client treats the `mort_plus` entitlement as Pro in
+  `RevenueCatEntitlementState.isPro`. This existing compatibility behavior
+  must be split and audited across Flutter, webhook, and backend feature gates
+  before `mort_plus` can be activated as a distinct lower tier. The inactive
+  backend product row does not prove a live Plus store offering.
 - Additional suggestion placements should be wired only at real success
   boundaries: application submitted, job completed, and first job posted.
   Their domain success callbacks need to be audited before UI insertion so a
@@ -86,3 +94,14 @@ not use suggestion throttling.
 - Legal/privacy/teen-spending review and owner rollout approval.
 - No build 115, provider mutation, hosted database mutation, merge, or
   production rollout was performed by this branch.
+
+## Verification of the follow-up analytics migration
+
+- The MORT local Docker stack accepted the additive migration and the
+  synthetic-user `qa-privacy-observability.mjs` suite passed consent,
+  idempotency, bounded monetization taxonomy, rejected product identifiers,
+  service-only rows, and immediate opt-out. No Loop container or hosted
+  database was changed.
+- Full Flutter analysis found no issues. Focused suggestion engine/card and
+  safety tests passed after the account, entitlement, safety-transition, and
+  optional local-storage failure fixes.

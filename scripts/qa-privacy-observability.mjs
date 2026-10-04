@@ -95,11 +95,29 @@ await withQaUsers(scope, [{ key: "teen", role: "teen" }], async ({ teen }) => {
     ...eventParams(),
     p_event_name: "exact_location_viewed",
   });
+  const monetizationEvent = await teen.client.rpc("record_my_product_analytics", {
+    ...eventParams(),
+    p_event_name: "premium_suggestion_impression",
+    p_surface: "progression",
+    p_outcome: "displayed",
+  });
+  const rejectedFreeFormMonetization = await teen.client.rpc(
+    "record_my_product_analytics",
+    {
+      ...eventParams(),
+      p_event_name: "purchase_started",
+      p_surface: "paywall",
+      p_outcome: "$rc_annual",
+    },
+  );
   assertQa(
     recorded.recorded === true &&
       replayed.replayed === true &&
       substituted.data?.code === "analytics_request_id_reused" &&
-      invalidEvent.data?.code === "invalid_analytics_event",
+      invalidEvent.data?.code === "invalid_analytics_event" &&
+      monetizationEvent.data?.ok === true &&
+      monetizationEvent.data?.recorded === true &&
+      rejectedFreeFormMonetization.data?.code === "invalid_analytics_event",
     "analytics idempotency, payload binding, or taxonomy failed",
   );
   qaLog(scope, "product events are idempotent, payload-bound, and fixed-taxonomy");
@@ -173,7 +191,12 @@ await withQaUsers(scope, [{ key: "teen", role: "teen" }], async ({ teen }) => {
       "email", "phone", "ip_address", "advertising_id", "evidence",
     ];
     assertQa(
-      analyticsRows.rowCount === 1 &&
+      analyticsRows.rowCount === 2 &&
+        analyticsRows.rows.some((row) =>
+          row.event_name === 'premium_suggestion_impression' &&
+          row.surface === 'progression' &&
+          row.outcome === 'displayed'
+        ) &&
         operationalRows.rowCount === 1 &&
         operationalRows.rows[0].correlation_id === correlationId &&
         prohibited.every((name) => !names.includes(name)),

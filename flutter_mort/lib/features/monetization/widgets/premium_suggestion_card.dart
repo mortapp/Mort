@@ -8,10 +8,8 @@ import '../../../core/observability/product_analytics.dart';
 import '../../../core/theme/mort_colors.dart';
 import '../../../core/theme/mort_spacing.dart';
 import '../../../core/widgets/mort_widgets.dart';
-import '../data/revenuecat_service.dart';
 import '../domain/premium_suggestion.dart';
 import '../providers/premium_suggestion_providers.dart';
-import '../providers/revenuecat_providers.dart';
 
 class PremiumSuggestionCard extends ConsumerStatefulWidget {
   const PremiumSuggestionCard({
@@ -32,45 +30,85 @@ class PremiumSuggestionCard extends ConsumerStatefulWidget {
 
 class _PremiumSuggestionCardState extends ConsumerState<PremiumSuggestionCard> {
   bool _visible = false;
-  bool _checked = false;
+  bool _evaluationScheduled = false;
+  String? _evaluatedFreeUserId;
+  String? _lastEligibilityKey;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _evaluate());
+  void didUpdateWidget(covariant PremiumSuggestionCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId ||
+        oldWidget.suggestion.id != widget.suggestion.id ||
+        oldWidget.isSafetyCriticalSurface != widget.isSafetyCriticalSurface) {
+      _visible = false;
+      _evaluatedFreeUserId = null;
+      _lastEligibilityKey = null;
+    }
   }
 
-  Future<void> _evaluate() async {
-    // Unknown entitlement state is not permission to market. RevenueCat must
-    // return customer information before an optional suggestion can render.
-    final customerInfo = await ref
-        .read(customerInfoProvider.future)
-        .catchError((_) => null);
-    if (!mounted || customerInfo == null) {
-      if (mounted) setState(() => _checked = true);
+  void _scheduleEvaluation(PremiumMarketingEligibility eligibility) {
+    final userId = widget.userId;
+    final suggestionId = widget.suggestion.id;
+    final key =
+        '$userId:$suggestionId:${widget.isSafetyCriticalSurface}:${eligibility.name}';
+    if (_lastEligibilityKey == key || _evaluationScheduled) return;
+    _lastEligibilityKey = key;
+    _evaluationScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      _evaluationScheduled = false;
+      if (!mounted) return;
+      final currentEligibility = ref.read(premiumMarketingEligibilityProvider);
+      if (widget.userId != userId ||
+          widget.suggestion.id != suggestionId ||
+          currentEligibility != eligibility) {
+        _lastEligibilityKey = null;
+        _scheduleEvaluation(currentEligibility);
+        return;
+      }
+      if (eligibility != PremiumMarketingEligibility.free) {
+        if (eligibility == PremiumMarketingEligibility.subscriber) {
+          _evaluatedFreeUserId = null;
+        }
+        if (_visible) setState(() => _visible = false);
+        return;
+      }
+      if (_evaluatedFreeUserId == widget.userId) return;
+      await _evaluateFreeUser();
+    });
+  }
+
+  Future<void> _evaluateFreeUser() async {
+    final evaluatedUserId = widget.userId;
+    _evaluatedFreeUserId = evaluatedUserId;
+    final engine = ref.read(premiumSuggestionEngineProvider);
+    bool show;
+    try {
+      show = await engine.claimImpression(
+        userId: evaluatedUserId,
+        suggestion: widget.suggestion,
+        isSubscriber: false,
+        isSafetyCriticalSurface: widget.isSafetyCriticalSurface,
+      );
+    } catch (_) {
+      // Local frequency history is optional; storage errors suppress marketing.
       return;
     }
-    final isSubscriber = RevenueCatEntitlementState.fromCustomerInfo(
-      customerInfo,
-    ).isPro;
-    final engine = ref.read(premiumSuggestionEngineProvider);
-    final show = await engine.claimImpression(
-      userId: widget.userId,
-      suggestion: widget.suggestion,
-      isSubscriber: isSubscriber,
-      isSafetyCriticalSurface: widget.isSafetyCriticalSurface,
-    );
-    if (!mounted) return;
-    setState(() {
-      _checked = true;
-      _visible = show;
-    });
+    if (!mounted ||
+        widget.userId != evaluatedUserId ||
+        widget.isSafetyCriticalSurface) {
+      return;
+    }
+    if (ref.read(premiumMarketingEligibilityProvider) !=
+        PremiumMarketingEligibility.free) {
+      return;
+    }
+    setState(() => _visible = show);
     if (show) {
       unawaited(
         MortProductAnalytics.instance.record(
           eventName: 'premium_suggestion_impression',
           surface: widget.suggestion.surface.name,
-          outcome: widget.suggestion.id,
+          outcome: 'displayed',
         ),
       );
     }
@@ -84,7 +122,7 @@ class _PremiumSuggestionCardState extends ConsumerState<PremiumSuggestionCard> {
       MortProductAnalytics.instance.record(
         eventName: 'premium_suggestion_dismissed',
         surface: widget.suggestion.surface.name,
-        outcome: widget.suggestion.id,
+        outcome: 'dismissed',
       ),
     );
     if (mounted) setState(() => _visible = false);
@@ -95,7 +133,7 @@ class _PremiumSuggestionCardState extends ConsumerState<PremiumSuggestionCard> {
       MortProductAnalytics.instance.record(
         eventName: 'premium_suggestion_clicked',
         surface: widget.suggestion.surface.name,
-        outcome: widget.suggestion.id,
+        outcome: 'clicked',
       ),
     );
     context.push('/monetization/paywall');
@@ -103,7 +141,11 @@ class _PremiumSuggestionCardState extends ConsumerState<PremiumSuggestionCard> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_checked || !_visible) return const SizedBox.shrink();
+    final eligibility = ref.watch(premiumMarketingEligibilityProvider);
+    _scheduleEvaluation(eligibility);
+    if (eligibility != PremiumMarketingEligibility.free || !_visible) {
+      return const SizedBox.shrink();
+    }
     return Semantics(
       container: true,
       label: 'Optional MORT Pro benefit',

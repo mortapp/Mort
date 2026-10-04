@@ -103,7 +103,7 @@ class _MortProPaywallState extends ConsumerState<_MortProPaywall> {
       MortProductAnalytics.instance.record(
         eventName: 'purchase_started',
         surface: 'paywall',
-        outcome: package.identifier,
+        outcome: 'started',
       ),
     );
     final result = await ref
@@ -118,7 +118,9 @@ class _MortProPaywallState extends ConsumerState<_MortProPaywall> {
       MortProductAnalytics.instance.record(
         eventName: result.success ? 'purchase_completed' : 'purchase_failed',
         surface: 'paywall',
-        outcome: result.cancelled ? 'cancelled' : package.identifier,
+        outcome: result.cancelled
+            ? 'cancelled'
+            : (result.success ? 'completed' : 'failed'),
       ),
     );
   }
@@ -138,7 +140,7 @@ class _MortProPaywallState extends ConsumerState<_MortProPaywall> {
       MortProductAnalytics.instance.record(
         eventName: result.success ? 'purchase_restored' : 'purchase_failed',
         surface: 'paywall',
-        outcome: result.success ? 'restored' : 'restore_failed',
+        outcome: result.success ? 'restored' : 'failed',
       ),
     );
   }
