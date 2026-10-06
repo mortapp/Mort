@@ -45,9 +45,7 @@ void main() {
         );
       } else {
         request.response.write(
-          jsonEncode(
-          wantsSingle ? responseRow : [?responseRow],
-          ),
+          jsonEncode(wantsSingle ? responseRow : [?responseRow]),
         );
       }
       await request.response.close();

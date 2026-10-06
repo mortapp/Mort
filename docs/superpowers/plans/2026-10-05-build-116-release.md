@@ -19,7 +19,7 @@
 ## Execution checklist
 
 - [ ] Capture build-115 preservation baseline and archive existing generic worktree verification reports.
-- [ ] Update only `flutter_mort/pubspec.yaml` release version and this release documentation; review diff and commit before verification/build.
+- [ ] Update `flutter_mort/pubspec.yaml` release version and this release documentation; apply formatter-only corrections identified by the release gate in four existing tests, review diff and commit before final verification/build.
 - [ ] Run Flutter formatting, analysis and full tests against that clean commit; run the nine relevant local backend QA suites and website tests.
 - [ ] Run source secret scan and diff checks; use read-only hosted release-profile validation.
 - [ ] Build a new signed ordinary closed-test AAB and APK with real Play billing using protected signing configuration.
@@ -31,6 +31,8 @@
 ## Evidence location
 
 Fresh results and the completed checklist belong in the external artifact report directory `C:\Users\micha\Mort\build\play\reports\0.9.16-116`. This checked-in plan records authorization and acceptance criteria, not successful packaging. Keeping final results outside source preserves the exact packaged HEAD.
+
+The initial format gate found indentation/wrapping differences in `classic_bottom_navigation_test.dart`, `classic_theme_foundation_test.dart`, `monetization_repository_rpc_test.dart`, and `role_route_shell_contract_test.dart`. Formatting those tests changes no runtime behavior or assertions. Verification is restarted on the resulting clean commit.
 
 ## Final status requirements
 

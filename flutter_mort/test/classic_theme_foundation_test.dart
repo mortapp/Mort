@@ -68,9 +68,9 @@ void main() {
 
     expect(find.text('A local job'), findsOneWidget);
     expect(find.byType(BackdropFilter), findsNothing);
-    final card = tester.widgetList<Material>(find.byType(Material)).firstWhere(
-      (material) => material.shape is RoundedRectangleBorder,
-    );
+    final card = tester
+        .widgetList<Material>(find.byType(Material))
+        .firstWhere((material) => material.shape is RoundedRectangleBorder);
     expect(card.color, Colors.white);
     expect(card.shape, isA<RoundedRectangleBorder>());
   });

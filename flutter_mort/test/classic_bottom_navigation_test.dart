@@ -55,7 +55,7 @@ void main() {
       }
       await tester.tap(find.text('Safety'));
       expect(selected, 3);
-    semantics.dispose();
+      semantics.dispose();
     },
   );
 
