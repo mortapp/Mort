@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.110.1";
+import { revenueCatActiveUntil } from "../_shared/revenuecat_expiry.ts";
 import {
   correlatedJson,
   correlationId,
@@ -22,6 +23,7 @@ type NormalizedEvent = {
   productId: string | null;
   entitlementIds: string[];
   activeUntil: string | null;
+  graceExpirationMs: number | null;
   eventTimestamp: string;
   eventTimestampMs: number;
 };
@@ -169,6 +171,7 @@ Deno.serve(async (request: Request) => {
         entitlement_ids: event.entitlementIds,
         event_timestamp_ms: event.eventTimestampMs,
         active_until: event.activeUntil,
+        grace_period_expiration_at_ms: event.graceExpirationMs,
       },
     };
 
@@ -315,6 +318,12 @@ function normalizeEvent(payload: RevenueCatPayload): NormalizedEvent {
     source.expiration_at_ms ?? source.expires_at_ms ?? source.period_end_at_ms,
     "expiration_timestamp",
   );
+  const graceExpirationMs = eventType === "billing_issue"
+    ? optionalIntegerTimestamp(
+      source.grace_period_expiration_at_ms,
+      "grace_expiration_timestamp",
+    )
+    : null;
 
   return {
     eventId,
@@ -322,9 +331,12 @@ function normalizeEvent(payload: RevenueCatPayload): NormalizedEvent {
     eventType,
     productId,
     entitlementIds,
-    activeUntil: expirationTimestampMs == null
-      ? null
-      : new Date(expirationTimestampMs).toISOString(),
+    activeUntil: revenueCatActiveUntil(
+      eventType,
+      expirationTimestampMs,
+      graceExpirationMs,
+    ),
+    graceExpirationMs,
     eventTimestamp: new Date(eventTimestampMs).toISOString(),
     eventTimestampMs,
   };
