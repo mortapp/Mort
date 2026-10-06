@@ -11,4 +11,4 @@
 - [x] Reproduce both list-to-map failures before modifying the client.
 - [x] Update only `getMyEntitlements()` and `adEligibility()` in `flutter_mort/lib/data/repositories/monetization_repository.dart` to request `.single()`; focused regression tests pass.
 - [x] Finish full Flutter analysis and regression, parity/safety tests, formatting, secret scan and sequential review before committing.
-- [ ] Confirm unused version code after prior artifact delivery, then package only the approved ordinary closed-test profile with real Play billing and verify signing/integrity/alignment. Preserve existing artifacts and build 114.
+- [x] Owner confirmed build 116 for the new source; preserve the frozen build-115 artifact and its evidence. Packaging acceptance criteria and execution are tracked in `2026-10-05-build-116-release.md`; this authorization does not claim packaging is complete.
