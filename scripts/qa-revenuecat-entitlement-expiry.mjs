@@ -29,8 +29,21 @@ await withQaUsers(scope, [{ key: "expiry_adult", role: "adult" }], async ({ expi
       );
     }
     async function asAuthenticated(run) {
+      await db.query("savepoint authenticated_rpc");
       await db.query("set local role authenticated");
-      try { return await run(); } finally { await db.query("reset role"); }
+      try { return await run(); } catch (error) {
+        await db.query("rollback to savepoint authenticated_rpc");
+        throw error;
+      } finally {
+        await db.query("reset role");
+        await db.query("release savepoint authenticated_rpc");
+      }
+    }
+    function safeQaUsername() {
+      // Decimal UUID runs can resemble phone numbers and correctly fail safety.
+      // This alphabet cannot form any reserved contact/profanity patterns.
+      return `qax${randomUUID().replaceAll('-', '').slice(0, 14)
+        .replace(/[0-9]/g, (digit) => 'abcdefghij'[Number(digit)])}`;
     }
     async function current(expected) {
       const result = await asAuthenticated(() => db.query("select * from public.get_my_entitlements()"));
@@ -72,7 +85,7 @@ await withQaUsers(scope, [{ key: "expiry_adult", role: "adult" }], async ({ expi
     let expiredAllowanceDenied = false;
     try {
       await db.query("select * from public.request_username_change($1)",
-        [`qax${randomUUID().replaceAll('-', '').slice(0, 14)}`]);
+        [safeQaUsername()]);
     } catch (error) {
       expiredAllowanceDenied = error.code === "P0001" &&
         error.message.startsWith("No username changes are available.");
@@ -118,7 +131,7 @@ await withQaUsers(scope, [{ key: "expiry_adult", role: "adult" }], async ({ expi
     );
     await current(["mort_pro"]);
     await usernameAllowance(true);
-    const newUsername = `qax${randomUUID().replaceAll('-', '').slice(0, 14)}`;
+    const newUsername = safeQaUsername();
     const changed = await asAuthenticated(() => db.query("select * from public.request_username_change($1)", [newUsername]));
     assertQa(changed.rows[0].source === "plus_allowance", "Active Pro did not inherit the Plus username allowance.");
     qaLog(scope, "lifetime remains active and Pro inherits Plus username allowance");

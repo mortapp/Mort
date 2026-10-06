@@ -52,6 +52,12 @@ build's hosted backend.
    work description, correctly triggering pilot safety rejection. Two QA
    descriptions now specify staffed public-library work and assert the job is
    eligible before testing boost credits. No safety filter was weakened.
+5. **QA username generation and error cleanup.** The committed-head rerun
+   exposed a failing generated username request; its cleanup hid the underlying
+   error with an aborted-transaction error. UUID-based usernames could contain
+   phone-like digit runs prohibited by the actual safety validator. The fixture
+   now uses a safe alphabet and its authenticated RPC wrapper rolls back a
+   savepoint before resetting role, retaining the original failure diagnostic.
 
 ## Verification
 
