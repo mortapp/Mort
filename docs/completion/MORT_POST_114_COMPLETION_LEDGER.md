@@ -1,5 +1,10 @@
 # MORT post-114 completion ledger
 
+2026-10-05 update: [continuation evidence](MORT_CONTINUATION_2026-10-05.md)
+records preserved signed build 115, local entitlement-expiry and MORT Verify
+repairs, and remaining provider/device/deployment gates. The October 4 entry
+below is the earlier pre-packaging checkpoint.
+
 2026-10-04 monetization integration update: see
 `docs/completion/MORT_MONETIZATION_INTEGRATION_2026-10-04.md`. The current
 integration branch separates Free/Plus/Pro entitlements, retains active

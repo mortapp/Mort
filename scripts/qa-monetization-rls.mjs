@@ -45,9 +45,10 @@ await withQaUsers(
 
     const job = await saveJob(adult.client, {
       title: "QA Monetization RLS Job",
-      summary: "An isolated open job for server-authorized boost checks.",
+      summary: "Organize books at a staffed public library during daytime hours.",
     });
     assertQa(job.result?.ok === true && job.result?.job?.id, "isolated boost job did not publish");
+    assertQa(job.result.job.status === "open", "creditless boost fixture must pass job safety first");
 
     const directBoost = await adult.client
       .from("boosted_jobs")

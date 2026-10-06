@@ -1,5 +1,10 @@
 # MORT monetization integration evidence — 2026-10-04
 
+**Later evidence:** signed build 115 was subsequently produced from `9c1721c`.
+Backend expiry/Verify fixes and current artifact preservation are recorded in
+[the 2026-10-05 continuation](MORT_CONTINUATION_2026-10-05.md). Statements below
+about artifacts or pending exact-head tests describe the earlier checkpoint.
+
 Status: **FAIL — BLOCKERS REMAIN** for a Free / Plus / Pro release candidate.
 This is an engineering ledger for `release/mort-post-114-integration`, not a
 store launch approval. Uploaded Google Play closed-test build `0.9.16+114`

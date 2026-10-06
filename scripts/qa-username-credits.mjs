@@ -43,9 +43,11 @@ await withQaUsers(
 
     const job = await saveJob(adult.client, {
       title: "QA Job Boost Credit",
-      summary: "An isolated open job for a real server credit consumption check.",
+      summary: "Organize books at a staffed public library during daytime hours.",
     });
     assertQa(job.result?.ok === true && job.result?.job?.id, "isolated job did not publish");
+    assertQa(job.result.job.status === "open" && job.result.job.poster_id === adult.id,
+      `Boost fixture must be an open job owned by its poster; status=${job.result.job.status}, owned=${job.result.job.poster_id === adult.id}.`);
 
     const serviceGrant = await serviceClient.from("job_boost_credits").upsert(
       {
