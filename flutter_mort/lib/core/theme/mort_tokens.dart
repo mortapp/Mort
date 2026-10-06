@@ -53,13 +53,13 @@ class MortShadows {
   /// material, never a colored bloom.
   static const card = <BoxShadow>[
     BoxShadow(color: Color(0x99000000), blurRadius: 26, offset: Offset(0, 12)),
-    BoxShadow(color: Color(0x14D6DAE0), blurRadius: 1, offset: Offset(0, -1)),
+    BoxShadow(color: Color(0x14DADADA), blurRadius: 1, offset: Offset(0, -1)),
   ];
 
   /// Silver specular bloom for the primary CTA — reads as light reflecting
   /// off polished metal, not a cobalt neon halo.
   static const glow = <BoxShadow>[
-    BoxShadow(color: Color(0x2ED6DAE0), blurRadius: 18),
+    BoxShadow(color: Color(0x2EDADADA), blurRadius: 18),
     BoxShadow(color: Color(0x59000000), blurRadius: 26, offset: Offset(0, 10)),
   ];
 }
@@ -118,12 +118,12 @@ class MortGradients {
   static const glass = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xE0080A0D), Color(0xE0090B0F), Color(0xF0000208)],
+    colors: [Color(0xE00A0A0A), Color(0xE00B0B0B), Color(0xF0020202)],
   );
 
   static const infoGlass = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xF2090B0F), Color(0xF207090C)],
+    colors: [Color(0xF20B0B0B), Color(0xF2090909)],
   );
 }

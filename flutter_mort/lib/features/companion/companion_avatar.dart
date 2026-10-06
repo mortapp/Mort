@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../core/theme/mort_colors.dart';
+import '../../core/theme/mort_pet_colors.dart';
 import 'companion_catalog.dart';
 import 'companion_store.dart';
 
@@ -126,7 +126,10 @@ class _CompanionPainter extends CustomPainter {
     canvas.scale(size.width / 100, size.height / 100);
     final glow = Paint()
       ..shader = RadialGradient(
-        colors: [MortColors.night4.withValues(alpha: 0.36), Colors.transparent],
+        colors: [
+          MortPetColors.lavender.withValues(alpha: 0.36),
+          Colors.transparent,
+        ],
       ).createShader(const Rect.fromLTWH(5, 5, 90, 90));
     canvas.drawCircle(const Offset(50, 52), 45, glow);
     final bob = _motionOffset();
@@ -139,9 +142,9 @@ class _CompanionPainter extends CustomPainter {
       canvas.translate(-50, -50);
     }
     final fill = Paint()..color = bodyColor;
-    final dark = Paint()..color = MortColors.graphite3;
+    final dark = Paint()..color = MortPetColors.cream;
     final outline = Paint()
-      ..color = MortColors.silverDark
+      ..color = MortPetColors.ink
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
 
@@ -161,7 +164,7 @@ class _CompanionPainter extends CustomPainter {
         _oval(canvas, fill, const Rect.fromLTWH(17, 28, 66, 59));
         _oval(
           canvas,
-          Paint()..color = MortColors.softWhite,
+          Paint()..color = MortPetColors.cream,
           const Rect.fromLTWH(33, 60, 34, 19),
         );
       case 'nova':
@@ -169,13 +172,13 @@ class _CompanionPainter extends CustomPainter {
         _ear(canvas, fill, 20, 34, 12);
         _ear(canvas, fill, 80, 34, 88);
         _oval(canvas, fill, const Rect.fromLTWH(18, 31, 64, 56));
-        _star(canvas, const Offset(50, 35), 6, MortColors.silverBright);
+        _star(canvas, const Offset(50, 35), 6, MortPetColors.honey);
       case 'hoots':
         _oval(canvas, fill, const Rect.fromLTWH(18, 20, 64, 68));
         _oval(canvas, dark, const Rect.fromLTWH(12, 50, 17, 29));
         _oval(canvas, dark, const Rect.fromLTWH(71, 50, 17, 29));
-        _circle(canvas, Paint()..color = MortColors.silverBright, 36, 51, 12);
-        _circle(canvas, Paint()..color = MortColors.silverBright, 64, 51, 12);
+        _circle(canvas, Paint()..color = MortPetColors.honey, 36, 51, 12);
+        _circle(canvas, Paint()..color = MortPetColors.honey, 64, 51, 12);
       case 'rocky':
         _polygon(canvas, fill, const [
           Offset(23, 75),
@@ -186,7 +189,7 @@ class _CompanionPainter extends CustomPainter {
           Offset(78, 76),
           Offset(55, 88),
         ]);
-        _polygon(canvas, Paint()..color = MortColors.silverDark, const [
+        _polygon(canvas, Paint()..color = MortPetColors.ink, const [
           Offset(29, 27),
           Offset(64, 22),
           Offset(48, 42),
@@ -217,7 +220,7 @@ class _CompanionPainter extends CustomPainter {
         _circle(canvas, fill, 28, 37, 13);
         _circle(canvas, fill, 51, 29, 17);
         _circle(canvas, fill, 72, 38, 12);
-        _circle(canvas, Paint()..color = MortColors.silverBright, 79, 21, 5);
+        _circle(canvas, Paint()..color = MortPetColors.honey, 79, 21, 5);
       case 'nimbus':
         _circle(canvas, fill, 29, 55, 19);
         _circle(canvas, fill, 49, 42, 23);
@@ -233,7 +236,7 @@ class _CompanionPainter extends CustomPainter {
         canvas.drawPath(path, fill);
         _oval(
           canvas,
-          Paint()..color = MortColors.silverMid,
+          Paint()..color = MortPetColors.honey,
           const Rect.fromLTWH(38, 62, 24, 21),
         );
       case 'pebble':
@@ -246,7 +249,7 @@ class _CompanionPainter extends CustomPainter {
           Offset(18, 70),
           Offset(21, 42),
         ]);
-        _polygon(canvas, Paint()..color = MortColors.silverDark, const [
+        _polygon(canvas, Paint()..color = MortPetColors.ink, const [
           Offset(34, 25),
           Offset(67, 29),
           Offset(52, 45),
@@ -277,8 +280,8 @@ class _CompanionPainter extends CustomPainter {
 
   void _face(Canvas canvas) {
     final eyeColor = bodyColor.computeLuminance() < .1
-        ? MortColors.silverBright
-        : MortColors.ink2;
+        ? MortPetColors.cream
+        : MortPetColors.ink;
     final eye = Paint()..color = eyeColor;
     final eyeY = companion.id == 'stacky' ? 53.0 : 55.0;
     // Each companion has a distinct motion profile, including blink cadence.
@@ -296,12 +299,12 @@ class _CompanionPainter extends CustomPainter {
       _circle(canvas, eye, 40, eyeY, 2.8);
       _circle(canvas, eye, 60, eyeY, 2.8);
     }
-    _circle(canvas, Paint()..color = MortColors.silverDark, 50, eyeY + 11, 2);
+    _circle(canvas, Paint()..color = MortPetColors.ink, 50, eyeY + 11, 2);
   }
 
   void _accessory(Canvas canvas) {
     final line = Paint()
-      ..color = MortColors.silverBright
+      ..color = MortPetColors.honey
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke;
     switch (look.accessoryId) {
@@ -318,7 +321,7 @@ class _CompanionPainter extends CustomPainter {
           line,
         );
       case 'crown':
-        _polygon(canvas, Paint()..color = MortColors.silverBright, const [
+        _polygon(canvas, Paint()..color = MortPetColors.honey, const [
           Offset(36, 28),
           Offset(34, 15),
           Offset(43, 22),
@@ -328,12 +331,12 @@ class _CompanionPainter extends CustomPainter {
           Offset(64, 28),
         ]);
       case 'bow':
-        _polygon(canvas, Paint()..color = MortColors.silverBright, const [
+        _polygon(canvas, Paint()..color = MortPetColors.honey, const [
           Offset(46, 32),
           Offset(33, 26),
           Offset(33, 38),
         ]);
-        _polygon(canvas, Paint()..color = MortColors.silverBright, const [
+        _polygon(canvas, Paint()..color = MortPetColors.honey, const [
           Offset(54, 32),
           Offset(67, 26),
           Offset(67, 38),
@@ -341,7 +344,7 @@ class _CompanionPainter extends CustomPainter {
       case 'beanie':
         _oval(
           canvas,
-          Paint()..color = MortColors.graphite4,
+          Paint()..color = MortPetColors.coral,
           const Rect.fromLTWH(25, 19, 50, 23),
         );
       case 'headphones':
@@ -354,13 +357,13 @@ class _CompanionPainter extends CustomPainter {
         );
         _roundRect(
           canvas,
-          Paint()..color = MortColors.silverBright,
+          Paint()..color = MortPetColors.honey,
           const Rect.fromLTWH(20, 48, 10, 20),
           4,
         );
         _roundRect(
           canvas,
-          Paint()..color = MortColors.silverBright,
+          Paint()..color = MortPetColors.honey,
           const Rect.fromLTWH(70, 48, 10, 20),
           4,
         );
@@ -371,20 +374,27 @@ class _CompanionPainter extends CustomPainter {
     if (look.itemId == 'none') return;
     canvas.save();
     canvas.translate(76, 65);
-    final silver = Paint()..color = MortColors.silverBright;
+    final itemColor = switch (look.itemId) {
+      'book' || 'crystal' => MortPetColors.lavender,
+      'watering_can' || 'laptop' => MortPetColors.teal,
+      'acorn' => MortPetColors.clay,
+      'pillow' => MortPetColors.coral,
+      _ => MortPetColors.honey,
+    };
+    final silver = Paint()..color = itemColor;
     final line = Paint()
-      ..color = MortColors.silverBright
+      ..color = MortPetColors.honey
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     switch (look.itemId) {
       case 'star':
-        _star(canvas, const Offset(8, 8), 8, MortColors.silverBright);
+        _star(canvas, const Offset(8, 8), 8, MortPetColors.honey);
       case 'book':
         _roundRect(canvas, silver, const Rect.fromLTWH(2, 2, 13, 15), 1);
         canvas.drawLine(
           const Offset(5, 3),
           const Offset(5, 16),
-          Paint()..color = MortColors.graphite3,
+          Paint()..color = MortPetColors.cream,
         );
       case 'watering_can':
         _roundRect(canvas, silver, const Rect.fromLTWH(4, 7, 10, 9), 2);
@@ -400,7 +410,7 @@ class _CompanionPainter extends CustomPainter {
         _oval(canvas, silver, const Rect.fromLTWH(3, 5, 11, 12));
         _oval(
           canvas,
-          Paint()..color = MortColors.silverDark,
+          Paint()..color = MortPetColors.ink,
           const Rect.fromLTWH(2, 4, 13, 5),
         );
       case 'lantern':
@@ -417,7 +427,7 @@ class _CompanionPainter extends CustomPainter {
           const Offset(2, 5),
           const Offset(15, 10),
           Paint()
-            ..color = MortColors.silverBright
+            ..color = MortPetColors.honey
             ..strokeWidth = 5,
         );
         canvas.drawLine(const Offset(9, 10), const Offset(6, 17), line);
@@ -428,7 +438,7 @@ class _CompanionPainter extends CustomPainter {
           const Offset(1, 15),
           const Offset(17, 15),
           Paint()
-            ..color = MortColors.silverBright
+            ..color = MortPetColors.honey
             ..strokeWidth = 3,
         );
       case 'pillow':
@@ -443,11 +453,11 @@ class _CompanionPainter extends CustomPainter {
         canvas.drawLine(
           const Offset(8, 0),
           const Offset(9, 18),
-          Paint()..color = MortColors.silverDark,
+          Paint()..color = MortPetColors.ink,
         );
       case 'moon_charm':
         _circle(canvas, silver, 8, 8, 8);
-        _circle(canvas, Paint()..color = MortColors.ink2, 12, 5, 7);
+        _circle(canvas, Paint()..color = MortPetColors.ink, 12, 5, 7);
     }
     canvas.restore();
   }
@@ -455,7 +465,13 @@ class _CompanionPainter extends CustomPainter {
   void _aura(Canvas canvas) {
     if (look.auraId == 'none') return;
     final paint = Paint()
-      ..color = MortColors.silverBright.withValues(alpha: .7);
+      ..color = (switch (look.auraId) {
+        'hearts' => MortPetColors.coral,
+        'leaves' => MortPetColors.leaf,
+        'bubbles' => MortPetColors.sky,
+        'moon_dust' => MortPetColors.lavender,
+        _ => MortPetColors.honey,
+      }).withValues(alpha: .7);
     for (final offset in const [
       Offset(15, 29),
       Offset(85, 36),

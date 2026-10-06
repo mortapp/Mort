@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/mort_pet_colors.dart';
 
 /// Cosmetic companions are separate from the three MORT Guide mascots.
 class CompanionDefinition {
@@ -28,7 +29,7 @@ const companions = <CompanionDefinition>[
     'Fox-cat',
     'Curious',
     'Curious little explorer.',
-    Color(0xFFF8FAFC),
+    MortPetColors.tangerine,
     requiresPro: false,
   ),
   CompanionDefinition(
@@ -37,7 +38,7 @@ const companions = <CompanionDefinition>[
     'Bear-pup',
     'Comforting',
     'A loyal, comforting presence.',
-    Color(0xFFF7F8FA),
+    MortPetColors.honey,
   ),
   CompanionDefinition(
     'nova',
@@ -45,7 +46,7 @@ const companions = <CompanionDefinition>[
     'Cosmic fox',
     'Dreamy',
     'Dreaming among the stars.',
-    Color(0xFFE0F2FE),
+    MortPetColors.lavender,
   ),
   CompanionDefinition(
     'hoots',
@@ -53,7 +54,7 @@ const companions = <CompanionDefinition>[
     'Snowy owl',
     'Thoughtful',
     'Always observing thoughtfully.',
-    Color(0xFFF1F5F9),
+    MortPetColors.sky,
   ),
   CompanionDefinition(
     'rocky',
@@ -61,7 +62,7 @@ const companions = <CompanionDefinition>[
     'Living rock',
     'Steady',
     'A steady, dependable friend.',
-    Color(0xFF94A3B8),
+    MortPetColors.teal,
   ),
   CompanionDefinition(
     'seedy',
@@ -69,7 +70,7 @@ const companions = <CompanionDefinition>[
     'Sprout',
     'Optimistic',
     'Springing with optimism.',
-    Color(0xFFF0FDF4),
+    MortPetColors.leaf,
   ),
   CompanionDefinition(
     'stacky',
@@ -77,7 +78,7 @@ const companions = <CompanionDefinition>[
     'Friendly robot',
     'Helpful',
     'Organized and always helpful.',
-    Color(0xFFE2E8F0),
+    MortPetColors.turquoise,
   ),
   CompanionDefinition(
     'dewey',
@@ -85,7 +86,7 @@ const companions = <CompanionDefinition>[
     'Water droplet',
     'Calm',
     'A relaxing drop of calm.',
-    Color(0xFFCCFBF1),
+    MortPetColors.sky,
   ),
   CompanionDefinition(
     'mizu',
@@ -93,7 +94,7 @@ const companions = <CompanionDefinition>[
     'Water spirit',
     'Energetic',
     'Bouncing with energy.',
-    Color(0xFFBAE6FD),
+    MortPetColors.blue,
   ),
   CompanionDefinition(
     'nimbus',
@@ -101,7 +102,7 @@ const companions = <CompanionDefinition>[
     'Living cloud',
     'Cozy',
     'A soft, sleepy little cloud.',
-    Color(0xFFF8FAFC),
+    MortPetColors.periwinkle,
   ),
   CompanionDefinition(
     'shadow',
@@ -109,7 +110,7 @@ const companions = <CompanionDefinition>[
     'Black cat',
     'Quiet',
     'Quiet and observant.',
-    Color(0xFF475569),
+    MortPetColors.plum,
   ),
   CompanionDefinition(
     'ember',
@@ -117,7 +118,7 @@ const companions = <CompanionDefinition>[
     'Flame spirit',
     'Motivated',
     'A spark of motivation.',
-    Color(0xFFFFFBEB),
+    MortPetColors.tangerine,
   ),
   CompanionDefinition(
     'sprig',
@@ -125,7 +126,7 @@ const companions = <CompanionDefinition>[
     'Forest creature',
     'Hopeful',
     'Hopeful for new growth.',
-    Color(0xFFF4F4F5),
+    MortPetColors.lime,
   ),
   CompanionDefinition(
     'pebble',
@@ -133,7 +134,7 @@ const companions = <CompanionDefinition>[
     'Stone golem',
     'Reliable',
     'Solid and quietly funny.',
-    Color(0xFFCBD5E1),
+    MortPetColors.clay,
   ),
 ];
 
@@ -161,11 +162,16 @@ class CosmeticOption {
 
 const companionColors = <CosmeticOption>[
   CosmeticOption('default', 'Original'),
-  CosmeticOption('pearl', 'Pearl', color: Color(0xFFF8FAFC)),
-  CosmeticOption('silver', 'Silver', color: Color(0xFFCBD5E1)),
-  CosmeticOption('graphite', 'Graphite', color: Color(0xFF475569)),
-  CosmeticOption('midnight', 'Midnight', color: Color(0xFF172033)),
-  CosmeticOption('ice', 'Ice', color: Color(0xFFE0F2FE)),
+  CosmeticOption('pearl', 'Pearl', color: Color(0xFFFAFAFA)),
+  CosmeticOption('silver', 'Silver', color: Color(0xFFD4D4D4)),
+  CosmeticOption('graphite', 'Graphite', color: Color(0xFF535353)),
+  CosmeticOption('midnight', 'Midnight', color: Color(0xFF1F1F1F)),
+  CosmeticOption('ice', 'Ice', color: Color(0xFFEFEFEF)),
+  CosmeticOption('coral', 'Coral', color: MortPetColors.coral),
+  CosmeticOption('sunshine', 'Sunshine', color: MortPetColors.honey),
+  CosmeticOption('mint', 'Mint', color: MortPetColors.teal),
+  CosmeticOption('lavender', 'Lavender', color: MortPetColors.lavender),
+  CosmeticOption('sky', 'Sky', color: MortPetColors.sky),
 ];
 
 const companionAccessories = <CosmeticOption>[

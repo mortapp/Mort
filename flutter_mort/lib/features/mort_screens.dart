@@ -5441,7 +5441,7 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: MortColors.ink2,
+      backgroundColor: MortClassicColors.canvas,
       sheetAnimationStyle: AnimationStyle.noAnimation,
       builder: (_) => SizedBox(
         height: MediaQuery.sizeOf(context).height * .92,

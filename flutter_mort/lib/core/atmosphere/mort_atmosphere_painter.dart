@@ -211,7 +211,7 @@ class MortAtmospherePainter extends CustomPainter {
       final dx = direction * layer.spec.driftPxPerSec * _t;
       final hueShift = layer.spec.hueShiftDegrees;
       final baseColor = HSLColor.fromColor(
-        const Color(0xFF0D1118), // graphite-black mass, buried night interior
+        const Color(0xFF111111), // graphite-black mass, buried night interior
       ).withHue((222 + hueShift) % 360).toColor();
       for (final mass in layer.masses) {
         final wrappedDx =
@@ -287,7 +287,7 @@ class MortAtmospherePainter extends CustomPainter {
         ..shader = LinearGradient(
           colors: [
             Colors.transparent,
-            const Color(0xFFD6DAE0).withValues(alpha: opacity), // silver sweep
+            const Color(0xFFDADADA).withValues(alpha: opacity), // silver sweep
             Colors.transparent,
           ],
         ).createShader(rect)
@@ -360,10 +360,10 @@ class MortAtmospherePainter extends CustomPainter {
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
           colors: [
-            const Color(0x000C2140), // transparent midnight depth
-            Color(0x330C2140).withValues(alpha: 0.20 * opacity),
-            Color(0x9ACDD5DE).withValues(alpha: 0.60 * opacity), // silver
-            Color(0xFFF2F5F8).withValues(alpha: opacity), // ice
+            const Color(0x001F1F1F), // transparent midnight depth
+            Color(0x331F1F1F).withValues(alpha: 0.20 * opacity),
+            Color(0x9AD4D4D4).withValues(alpha: 0.60 * opacity), // silver
+            Color(0xFFF5F5F5).withValues(alpha: opacity), // ice
           ],
           stops: const [0, 0.5, 0.85, 1],
         ).createShader(Rect.fromPoints(tail, head));

@@ -33,11 +33,9 @@ void main() {
     expect(find.byType(MortWordmarkReveal), findsOneWidget);
     expect(find.text('Safety and location status'), findsOneWidget);
     expect(find.byType(MortMotionMark), findsOneWidget);
-    // Black/graphite/silver identity -- MortColors.roseGold/lightBlue are
-    // legacy compatibility aliases that now resolve to the silver palette
-    // (no rose gold, no bright cobalt-first UI).
-    expect(MortColors.roseGold, const Color(0xFFD6DAE0));
-    expect(MortColors.lightBlue, const Color(0xFFE9EDF2));
+    // Legacy accent names use the readable near-black classic foreground.
+    expect(MortColors.roseGold, MortClassicColors.ink);
+    expect(MortColors.lightBlue, MortClassicColors.ink);
   });
 
   testWidgets('core controls honor reduced motion and remain focus visible', (

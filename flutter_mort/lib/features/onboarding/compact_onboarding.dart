@@ -1287,10 +1287,10 @@ class _CompactOnboardingScreenState
           child: liveProfile == null
               ? const CircleAvatar(
                   radius: 44,
-                  backgroundColor: MortColors.silverDark,
+                  backgroundColor: MortClassicColors.silverSurface,
                   child: Icon(
                     Icons.check_rounded,
-                    color: MortColors.silverBright,
+                    color: MortClassicColors.ink,
                     size: 42,
                   ),
                 )

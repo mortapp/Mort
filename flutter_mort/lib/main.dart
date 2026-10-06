@@ -12,6 +12,7 @@ import 'core/observability/sentry_crash_provider.dart';
 import 'core/observability/structured_log.dart';
 import 'core/observability/product_analytics.dart';
 import 'core/theme/mort_theme.dart';
+import 'core/theme/mort_colors.dart';
 import 'core/widgets/mort_widgets.dart';
 import 'data/services/supabase_service.dart';
 import 'core/config/app_config.dart';
@@ -28,6 +29,16 @@ Future<void> main() async {
   // BrowserStack QA early return so real-device QA exercises the same window
   // inset/system-bar mode as the normal app.
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarBrightness: Brightness.light,
+      statusBarIconBrightness: Brightness.dark,
+      systemNavigationBarColor: Colors.white,
+      systemNavigationBarIconBrightness: Brightness.dark,
+      systemNavigationBarDividerColor: MortClassicColors.line,
+    ),
+  );
   if (AppConfig.browserStackQaMode) {
     _runApp();
     return;

@@ -79,14 +79,7 @@ class _MortProPaywallContentState extends State<MortProPaywallContent> {
     final selected = _selected;
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: RadialGradient(
-          center: Alignment(0, -0.6),
-          radius: 1.1,
-          colors: [Color(0xFF111A25), MortColors.ink2],
-          stops: [0, 0.78],
-        ),
-      ),
+      decoration: const BoxDecoration(color: MortClassicColors.canvas),
       child: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -103,7 +96,7 @@ class _MortProPaywallContentState extends State<MortProPaywallContent> {
                       onPressed: widget.onClose,
                       icon: const Icon(Icons.close_rounded, size: 22),
                       style: IconButton.styleFrom(
-                        foregroundColor: MortColors.silverBright,
+                        foregroundColor: MortClassicColors.ink,
                         backgroundColor: MortColors.graphite3,
                         side: const BorderSide(color: MortColors.borderSilver),
                         minimumSize: const Size(44, 44),
@@ -119,9 +112,6 @@ class _MortProPaywallContentState extends State<MortProPaywallContent> {
                         color: MortColors.graphite2,
                         border: Border.all(color: MortColors.silverDark),
                         borderRadius: BorderRadius.circular(19),
-                        boxShadow: const [
-                          BoxShadow(color: Color(0x281A5A9A), blurRadius: 20),
-                        ],
                       ),
                       child: const Center(
                         child: CustomPaint(
@@ -137,11 +127,11 @@ class _MortProPaywallContentState extends State<MortProPaywallContent> {
                       children: [
                         TextSpan(
                           text: 'MORT ',
-                          style: TextStyle(color: MortColors.white),
+                          style: TextStyle(color: MortClassicColors.ink),
                         ),
                         TextSpan(
                           text: 'Pro',
-                          style: TextStyle(color: MortColors.paymentInfoSoft),
+                          style: TextStyle(color: MortClassicColors.muted),
                         ),
                       ],
                     ),
@@ -190,7 +180,7 @@ class _MortProPaywallContentState extends State<MortProPaywallContent> {
                     TextButton(
                       onPressed: widget.onRetry,
                       style: TextButton.styleFrom(
-                        foregroundColor: MortColors.silverBright,
+                        foregroundColor: MortClassicColors.ink,
                       ),
                       child: const Text('Try again'),
                     ),
@@ -209,26 +199,10 @@ class _MortProPaywallContentState extends State<MortProPaywallContent> {
                       constraints: const BoxConstraints(minHeight: 60),
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          gradient: widget.busy
-                              ? null
-                              : const LinearGradient(
-                                  colors: [
-                                    MortColors.ice2,
-                                    MortColors.ice1,
-                                    Color(0xFFD5E6F7),
-                                  ],
-                                  stops: [0, 0.68, 1],
-                                ),
-                          color: widget.busy ? MortColors.graphite4 : null,
+                          color: widget.busy
+                              ? MortClassicColors.silverSurface
+                              : MortClassicColors.ink,
                           borderRadius: BorderRadius.circular(19),
-                          boxShadow: widget.busy
-                              ? null
-                              : const [
-                                  BoxShadow(
-                                    color: Color(0x245E7EAB),
-                                    blurRadius: 16,
-                                  ),
-                                ],
                         ),
                         child: FilledButton(
                           key: const Key('pro-continue'),
@@ -236,8 +210,8 @@ class _MortProPaywallContentState extends State<MortProPaywallContent> {
                               ? null
                               : () => widget.onPurchase(selected.id),
                           style: FilledButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            foregroundColor: MortColors.ink2,
+                            backgroundColor: MortClassicColors.ink,
+                            foregroundColor: MortClassicColors.canvas,
                             disabledBackgroundColor: Colors.transparent,
                             disabledForegroundColor: MortColors.silverDark,
                             elevation: 0,
@@ -251,7 +225,7 @@ class _MortProPaywallContentState extends State<MortProPaywallContent> {
                                   dimension: 22,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: MortColors.silver,
+                                    color: MortClassicColors.ink,
                                   ),
                                 )
                               : Wrap(
@@ -286,7 +260,7 @@ class _MortProPaywallContentState extends State<MortProPaywallContent> {
                       key: const Key('pro-continue-free'),
                       onPressed: widget.onClose,
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: MortColors.silverBright,
+                        foregroundColor: MortClassicColors.ink,
                         minimumSize: const Size.fromHeight(52),
                         side: BorderSide(
                           color: MortColors.borderSilver.withValues(alpha: .6),
@@ -410,14 +384,14 @@ class _BenefitsPanel extends StatelessWidget {
           CircleAvatar(
             radius: 19,
             backgroundColor: MortColors.graphite4,
-            child: Icon(item.$1, color: MortColors.ice1, size: 20),
+            child: Icon(item.$1, color: MortClassicColors.ink, size: 20),
           ),
           const SizedBox(height: 9),
           Text(
             item.$2,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: MortColors.white,
+              color: MortClassicColors.ink,
               fontSize: 12,
               fontWeight: FontWeight.w700,
               height: 1.2,
@@ -477,10 +451,8 @@ class _PlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foreground = selected ? MortColors.ink2 : MortColors.white;
-    final secondary = selected
-        ? MortColors.graphite4
-        : MortColors.textSecondary;
+    const foreground = MortClassicColors.ink;
+    const secondary = MortClassicColors.muted;
     return Semantics(
       button: true,
       selected: selected,
@@ -495,28 +467,16 @@ class _PlanCard extends StatelessWidget {
             constraints: const BoxConstraints(minHeight: 90),
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
             decoration: BoxDecoration(
-              gradient: selected
-                  ? const LinearGradient(
-                      colors: [MortColors.ice2, MortColors.silverBright],
-                    )
-                  : null,
-              color: selected ? null : MortColors.graphite2,
+              color: selected
+                  ? MortClassicColors.silverSurface
+                  : MortClassicColors.canvas,
               border: Border.all(
                 color: selected
-                    ? MortColors.paymentInfoSoft
+                    ? MortClassicColors.ink
                     : MortColors.borderSilver,
                 width: selected ? 1.5 : 1,
               ),
               borderRadius: BorderRadius.circular(17),
-              boxShadow: selected
-                  ? const [
-                      BoxShadow(
-                        color: Color(0x335E91C6),
-                        blurRadius: 16,
-                        spreadRadius: 1,
-                      ),
-                    ]
-                  : null,
             ),
             child: Row(
               children: [
@@ -524,7 +484,9 @@ class _PlanCard extends StatelessWidget {
                   width: 43,
                   height: 43,
                   decoration: BoxDecoration(
-                    color: selected ? MortColors.silver : MortColors.graphite4,
+                    color: selected
+                        ? MortClassicColors.canvas
+                        : MortClassicColors.silverSurface,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -628,7 +590,7 @@ class _CrownPainter extends CustomPainter {
     canvas.save();
     canvas.scale(size.width / 38, size.height / 38);
     final paint = Paint()
-      ..color = MortColors.ice1
+      ..color = MortClassicColors.ink
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.2
       ..strokeJoin = StrokeJoin.round

@@ -86,7 +86,7 @@ class BrowserStackQaApp extends StatelessWidget {
       overrides: browserStackQaFixtureOverrides(),
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,
-        theme: MortTheme.dark(),
+        theme: MortTheme.classic(),
         routerConfig: router,
       ),
     );

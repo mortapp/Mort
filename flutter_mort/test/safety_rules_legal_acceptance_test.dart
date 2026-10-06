@@ -96,7 +96,7 @@ void main() {
     expect(source, contains('_antiGroomingAcknowledged'));
     expect(
       source,
-      contains('_safetyRules &&\n      _antiGroomingAcknowledged;'),
+      matches(RegExp(r'_safetyRules\s*&&\s*_antiGroomingAcknowledged;')),
     );
     expect(compactOnboarding, contains('_antiGroomingAcknowledged'));
   });

@@ -67,7 +67,11 @@ class MortSpacePainter extends CustomPainter {
   static const _background = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [MortColors.bg, MortColors.black, MortColors.softBlack],
+    colors: [
+      MortClassicColors.canvas,
+      MortClassicColors.surface,
+      MortClassicColors.silverSurface,
+    ],
     stops: [0, 0.7, 1],
   );
 

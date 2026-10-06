@@ -21,24 +21,24 @@ class MortAtmosphereTuning {
 
   // -- Sky gradient (vertical): black, with a buried midnight band --
   static const skyTop = Color(0xFF000000);
-  static const skyUpperMid = Color(0xFF010102);
-  static const skyLowerMid = Color(0xFF020818); // Night1 depth
-  static const skyBottom = Color(0xFF010102);
+  static const skyUpperMid = Color(0xFF010101);
+  static const skyLowerMid = Color(0xFF080808); // Night1 depth
+  static const skyBottom = Color(0xFF010101);
 
   // -- Center glow (radial): buried midnight blue, very low alpha --
-  static const centerGlowInner = Color(0x13183865); // rgba(24,56,101,.075)
-  static const centerGlowOuter = Color(0x090C2140); // rgba(12,33,64,.035)
+  static const centerGlowInner = Color(0x13343434); // rgba(24,56,101,.075)
+  static const centerGlowOuter = Color(0x091F1F1F); // rgba(12,33,64,.035)
 
   // Exact alpha per spec (Color() alpha channel is 0-255, spec gives 0-1).
   static Color centerGlowInnerColor() =>
-      const Color(0xFF183865).withValues(alpha: 0.075);
+      const Color(0xFF343434).withValues(alpha: 0.075);
   static Color centerGlowOuterColor() =>
-      const Color(0xFF0C2140).withValues(alpha: 0.035);
+      const Color(0xFF1F1F1F).withValues(alpha: 0.035);
 
   // -- Vignette --
-  static Color vignetteMid() => const Color(0xFF000105).withValues(alpha: 0.27);
+  static Color vignetteMid() => const Color(0xFF010101).withValues(alpha: 0.27);
   static Color vignetteEdge() =>
-      const Color(0xFF000003).withValues(alpha: 0.91);
+      const Color(0xFF000000).withValues(alpha: 0.91);
 
   // -- Dither / anti-banding --
   static const double ditherModulation = 0.012; // ~1.2%, within the 1-1.5% spec
@@ -92,7 +92,7 @@ class MortAtmosphereTuning {
       density: 0.52,
       bandY: 0.27,
       bandHeight: 0.42,
-      tint: Color(0xFF05070B), // graphite-black mass
+      tint: Color(0xFF070707), // graphite-black mass
       layerSeed: 1.7,
     ),
     MortCloudLayerSpec(
@@ -104,7 +104,7 @@ class MortAtmosphereTuning {
       density: 0.57,
       bandY: 0.30,
       bandHeight: 0.46,
-      tint: Color(0xFF070B14), // graphite with buried night interior
+      tint: Color(0xFF0B0B0B), // graphite with buried night interior
       layerSeed: 4.3,
     ),
     MortCloudLayerSpec(
@@ -116,7 +116,7 @@ class MortAtmosphereTuning {
       density: 0.63,
       bandY: 0.33,
       bandHeight: 0.50,
-      tint: Color(0xFF081020), // night2 depth interior
+      tint: Color(0xFF0F0F0F), // night2 depth interior
       layerSeed: 7.9,
     ),
     MortCloudLayerSpec(
@@ -128,14 +128,14 @@ class MortAtmosphereTuning {
       density: 0.68,
       bandY: 0.36,
       bandHeight: 0.56,
-      tint: Color(0xFF060A12),
+      tint: Color(0xFF0A0A0A),
       layerSeed: 12.1,
     ),
   ];
   static Color cloudRimLightStart() =>
-      const Color(0xFF9FC0E8).withValues(alpha: 0.08);
+      const Color(0xFFBCBCBC).withValues(alpha: 0.08);
   static Color cloudRimLightEnd() =>
-      const Color(0xFFCDD5DE).withValues(alpha: 0.12);
+      const Color(0xFFD4D4D4).withValues(alpha: 0.12);
 
   // -- Aurora: 2 bands --
   static const double auroraMinOpacity = 0.030;
@@ -156,7 +156,7 @@ class MortAtmosphereTuning {
   static const double meteorHeadMaxRadius = 2.4;
   static const double meteorTrailMinWidth = 1.0;
   static const double meteorTrailMaxWidth = 2.2;
-  static const Color meteorHeadColor = Color(0xFFF0FAFF);
+  static const Color meteorHeadColor = Color(0xFFF8F8F8);
   static const double meteorFadeInFraction = 0.12;
   static const double meteorFadeOutStartFraction = 0.55; // last 45% fades out
   static const double meteorBackgroundFraction =
@@ -194,17 +194,17 @@ class MortAtmosphereTuning {
 
   static const double wordmarkRestOpacity = 0.20;
   static Color wordmarkHalo() =>
-      const Color(0xFF204B7F).withValues(alpha: 0.06);
+      const Color(0xFF464646).withValues(alpha: 0.06);
   static const double wordmarkTaglineMinOpacity = 0.25;
   static const double wordmarkTaglineMaxOpacity = 0.30;
   static const String wordmarkTagline = 'EARN NEARBY · MOVE SMART';
 
-  static const Color wordmarkPenCore = Color(0xFFF5FBFF);
+  static const Color wordmarkPenCore = Color(0xFFFAFAFA);
   static const double wordmarkPenCoreOpacity = 0.9;
   static const double wordmarkPenCoreRadius = 1.5;
   static const double wordmarkPenHaloRadius = 7;
   static Color wordmarkPenHalo() =>
-      const Color(0xFFBFC9D9).withValues(alpha: 0.22);
+      const Color(0xFFC8C8C8).withValues(alpha: 0.22);
 }
 
 @immutable

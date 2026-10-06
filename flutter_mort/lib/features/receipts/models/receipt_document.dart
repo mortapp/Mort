@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/mort_colors.dart';
 
 class MortReceiptLineItem {
   const MortReceiptLineItem({
@@ -56,31 +57,31 @@ MortReceiptStatusPresentation mortReceiptStatusPresentation(
     MortReceiptStatus.approved => const MortReceiptStatusPresentation(
       label: 'APPROVED',
       icon: Icons.check_circle_rounded,
-      color: Color(0xFF46C483),
+      color: MortClassicColors.ink,
       semanticLabel: 'Payment status Approved',
     ),
     MortReceiptStatus.credited => const MortReceiptStatusPresentation(
       label: 'CREDITED',
       icon: Icons.account_balance_wallet_rounded,
-      color: Color(0xFF46C483),
+      color: MortClassicColors.ink,
       semanticLabel: 'Payment status Credited',
     ),
     MortReceiptStatus.refunded => const MortReceiptStatusPresentation(
       label: 'REFUNDED',
       icon: Icons.undo_rounded,
-      color: Color(0xFFE5605E),
+      color: MortClassicColors.ink,
       semanticLabel: 'Payment status Refunded',
     ),
     MortReceiptStatus.adjusted => const MortReceiptStatusPresentation(
       label: 'ADJUSTED',
       icon: Icons.tune_rounded,
-      color: Color(0xFF8FB4D9),
+      color: MortClassicColors.ink,
       semanticLabel: 'Payment status Adjusted',
     ),
     MortReceiptStatus.reversed => const MortReceiptStatusPresentation(
       label: 'REVERSED',
       icon: Icons.restart_alt_rounded,
-      color: Color(0xFFD9A94F),
+      color: MortClassicColors.ink,
       semanticLabel: 'Payment status Reversed',
     ),
   };

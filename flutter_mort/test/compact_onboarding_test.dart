@@ -349,7 +349,7 @@ void main() {
       }
       if (stage.$1 == OnboardingStepV2.review) {
         final avatar = tester.widget<CircleAvatar>(find.byType(CircleAvatar));
-        expect(avatar.backgroundColor, MortColors.silverDark);
+        expect(avatar.backgroundColor, MortClassicColors.silverSurface);
         expect(
           tester
               .widget<Icon>(
@@ -359,7 +359,7 @@ void main() {
                 ),
               )
               .color,
-          MortColors.silverBright,
+          MortClassicColors.ink,
         );
       }
     }

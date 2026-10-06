@@ -3,10 +3,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../core/theme/mort_colors.dart';
+import '../../core/theme/mort_pet_colors.dart';
 
 /// MORT Guide mascots — original MORT vector designs rendered with
-/// [CustomPainter] in the approved black/graphite/silver identity with
-/// restrained deep-steel blue atmosphere and tiny icy highlights.
+/// [CustomPainter] with vibrant character colors independent of the neutral interface.
 ///
 /// The mascots never copy another product, use emoji, or fall back to
 /// placeholder circles: every state is drawn as vector paths.
@@ -206,14 +206,14 @@ class MortMascotPainter extends CustomPainter {
   final MortMascotState state;
   final double phase;
 
-  static const _bodyBlack = MortColors.ink2;
-  static const _bodyGraphite = MortColors.graphite3;
-  static const _bellyWhite = MortColors.softWhite;
-  static const _silver = MortColors.silver;
-  static const _silverBright = MortColors.silverBright;
-  static const _steelBlue = MortColors.night3;
-  static const _steelBlueDeep = MortColors.night4;
-  static const _icy = Color(0xFFEAF4FA);
+  static const _bodyBlack = MortPetColors.navy;
+  static const _bodyGraphite = MortPetColors.tangerine;
+  static const _bellyWhite = MortPetColors.cream;
+  static const _silver = MortPetColors.peach;
+  static const _silverBright = MortPetColors.honey;
+  static const _steelBlue = MortPetColors.sky;
+  static const _steelBlueDeep = MortPetColors.teal;
+  static const _icy = MortPetColors.paleSky;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -500,7 +500,7 @@ class MortMascotPainter extends CustomPainter {
     final body = Paint()..color = _bodyBlack;
 
     // Feet first (behind body).
-    final feet = Paint()..color = MortColors.silverMid;
+    final feet = Paint()..color = MortPetColors.honey;
     canvas.drawOval(const Rect.fromLTWH(34, 86, 14, 6), feet);
     canvas.drawOval(const Rect.fromLTWH(52, 86, 14, 6), feet);
 
@@ -521,7 +521,7 @@ class MortMascotPainter extends CustomPainter {
         : state == MortMascotState.success
         ? -4.0
         : 0.0;
-    final wing = Paint()..color = MortColors.graphite4;
+    final wing = Paint()..color = MortPetColors.teal;
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromLTWH(12, 38 + wingSwing, 12, 34),
@@ -651,8 +651,8 @@ class MortMascotPainter extends CustomPainter {
   // --------------------------------------------------------------- Scout ---
 
   void _paintScout(Canvas canvas, double motion) {
-    final fur = Paint()..color = _bodyGraphite;
-    final earFur = Paint()..color = _bodyBlack;
+    final fur = Paint()..color = MortPetColors.honey;
+    final earFur = Paint()..color = MortPetColors.clay;
 
     // Floppy ears (swing subtly).
     final swing = state == MortMascotState.safetySerious

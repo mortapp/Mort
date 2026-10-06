@@ -177,7 +177,7 @@ class _MortProPaywallState extends ConsumerState<_MortProPaywall> {
         if (!didPop) _close();
       },
       child: Scaffold(
-        backgroundColor: MortColors.ink2,
+        backgroundColor: MortClassicColors.canvas,
         body: MortProPaywallContent(
           plans: [
             for (final entry in packages.entries)

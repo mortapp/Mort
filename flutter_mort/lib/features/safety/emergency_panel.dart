@@ -103,8 +103,13 @@ class _EmergencyPanelState extends State<EmergencyPanel> {
       style: FilledButton.styleFrom(
         minimumSize: const Size(double.infinity, 56),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        backgroundColor: urgent ? MortColors.danger : MortColors.graphite4,
-        foregroundColor: MortColors.white,
+        backgroundColor: urgent
+            ? MortClassicColors.ink
+            : MortClassicColors.surface,
+        foregroundColor: urgent
+            ? MortClassicColors.canvas
+            : MortClassicColors.ink,
+        side: const BorderSide(color: MortClassicColors.strongLine),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       icon: Icon(icon),
@@ -114,14 +119,14 @@ class _EmergencyPanelState extends State<EmergencyPanel> {
   );
   @override
   Widget build(BuildContext context) => Material(
-    color: MortColors.ink2,
+    color: MortClassicColors.canvas,
     child: SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: DefaultTextStyle(
           style: Theme.of(
             context,
-          ).textTheme.bodyMedium!.copyWith(color: MortColors.white),
+          ).textTheme.bodyMedium!.copyWith(color: MortClassicColors.ink),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -141,9 +146,9 @@ class _EmergencyPanelState extends State<EmergencyPanel> {
               const SizedBox(height: 20),
               Text(
                 'Need help?',
-                style: Theme.of(
-                  context,
-                ).textTheme.headlineMedium?.copyWith(color: MortColors.white),
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: MortClassicColors.ink,
+                ),
               ),
               const SizedBox(height: 8),
               const Text(

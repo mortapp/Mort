@@ -101,6 +101,7 @@ class MortTheme {
         ),
       ),
       chipTheme: ChipThemeData(
+        checkmarkColor: ink,
         backgroundColor: surface,
         selectedColor: secondarySurface,
         disabledColor: secondarySurface,

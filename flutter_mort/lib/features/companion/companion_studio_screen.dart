@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/preferences/mort_experience_preferences.dart';
 import '../../core/theme/mort_colors.dart';
+import '../../core/theme/mort_pet_colors.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/repositories/providers.dart';
@@ -92,7 +93,7 @@ class _CompanionStudioBodyState extends State<CompanionStudioBody> {
               const Text(
                 'Interact',
                 style: TextStyle(
-                  color: MortColors.white,
+                  color: MortColors.text,
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
                 ),
@@ -199,7 +200,7 @@ class _CompanionStudioBodyState extends State<CompanionStudioBody> {
                 const Text(
                   'Saved looks',
                   style: TextStyle(
-                    color: MortColors.white,
+                    color: MortColors.text,
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                   ),
@@ -456,16 +457,19 @@ class _CompanionStudioBodyState extends State<CompanionStudioBody> {
   }
 }
 
+// Color belongs to the pet's illustration; surrounding controls stay neutral.
 List<Color> _environmentColors(String id) => switch (id) {
-  'moon_base' => const [MortColors.night3, MortColors.ink2],
-  'cozy_room' => const [MortColors.graphite4, MortColors.ink2],
-  'rain_window' => const [MortColors.night2, MortColors.ink2],
-  'garden' => const [Color(0xFF101A18), MortColors.ink2],
-  'desk' => const [MortColors.graphite3, MortColors.ink2],
-  'cloud_world' => const [MortColors.night4, MortColors.ink2],
-  'night_forest' => const [Color(0xFF0A1111), MortColors.ink2],
-  'minimal_studio' => const [MortColors.graphite4, MortColors.ink2],
-  _ => const [MortColors.night2, MortColors.ink2],
+  'moon_base' => const [MortPetColors.paleLavender, MortPetColors.paleSky],
+  'cozy_room' || 'desk' => const [MortPetColors.palePeach, MortPetColors.cream],
+  'garden' ||
+  'night_forest' => const [MortPetColors.paleMint, MortPetColors.paleSky],
+  'rain_window' ||
+  'cloud_world' => const [MortPetColors.paleSky, MortPetColors.paleLavender],
+  'minimal_studio' => const [
+    MortClassicColors.surface,
+    MortClassicColors.canvas,
+  ],
+  _ => const [MortPetColors.paleSky, MortPetColors.palePeach],
 };
 
 List<CosmeticOption> _optionsFor(String tab) => switch (tab) {

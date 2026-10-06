@@ -130,7 +130,7 @@ class _WelcomeMascotTile extends StatelessWidget {
                 Text(
                   '${mascot.displayName} the ${mascot.animal}',
                   style: theme.textTheme.titleLarge?.copyWith(
-                    color: MortColors.white,
+                    color: MortColors.text,
                   ),
                 ),
                 const SizedBox(height: MortSpacing.xs),

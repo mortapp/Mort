@@ -21,6 +21,19 @@ void main() {
     expect(canSelectCompanion('unknown', hasPro: true), isFalse);
   });
 
+  test('pet artwork has vibrant colors independent of neutral app chrome', () {
+    for (final pet in companions) {
+      expect(
+        HSLColor.fromColor(pet.baseColor).saturation,
+        greaterThan(.3),
+        reason: pet.id,
+      );
+    }
+    for (final id in ['coral', 'sunshine', 'mint', 'lavender', 'sky']) {
+      expect(companionColors.any((option) => option.id == id), isTrue);
+    }
+  });
+
   test('saved looks are scoped to an account and cannot grant Pro', () async {
     final store = CompanionStore();
     final look = CompanionLook(

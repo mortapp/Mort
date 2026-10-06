@@ -1,24 +1,23 @@
 import 'package:flutter/material.dart';
 
-/// Neutral colors for the classic MORT presentation. Keep legacy [MortColors]
-/// while each feature is migrated so old dark surfaces never silently acquire
-/// unreadable foreground colors.
+/// Shared white, black, gray, and silver presentation tokens.
 class MortClassicColors {
   const MortClassicColors._();
 
   static const canvas = Color(0xFFFFFFFF);
   static const ink = Color(0xFF111111);
   static const muted = Color(0xFF616161);
-  static const subtle = Color(0xFF757575);
+  static const subtle = Color(0xFF616161);
   static const surface = Color(0xFFF7F7F7);
   static const line = Color(0xFFE2E2E2);
-  static const danger = Color(0xFFB3261E);
-  static const success = Color(0xFF216E45);
-  static const warning = Color(0xFF915800);
-  static const info = Color(0xFF215A9B);
+  static const silverSurface = Color(0xFFE9E9E9);
+  static const strongLine = Color(0xFF8A8A8A);
+  static const danger = ink;
+  static const success = ink;
+  static const warning = ink;
+  static const info = ink;
 
-  /// Darken legacy accent colors when their existing light tint would disappear
-  /// against the classic white canvas.
+  /// Decorative light silver is never used as foreground text on white.
   static Color readableAccent(Color candidate) {
     if (candidate == MortColors.danger ||
         candidate == MortColors.paymentDanger ||
@@ -43,75 +42,65 @@ class MortClassicColors {
   }
 }
 
-/// MORT canonical palette — BLACK + SILVER.
-///
-/// Visual balance target:
-/// 70-80% black / near-black, 10-15% graphite, 7-12% silver/white,
-/// 2-6% midnight blue atmospheric depth, <1% icy-blue highlight.
-///
-/// Midnight blue is atmosphere only: buried depth, subtle reflections,
-/// meteor trail depth, cloud shadows, rare focus illumination. It is never
-/// the main UI paint. Legacy semantic names (roseGold*, neon*, cobalt,
-/// premium, godPink*, babyBlue*) are kept as compatibility aliases pointing
-/// at the new silver identity so every screen/widget inherits the new
-/// palette without a call-site rewrite — only the meaning of "the brand
-/// light" changed, not the names.
+/// Compatibility names resolve to the same neutral classic design system.
+/// True black/white remain available for imagery and contrasting action text;
+/// page/card/text aliases express their role on the white application canvas.
 class MortColors {
   const MortColors._();
 
-  // -- Primary black family (dominant surface) --
+  // -- True black for contrast and original monochrome artwork --
   static const void_ = Color(0xFF000000);
   static const godBlack = void_;
-  static const ink1 = Color(0xFF010101);
-  static const ink2 = Color(0xFF030405);
-  static const ink3 = Color(0xFF050607);
+  static const ink1 = MortClassicColors.ink;
+  static const ink2 = MortClassicColors.ink;
+  static const ink3 = MortClassicColors.ink;
 
   static const midnight = ink2;
   static const night = midnight;
   static const black = midnight;
   static const deepNavy = ink3;
-  static const lowerNight = Color(0xFF080A0D);
+  static const lowerNight = MortClassicColors.surface;
   static const softBlack = deepNavy;
 
-  // -- Graphite family (soft black / elevated surfaces) --
-  static const graphite1 = Color(0xFF080A0D);
-  static const graphite2 = Color(0xFF0B0D11);
-  static const graphite3 = Color(0xFF101218);
-  static const graphite4 = Color(0xFF14171D);
+  // -- Legacy surface names now resolve to white/light gray --
+  static const graphite1 = MortClassicColors.canvas;
+  static const graphite2 = MortClassicColors.surface;
+  static const graphite3 = Color(0xFFF2F2F2);
+  static const graphite4 = MortClassicColors.silverSurface;
 
   static const surface = graphite2;
   static const surfaceAlternate = graphite3;
   static const raisedBlack = graphite4;
   static const surfaceRaised = raisedBlack;
 
-  // -- Midnight blue depth (atmosphere only, not UI paint) --
-  static const night1 = Color(0xFF020818);
-  static const night2 = Color(0xFF061020);
-  static const night3 = Color(0xFF0A1930);
-  static const night4 = Color(0xFF0C2140);
+  // -- Compatibility depth names: neutral surface steps --
+  static const night1 = MortClassicColors.canvas;
+  static const night2 = MortClassicColors.surface;
+  static const night3 = Color(0xFFF2F2F2);
+  static const night4 = MortClassicColors.silverSurface;
 
   // -- White family --
-  static const white = Color(0xFFF7F8FA);
+  static const white = MortClassicColors.canvas;
   static const godWhite = white;
-  static const softWhite = Color(0xFFE1E4E8);
+  static const softWhite = MortClassicColors.muted;
 
-  // -- Silver family (the brand light) --
-  static const silver = Color(0xFFBFC3CA);
-  static const silverBright = Color(0xFFD6DAE0);
-  static const silverDark = Color(0xFF707680);
-  static const silverMid = Color(0xFF9BA1AA);
+  // -- Readable gray foregrounds; light silver uses silverSurface --
+  static const silver = MortClassicColors.muted;
+  static const silverBright = Color(0xFF444444);
+  static const silverDark = MortClassicColors.muted;
+  static const silverMid = Color(0xFF707070);
 
   // -- Bright silver / ice --
-  static const ice1 = Color(0xFFE9EDF2);
-  static const ice2 = Color(0xFFF2F5F8);
-  static const ice3 = Color(0xFFF7F9FB);
+  static const ice1 = Color(0xFFEDEDED);
+  static const ice2 = Color(0xFFF5F5F5);
+  static const ice3 = Color(0xFFF9F9F9);
   static const ice = ice2;
 
-  // -- Brand accent (was electric cobalt; now polished silver) --
-  static const cobalt = silverBright;
-  static const primary = silverBright;
-  static const primaryBright = ice1;
-  static const sky = primaryBright;
+  // -- All primary/accent aliases use near-black --
+  static const cobalt = primary;
+  static const primary = MortClassicColors.ink;
+  static const primaryBright = MortClassicColors.ink;
+  static const sky = primary;
   static const accent = primary;
 
   static const roseGold = primary;
@@ -131,7 +120,7 @@ class MortColors {
   static const neon = primary;
   static const neonDeep = roseGoldDeep;
 
-  // -- Cold-blue family (buried depth + rare icy highlight only) --
+  // -- Legacy colored aliases are neutral --
   static const babyBlue = ice;
   static const babyBlueDeep = primaryBright;
   static const babyBlueSoft = ice;
@@ -141,79 +130,79 @@ class MortColors {
   static const lightBlueDeep = night4;
   static const safetyBlue = silver;
 
-  static const blueLight1 = Color(0xFF13284A);
-  static const blueLight2 = Color(0xFF183865);
-  static const blueLight3 = Color(0xFF204B7F);
+  static const blueLight1 = MortClassicColors.surface;
+  static const blueLight2 = MortClassicColors.silverSurface;
+  static const blueLight3 = MortClassicColors.strongLine;
 
   // -- Star light (atmosphere) --
-  static const star = Color(0xFFCDD5DE);
-  static const starCold = Color(0xFFAEB8C4);
-  static const starIce = Color(0xFFE5EBF1);
-  static const starBlue = Color(0xFF9FC0E8);
+  static const star = Color(0xFFD4D4D4);
+  static const starCold = Color(0xFFB7B7B7);
+  static const starIce = Color(0xFFEAEAEA);
+  static const starBlue = Color(0xFFBCBCBC);
 
   // -- Premium accent (compat name only; icy-bright silver) --
   static const godPink = ice;
   static const godPinkSoft = ice;
   static const godPinkDeep = primaryBright;
-  static const premium = ice;
+  static const premium = MortClassicColors.ink;
 
   // -- Background / surface aliases used throughout the app --
-  static const bg = void_;
-  static const bgSecondary = night;
-  static const bgElevated = surfaceRaised;
-  static const card = surface;
-  static const cardAlt = surfaceAlternate;
-  static const cardBg = Color(0xBF050609); // rgba(5,6,9,.75)
-  static const cardBg2 = Color(0xCC080A0D); // rgba(8,10,13,.80)
-  static const cardBg3 = Color(0xD10B0D11); // rgba(11,13,17,.82)
+  static const bg = MortClassicColors.canvas;
+  static const bgSecondary = MortClassicColors.surface;
+  static const bgElevated = MortClassicColors.surface;
+  static const card = MortClassicColors.canvas;
+  static const cardAlt = MortClassicColors.surface;
+  static const cardBg = MortClassicColors.canvas; // rgba(5,6,9,.75)
+  static const cardBg2 = MortClassicColors.surface; // rgba(8,10,13,.80)
+  static const cardBg3 = MortClassicColors.surface; // rgba(11,13,17,.82)
   static const glass = cardBg2;
-  static const glassPressed = Color(0xE00B0D11);
-  static const border = Color(0xFF1A1D23);
-  static const borderStrong = Color(0xFF23272F);
-  static const borderSilver = Color(0xFF555C67);
+  static const glassPressed = MortClassicColors.silverSurface;
+  static const border = MortClassicColors.line;
+  static const borderStrong = MortClassicColors.strongLine;
+  static const borderSilver = MortClassicColors.strongLine;
   static const line = border;
   static const lineStrong = borderStrong;
-  static const hairline = Color(0x0FE1E4E8); // rgba(225,228,232,.06)
-  static const hairline2 = Color(0x1AD6DAE0); // rgba(214,218,224,.10)
-  static const blueHairline = Color(0x14788CAA); // rgba(120,140,170,.08)
+  static const hairline = MortClassicColors.line; // rgba(225,228,232,.06)
+  static const hairline2 = MortClassicColors.line; // rgba(214,218,224,.10)
+  static const blueHairline = MortClassicColors.line; // rgba(120,140,170,.08)
   static const focus = primary;
 
   // -- Text --
-  static const text = godWhite;
-  static const textSoft = softWhite;
-  static const textPrimary = godWhite;
-  static const textSecondary = Color(0xFFADB2BA);
-  static const textMuted = Color(0xFF707680);
-  static const textDisabled = Color(0xFF4A4F58);
+  static const text = MortClassicColors.ink;
+  static const textSoft = MortClassicColors.muted;
+  static const textPrimary = MortClassicColors.ink;
+  static const textSecondary = MortClassicColors.muted;
+  static const textMuted = MortClassicColors.subtle;
+  static const textDisabled = MortClassicColors.subtle;
 
   // -- Semantic states --
-  static const success = Color(0xFF4DBD8A);
-  static const successDeep = Color(0xFF2E7D57);
-  static const successSoft = Color(0xFF85D9B1);
-  static const warning = Color(0xFFD59A42);
-  static const danger = Color(0xFFE5484D);
-  static const dangerDeep = Color(0xFF7F2B2E);
+  static const success = MortClassicColors.ink;
+  static const successDeep = MortClassicColors.ink;
+  static const successSoft = MortClassicColors.muted;
+  static const warning = MortClassicColors.ink;
+  static const danger = MortClassicColors.ink;
+  static const dangerDeep = MortClassicColors.ink;
 
-  // Payment and receipt semantics stay distinct from the silver identity.
-  static const paymentSuccess = Color(0xFF46C483);
-  static const paymentSuccessDeep = Color(0xFF2E8F62);
-  static const paymentWarning = Color(0xFFD9A94F);
-  static const paymentDanger = Color(0xFFE5605E);
-  static const paymentDangerDeep = Color(0xFFB64645);
-  static const paymentInfo = Color(0xFF8FB4D9);
-  static const paymentInfoSoft = Color(0xFFC5D9ED);
-  static const paymentInfoDeep = Color(0xFF5E7EAB);
+  // Status meaning is carried by labels/icons, not a color-only signal.
+  static const paymentSuccess = MortClassicColors.ink;
+  static const paymentSuccessDeep = MortClassicColors.ink;
+  static const paymentWarning = MortClassicColors.ink;
+  static const paymentDanger = MortClassicColors.ink;
+  static const paymentDangerDeep = MortClassicColors.ink;
+  static const paymentInfo = MortClassicColors.ink;
+  static const paymentInfoSoft = MortClassicColors.silverSurface;
+  static const paymentInfoDeep = MortClassicColors.muted;
 
-  static const receiptPaper = Color(0xFFF3F0E7);
-  static const receiptInk = Color(0xFF191D22);
-  static const receiptMutedInk = Color(0xFF4E5560);
-  static const receiptRule = Color(0xFFC9C3B2);
-  static const receiptEdge = Color(0xFFDDD8C9);
+  static const receiptPaper = MortClassicColors.canvas;
+  static const receiptInk = MortClassicColors.ink;
+  static const receiptMutedInk = MortClassicColors.muted;
+  static const receiptRule = MortClassicColors.line;
+  static const receiptEdge = MortClassicColors.line;
 
-  static const paymentSilverHigh = Color(0xFFE9EEF4);
-  static const paymentSilverMid = Color(0xFFC4CDD7);
-  static const paymentSilverLow = Color(0xFF9BA6B2);
-  static const paymentOnSilver = Color(0xFF0B0E13);
+  static const paymentSilverHigh = Color(0xFFEDEDED);
+  static const paymentSilverMid = Color(0xFFCCCCCC);
+  static const paymentSilverLow = Color(0xFFA5A5A5);
+  static const paymentOnSilver = MortClassicColors.ink;
   static const paymentSilverCta = paymentSilverHigh;
   static const paymentSilverCtaBright = paymentSilverHigh;
   static const paymentSilverCtaDeep = paymentSilverLow;
@@ -223,7 +212,7 @@ class MortColors {
   // A narrow, sharp highlight band reads as a specular reflection off
   // polished dark material; a broad even blend reads flat.
   static const metallicGradient = <Color>[
-    Color(0xFF6E7580),
+    Color(0xFF747474),
     silverMid,
     silverBright,
     ice3,
@@ -232,7 +221,7 @@ class MortColors {
 
   static const darkRoseGoldGradient = <Color>[godBlack, roseGoldShadow, silver];
 
-  static const backgroundGradient = <Color>[void_, ink2, ink3, graphite1];
+  static const backgroundGradient = <Color>[bg, cardAlt, bgElevated, graphite1];
 
   static const silverMetallicGradient = <Color>[
     silverDark,
