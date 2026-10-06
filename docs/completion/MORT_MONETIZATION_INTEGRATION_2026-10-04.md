@@ -4,6 +4,8 @@
 Backend expiry/Verify fixes and current artifact preservation are recorded in
 [the 2026-10-05 continuation](MORT_CONTINUATION_2026-10-05.md). Statements below
 about artifacts or pending exact-head tests describe the earlier checkpoint.
+The subsequent [Flutter RPC response repair](MORT_RPC_RESPONSE_FIX_2026-10-05.md)
+is verified in source and awaits confirmation of an unused packaging code.
 
 Status: **FAIL — BLOCKERS REMAIN** for a Free / Plus / Pro release candidate.
 This is an engineering ledger for `release/mort-post-114-integration`, not a

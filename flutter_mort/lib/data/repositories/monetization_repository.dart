@@ -15,8 +15,8 @@ class MonetizationRepository extends RepositoryBase {
   }
 
   Future<Map<String, dynamic>> getMyEntitlements() async {
-    final result = await client.rpc('get_my_entitlements');
-    return Map<String, dynamic>.from(result as Map);
+    final result = await client.rpc('get_my_entitlements').single();
+    return Map<String, dynamic>.from(result);
   }
 
   Future<void> recordPaywallEvent({
@@ -44,11 +44,13 @@ class MonetizationRepository extends RepositoryBase {
     String placement,
     String format,
   ) async {
-    final result = await client.rpc(
-      'get_ad_eligibility',
-      params: {'p_placement': placement, 'p_ad_format': format},
-    );
-    return Map<String, dynamic>.from(result as Map);
+    final result = await client
+        .rpc(
+          'get_ad_eligibility',
+          params: {'p_placement': placement, 'p_ad_format': format},
+        )
+        .single();
+    return Map<String, dynamic>.from(result);
   }
 
   Future<void> recordAdImpression({
