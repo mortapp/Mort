@@ -75,7 +75,7 @@ class SplashScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (Theme.of(context).brightness == Brightness.light) {
+    if (MortClassicStyle.active(context)) {
       return MortScreen(
         scroll: false,
         padding: const EdgeInsets.symmetric(horizontal: MortSpacing.xl),
@@ -253,8 +253,10 @@ class _WelcomeFeature extends StatelessWidget {
       children: [
         Icon(
           icon,
-          color: Theme.of(context).brightness == Brightness.light
-              ? (accented ? MortClassicColors.info : MortClassicColors.ink)
+          color: MortClassicStyle.active(context)
+              ? (accented
+                    ? MortClassicColors.info
+                    : MortClassicColors.foreground)
               : (accented ? MortColors.lightBlue : MortColors.silver),
         ),
         const SizedBox(width: MortSpacing.sm),
@@ -278,7 +280,7 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final classic = Theme.of(context).brightness == Brightness.light;
+    final classic = MortClassicStyle.active(context);
     // The primary CTAs are pinned in `bottom:` (matching the same
     // always-visible, safe-area-respecting pattern used for e.g. the job
     // detail Apply button) rather than living inside the scrollable
@@ -302,7 +304,7 @@ class WelcomeScreen extends StatelessWidget {
         ),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: classic ? MortClassicColors.canvas : MortColors.bg,
+            color: classic ? MortClassicColors.background : MortColors.bg,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -5441,7 +5443,7 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: MortClassicColors.canvas,
+      backgroundColor: MortClassicColors.background,
       sheetAnimationStyle: AnimationStyle.noAnimation,
       builder: (_) => SizedBox(
         height: MediaQuery.sizeOf(context).height * .92,
@@ -7545,7 +7547,7 @@ class _BackendStatusCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(backendConnectionStatusProvider);
-    final classic = Theme.of(context).brightness == Brightness.light;
+    final classic = MortClassicStyle.active(context);
     final connected = switch (status) {
       AsyncData(value: final value) => value,
       _ => false,

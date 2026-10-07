@@ -6,18 +6,21 @@ class MortClassicColors {
 
   static const canvas = Color(0xFFFFFFFF);
   static const ink = Color(0xFF111111);
-  static const muted = Color(0xFF616161);
-  static const subtle = Color(0xFF616161);
-  static const surface = Color(0xFFF7F7F7);
-  static const line = Color(0xFFE2E2E2);
-  static const silverSurface = Color(0xFFE9E9E9);
+  static const background = Color(0xFF0D0D0D);
+  static const foreground = Color(0xFFF1F1F1);
+  static const action = Color(0xFF424242);
+  static const muted = Color(0xFFC1C1C1);
+  static const subtle = Color(0xFFACACAC);
+  static const surface = Color(0xFF1B1B1B);
+  static const line = Color(0xFF3D3D3D);
+  static const silverSurface = Color(0xFF2C2C2C);
   static const strongLine = Color(0xFF8A8A8A);
-  static const danger = ink;
-  static const success = ink;
-  static const warning = ink;
-  static const info = ink;
+  static const danger = foreground;
+  static const success = foreground;
+  static const warning = foreground;
+  static const info = foreground;
 
-  /// Decorative light silver is never used as foreground text on white.
+  /// Keep semantic foregrounds readable on the black/gray interface.
   static Color readableAccent(Color candidate) {
     if (candidate == MortColors.danger ||
         candidate == MortColors.paymentDanger ||
@@ -38,13 +41,13 @@ class MortClassicColors {
         candidate == MortColors.paymentInfo) {
       return info;
     }
-    return candidate.computeLuminance() > 0.28 ? ink : candidate;
+    return candidate.computeLuminance() < 0.28 ? foreground : candidate;
   }
 }
 
 /// Compatibility names resolve to the same neutral classic design system.
 /// True black/white remain available for imagery and contrasting action text;
-/// page/card/text aliases express their role on the white application canvas.
+/// page/card/text aliases express their role on the black application canvas.
 class MortColors {
   const MortColors._();
 
@@ -62,10 +65,10 @@ class MortColors {
   static const lowerNight = MortClassicColors.surface;
   static const softBlack = deepNavy;
 
-  // -- Legacy surface names now resolve to white/light gray --
-  static const graphite1 = MortClassicColors.canvas;
+  // -- Primary black and graphite surfaces --
+  static const graphite1 = MortClassicColors.background;
   static const graphite2 = MortClassicColors.surface;
-  static const graphite3 = Color(0xFFF2F2F2);
+  static const graphite3 = Color(0xFF222222);
   static const graphite4 = MortClassicColors.silverSurface;
 
   static const surface = graphite2;
@@ -74,9 +77,9 @@ class MortColors {
   static const surfaceRaised = raisedBlack;
 
   // -- Compatibility depth names: neutral surface steps --
-  static const night1 = MortClassicColors.canvas;
+  static const night1 = MortClassicColors.background;
   static const night2 = MortClassicColors.surface;
-  static const night3 = Color(0xFFF2F2F2);
+  static const night3 = Color(0xFF222222);
   static const night4 = MortClassicColors.silverSurface;
 
   // -- White family --
@@ -86,9 +89,9 @@ class MortColors {
 
   // -- Readable gray foregrounds; light silver uses silverSurface --
   static const silver = MortClassicColors.muted;
-  static const silverBright = Color(0xFF444444);
-  static const silverDark = MortClassicColors.muted;
-  static const silverMid = Color(0xFF707070);
+  static const silverBright = Color(0xFFD9D9D9);
+  static const silverDark = MortClassicColors.subtle;
+  static const silverMid = Color(0xFF9A9A9A);
 
   // -- Bright silver / ice --
   static const ice1 = Color(0xFFEDEDED);
@@ -96,10 +99,10 @@ class MortColors {
   static const ice3 = Color(0xFFF9F9F9);
   static const ice = ice2;
 
-  // -- All primary/accent aliases use near-black --
+  // -- Readable neutral foreground/accent compatibility aliases --
   static const cobalt = primary;
-  static const primary = MortClassicColors.ink;
-  static const primaryBright = MortClassicColors.ink;
+  static const primary = MortClassicColors.foreground;
+  static const primaryBright = MortClassicColors.foreground;
   static const sky = primary;
   static const accent = primary;
 
@@ -144,15 +147,15 @@ class MortColors {
   static const godPink = ice;
   static const godPinkSoft = ice;
   static const godPinkDeep = primaryBright;
-  static const premium = MortClassicColors.ink;
+  static const premium = MortClassicColors.foreground;
 
   // -- Background / surface aliases used throughout the app --
-  static const bg = MortClassicColors.canvas;
+  static const bg = MortClassicColors.background;
   static const bgSecondary = MortClassicColors.surface;
   static const bgElevated = MortClassicColors.surface;
-  static const card = MortClassicColors.canvas;
+  static const card = MortClassicColors.surface;
   static const cardAlt = MortClassicColors.surface;
-  static const cardBg = MortClassicColors.canvas; // rgba(5,6,9,.75)
+  static const cardBg = MortClassicColors.surface; // rgba(5,6,9,.75)
   static const cardBg2 = MortClassicColors.surface; // rgba(8,10,13,.80)
   static const cardBg3 = MortClassicColors.surface; // rgba(11,13,17,.82)
   static const glass = cardBg2;
@@ -168,33 +171,33 @@ class MortColors {
   static const focus = primary;
 
   // -- Text --
-  static const text = MortClassicColors.ink;
+  static const text = MortClassicColors.foreground;
   static const textSoft = MortClassicColors.muted;
-  static const textPrimary = MortClassicColors.ink;
+  static const textPrimary = MortClassicColors.foreground;
   static const textSecondary = MortClassicColors.muted;
   static const textMuted = MortClassicColors.subtle;
   static const textDisabled = MortClassicColors.subtle;
 
   // -- Semantic states --
-  static const success = MortClassicColors.ink;
-  static const successDeep = MortClassicColors.ink;
+  static const success = MortClassicColors.foreground;
+  static const successDeep = MortClassicColors.foreground;
   static const successSoft = MortClassicColors.muted;
-  static const warning = MortClassicColors.ink;
-  static const danger = MortClassicColors.ink;
-  static const dangerDeep = MortClassicColors.ink;
+  static const warning = MortClassicColors.foreground;
+  static const danger = MortClassicColors.foreground;
+  static const dangerDeep = MortClassicColors.foreground;
 
   // Status meaning is carried by labels/icons, not a color-only signal.
-  static const paymentSuccess = MortClassicColors.ink;
-  static const paymentSuccessDeep = MortClassicColors.ink;
-  static const paymentWarning = MortClassicColors.ink;
-  static const paymentDanger = MortClassicColors.ink;
-  static const paymentDangerDeep = MortClassicColors.ink;
-  static const paymentInfo = MortClassicColors.ink;
+  static const paymentSuccess = MortClassicColors.foreground;
+  static const paymentSuccessDeep = MortClassicColors.foreground;
+  static const paymentWarning = MortClassicColors.foreground;
+  static const paymentDanger = MortClassicColors.foreground;
+  static const paymentDangerDeep = MortClassicColors.foreground;
+  static const paymentInfo = MortClassicColors.foreground;
   static const paymentInfoSoft = MortClassicColors.silverSurface;
   static const paymentInfoDeep = MortClassicColors.muted;
 
-  static const receiptPaper = MortClassicColors.canvas;
-  static const receiptInk = MortClassicColors.ink;
+  static const receiptPaper = MortClassicColors.surface;
+  static const receiptInk = MortClassicColors.foreground;
   static const receiptMutedInk = MortClassicColors.muted;
   static const receiptRule = MortClassicColors.line;
   static const receiptEdge = MortClassicColors.line;
@@ -239,4 +242,21 @@ class MortColors {
 
   /// Buried midnight depth gradient — atmosphere and rare reflections only.
   static const midnightDepthGradient = <Color>[night1, night2, night3, night4];
+}
+
+/// The current flat layout is independent of whether its palette is dark.
+class MortClassicStyle extends ThemeExtension<MortClassicStyle> {
+  const MortClassicStyle();
+
+  static bool active(BuildContext context) {
+    final theme = Theme.of(context);
+    return theme.extension<MortClassicStyle>() != null ||
+        theme.brightness == Brightness.light;
+  }
+
+  @override
+  MortClassicStyle copyWith() => this;
+
+  @override
+  MortClassicStyle lerp(covariant MortClassicStyle? other, double t) => this;
 }

@@ -100,7 +100,7 @@ class _GoogleAuthSectionState extends ConsumerState<GoogleAuthSection> {
   @override
   Widget build(BuildContext context) {
     if (!ref.watch(googleAuthEnabledProvider)) return const SizedBox.shrink();
-    final classic = Theme.of(context).brightness == Brightness.light;
+    final classic = MortClassicStyle.active(context);
     final repository = ref.watch(authRepositoryProvider);
     final state = ref
         .watch(oauthFlowStateProvider)
@@ -131,10 +131,10 @@ class _GoogleAuthSectionState extends ConsumerState<GoogleAuthSection> {
               onPressed: enabled ? _launch : null,
               style: OutlinedButton.styleFrom(
                 backgroundColor: classic
-                    ? MortClassicColors.canvas
+                    ? MortClassicColors.background
                     : MortColors.cardAlt,
                 foregroundColor: classic
-                    ? MortClassicColors.ink
+                    ? MortClassicColors.foreground
                     : MortColors.text,
                 disabledBackgroundColor: classic
                     ? MortClassicColors.surface
@@ -148,7 +148,7 @@ class _GoogleAuthSectionState extends ConsumerState<GoogleAuthSection> {
                       : MortColors.borderSilver,
                 ),
                 overlayColor: classic
-                    ? MortClassicColors.ink.withValues(alpha: 0.06)
+                    ? MortClassicColors.foreground.withValues(alpha: 0.06)
                     : MortColors.primary.withValues(alpha: 0.08),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(MortRadii.medium),

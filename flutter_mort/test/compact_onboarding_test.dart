@@ -359,7 +359,7 @@ void main() {
                 ),
               )
               .color,
-          MortClassicColors.ink,
+          MortClassicColors.foreground,
         );
       }
     }

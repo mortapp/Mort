@@ -33,9 +33,9 @@ void main() {
     expect(find.byType(MortWordmarkReveal), findsOneWidget);
     expect(find.text('Safety and location status'), findsOneWidget);
     expect(find.byType(MortMotionMark), findsOneWidget);
-    // Legacy accent names use the readable near-black classic foreground.
-    expect(MortColors.roseGold, MortClassicColors.ink);
-    expect(MortColors.lightBlue, MortClassicColors.ink);
+    // Legacy accent names use the readable supporting white classic foreground.
+    expect(MortColors.roseGold, MortClassicColors.foreground);
+    expect(MortColors.lightBlue, MortClassicColors.foreground);
   });
 
   testWidgets('core controls honor reduced motion and remain focus visible', (

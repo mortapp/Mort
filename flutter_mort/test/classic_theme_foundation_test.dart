@@ -5,14 +5,14 @@ import 'package:flutter_mort/core/widgets/mort_widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('classic theme uses a white surface and near-black primary color', () {
+  test('classic theme makes black and gray primary, with supporting white', () {
     final theme = MortTheme.classic();
 
-    expect(theme.brightness, Brightness.light);
-    expect(theme.scaffoldBackgroundColor, const Color(0xFFFFFFFF));
-    expect(theme.colorScheme.primary, const Color(0xFF111111));
+    expect(theme.brightness, Brightness.dark);
+    expect(theme.scaffoldBackgroundColor, const Color(0xFF0D0D0D));
+    expect(theme.colorScheme.primary, const Color(0xFF424242));
     expect(theme.colorScheme.onPrimary, Colors.white);
-    expect(theme.colorScheme.onSurface, const Color(0xFF111111));
+    expect(theme.colorScheme.onSurface, const Color(0xFFF1F1F1));
   });
 
   testWidgets('classic scaffold has no production atmosphere', (tester) async {
@@ -26,10 +26,10 @@ void main() {
     expect(find.text('Nearby jobs'), findsOneWidget);
     expect(find.byType(MortAtmosphericBackground), findsNothing);
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
-    expect(scaffold.backgroundColor, Colors.white);
+    expect(scaffold.backgroundColor, const Color(0xFF0D0D0D));
   });
 
-  testWidgets('classic primary action has black fill and no gradient', (
+  testWidgets('classic primary action has gray fill and no gradient', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -42,7 +42,7 @@ void main() {
     );
 
     final button = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
-    expect(button.style?.backgroundColor?.resolve({}), const Color(0xFF111111));
+    expect(button.style?.backgroundColor?.resolve({}), const Color(0xFF424242));
     expect(button.style?.foregroundColor?.resolve({}), Colors.white);
     final decoratedBox = tester.widget<DecoratedBox>(
       find
@@ -56,7 +56,7 @@ void main() {
     expect((decoratedBox.decoration as BoxDecoration).gradient, isNull);
   });
 
-  testWidgets('classic card is a plain white surface without blur', (
+  testWidgets('classic card is a plain graphite surface without blur', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -71,7 +71,7 @@ void main() {
     final card = tester
         .widgetList<Material>(find.byType(Material))
         .firstWhere((material) => material.shape is RoundedRectangleBorder);
-    expect(card.color, Colors.white);
+    expect(card.color, const Color(0xFF1B1B1B));
     expect(card.shape, isA<RoundedRectangleBorder>());
   });
 
@@ -97,11 +97,11 @@ void main() {
     final theme = MortTheme.classic();
     expect(
       theme.inputDecorationTheme.focusedBorder?.borderSide.color,
-      theme.colorScheme.primary,
+      theme.colorScheme.onSurface,
     );
     expect(
       theme.inputDecorationTheme.errorBorder?.borderSide.color,
-      theme.colorScheme.error,
+      theme.colorScheme.onSurface,
     );
     final button = tester.widget<IconButton>(find.byType(IconButton));
     expect(

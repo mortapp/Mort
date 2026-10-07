@@ -11,10 +11,10 @@ void main() {
         MortColors.paymentWarning,
         MortColors.paymentInfo,
       ]) {
-        expect(state, MortClassicColors.ink);
+        expect(state, MortClassicColors.foreground);
       }
-      expect(MortColors.receiptPaper, MortClassicColors.canvas);
-      expect(MortColors.receiptInk, MortClassicColors.ink);
+      expect(MortColors.receiptPaper, MortClassicColors.surface);
+      expect(MortColors.receiptInk, MortClassicColors.foreground);
       expect(MortColors.receiptMutedInk, MortClassicColors.muted);
       expect(MortColors.receiptRule, MortClassicColors.line);
       expect(MortColors.receiptEdge, MortClassicColors.line);

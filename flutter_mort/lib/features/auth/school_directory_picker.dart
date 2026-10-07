@@ -158,7 +158,7 @@ class _SchoolDirectoryPickerState extends ConsumerState<SchoolDirectoryPicker> {
                       trailing: selected
                           ? const Icon(
                               Icons.check_rounded,
-                              color: MortClassicColors.ink,
+                              color: MortClassicColors.foreground,
                             )
                           : null,
                       onTap: () => setState(() => _selected = school),

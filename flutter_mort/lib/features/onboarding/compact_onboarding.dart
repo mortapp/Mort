@@ -1290,7 +1290,7 @@ class _CompactOnboardingScreenState
                   backgroundColor: MortClassicColors.silverSurface,
                   child: Icon(
                     Icons.check_rounded,
-                    color: MortClassicColors.ink,
+                    color: MortClassicColors.foreground,
                     size: 42,
                   ),
                 )

@@ -12,12 +12,12 @@ double contrast(Color a, Color b) {
 }
 
 void main() {
-  test('native startup keeps white surfaces in either device theme', () {
+  test('native startup keeps black surfaces in either device theme', () {
     for (final folder in ['values', 'values-night']) {
       final styles = File(
         'android/app/src/main/res/$folder/styles.xml',
       ).readAsStringSync();
-      expect(styles, contains('Theme.AppCompat.Light.NoActionBar'));
+      expect(styles, contains('Theme.AppCompat.NoActionBar'));
       expect(styles, isNot(contains('?android:colorBackground')));
       expect(styles, contains('android:windowLightStatusBar'));
     }
@@ -25,11 +25,11 @@ void main() {
       File(
         'android/app/src/main/res/drawable-v21/launch_background.xml',
       ).readAsStringSync(),
-      contains('@android:color/white'),
+      contains('@android:color/black'),
     );
     final plist = File('ios/Runner/Info.plist').readAsStringSync();
     expect(plist, contains('<key>UIUserInterfaceStyle</key>'));
-    expect(plist, contains('<string>Light</string>'));
+    expect(plist, contains('<string>Dark</string>'));
     for (final comment in RegExp(r'<!--([\s\S]*?)-->').allMatches(plist)) {
       expect(
         comment[1],
@@ -39,22 +39,25 @@ void main() {
     }
     final main = File('lib/main.dart').readAsStringSync();
     expect(main, contains('SystemChrome.setSystemUIOverlayStyle('));
-    expect(main, contains('statusBarIconBrightness: Brightness.dark'));
+    expect(main, contains('statusBarIconBrightness: Brightness.light'));
     expect(
       main,
-      contains('systemNavigationBarIconBrightness: Brightness.dark'),
+      contains('systemNavigationBarIconBrightness: Brightness.light'),
     );
   });
 
-  test('shared feature surfaces and text match the white classic theme', () {
-    expect(MortColors.bg, MortClassicColors.canvas);
-    expect(MortTheme.classic().chipTheme.checkmarkColor, MortClassicColors.ink);
+  test('shared feature surfaces make black and gray primary', () {
+    expect(MortColors.bg, MortClassicColors.background);
+    expect(
+      MortTheme.classic().chipTheme.checkmarkColor,
+      MortClassicColors.foreground,
+    );
     for (final surface in [
       MortColors.card,
       MortColors.cardAlt,
       MortColors.bgElevated,
     ]) {
-      expect(surface.computeLuminance(), greaterThan(.8));
+      expect(surface.computeLuminance(), lessThan(.1));
       expect(contrast(MortColors.text, surface), greaterThanOrEqualTo(7));
       expect(
         contrast(MortColors.textSecondary, surface),
@@ -65,13 +68,13 @@ void main() {
         greaterThanOrEqualTo(4.5),
       );
     }
-    expect(MortColors.primary, MortClassicColors.ink);
+    expect(MortColors.primary, MortClassicColors.foreground);
     expect(
-      contrast(MortColors.premium, MortClassicColors.canvas),
+      contrast(MortColors.premium, MortClassicColors.background),
       greaterThanOrEqualTo(4.5),
     );
     expect(
-      contrast(MortColors.white, MortColors.primary),
+      contrast(MortColors.white, MortClassicColors.action),
       greaterThanOrEqualTo(7),
     );
   });
@@ -142,83 +145,87 @@ void main() {
     },
   );
 
-  testWidgets(
-    'paywall has white canvas and black paid action above free exit',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(390, 1240));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: MortTheme.classic(),
-          home: Scaffold(
-            body: MortProPaywallContent(
-              plans: const [
-                MortProPlan(
-                  id: r'$rc_annual',
-                  name: 'Annual',
-                  price: 'store price',
-                ),
-              ],
-              loading: false,
-              busy: false,
-              onPurchase: (_) {},
-              onRestore: () {},
-              onRetry: () {},
-              onClose: () {},
-              onTerms: () {},
-              onPrivacy: () {},
-            ),
+  testWidgets('paywall has black canvas and gray paid action above free exit', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 1240));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: MortTheme.classic(),
+        home: Scaffold(
+          body: MortProPaywallContent(
+            plans: const [
+              MortProPlan(
+                id: r'$rc_annual',
+                name: 'Annual',
+                price: 'store price',
+              ),
+            ],
+            loading: false,
+            busy: false,
+            onPurchase: (_) {},
+            onRestore: () {},
+            onRetry: () {},
+            onClose: () {},
+            onTerms: () {},
+            onPrivacy: () {},
           ),
         ),
-      );
-      final surface =
-          tester
-                  .widget<DecoratedBox>(
-                    find
-                        .descendant(
-                          of: find.byType(MortProPaywallContent),
-                          matching: find.byType(DecoratedBox),
-                        )
-                        .first,
-                  )
-                  .decoration
-              as BoxDecoration;
-      expect(surface.color, MortClassicColors.canvas);
-      expect(surface.gradient, isNull);
-      final selectedPlan =
-          tester
-                  .widget<Container>(
-                    find
-                        .descendant(
-                          of: find.byKey(const Key(r'plan-$rc_annual')),
-                          matching: find.byType(Container),
-                        )
-                        .first,
-                  )
-                  .decoration
-              as BoxDecoration;
-      expect((selectedPlan.border! as Border).top.color, MortClassicColors.ink);
-      expect(selectedPlan.gradient, isNull);
-      final paid = tester.widget<FilledButton>(
-        find.byKey(const Key('pro-continue')),
-      );
-      expect(paid.style!.backgroundColor!.resolve({}), MortClassicColors.ink);
-      expect(
-        paid.style!.foregroundColor!.resolve({}),
-        MortClassicColors.canvas,
-      );
-      expect(
-        tester.getTopLeft(find.byKey(const Key('pro-continue-free'))).dy,
-        greaterThan(
-          tester.getBottomLeft(find.byKey(const Key('pro-continue'))).dy,
-        ),
-      );
-      expect(tester.takeException(), isNull);
-    },
-  );
+      ),
+    );
+    final surface =
+        tester
+                .widget<DecoratedBox>(
+                  find
+                      .descendant(
+                        of: find.byType(MortProPaywallContent),
+                        matching: find.byType(DecoratedBox),
+                      )
+                      .first,
+                )
+                .decoration
+            as BoxDecoration;
+    expect(surface.color, MortClassicColors.background);
+    expect(surface.gradient, isNull);
+    final selectedPlan =
+        tester
+                .widget<Container>(
+                  find
+                      .descendant(
+                        of: find.byKey(const Key(r'plan-$rc_annual')),
+                        matching: find.byType(Container),
+                      )
+                      .first,
+                )
+                .decoration
+            as BoxDecoration;
+    expect(
+      (selectedPlan.border! as Border).top.color,
+      MortClassicColors.foreground,
+    );
+    expect(selectedPlan.gradient, isNull);
+    final bestValue = tester.widget<Text>(find.text('Best value'));
+    expect(
+      contrast(bestValue.style!.color!, MortClassicColors.silverSurface),
+      greaterThanOrEqualTo(4.5),
+    );
+    final paid = tester.widget<FilledButton>(
+      find.byKey(const Key('pro-continue')),
+    );
+    expect(paid.style!.backgroundColor!.resolve({}), MortClassicColors.action);
+    expect(paid.style!.foregroundColor!.resolve({}), MortClassicColors.canvas);
+    expect(
+      tester.getTopLeft(find.byKey(const Key('pro-continue-free'))).dy,
+      greaterThan(
+        tester.getBottomLeft(find.byKey(const Key('pro-continue'))).dy,
+      ),
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
-    'emergency panel is readable on white and keeps emergency actions',
+    'emergency panel is readable on black and keeps emergency actions',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -240,7 +247,7 @@ void main() {
             )
             .first,
       );
-      expect(material.color, MortClassicColors.canvas);
+      expect(material.color, MortClassicColors.background);
       expect(find.text('Call 911'), findsOneWidget);
       expect(find.text('Alert My Safety Contacts'), findsOneWidget);
       final defaultStyle = tester.widget<DefaultTextStyle>(
@@ -252,7 +259,7 @@ void main() {
             .first,
       );
       expect(
-        contrast(defaultStyle.style.color!, MortClassicColors.canvas),
+        contrast(defaultStyle.style.color!, MortClassicColors.background),
         greaterThanOrEqualTo(4.5),
       );
       expect(tester.takeException(), isNull);

@@ -467,7 +467,7 @@ List<Color> _environmentColors(String id) => switch (id) {
   'cloud_world' => const [MortPetColors.paleSky, MortPetColors.paleLavender],
   'minimal_studio' => const [
     MortClassicColors.surface,
-    MortClassicColors.canvas,
+    MortClassicColors.background,
   ],
   _ => const [MortPetColors.paleSky, MortPetColors.palePeach],
 };

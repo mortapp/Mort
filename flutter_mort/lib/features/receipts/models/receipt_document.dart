@@ -57,31 +57,31 @@ MortReceiptStatusPresentation mortReceiptStatusPresentation(
     MortReceiptStatus.approved => const MortReceiptStatusPresentation(
       label: 'APPROVED',
       icon: Icons.check_circle_rounded,
-      color: MortClassicColors.ink,
+      color: MortClassicColors.foreground,
       semanticLabel: 'Payment status Approved',
     ),
     MortReceiptStatus.credited => const MortReceiptStatusPresentation(
       label: 'CREDITED',
       icon: Icons.account_balance_wallet_rounded,
-      color: MortClassicColors.ink,
+      color: MortClassicColors.foreground,
       semanticLabel: 'Payment status Credited',
     ),
     MortReceiptStatus.refunded => const MortReceiptStatusPresentation(
       label: 'REFUNDED',
       icon: Icons.undo_rounded,
-      color: MortClassicColors.ink,
+      color: MortClassicColors.foreground,
       semanticLabel: 'Payment status Refunded',
     ),
     MortReceiptStatus.adjusted => const MortReceiptStatusPresentation(
       label: 'ADJUSTED',
       icon: Icons.tune_rounded,
-      color: MortClassicColors.ink,
+      color: MortClassicColors.foreground,
       semanticLabel: 'Payment status Adjusted',
     ),
     MortReceiptStatus.reversed => const MortReceiptStatusPresentation(
       label: 'REVERSED',
       icon: Icons.restart_alt_rounded,
-      color: MortClassicColors.ink,
+      color: MortClassicColors.foreground,
       semanticLabel: 'Payment status Reversed',
     ),
   };

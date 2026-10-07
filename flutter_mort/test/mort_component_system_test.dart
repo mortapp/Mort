@@ -6,19 +6,19 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('legacy component tokens resolve to the neutral classic palette', () {
     expect(MortColors.void_, const Color(0xFF000000));
+    expect(MortColors.midnight, MortClassicColors.ink);
+    expect(MortColors.deepNavy, MortClassicColors.ink);
     for (final ink in [
-      MortColors.midnight,
-      MortColors.deepNavy,
       MortColors.cobalt,
       MortColors.primary,
       MortColors.primaryBright,
       MortColors.text,
     ]) {
-      expect(ink, MortClassicColors.ink);
+      expect(ink, MortClassicColors.foreground);
     }
     expect(MortColors.lowerNight, MortClassicColors.surface);
     expect(MortColors.surface, MortClassicColors.surface);
-    expect(MortColors.surfaceAlternate, const Color(0xFFF2F2F2));
+    expect(MortColors.surfaceAlternate, const Color(0xFF222222));
     expect(MortColors.surfaceRaised, MortClassicColors.silverSurface);
     expect(MortColors.border, MortClassicColors.line);
     expect(MortColors.borderStrong, MortClassicColors.strongLine);

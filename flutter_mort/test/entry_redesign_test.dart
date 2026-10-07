@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('entry presents the classic white hierarchy', (tester) async {
+  testWidgets('entry presents the black and gray primary hierarchy', (
+    tester,
+  ) async {
     await _pumpEntry(tester);
 
     expect(find.text('MORT'), findsOneWidget);
@@ -15,7 +17,7 @@ void main() {
     expect(find.widgetWithText(TextButton, 'Sign in'), findsOneWidget);
     expect(
       tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
-      Colors.white,
+      const Color(0xFF0D0D0D),
     );
     expect(find.byType(Image), findsNothing);
   });

@@ -53,10 +53,10 @@ class LiquidGlassContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = borderRadius ?? BorderRadius.circular(MortRadii.card);
-    if (Theme.of(context).brightness == Brightness.light) {
+    if (MortClassicStyle.active(context)) {
       final contents = Padding(padding: padding, child: child);
       Widget surface = Material(
-        color: MortClassicColors.canvas,
+        color: MortClassicColors.surface,
         shape: RoundedRectangleBorder(
           borderRadius: radius,
           side: const BorderSide(color: MortClassicColors.line),
@@ -528,7 +528,7 @@ class MortSegmentedControl<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     assert(options.isNotEmpty);
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
-    final classic = Theme.of(context).brightness == Brightness.light;
+    final classic = MortClassicStyle.active(context);
     return LiquidGlassContainer(
       variant: MortGlassVariant.soft,
       padding: const EdgeInsets.all(MortSpacing.xxs),
@@ -581,7 +581,7 @@ class MortSegmentedControl<T> extends StatelessWidget {
                           size: 18,
                           color: option.value == value
                               ? (classic
-                                    ? MortClassicColors.ink
+                                    ? MortClassicColors.foreground
                                     : MortColors.silverBright)
                               : (classic
                                     ? MortClassicColors.muted
@@ -597,7 +597,7 @@ class MortSegmentedControl<T> extends StatelessWidget {
                                 ?.copyWith(
                                   color: option.value == value
                                       ? (classic
-                                            ? MortClassicColors.ink
+                                            ? MortClassicColors.foreground
                                             : MortColors.silverBright)
                                       : (classic
                                             ? MortClassicColors.muted
@@ -633,7 +633,7 @@ class MortChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final classic = Theme.of(context).brightness == Brightness.light;
+    final classic = MortClassicStyle.active(context);
     return ChoiceChip(
       label: Text(label),
       avatar: icon == null ? null : Icon(icon, size: 16),
@@ -643,7 +643,9 @@ class MortChip extends StatelessWidget {
       selectedColor: classic
           ? MortClassicColors.surface
           : MortColors.silverBright.withValues(alpha: 0.16),
-      backgroundColor: classic ? MortClassicColors.canvas : MortColors.glass,
+      backgroundColor: classic
+          ? MortClassicColors.background
+          : MortColors.glass,
       side: BorderSide(
         color: classic
             ? MortClassicColors.line
@@ -653,7 +655,9 @@ class MortChip extends StatelessWidget {
       ),
       labelStyle: TextStyle(
         color: classic
-            ? (selected ? MortClassicColors.ink : MortClassicColors.muted)
+            ? (selected
+                  ? MortClassicColors.foreground
+                  : MortClassicColors.muted)
             : (selected ? MortColors.silverBright : MortColors.silver),
         fontWeight: FontWeight.w600,
       ),
@@ -675,7 +679,7 @@ class MortStatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveColor = Theme.of(context).brightness == Brightness.light
+    final effectiveColor = MortClassicStyle.active(context)
         ? MortClassicColors.readableAccent(color)
         : color;
     return Semantics(
@@ -725,7 +729,7 @@ class MortSectionLabel extends StatelessWidget {
     child: Text(
       label.toUpperCase(),
       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-        color: Theme.of(context).brightness == Brightness.light
+        color: MortClassicStyle.active(context)
             ? MortClassicColors.muted
             : MortColors.textMuted,
         letterSpacing: 1.1,

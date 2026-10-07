@@ -128,13 +128,13 @@ class _MilestoneCard extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 420),
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: MortClassicColors.canvas,
+        color: MortClassicColors.background,
         gradient: nightSignal
             ? const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  MortClassicColors.canvas,
+                  MortClassicColors.background,
                   MortClassicColors.silverSurface,
                   MortClassicColors.surface,
                 ],

@@ -186,7 +186,7 @@ class MortScaffold extends StatelessWidget {
             )
           : body,
     );
-    final classic = Theme.of(context).brightness == Brightness.light;
+    final classic = MortClassicStyle.active(context);
     return Scaffold(
       backgroundColor: classic
           ? Theme.of(context).scaffoldBackgroundColor
@@ -284,7 +284,7 @@ class MortHeader extends StatelessWidget {
                   Text(
                     eyebrow!,
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: Theme.of(context).brightness == Brightness.light
+                      color: MortClassicStyle.active(context)
                           ? MortClassicColors.muted
                           : MortColors.primaryBright,
                       letterSpacing: 1.4,
@@ -411,7 +411,7 @@ class MortButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final classic = Theme.of(context).brightness == Brightness.light;
+    final classic = MortClassicStyle.active(context);
     final scheme = Theme.of(context).colorScheme;
     final enabled =
         onPressed != null && style != MortButtonStyle.disabled && !busy;
@@ -431,7 +431,7 @@ class MortButton extends StatelessWidget {
       MortButtonStyle.secondary => classic ? scheme.onSurface : MortColors.text,
       MortButtonStyle.tertiary =>
         classic ? scheme.onSurface : MortColors.silverBright,
-      MortButtonStyle.danger => classic ? scheme.onError : MortColors.godWhite,
+      MortButtonStyle.danger => classic ? scheme.onError : MortColors.godBlack,
       MortButtonStyle.ghost =>
         classic ? scheme.onSurface : MortColors.silverBright,
       MortButtonStyle.disabled =>
@@ -556,7 +556,7 @@ class MortIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final classic = Theme.of(context).brightness == Brightness.light;
+    final classic = MortClassicStyle.active(context);
     return IconButton.filledTonal(
       tooltip: tooltip,
       onPressed: onPressed == null
@@ -567,9 +567,11 @@ class MortIconButton extends StatelessWidget {
             },
       icon: Icon(icon),
       style: IconButton.styleFrom(
-        backgroundColor: classic ? MortClassicColors.canvas : MortColors.glass,
+        backgroundColor: classic
+            ? MortClassicColors.background
+            : MortColors.glass,
         foregroundColor: classic
-            ? MortClassicColors.ink
+            ? MortClassicColors.foreground
             : MortColors.silverBright,
         side: BorderSide(
           color: classic ? MortClassicColors.line : MortColors.lineStrong,
@@ -598,7 +600,7 @@ class MortToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final classic = Theme.of(context).brightness == Brightness.light;
+    final classic = MortClassicStyle.active(context);
     return SwitchListTile.adaptive(
       contentPadding: EdgeInsets.zero,
       minTileHeight: MortSpacing.minTouchTarget,
@@ -607,7 +609,9 @@ class MortToggle extends StatelessWidget {
       value: value,
       onChanged: enabled ? onChanged : null,
       activeThumbColor: classic ? MortClassicColors.canvas : MortColors.bg,
-      activeTrackColor: classic ? MortClassicColors.ink : MortColors.silver,
+      activeTrackColor: classic
+          ? MortClassicColors.strongLine
+          : MortColors.silver,
       inactiveThumbColor: classic
           ? MortClassicColors.muted
           : MortColors.textMuted,
@@ -792,8 +796,8 @@ class MortDropdown<T> extends StatelessWidget {
       isExpanded: true,
       focusNode: focusNode,
       decoration: InputDecoration(labelText: label, errorText: errorText),
-      dropdownColor: Theme.of(context).brightness == Brightness.light
-          ? MortClassicColors.canvas
+      dropdownColor: MortClassicStyle.active(context)
+          ? MortClassicColors.background
           : MortColors.cardAlt,
       items: items.entries
           .map(
@@ -847,8 +851,8 @@ class MortSearchableDropdown<T> extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: Theme.of(context).brightness == Brightness.light
-          ? MortClassicColors.canvas
+      backgroundColor: MortClassicStyle.active(context)
+          ? MortClassicColors.background
           : MortColors.cardAlt,
       builder: (context) => _MortSearchPicker<T>(
         title: label,
@@ -980,7 +984,7 @@ class MortBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effectiveSemanticLabel = semanticLabel ?? label;
-    final effectiveColor = Theme.of(context).brightness == Brightness.light
+    final effectiveColor = MortClassicStyle.active(context)
         ? MortClassicColors.readableAccent(color)
         : color;
     return Semantics(
@@ -1136,13 +1140,13 @@ class MortAvatar extends StatelessWidget {
 
     return CircleAvatar(
       radius: radius,
-      backgroundColor: Theme.of(context).brightness == Brightness.light
-          ? MortClassicColors.ink
+      backgroundColor: MortClassicStyle.active(context)
+          ? MortClassicColors.action
           : MortColors.raisedBlack,
       child: Text(
         initials,
         style: TextStyle(
-          color: Theme.of(context).brightness == Brightness.light
+          color: MortClassicStyle.active(context)
               ? MortClassicColors.canvas
               : MortColors.silverBright,
           fontWeight: FontWeight.w800,
@@ -1336,7 +1340,7 @@ class MortSafetyBanner extends StatelessWidget {
         children: [
           Icon(
             Icons.shield_outlined,
-            color: Theme.of(context).brightness == Brightness.light
+            color: MortClassicStyle.active(context)
                 ? MortClassicColors.info
                 : MortColors.safetyBlue,
           ),
@@ -1900,7 +1904,7 @@ class MortNotificationBell extends StatelessWidget {
             top: -2,
             child: CircleAvatar(
               radius: 9,
-              backgroundColor: MortColors.danger,
+              backgroundColor: MortClassicColors.action,
               child: Text(
                 '$count',
                 style: const TextStyle(
@@ -1926,7 +1930,7 @@ class MortSettingsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final classic = Theme.of(context).brightness == Brightness.light;
+    final classic = MortClassicStyle.active(context);
     return Semantics(
       button: true,
       label: 'Settings',
@@ -1937,7 +1941,7 @@ class MortSettingsButton extends StatelessWidget {
         style: IconButton.styleFrom(
           backgroundColor: Colors.transparent,
           foregroundColor: classic
-              ? MortClassicColors.ink
+              ? MortClassicColors.foreground
               : MortColors.silverBright,
           highlightColor: classic
               ? MortClassicColors.surface

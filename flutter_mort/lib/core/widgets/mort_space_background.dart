@@ -68,7 +68,7 @@ class MortSpacePainter extends CustomPainter {
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
     colors: [
-      MortClassicColors.canvas,
+      MortClassicColors.background,
       MortClassicColors.surface,
       MortClassicColors.silverSurface,
     ],

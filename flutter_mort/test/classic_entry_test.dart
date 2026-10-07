@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_mort/core/atmosphere/mort_atmospheric_background.dart';
 import 'package:flutter_mort/core/atmosphere/mort_wordmark_reveal.dart';
 import 'package:flutter_mort/core/theme/mort_theme.dart';
+import 'package:flutter_mort/core/theme/mort_colors.dart';
 import 'package:flutter_mort/core/widgets/mort_widgets.dart';
 import 'package:flutter_mort/features/mort_screens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('classic landing is white, readable, and uses a plain CTA', (
+  testWidgets('classic landing is black, readable, and uses a plain CTA', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -34,12 +35,12 @@ void main() {
     expect(button.style, MortButtonStyle.primary);
     expect(
       tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
-      Colors.white,
+      MortClassicColors.background,
     );
   });
 
   testWidgets(
-    'classic welcome uses white action area and safety remains free',
+    'classic welcome uses black action area and safety remains free',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(theme: MortTheme.classic(), home: const WelcomeScreen()),
@@ -53,9 +54,9 @@ void main() {
           .where((box) {
             final decoration = box.decoration;
             return decoration is BoxDecoration &&
-                decoration.color == Colors.black;
+                decoration.color == MortClassicColors.background;
           });
-      expect(darkActionArea, isEmpty);
+      expect(darkActionArea, isNotEmpty);
     },
   );
 }

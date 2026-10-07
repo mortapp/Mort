@@ -71,7 +71,7 @@ class _MortMotionMarkPainter extends CustomPainter {
         ..strokeWidth = 2.5
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round;
-      canvas.drawPath(front, stroke..color = MortClassicColors.ink);
+      canvas.drawPath(front, stroke..color = MortClassicColors.foreground);
       canvas.drawPath(back, stroke..color = MortColors.silverDark);
       return;
     }
@@ -92,7 +92,7 @@ class _MortMotionMarkPainter extends CustomPainter {
           end: Alignment.topRight,
           colors: [
             MortClassicColors.muted,
-            MortClassicColors.ink,
+            MortClassicColors.foreground,
             MortClassicColors.muted,
           ],
           stops: [0, 0.72, 1],

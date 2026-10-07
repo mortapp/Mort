@@ -10,35 +10,41 @@ class MortTheme {
   const MortTheme._();
 
   static ThemeData classic() {
-    const ink = MortClassicColors.ink;
+    const ink = MortClassicColors.foreground;
+    const action = MortClassicColors.action;
+    const background = MortClassicColors.background;
     const muted = MortClassicColors.muted;
     const line = MortClassicColors.line;
-    const surface = MortClassicColors.canvas;
+    const surface = MortClassicColors.surface;
     const secondarySurface = MortClassicColors.surface;
     const danger = MortClassicColors.danger;
     const scheme = ColorScheme(
-      brightness: Brightness.light,
-      primary: ink,
-      onPrimary: surface,
-      secondary: muted,
-      onSecondary: surface,
-      error: danger,
-      onError: surface,
+      brightness: Brightness.dark,
+      primary: action,
+      onPrimary: MortClassicColors.canvas,
+      secondary: action,
+      onSecondary: MortClassicColors.canvas,
+      error: action,
+      onError: MortClassicColors.canvas,
       surface: surface,
       onSurface: ink,
     );
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.light,
+      extensions: const [MortClassicStyle()],
+      brightness: Brightness.dark,
       colorScheme: scheme.copyWith(
-        surfaceContainerLowest: surface,
+        surfaceContainerLowest: background,
+        secondaryContainer: MortClassicColors.silverSurface,
+        onSecondaryContainer: ink,
+        onSurfaceVariant: muted,
         surfaceContainerLow: secondarySurface,
         surfaceContainer: secondarySurface,
         surfaceContainerHigh: secondarySurface,
         outline: line,
         outlineVariant: line,
       ),
-      scaffoldBackgroundColor: surface,
+      scaffoldBackgroundColor: background,
       textTheme: MortTypography.classicTextTheme().apply(
         bodyColor: ink,
         displayColor: ink,
@@ -86,8 +92,8 @@ class MortTheme {
       dividerTheme: const DividerThemeData(color: line, space: 1),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: ink,
-          foregroundColor: surface,
+          backgroundColor: action,
+          foregroundColor: MortClassicColors.canvas,
           disabledBackgroundColor: secondarySurface,
           disabledForegroundColor: muted,
           minimumSize: const Size(
@@ -98,6 +104,23 @@ class MortTheme {
             borderRadius: BorderRadius.circular(MortRadii.medium),
           ),
           textStyle: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: action,
+          foregroundColor: MortClassicColors.canvas,
+          disabledBackgroundColor: secondarySurface,
+          disabledForegroundColor: muted,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: ink),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: ink,
+          side: const BorderSide(color: MortClassicColors.strongLine),
         ),
       ),
       chipTheme: ChipThemeData(
@@ -154,8 +177,8 @@ class MortTheme {
         ),
       ),
       snackBarTheme: const SnackBarThemeData(
-        backgroundColor: ink,
-        contentTextStyle: TextStyle(color: surface),
+        backgroundColor: action,
+        contentTextStyle: TextStyle(color: MortClassicColors.canvas),
       ),
       focusColor: ink.withValues(alpha: 0.16),
       hoverColor: ink.withValues(alpha: 0.05),
@@ -172,7 +195,7 @@ class MortTheme {
           secondary: MortColors.lightBlue,
           onSecondary: MortColors.bg,
           error: MortColors.dangerDeep,
-          onError: MortColors.white,
+          onError: MortColors.godBlack,
           surface: MortColors.card,
           onSurface: MortColors.text,
         ).copyWith(

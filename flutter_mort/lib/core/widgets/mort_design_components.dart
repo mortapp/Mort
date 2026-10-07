@@ -73,8 +73,10 @@ class MortFilterChip extends StatelessWidget {
         : Icon(
             icon,
             size: MortIconSizes.small,
-            color: Theme.of(context).brightness == Brightness.light
-                ? (selected ? MortClassicColors.ink : MortClassicColors.muted)
+            color: MortClassicStyle.active(context)
+                ? (selected
+                      ? MortClassicColors.foreground
+                      : MortClassicColors.muted)
                 : (selected ? MortColors.silverBright : MortColors.textMuted),
           ),
     label: Text(label),
@@ -118,7 +120,7 @@ class MortTopBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final classic = Theme.of(context).brightness == Brightness.light;
+    final classic = MortClassicStyle.active(context);
     return AppBar(
       leading: leading,
       title: Text(title),
@@ -126,7 +128,7 @@ class MortTopBar extends StatelessWidget implements PreferredSizeWidget {
       flexibleSpace: DecoratedBox(
         decoration: BoxDecoration(
           color: classic
-              ? MortClassicColors.canvas
+              ? MortClassicColors.background
               : MortColors.bg.withValues(alpha: 0.9),
           border: Border(
             bottom: BorderSide(
@@ -154,7 +156,7 @@ class MortBottomNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     assert(index >= 0 && index < destinations.length);
-    if (Theme.of(context).brightness != Brightness.light) {
+    if (!MortClassicStyle.active(context)) {
       return SafeArea(
         top: false,
         child: NavigationBar(
@@ -170,7 +172,7 @@ class MortBottomNavigation extends StatelessWidget {
       top: false,
       minimum: const EdgeInsets.fromLTRB(8, 4, 8, 4),
       child: Material(
-        color: MortClassicColors.canvas,
+        color: MortClassicColors.background,
         child: Container(
           decoration: const BoxDecoration(
             border: Border(top: BorderSide(color: MortClassicColors.line)),
@@ -217,7 +219,9 @@ class _ClassicNavigationItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? MortClassicColors.ink : MortClassicColors.muted;
+    final color = selected
+        ? MortClassicColors.foreground
+        : MortClassicColors.muted;
     return Semantics(
       label: destination.label,
       selected: selected,
@@ -306,8 +310,8 @@ class MortPriceDisplay extends StatelessWidget {
                   ? Theme.of(context).textTheme.headlineSmall
                   : Theme.of(context).textTheme.titleMedium)
               ?.copyWith(
-                color: Theme.of(context).brightness == Brightness.light
-                    ? MortClassicColors.ink
+                color: MortClassicStyle.active(context)
+                    ? MortClassicColors.foreground
                     : (emphasized ? MortColors.silverBright : MortColors.text),
               ),
     );
