@@ -14,3 +14,11 @@ test('runtime assertion capture cannot turn an unexecuted or failing assertion i
   await assert.rejects(()=>captureAssertions('synthetic',()=>assert.ok(false,'Owned fixed assertion')));
   assert.equal((await captureAssertions('synthetic',()=>{})).length,0);
 });
+test('failed assertion diagnostics retain only reviewed identity without private arguments',async()=>{
+  let failure;
+  try{await captureAssertions('synthetic',()=>assert.equal('private-value-A','private-value-B','Owned fixed failure'));}catch(error){failure=error}
+  assert.equal(failure.guardAssertion?.key,'synthetic:Owned fixed failure');
+  assert.equal(failure.guardAssertion?.file,'scripts/auth-email-guard/evidence.test.mjs');
+  assert.ok(failure.guardAssertion?.line>0);
+  assert.ok(!JSON.stringify(failure.guardAssertion).includes('private-value'));
+});

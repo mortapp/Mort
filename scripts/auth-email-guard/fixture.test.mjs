@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {randomUUID} from 'node:crypto';
+import {randomBytes,randomUUID,createHmac} from 'node:crypto';
 import test from 'node:test';
 import {assertMortAuthFixture, assertOwnedResource,fixtureProcessEnv} from './fixture.mjs';
 
@@ -23,6 +23,23 @@ function fixture() {
 test('acceptsExactSyntheticFixture', () => {
   const {config,observed} = fixture();
   assert.doesNotThrow(()=>assertMortAuthFixture(config,observed));
+});
+
+test('fixture role credentials renew with unchanged lifetime and preserve provider tokens',async()=>{
+  const {config,observed}=fixture();
+  const handle={...config,observed,jwtSecret:randomBytes(48).toString('hex'),anonKey:'expired-fixture-role',serviceKey:'expired-fixture-role',providerToken:'opaque-provider-token'};
+  const refresh=(await import('./fixture.mjs')).refreshFixtureApiCredentials;
+  assert.equal(typeof refresh,'function');
+  refresh(handle);
+  for(const [field,role] of [['anonKey','anon'],['serviceKey','service_role']]){
+    const [header,body,signature]=handle[field].split('.');
+    const claims=JSON.parse(Buffer.from(body,'base64url'));
+    assert.equal(claims.role,role);assert.equal(claims.exp-claims.iat,3600);
+    assert.ok(claims.exp>Math.floor(Date.now()/1000));
+    assert.equal(signature,createHmac('sha256',handle.jwtSecret).update(`${header}.${body}`).digest('base64url'));
+  }
+  assert.equal(handle.providerToken,'opaque-provider-token');
+  assert.throws(()=>refresh({...handle,mode:'production'}),/Fixture target rejected/);
 });
 
 for (const patch of [

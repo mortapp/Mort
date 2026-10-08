@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 // error payloads. Capture only after the real assertion has succeeded.
 export async function captureAssertions(suite,execute){
   const seen=new Map(),originals=new Map();
-  for(const name of ['ok','equal','notEqual','strictEqual','notStrictEqual','deepEqual','deepStrictEqual','rejects','throws']){
+  for(const name of ['ok','equal','notEqual','strictEqual','notStrictEqual','deepEqual','deepStrictEqual','rejects','doesNotReject','throws']){
     const original=assert[name];originals.set(name,original);
     assert[name]=function(...args){
       const location=(new Error().stack??'').split('\n').find(line=>/auth-email-guard[\\/].*test\.mjs:\d+/.test(line));
@@ -16,8 +16,12 @@ export async function captureAssertions(suite,execute){
           seen.set(key,{key,suite,file:`scripts/auth-email-guard/${match[1].replaceAll('\\','/')}`,line:Number(match[2]),assertion:name,executions:(old?.executions??0)+1,status:'PASS'});
         }
       };
-      const value=original.apply(this,args);
-      if(value instanceof Promise)return value.then(result=>{record();return result;});
+      const failed=error=>{
+        if(match&&title&&title.length<250&&!/[\r\n@]/.test(title))error.guardAssertion={key:`${suite}:${title}`,file:`scripts/auth-email-guard/${match[1].replaceAll('\\','/')}`,line:Number(match[2])};
+        throw error;
+      };
+      let value;try{value=original.apply(this,args);}catch(error){return failed(error)}
+      if(value instanceof Promise)return value.then(result=>{record();return result;},failed);
       record();return value;
     };
   }
@@ -39,7 +43,7 @@ export function serializeEvidence(record){
       ||!/^[a-z-]+$/.test(proof.suite)||!proof.key.startsWith(proof.suite+':')
       ||typeof proof.file!=='string'||! /^(?:scripts\/auth-email-guard|supabase\/functions|web\/auth)\/[A-Za-z0-9_./-]+$/.test(proof.file)||proof.file.includes('..')
       ||!Number.isInteger(proof.line)||proof.line<1||!Number.isInteger(proof.executions)||proof.executions<1
-      ||!['ok','equal','notEqual','strictEqual','notStrictEqual','deepEqual','deepStrictEqual','rejects','throws','named_test'].includes(proof.assertion))throw new Error('Evidence assertion provenance rejected');
+      ||!['ok','equal','notEqual','strictEqual','notStrictEqual','deepEqual','deepStrictEqual','rejects','doesNotReject','throws','named_test'].includes(proof.assertion))throw new Error('Evidence assertion provenance rejected');
   }
   if(record.stateDigest&&!/^[a-f0-9]{64}$/.test(record.stateDigest))throw new Error('Evidence digest rejected');
   return JSON.stringify(record);

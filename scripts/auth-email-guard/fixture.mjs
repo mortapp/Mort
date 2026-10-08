@@ -114,6 +114,17 @@ function signJwt(secret,role) {
   const body=Buffer.from(JSON.stringify({role,iss:'fixture',aud:'authenticated',iat:Math.floor(Date.now()/1000),exp:Math.floor(Date.now()/1000)+3600})).toString('base64url');
   return `${head}.${body}.${createHmac('sha256',secret).update(`${head}.${body}`).digest('base64url')}`;
 }
+export function refreshFixtureApiCredentials(handle){
+  assertMortAuthFixture(handle,handle.observed);
+  if(typeof handle.jwtSecret!=='string'||handle.jwtSecret.length<32)throw new Error('Fixture signing configuration rejected');
+  // Renew only synthetic API role credentials, with the original 3600s TTL.
+  // Never replace, re-sign or extend a provider-issued account access token.
+  const audit=handle.privateAudit??=new Set();
+  for(const field of ['anonKey','serviceKey'])if(handle[field])audit.add(handle[field]);
+  handle.anonKey=signJwt(handle.jwtSecret,'anon');
+  handle.serviceKey=signJwt(handle.jwtSecret,'service_role');
+  audit.add(handle.anonKey);audit.add(handle.serviceKey);
+}
 // Temporary, allowlisted profiles for this UUID-owned disposable provider only.
 // Overrides are private ignored files; no normal/hosted configuration changes.
 export async function configureFixtureAuth(handle,{sendEmail=false,logLevel='fatal'}={}){

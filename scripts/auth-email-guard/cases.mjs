@@ -106,7 +106,7 @@ block([70,145],'RED finding: actual provider-issued old JWT retains owner access
 block([95],'A single fixture database is not an HA failover topology. Restore/restart evidence does not certify replica failover.');
 block([115,135,136],'Native Android/email-gateway compatibility requires the intended device/mail path; no emulator or external mail is authorized in this run.');
 block([134],'Arbitrary same-origin script compromise cannot be disproved by CSP/page tests. Dedicated origin, service-worker scope and hosted page isolation remain deployment gates.');
-add([157],'provider-drift:Second pinned provider actually runs','provider-drift:Guard refuses actual second pinned provider version before authority','provider-drift:Drift refusal reads actual alternate provider health','provider-drift:Drift refusal performs zero credential writes');
+add([157],'provider-drift:Second pinned provider actually runs','provider-drift:Guard refuses actual second pinned provider version before authority','provider-drift:Drift refusal reads actual alternate provider health','provider-drift:Drift refusal performs zero credential writes','provider-drift:Primary pinned provider remains accepted');
 for(const n of [162,163,164,165,166])mappings.set(n,{id:`MD2-${n}`,disposition:'OWNER_SCOPED_OUT',assertions:[],reason:'Approved Continue-only design excludes a peek route. Route-absence assertion executes in the gateway/browser suite.'});
 block([168],'Approved overlap policy is executed. Separate unapproved immediate-supersession/redelivery policy fixtures are not activated or silently claimed.');
 export const caseMappings=[...mappings.values()].sort((a,b)=>a.id.localeCompare(b.id));

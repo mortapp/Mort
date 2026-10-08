@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import WebSocket from 'ws';
 import {randomBytes} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
-import {startFixtureTransports,fixtureSql} from './fixture.mjs';
+import {startFixtureTransports,fixtureSql,refreshFixtureApiCredentials} from './fixture.mjs';
 import {pending,call,signIn,cleanup} from './provider.test.mjs';
 import {backupFixture,restoreFixture,discardBackup} from './control.mjs';
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
@@ -19,6 +19,7 @@ async function realtimeJoin(handle,token,id){
   });
 }
 async function probe(handle,token,id){
+  refreshFixtureApiCredentials(handle);
   const headers={authorization:`Bearer ${token}`};
   const rest=await fetch(`http://127.0.0.1:55431/records?id=eq.${id}`,{headers,signal:AbortSignal.timeout(4000)});
   let rows=[];try{rows=await rest.json()}catch{}
@@ -111,8 +112,12 @@ export async function run(handle){
     console.log('GREEN transport characterization: RED security finding confirmed; old JWT accepted after password change, revocation and restore');
     console.log('MORT_JWT_OBSERVATIONS '+JSON.stringify(observations));
   }finally{
+    refreshFixtureApiCredentials(handle);
     if(backup)await discardBackup(handle,backup);
-    for(const {user} of retained)await fetch(`${transports.storageUrl}/object/mort-fixture`,{method:'DELETE',headers:{authorization:`Bearer ${handle.serviceKey}`,'content-type':'application/json'},body:JSON.stringify({prefixes:[`${user.id}/probe.txt`]})});
+    for(const {user} of retained){
+      const deleted=await fetch(`${transports.storageUrl}/object/mort-fixture`,{method:'DELETE',headers:{authorization:`Bearer ${handle.serviceKey}`,'content-type':'application/json'},body:JSON.stringify({prefixes:[`${user.id}/probe.txt`]})});
+      assert.ok(deleted.ok,'Owned synthetic Storage object cleanup must succeed');
+    }
     await fixtureSql(handle,'UPDATE mort_auth_guard.control SET enabled=false;DELETE FROM mort_transport.records');
     await cleanup(handle);
   }

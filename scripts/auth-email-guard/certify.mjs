@@ -84,8 +84,10 @@ export async function run(){
     state=(await db.query(`SELECT enabled,activation_generation,restore_generation,
       (SELECT count(*)::int FROM mort_auth_guard.families WHERE state='active' AND family_expires_at>clock_timestamp()) active_families,
       (SELECT count(*)::int FROM mort_auth_guard.operation_grants WHERE state IN('reserved','pending')) temporary_permissions,
-      (SELECT count(*)::int FROM mort_auth_guard.outbox WHERE encrypted_envelope IS NOT NULL) encrypted_payloads FROM mort_auth_guard.control`)).rows[0];
-    if(state.enabled||state.active_families||state.temporary_permissions||state.encrypted_payloads||fixture.trackedAccounts.size)throw new Error('Fixture cleanup proof failed');
+      (SELECT count(*)::int FROM mort_auth_guard.outbox WHERE encrypted_envelope IS NOT NULL) encrypted_payloads,
+      (SELECT count(*)::int FROM mort_transport.records) transport_records,
+      (SELECT count(*)::int FROM storage.objects WHERE bucket_id='mort-fixture') transport_objects FROM mort_auth_guard.control`)).rows[0];
+    if(state.enabled||state.active_families||state.temporary_permissions||state.encrypted_payloads||state.transport_records||state.transport_objects||fixture.trackedAccounts.size)throw new Error('Fixture cleanup proof failed');
   }finally{await db.end();}
   const context={head,fixtureId:fixture.fixtureId,callerRole:'synthetic_fixture',requestShape:'synthetic-redacted-operation',concurrency:20,elapsedMs:Math.round(performance.now()-started),expected:'named assertions pass',observed:'executed',counterChanges:'asserted by named tests',stateDigest:digestState(state),logClean:true,cleanup:true};
   const cases=caseMappings.map(row=>{
@@ -104,10 +106,10 @@ export async function run(){
   // Deduplicate exact assertion provenance in output; the validated case records
   // reference it by key. Never persist raw provider/SQL/request values.
   const compactCase=row=>({id:row.id,status:row.status,...(row.reason?{reason:row.reason}:{}),assertionKeys:row.assertions.map(proof=>proof.key)});
-  const output={...report,context,assertions:observations,cases:cases.map(compactCase),operationalCases:operationalCases.map(compactCase),localCharacterizations:{oldJwt:{requirements:['MD2-070','MD2-145'],status:'RED_FINDING',observations:fixture.transportEvidence},logging:{requirement:'MD-119',status:'RED_FINDING',hostedTelemetryCertified:false,observations:fixture.loggingEvidence}},rawDefaultTelemetryCertified:false};
+  const output={...report,context,assertions:observations,cases:cases.map(compactCase),operationalCases:operationalCases.map(compactCase),localCharacterizations:{oldJwt:{requirements:['MD2-070','MD2-145'],status:'RED_FINDING',observations:fixture.transportEvidence},logging:{requirement:'MD-119',status:'RED_FINDING',hostedTelemetryCertified:false,observations:fixture.loggingEvidence}},rawDefaultTelemetryCertified:false,logCleanScope:'Only audited non-logging-suite paths; raw default telemetry is explicitly not certified.',cleanupState:state};
   console.log('MORT_GUARD_EVIDENCE_JSON '+JSON.stringify(output));return report;
 }
 if(process.argv[1]&&resolve(process.argv[1])===resolve(import.meta.filename)){
   try{const result=await run();if(result.summary.NOT_RUN||result.operationalSummary.NOT_RUN)process.exitCode=1;else if(!result.fullGuardCertified&&!process.argv.includes('--allow-external-gates'))process.exitCode=2;}
-  catch{console.error('FAIL certification: required fixture assertion, log, ownership or cleanup gate failed (values redacted)');process.exitCode=1;}
+  catch(error){console.error('FAIL certification: '+(error.guardAssertion?JSON.stringify(error.guardAssertion):'required fixture assertion, log, ownership or cleanup gate failed (values redacted)'));process.exitCode=1;}
 }

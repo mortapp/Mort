@@ -6,8 +6,10 @@ preserved Android releases. Auth remains Supabase's responsibility.
 
 The subsystem is **disabled by default**. There are no production guard HTTP
 entrypoints or hosted delivery worker. The controller permits only an explicit
-private provider rehearsal; it rejects full activation. A real provider Send
-Email hook and trusted request-to-hook binding are not installed. No fixture
+private provider rehearsal; it rejects full activation. The provider-ingress
+suite installs the real local PostgreSQL Send Email hook: signup commits a
+private receipt consumed by the fixture relay and guard handler. This proves
+that adapter path, not a hosted HTTP hook signature or deployed relay. No fixture
 PASS authorizes hosted activation.
 
 ## Reproducible checks
@@ -33,6 +35,10 @@ node scripts/auth-email-guard/run.mjs --suite smtp-fault
 node scripts/auth-email-guard/run.mjs --suite cutover
 node scripts/auth-email-guard/run.mjs --suite retention
 node scripts/auth-email-guard/run.mjs --suite log-audit
+node scripts/auth-email-guard/run.mjs --suite provider-ingress
+node scripts/auth-email-guard/run.mjs --suite jwt-transports
+node scripts/auth-email-guard/run.mjs --suite provider-drift
+node scripts/auth-email-guard/run.mjs --suite logging
 node --test scripts/auth-email-guard/control.test.mjs scripts/auth-email-guard/coverage.test.mjs scripts/auth-email-guard/evidence.test.mjs
 deno test --frozen --allow-env=ETHEREAL_API,ETHEREAL_WEB,ETHEREAL_API_KEY,ETHEREAL_CACHE --config supabase/functions/auth-email-guard.deno.json supabase/functions/_shared/auth_email_guard/ supabase/functions/_shared/secure_codes_test.ts
 deno test --frozen --config supabase/functions/auth-email-guard.deno.json supabase/functions/mort-auth-email-hook/ supabase/functions/mort-auth-email-guard/
@@ -85,7 +91,11 @@ The actual fixture token-hook methods observed are password, oauth, otp and
 token_refresh. The provider magic-link request was observed as otp, not an
 assumed magiclink label. Real GET/hash/code signup/recovery and provider-created
 PKCE exchanges have named negative tests and legitimate controls. Hosted
-Google/Apple and existing PostgREST/Storage/Realtime JWT transports remain gates.
+Google/Apple remain integration gates. The isolated transport suite measures
+actual old JWT owner-record reads, private-object downloads and new private
+Realtime joins until the unchanged one-hour expiry. Synthetic API role keys
+renew with the same lifetime; provider-issued owner tokens are never replaced.
+Old-JWT access after lifecycle changes is a RED finding, not a revocation PASS.
 
 Standalone guarded pages are generated only with explicit local-fixture
 configuration. Default-disabled generation writes nothing and preserves the
@@ -179,8 +189,11 @@ while integration gates remain, or 1 on assertion/log/cleanup failure. Output is
 sanitized JSON for import into managed security evidence storage. It is not a
 release artifact. Guard-source cleanliness is reported separately from preserved
 unrelated work. HEAD, status and source hashes are checked again before export;
-changes during a run invalidate its evidence. Each suite audits only owned
-Auth/DB/SMTP logs. Fixture GoTrue
+changes during a run invalidate its evidence. Non-logging suites audit only
+owned Auth/DB/SMTP logs. The logging characterization explicitly inspects raw
+default/fatal profiles and records address findings; context.logClean describes
+the other audited paths, while rawDefaultTelemetryCertified remains false.
+Fixture GoTrue
 logs use fatal level because its lower-level auth events include full addresses;
 provider transaction-origin audit records remain enabled and private. No hosted
 logging setting has changed. Hosted traces/error reporters need their own audit.
