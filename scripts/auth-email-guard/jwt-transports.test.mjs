@@ -29,6 +29,7 @@ async function probe(handle,token,id){
 function accepted(result){return result.postgrest.accepted&&result.storage.accepted&&result.realtime.status==='ok'}
 export async function run(handle){
   const transports=await startFixtureTransports(handle);let backup;
+  const retained=[];
   const rehearsal={localFixture:true,apply:true,privateProviderRehearsal:true};
   try{
     for(let i=0;i<100;i++){
@@ -58,7 +59,9 @@ export async function run(handle){
       assert.ok(outsider.postgrest.denied&&outsider.storage.denied&&['error','http_401','http_403'].includes(outsider.realtime.status),'Anonymous token cannot read owner record object or private channel');
       const began=Date.now();
       if(event==='password_change'){
-        assert.equal((await call(handle,`/admin/users/${user.id}`,{password:`Bb8!${randomBytes(20).toString('base64url')}`},true,'PUT')).status,200,'Supported provider password change succeeds');
+        const next=`Bb8!${randomBytes(20).toString('base64url')}`;
+        assert.equal((await call(handle,`/admin/users/${user.id}`,{password:next},true,'PUT')).status,200,'Supported provider password change succeeds');
+        user.password=next;
       }else if(event==='session_revocation'){
         const revoke=await fetch(`${handle.authUrl}/logout?scope=global`,{method:'POST',headers:{authorization:`Bearer ${token}`}});
         assert.equal(revoke.status,204,'Actual provider global session revocation succeeds');
@@ -71,16 +74,45 @@ export async function run(handle){
       const changedAt=Date.now();
       const after=await probe(handle,token,user.id);await pause(5000);const later=await probe(handle,token,user.id);
       assert.ok(accepted(after)&&accepted(later),'Finding: old JWT retains owner access on all three stateless transports');
-      observations.push({event,before,after,later,lifecycleMs:changedAt-began,measuredAcceptanceMs:Date.now()-changedAt,jwtLifetimeSeconds:claims.exp-claims.iat,remainingDeclaredSeconds:claims.exp-Math.floor(Date.now()/1000),expiryBoundaryExecuted:false});
-      await fetch(`${transports.storageUrl}/object/mort-fixture`,{method:'DELETE',headers:{authorization:`Bearer ${handle.serviceKey}`,'content-type':'application/json'},body:JSON.stringify({prefixes:[`${user.id}/probe.txt`]})});
-      await fixtureSql(handle,`DELETE FROM mort_transport.records WHERE owner='${user.id}';UPDATE mort_auth_guard.control SET enabled=false`);
-      await cleanup(handle);
+      const row={event,before,after,later,lifecycleMs:changedAt-began,measuredAcceptanceMs:Date.now()-changedAt,jwtLifetimeSeconds:claims.exp-claims.iat,remainingDeclaredSeconds:claims.exp-Math.floor(Date.now()/1000),expiryBoundaryExecuted:false,samples:[]};
+      observations.push(row);retained.push({user,token,claims,changedAt,row});
+      await fixtureSql(handle,'UPDATE mort_auth_guard.control SET enabled=false');
+    }
+    // Keep all three real accounts/objects alive; deletion or missing records
+    // cannot impersonate JWT expiration. Do not re-sign tokens or move clocks.
+    const allExpired=()=>retained.every(entry=>entry.row.expiryBoundaryExecuted);
+    while(!allExpired()){
+      for(const entry of retained){
+        if(entry.row.expiryBoundaryExecuted)continue;
+        const now=Date.now(),expired=now>=entry.claims.exp*1000+1000;
+        const sample=await probe(handle,entry.token,entry.user.id);
+        const elapsedMs=Date.now()-entry.changedAt;
+        entry.row.samples.push({elapsedMs,remainingSeconds:entry.claims.exp-Math.floor(Date.now()/1000),postgrest:sample.postgrest.status,storage:sample.storage.status,realtime:sample.realtime.status});
+        if(!expired&&now<entry.claims.exp*1000-2000){
+          assert.ok(accepted(sample),'Real old JWT remains accepted before its unchanged signed expiry');
+          entry.row.lastAcceptedMs=elapsedMs;
+        }else if(expired){
+          assert.ok(sample.postgrest.denied&&sample.storage.denied&&['error','http_401','http_403'].includes(sample.realtime.status),'Real expired old JWT is rejected by all three actual transports');
+          entry.row.expiryBoundaryExecuted=true;entry.row.firstRejectedMs=elapsedMs;
+          entry.row.expiredResult=sample;
+          const fresh=await signIn(handle,entry.user,entry.user.password);
+          assert.equal(fresh.status,200,'Fresh owner password login remains available after old JWT expiry');
+          assert.ok(accepted(await probe(handle,fresh.data.access_token,entry.user.id)),'Fresh actual owner JWT still accesses every transport after old-token rejection');
+        }
+      }
+      if(allExpired())break;
+      const minimumRemaining=Math.min(...retained.filter(entry=>!entry.row.expiryBoundaryExecuted).map(entry=>entry.claims.exp*1000+1000-Date.now()));
+      console.log('PROGRESS real old-JWT expiry: '+JSON.stringify(observations.map(row=>({event:row.event,lastAcceptedMs:row.lastAcceptedMs,expired:row.expiryBoundaryExecuted}))));
+      // At most one minute between measurements; no test or token TTL relaxed.
+      let remaining=Math.min(60_000,Math.max(1,minimumRemaining));
+      while(remaining>0){const chunk=Math.min(10_000,remaining);await pause(chunk);remaining-=chunk;}
     }
     handle.transportEvidence=observations;
     console.log('GREEN transport characterization: RED security finding confirmed; old JWT accepted after password change, revocation and restore');
     console.log('MORT_JWT_OBSERVATIONS '+JSON.stringify(observations));
   }finally{
     if(backup)await discardBackup(handle,backup);
+    for(const {user} of retained)await fetch(`${transports.storageUrl}/object/mort-fixture`,{method:'DELETE',headers:{authorization:`Bearer ${handle.serviceKey}`,'content-type':'application/json'},body:JSON.stringify({prefixes:[`${user.id}/probe.txt`]})});
     await fixtureSql(handle,'UPDATE mort_auth_guard.control SET enabled=false;DELETE FROM mort_transport.records');
     await cleanup(handle);
   }
