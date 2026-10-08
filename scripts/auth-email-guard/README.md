@@ -178,7 +178,9 @@ The second command still emits `fullGuardCertified:false`. The first exits 2
 while integration gates remain, or 1 on assertion/log/cleanup failure. Output is
 sanitized JSON for import into managed security evidence storage. It is not a
 release artifact. Guard-source cleanliness is reported separately from preserved
-unrelated work. Each suite audits only owned Auth/DB/SMTP logs. Fixture GoTrue
+unrelated work. HEAD, status and source hashes are checked again before export;
+changes during a run invalidate its evidence. Each suite audits only owned
+Auth/DB/SMTP logs. Fixture GoTrue
 logs use fatal level because its lower-level auth events include full addresses;
 provider transaction-origin audit records remain enabled and private. No hosted
 logging setting has changed. Hosted traces/error reporters need their own audit.

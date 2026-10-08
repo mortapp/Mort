@@ -5,6 +5,8 @@ import {assertMortAuthFixture,fixtureProcessEnv} from './fixture.mjs';
 import {spawnSync} from 'node:child_process';
 import {pending,call,cleanup,signIn,signupLink,confirmed} from './provider.test.mjs';
 import {startOidcFixture} from './oidc-fixture.mjs';
+import {createServer} from 'node:http';
+import {createFixtureProvider} from '../../supabase/functions/_shared/auth_email_guard/provider.ts';
 const digest=v=>createHash('sha256').update(v).digest('hex');
 export async function run(handle){
   assertMortAuthFixture(handle,handle.observed);
@@ -59,6 +61,46 @@ export async function run(handle){
     assert.ok((await call(handle,'/token?grant_type=refresh_token',{refresh_token:preReset.data.refresh_token})).status!==200,'Final guarded reset revokes old refresh session');
     assert.ok((await db.query('SELECT mort_auth_guard.reconcile_operation($1::uuid) AS state',[op.operationId])).rows[0].state==='committed','Provider-transaction commit reconciles privately');
     assert.ok((await apply(recovery,op,recovery.user.password)).status!==200,'Committed grant cannot mutate a second time');
+    stage='lost-admin-response';
+    const lost=await seed(),lostOp=await reserve(lost);let dropped=false,reconcileBlocked=true,proxyRequests=0;
+    const sockets=new Set(),tasks=new Set();
+    const proxy=createServer((request,response)=>{
+      const work=(async()=>{
+        if(request.url!==`/admin/users/${lost.user.id}`||request.method!=='PUT'||request.headers.authorization!==`Bearer ${handle.serviceKey}`){response.writeHead(404);response.end();return;}
+        let body='';for await(const part of request){body+=part;if(body.length>16384){request.destroy();return;}}
+        proxyRequests++;
+        const upstream=await fetch(`${handle.authUrl}${request.url}`,{method:'PUT',headers:{'content-type':'application/json',authorization:`Bearer ${handle.serviceKey}`},body,signal:AbortSignal.timeout(10000)});
+        await upstream.body?.cancel();
+        if(Object.hasOwn(JSON.parse(body),'password')){dropped=true;request.socket.destroy();return;}
+        response.writeHead(upstream.status,{'content-type':'application/json'});response.end('{}');
+      })();tasks.add(work);work.catch(()=>response.destroy()).finally(()=>tasks.delete(work));
+    });
+    proxy.on('connection',socket=>{sockets.add(socket);socket.once('close',()=>sockets.delete(socket));});
+    try{
+      await new Promise((done,reject)=>{proxy.once('error',reject);proxy.listen(55426,'127.0.0.1',done);});
+      const store={reconcile:async id=>{
+        if(dropped&&reconcileBlocked)throw new Error('Synthetic reconciliation outage');
+        return (await db.query('SELECT mort_auth_guard.reconcile_operation($1::uuid) state',[id])).rows[0].state;
+      }};
+      const provider=await createFixtureProvider({mode:'local_fixture',authUrl:handle.authUrl,serviceKey:handle.serviceKey},store,(input,init)=>{
+        const url=String(input);
+        if(url===`${handle.authUrl}/health`)return fetch(input,init);
+        if(url!==`${handle.authUrl}/admin/users/${lost.user.id}`)throw new Error('Owned proxy route rejected');
+        return fetch(`http://127.0.0.1:55426/admin/users/${lost.user.id}`,init);
+      });
+      handle.privateAudit.add(replacement);
+      assert.equal(await provider.dispatch(lostOp,replacement,new AbortController().signal),'pending','Lost actual Admin response and unavailable reconciliation never report success');
+      assert.ok(dropped&&proxyRequests===2,'Unknown outcome uses an actual committed provider write and destroyed response socket');
+      assert.ok(!(await reserve(lost)).ok,'Lost Admin response never reopens consumed capability');
+      reconcileBlocked=false;
+      assert.equal(await store.reconcile(lostOp.operationId),'committed','Private reconciliation resolves actual lost Admin response safely');
+      assert.equal(await provider.dispatch(lostOp,lost.user.password,new AbortController().signal),'fenced','Retry of reconciled lost operation cannot repeat provider mutation');
+      assert.equal(proxyRequests,2,'Lost operation retry sends no further Admin write');
+      assert.equal((await signIn(handle,lost.user,replacement)).status,200,'Owner can sign in with committed replacement after lost-response reconciliation');
+    }finally{
+      for(const socket of sockets)socket.destroy();
+      if(proxy.listening)await new Promise(done=>proxy.close(done));await Promise.allSettled([...tasks]);
+    }
     stage='public-password-borrow';
     const guardedCaller=await seed(),callerSession=await signIn(handle,guardedCaller.user,guardedCaller.user.password),callerOp=await reserve(guardedCaller);
     assert.ok(callerSession.status===200&&(await marker(guardedCaller,callerOp)).status===200,'Owned authenticated caller and live grant negative control');

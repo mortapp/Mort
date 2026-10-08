@@ -42,7 +42,16 @@ async function sourceOwner(name,files,kind){
 }
 export async function run(){
   const requirements=await loadRequirements(),head=child('git',['rev-parse','HEAD']).trim();
-  const guardSourceClean=!child('git',['status','--porcelain','--','scripts/auth-email-guard','web/auth/challenge','supabase/functions/_shared/auth_email_guard','supabase/functions/mort-auth-email-hook','supabase/functions/mort-auth-email-guard','supabase/migrations/20261008130945_mort_email_fixture_control_retention.sql','supabase/migrations/20261008135853_mort_email_restore_session_epoch.sql','supabase/migrations/20261008151312_mort_email_fixture_baseline_snapshot.sql']).trim();
+  const sourcePaths=['scripts/auth-email-guard','web/auth/challenge','supabase/functions/_shared/auth_email_guard','supabase/functions/mort-auth-email-hook','supabase/functions/mort-auth-email-guard','supabase/migrations/20261008130945_mort_email_fixture_control_retention.sql','supabase/migrations/20261008135853_mort_email_restore_session_epoch.sql','supabase/migrations/20261008151312_mort_email_fixture_baseline_snapshot.sql'];
+  const sourceStatus=()=>child('git',['status','--porcelain','--',...sourcePaths]).trim();
+  const sourceSnapshot=async()=>{
+    const files=[...new Set(child('git',['ls-files','--cached','--others','--exclude-standard','--',...sourcePaths]).trim().split('\n').filter(Boolean))].sort();
+    const hashes=[];for(const file of files)hashes.push([file,digestState((await readFile(resolve(root,file))).toString('utf8'))]);
+    return digestState(hashes);
+  };
+  const startSourceStatus=sourceStatus();
+  const guardSourceSha256=await sourceSnapshot();
+  let guardSourceClean=!startSourceStatus;
   if(!/^[a-f0-9]{40}$/.test(head))throw new Error('Candidate identity unavailable');
   const fixture=await startFixture(),observations=[],started=performance.now();
   const suiteNames=['state','issuance','grant','bypass','hook-boundary','delivery','smtp-fault','cutover','retention','load','security','log-audit'];
@@ -87,7 +96,9 @@ export async function run(){
     const evidence=runCase(row.id,observations,context);if(evidence.status!=='PASS')evidence.observed='not executed';return JSON.parse(serializeEvidence(evidence));
   });
   const operationalSummary=Object.fromEntries(['PASS','NOT_RUN','BLOCKED'].map(status=>[status,operationalCases.filter(c=>c.status===status).length]));
-  const report={schema:1,head,guardSourceClean,fixtureId:fixture.fixtureId,sourceSha256:requirements.sourceSha256,currentRequirements:191,retainedHistoricalRecords:328,totalHistoricalAndCurrentRecords:519,fullGuardCertified:false,activationProfile:'private_provider_rehearsal',summary,operationalSummary,operationalCases,timings,suiteStates,executedAssertions:observations.length,cases,historical:requirements.records.filter(r=>!r.id.startsWith('MD2-')).map(r=>({id:r.id,status:'RETAINED_HISTORY_NOT_INHERITED',source:r.source})),hostedChanged:false};
+  if(child('git',['rev-parse','HEAD']).trim()!==head||sourceStatus()!==startSourceStatus||await sourceSnapshot()!==guardSourceSha256)throw new Error('Candidate changed during certification');
+  guardSourceClean=guardSourceClean&&!sourceStatus();
+  const report={schema:1,head,guardSourceClean,guardSourceSha256,fixtureId:fixture.fixtureId,sourceSha256:requirements.sourceSha256,currentRequirements:191,retainedHistoricalRecords:328,totalHistoricalAndCurrentRecords:519,fullGuardCertified:false,activationProfile:'private_provider_rehearsal',summary,operationalSummary,operationalCases,timings,suiteStates,executedAssertions:observations.length,cases,historical:requirements.records.filter(r=>!r.id.startsWith('MD2-')).map(r=>({id:r.id,status:'RETAINED_HISTORY_NOT_INHERITED',source:r.source})),hostedChanged:false};
   // Deduplicate exact assertion provenance in output; the validated case records
   // reference it by key. Never persist raw provider/SQL/request values.
   const compactCase=row=>({id:row.id,status:row.status,...(row.reason?{reason:row.reason}:{}),assertionKeys:row.assertions.map(proof=>proof.key)});
