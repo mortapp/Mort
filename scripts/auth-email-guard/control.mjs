@@ -48,7 +48,12 @@ function docker(handle,args,input,binary=false){
   if(inspected.status!==0)throw new Error('Fixture resource unavailable');
   assertOwnedResource(name,JSON.parse(inspected.stdout),handle.fixtureId);
   const result=spawnSync('docker',[args[0],...(args[0]==='exec'?['-i']:[]),name,...args.slice(1)],{input,env:fixtureProcessEnv(),...(binary?{}:{encoding:'utf8'}),timeout:60_000,maxBuffer:32*1024*1024,windowsHide:true});
-  if(result.status!==0)throw new Error('Fixture control operation failed (redacted)');return result.stdout;
+  if(result.status!==0){
+    const raw=String(result.stderr??'');
+    const category=['cannot drop','already exists','permission denied','must be owner','does not exist'].find(term=>raw.includes(term))??result.error?.code??'operation';
+    const dependencies=[...raw.matchAll(/(?:ERROR:\s+cannot drop|depends on) (?:[a-z_]+ )?[a-z_.]+/g)].map(match=>match[0]).join(',');
+    throw new Error(`Fixture control operation failed (${category}; ${dependencies}; values redacted)`);
+  }return result.stdout;
 }
 async function connection(handle){assertMortAuthFixture(handle,handle.observed);const db=new pg.Client({connectionString:handle.dbUrl,connectionTimeoutMillis:2000});await db.connect();return db;}
 export async function planControl(action,handle){
@@ -92,7 +97,10 @@ export async function applyLocalControl(plan,handle,options){
 export async function backupFixture(handle){
   return exclusive(async()=>{
     const path=resolve(fixtureDirectory,`backup-${randomUUID()}.dump`);
-    const data=docker(handle,['exec','sh','-c','PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U supabase_admin -d postgres -Fc --schema=auth --schema=mort_auth_guard --schema=mort_fixture'],undefined,true);
+    // Transport policies reference auth.uid()/auth.jwt(). Include their owned
+    // fixture schemas so restore's dependency order does not drop Auth functions
+    // underneath live out-of-snapshot RLS policies. Missing schemas are harmless.
+    const data=docker(handle,['exec','sh','-c','PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U supabase_admin -d postgres -Fc --schema=auth --schema=mort_auth_guard --schema=mort_fixture --schema=mort_transport --schema=storage --schema=realtime'],undefined,true);
     if(data.length<5||data.subarray(0,5).toString()!=='PGDMP')throw new Error('Fixture backup integrity rejected');
     await writeFile(path,data,{mode:0o600,flag:'wx'});
     await writeFile(path+'.sha256',JSON.stringify({fixtureId:handle.fixtureId,sha256:createHash('sha256').update(data).digest('hex')}),{mode:0o600,flag:'wx'});return path;
@@ -110,7 +118,13 @@ export async function restoreFixture(handle,path,options){
     // Provider ingress stays stopped on every failure. Never boot a restored old
     // generation before the independent journal and authority retirement commit.
     docker(handle,['stop','--time','5']);
-    docker(handle,['exec','sh','-c','PGPASSWORD="$POSTGRES_PASSWORD" pg_restore -U supabase_admin -d postgres --clean --if-exists --exit-on-error --single-transaction'],data,true);
+    // pg_restore --clean tries to drop inherited constraints individually on
+    // Realtime's partitioned tables. Replace the explicitly owned snapshot
+    // schemas together, then load the verified dump within one transaction.
+    // ON_ERROR_STOP rolls the entire replacement back on any statement failure.
+    const sql=docker(handle,['exec','pg_restore','--file=-'],data,true);
+    const transaction=Buffer.concat([Buffer.from('BEGIN;\nDROP SCHEMA IF EXISTS auth,mort_auth_guard,mort_fixture,mort_transport,storage,realtime CASCADE;\n'),sql,Buffer.from('\nCOMMIT;\n')]);
+    docker(handle,['exec','sh','-c','PGPASSWORD="$POSTGRES_PASSWORD" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1'],transaction,true);
     const db=await connection(handle);
     try{if((await db.query('SELECT id FROM mort_fixture.identity')).rows.length!==1||(await db.query('SELECT id FROM mort_fixture.identity')).rows[0].id!==handle.fixtureId)throw new Error('Fixture restored identity rejected');}finally{await db.end();}
     const generation=await transition(plan,handle);await resume(handle);return generation;

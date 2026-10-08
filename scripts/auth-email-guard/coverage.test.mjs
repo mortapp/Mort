@@ -2,10 +2,24 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {validateCoverage,loadRequirements,canonicalSourceDigest} from './coverage.mjs';
 import {readFile} from 'node:fs/promises';
+import {spawnSync} from 'node:child_process';
+import {caseMappings} from './cases.mjs';
+import {fixtureProcessEnv} from './fixture.mjs';
 test('immutable requirement digests tolerate Git line-ending conversion but reject content changes',async()=>{
   const source=await readFile(new URL('./sources/matrix.md',import.meta.url));
   assert.equal(canonicalSourceDigest(source),canonicalSourceDigest(Buffer.from(source.toString('utf8').replaceAll('\n','\r\n'))));
   assert.notEqual(canonicalSourceDigest(source),canonicalSourceDigest(Buffer.concat([source,Buffer.from('changed requirement')])));
+});
+
+test('eight owner-excluded BLOCKED gates retain the exact baseline disposition and reason',async()=>{
+  const result=spawnSync('git',['show','90b09744048c7e52837bce45d5d8c8b0f4840b0b:scripts/auth-email-guard/cases.mjs'],{env:fixtureProcessEnv(),encoding:'utf8',windowsHide:true});
+  assert.equal(result.status,0);
+  const source=result.stdout.replace("from './coverage.mjs'",`from '${new URL('./coverage.mjs',import.meta.url).href}'`);
+  const baseline=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+  const ids=new Set([29,95,115,126,134,135,136,168].map(id=>`MD2-${String(id).padStart(3,'0')}`));
+  const before=baseline.caseMappings.filter(row=>ids.has(row.id)),after=caseMappings.filter(row=>ids.has(row.id));
+  assert.equal(before.length,8);assert.equal(after.length,8);
+  assert.deepEqual(after,before);assert.ok(after.every(row=>row.disposition==='BLOCKED'&&row.assertions.length===0&&row.reason));
 });
 test('191 consecutive current IDs and 519 preserved records cannot inherit historical PASS',async()=>{
   const source=await loadRequirements();

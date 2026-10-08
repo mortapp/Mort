@@ -13,6 +13,11 @@ export const IMAGES=Object.freeze({
   db:'public.ecr.aws/supabase/postgres@sha256:6501843661b1f8ff97e85c02de33edc0ee2e2693888ad596ee86222f02dc8ecc',
   auth:'public.ecr.aws/supabase/gotrue@sha256:1736a63078f5922b198c4cbe50f80ab9a2d3b54fe8b7b6cfb2e9dc5dbbc12c6b',
   capture:'public.ecr.aws/supabase/mailpit@sha256:37a38e48e9338cd7e89dfeb487f37b02ebfcd9cb23111bed2d345e79d37d6dd6',
+  rest:'public.ecr.aws/supabase/postgrest@sha256:d2009b5c9deffc210c8a5592698472fede14fd9f6ca89823c8474ca54d58c012',
+  storage:'public.ecr.aws/supabase/storage-api@sha256:4ae1890ba0c6fd24d975c34f3aa201a01d410171c8ba6eddeb675ef92341a62d',
+  realtime:'public.ecr.aws/supabase/realtime@sha256:3211f8ebd59edcd0aa772186f1c8249c82c6b1ae5565f40dedb7aa93e951fe37',
+  'drift-db':'public.ecr.aws/supabase/postgres@sha256:6501843661b1f8ff97e85c02de33edc0ee2e2693888ad596ee86222f02dc8ecc',
+  'drift-auth':'public.ecr.aws/supabase/gotrue@sha256:362659ca70eaa75ba05bbaf963caa84c1c5afe5e8fbf0777e17b830dd5f0f60a',
 });
 const target=Object.freeze({
   project:'mort-mobile',mode:'local_fixture',authUrl:'http://127.0.0.1:55421',
@@ -33,7 +38,7 @@ export function assertMortAuthFixture(config,observed) {
     || ['db','auth','capture'].some(role=>observed.resourceIds.filter(name=>name===container(config,role)).length!==1)) throw new Error('Fixture target rejected');
 }
 export function assertOwnedResource(name,labels,fixtureId) {
-  if (!uuid.test(fixtureId) || !new RegExp(`^mort-mobile-auth-guard-qa-(db|auth|capture|network|data|storage|rest|realtime|guard|issuer)-${fixtureId}$`).test(name)
+  if (!uuid.test(fixtureId) || !new RegExp(`^mort-mobile-auth-guard-qa-(db|auth|capture|network|data|storage|rest|realtime|guard|issuer|drift-db|drift-auth|drift-data)-${fixtureId}$`).test(name)
     || labels?.['com.docker.compose.project']!=='mort-mobile'
     || labels?.['mort.guard.fixture']!==fixtureId) throw new Error('Fixture resource rejected');
 }
@@ -47,7 +52,7 @@ export function fixtureProcessEnv(){
 }
 function composeEnv(state) {
   const environment=fixtureProcessEnv();
-  return {...environment,FIXTURE_ID:state.fixtureId,FIXTURE_DIR:stateDir.replaceAll('\\','/'),FIXTURE_DB_PASSWORD:state.password,FIXTURE_JWT_SECRET:state.jwtSecret};
+  return {...environment,FIXTURE_ID:state.fixtureId,FIXTURE_DIR:stateDir.replaceAll('\\','/'),FIXTURE_DB_PASSWORD:state.password,FIXTURE_JWT_SECRET:state.jwtSecret,FIXTURE_ANON_KEY:signJwt(state.jwtSecret,'anon'),FIXTURE_SERVICE_KEY:signJwt(state.jwtSecret,'service_role'),FIXTURE_REALTIME_KEY:state.password.slice(0,16),FIXTURE_SECRET_BASE:state.password};
 }
 function container(state,role){return `mort-mobile-auth-guard-qa-${role}-${state.fixtureId}`;}
 function inspect(state,role) {
@@ -57,9 +62,17 @@ function inspect(state,role) {
   assertOwnedResource(name,details,state.fixtureId);
   const image=docker(['inspect','--format','{{.Image}}',name]);
   if (image!==IMAGES[role].split('@')[1]) throw new Error('Fixture image rejected');
-  const expectedPorts={db:{'5432/tcp':'55422'},auth:{'9999/tcp':'55421'},capture:{'8025/tcp':'55424','1025/tcp':'55425'}}[role];
+  const expectedPorts={db:{'5432/tcp':'55422'},auth:{'9999/tcp':'55421'},capture:{'8025/tcp':'55424','1025/tcp':'55425'},rest:{'3000/tcp':'55431'},storage:{'5000/tcp':'55432'},realtime:{'4000/tcp':'55433'},'drift-db':{'5432/tcp':'55442'},'drift-auth':{'9999/tcp':'55441'}}[role];
   const bindings=JSON.parse(docker(['inspect','--format','{{json .HostConfig.PortBindings}}',name]));
   if(Object.keys(bindings).length!==Object.keys(expectedPorts).length||Object.entries(expectedPorts).some(([port,published])=>bindings[port]?.length!==1||bindings[port][0].HostIp!=='127.0.0.1'||bindings[port][0].HostPort!==published))throw new Error('Fixture published ports rejected');
+  const network=JSON.parse(docker(['inspect','--format','{{json .NetworkSettings.Networks}}',name]));
+  if(Object.keys(network).length!==1||!network[container(state,'network')])throw new Error('Fixture network rejected');
+  if(role==='storage'||role==='drift-db'){
+    const volume=container(state,role==='storage'?'storage':'drift-data');
+    assertOwnedResource(volume,JSON.parse(docker(['volume','inspect','--format','{{json .Labels}}',volume])),state.fixtureId);
+    const mounts=JSON.parse(docker(['inspect','--format','{{json .Mounts}}',name]));
+    if(mounts.length!==1||mounts[0].Name!==volume||mounts[0].Destination!==(role==='storage'?'/var/lib/storage':'/var/lib/postgresql/data'))throw new Error('Fixture transport mount rejected');
+  }
   return name;
 }
 function preflightExisting(state){
@@ -100,6 +113,61 @@ function signJwt(secret,role) {
   const head=Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url');
   const body=Buffer.from(JSON.stringify({role,iss:'fixture',aud:'authenticated',iat:Math.floor(Date.now()/1000),exp:Math.floor(Date.now()/1000)+3600})).toString('base64url');
   return `${head}.${body}.${createHmac('sha256',secret).update(`${head}.${body}`).digest('base64url')}`;
+}
+// Temporary, allowlisted profiles for this UUID-owned disposable provider only.
+// Overrides are private ignored files; no normal/hosted configuration changes.
+export async function configureFixtureAuth(handle,{sendEmail=false,logLevel='fatal'}={}){
+  assertMortAuthFixture(handle,handle.observed);inspect(handle,'auth');
+  if(!['fatal','info'].includes(logLevel)||typeof sendEmail!=='boolean')throw new Error('Fixture profile rejected');
+  const state=await loadState();
+  const path=resolve(stateDir,'auth-profile.yaml');
+  await writeFile(path,`services:\n  auth:\n    environment:\n      GOTRUE_LOG_LEVEL: ${logLevel}\n      GOTRUE_HOOK_SEND_EMAIL_ENABLED: '${sendEmail}'\n      GOTRUE_HOOK_SEND_EMAIL_URI: pg-functions://postgres/mort_fixture/send_email\n`,{mode:0o600});
+  const result=spawnSync('docker',['compose','--env-file',resolve(stateDir,'empty.env'),'-p','mort-mobile','-f',resolve(root,'scripts/auth-email-guard/compose.yaml'),'-f',path,'up','-d','--no-deps','auth'],{env:composeEnv(state),encoding:'utf8',timeout:60_000,windowsHide:true});
+  if(result.status!==0)throw new Error('Fixture profile startup failed');inspect(state,'auth');
+  for(let i=0;i<100;i++){
+    try{if((await fetch(`${handle.authUrl}/health`,{signal:AbortSignal.timeout(1000)})).ok)return;}catch{}
+    await new Promise(r=>setTimeout(r,100));
+  }
+  throw new Error('Fixture profile health failed');
+}
+export async function startFixtureTransports(handle){
+  assertMortAuthFixture(handle,handle.observed);
+  const state=await loadState();
+  for(const role of ['rest','storage','realtime']){
+    const existing=spawnSync('docker',['inspect',container(state,role)],{encoding:'utf8',windowsHide:true});
+    if(existing.status===0)inspect(state,role);
+    else await portFree({rest:55431,storage:55432,realtime:55433}[role]);
+  }
+  await fixtureSql(handle,`ALTER ROLE authenticator PASSWORD '${state.password}';ALTER ROLE supabase_storage_admin PASSWORD '${state.password}';CREATE SCHEMA IF NOT EXISTS _realtime;ALTER SCHEMA _realtime OWNER TO supabase_admin;CREATE SCHEMA IF NOT EXISTS mort_transport;`);
+  const started=spawnSync('docker',['compose','--env-file',resolve(stateDir,'empty.env'),'-p','mort-mobile','-f',resolve(root,'scripts/auth-email-guard/compose.yaml'),'up','-d','--no-deps','rest','storage','realtime'],{env:composeEnv(state),encoding:'utf8',timeout:60_000,windowsHide:true});
+  if(started.status!==0)throw new Error('Fixture transport startup failed');
+  for(const role of ['rest','storage','realtime'])inspect(state,role);
+  for(const url of ['http://127.0.0.1:55431/','http://127.0.0.1:55432/status','http://127.0.0.1:55433/healthcheck']){
+    for(let i=0;i<100;i++){
+      try{if((await fetch(url,{signal:AbortSignal.timeout(1000)})).ok)break;}catch{}
+      if(i===99)throw new Error('Fixture transport health timeout');await new Promise(r=>setTimeout(r,100));
+    }
+  }
+  return {restUrl:'http://127.0.0.1:55431',storageUrl:'http://127.0.0.1:55432',realtimeUrl:'ws://127.0.0.1:55433',resourceIds:['rest','storage','realtime'].map(role=>container(state,role))};
+}
+export async function startDriftFixture(handle){
+  assertMortAuthFixture(handle,handle.observed);const state=await loadState();
+  for(const role of ['drift-db','drift-auth']){
+    const found=spawnSync('docker',['inspect',container(state,role)],{encoding:'utf8',windowsHide:true});
+    if(found.status===0)inspect(state,role);else await portFree(role==='drift-db'?55442:55441);
+  }
+  const args=['compose','--env-file',resolve(stateDir,'empty.env'),'-p','mort-mobile','-f',resolve(root,'scripts/auth-email-guard/compose.yaml')];
+  const up=roles=>{const result=spawnSync('docker',[...args,'up','-d','--no-deps',...roles],{env:composeEnv(state),encoding:'utf8',timeout:60_000,windowsHide:true});if(result.status!==0)throw new Error('Fixture drift startup failed');};
+  up(['drift-db']);inspect(state,'drift-db');
+  for(let i=0;i<100;i++){try{docker(['exec',container(state,'drift-db'),'pg_isready','-h','drift-db','-U','postgres']);break;}catch{}if(i===99)throw new Error('Fixture drift DB health failed');await new Promise(r=>setTimeout(r,100));}
+  docker(['exec','-i',container(state,'drift-db'),'sh','-c','PGPASSWORD="$POSTGRES_PASSWORD" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1'],`ALTER ROLE supabase_auth_admin PASSWORD '${state.password}';CREATE SCHEMA IF NOT EXISTS mort_fixture;CREATE TABLE IF NOT EXISTS mort_fixture.identity(id uuid primary key);INSERT INTO mort_fixture.identity VALUES('${state.fixtureId}') ON CONFLICT DO NOTHING;`);
+  const identity=docker(['exec',container(state,'drift-db'),'sh','-c','PGPASSWORD="$POSTGRES_PASSWORD" psql -U supabase_admin -d postgres -At -c "SELECT id FROM mort_fixture.identity"']);
+  if(identity!==state.fixtureId)throw new Error('Fixture drift database identity rejected');
+  up(['drift-auth']);inspect(state,'drift-auth');
+  for(let i=0;i<100;i++){try{if((await fetch('http://127.0.0.1:55441/health',{signal:AbortSignal.timeout(1000)})).ok)return;}catch{}if(i===99)throw new Error('Fixture drift provider health failed');await new Promise(r=>setTimeout(r,100));}
+}
+export async function stopDriftFixture(handle){
+  assertMortAuthFixture(handle,handle.observed);for(const role of ['drift-auth','drift-db']){inspect(handle,role);docker(['stop','--time','2',container(handle,role)]);}
 }
 export async function startFixture(){
   let state;

@@ -71,7 +71,99 @@ services:
     ports: ['127.0.0.1:55421:9999']
     volumes: ['${FIXTURE_DIR:?}:/fixture:ro']
     networks: [fixture]
+  rest:
+    image: public.ecr.aws/supabase/postgrest@sha256:d2009b5c9deffc210c8a5592698472fede14fd9f6ca89823c8474ca54d58c012
+    container_name: mort-mobile-auth-guard-qa-rest-${FIXTURE_ID:?}
+    labels: {mort.guard.fixture: '${FIXTURE_ID}'}
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${FIXTURE_DB_PASSWORD:?}@db:5432/postgres
+      PGRST_DB_SCHEMAS: mort_transport,storage
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${FIXTURE_JWT_SECRET:?}
+    ports: ['127.0.0.1:55431:3000']
+    networks: [fixture]
+  drift-db:
+    image: public.ecr.aws/supabase/postgres@sha256:6501843661b1f8ff97e85c02de33edc0ee2e2693888ad596ee86222f02dc8ecc
+    container_name: mort-mobile-auth-guard-qa-drift-db-${FIXTURE_ID:?}
+    labels: {mort.guard.fixture: '${FIXTURE_ID}'}
+    environment:
+      POSTGRES_PASSWORD: ${FIXTURE_DB_PASSWORD:?}
+      POSTGRES_DB: postgres
+    ports: ['127.0.0.1:55442:5432']
+    volumes: ['drift-data:/var/lib/postgresql/data']
+    networks: [fixture]
+  drift-auth:
+    image: public.ecr.aws/supabase/gotrue@sha256:362659ca70eaa75ba05bbaf963caa84c1c5afe5e8fbf0777e17b830dd5f0f60a
+    container_name: mort-mobile-auth-guard-qa-drift-auth-${FIXTURE_ID:?}
+    labels: {mort.guard.fixture: '${FIXTURE_ID}'}
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: '9999'
+      GOTRUE_LOG_LEVEL: fatal
+      API_EXTERNAL_URL: http://127.0.0.1:55441
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${FIXTURE_DB_PASSWORD:?}@drift-db:5432/postgres
+      GOTRUE_SITE_URL: http://127.0.0.1:4181
+      GOTRUE_JWT_SECRET: ${FIXTURE_JWT_SECRET:?}
+      GOTRUE_JWT_EXP: '3600'
+      GOTRUE_MAILER_AUTOCONFIRM: 'false'
+      GOTRUE_EXTERNAL_PHONE_ENABLED: 'false'
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: 'false'
+    ports: ['127.0.0.1:55441:9999']
+    networks: [fixture]
+  storage:
+    image: public.ecr.aws/supabase/storage-api@sha256:4ae1890ba0c6fd24d975c34f3aa201a01d410171c8ba6eddeb675ef92341a62d
+    container_name: mort-mobile-auth-guard-qa-storage-${FIXTURE_ID:?}
+    labels: {mort.guard.fixture: '${FIXTURE_ID}'}
+    environment:
+      ANON_KEY: ${FIXTURE_ANON_KEY:?}
+      SERVICE_KEY: ${FIXTURE_SERVICE_KEY:?}
+      POSTGREST_URL: http://rest:3000
+      AUTH_JWT_SECRET: ${FIXTURE_JWT_SECRET:?}
+      DATABASE_URL: postgres://supabase_storage_admin:${FIXTURE_DB_PASSWORD:?}@db:5432/postgres
+      STORAGE_BACKEND: file
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      TENANT_ID: mort-fixture
+      REGION: fixture
+      GLOBAL_S3_BUCKET: fixture
+      ENABLE_IMAGE_TRANSFORMATION: 'false'
+      LOG_LEVEL: fatal
+    ports: ['127.0.0.1:55432:5000']
+    volumes: ['storage-data:/var/lib/storage']
+    networks: [fixture]
+  realtime:
+    image: public.ecr.aws/supabase/realtime@sha256:3211f8ebd59edcd0aa772186f1c8249c82c6b1ae5565f40dedb7aa93e951fe37
+    container_name: mort-mobile-auth-guard-qa-realtime-${FIXTURE_ID:?}
+    labels: {mort.guard.fixture: '${FIXTURE_ID}'}
+    environment:
+      PORT: '4000'
+      DB_HOST: db
+      DB_PORT: '5432'
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${FIXTURE_DB_PASSWORD:?}
+      DB_NAME: postgres
+      DB_AFTER_CONNECT_QUERY: SET search_path TO _realtime
+      DB_ENC_KEY: ${FIXTURE_REALTIME_KEY:?}
+      API_JWT_SECRET: ${FIXTURE_JWT_SECRET:?}
+      SECRET_KEY_BASE: ${FIXTURE_SECRET_BASE:?}
+      METRICS_JWT_SECRET: ${FIXTURE_JWT_SECRET:?}
+      ERL_AFLAGS: -proto_dist inet_tcp
+      DNS_NODES: "''"
+      RLIMIT_NOFILE: '10000'
+      APP_NAME: realtime
+      SEED_SELF_HOST: 'true'
+      RUN_JANITOR: 'true'
+      DISABLE_HEALTHCHECK_LOGGING: 'true'
+      LOG_LEVEL: error
+    ports: ['127.0.0.1:55433:4000']
+    networks: [fixture]
 volumes:
+  drift-data:
+    name: mort-mobile-auth-guard-qa-drift-data-${FIXTURE_ID:?}
+    labels: {mort.guard.fixture: '${FIXTURE_ID}', com.docker.compose.project: mort-mobile}
+  storage-data:
+    name: mort-mobile-auth-guard-qa-storage-${FIXTURE_ID:?}
+    labels: {mort.guard.fixture: '${FIXTURE_ID}', com.docker.compose.project: mort-mobile}
   data:
     name: mort-mobile-auth-guard-qa-data-${FIXTURE_ID:?}
     labels: {mort.guard.fixture: '${FIXTURE_ID}', com.docker.compose.project: mort-mobile}

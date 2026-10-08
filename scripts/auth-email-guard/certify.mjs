@@ -54,13 +54,15 @@ export async function run(){
   let guardSourceClean=!startSourceStatus;
   if(!/^[a-f0-9]{40}$/.test(head))throw new Error('Candidate identity unavailable');
   const fixture=await startFixture(),observations=[],started=performance.now();
-  const suiteNames=['state','issuance','grant','bypass','hook-boundary','delivery','smtp-fault','cutover','retention','load','security','log-audit'];
+  const suiteNames=['provider-ingress','jwt-transports','provider-drift','logging','state','issuance','grant','bypass','hook-boundary','delivery','smtp-fault','cutover','retention','load','security','log-audit'];
   const timings={},suiteStates={};
   for(const name of suiteNames){
     const since=new Date().toISOString(),began=performance.now(),before=await stateDigest(fixture);
     const suite=await import(`./${name}.test.mjs`);
     observations.push(...await captureAssertions(name,()=>suite.run(fixture)));
-    auditFixtureLogs(fixture,since);timings[name]=Math.round(performance.now()-began);
+    // Logging intentionally characterizes unsafe raw default output. Its named
+    // assertions are observations, never a raw-telemetry privacy certification.
+    if(name!=='logging')auditFixtureLogs(fixture,since);timings[name]=Math.round(performance.now()-began);
     suiteStates[name]={before,after:await stateDigest(fixture)};
     console.log('PASS certified isolated suite:',name);
   }
@@ -102,7 +104,7 @@ export async function run(){
   // Deduplicate exact assertion provenance in output; the validated case records
   // reference it by key. Never persist raw provider/SQL/request values.
   const compactCase=row=>({id:row.id,status:row.status,...(row.reason?{reason:row.reason}:{}),assertionKeys:row.assertions.map(proof=>proof.key)});
-  const output={...report,context,assertions:observations,cases:cases.map(compactCase),operationalCases:operationalCases.map(compactCase)};
+  const output={...report,context,assertions:observations,cases:cases.map(compactCase),operationalCases:operationalCases.map(compactCase),localCharacterizations:{oldJwt:{requirements:['MD2-070','MD2-145'],status:'RED_FINDING',observations:fixture.transportEvidence},logging:{requirement:'MD-119',status:'RED_FINDING',hostedTelemetryCertified:false,observations:fixture.loggingEvidence}},rawDefaultTelemetryCertified:false};
   console.log('MORT_GUARD_EVIDENCE_JSON '+JSON.stringify(output));return report;
 }
 if(process.argv[1]&&resolve(process.argv[1])===resolve(import.meta.filename)){
