@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow">
+  <title>{{title}} · MORT</title><link rel="stylesheet" href="/auth/challenge/style.css">
+  <script type="module" src="/auth/challenge/page.mjs"></script>
+</head>
+<body><main>
+  <a class="brand" href="https://mortapp.org/">MORT</a>
+  <section class="card" aria-labelledby="title">
+    <p class="eyebrow">Account security</p><h1 id="title">{{title}}</h1>
+    <p id="status" class="status" role="status" aria-live="polite" aria-atomic="true">Press Continue to check your link. Opening this page does not confirm your email or change your password.</p>
+    <p id="target" hidden></p>
+    <p id="deadlines" class="hint" hidden></p>
+    <form id="continue-form" novalidate>
+      <label for="code">Email code (optional if you opened the link)</label>
+      <input id="code" name="code" type="text" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" autocomplete="one-time-code" spellcheck="false">
+      <button id="continue" type="submit">Continue</button>
+    </form>
+    <form id="password-form" hidden novalidate>
+      <label for="password">New password</label>
+      <input id="password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="128" aria-describedby="policy">
+      <p id="policy" class="hint">Use 12–128 characters with uppercase, lowercase, a number and a symbol.</p>
+      <label for="confirmation">Confirm new password</label>
+      <input id="confirmation" name="confirmation" type="password" autocomplete="new-password" minlength="12" maxlength="128">
+      <button id="update" type="submit">Update password</button>
+    </form>
+    <noscript><p>JavaScript is needed to securely check this email link. No email or password has been verified. Open your latest MORT email in a browser with JavaScript enabled.</p></noscript>
+    <p class="hint">MORT never emails your password. Return to the app to sign in after a successful update.</p>
+    <a href="https://mortapp.org/support/">Get support</a>
+  </section>
+</main></body></html>

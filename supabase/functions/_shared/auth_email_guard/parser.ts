@@ -177,9 +177,22 @@ export type PasswordInput = {
   verifier: string;
   password: string;
 };
-export function parsePassword(raw: Uint8Array): PasswordInput {
+// Policy must be reported only after possession is proved by the private store.
+// Keep the structural bound independent of the stricter credential policy.
+export function parsePasswordEnvelope(raw: Uint8Array): PasswordInput {
   const input = parseJson(raw);
   allow(input, ["capability", "verifier", "password"]);
+  if (typeof input.password !== "string" || input.password.length > 1024) {
+    return bad();
+  }
+  return {
+    capability: canonicalSecret(input.capability),
+    verifier: canonicalSecret(input.verifier),
+    password: input.password,
+  };
+}
+export function parsePassword(raw: Uint8Array): PasswordInput {
+  const input = parsePasswordEnvelope(raw);
   if (!validPassword(input.password)) return bad();
   return {
     capability: canonicalSecret(input.capability),

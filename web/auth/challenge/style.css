@@ -1,0 +1,21 @@
+:root {color-scheme:dark;font-family:system-ui,sans-serif;background:#090909;color:#f0f0f0;}
+* {box-sizing:border-box;}
+body {margin:0;}
+main {max-width:640px;margin:0 auto;padding:32px 24px 48px;}
+.brand {font-size:36px;font-weight:300;letter-spacing:8px;text-decoration:none;}
+.card {margin-top:36px;background:#171717;border:1px solid #3c3c3c;border-radius:24px;padding:32px;}
+.eyebrow {color:#bdbdbd;text-transform:uppercase;letter-spacing:2px;font-size:14px;}
+h1 {font-size:30px;line-height:1.3;}
+p {line-height:1.6;}
+label {display:block;margin:24px 0 10px;}
+input {width:100%;min-height:56px;padding:12px 16px;border:1px solid #626262;border-radius:12px;background:#0b0b0b;color:#fff;font:inherit;}
+button {width:100%;min-height:56px;margin-top:24px;padding:12px;border:1px solid #ddd;border-radius:12px;background:#ccc;color:#080808;font:inherit;font-weight:700;cursor:pointer;}
+button:disabled {opacity:.65;cursor:wait;}
+a {color:#eee;text-underline-offset:5px;}
+:focus-visible {outline:3px solid #fff;outline-offset:4px;}
+.hint {color:#bbb;font-size:14px;}
+.status {border:1px solid #555;border-radius:12px;padding:16px;}
+.status.success {color:#94f5b8;background:#152c20;border-color:#428c5b;}
+.status.error {color:#ffb2b2;background:#351a1a;border-color:#b26161;}
+[hidden] {display:none !important;}
+@media (max-width:480px) {main {padding:24px 16px;}.card {padding:24px 20px;}h1 {font-size:26px;}}

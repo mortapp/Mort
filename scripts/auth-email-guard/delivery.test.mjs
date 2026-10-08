@@ -8,14 +8,14 @@ export async function run(handle){
   assertMortAuthFixture(handle,handle.observed);
   try{
     const user=await pending(handle),certificate=resolve(import.meta.dirname,'../../.superpowers/sdd/2026-10-08-managed-email-challenge-guard/fixture/smtp.pem');
-    const child=spawn('deno',['run','--frozen','--config','supabase/functions/auth-email-guard.deno.json','--allow-env',`--allow-read=${certificate}`,'--allow-net=127.0.0.1:55422,127.0.0.1:55424,127.0.0.1:55425','supabase/functions/_shared/auth_email_guard/delivery_probe.ts'],{env:{...fixtureProcessEnv(),MORT_FIXTURE_VERIFIED:'1'},windowsHide:true,stdio:['pipe','pipe','pipe']});
+    const child=spawn('deno',['run','--frozen','--config','supabase/functions/auth-email-guard.deno.json','--allow-env',`--allow-read=${certificate}`,'--allow-net=127.0.0.1:55421,127.0.0.1:55422,127.0.0.1:55424,127.0.0.1:55425,127.0.0.1:55426','supabase/functions/_shared/auth_email_guard/delivery_probe.ts'],{env:{...fixtureProcessEnv(),MORT_FIXTURE_VERIFIED:'1'},windowsHide:true,stdio:['pipe','pipe','pipe']});
     let output='',errors='';child.stdout.on('data',bytes=>{output+=bytes;if(output.length>8192)child.kill();});child.stderr.on('data',bytes=>{errors+=bytes;if(errors.length>8192)child.kill();});
     const timer=setTimeout(()=>child.kill(),45_000);
     const exited=new Promise((resolve,reject)=>{child.once('error',()=>reject(new Error('Fixture delivery runtime could not start')));child.once('exit',code=>resolve(code));});
-    child.stdin.end(JSON.stringify({mode:'local_fixture',fixtureId:handle.fixtureId,dbUrl:handle.dbUrl,certificate,accountId:user.id,recipient:user.email}));
+    child.stdin.end(JSON.stringify({mode:'local_fixture',fixtureId:handle.fixtureId,dbUrl:handle.dbUrl,authUrl:handle.authUrl,serviceKey:handle.serviceKey,anonKey:handle.anonKey,certificate,accountId:user.id,recipient:user.email}));
     let status;try{status=await exited;}finally{clearTimeout(timer);}
     if(errors.trim()==='Private context positive')console.log('FAIL owned delivery stage: missing private context adapter');
-    assert.ok(status===0&&output.trim()==='PASS isolated signed-hook/encrypted-queue/SMTP-delivery integration','Actual isolated encrypted delivery must pass without exposing runtime secrets');console.log(output.trim());
+    assert.ok(status===0&&output.trim()==='PASS isolated signed-hook/encrypted-queue/SMTP-delivery integration\nPASS actual HTTP Continue/verifier-bound password/Admin/sign-in integration','Actual isolated encrypted delivery and real gateway must pass without exposing runtime secrets');console.log(output.trim());
     await stalledSocket(handle,certificate);
   }finally{await cleanup(handle);}
 }

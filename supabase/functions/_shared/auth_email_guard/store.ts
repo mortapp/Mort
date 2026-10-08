@@ -24,7 +24,7 @@ export async function createFixtureStore(config: StoreConfig) {
   const pool = new pg.Pool({
     connectionString: config.dbUrl,
     max: 8,
-    connectionTimeoutMillis: 1000,
+    connectionTimeoutMillis: 100,
     query_timeout: 1000,
   });
   try {
@@ -38,7 +38,12 @@ export async function createFixtureStore(config: StoreConfig) {
   }
   async function execute(name: string, args: unknown[], signal?: AbortSignal) {
     signal?.throwIfAborted();
-    const client = await pool.connect();
+    let client: pg.PoolClient;
+    try {
+      client = await pool.connect();
+    } catch {
+      throw new GuardBusy();
+    }
     let discarded = false, released = false, inTransaction = false;
     const release = (destroy = false) => {
       if (!released) {
@@ -123,6 +128,15 @@ export async function createFixtureStore(config: StoreConfig) {
         [JSON.stringify(input), JSON.stringify(material)],
         signal,
       ),
+    reserve: (
+      input: Record<string, unknown>,
+      signal?: AbortSignal,
+    ): Promise<Record<string, unknown>> =>
+      execute("reserve_password", [JSON.stringify(input)], signal),
+    reconcile: (id: string): Promise<string> => {
+      canonicalId(id);
+      return execute("reconcile_operation", [id]);
+    },
     close: () => pool.end(),
   };
 }

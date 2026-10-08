@@ -5,6 +5,6 @@
     "nodemailer": "npm:nodemailer@10.0.15",
     "pg": "npm:pg@8.22.0"
   },
-  "compilerOptions": {"strict": true},
-  "fmt": {"lineWidth": 100}
+  "compilerOptions": { "strict": true },
+  "fmt": { "lineWidth": 100 }
 }

@@ -126,6 +126,7 @@ export async function startFixture(){
   }
   const sql=`ALTER ROLE supabase_auth_admin PASSWORD '${state.password}';\nCREATE SCHEMA IF NOT EXISTS mort_fixture;\nREVOKE ALL ON SCHEMA mort_fixture FROM PUBLIC;\nCREATE TABLE IF NOT EXISTS mort_fixture.identity(id uuid PRIMARY KEY);\nINSERT INTO mort_fixture.identity VALUES ('${state.fixtureId}') ON CONFLICT DO NOTHING;\n`;
   docker(['exec','-i',dbName,'sh','-c','PGPASSWORD="$POSTGRES_PASSWORD" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1'],sql);
+  docker(['exec','-i',dbName,'sh','-c','PGPASSWORD="$POSTGRES_PASSWORD" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1'],await readFile(resolve(root,'scripts/auth-email-guard/token-observer.sql'),'utf8'));
   const authStarted=spawnSync('docker',[...args,'up','-d','auth'],{env:composeEnv(state),encoding:'utf8',timeout:60_000,windowsHide:true});
   if(authStarted.status!==0)throw new Error('Fixture Auth startup failed');inspect(state,'auth');
   for(let i=0;i<100;i++){
