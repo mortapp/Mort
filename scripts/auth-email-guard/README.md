@@ -50,9 +50,16 @@ The consume primitive checks committed provider accounts, active generations,
 delivery eligibility and authoritative time after locks. Wrong code/link/current/
 grace guesses debit the addressed family only; the fifth failure exhausts it.
 Success inserts one verifier-bound, independently timed 300-second capability
-and consumes the family in one transaction. Issuance, SMTP promotion, quotas,
-bounded HTTP admission and password-operation dispatch are separate unfinished
-steps. Isolated consume tests do not certify the entire lifecycle.
+and consumes the family in one transaction. The separate `issuance` suite tests
+rolling quota/queue/lease/cooldown/promotion transitions. `delivery` tests signed
+hook admission through encrypted queue to certificate-validated SMTP capture.
+Its deadline variation pauses only the owned capture, binds the reserved
+loopback SMTP port to a progress-drip peer, observes socket teardown before
+process exit, and restores the original container in `finally`.
+Current-address redemption and envelope generation binding have regressions.
+Public HTTP admission, password grants, final provider/token hooks, coherent
+cutover/restore and full source-matrix coverage are still unfinished. No hosted
+hook or worker endpoint is activated; these are partial implementation gates.
 
 No global Docker teardown, fixture credential output, real email/purchase,
 production rollout, or schema reset is part of these commands. Any assertion,

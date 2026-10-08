@@ -11,7 +11,7 @@ export async function run(handle){
   async function seeded(){
     const user=await pending(handle);await call(handle,`/admin/users/${user.id}`,{email_confirm:true},true,'PUT');
     const account=user.id,family=randomUUID(),item=randomUUID(),code=hash(),link=hash();accounts.push(account);
-    const recipient=hash();
+    const recipient=createHash('sha256').update(user.email).digest('hex');
     await db.query('INSERT INTO mort_auth_guard.account_generations(account_id,recipient_hash) VALUES($1,$2)',[account,recipient]);
     await db.query(`WITH timing AS(SELECT clock_timestamp() AS now) INSERT INTO mort_auth_guard.families(id,account_id,purpose,recipient_hash,source_hash,address_generation,credential_generation,activation_generation,restore_generation,issued_at,family_expires_at)
       SELECT $1,$2,'recovery',$3,$4,1,1,1,1,now,now+interval '600 seconds' FROM timing`,[family,account,recipient,hash()]);
@@ -48,6 +48,9 @@ export async function run(handle){
     const d=await seeded();await item(d);
     await db.query("WITH timing AS(SELECT clock_timestamp() AS now) UPDATE mort_auth_guard.families SET issued_at=now-interval '601 seconds',family_expires_at=now-interval '1 second' FROM timing WHERE id=$1",[d.family]);
     assert.ok(!(await consume(d)).ok&&await failures(d)===0,'Expired family rejects without charging a guess');
+    const changed=await seeded();await item(changed);const email=`qa-${randomUUID()}@mort-fixture.invalid`;handle.trackedEmails.add(email);
+    assert.ok((await call(handle,`/admin/users/${changed.account}`,{email,email_confirm:true},true,'PUT')).status===200,'Synthetic address change uses supported provider API');
+    assert.ok(!(await consume(changed)).ok&&await failures(changed)===0,'Old challenge cannot redeem after the actual account address changes');
     const e=await seeded();await item(e);
     let rollback=false;try{await consume(e,e.link,'link',cap);}catch(error){rollback=error.code==='23505';}
     assert.ok(rollback,'Capability collision forces transaction rollback');

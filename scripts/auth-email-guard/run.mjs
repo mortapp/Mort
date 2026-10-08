@@ -2,7 +2,7 @@ import {startFixture,assertMortAuthFixture,fixtureProcessEnv} from './fixture.mj
 import {spawnSync} from 'node:child_process';
 import {resolve} from 'node:path';
 const [flag,suite]=process.argv.slice(2);
-const allowed=new Set(['health','dependency','provider','state','delivery','grant','security','cutover','load','tier1','tier2','regression']);
+const allowed=new Set(['health','dependency','provider','state','issuance','delivery','grant','security','cutover','load','tier1','tier2','regression']);
 if(flag!=='--suite'||!allowed.has(suite))throw new Error('Use --suite with an explicit fixture suite');
 try {
   const handle=await startFixture();assertMortAuthFixture(handle,handle.observed);
