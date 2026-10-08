@@ -93,9 +93,15 @@ assumed magiclink label. Real GET/hash/code signup/recovery and provider-created
 PKCE exchanges have named negative tests and legitimate controls. Hosted
 Google/Apple remain integration gates. The isolated transport suite measures
 actual old JWT owner-record reads, private-object downloads and new private
-Realtime joins until the unchanged one-hour expiry. Synthetic API role keys
+Realtime joins through the unchanged one-hour expiry and actual first rejection.
+The signed-expiry-plus-one-second policy remains RED if a transport accepts;
+PostgREST v14.14 has a built-in 30-second skew. Per-transport sampling records the
+observed interval, without adding policy grace. A bounded observation timeout
+is a failed measurement. Synthetic API role keys
 renew with the same lifetime; provider-issued owner tokens are never replaced.
 Old-JWT access after lifecycle changes is a RED finding, not a revocation PASS.
+Actual injected upload failure also proves cleanup of its object, record and
+synthetic account. Attempted paths are tracked before upload dispatch.
 
 Standalone guarded pages are generated only with explicit local-fixture
 configuration. Default-disabled generation writes nothing and preserves the
@@ -148,8 +154,9 @@ reserved Admin writes and old refresh sessions. Rollback has lower assurance:
 it restores the previous provider password flow, retires guard authority and
 records a fresh generation. It is not proof of a complete hosted hook rollback.
 Database restore also restores the snapshot's password state; this rehearsal
-does not claim to preserve post-snapshot passwords or revoke already-issued JWTs
-on transports absent from the fixture. Dumps stay in the private ignored ACL
+does not claim to preserve post-snapshot passwords or immediately revoke issued
+JWTs on the separately characterized transports. Storage file-volume recovery
+and persistent Realtime connection eviction are not certified. Dumps stay in the private ignored ACL
 directory and each test deletes its own dump and integrity sidecar in finally.
 
 ## Automatic retention

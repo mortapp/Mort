@@ -54,7 +54,7 @@ export async function run(){
   let guardSourceClean=!startSourceStatus;
   if(!/^[a-f0-9]{40}$/.test(head))throw new Error('Candidate identity unavailable');
   const fixture=await startFixture(),observations=[],started=performance.now();
-  const suiteNames=['provider-ingress','jwt-transports','provider-drift','logging','state','issuance','grant','bypass','hook-boundary','delivery','smtp-fault','cutover','retention','load','security','log-audit'];
+  const suiteNames=['provider-ingress','transport-cleanup','jwt-transports','provider-drift','logging','state','issuance','grant','bypass','hook-boundary','delivery','smtp-fault','cutover','retention','load','security','log-audit'];
   const timings={},suiteStates={};
   for(const name of suiteNames){
     const since=new Date().toISOString(),began=performance.now(),before=await stateDigest(fixture);
@@ -71,7 +71,7 @@ export async function run(){
   for(const match of unitOutput.matchAll(/^(.+?) \.\.\. ok(?: |$)/gm)){
     const name=match[1];observations.push({key:`unit:${name}`,suite:'unit',...await sourceOwner(name,denoFiles,'deno'),assertion:'named_test',executions:1,status:'PASS'});
   }
-  const nodeFiles=['scripts/auth-email-guard/fixture.test.mjs','scripts/auth-email-guard/control.test.mjs','scripts/auth-email-guard/coverage.test.mjs','scripts/auth-email-guard/evidence.test.mjs'];
+  const nodeFiles=['scripts/auth-email-guard/fixture.test.mjs','scripts/auth-email-guard/control.test.mjs','scripts/auth-email-guard/coverage.test.mjs','scripts/auth-email-guard/evidence.test.mjs','scripts/auth-email-guard/transport-observation.test.mjs'];
   const browserFiles=['web/auth/challenge/controller.test.mjs','web/auth/challenge/transport.test.mjs','web/auth/challenge/build.test.mjs','web/auth/challenge/browser.test.mjs'];
   const nodeOutput=child('node',['--test','--test-reporter=tap',...nodeFiles,...browserFiles],{MORT_GUARD_BROWSER_MODULES:process.env.MORT_GUARD_BROWSER_MODULES??'C:\\Users\\micha\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\node_modules'});
   for(const match of nodeOutput.matchAll(/^ok \d+ - (.+)$/gm)){
