@@ -116,6 +116,7 @@ if ($localQa) {
   $env:MORT_QA_TARGET = 'local'
   $scripts = @($scripts | Where-Object { $_ -notin $hostedOnlyScripts })
   $scripts += 'qa-safety-center-runtime.mjs'
+  $scripts += 'qa-object-authorization.mjs'
   $scripts += 'qa-safety-travel-edge.mjs'
   $scripts += 'qa-revenuecat-entitlement-expiry.mjs'
   $scripts += 'qa-mort-verify-hash-resolution.mjs'
