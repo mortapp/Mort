@@ -16,6 +16,9 @@ class MortValidators {
     if (password.length < minimumLength) {
       return 'Use at least $minimumLength characters.';
     }
+    if (requireComplexity && password.length > 128) {
+      return 'Use no more than 128 characters.';
+    }
     if (requireComplexity &&
         (!RegExp('[a-z]').hasMatch(password) ||
             !RegExp('[A-Z]').hasMatch(password) ||

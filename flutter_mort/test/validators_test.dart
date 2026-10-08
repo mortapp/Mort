@@ -1,8 +1,32 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter_mort/core/utils/validators.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('MortValidators', () {
+    test('approved password boundaries match the browser and guard policy', () {
+      final cases =
+          jsonDecode(
+                File('test/fixtures/password-policy.json').readAsStringSync(),
+              )
+              as List;
+      for (final entry in cases) {
+        expect(
+          MortValidators.password(entry['value'] as String) == null,
+          entry['valid'],
+          reason: entry['name'] as String,
+        );
+      }
+      expect(
+        MortValidators.password(
+          'x' * 129,
+          minimumLength: 6,
+          requireComplexity: false,
+        ),
+        isNull,
+      );
+    });
     test('validates email shape without accepting incomplete addresses', () {
       expect(MortValidators.email('teen@example.com'), isNull);
       expect(MortValidators.email('teen@'), isNotNull);
