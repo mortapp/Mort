@@ -10,13 +10,23 @@ void main() {
       'if (AppConfig.browserStackQaMode)',
       mainEntryPoint,
     );
+    final edgeToEdge = main.indexOf(
+      'SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);',
+      mainEntryPoint,
+    );
     final supabaseInitialization = main.indexOf(
       'SupabaseService.initializeIfConfigured',
     );
 
     expect(mainEntryPoint, greaterThanOrEqualTo(0));
     expect(qaBranch, greaterThanOrEqualTo(0));
+    expect(edgeToEdge, greaterThanOrEqualTo(0));
     expect(supabaseInitialization, greaterThanOrEqualTo(0));
+    expect(
+      edgeToEdge,
+      lessThan(qaBranch),
+      reason: 'QA must exercise the same Android edge-to-edge window mode',
+    );
     expect(qaBranch, lessThan(supabaseInitialization));
     expect(
       main.indexOf('_runApp();', qaBranch),
@@ -31,5 +41,20 @@ void main() {
       main.substring(mainEntryPoint, qaBranch),
       isNot(contains('MortSentryCrashProvider')),
     );
+  });
+
+  test('QA bootstrap still validates its fail-closed release contract', () {
+    final main = File('lib/main.dart').readAsStringSync();
+    final bootstrap = main.substring(
+      main.indexOf('Future<Object?> _initializeSafely() async'),
+    );
+    final qaBranch = bootstrap.indexOf('if (AppConfig.browserStackQaMode)');
+    final releaseValidation = bootstrap.indexOf(
+      'AppConfig.assertValidReleaseConfiguration();',
+    );
+
+    expect(qaBranch, greaterThanOrEqualTo(0));
+    expect(releaseValidation, greaterThanOrEqualTo(0));
+    expect(releaseValidation, lessThan(qaBranch));
   });
 }
