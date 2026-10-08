@@ -35,6 +35,7 @@ export async function run(handle){
     await db.connect();connected=true;
     assert.ok((await db.query("SELECT to_regprocedure('mort_auth_guard.reserve_password(jsonb)') IS NOT NULL AS installed")).rows[0].installed,'Private reservation helper must exist');
     const recovery=await seed();
+    const preReset=await signIn(handle,recovery.user,recovery.user.password);assert.ok(preReset.status===200,'Recovery begins with a real verified session');
     assert.ok(!(await reserve(recovery,{verifierHash:digest(randomBytes(32))})).ok,'Incorrect verifier cannot reserve');
     const policy=await reserve(recovery,{passwordValid:false});assert.ok(policy.policy===true,'Correct possession reveals policy without consuming');
     assert.ok((await db.query("SELECT state='issued' FROM mort_auth_guard.capabilities WHERE digest=$1",[recovery.cap])).rows[0]['?column?'],'Policy denial keeps capability issued');
@@ -55,6 +56,7 @@ export async function run(handle){
     const legacy=await fetch(builtIn.data.action_link,{redirect:'manual',signal:AbortSignal.timeout(10000)});
     assert.ok(!/(?:access_token|refresh_token)=/.test(legacy.headers.get('location')??''),'Built-in email-link login must not mint a session');
     assert.ok((await signIn(handle,recovery.user,recovery.user.password)).status!==200,'Previous password no longer signs in');
+    assert.ok((await call(handle,'/token?grant_type=refresh_token',{refresh_token:preReset.data.refresh_token})).status!==200,'Final guarded reset revokes old refresh session');
     assert.ok((await db.query('SELECT mort_auth_guard.reconcile_operation($1::uuid) AS state',[op.operationId])).rows[0].state==='committed','Provider-transaction commit reconciles privately');
     assert.ok((await apply(recovery,op,recovery.user.password)).status!==200,'Committed grant cannot mutate a second time');
     stage='public-password-borrow';
@@ -82,6 +84,9 @@ export async function run(handle){
     assert.ok((await apply(confirmation,confirmOp,replacement)).status===200&&await confirmed(handle,confirmation.user.id),'One supported transaction confirms and replaces password');
     assert.ok((await signIn(handle,confirmation.user,confirmation.user.password)).status!==200&&(await signIn(handle,confirmation.user,replacement)).status===200,'Original signup password never becomes usable');
     assert.ok((await db.query("SELECT source='mort_challenge' AND retired_at IS NULL FROM mort_auth_guard.address_proofs WHERE account_id=$1",[confirmation.user.id])).rows[0]['?column?'],'Proof is written in provider commit');
+    const parallel=await seed('confirmation'),parallelOp=await reserve(parallel);assert.ok((await marker(parallel,parallelOp)).status===200,'Concurrent granted writes have a real reserved-operation positive control');
+    const writes=await Promise.all([apply(parallel,parallelOp,replacement),apply(parallel,parallelOp,replacement)]);
+    assert.ok(writes.filter(r=>r.status===200).length===1,'One grant permits exactly one of two actual concurrent Admin password writes');
     const expired=await seed();
     await db.query("UPDATE mort_auth_guard.capabilities SET issued_at='2020-01-01Z',expires_at='2020-01-01Z'::timestamptz+interval '300 seconds' WHERE digest=$1",[expired.cap]);assert.ok(!(await reserve(expired)).ok,'At/after expiry never reserves');
     const delayed=await seed(),delayedOp=await reserve(delayed);assert.ok((await marker(delayed,delayedOp)).status===200,'Delayed fixture marker prepares');

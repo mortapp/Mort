@@ -6,11 +6,14 @@ import pg from 'pg';
 import {startOidcFixture} from './oidc-fixture.mjs';
 
 async function call(handle,path,body,admin=false,method='POST') {
+  const audit=handle.privateAudit??=new Set();
+  for(const key of ['password','email','id_token','refresh_token','token','token_hash','auth_code','code_verifier'])if(typeof body?.[key]==='string'&&body[key])audit.add(body[key]);
   const response=await fetch(`${handle.authUrl}${path}`,{
     method,headers:{'content-type':'application/json',authorization:`Bearer ${admin?handle.serviceKey:handle.anonKey}`},
     ...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(10_000),redirect:'manual',
   });
   let data={};try{data=await response.json();}catch{}
+  for(const key of ['access_token','refresh_token','action_link','email_otp','hashed_token'])if(typeof data[key]==='string'&&data[key])audit.add(data[key]);
   return {status:response.status,data};
 }
 async function pending(handle) {
@@ -37,7 +40,7 @@ async function cleanup(handle){
   // A provider denial can still create an unconfirmed OAuth identity/account.
   // Resolve only mailbox addresses generated and owned by this specific run.
   for(const email of handle.trackedEmails??[]){
-    if(!/^qa-[0-9a-f-]+@mort-fixture\.invalid$/.test(email))throw new Error('Fixture cleanup mailbox rejected');
+    if(!/^qa-[0-9a-f-]+(?:\+guard-alias)?@mort-fixture\.invalid$/.test(email))throw new Error('Fixture cleanup mailbox rejected');
     const ids=await fixtureSql(handle,`SELECT u.id FROM auth.users u WHERE u.email='${email}' OR EXISTS(SELECT 1 FROM auth.identities i WHERE i.user_id=u.id AND i.identity_data->>'email'='${email}');`);
     for(const id of ids.split('\n').map(x=>x.trim()).filter(Boolean)){
       if(!/^[0-9a-f-]{36}$/.test(id))throw new Error('Fixture cleanup identity rejected');handle.trackedAccounts.add(id);

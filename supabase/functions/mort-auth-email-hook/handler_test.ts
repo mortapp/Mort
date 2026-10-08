@@ -77,6 +77,17 @@ async function fixture() {
     issued: () => issued,
   };
 }
+Deno.test("missing signing encryption or HMAC configuration never issues a challenge", async () => {
+  for (const key of ["signingSecret", "encryptionKey", "codeKey"]) {
+    const f = await fixture();
+    const deps = { ...f.deps, [key]: undefined } as unknown as HookDeps;
+    check(
+      (await handleEmailHook(f.request(), deps)).status === 400 &&
+        f.calls() === 0,
+      "Omitted secret cannot enqueue or use a weak fallback",
+    );
+  }
+});
 Deno.test("signed provider bytes admit only a digest-bound encrypted custom envelope", async () => {
   const f = await fixture();
   const response = await handleEmailHook(f.request(), f.deps);
@@ -157,5 +168,42 @@ Deno.test("missing owned ingress binding and disabled mode fail closed despite s
     (await handleEmailHook(f.request(), { ...f.deps, mode: "disabled" }))
           .status === 503 && f.calls() === 0,
     "Disabled mode cannot enqueue or use forwarded metadata",
+  );
+});
+Deno.test("new transport ID cannot reuse an old signed event", async () => {
+  const f = await fixture();
+  const request = f.request();
+  request.headers.set("webhook-id", crypto.randomUUID());
+  check(
+    (await handleEmailHook(request, f.deps)).status !== 200 && f.calls() === 0,
+    "Changed transport identity must fail signature before issuance",
+  );
+  check(
+    (await handleEmailHook(f.request(), f.deps)).status === 200,
+    "Fresh correctly signed positive remains available",
+  );
+});
+Deno.test("hook dependency timeout aborts before issuance and legitimate retry remains live", async () => {
+  const f = await fixture();
+  let aborted = false;
+  const started = performance.now();
+  const result = await handleEmailHook(f.request(), {
+    ...f.deps,
+    resolveTrustedSource: async (_event, _account, signal) =>
+      await new Promise((resolve) => {
+        signal.addEventListener("abort", () => {
+          aborted = true;
+          resolve(null);
+        }, { once: true });
+      }),
+  });
+  check(
+    result.status !== 200 && aborted && f.calls() === 0 &&
+      performance.now() - started < 3500,
+    "Timed-out hook cannot enqueue late authority",
+  );
+  check(
+    (await handleEmailHook(f.request(), f.deps)).status === 200,
+    "Bounded timeout must preserve later legitimate admission",
   );
 });

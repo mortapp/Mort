@@ -14,7 +14,7 @@ export async function run(handle){
     const recipient=createHash('sha256').update(user.email).digest('hex');
     await db.query('INSERT INTO mort_auth_guard.account_generations(account_id,recipient_hash) VALUES($1,$2)',[account,recipient]);
     await db.query(`WITH timing AS(SELECT clock_timestamp() AS now) INSERT INTO mort_auth_guard.families(id,account_id,purpose,recipient_hash,source_hash,address_generation,credential_generation,activation_generation,restore_generation,issued_at,family_expires_at)
-      SELECT $1,$2,'recovery',$3,$4,1,1,1,1,now,now+interval '600 seconds' FROM timing`,[family,account,recipient,hash()]);
+      SELECT $1,$2,'recovery',$3,$4,1,1,activation_generation,restore_generation,now,now+interval '600 seconds' FROM timing,mort_auth_guard.control`,[family,account,recipient,hash()]);
     // Both timestamp columns must share one value; establish fixture-only exact deadline.
     return {account,family,item,code,link,recipient};
   }
@@ -22,9 +22,9 @@ export async function run(handle){
     await db.query(`INSERT INTO mort_auth_guard.items(id,family_id,code_hmac,link_digest,state,delivery_state,issued_at,promoted_at)
       VALUES($1,$2,$3,$4,'usable','acknowledged',clock_timestamp(),clock_timestamp())`,[row.item,row.family,row.code,row.link]);
   }
-  const consumeWith=async(client,row,digest=row.link,kind='link',cap=hash())=>{
+  const consumeWith=async(client,row,digest=row.link,kind='link',cap=hash(),verifier=hash())=>{
     const result=await client.query('SELECT mort_auth_guard.consume_item($1::jsonb,$2::jsonb) AS result',[
-      JSON.stringify({itemId:row.item,kind,credentialDigest:digest,verifierHash:hash()}),JSON.stringify({capabilityDigest:cap})]);
+      JSON.stringify({itemId:row.item,kind,credentialDigest:digest,verifierHash:verifier}),JSON.stringify({capabilityDigest:cap})]);
     return result.rows[0].result;
   };
   const consume=(...args)=>consumeWith(db,...args);
@@ -41,16 +41,27 @@ export async function run(handle){
     assert.ok(await failures(a)===5&&!(await consume(a)).ok,'Fifth failure permanently exhausts the family');
     assert.ok((await consume(b)).ok,'Unrelated legitimate family remains usable');
     assert.ok(!(await consume(b)).ok,'Consumed family cannot issue another capability');
+    const four=await seeded();await item(four);
+    for(let i=0;i<4;i++)assert.ok(!(await consume(four,hash())).ok,'Four wrong guesses leave legitimate redemption possible');
+    assert.ok((await consume(four)).ok&&await failures(four)===4,'Four failures followed by success consumes exactly once');
+    assert.ok(!(await consume(four,hash())).ok&&await failures(four)===4,'Failure after success never mutates or resurrects family');
     const c=await seeded();await item(c);const cap=hash();const result=await consume(c,c.link,'link',cap);
     assert.ok(result.ok,'Valid family must produce capability');
     const lease=await db.query("SELECT state='issued' AND expires_at=issued_at+interval '300 seconds' AS valid FROM mort_auth_guard.capabilities WHERE digest=$1",[cap]);
     assert.ok(lease.rows[0].valid,'Capability lease is independently fixed at 300 seconds');
     const d=await seeded();await item(d);
+    const beforeDeadline=await seeded();await item(beforeDeadline);
+    await db.query("WITH timing AS(SELECT clock_timestamp() AS now) UPDATE mort_auth_guard.families SET issued_at=now-interval '598 seconds',family_expires_at=now+interval '2 seconds' FROM timing WHERE id=$1",[beforeDeadline.family]);
+    assert.ok((await consume(beforeDeadline)).ok,'Successful just-before-expiry control consumes live family');
     await db.query("WITH timing AS(SELECT clock_timestamp() AS now) UPDATE mort_auth_guard.families SET issued_at=now-interval '601 seconds',family_expires_at=now-interval '1 second' FROM timing WHERE id=$1",[d.family]);
     assert.ok(!(await consume(d)).ok&&await failures(d)===0,'Expired family rejects without charging a guess');
     const changed=await seeded();await item(changed);const email=`qa-${randomUUID()}@mort-fixture.invalid`;handle.trackedEmails.add(email);
     assert.ok((await call(handle,`/admin/users/${changed.account}`,{email,email_confirm:true},true,'PUT')).status===200,'Synthetic address change uses supported provider API');
     assert.ok(!(await consume(changed)).ok&&await failures(changed)===0,'Old challenge cannot redeem after the actual account address changes');
+    const deleted=await seeded();await item(deleted);
+    assert.equal((await call(handle,`/admin/users/${deleted.account}`,null,true,'DELETE')).status,200,'Deletion boundary uses actual supported provider account deletion');
+    handle.trackedAccounts.delete(deleted.account);
+    assert.ok(!(await consume(deleted)).ok&&await failures(deleted)===0,'Deleted-account challenge cannot redeem, recreate account or charge another family');
     const e=await seeded();await item(e);
     let rollback=false;try{await consume(e,e.link,'link',cap);}catch(error){rollback=error.code==='23505';}
     assert.ok(rollback,'Capability collision forces transaction rollback');
@@ -67,6 +78,39 @@ export async function run(handle){
       await other.connect();await locker.connect();
       const results=await Promise.all([consume(race),consumeWith(other,race)]);
       assert.ok(results.filter(result=>result.ok).length===1,'Two actual concurrent connections produce exactly one consume success');
+      const wrongRace=await seeded();await item(wrongRace);
+      const wrong=await Promise.all([consume(wrongRace,hash()),consumeWith(other,wrongRace,hash())]);
+      assert.ok(wrong.every(r=>!r.ok)&&await failures(wrongRace)===2,'Concurrent wrong guesses debit one serialized family budget');
+      const mixed=await seeded();await item(mixed);
+      const correctWrong=await Promise.all([consume(mixed),consumeWith(other,mixed,hash())]);
+      assert.ok(correctWrong.filter(r=>r.ok).length===1&&await failures(mixed)<=1,'Concurrent correct and wrong guesses consume once without resurrection');
+      const addressRace=await seeded();await item(addressRace);
+      const raceEmail=`qa-${randomUUID()}@mort-fixture.invalid`;handle.trackedEmails.add(raceEmail);
+      await locker.query('BEGIN');await locker.query('SELECT id FROM auth.users WHERE id=$1 FOR UPDATE',[addressRace.account]);
+      const change=call(handle,`/admin/users/${addressRace.account}`,{email:raceEmail},true,'PUT');
+      for(let i=0;i<100;i++){
+        if((await db.query("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE usename='supabase_auth_admin' AND wait_event_type='Lock') ok")).rows[0].ok)break;
+        if(i===99)assert.fail('Address mutation did not reach actual account lock');await new Promise(r=>setTimeout(r,10));
+      }
+      const raceCapability=hash();const afterAddress=consumeWith(other,addressRace,addressRace.link,'link',raceCapability);
+      await locker.query('COMMIT');assert.equal((await change).status,200,'Actual provider address change wins the controlled mutation race');
+      const raced=await afterAddress;
+      const staleAuthority=(await db.query("SELECT count(*)::int n FROM mort_auth_guard.capabilities WHERE digest=$1 AND state IN('issued','reserved')",[raceCapability])).rows[0].n;
+      assert.ok((!raced.ok||staleAuthority===0)&&await failures(addressRace)===0,'Address change racing redemption leaves no usable stale authority or charged guess');
+      const deletionRace=await seeded();await item(deletionRace);
+      await locker.query('BEGIN');await locker.query('SELECT id FROM auth.users WHERE id=$1 FOR UPDATE',[deletionRace.account]);
+      const deletion=call(handle,`/admin/users/${deletionRace.account}`,null,true,'DELETE');
+      for(let i=0;i<100;i++){
+        if((await db.query("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE usename='supabase_auth_admin' AND wait_event_type='Lock') ok")).rows[0].ok)break;
+        if(i===99)assert.fail('Deletion did not reach actual account lock');await new Promise(r=>setTimeout(r,10));
+      }
+      const deletedCap=hash(),deletedVerifier=hash();
+      const deletingConsume=consumeWith(other,deletionRace,deletionRace.link,'link',deletedCap,deletedVerifier);
+      await locker.query('COMMIT');assert.equal((await deletion).status,200,'Concurrent deletion uses real provider transaction');
+      handle.trackedAccounts.delete(deletionRace.account);await deletingConsume;
+      const reserved=(await db.query('SELECT mort_auth_guard.reserve_password($1::jsonb) result',[JSON.stringify({capabilityDigest:deletedCap,verifierHash:deletedVerifier,passwordValid:true,operationId:randomUUID()})])).rows[0].result;
+      assert.ok(!reserved.ok&&await failures(deletionRace)===0,'Deletion racing redemption leaves no usable password-reset permission');
+      assert.equal((await db.query('SELECT count(*)::int n FROM mort_auth_guard.address_proofs WHERE account_id=$1 AND retired_at IS NULL',[deletionRace.account])).rows[0].n,0,'Deletion racing redemption leaves no active orphan proof');
       const afterLock=await seeded();await item(afterLock);
       await db.query("WITH timing AS(SELECT clock_timestamp() AS now) UPDATE mort_auth_guard.families SET issued_at=now-interval '599.9 seconds',family_expires_at=now+interval '0.1 seconds' FROM timing WHERE id=$1",[afterLock.family]);
       await locker.query('BEGIN');await locker.query('SELECT id FROM mort_auth_guard.families WHERE id=$1 FOR UPDATE',[afterLock.family]);

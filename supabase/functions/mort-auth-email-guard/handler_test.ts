@@ -10,6 +10,21 @@ const check = (v: unknown, message: string) => {
 const bytes = new TextEncoder();
 const source = (n: number) => n.toString(16).padStart(64, "0");
 const failure = { ok: false, message: "That request is not valid." };
+Deno.test("missing HMAC key rejects code checking without weak fallback or store mutation", async () => {
+  const f = await setup();
+  const response = await handleEmailGuard(
+    f.request({
+      itemId: crypto.randomUUID(),
+      code: "00000000",
+      verifierHash: "a".repeat(64),
+    }),
+    { ...f.deps, codeKey: undefined as unknown as CryptoKey },
+  );
+  check(
+    response.status === 400 && f.counts().calls === 0,
+    "Missing key cannot use an insecure fallback or mutate challenge state",
+  );
+});
 Deno.test("malformed-query denial remains inside the source/global admission budget", async () => {
   const { deps, request } = await setup();
   const first = handleEmailGuard(request({}, "/continue?invalid=1"), deps);

@@ -29,6 +29,10 @@ services:
     environment:
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: '9999'
+      # Provider INFO and ERROR events can include full mailbox identifiers.
+      # Preserve its private transaction audit table; fixture runtime telemetry
+      # uses sanitized guard outcomes and fixed SQL method observations.
+      GOTRUE_LOG_LEVEL: fatal
       API_EXTERNAL_URL: http://127.0.0.1:55421
       GOTRUE_DB_DRIVER: postgres
       GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${FIXTURE_DB_PASSWORD:?}@db:5432/postgres

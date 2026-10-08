@@ -32,9 +32,10 @@ export async function sendFixedEmail(
   config: FixtureSmtp,
 ): Promise<DeliveryOutcome> {
   if (
-    config.mode !== "local_fixture" || config.host !== "127.0.0.1" ||
+    !config || config.mode !== "local_fixture" || config.host !== "127.0.0.1" ||
     config.port !== 55425 || config.user !== "fixture" ||
-    !config.ca.includes("BEGIN CERTIFICATE")
+    typeof config.ca !== "string" || !config.ca.includes("BEGIN CERTIFICATE") ||
+    typeof config.password !== "string" || config.password.length === 0
   ) return "failed";
   const remaining = Math.min(
     5000,

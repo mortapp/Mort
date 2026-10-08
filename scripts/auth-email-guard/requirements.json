@@ -1,0 +1,2957 @@
+{
+  "schema": 1,
+  "sourceSha256": "cb2e8b61e78c3f3aa9fbd6f5f7dcdc13c0cf113b5a4052d47e0e26bb0f6fbe31",
+  "currentCount": 191,
+  "historicalCount": 328,
+  "records": [
+    {
+      "id": "MD-001",
+      "source": "markdown",
+      "scenario": "Unknown challenge identifier:",
+      "requirement": "Redeem a random UUID. Pass: generic failure, no row or account metadata disclosed, independent abuse limit applied."
+    },
+    {
+      "id": "MD-002",
+      "source": "markdown",
+      "scenario": "Malformed identifier encodings:",
+      "requirement": "Use empty, oversized, Unicode, null-byte, non-UUID, and mixed-case forms. Pass: bounded generic rejection; no parser exception or bypass."
+    },
+    {
+      "id": "MD-003",
+      "source": "markdown",
+      "scenario": "Duplicate JSON keys:",
+      "requirement": "Send conflicting `challenge_id`, `purpose`, or `code` keys. Pass: deterministic rejection or canonical parse; never choose the attacker-favorable value."
+    },
+    {
+      "id": "MD-004",
+      "source": "markdown",
+      "scenario": "Unexpected JSON types:",
+      "requirement": "Supply arrays, objects, booleans, floating-point numbers, and nested values where strings are expected. Pass: safe validation failure with no state mutation."
+    },
+    {
+      "id": "MD-005",
+      "source": "markdown",
+      "scenario": "Oversized bodies and headers:",
+      "requirement": "Send maximum-size-plus-one request bodies, headers, and cookies. Pass: bounded 4xx response, no worker exhaustion, no partial challenge mutation."
+    },
+    {
+      "id": "MD-006",
+      "source": "markdown",
+      "scenario": "Content-type confusion:",
+      "requirement": "Send form, text, multipart, JSON, and JSON with parameters interchangeably. Pass: only supported content types are accepted; no alternate parser path bypasses checks."
+    },
+    {
+      "id": "MD-007",
+      "source": "markdown",
+      "scenario": "Method confusion:",
+      "requirement": "Try GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS on redemption and mutation endpoints. Pass: only documented methods perform work; GET/HEAD never consume secrets."
+    },
+    {
+      "id": "MD-008",
+      "source": "markdown",
+      "scenario": "Path normalization:",
+      "requirement": "Try duplicate slashes, dot segments, percent-encoded separators, trailing slashes, and case variants. Pass: one canonical route; no route reaches a less-protected handler."
+    },
+    {
+      "id": "MD-009",
+      "source": "markdown",
+      "scenario": "Parameter duplication:",
+      "requirement": "Put fields in query, path, body, and headers with conflicting values. Pass: trusted server-side binding wins or request is rejected; no parameter smuggling."
+    },
+    {
+      "id": "MD-010",
+      "source": "markdown",
+      "scenario": "Unknown fields and version flags:",
+      "requirement": "Add `is_admin`, `verified`, `skip_check`, old API versions, or feature flags. Pass: ignored safely or rejected; no client-controlled authorization."
+    },
+    {
+      "id": "MD-011",
+      "source": "markdown",
+      "scenario": "Cross-account redemption:",
+      "requirement": "Use a valid code/link from account A against account B. Pass: failure; neither account changes."
+    },
+    {
+      "id": "MD-012",
+      "source": "markdown",
+      "scenario": "Cross-purpose redemption:",
+      "requirement": "Use confirmation material for password recovery and vice versa. Pass: failure; no terminal-state corruption."
+    },
+    {
+      "id": "MD-013",
+      "source": "markdown",
+      "scenario": "Cross-representation reuse:",
+      "requirement": "Redeem a link secret, then try the corresponding short code, and reverse the order. Pass: one shared budget and one consume state."
+    },
+    {
+      "id": "MD-014",
+      "source": "markdown",
+      "scenario": "Credential substitution:",
+      "requirement": "Issue for recipient A, then alter the request to recipient B. Pass: binding remains to A and current provider state is rechecked."
+    },
+    {
+      "id": "MD-015",
+      "source": "markdown",
+      "scenario": "Account-ID substitution:",
+      "requirement": "Replace the account UUID with another valid UUID. Pass: server ignores client account selection or rejects the request."
+    },
+    {
+      "id": "MD-016",
+      "source": "markdown",
+      "scenario": "Purpose case/encoding variants:",
+      "requirement": "Try case changes, whitespace, Unicode normalization, and alternate labels. Pass: strict canonical purpose handling; no alias grants extra authority."
+    },
+    {
+      "id": "MD-017",
+      "source": "markdown",
+      "scenario": "Stale address after email change:",
+      "requirement": "Issue to old address, change the account address, then redeem. Pass: old challenge is invalidated or blocked by current-address validation."
+    },
+    {
+      "id": "MD-018",
+      "source": "markdown",
+      "scenario": "Deleted-account redemption:",
+      "requirement": "Issue, delete the provider account, then redeem. Pass: no recreation, proof, session, or password mutation."
+    },
+    {
+      "id": "MD-019",
+      "source": "markdown",
+      "scenario": "Superseded challenge redemption:",
+      "requirement": "Issue twice and redeem the older item. Pass: older challenge fails and cannot alter counters on the newer item."
+    },
+    {
+      "id": "MD-020",
+      "source": "markdown",
+      "scenario": "Orphaned signup challenge:",
+      "requirement": "Trigger issuance before a signup transaction rolls back. Pass: orphan expires and cannot later bind to a different account."
+    },
+    {
+      "id": "MD-021",
+      "source": "markdown",
+      "scenario": "Short-code boundary values:",
+      "requirement": "Test all-zero, all-nine, minimum, maximum, wrong-length, and leading-zero codes. Pass: fixed canonical handling; no truncation or numeric coercion."
+    },
+    {
+      "id": "MD-022",
+      "source": "markdown",
+      "scenario": "Unicode digit confusables:",
+      "requirement": "Use Arabic-Indic, full-width, superscript, and mixed-script digits. Pass: reject or canonicalize safely without expanding the accepted set."
+    },
+    {
+      "id": "MD-023",
+      "source": "markdown",
+      "scenario": "Whitespace and delimiter variants:",
+      "requirement": "Add leading/trailing/internal spaces, hyphens, newlines, and tabs. Pass: policy is explicit and cannot create alternate valid encodings."
+    },
+    {
+      "id": "MD-024",
+      "source": "markdown",
+      "scenario": "Timing comparison probe:",
+      "requirement": "Submit near-miss codes and measure response timing. Pass: comparison is constant-time enough to avoid useful oracle leakage."
+    },
+    {
+      "id": "MD-025",
+      "source": "markdown",
+      "scenario": "HMAC-key absence or rotation:",
+      "requirement": "Start a worker without the key or rotate it during a test. Pass: fail closed; no fallback to plaintext, weak hash, or default key."
+    },
+    {
+      "id": "MD-026",
+      "source": "markdown",
+      "scenario": "Digest truncation/collision fixtures:",
+      "requirement": "Use deliberately colliding test digests or altered algorithm configuration. Pass: configuration is pinned and collision does not grant consumption."
+    },
+    {
+      "id": "MD-027",
+      "source": "markdown",
+      "scenario": "Link entropy regression:",
+      "requirement": "Generate a large sample and inspect length, uniqueness, randomness, and URL-safe encoding. Pass: at least 128 independent random bits and no predictable sequence."
+    },
+    {
+      "id": "MD-028",
+      "source": "markdown",
+      "scenario": "Secret leakage in URLs:",
+      "requirement": "Inspect referrers, browser history, access logs, analytics, error pages, and redirects. Pass: no token-bearing external requests or persistent logging."
+    },
+    {
+      "id": "MD-029",
+      "source": "markdown",
+      "scenario": "Fragment/query mix-up:",
+      "requirement": "Place secrets in fragment, query, path, and POST body in every combination. Pass: only the intended in-memory path works; static load cannot consume."
+    },
+    {
+      "id": "MD-030",
+      "source": "markdown",
+      "scenario": "Replay after process restart:",
+      "requirement": "Redeem, restart all services, then replay code/link. Pass: terminal state persists and replay fails."
+    },
+    {
+      "id": "MD-031",
+      "source": "markdown",
+      "scenario": "Exactly five sequential wrong guesses:",
+      "requirement": "Submit five committed failures. Pass: challenge retires on five, with no off-by-one behavior."
+    },
+    {
+      "id": "MD-032",
+      "source": "markdown",
+      "scenario": "Sixth wrong guess:",
+      "requirement": "Submit after exhaustion. Pass: same generic failure; counter does not continue unboundedly."
+    },
+    {
+      "id": "MD-033",
+      "source": "markdown",
+      "scenario": "Four failures plus success:",
+      "requirement": "Pass: success consumes once and cannot be reopened."
+    },
+    {
+      "id": "MD-034",
+      "source": "markdown",
+      "scenario": "Failure after success:",
+      "requirement": "Submit a wrong code after consumption. Pass: no counter resurrection or alternate mutation."
+    },
+    {
+      "id": "MD-035",
+      "source": "markdown",
+      "scenario": "Concurrent wrong guesses:",
+      "requirement": "Fire many simultaneous wrong attempts. Pass: row locking serializes updates and exactly one terminal budget is observed."
+    },
+    {
+      "id": "MD-036",
+      "source": "markdown",
+      "scenario": "Concurrent correct and wrong guesses:",
+      "requirement": "Race correct and incorrect submissions. Pass: one coherent outcome; no double-consume or post-success mutation."
+    },
+    {
+      "id": "MD-037",
+      "source": "markdown",
+      "scenario": "Resend during active challenge:",
+      "requirement": "Resend repeatedly from concurrent callers. Pass: cooldown/hourly quota holds and all prior challenges retire."
+    },
+    {
+      "id": "MD-038",
+      "source": "markdown",
+      "scenario": "Resend after exhaustion:",
+      "requirement": "Request resend after five failures. Pass: new challenge follows quota policy, but old challenge remains dead and cannot be revived."
+    },
+    {
+      "id": "MD-039",
+      "source": "markdown",
+      "scenario": "Expiry boundary:",
+      "requirement": "Test just before, exactly at, and just after ten minutes using controlled clock. Pass: deadline semantics are deterministic and fail closed at expiry."
+    },
+    {
+      "id": "MD-040",
+      "source": "markdown",
+      "scenario": "Clock skew and rollback:",
+      "requirement": "Skew application, database, and provider clocks forward/backward. Pass: trusted time source and bounded skew policy prevent premature or late authorization."
+    },
+    {
+      "id": "MD-041",
+      "source": "markdown",
+      "scenario": "Missing hook signature:",
+      "requirement": "Call the Send Email hook without a signature. Pass: reject before issuance or delivery."
+    },
+    {
+      "id": "MD-042",
+      "source": "markdown",
+      "scenario": "Invalid signature:",
+      "requirement": "Alter one byte of the body or signature. Pass: reject with no externally useful detail."
+    },
+    {
+      "id": "MD-043",
+      "source": "markdown",
+      "scenario": "Wrong signing key or algorithm:",
+      "requirement": "Use a valid-looking signature from another environment or unsupported algorithm. Pass: reject."
+    },
+    {
+      "id": "MD-044",
+      "source": "markdown",
+      "scenario": "Timestamp outside window:",
+      "requirement": "Replay a correctly signed event outside the accepted freshness window. Pass: reject and do not issue."
+    },
+    {
+      "id": "MD-045",
+      "source": "markdown",
+      "scenario": "Replay same event:",
+      "requirement": "Submit identical signed event multiple times. Pass: idempotent result; no unlimited active challenges or emails."
+    },
+    {
+      "id": "MD-046",
+      "source": "markdown",
+      "scenario": "Replay with new request ID:",
+      "requirement": "Repackage an old event under a new transport request identifier. Pass: provider event identity and freshness still prevent replay."
+    },
+    {
+      "id": "MD-047",
+      "source": "markdown",
+      "scenario": "Action-type confusion:",
+      "requirement": "Label signup as recovery, recovery as confirmation, or unsupported invite/secure-email-change as supported. Pass: strict action allowlist."
+    },
+    {
+      "id": "MD-048",
+      "source": "markdown",
+      "scenario": "Payload field substitution:",
+      "requirement": "Change account ID, recipient, redirect, template, or provider token while preserving an invalidated signature. Pass: rejection; no caller-controlled binding."
+    },
+    {
+      "id": "MD-049",
+      "source": "markdown",
+      "scenario": "Duplicate delivery notifications:",
+      "requirement": "Deliver duplicate hook callbacks with different idempotency keys. Pass: bounded issuance and no conflicting terminal state."
+    },
+    {
+      "id": "MD-050",
+      "source": "markdown",
+      "scenario": "Hook timeout/retry storm:",
+      "requirement": "Force slow responses and provider retries. Pass: finite leases/idempotency prevent duplicate challenges and no false “delivered” state."
+    },
+    {
+      "id": "MD-051",
+      "source": "markdown",
+      "scenario": "GET `/verify` with valid provider token:",
+      "requirement": "Attempt direct confirmation. Pass: provider flag alone cannot create a MORT-authorized session."
+    },
+    {
+      "id": "MD-052",
+      "source": "markdown",
+      "scenario": "POST `/verify` with valid provider token:",
+      "requirement": "Pass: same denial of MORT proof/session bypass."
+    },
+    {
+      "id": "MD-053",
+      "source": "markdown",
+      "scenario": "Token-hash form:",
+      "requirement": "Submit a valid token hash directly. Pass: no private proof or password session."
+    },
+    {
+      "id": "MD-054",
+      "source": "markdown",
+      "scenario": "Typed-code form:",
+      "requirement": "Submit a known provider code. Pass: no MORT authorization."
+    },
+    {
+      "id": "MD-055",
+      "source": "markdown",
+      "scenario": "PKCE authorization-code exchange:",
+      "requirement": "Complete provider PKCE after direct confirmation. Pass: custom checker/mutation boundary blocks unauthorized MORT email-password access."
+    },
+    {
+      "id": "MD-056",
+      "source": "markdown",
+      "scenario": "Implicit-flow fragment exchange:",
+      "requirement": "Try the browser implicit flow after provider confirmation. Pass: no unauthorized MORT session."
+    },
+    {
+      "id": "MD-057",
+      "source": "markdown",
+      "scenario": "Direct password sign-in after attacker-chosen signup password:",
+      "requirement": "Pass: denied without bound private proof."
+    },
+    {
+      "id": "MD-058",
+      "source": "markdown",
+      "scenario": "Recovery endpoint direct call:",
+      "requirement": "Invoke provider recovery endpoints without MORT capability. Pass: no password reset or login."
+    },
+    {
+      "id": "MD-059",
+      "source": "markdown",
+      "scenario": "Method-label variants:",
+      "requirement": "Test actual GoTrue values for `otp`, `magiclink`, `recovery`, `invite`, `email/signup`, and `email_change`. Pass: disallowed methods are denied explicitly."
+    },
+    {
+      "id": "MD-060",
+      "source": "markdown",
+      "scenario": "Provider API version drift fixture:",
+      "requirement": "Run tests against the pinned version and a nearby version. Pass: unsupported method/order changes fail the activation gate rather than silently weakening checks."
+    },
+    {
+      "id": "MD-061",
+      "source": "markdown",
+      "scenario": "Client `user_metadata` proof claim:",
+      "requirement": "Set `verified`, `mort_proof`, or `operation_id` in editable metadata. Pass: no authorization."
+    },
+    {
+      "id": "MD-062",
+      "source": "markdown",
+      "scenario": "Client `app_metadata` attempt:",
+      "requirement": "Try to write privileged metadata through public APIs. Pass: denied by RLS/API permissions."
+    },
+    {
+      "id": "MD-063",
+      "source": "markdown",
+      "scenario": "Forged JWT claims:",
+      "requirement": "Alter role, email confirmation, provider, proof, or entitlement claims locally. Pass: signature validation rejects them."
+    },
+    {
+      "id": "MD-064",
+      "source": "markdown",
+      "scenario": "Stale JWT after proof revocation:",
+      "requirement": "Use an already-issued token after challenge/proof is revoked. Pass: behavior matches documented live-session policy; no new credential operation is granted."
+    },
+    {
+      "id": "MD-065",
+      "source": "markdown",
+      "scenario": "Refresh-token after unauthorized confirmation:",
+      "requirement": "Attempt refresh after direct provider confirmation. Pass: MORT policy remains enforced for new session issuance."
+    },
+    {
+      "id": "MD-066",
+      "source": "markdown",
+      "scenario": "Refresh-token after password recovery:",
+      "requirement": "Pass: prior refresh sessions are invalidated as expected by the tested Admin API behavior."
+    },
+    {
+      "id": "MD-067",
+      "source": "markdown",
+      "scenario": "Access-token hook timeout:",
+      "requirement": "Force hook timeout/error. Pass: token issuance fails closed, without fallback claims."
+    },
+    {
+      "id": "MD-068",
+      "source": "markdown",
+      "scenario": "Access-token hook privilege escalation:",
+      "requirement": "Invoke hook with a lower-privilege database role. Pass: it cannot read or mutate private state and fails closed."
+    },
+    {
+      "id": "MD-069",
+      "source": "markdown",
+      "scenario": "JWT claim confusion:",
+      "requirement": "Supply duplicate/incorrect claim types, arrays, nulls, or oversized claims in fixture tokens. Pass: strict schema and no truthiness bypass."
+    },
+    {
+      "id": "MD-070",
+      "source": "markdown",
+      "scenario": "Proof registry enumeration:",
+      "requirement": "Query private registry through REST, GraphQL, RPC, guessed table names, or error messages. Pass: no client read/write or address inventory."
+    },
+    {
+      "id": "MD-071",
+      "source": "markdown",
+      "scenario": "Capability reuse:",
+      "requirement": "Use a successful recovery capability twice. Pass: second attempt fails."
+    },
+    {
+      "id": "MD-072",
+      "source": "markdown",
+      "scenario": "Capability expiry boundary:",
+      "requirement": "Test before/at/after expiry. Pass: no late password mutation."
+    },
+    {
+      "id": "MD-073",
+      "source": "markdown",
+      "scenario": "Capability account substitution:",
+      "requirement": "Present capability with another account ID/email. Pass: bound target wins or request fails."
+    },
+    {
+      "id": "MD-074",
+      "source": "markdown",
+      "scenario": "Capability-purpose substitution:",
+      "requirement": "Use confirmation capability for password update or vice versa. Pass: denied."
+    },
+    {
+      "id": "MD-075",
+      "source": "markdown",
+      "scenario": "Password policy bypass:",
+      "requirement": "Try empty, too-short, common, oversized, Unicode-confusable, and normalization variants. Pass: server and provider policy both hold."
+    },
+    {
+      "id": "MD-076",
+      "source": "markdown",
+      "scenario": "Password replacement as login:",
+      "requirement": "Attempt to obtain a session directly from recovery. Pass: recovery grants only password replacement."
+    },
+    {
+      "id": "MD-077",
+      "source": "markdown",
+      "scenario": "Recovery as account lookup:",
+      "requirement": "Compare responses for real and nonexistent accounts. Pass: generic behavior and no address inventory."
+    },
+    {
+      "id": "MD-078",
+      "source": "markdown",
+      "scenario": "Recovery as role/entitlement mutation:",
+      "requirement": "Add role, Pro, onboarding, payment, or identity fields to request. Pass: ignored/rejected and unchanged."
+    },
+    {
+      "id": "MD-079",
+      "source": "markdown",
+      "scenario": "Repeated password writes:",
+      "requirement": "Reuse one consumed operation grant for multiple Admin updates. Pass: only one authorized write succeeds."
+    },
+    {
+      "id": "MD-080",
+      "source": "markdown",
+      "scenario": "Unknown upstream result:",
+      "requirement": "Drop response after Admin password update and retry. Pass: pending marker/lease prevents unsafe duplicate or prematurely cleared authorization."
+    },
+    {
+      "id": "MD-081",
+      "source": "markdown",
+      "scenario": "Email change versus redemption:",
+      "requirement": "Race address update with code consumption. Pass: either old challenge fails or one atomic supported outcome occurs."
+    },
+    {
+      "id": "MD-082",
+      "source": "markdown",
+      "scenario": "Password change versus recovery:",
+      "requirement": "Race ordinary authenticated password change and recovery mutation. Pass: no confused-deputy or cross-account write."
+    },
+    {
+      "id": "MD-083",
+      "source": "markdown",
+      "scenario": "Account deletion versus redemption:",
+      "requirement": "Race deletion with confirmation/recovery. Pass: no orphaned proof or credential change."
+    },
+    {
+      "id": "MD-084",
+      "source": "markdown",
+      "scenario": "Resend versus redemption:",
+      "requirement": "Race resend with correct old-code use. Pass: deterministic supersession semantics; no two successes."
+    },
+    {
+      "id": "MD-085",
+      "source": "markdown",
+      "scenario": "Five failures versus resend:",
+      "requirement": "Race fifth failure with resend. Pass: old challenge retirement and new challenge issuance remain coherent."
+    },
+    {
+      "id": "MD-086",
+      "source": "markdown",
+      "scenario": "Hook before `auth.users` commit:",
+      "requirement": "Simulate signup hook observing an uncommitted row. Pass: no synchronous foreign-key lookup failure or misbinding."
+    },
+    {
+      "id": "MD-087",
+      "source": "markdown",
+      "scenario": "Rollback after hook issuance:",
+      "requirement": "Roll back signup after hook creates challenge. Pass: orphan cleanup and no later binding to another user."
+    },
+    {
+      "id": "MD-088",
+      "source": "markdown",
+      "scenario": "Concurrent admin grant use:",
+      "requirement": "Race two Admin operations with one operation ID. Pass: one grant consumption and no second mutation."
+    },
+    {
+      "id": "MD-089",
+      "source": "markdown",
+      "scenario": "Database failover during consume:",
+      "requirement": "Interrupt transaction around lock/commit. Pass: no ambiguous state that permits replay or silently counts a failure twice."
+    },
+    {
+      "id": "MD-090",
+      "source": "markdown",
+      "scenario": "Worker crash after SMTP send:",
+      "requirement": "Crash between send and status commit. Pass: retry is idempotent and cannot create conflicting valid challenges."
+    },
+    {
+      "id": "MD-091",
+      "source": "markdown",
+      "scenario": "SMTP authentication failure:",
+      "requirement": "Force bad credentials. Pass: challenge is not marked verified or delivered."
+    },
+    {
+      "id": "MD-092",
+      "source": "markdown",
+      "scenario": "TLS downgrade attempt:",
+      "requirement": "Use a non-TLS or invalid-certificate SMTP endpoint in local fixture. Pass: connection rejected."
+    },
+    {
+      "id": "MD-093",
+      "source": "markdown",
+      "scenario": "Recipient mismatch:",
+      "requirement": "Make transport report a different recipient than the bound one. Pass: no verification success."
+    },
+    {
+      "id": "MD-094",
+      "source": "markdown",
+      "scenario": "Template injection:",
+      "requirement": "Put HTML, headers, CRLF, URLs, or template directives in test account fields. Pass: encoded content; no header injection or caller-controlled redirect."
+    },
+    {
+      "id": "MD-095",
+      "source": "markdown",
+      "scenario": "Redirect manipulation:",
+      "requirement": "Supply arbitrary redirect/return URL. Pass: fixed HTTPS MORT route only."
+    },
+    {
+      "id": "MD-096",
+      "source": "markdown",
+      "scenario": "Provider token leakage:",
+      "requirement": "Ensure the provider’s short OTP/token is never placed in the MORT email or logs. Pass: only MORT challenge material is delivered."
+    },
+    {
+      "id": "MD-097",
+      "source": "markdown",
+      "scenario": "Email scanner GET:",
+      "requirement": "Fetch the confirmation link without user action. Pass: no confirmation, password reset, or consumption."
+    },
+    {
+      "id": "MD-098",
+      "source": "markdown",
+      "scenario": "Prefetch/retry by mail client:",
+      "requirement": "Fetch the link multiple times with common scanner headers. Pass: safe page load; explicit user action remains required."
+    },
+    {
+      "id": "MD-099",
+      "source": "markdown",
+      "scenario": "Recipient mailbox race:",
+      "requirement": "Deliver to two test recipients or change recipient while message is queued. Pass: only current bound address can complete the flow."
+    },
+    {
+      "id": "MD-100",
+      "source": "markdown",
+      "scenario": "Notification-only action confusion:",
+      "requirement": "Trigger unsupported notification or invite templates. Pass: no credential mutation authority and no false delivery success."
+    },
+    {
+      "id": "MD-101",
+      "source": "markdown",
+      "scenario": "Static page load:",
+      "requirement": "Load recovery/confirmation route with no interaction. Pass: no consume or mutation."
+    },
+    {
+      "id": "MD-102",
+      "source": "markdown",
+      "scenario": "Fragment retention:",
+      "requirement": "Inspect DOM, history, referrer, crash reports, and navigation after load. Pass: secret is held only in memory and fragment is cleared promptly."
+    },
+    {
+      "id": "MD-103",
+      "source": "markdown",
+      "scenario": "Back/forward replay:",
+      "requirement": "Use browser history after successful consumption. Pass: no second consume or password mutation."
+    },
+    {
+      "id": "MD-104",
+      "source": "markdown",
+      "scenario": "Cross-origin embedding:",
+      "requirement": "Embed route in an iframe or hostile origin. Pass: CSP/frame protections prevent unsafe execution and secret exposure."
+    },
+    {
+      "id": "MD-105",
+      "source": "markdown",
+      "scenario": "Script injection in query/hash:",
+      "requirement": "Put script-like values in all URL fields. Pass: no XSS and no unsafe interpolation."
+    },
+    {
+      "id": "MD-106",
+      "source": "markdown",
+      "scenario": "Missing JavaScript / unsupported browser:",
+      "requirement": "Pass: no accidental GET-side mutation; clear safe failure."
+    },
+    {
+      "id": "MD-107",
+      "source": "markdown",
+      "scenario": "Double-click and rapid submit:",
+      "requirement": "Trigger confirmation/reset action repeatedly. Pass: one operation and truthful result state."
+    },
+    {
+      "id": "MD-108",
+      "source": "markdown",
+      "scenario": "Network retry after submit:",
+      "requirement": "Replay client request after timeout. Pass: idempotency/terminal state prevent duplicate mutation."
+    },
+    {
+      "id": "MD-109",
+      "source": "markdown",
+      "scenario": "Native deep-link compatibility:",
+      "requirement": "Test approved Flutter link handling with synthetic links. Pass: works without repackaging, token leakage, or alternate auth path."
+    },
+    {
+      "id": "MD-110",
+      "source": "markdown",
+      "scenario": "Accessibility/state confusion:",
+      "requirement": "Validate text alternatives for success/failure and screen-reader-visible errors. Pass: users cannot be misled into retrying a consumed or failed secret."
+    },
+    {
+      "id": "MD-111",
+      "source": "markdown",
+      "scenario": "Distributed caller failures:",
+      "requirement": "Spread wrong guesses across many IPs/devices. Pass: per-challenge budget remains authoritative; abuse limits are additive, not the security boundary."
+    },
+    {
+      "id": "MD-112",
+      "source": "markdown",
+      "scenario": "IP rotation for resend:",
+      "requirement": "Rotate source addresses and headers. Pass: account/purpose cooldown and hourly quotas still hold."
+    },
+    {
+      "id": "MD-113",
+      "source": "markdown",
+      "scenario": "Concurrent quota race:",
+      "requirement": "Send quota-bound requests simultaneously. Pass: atomic quota enforcement; no over-issuance."
+    },
+    {
+      "id": "MD-114",
+      "source": "markdown",
+      "scenario": "Unknown-ID flood:",
+      "requirement": "Flood random IDs. Pass: independent bounded abuse control; no database or worker exhaustion."
+    },
+    {
+      "id": "MD-115",
+      "source": "markdown",
+      "scenario": "RLS regression:",
+      "requirement": "Run table reads/writes/RPC calls as anon, authenticated, and ordinary users. Pass: private tables and helpers remain service-only."
+    },
+    {
+      "id": "MD-116",
+      "source": "markdown",
+      "scenario": "Secret/config omission:",
+      "requirement": "Start with missing SMTP, HMAC, signing, or hook configuration. Pass: system remains disabled/fails closed and activation allowlist blocks cutover."
+    },
+    {
+      "id": "MD-117",
+      "source": "markdown",
+      "scenario": "Partial activation:",
+      "requirement": "Enable only Send Email, only access-token hook, only mutation guard, or only browser changes. Pass: deployment tooling rejects incoherent combinations."
+    },
+    {
+      "id": "MD-118",
+      "source": "markdown",
+      "scenario": "Rollback coherence:",
+      "requirement": "Roll back after issuing and consuming test challenges. Pass: previous provider flow is restored without reopening consumed challenges or granting unverified proof."
+    },
+    {
+      "id": "MD-119",
+      "source": "markdown",
+      "scenario": "Logging/telemetry audit:",
+      "requirement": "Search structured logs, traces, metrics, error reports, SMTP logs, and browser diagnostics. Pass: no passwords, codes, tokens, credentials, full addresses, or sensitive bodies."
+    },
+    {
+      "id": "MD-120",
+      "source": "markdown",
+      "scenario": "Backup/restore and retention:",
+      "requirement": "Restore a snapshot containing pending/consumed/expired challenges. Pass: terminal states, key separation, retention cleanup, and account deletion invariants remain safe; restoration cannot revive a secret."
+    },
+    {
+      "id": "DOCX-A01",
+      "source": "docx",
+      "scenario": "Brute-force the 8-digit code from one IP, expecting lockout at exactly 5 failures."
+    },
+    {
+      "id": "DOCX-A02",
+      "source": "docx",
+      "scenario": "Brute-force from 5,000 rotating IPs, since the budget must be per challenge and not per IP."
+    },
+    {
+      "id": "DOCX-A03",
+      "source": "docx",
+      "scenario": "Send 20 parallel guesses in the same millisecond and check that failures never exceed 5 and no guess is accepted after exhaustion."
+    },
+    {
+      "id": "DOCX-A04",
+      "source": "docx",
+      "scenario": "Race the correct code against the 5th wrong guess and check that exactly one outcome wins deterministically."
+    },
+    {
+      "id": "DOCX-A05",
+      "source": "docx",
+      "scenario": "Race two correct submissions and check that only one consumes."
+    },
+    {
+      "id": "DOCX-A06",
+      "source": "docx",
+      "scenario": "Submit the correct code at 9:59.9 and at 10:00.1, and check the boundary against server time."
+    },
+    {
+      "id": "DOCX-A07",
+      "source": "docx",
+      "scenario": "Skew the client clock and check that no client-supplied time is trusted."
+    },
+    {
+      "id": "DOCX-A08",
+      "source": "docx",
+      "scenario": "Change the DB or hook host clock (NTP drift) and check that expiry still behaves."
+    },
+    {
+      "id": "DOCX-A09",
+      "source": "docx",
+      "scenario": "Submit codes with whitespace, unicode digits, fullwidth digits, leading zeros stripped or added, or hyphens, and check that normalization does not create collisions or bypass the counter."
+    },
+    {
+      "id": "DOCX-A10",
+      "source": "docx",
+      "scenario": "Send malformed input (null, array, oversized, wrong type) with a valid challenge ID, and check that it consumes budget as designed."
+    },
+    {
+      "id": "DOCX-A11",
+      "source": "docx",
+      "scenario": "Send malformed input with an unknown challenge ID, and check the generic failure plus the independent abuse limit."
+    },
+    {
+      "id": "DOCX-A12",
+      "source": "docx",
+      "scenario": "Enumerate challenge IDs and compare response timing for valid vs. unknown."
+    },
+    {
+      "id": "DOCX-A13",
+      "source": "docx",
+      "scenario": "Compare response size and headers for valid-but-wrong vs. unknown challenges."
+    },
+    {
+      "id": "DOCX-A14",
+      "source": "docx",
+      "scenario": "Compare timings of the HMAC comparison for correct vs. near-correct codes, which should be a constant-time compare."
+    },
+    {
+      "id": "DOCX-A15",
+      "source": "docx",
+      "scenario": "Check modulo bias in code generation by statistically sampling millions of codes."
+    },
+    {
+      "id": "DOCX-A16",
+      "source": "docx",
+      "scenario": "Check that the link secret entropy really is at least 128 bits with no truncation or encoding bias."
+    },
+    {
+      "id": "DOCX-A17",
+      "source": "docx",
+      "scenario": "Check that the link digest lookup is an indexed exact match with no timing side channel."
+    },
+    {
+      "id": "DOCX-A18",
+      "source": "docx",
+      "scenario": "Test whether any log, metric or error trace contains the code, link secret or HMAC."
+    },
+    {
+      "id": "DOCX-B01",
+      "source": "docx",
+      "scenario": "Resend 100 times and check that only one challenge is active."
+    },
+    {
+      "id": "DOCX-B02",
+      "source": "docx",
+      "scenario": "Resend between failure 4 and 5 to see whether the counter resets, which is acceptable only if the resend quota still bounds total guesses."
+    },
+    {
+      "id": "DOCX-B03",
+      "source": "docx",
+      "scenario": "Compute the worst-case guesses per hour (quota × 5) against the 10^8 code space, and check that it is acceptable."
+    },
+    {
+      "id": "DOCX-B04",
+      "source": "docx",
+      "scenario": "Request a resend during a failed SMTP attempt and check that you cannot get unlimited active codes."
+    },
+    {
+      "id": "DOCX-B05",
+      "source": "docx",
+      "scenario": "Replay a retired code after a resend."
+    },
+    {
+      "id": "DOCX-B06",
+      "source": "docx",
+      "scenario": "Replay a retired link after a resend."
+    },
+    {
+      "id": "DOCX-B07",
+      "source": "docx",
+      "scenario": "Use the link secret as a guess on the code endpoint, and the code on the link endpoint, to check that the shared budget and no cross-representation bypass hold."
+    },
+    {
+      "id": "DOCX-B08",
+      "source": "docx",
+      "scenario": "Try the link after 5 wrong code guesses."
+    },
+    {
+      "id": "DOCX-B09",
+      "source": "docx",
+      "scenario": "Try the code after one wrong link attempt to see whether the budget is shared."
+    },
+    {
+      "id": "DOCX-B10",
+      "source": "docx",
+      "scenario": "Bypass the cooldown by varying case, plus-addressing or dots in the email."
+    },
+    {
+      "id": "DOCX-B11",
+      "source": "docx",
+      "scenario": "Bypass the cooldown by changing the Content-Type or request shape."
+    },
+    {
+      "id": "DOCX-B12",
+      "source": "docx",
+      "scenario": "Run concurrent resends and check that the quota is atomic."
+    },
+    {
+      "id": "DOCX-B13",
+      "source": "docx",
+      "scenario": "Exhaust the hourly allowance for victim@x and check that the victim can't use their own flow (a lockout DoS), and decide whether that is acceptable."
+    },
+    {
+      "id": "DOCX-B14",
+      "source": "docx",
+      "scenario": "Test that quota counters can't be reset through account delete and recreate."
+    },
+    {
+      "id": "DOCX-C01",
+      "source": "docx",
+      "scenario": "POST directly to the Send Email hook URL with no signature."
+    },
+    {
+      "id": "DOCX-C02",
+      "source": "docx",
+      "scenario": "Send a valid-format signature with the wrong secret."
+    },
+    {
+      "id": "DOCX-C03",
+      "source": "docx",
+      "scenario": "Replay a captured signed event within the timestamp window."
+    },
+    {
+      "id": "DOCX-C04",
+      "source": "docx",
+      "scenario": "Replay it after the window."
+    },
+    {
+      "id": "DOCX-C05",
+      "source": "docx",
+      "scenario": "Replay it with a modified body and the old signature."
+    },
+    {
+      "id": "DOCX-C06",
+      "source": "docx",
+      "scenario": "Send a future-dated timestamp."
+    },
+    {
+      "id": "DOCX-C07",
+      "source": "docx",
+      "scenario": "Send an oversized payload for resource exhaustion."
+    },
+    {
+      "id": "DOCX-C08",
+      "source": "docx",
+      "scenario": "Send duplicate hook deliveries (provider retries) and check idempotency."
+    },
+    {
+      "id": "DOCX-C09",
+      "source": "docx",
+      "scenario": "Send out-of-order duplicates (resend event after original)."
+    },
+    {
+      "id": "DOCX-C10",
+      "source": "docx",
+      "scenario": "Send an unsupported action type, such as invite, reauthentication, email_change or an unknown value."
+    },
+    {
+      "id": "DOCX-C11",
+      "source": "docx",
+      "scenario": "Send a secure-email-change payload that carries two recipients."
+    },
+    {
+      "id": "DOCX-C12",
+      "source": "docx",
+      "scenario": "Send a hook event whose recipient differs from the user's actual email."
+    },
+    {
+      "id": "DOCX-C13",
+      "source": "docx",
+      "scenario": "Send an event with a user UUID of a different account."
+    },
+    {
+      "id": "DOCX-C14",
+      "source": "docx",
+      "scenario": "Check that the hook URL, secret or SMTP credential are not exposed in the client bundle, Edge Function error text or CORS-permissive responses."
+    },
+    {
+      "id": "DOCX-D01",
+      "source": "docx",
+      "scenario": "Trigger signup, abort the transaction after the hook fires, and check that the challenge is orphaned and expires."
+    },
+    {
+      "id": "DOCX-D02",
+      "source": "docx",
+      "scenario": "Check that the hook cannot hit a foreign key on an uncommitted user."
+    },
+    {
+      "id": "DOCX-D03",
+      "source": "docx",
+      "scenario": "Attempt to redeem a challenge for a user UUID that never committed."
+    },
+    {
+      "id": "DOCX-D04",
+      "source": "docx",
+      "scenario": "Attempt to redeem it after the UUID appears under a different email."
+    },
+    {
+      "id": "DOCX-D05",
+      "source": "docx",
+      "scenario": "Flood signups with random emails and check that orphaned challenges don't exhaust storage."
+    },
+    {
+      "id": "DOCX-D06",
+      "source": "docx",
+      "scenario": "Run signup for an existing email and check that the hook neither leaks account existence nor emails a challenge."
+    },
+    {
+      "id": "DOCX-D07",
+      "source": "docx",
+      "scenario": "Compare signup response timing for existing vs. new addresses."
+    },
+    {
+      "id": "DOCX-D08",
+      "source": "docx",
+      "scenario": "Run signup, delete the account, then redeem, and check that retention cleanup is correct."
+    },
+    {
+      "id": "DOCX-E01",
+      "source": "docx",
+      "scenario": "Call GET /verify with the provider's token hash."
+    },
+    {
+      "id": "DOCX-E02",
+      "source": "docx",
+      "scenario": "Call POST /verify with a token hash."
+    },
+    {
+      "id": "DOCX-E03",
+      "source": "docx",
+      "scenario": "Call POST /verify with email plus typed OTP."
+    },
+    {
+      "id": "DOCX-E04",
+      "source": "docx",
+      "scenario": "Call /verify with type signup, email, recovery, magiclink, invite and email_change, one by one."
+    },
+    {
+      "id": "DOCX-E05",
+      "source": "docx",
+      "scenario": "Do PKCE signup, capture the auth code, and exchange it without the MORT challenge."
+    },
+    {
+      "id": "DOCX-E06",
+      "source": "docx",
+      "scenario": "Confirm via PKCE, then password sign-in with the attacker's chosen signup password."
+    },
+    {
+      "id": "DOCX-E07",
+      "source": "docx",
+      "scenario": "Call /otp (passwordless) for an existing user and try to redeem it."
+    },
+    {
+      "id": "DOCX-E08",
+      "source": "docx",
+      "scenario": "Request /recover directly and try to use the provider's recovery token."
+    },
+    {
+      "id": "DOCX-E09",
+      "source": "docx",
+      "scenario": "Obtain a provider token through the implicit flow and check that the browser hash fragment can't mint a session."
+    },
+    {
+      "id": "DOCX-E10",
+      "source": "docx",
+      "scenario": "Use the refresh token from a session issued before the cutover."
+    },
+    {
+      "id": "DOCX-E11",
+      "source": "docx",
+      "scenario": "Check that the access-token hook sees every session-issuing path, including refresh, MFA, anonymous sign-in, identity linking and Web3 or SSO if enabled."
+    },
+    {
+      "id": "DOCX-E12",
+      "source": "docx",
+      "scenario": "Check whether grant_type variants (id_token, pkce, refresh_token) can skip the hook's method check."
+    },
+    {
+      "id": "DOCX-E13",
+      "source": "docx",
+      "scenario": "Check anonymous sign-in or other disabled providers. They must be confirmed disabled."
+    },
+    {
+      "id": "DOCX-E14",
+      "source": "docx",
+      "scenario": "Check whether phone OTP, once enabled, collides with the otp method label."
+    },
+    {
+      "id": "DOCX-E15",
+      "source": "docx",
+      "scenario": "Check Google/Apple sign-in with an unverified-email claim."
+    },
+    {
+      "id": "DOCX-E16",
+      "source": "docx",
+      "scenario": "Link a Google identity that matches a pending email to see whether it grants proof."
+    },
+    {
+      "id": "DOCX-E17",
+      "source": "docx",
+      "scenario": "Create an OAuth account first, then add a password via the recovery path."
+    },
+    {
+      "id": "DOCX-E18",
+      "source": "docx",
+      "scenario": "Test that an OAuth-to-password transition requires proof."
+    },
+    {
+      "id": "DOCX-E19",
+      "source": "docx",
+      "scenario": "Use the Admin API from a leaked service-role key (out of scope for the design, but note the blast radius)."
+    },
+    {
+      "id": "DOCX-E20",
+      "source": "docx",
+      "scenario": "Check Realtime, Storage and PostgREST: do they accept a JWT that the hook would have denied? Check for tokens minted before the hook is active."
+    },
+    {
+      "id": "DOCX-F01",
+      "source": "docx",
+      "scenario": "Change the account email, then check that the proof for the old address no longer applies."
+    },
+    {
+      "id": "DOCX-F02",
+      "source": "docx",
+      "scenario": "Change the email back to the old address and check that old proof isn't revived."
+    },
+    {
+      "id": "DOCX-F03",
+      "source": "docx",
+      "scenario": "Case-fold or Unicode-normalize collisions to try to inherit proof."
+    },
+    {
+      "id": "DOCX-F04",
+      "source": "docx",
+      "scenario": "Test whether plus-address variants share proof."
+    },
+    {
+      "id": "DOCX-F05",
+      "source": "docx",
+      "scenario": "Check that the baseline snapshot includes exactly the 60 confirmed accounts and not the 2 pending, with an atomic snapshot under concurrent signups during cutover."
+    },
+    {
+      "id": "DOCX-F06",
+      "source": "docx",
+      "scenario": "Confirm an account in the window between snapshot and hook activation."
+    },
+    {
+      "id": "DOCX-F07",
+      "source": "docx",
+      "scenario": "Check that an account confirmed through the provider after the snapshot is not grandfathered."
+    },
+    {
+      "id": "DOCX-F08",
+      "source": "docx",
+      "scenario": "Write the registry from the client with an RLS bypass attempt through views, functions, SECURITY DEFINER mistakes or search_path hijack."
+    },
+    {
+      "id": "DOCX-F09",
+      "source": "docx",
+      "scenario": "Call the helper RPCs as anon and authenticated, and check for missing REVOKE EXECUTE on PUBLIC."
+    },
+    {
+      "id": "DOCX-F10",
+      "source": "docx",
+      "scenario": "Check that new tables created later don't inherit default grants."
+    },
+    {
+      "id": "DOCX-G01",
+      "source": "docx",
+      "scenario": "Direct PKCE confirmation at the DB write boundary, expecting rejection."
+    },
+    {
+      "id": "DOCX-G02",
+      "source": "docx",
+      "scenario": "Admin seed without an operation grant."
+    },
+    {
+      "id": "DOCX-G03",
+      "source": "docx",
+      "scenario": "Admin seed with an expired or consumed grant."
+    },
+    {
+      "id": "DOCX-G04",
+      "source": "docx",
+      "scenario": "Reuse a consumed grant for a second password write."
+    },
+    {
+      "id": "DOCX-G05",
+      "source": "docx",
+      "scenario": "Write app_metadata through a client path (it must be admin-only)."
+    },
+    {
+      "id": "DOCX-G06",
+      "source": "docx",
+      "scenario": "Write user_metadata claiming an operation ID."
+    },
+    {
+      "id": "DOCX-G07",
+      "source": "docx",
+      "scenario": "Race an email change against an active recovery operation."
+    },
+    {
+      "id": "DOCX-G08",
+      "source": "docx",
+      "scenario": "Race account deletion against an active operation."
+    },
+    {
+      "id": "DOCX-G09",
+      "source": "docx",
+      "scenario": "Race a normal authenticated password change against the operation."
+    },
+    {
+      "id": "DOCX-G10",
+      "source": "docx",
+      "scenario": "Time out the upstream Admin call, then check that the pending marker stays and a delayed request can't escape the guard."
+    },
+    {
+      "id": "DOCX-G11",
+      "source": "docx",
+      "scenario": "Check that the guard flag being off (the disabled-by-default state) can't be flipped by a client."
+    },
+    {
+      "id": "DOCX-G12",
+      "source": "docx",
+      "scenario": "Check the guard against provider-internal updates (token cleanup, last_sign_in_at, confirmation timestamps), so it doesn't break legitimate writes."
+    },
+    {
+      "id": "DOCX-G13",
+      "source": "docx",
+      "scenario": "Check the trigger ordering relative to provider triggers."
+    },
+    {
+      "id": "DOCX-G14",
+      "source": "docx",
+      "scenario": "Check whether the guard fires on bulk or UPDATE ... WHERE writes, not just single rows."
+    },
+    {
+      "id": "DOCX-H01",
+      "source": "docx",
+      "scenario": "Replay a consumed recovery capability."
+    },
+    {
+      "id": "DOCX-H02",
+      "source": "docx",
+      "scenario": "Use a capability after the original challenge deadline."
+    },
+    {
+      "id": "DOCX-H03",
+      "source": "docx",
+      "scenario": "Use a capability for account B with account A's ID."
+    },
+    {
+      "id": "DOCX-H04",
+      "source": "docx",
+      "scenario": "Change the password on an account other than the bound one."
+    },
+    {
+      "id": "DOCX-H05",
+      "source": "docx",
+      "scenario": "Submit a password that violates policy, check whether the capability is burned, and decide whether that behavior is intended."
+    },
+    {
+      "id": "DOCX-H06",
+      "source": "docx",
+      "scenario": "Submit a password over the length limit (DoS through hashing cost)."
+    },
+    {
+      "id": "DOCX-H07",
+      "source": "docx",
+      "scenario": "Check that old refresh tokens fail after reset."
+    },
+    {
+      "id": "DOCX-H08",
+      "source": "docx",
+      "scenario": "Check that old JWTs still work until expiry, and document it."
+    },
+    {
+      "id": "DOCX-H09",
+      "source": "docx",
+      "scenario": "Check that outstanding challenges are invalidated after a reset."
+    },
+    {
+      "id": "DOCX-H10",
+      "source": "docx",
+      "scenario": "Attempt reset on an unconfirmed account to see whether it confirms as a side effect."
+    },
+    {
+      "id": "DOCX-I01",
+      "source": "docx",
+      "scenario": "Load the link with a scanner-style GET or HEAD, and check that nothing is consumed."
+    },
+    {
+      "id": "DOCX-I02",
+      "source": "docx",
+      "scenario": "Check that prefetch, link unfurlers and email-client previews don't consume anything."
+    },
+    {
+      "id": "DOCX-I03",
+      "source": "docx",
+      "scenario": "Keep the secret in a URL fragment and check that it never reaches server logs, Referer headers or analytics."
+    },
+    {
+      "id": "DOCX-I04",
+      "source": "docx",
+      "scenario": "Check that the fragment clears immediately and that back/forward history doesn't restore it."
+    },
+    {
+      "id": "DOCX-I05",
+      "source": "docx",
+      "scenario": "Check for XSS on the recovery page, CSP bypass and DOM injection from query params."
+    },
+    {
+      "id": "DOCX-I06",
+      "source": "docx",
+      "scenario": "Check for open redirects, so the fixed mortapp.org route can't take a next= parameter."
+    },
+    {
+      "id": "DOCX-I07",
+      "source": "docx",
+      "scenario": "Check for clickjacking (frame-ancestors) and CSRF on the consume action."
+    },
+    {
+      "id": "DOCX-I08",
+      "source": "docx",
+      "scenario": "Check for lookalike domains and a punycode phishing page that asks for the code."
+    },
+    {
+      "id": "DOCX-J01",
+      "source": "docx",
+      "scenario": "Fail the SMTP send and check that the challenge isn't marked deliverable."
+    },
+    {
+      "id": "DOCX-J02",
+      "source": "docx",
+      "scenario": "Check ambiguous SMTP outcomes (timeout after DATA) for fail-closed behavior."
+    },
+    {
+      "id": "DOCX-J03",
+      "source": "docx",
+      "scenario": "Check header injection through the display name or email local part."
+    },
+    {
+      "id": "DOCX-J04",
+      "source": "docx",
+      "scenario": "Check SPF, DKIM and DMARC alignment for auth@mortapp.org."
+    },
+    {
+      "id": "DOCX-J05",
+      "source": "docx",
+      "scenario": "Check the mailbox catch-all and a typosquatted recipient domain."
+    },
+    {
+      "id": "DOCX-J06",
+      "source": "docx",
+      "scenario": "Test hook latency. GoTrue's hook timeout shouldn't lock out signups under load."
+    },
+    {
+      "id": "DOCX-J07",
+      "source": "docx",
+      "scenario": "Test the SMTP and Edge Function outage's effect on the user-facing error, and rollback with half-enabled hooks (only Send Email on, or only the deny hook on)."
+    },
+    {
+      "id": "DOCX-J08",
+      "source": "docx",
+      "scenario": "Test the legacy-link window, where old provider links either work with the counter or are cleanly rejected, never silently half-accepted."
+    },
+    {
+      "id": "OB-01",
+      "source": "overlooked_bypasses_docx",
+      "scenario": "Pre-hijacking. An attacker signs up with the victim's email and picks the password. The victim later gets a confirmation email (or signs in with Google), and the account becomes legitimately confirmed, with the attacker's password still on it. The design stops direct PKCE confirmation, but it doesn't address a real owner confirming an account whose password they never set. Fix: make the confirmation step set the password, or discard any pre-confirmation password and revoke sessions at confirmation."
+    },
+    {
+      "id": "OB-02",
+      "source": "overlooked_bypasses_docx",
+      "scenario": "Signup metadata. The public signup call accepts a free-form data object that becomes user_metadata. If any trigger, RPC or onboarding screen reads role, age, guardian status or school from there, a teen can sign up as an adult poster by calling Supabase directly. The spec says the hook assigns no roles, but it never says the existing triggers ignore metadata. Audit every reader of raw_user_meta_data."
+    },
+    {
+      "id": "OB-03",
+      "source": "overlooked_bypasses_docx",
+      "scenario": "Attacker text in your own email. A display name or other signup field that lands in the greeting turns your legitimate auth@mortapp.org message into a phishing vehicle. Don't put any user-supplied field in the email, and ignore redirect_to and similar fields in the hook payload even though they arrive in it."
+    },
+    {
+      "id": "OB-04",
+      "source": "overlooked_bypasses_docx",
+      "scenario": "Link swap. The attacker requests a valid link for their own account and sends it to a victim. The victim \"resets their password\" on the attacker's account and then enters personal info or payment details into it. Fix: show the masked address on every confirm and reset screen."
+    },
+    {
+      "id": "OB-05",
+      "source": "overlooked_bypasses_docx",
+      "scenario": "Notification previews. If the 8-digit code is in the subject line or first line, anyone who glances at a teen's lock screen can read it. Keep the code out of the subject, and consider making the link primary."
+    },
+    {
+      "id": "OB-06",
+      "source": "overlooked_bypasses_docx",
+      "scenario": "Timing oracle from the hook. GoTrue waits for the Send Email hook. A recovery request for an existing account then takes as long as the SMTP send, while an unknown address returns immediately. That is an account-existence oracle in plain response time. Fix: queue the send and return from the hook quickly, or pad responses."
+    },
+    {
+      "id": "OB-07",
+      "source": "overlooked_bypasses_docx",
+      "scenario": "Email-parser mismatch. Addresses with quoted local parts, extra @ symbols, or non-ASCII characters can be read one way by the provider's validator and another way by your SMTP library. The challenge is then bound to one address but delivered to a different one. Fix: assert that the SMTP envelope recipient exactly equals the bound address, and reject exotic syntax."
+    },
+    {
+      "id": "OB-08",
+      "source": "overlooked_bypasses_docx",
+      "scenario": "Lowercase differences. Go, Deno and Postgres don't always lowercase identically (locale-sensitive cases like the Turkish dotless i). A registry key built in one runtime can then fail to match, or wrongly match, in another. Use one canonicalization point and test across all three."
+    },
+    {
+      "id": "OB-09",
+      "source": "overlooked_bypasses_docx",
+      "scenario": "IPv6 rotation. One home connection controls a /64, which is 2^64 addresses. Any per-IP limit, including the \"independent abuse limit\" for unknown identifiers, is useless unless it aggregates by prefix."
+    },
+    {
+      "id": "OB-10",
+      "source": "overlooked_bypasses_docx",
+      "scenario": "Killing someone else's code. A resend invalidates the previous challenge, and resend requests are unauthenticated. An attacker can request a resend for a victim every cooldown period, so the victim's code dies before they finish typing. Consider keeping the previous challenge valid until a new one is delivered, or until a short grace period passes."
+    },
+    {
+      "id": "OB-11",
+      "source": "overlooked_bypasses_docx",
+      "scenario": "Mail-bombing and sender reputation. Free signups against victim addresses flood their inboxes. The resulting spam complaints can get auth@mortapp.org or the whole domain flagged, and then real users stop receiving codes. Add per-recipient and global send ceilings, and monitor complaint rates."
+    },
+    {
+      "id": "OB-12",
+      "source": "overlooked_bypasses_docx",
+      "scenario": "Hot-row lock contention. Hammering one challenge ID makes everyone queue on its row lock, including the legitimate user. Short-circuit exhausted or unknown IDs before taking the lock, and set lock_timeout."
+    },
+    {
+      "id": "OB-13",
+      "source": "overlooked_bypasses_docx",
+      "scenario": "Same-origin exposure. The auth page lives on mortapp.org, the same origin as a marketplace with user-generated content, and the Next.js shell may load analytics or cinematic WebGL scripts. One XSS in a job post, or one third-party script, can read the secret or password in memory. Fix: host auth on its own origin or subdomain with its own CSP, with nothing else loaded."
+    },
+    {
+      "id": "OB-14",
+      "source": "overlooked_bypasses_docx",
+      "scenario": "Mail gateways and fragments. Some security gateways and clients rewrite links or drop #fragments. Developers then \"fix\" this by moving the secret into the query string, which puts it in logs. Test the major mail clients before activation."
+    },
+    {
+      "id": "OB-15",
+      "source": "overlooked_bypasses_docx",
+      "scenario": "Android link interception. If the link can open the Flutter app through an unverified deep link, another installed app can claim it. Use verified App Links (assetlinks.json) and keep the browser as the default."
+    },
+    {
+      "id": "OB-16",
+      "source": "overlooked_bypasses_docx",
+      "scenario": "Console and admin routes. Dashboard buttons (\"confirm user\", \"send recovery\") and the Admin generate_link route mint credentials outside your checker. List every such route in the guard's allowlist test."
+    },
+    {
+      "id": "OB-17",
+      "source": "overlooked_bypasses_docx",
+      "scenario": "Recycled addresses. Expired school or personal domains get re-registered, and the new owner receives mail for old addresses. Email proof can't fix this, so consider notifying the old address on recovery and requiring step-up for sensitive actions."
+    },
+    {
+      "id": "MD2-001",
+      "source": "markdown_revision_2",
+      "scenario": "Unknown challenge ID:",
+      "requirement": "generic failure, no enumeration."
+    },
+    {
+      "id": "MD2-002",
+      "source": "markdown_revision_2",
+      "scenario": "Empty/oversized/non-UUID ID:",
+      "requirement": "bounded rejection, no mutation."
+    },
+    {
+      "id": "MD2-003",
+      "source": "markdown_revision_2",
+      "scenario": "Unicode or null-byte ID:",
+      "requirement": "safe rejection, no parser bypass."
+    },
+    {
+      "id": "MD2-004",
+      "source": "markdown_revision_2",
+      "scenario": "Duplicate JSON keys:",
+      "requirement": "deterministic parse or rejection."
+    },
+    {
+      "id": "MD2-005",
+      "source": "markdown_revision_2",
+      "scenario": "Unexpected JSON types:",
+      "requirement": "no truthiness or coercion bypass."
+    },
+    {
+      "id": "MD2-006",
+      "source": "markdown_revision_2",
+      "scenario": "Oversized body/header/cookie:",
+      "requirement": "bounded 4xx, no exhaustion."
+    },
+    {
+      "id": "MD2-007",
+      "source": "markdown_revision_2",
+      "scenario": "Content-type confusion:",
+      "requirement": "only supported parser path works."
+    },
+    {
+      "id": "MD2-008",
+      "source": "markdown_revision_2",
+      "scenario": "HTTP method confusion:",
+      "requirement": "GET/HEAD never consume; unsupported methods reject."
+    },
+    {
+      "id": "MD2-009",
+      "source": "markdown_revision_2",
+      "scenario": "Path normalization:",
+      "requirement": "dot segments, duplicate slashes, encoding, and case cannot reach a weaker route."
+    },
+    {
+      "id": "MD2-010",
+      "source": "markdown_revision_2",
+      "scenario": "Parameter duplication:",
+      "requirement": "conflicting path/query/body/header values reject or use only trusted binding."
+    },
+    {
+      "id": "MD2-011",
+      "source": "markdown_revision_2",
+      "scenario": "Unknown fields:",
+      "requirement": "`admin`, `verified`, `skip_check`, and old flags do nothing."
+    },
+    {
+      "id": "MD2-012",
+      "source": "markdown_revision_2",
+      "scenario": "Cross-account redemption:",
+      "requirement": "account A material fails for B."
+    },
+    {
+      "id": "MD2-013",
+      "source": "markdown_revision_2",
+      "scenario": "Cross-purpose redemption:",
+      "requirement": "confirmation material cannot recover a password."
+    },
+    {
+      "id": "MD2-014",
+      "source": "markdown_revision_2",
+      "scenario": "Cross-representation replay:",
+      "requirement": "code and link share one budget and terminal state."
+    },
+    {
+      "id": "MD2-015",
+      "source": "markdown_revision_2",
+      "scenario": "Recipient substitution:",
+      "requirement": "changing recipient cannot change server binding."
+    },
+    {
+      "id": "MD2-016",
+      "source": "markdown_revision_2",
+      "scenario": "Account UUID substitution:",
+      "requirement": "client cannot select the target account."
+    },
+    {
+      "id": "MD2-017",
+      "source": "markdown_revision_2",
+      "scenario": "Purpose case/encoding variants:",
+      "requirement": "strict canonical purpose handling."
+    },
+    {
+      "id": "MD2-018",
+      "source": "markdown_revision_2",
+      "scenario": "Stale challenge after address change:",
+      "requirement": "old material fails."
+    },
+    {
+      "id": "MD2-019",
+      "source": "markdown_revision_2",
+      "scenario": "Deleted-account redemption:",
+      "requirement": "no recreation, proof, session, or password mutation."
+    },
+    {
+      "id": "MD2-020",
+      "source": "markdown_revision_2",
+      "scenario": "Superseded challenge:",
+      "requirement": "old challenge stays dead after resend."
+    },
+    {
+      "id": "MD2-021",
+      "source": "markdown_revision_2",
+      "scenario": "Orphaned signup challenge:",
+      "requirement": "rollback orphan cannot bind to another user."
+    },
+    {
+      "id": "MD2-022",
+      "source": "markdown_revision_2",
+      "scenario": "All-zero/all-nine code:",
+      "requirement": "fixed-length policy holds."
+    },
+    {
+      "id": "MD2-023",
+      "source": "markdown_revision_2",
+      "scenario": "Leading-zero code:",
+      "requirement": "no numeric coercion or truncation."
+    },
+    {
+      "id": "MD2-024",
+      "source": "markdown_revision_2",
+      "scenario": "Wrong-length code:",
+      "requirement": "generic failure and correct accounting."
+    },
+    {
+      "id": "MD2-025",
+      "source": "markdown_revision_2",
+      "scenario": "Unicode digit confusables:",
+      "requirement": "reject or canonicalize explicitly."
+    },
+    {
+      "id": "MD2-026",
+      "source": "markdown_revision_2",
+      "scenario": "Whitespace/delimiter variants:",
+      "requirement": "no alternate valid encoding."
+    },
+    {
+      "id": "MD2-027",
+      "source": "markdown_revision_2",
+      "scenario": "Near-miss timing probe:",
+      "requirement": "comparison leaks no useful oracle."
+    },
+    {
+      "id": "MD2-028",
+      "source": "markdown_revision_2",
+      "scenario": "Missing HMAC key:",
+      "requirement": "fail closed; no weak fallback."
+    },
+    {
+      "id": "MD2-029",
+      "source": "markdown_revision_2",
+      "scenario": "Key rotation:",
+      "requirement": "old/new key policy is explicit and safe."
+    },
+    {
+      "id": "MD2-030",
+      "source": "markdown_revision_2",
+      "scenario": "Digest collision fixture:",
+      "requirement": "algorithm/configuration is pinned."
+    },
+    {
+      "id": "MD2-031",
+      "source": "markdown_revision_2",
+      "scenario": "Link entropy sample:",
+      "requirement": "at least 128 independent random bits."
+    },
+    {
+      "id": "MD2-032",
+      "source": "markdown_revision_2",
+      "scenario": "Secret in URL/referrer/history:",
+      "requirement": "no persistent or external leakage."
+    },
+    {
+      "id": "MD2-033",
+      "source": "markdown_revision_2",
+      "scenario": "Fragment/query/path mix-up:",
+      "requirement": "only intended in-memory flow works."
+    },
+    {
+      "id": "MD2-034",
+      "source": "markdown_revision_2",
+      "scenario": "Replay after restart:",
+      "requirement": "terminal state survives process restart."
+    },
+    {
+      "id": "MD2-035",
+      "source": "markdown_revision_2",
+      "scenario": "Exactly five wrong guesses:",
+      "requirement": "retires on five, no off-by-one."
+    },
+    {
+      "id": "MD2-036",
+      "source": "markdown_revision_2",
+      "scenario": "Sixth wrong guess:",
+      "requirement": "no further useful mutation or unbounded counter."
+    },
+    {
+      "id": "MD2-037",
+      "source": "markdown_revision_2",
+      "scenario": "Four failures then success:",
+      "requirement": "success consumes once."
+    },
+    {
+      "id": "MD2-038",
+      "source": "markdown_revision_2",
+      "scenario": "Failure after success:",
+      "requirement": "cannot resurrect challenge or budget."
+    },
+    {
+      "id": "MD2-039",
+      "source": "markdown_revision_2",
+      "scenario": "Concurrent wrong guesses:",
+      "requirement": "row locks yield exactly one coherent budget."
+    },
+    {
+      "id": "MD2-040",
+      "source": "markdown_revision_2",
+      "scenario": "Concurrent correct/wrong guesses:",
+      "requirement": "no double consume or post-success mutation."
+    },
+    {
+      "id": "MD2-041",
+      "source": "markdown_revision_2",
+      "scenario": "Resend during active challenge:",
+      "requirement": "cooldown and hourly quota hold."
+    },
+    {
+      "id": "MD2-042",
+      "source": "markdown_revision_2",
+      "scenario": "Resend after exhaustion:",
+      "requirement": "new item follows policy; old item remains dead."
+    },
+    {
+      "id": "MD2-043",
+      "source": "markdown_revision_2",
+      "scenario": "Expiry just before deadline:",
+      "requirement": "allowed only if policy says so."
+    },
+    {
+      "id": "MD2-044",
+      "source": "markdown_revision_2",
+      "scenario": "Expiry at deadline:",
+      "requirement": "deterministic boundary behavior."
+    },
+    {
+      "id": "MD2-045",
+      "source": "markdown_revision_2",
+      "scenario": "Expiry after deadline:",
+      "requirement": "no late authorization."
+    },
+    {
+      "id": "MD2-046",
+      "source": "markdown_revision_2",
+      "scenario": "Clock skew forward/backward:",
+      "requirement": "trusted-time policy prevents bypass."
+    },
+    {
+      "id": "MD2-047",
+      "source": "markdown_revision_2",
+      "scenario": "Missing hook signature:",
+      "requirement": "no issuance or delivery."
+    },
+    {
+      "id": "MD2-048",
+      "source": "markdown_revision_2",
+      "scenario": "Altered signature/body:",
+      "requirement": "rejects before state change."
+    },
+    {
+      "id": "MD2-049",
+      "source": "markdown_revision_2",
+      "scenario": "Wrong key/algorithm:",
+      "requirement": "signature never accepted."
+    },
+    {
+      "id": "MD2-050",
+      "source": "markdown_revision_2",
+      "scenario": "Stale signed event:",
+      "requirement": "timestamp window rejects it."
+    },
+    {
+      "id": "MD2-051",
+      "source": "markdown_revision_2",
+      "scenario": "Exact event replay:",
+      "requirement": "idempotent; no duplicate active challenges."
+    },
+    {
+      "id": "MD2-052",
+      "source": "markdown_revision_2",
+      "scenario": "Replay with new transport ID:",
+      "requirement": "provider event identity still blocks it."
+    },
+    {
+      "id": "MD2-053",
+      "source": "markdown_revision_2",
+      "scenario": "Action confusion:",
+      "requirement": "signup/recovery/confirmation cannot be interchanged."
+    },
+    {
+      "id": "MD2-054",
+      "source": "markdown_revision_2",
+      "scenario": "Payload substitution:",
+      "requirement": "account, recipient, redirect, and template remain signed/trusted."
+    },
+    {
+      "id": "MD2-055",
+      "source": "markdown_revision_2",
+      "scenario": "Duplicate callbacks:",
+      "requirement": "bounded issuance and consistent state."
+    },
+    {
+      "id": "MD2-056",
+      "source": "markdown_revision_2",
+      "scenario": "Hook timeout/retry storm:",
+      "requirement": "finite lease/idempotency prevents over-issuance."
+    },
+    {
+      "id": "MD2-057",
+      "source": "markdown_revision_2",
+      "scenario": "GET `/verify` provider token:",
+      "requirement": "no MORT proof/session."
+    },
+    {
+      "id": "MD2-058",
+      "source": "markdown_revision_2",
+      "scenario": "POST `/verify` provider token:",
+      "requirement": "same denial."
+    },
+    {
+      "id": "MD2-059",
+      "source": "markdown_revision_2",
+      "scenario": "Token-hash form:",
+      "requirement": "provider token alone is insufficient."
+    },
+    {
+      "id": "MD2-060",
+      "source": "markdown_revision_2",
+      "scenario": "Typed-code form:",
+      "requirement": "known provider OTP cannot bypass MORT."
+    },
+    {
+      "id": "MD2-061",
+      "source": "markdown_revision_2",
+      "scenario": "PKCE exchange:",
+      "requirement": "direct confirmation cannot create unauthorized MORT session."
+    },
+    {
+      "id": "MD2-062",
+      "source": "markdown_revision_2",
+      "scenario": "Implicit-flow exchange:",
+      "requirement": "fragment flow remains guarded."
+    },
+    {
+      "id": "MD2-063",
+      "source": "markdown_revision_2",
+      "scenario": "Password sign-in after attacker-chosen signup password:",
+      "requirement": "denied without private proof."
+    },
+    {
+      "id": "MD2-064",
+      "source": "markdown_revision_2",
+      "scenario": "Direct recovery endpoint:",
+      "requirement": "no reset/login without MORT capability."
+    },
+    {
+      "id": "MD2-065",
+      "source": "markdown_revision_2",
+      "scenario": "Method-label variants:",
+      "requirement": "actual GoTrue method values are tested and denied where required."
+    },
+    {
+      "id": "MD2-066",
+      "source": "markdown_revision_2",
+      "scenario": "Provider-version drift:",
+      "requirement": "activation blocks on unsupported ordering/labels."
+    },
+    {
+      "id": "MD2-067",
+      "source": "markdown_revision_2",
+      "scenario": "Client `user_metadata` proof claim:",
+      "requirement": "never authorizes."
+    },
+    {
+      "id": "MD2-068",
+      "source": "markdown_revision_2",
+      "scenario": "Client `app_metadata` write:",
+      "requirement": "public caller cannot create privileged metadata."
+    },
+    {
+      "id": "MD2-069",
+      "source": "markdown_revision_2",
+      "scenario": "Forged JWT claims:",
+      "requirement": "signature validation rejects alterations."
+    },
+    {
+      "id": "MD2-070",
+      "source": "markdown_revision_2",
+      "scenario": "Stale JWT after proof revocation:",
+      "requirement": "behavior matches documented session policy."
+    },
+    {
+      "id": "MD2-071",
+      "source": "markdown_revision_2",
+      "scenario": "Refresh after unauthorized confirmation:",
+      "requirement": "no new unauthorized session."
+    },
+    {
+      "id": "MD2-072",
+      "source": "markdown_revision_2",
+      "scenario": "Refresh after recovery:",
+      "requirement": "expected refresh sessions are invalidated."
+    },
+    {
+      "id": "MD2-073",
+      "source": "markdown_revision_2",
+      "scenario": "Access-token hook timeout:",
+      "requirement": "issuance fails closed."
+    },
+    {
+      "id": "MD2-074",
+      "source": "markdown_revision_2",
+      "scenario": "Low-privilege hook role:",
+      "requirement": "cannot read/mutate private state."
+    },
+    {
+      "id": "MD2-075",
+      "source": "markdown_revision_2",
+      "scenario": "Malformed JWT claims:",
+      "requirement": "strict schema, no truthiness bypass."
+    },
+    {
+      "id": "MD2-076",
+      "source": "markdown_revision_2",
+      "scenario": "Private registry enumeration:",
+      "requirement": "REST/GraphQL/RPC/table guesses reveal nothing."
+    },
+    {
+      "id": "MD2-077",
+      "source": "markdown_revision_2",
+      "scenario": "Recovery capability reuse:",
+      "requirement": "second use fails."
+    },
+    {
+      "id": "MD2-078",
+      "source": "markdown_revision_2",
+      "scenario": "Capability expiry:",
+      "requirement": "no late password mutation."
+    },
+    {
+      "id": "MD2-079",
+      "source": "markdown_revision_2",
+      "scenario": "Capability account substitution:",
+      "requirement": "target remains bound or request fails."
+    },
+    {
+      "id": "MD2-080",
+      "source": "markdown_revision_2",
+      "scenario": "Capability-purpose substitution:",
+      "requirement": "confirmation capability cannot reset password."
+    },
+    {
+      "id": "MD2-081",
+      "source": "markdown_revision_2",
+      "scenario": "Password policy bypass:",
+      "requirement": "empty, weak, oversized, and confusable passwords fail policy."
+    },
+    {
+      "id": "MD2-082",
+      "source": "markdown_revision_2",
+      "scenario": "Recovery as login:",
+      "requirement": "reset flow creates no session directly."
+    },
+    {
+      "id": "MD2-083",
+      "source": "markdown_revision_2",
+      "scenario": "Recovery as account lookup:",
+      "requirement": "real/nonexistent responses remain generic."
+    },
+    {
+      "id": "MD2-084",
+      "source": "markdown_revision_2",
+      "scenario": "Recovery as role/entitlement mutation:",
+      "requirement": "extra fields are ignored/rejected."
+    },
+    {
+      "id": "MD2-085",
+      "source": "markdown_revision_2",
+      "scenario": "Repeated password writes:",
+      "requirement": "one consumed grant cannot authorize two writes."
+    },
+    {
+      "id": "MD2-086",
+      "source": "markdown_revision_2",
+      "scenario": "Unknown upstream result:",
+      "requirement": "pending marker prevents unsafe retry/clear."
+    },
+    {
+      "id": "MD2-087",
+      "source": "markdown_revision_2",
+      "scenario": "Email change versus redemption:",
+      "requirement": "one atomic supported outcome."
+    },
+    {
+      "id": "MD2-088",
+      "source": "markdown_revision_2",
+      "scenario": "Password change versus recovery:",
+      "requirement": "no confused-deputy write."
+    },
+    {
+      "id": "MD2-089",
+      "source": "markdown_revision_2",
+      "scenario": "Deletion versus redemption:",
+      "requirement": "no orphan proof or credential change."
+    },
+    {
+      "id": "MD2-090",
+      "source": "markdown_revision_2",
+      "scenario": "Resend versus redemption:",
+      "requirement": "old/new challenge outcome is deterministic."
+    },
+    {
+      "id": "MD2-091",
+      "source": "markdown_revision_2",
+      "scenario": "Fifth failure versus resend:",
+      "requirement": "old retirement and new issuance remain coherent."
+    },
+    {
+      "id": "MD2-092",
+      "source": "markdown_revision_2",
+      "scenario": "Hook before `auth.users` commit:",
+      "requirement": "no uncommitted lookup/FK assumption."
+    },
+    {
+      "id": "MD2-093",
+      "source": "markdown_revision_2",
+      "scenario": "Signup rollback after issuance:",
+      "requirement": "orphan cleanup and no rebinding."
+    },
+    {
+      "id": "MD2-094",
+      "source": "markdown_revision_2",
+      "scenario": "Concurrent operation grants:",
+      "requirement": "one grant, one mutation."
+    },
+    {
+      "id": "MD2-095",
+      "source": "markdown_revision_2",
+      "scenario": "Database failover during consume:",
+      "requirement": "no replay or double-count."
+    },
+    {
+      "id": "MD2-096",
+      "source": "markdown_revision_2",
+      "scenario": "Worker crash after SMTP send:",
+      "requirement": "retry is idempotent."
+    },
+    {
+      "id": "MD2-097",
+      "source": "markdown_revision_2",
+      "scenario": "SMTP authentication failure:",
+      "requirement": "never mark challenge usable."
+    },
+    {
+      "id": "MD2-098",
+      "source": "markdown_revision_2",
+      "scenario": "TLS downgrade/invalid certificate:",
+      "requirement": "connection rejected."
+    },
+    {
+      "id": "MD2-099",
+      "source": "markdown_revision_2",
+      "scenario": "Recipient mismatch:",
+      "requirement": "wrong envelope never verifies."
+    },
+    {
+      "id": "MD2-100",
+      "source": "markdown_revision_2",
+      "scenario": "Template/CRLF injection:",
+      "requirement": "no header or HTML injection."
+    },
+    {
+      "id": "MD2-101",
+      "source": "markdown_revision_2",
+      "scenario": "Redirect manipulation:",
+      "requirement": "fixed HTTPS MORT route only."
+    },
+    {
+      "id": "MD2-102",
+      "source": "markdown_revision_2",
+      "scenario": "Provider token leakage in email/logs:",
+      "requirement": "only MORT material is delivered."
+    },
+    {
+      "id": "MD2-103",
+      "source": "markdown_revision_2",
+      "scenario": "Email scanner GET:",
+      "requirement": "no confirmation/reset/consume."
+    },
+    {
+      "id": "MD2-104",
+      "source": "markdown_revision_2",
+      "scenario": "Mailbox prefetch/retry:",
+      "requirement": "explicit user action remains required."
+    },
+    {
+      "id": "MD2-105",
+      "source": "markdown_revision_2",
+      "scenario": "Recipient mailbox race:",
+      "requirement": "only current bound address works."
+    },
+    {
+      "id": "MD2-106",
+      "source": "markdown_revision_2",
+      "scenario": "Unsupported notification action:",
+      "requirement": "no credential mutation authority."
+    },
+    {
+      "id": "MD2-107",
+      "source": "markdown_revision_2",
+      "scenario": "Static page load:",
+      "requirement": "no mutation without interaction."
+    },
+    {
+      "id": "MD2-108",
+      "source": "markdown_revision_2",
+      "scenario": "Fragment retention:",
+      "requirement": "cleared promptly; secret remains in memory only."
+    },
+    {
+      "id": "MD2-109",
+      "source": "markdown_revision_2",
+      "scenario": "Back/forward replay:",
+      "requirement": "history cannot consume twice."
+    },
+    {
+      "id": "MD2-110",
+      "source": "markdown_revision_2",
+      "scenario": "Iframe/cross-origin embedding:",
+      "requirement": "CSP/frame protections hold."
+    },
+    {
+      "id": "MD2-111",
+      "source": "markdown_revision_2",
+      "scenario": "Script injection in URL fields:",
+      "requirement": "no XSS or unsafe interpolation."
+    },
+    {
+      "id": "MD2-112",
+      "source": "markdown_revision_2",
+      "scenario": "No-JavaScript browser:",
+      "requirement": "no GET-side mutation; safe failure."
+    },
+    {
+      "id": "MD2-113",
+      "source": "markdown_revision_2",
+      "scenario": "Double-click/rapid submit:",
+      "requirement": "one operation only."
+    },
+    {
+      "id": "MD2-114",
+      "source": "markdown_revision_2",
+      "scenario": "Network retry after submit:",
+      "requirement": "idempotency prevents duplicate mutation."
+    },
+    {
+      "id": "MD2-115",
+      "source": "markdown_revision_2",
+      "scenario": "Native deep-link compatibility:",
+      "requirement": "approved Flutter path works without alternate auth."
+    },
+    {
+      "id": "MD2-116",
+      "source": "markdown_revision_2",
+      "scenario": "Accessible error/status states:",
+      "requirement": "text agrees with server result and is non-color-dependent."
+    },
+    {
+      "id": "MD2-117",
+      "source": "markdown_revision_2",
+      "scenario": "Distributed wrong guesses:",
+      "requirement": "per-challenge budget remains authoritative."
+    },
+    {
+      "id": "MD2-118",
+      "source": "markdown_revision_2",
+      "scenario": "IPv4/IPv6 resend rotation:",
+      "requirement": "account/purpose quotas still hold."
+    },
+    {
+      "id": "MD2-119",
+      "source": "markdown_revision_2",
+      "scenario": "Concurrent quota race:",
+      "requirement": "atomic quota enforcement."
+    },
+    {
+      "id": "MD2-120",
+      "source": "markdown_revision_2",
+      "scenario": "Unknown-ID flood:",
+      "requirement": "independent abuse control prevents resource exhaustion."
+    },
+    {
+      "id": "MD2-121",
+      "source": "markdown_revision_2",
+      "scenario": "Pre-created account password takeover:",
+      "requirement": "require safe password replacement or equivalent binding before private password authorization; attacker-chosen pre-confirmation password cannot become trusted unexpectedly."
+    },
+    {
+      "id": "MD2-122",
+      "source": "markdown_revision_2",
+      "scenario": "OAuth transition with unconfirmed password identity:",
+      "requirement": "test Google/Apple identity linking against pinned provider behavior; no unverified password credential is silently promoted."
+    },
+    {
+      "id": "MD2-123",
+      "source": "markdown_revision_2",
+      "scenario": "Link swap between users:",
+      "requirement": "exchanged links remain bound to original account, address generation, purpose, and capability."
+    },
+    {
+      "id": "MD2-124",
+      "source": "markdown_revision_2",
+      "scenario": "Masked-recipient confusion:",
+      "requirement": "known challenges show only server-bound masked recipient; unknown IDs disclose no target metadata."
+    },
+    {
+      "id": "MD2-125",
+      "source": "markdown_revision_2",
+      "scenario": "Attacker-controlled email text:",
+      "requirement": "display names and fields cannot control subject, preheader, destination, HTML, or instructions."
+    },
+    {
+      "id": "MD2-126",
+      "source": "markdown_revision_2",
+      "scenario": "Notification-preview leakage:",
+      "requirement": "lock-screen/mailbox previews contain no code, token, password, or sensitive identity detail."
+    },
+    {
+      "id": "MD2-127",
+      "source": "markdown_revision_2",
+      "scenario": "Hook timing oracle:",
+      "requirement": "valid/invalid/unknown/duplicate/SMTP-error paths expose no useful account or action oracle."
+    },
+    {
+      "id": "MD2-128",
+      "source": "markdown_revision_2",
+      "scenario": "Email-parser mismatch:",
+      "requirement": "plus-addressing, IDN, Unicode, case, whitespace, and provider canonicalization use one explicit policy."
+    },
+    {
+      "id": "MD2-129",
+      "source": "markdown_revision_2",
+      "scenario": "Case-folding collision:",
+      "requirement": "identities differing by case/normalization cannot share proof or recovery."
+    },
+    {
+      "id": "MD2-130",
+      "source": "markdown_revision_2",
+      "scenario": "IPv6/forwarded-header spoofing:",
+      "requirement": "untrusted headers never establish identity; quotas and fairness remain bounded."
+    },
+    {
+      "id": "MD2-131",
+      "source": "markdown_revision_2",
+      "scenario": "Cross-user invalidation:",
+      "requirement": "resend/failure/deletion for one account cannot alter another account’s challenge."
+    },
+    {
+      "id": "MD2-132",
+      "source": "markdown_revision_2",
+      "scenario": "Mail-bombing/sender reputation:",
+      "requirement": "per-recipient/global ceilings, backpressure, cooldowns, and idempotent supersession hold."
+    },
+    {
+      "id": "MD2-133",
+      "source": "markdown_revision_2",
+      "scenario": "Hot-row lock contention:",
+      "requirement": "lock waits, statement duration, worker and pool usage are bounded; final transaction rechecks all state."
+    },
+    {
+      "id": "MD2-134",
+      "source": "markdown_revision_2",
+      "scenario": "Same-origin expansion:",
+      "requirement": "marketplace scripts/service workers/future routes cannot access recovery secrets; audit origin scope."
+    },
+    {
+      "id": "MD2-135",
+      "source": "markdown_revision_2",
+      "scenario": "Mail gateway and fragment rewriting:",
+      "requirement": "scanners do not consume; secrets are never moved to query/path to repair links."
+    },
+    {
+      "id": "MD2-136",
+      "source": "markdown_revision_2",
+      "scenario": "Android custom-scheme interception:",
+      "requirement": "capabilities never use custom schemes; verified HTTPS App Links and PKCE/state prevent interception."
+    },
+    {
+      "id": "MD2-137",
+      "source": "markdown_revision_2",
+      "scenario": "Admin/dashboard route inventory:",
+      "requirement": "dashboard confirmation, `generate_link`, direct verify, user updates, and metadata-only updates all enforce the intended boundary or are explicitly service-only."
+    },
+    {
+      "id": "DOCX-K01",
+      "source": "section_k_docx",
+      "scenario": "Pre-hijacking",
+      "requirement": "On the local stack, create a pending password signup for a disposable address, then complete owner confirmation through the MORT flow. Check that the pre-confirmation password cannot sign in, that earlier refresh sessions fail, and that the owner must set a replacement password. Repeat with Google identity linking on the pinned GoTrue to see whether an unconfirmed email-password identity is removed."
+    },
+    {
+      "id": "DOCX-K02",
+      "source": "section_k_docx",
+      "scenario": "Signup metadata",
+      "requirement": "Regression only. Sign up with spoofed role, age, guardian and school metadata and check that the profile, role RPC and entitlements are unchanged. Search RLS policies and Edge Functions for readers of user_metadata in the JWT. Check display-name length limits, escaping and moderation at every render site."
+    },
+    {
+      "id": "DOCX-K03",
+      "source": "section_k_docx",
+      "scenario": "Attacker text in your own email",
+      "requirement": "Sign up with a hostile display name and an unexpected redirect field in the payload. The local SMTP capture must show the fixed template, the fixed HTTPS destination, no user-supplied fields and no HTML injection."
+    },
+    {
+      "id": "DOCX-K04",
+      "source": "section_k_docx",
+      "scenario": "Link swap",
+      "requirement": "Issue a link for account A and open it in a different browser session. After validation the page must show the server-bound masked recipient, show nothing for unknown IDs, change only account A, and never enter the marketplace automatically."
+    },
+    {
+      "id": "DOCX-K05",
+      "source": "section_k_docx",
+      "scenario": "Notification previews",
+      "requirement": "Inspect the captured subject, preheader and first lines for code or token material. The link must be the primary action."
+    },
+    {
+      "id": "DOCX-K06",
+      "source": "section_k_docx",
+      "scenario": "Timing oracle from the hook",
+      "requirement": "Run bounded repeated recovery requests for known vs. unknown disposable addresses against real GoTrue with the hook enabled, then again with queued delivery. Compare timing distributions, bodies and headers."
+    },
+    {
+      "id": "DOCX-K07",
+      "source": "section_k_docx",
+      "scenario": "Email-parser mismatch",
+      "requirement": "Run a matrix of exotic address syntax on the local fixture. The address the provider accepts, the bound recipient and the SMTP envelope recipient must be identical, with exactly one recipient."
+    },
+    {
+      "id": "DOCX-K08",
+      "source": "section_k_docx",
+      "scenario": "Lowercase differences",
+      "requirement": "Test canonicalization across Go (GoTrue), Deno and Postgres for locale-sensitive cases. Use one canonical path, consistent registry lookup, and no invented alias equivalence."
+    },
+    {
+      "id": "DOCX-K09",
+      "source": "section_k_docx",
+      "scenario": "IPv6 rotation",
+      "requirement": "Use synthetic caller contexts across one /64 on the local fixture, through trusted ingress only. Check that per-prefix limits plus global and per-challenge controls hold, and that public forwarded headers never set identity."
+    },
+    {
+      "id": "DOCX-K10",
+      "source": "section_k_docx",
+      "scenario": "Killing someone else's code",
+      "requirement": "Let the owner complete a code while an attacker repeats resend requests through cooldown and quota. Check the atomic swap, at most one active challenge, no revival of terminal old state, and behavior under queued delivery and quota exhaustion."
+    },
+    {
+      "id": "DOCX-K11",
+      "source": "section_k_docx",
+      "scenario": "Mail-bombing and sender reputation",
+      "requirement": "Check that per-recipient and global send ceilings are atomic under concurrency, with queue backpressure and secret-free operational signals. Local SMTP capture only, no real mail."
+    },
+    {
+      "id": "DOCX-K12",
+      "source": "section_k_docx",
+      "scenario": "Hot-row lock contention",
+      "requirement": "Send bounded concurrent requests at one challenge ID. Check lock_timeout, statement duration, worker and pool limits, legitimate redemption latency, and that the final transaction rechecks expiry, generation, failures and consumed state."
+    },
+    {
+      "id": "DOCX-K13",
+      "source": "section_k_docx",
+      "scenario": "Same-origin exposure",
+      "requirement": "Audit the whole mortapp.org origin and service-worker scope, CSP and headers, and third-party scripts. Evaluate the dedicated auth origin option without silently moving the recovery route."
+    },
+    {
+      "id": "DOCX-K14",
+      "source": "section_k_docx",
+      "scenario": "Mail gateways and fragments",
+      "requirement": "Check fragment preservation across link rewriting in major mail clients using synthetic messages. Confirm there is no fallback to secrets in query or path, and that logs hold no secrets."
+    },
+    {
+      "id": "DOCX-K15",
+      "source": "section_k_docx",
+      "scenario": "Android link interception",
+      "requirement": "Inspect the manifest, App Links verification, assetlinks, build defines and redirect configuration. Guard capabilities must never use custom native schemes. No emulator for the static review; any device test needs separate authorization."
+    },
+    {
+      "id": "DOCX-K16",
+      "source": "section_k_docx",
+      "scenario": "Console and admin routes",
+      "requirement": "Inventory dashboard confirmation, Admin generate_link, direct verify, normal user updates and metadata-only Admin updates. Run each through the local mutation guard and session tests."
+    },
+    {
+      "id": "DOCX-K17",
+      "source": "section_k_docx",
+      "scenario": "Recycled addresses",
+      "requirement": "Document email-only recovery as a limitation. Verify that role, school, identity and payment checks don't depend on email recovery alone, and review independent step-up for sensitive effects."
+    },
+    {
+      "id": "MD2-138",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Parser-versus-counted-guess boundary:",
+      "requirement": "Reject oversized bodies, invalid JSON, ambiguous duplicate keys, wrong top-level types, and unsupported methods before challenge mutation; count only a syntactically valid, canonical redemption envelope with an invalid credential."
+    },
+    {
+      "id": "MD2-139",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Malformed credential budget semantics:",
+      "requirement": "Confirm malformed-but-recognized credential representations consume the challenge budget, while no parser failure changes confirmation, password, proof, or entitlement state."
+    },
+    {
+      "id": "MD2-140",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Authoritative expiry and future hook time:",
+      "requirement": "Enforce `now >= expires_at` as expired using database-authoritative time; reject excessively future-dated hook timestamps and do not rely on client clocks."
+    },
+    {
+      "id": "MD2-141",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Address-generation retirement:",
+      "requirement": "Change an address, then change it back. Pass: the old proof generation remains retired and is not resurrected merely because the string matches."
+    },
+    {
+      "id": "MD2-142",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Cutover baseline race:",
+      "requirement": "Concurrently confirm/sign up accounts while building the trusted-address baseline. Pass: no account slips into the baseline or inherits proof without the enforceable activation boundary."
+    },
+    {
+      "id": "MD2-143",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Dynamic pending-account coverage:",
+      "requirement": "Test every still-unconfirmed email-password account at cutover, including pre-existing pending accounts; the historical pending count is not a fixed allowlist."
+    },
+    {
+      "id": "MD2-144",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Enabled-provider inventory:",
+      "requirement": "Enumerate all real session paths, including refresh, identity linking, MFA/SSO/anonymous/Web3 if enabled, and explicitly test disabled providers. No unreviewed path creates private password authority."
+    },
+    {
+      "id": "MD2-145",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Cross-surface token lifetime:",
+      "requirement": "Record actual access-token behavior across PostgREST, Storage, and Realtime after confirmation/recovery. Pass: claims about revocation match observed policy and high-risk operations retain server authorization."
+    },
+    {
+      "id": "MD2-146",
+      "source": "markdown_revision_3_extension",
+      "scenario": "CORS and credentialed cross-origin POST:",
+      "requirement": "Test allowed and hostile `Origin` values, credential-bearing cross-origin requests, preflight behavior, and redirects. Pass: CORS never substitutes for the capability boundary or selects recipient, destination, or policy."
+    },
+    {
+      "id": "MD2-147",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Host/forwarded-origin spoofing:",
+      "requirement": "Forge Host, forwarded host, origin, and destination headers. Pass: no trusted recipient, redirect, policy, or tenant is selected from untrusted headers."
+    },
+    {
+      "id": "MD2-148",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Error side-channel parity:",
+      "requirement": "Compare error text, response size, headers, and timing across known/unknown account, challenge, purpose, and delivery states. Pass: no useful enumeration oracle."
+    },
+    {
+      "id": "MD2-149",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Invalid password before capability consumption:",
+      "requirement": "Submit invalid password input with a valid recovery capability. Pass: validation fails before capability consumption or Admin dispatch, according to the documented policy."
+    },
+    {
+      "id": "MD2-150",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Recovery of unconfirmed account:",
+      "requirement": "Attempt recovery on an unconfirmed account. Pass: it cannot implicitly confirm the account or create private proof; only the specified owner-controlled transition is allowed."
+    },
+    {
+      "id": "MD2-151",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Delayed Admin update:",
+      "requirement": "Delay an authorized provider mutation and issue repeated writes. Pass: pending markers and operation leases prevent replay, duplicate writes, and premature success display."
+    },
+    {
+      "id": "MD2-152",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Provider-internal credential update:",
+      "requirement": "Trigger credential updates through every supported provider path that can run during the operation. Pass: the mutation guard validates live account/address/grant state inside the provider transaction."
+    },
+    {
+      "id": "MD2-153",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Restore from older snapshot:",
+      "requirement": "Restore a database snapshot containing pre-restore terminal states. Pass: redemption is disabled until pre-restore challenge/capability/operation generations are retired or invalidated by trusted post-restore state."
+    },
+    {
+      "id": "MD2-154",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Rollback assurance boundary:",
+      "requirement": "Roll back hooks and browser components as one coherent state transition. Pass: the system records which guarantees remain, does not reopen consumed items, and does not claim the new five-attempt guarantee after restoring the old flow."
+    },
+    {
+      "id": "MD2-155",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Local-only destructive-test guard:",
+      "requirement": "Before destructive tests, assert project/containers are `mort-mobile`, Auth is the expected loopback endpoint, and the database is the matching local database. Pass: hosted endpoints, Loop containers, real SMTP hosts, and other projects abort."
+    },
+    {
+      "id": "MD2-156",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Bounded synthetic load:",
+      "requirement": "Run rotating-caller tests only with synthetic local caller contexts and bounded concurrency, request/time limits, cleanup, and an abort threshold. Pass: no public proxies, external traffic, global Docker reconfiguration, or emulator is used."
+    },
+    {
+      "id": "MD2-157",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Provider-version isolation:",
+      "requirement": "Run version-drift tests in a separate local fixture. Pass: the working stack is not upgraded or mutated as a side effect."
+    },
+    {
+      "id": "MD2-158",
+      "source": "markdown_revision_3_extension",
+      "scenario": "SMTP credential-threat boundary:",
+      "requirement": "Use fake local SMTP credentials for fault/TLS/header tests. Pass: no real SMTP stress mail is sent; SPF/DKIM/DMARC checks remain separately authorized delivery tests."
+    },
+    {
+      "id": "MD2-159",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Service-role compromise boundary:",
+      "requirement": "Treat service-role compromise as a threat-model boundary while still auditing client-secret exposure and rotating only disposable local fixture credentials. Pass: no public bypass is justified by service-role assumptions."
+    },
+    {
+      "id": "MD2-160",
+      "source": "markdown_revision_3_extension",
+      "scenario": "Evidence and stable-ID integrity:",
+      "requirement": "Record source ID, redacted request shape, caller role, fixture version, timing/concurrency, expected/observed result, permitted counter changes, state digest, sanitized-log check, and cleanup. Pass: failed or incomplete cleanup cases remain `NOT_RUN`/failed, and overlapping documents are mapped to stable IDs rather than counted as independent passing tests."
+    },
+    {
+      "id": "AD-01",
+      "source": "addendum_and_test_tiers",
+      "scenario": "Wrong peek credentials share the redeem five-failure ceiling"
+    },
+    {
+      "id": "AD-02",
+      "source": "addendum_and_test_tiers",
+      "scenario": "Peek failures expose no useful body/size/header/timing oracle"
+    },
+    {
+      "id": "AD-03",
+      "source": "addendum_and_test_tiers",
+      "scenario": "Unknown IDs and peek have independent bounded abuse controls"
+    },
+    {
+      "id": "AD-04",
+      "source": "addendum_and_test_tiers",
+      "scenario": "Masked recipient comes only from validated server binding"
+    },
+    {
+      "id": "AD-05",
+      "source": "addendum_and_test_tiers",
+      "scenario": "Valid peek neither consumes nor authorizes a mutation"
+    },
+    {
+      "id": "AD-06",
+      "source": "addendum_and_test_tiers",
+      "scenario": "JavaScript scanner cannot consume on page load"
+    },
+    {
+      "id": "AD-07",
+      "source": "addendum_and_test_tiers",
+      "scenario": "No secret/body or masked-address-plus-ID logging"
+    },
+    {
+      "id": "AD-08",
+      "source": "addendum_and_test_tiers",
+      "scenario": "Concurrent peek/redeem respects one budget and terminal state"
+    },
+    {
+      "id": "AD-09",
+      "source": "addendum_and_test_tiers",
+      "scenario": "Owner completes within documented resend liveness bounds"
+    },
+    {
+      "id": "AD-10",
+      "source": "addendum_and_test_tiers",
+      "scenario": "Overlapping credentials share at most five total failures"
+    },
+    {
+      "id": "AD-11",
+      "source": "addendum_and_test_tiers",
+      "scenario": "Atomic resend never revives terminal old state"
+    },
+    {
+      "id": "AD-12",
+      "source": "addendum_and_test_tiers",
+      "scenario": "Resend queue, delivery and quota-exhaustion controls remain bounded"
+    },
+    {
+      "id": "AD-13",
+      "source": "addendum_and_test_tiers",
+      "scenario": "All source IDs retain separate static/runtime evidence references"
+    },
+    {
+      "id": "AD-14",
+      "source": "addendum_and_test_tiers",
+      "scenario": "Valid confirmation/recovery/password/OAuth positive controls required"
+    },
+    {
+      "id": "AD-15",
+      "source": "addendum_and_test_tiers",
+      "scenario": "Confirmed operation success clears marker through supported API"
+    },
+    {
+      "id": "AD-16",
+      "source": "addendum_and_test_tiers",
+      "scenario": "Unknown outcome retains protection without reopening capability"
+    },
+    {
+      "id": "AD-17",
+      "source": "addendum_and_test_tiers",
+      "scenario": "Marker in JWT is non-authoritative and discloses no credential"
+    },
+    {
+      "id": "AD-18",
+      "source": "addendum_and_test_tiers",
+      "scenario": "Finite lease cleanup fences delayed writes and permits later legitimate operation"
+    },
+    {
+      "id": "MD2-161",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Continue-only recipient display: GET is neutral; Continue atomically validates/consumes and returns masked target plus restricted capability.",
+      "requirement": "Continue-only recipient display: GET is neutral; Continue atomically validates/consumes and returns masked target plus restricted capability."
+    },
+    {
+      "id": "MD2-162",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Optional non-consuming peek returns only masked target, no authority, and shares locked state with redeem.",
+      "requirement": "Optional non-consuming peek returns only masked target, no authority, and shares locked state with redeem."
+    },
+    {
+      "id": "MD2-163",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Peek with wrong recognized credential consumes shared failure; parser failures follow parser boundary.",
+      "requirement": "Peek with wrong recognized credential consumes shared failure; parser failures follow parser boundary."
+    },
+    {
+      "id": "MD2-164",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Peek rate limit prevents discovery/timing abuse.",
+      "requirement": "Peek rate limit prevents discovery/timing abuse."
+    },
+    {
+      "id": "MD2-165",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Scanner JavaScript can learn at most masked recipient, never consume or authorize.",
+      "requirement": "Scanner JavaScript can learn at most masked recipient, never consume or authorize."
+    },
+    {
+      "id": "MD2-166",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Peek logs/errors never pair challenge ID with masked address or secrets.",
+      "requirement": "Peek logs/errors never pair challenge ID with masked address or secrets."
+    },
+    {
+      "id": "MD2-167",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Invalid password is rejected before restricted capability use or Admin dispatch.",
+      "requirement": "Invalid password is rejected before restricted capability use or Admin dispatch."
+    },
+    {
+      "id": "MD2-168",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Immediate supersession, cooldown, redelivery, and overlap are tested in separate policy fixtures.",
+      "requirement": "Immediate supersession, cooldown, redelivery, and overlap are tested in separate policy fixtures."
+    },
+    {
+      "id": "MD2-169",
+      "source": "markdown_revision_4_extension",
+      "scenario": "If overlap is approved, at most current/immediately previous delivered item is eligible within approved grace/cooldown bounds.",
+      "requirement": "If overlap is approved, at most current/immediately previous delivered item is eligible within approved grace/cooldown bounds."
+    },
+    {
+      "id": "MD2-170",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Overlapping family shares original ten-minute deadline; resend cannot extend or reset.",
+      "requirement": "Overlapping family shares original ten-minute deadline; resend cannot extend or reset."
+    },
+    {
+      "id": "MD2-171",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Overlapping credentials share one locked ceiling of five failures.",
+      "requirement": "Overlapping credentials share one locked ceiling of five failures."
+    },
+    {
+      "id": "MD2-172",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Consumed/exhausted/expired/retired/ambiguous items never re-enter grace.",
+      "requirement": "Consumed/exhausted/expired/retired/ambiguous items never re-enter grace."
+    },
+    {
+      "id": "MD2-173",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Successful consumption invalidates the entire family.",
+      "requirement": "Successful consumption invalidates the entire family."
+    },
+    {
+      "id": "MD2-174",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Idempotent redelivery cannot extend expiry or refresh budget.",
+      "requirement": "Idempotent redelivery cannot extend expiry or refresh budget."
+    },
+    {
+      "id": "MD2-175",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Owner completion remains possible during bounded maximum-rate resend testing; no universal availability claim.",
+      "requirement": "Owner completion remains possible during bounded maximum-rate resend testing; no universal availability claim."
+    },
+    {
+      "id": "MD2-176",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Duplicate/out-of-order hooks and delivery preserve approved eligible set and ceiling.",
+      "requirement": "Duplicate/out-of-order hooks and delivery preserve approved eligible set and ceiling."
+    },
+    {
+      "id": "MD2-177",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Tier labels cannot defer secrecy, isolation, resource, status, provider, or required delivery gates.",
+      "requirement": "Tier labels cannot defer secrecy, isolation, resource, status, provider, or required delivery gates."
+    },
+    {
+      "id": "MD2-178",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Hook-enabled testing occurs only in a disposable isolated fixture.",
+      "requirement": "Hook-enabled testing occurs only in a disposable isolated fixture."
+    },
+    {
+      "id": "MD2-179",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Operation marker is a correlator, not bearer authorization.",
+      "requirement": "Operation marker is a correlator, not bearer authorization."
+    },
+    {
+      "id": "MD2-180",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Marker/token inspection reveals no credential material and marker alone authorizes nothing.",
+      "requirement": "Marker/token inspection reveals no credential material and marker alone authorizes nothing."
+    },
+    {
+      "id": "MD2-181",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Delayed write racing cleanup/new operation is fenced at provider boundary.",
+      "requirement": "Delayed write racing cleanup/new operation is fenced at provider boundary."
+    },
+    {
+      "id": "MD2-182",
+      "source": "markdown_revision_4_extension",
+      "scenario": "Unknown Admin outcome retains safe pending state, prevents replay, and preserves retry liveness; otherwise activation is blocked.",
+      "requirement": "Unknown Admin outcome retains safe pending state, prevents replay, and preserves retry liveness; otherwise activation is blocked."
+    },
+    {
+      "id": "RR-01",
+      "source": "revision_review",
+      "scenario": "ID-bound redemption; no address-plus-code or latest-challenge lookup"
+    },
+    {
+      "id": "RR-02",
+      "source": "revision_review",
+      "scenario": "Independent fixed 300-second one-use continuation lease after consumption"
+    },
+    {
+      "id": "RR-03",
+      "source": "revision_review",
+      "scenario": "Grace/cooldown anchored to trusted acknowledged-successor promotion, not issuance"
+    },
+    {
+      "id": "RR-04",
+      "source": "revision_review",
+      "scenario": "Continue on eligible previous challenge consumes family and issues exactly one capability"
+    },
+    {
+      "id": "RR-05",
+      "source": "revision_review",
+      "scenario": "Owner timing is bounded by actual delivery and original expiry, not an unconditional 120 seconds"
+    },
+    {
+      "id": "RR-06",
+      "source": "revision_review",
+      "scenario": "No peek removes an extra oracle, not all redemption guesses or deliberate scripted submission"
+    },
+    {
+      "id": "FS-D01",
+      "source": "final_spec_draft_1",
+      "scenario": "Recipient display",
+      "requirement": "Continue-only: the page performs no secret check on load; **Continue** validates and consumes atomically, then shows the masked address and the password form"
+    },
+    {
+      "id": "FS-D02",
+      "source": "final_spec_draft_1",
+      "scenario": "Resend policy",
+      "requirement": "Option B: short overlap. **60 s** grace, **60 s** minimum cooldown anchored to successful successor promotion, at most **2** eligible items, one shared failure ceiling"
+    },
+    {
+      "id": "FS-D03",
+      "source": "final_spec_draft_1",
+      "scenario": "Challenge deadline",
+      "requirement": "Fixed **10 min** from family issuance, never extended by resend"
+    },
+    {
+      "id": "FS-D04",
+      "source": "final_spec_draft_1",
+      "scenario": "Failure budget",
+      "requirement": "**5** wrong guesses per family, shared by every code/link representation"
+    },
+    {
+      "id": "FS-D05",
+      "source": "final_spec_draft_1",
+      "scenario": "Recovery capability lease",
+      "requirement": "Fixed **300 s** from the atomic consume/issue transition, independent of the family deadline **[OWNER]**"
+    },
+    {
+      "id": "FS-D06",
+      "source": "final_spec_draft_1",
+      "scenario": "Redemption locator",
+      "requirement": "Always the email-carried canonical challenge UUID **plus** the secret. No address-plus-code lookup"
+    },
+    {
+      "id": "FS-D07",
+      "source": "final_spec_draft_1",
+      "scenario": "New accounts",
+      "requirement": "Mailbox owner must set a **replacement password** at confirmation; any pre-confirmation password is discarded"
+    },
+    {
+      "id": "FS-D08",
+      "source": "final_spec_draft_1",
+      "scenario": "Pending accounts",
+      "requirement": "Every still-unconfirmed email-password account at cutover follows D7. No bulk reset"
+    },
+    {
+      "id": "FS-D09",
+      "source": "final_spec_draft_1",
+      "scenario": "Late resend",
+      "requirement": "Print the **actual expiry time** in the email and on the page. A resend never extends the family. Starting a new family on a late resend is deferred"
+    },
+    {
+      "id": "FS-D10",
+      "source": "final_spec_draft_1",
+      "scenario": "Capability binding",
+      "requirement": "Page generates a random verifier in memory, sends only its hash at Continue, and must present the verifier to set the password"
+    },
+    {
+      "id": "FS-D11",
+      "source": "final_spec_draft_1",
+      "scenario": "Tiers",
+      "requirement": "Core assertions Tier 1; large client/load matrices Tier 2 (section 11)"
+    },
+    {
+      "id": "FS-D12",
+      "source": "final_spec_draft_1",
+      "scenario": "Legacy links",
+      "requirement": "Defined window in section 10 **[OWNER]**"
+    },
+    {
+      "id": "FS-T01",
+      "source": "final_spec_section_11_2",
+      "scenario": "Lock held past deadline",
+      "requirement": "Check uses time taken after the lock is acquired; a guess submitted before and executed after the deadline fails"
+    },
+    {
+      "id": "FS-T02",
+      "source": "final_spec_section_11_2",
+      "scenario": "Late-resend experience at minutes 5, 8 and 9",
+      "requirement": "Email and page state the real expiry; no extension"
+    },
+    {
+      "id": "FS-T03",
+      "source": "final_spec_section_11_2",
+      "scenario": "Verifier mismatch",
+      "requirement": "Capability without the matching verifier cannot set a password"
+    },
+    {
+      "id": "FS-T04",
+      "source": "final_spec_section_11_2",
+      "scenario": "Stalled SMTP vs retrying owner",
+      "requirement": "In-flight control times out before the cooldown; owner not locked out"
+    },
+    {
+      "id": "FS-T05",
+      "source": "final_spec_section_11_2",
+      "scenario": "Signup then replacement password",
+      "requirement": "App and page copy both explain the second password; no sign-in with the old one"
+    },
+    {
+      "id": "FS-T06",
+      "source": "final_spec_section_11_2",
+      "scenario": "Lost response after commit",
+      "requirement": "No second capability; message tells the user to request a new email; cooldown does not strand them"
+    },
+    {
+      "id": "FS-T07",
+      "source": "final_spec_section_11_2",
+      "scenario": "Grace plus Continue",
+      "requirement": "Previous item in grace still redeems; success retires the whole family; races with new-item Continue, expiry, resend and fifth failure resolve to one outcome"
+    },
+    {
+      "id": "FS-T08",
+      "source": "final_spec_section_11_2",
+      "scenario": "Capability boundary",
+      "requirement": "Just before, at and after 300 s; invalid password, resend and reload never renew it"
+    },
+    {
+      "id": "FS-T09",
+      "source": "final_spec_section_11_2",
+      "scenario": "Reservation before expiry, mutation after",
+      "requirement": "Fails at the guarded write"
+    },
+    {
+      "id": "FS-P01",
+      "source": "final_spec_provider_checkpoints",
+      "scenario": "Provider checkpoint P1",
+      "requirement": "Real insertion/update ordering in GoTrue `v2.197.0` is compatible with the mutation guard, and a direct PKCE confirmation is rejected at the mutation boundary, not only at a later JWT."
+    },
+    {
+      "id": "FS-P02",
+      "source": "final_spec_provider_checkpoints",
+      "scenario": "Provider checkpoint P2",
+      "requirement": "Confirmation, replacement password and proof creation can be bound to one operation without an intermediate unauthorized session."
+    },
+    {
+      "id": "FS-P03",
+      "source": "final_spec_provider_checkpoints",
+      "scenario": "Provider checkpoint P3",
+      "requirement": "Delayed-write denial and legitimate retry liveness both hold at the provider mutation boundary."
+    },
+    {
+      "id": "FS-P04",
+      "source": "final_spec_provider_checkpoints",
+      "scenario": "Provider checkpoint P4",
+      "requirement": "Pinned-provider OAuth identity linking behavior (cleanup of unconfirmed identities) matches what the design assumes."
+    },
+    {
+      "id": "FS-P05",
+      "source": "final_spec_provider_checkpoints",
+      "scenario": "Provider checkpoint P5",
+      "requirement": "An Admin password change clears outstanding credential tokens and revokes refresh sessions as inspected. Already-issued access tokens are **not** claimed revoked; the real token lifetime and its behavior across PostgREST, Storage and Realtime are recorded."
+    },
+    {
+      "id": "MD2-183",
+      "source": "markdown_revision_5_extension",
+      "scenario": "Missing challenge UUID",
+      "requirement": "Submit a code or link secret without the canonical challenge UUID carried by the email. Pass: reject before challenge mutation; no email-address fallback, latest-challenge lookup, account-wide counter change, or state disclosure."
+    },
+    {
+      "id": "MD2-184",
+      "source": "markdown_revision_5_extension",
+      "scenario": "Malformed challenge UUID",
+      "requirement": "Submit malformed, ambiguous, duplicate, or noncanonical IDs. Pass: bounded generic rejection before challenge mutation with independent abuse controls."
+    },
+    {
+      "id": "MD2-185",
+      "source": "markdown_revision_5_extension",
+      "scenario": "Opaque locator is not authorization",
+      "requirement": "Obtain or guess a valid challenge UUID without its code/link secret. Pass: UUID alone cannot display a target, consume a challenge, issue a capability, confirm an address, reset a password, or create a session."
+    },
+    {
+      "id": "MD2-186",
+      "source": "markdown_revision_5_extension",
+      "scenario": "No email-plus-code lookup",
+      "requirement": "Attempt redemption using only an email address and code, including case/alias/normalization variants. Pass: endpoint does not perform address-based challenge lookup and cannot enumerate or mutate account-wide state."
+    },
+    {
+      "id": "MD2-187",
+      "source": "markdown_revision_5_extension",
+      "scenario": "ID/secret cross-binding",
+      "requirement": "Pair a valid UUID from account A with a valid code/link secret from account B, or swap IDs between representations. Pass: exact challenge binding fails; neither account changes and no failure budget is charged to the wrong challenge."
+    },
+    {
+      "id": "MD2-188",
+      "source": "markdown_revision_5_extension",
+      "scenario": "Canonical ID transport integrity",
+      "requirement": "Test URL fragments, query parameters, copied links, duplicate ID fields, encoding, truncation, and line wrapping. Pass: the email-carried canonical UUID is parsed exactly once; no alternate locator or fallback route is accepted."
+    },
+    {
+      "id": "MD2-189",
+      "source": "markdown_revision_5_extension",
+      "scenario": "Capability issuance boundary",
+      "requirement": "Verify that page load, scanner access, peek (if approved), invalid challenge, and provider-only confirmation cannot issue a recovery capability. Pass: only successful server-authorized challenge consumption can create the restricted one-use capability."
+    },
+    {
+      "id": "MD2-190",
+      "source": "markdown_revision_5_extension",
+      "scenario": "Recovery lease start-time policy",
+      "requirement": "Test the approved/legacy alternatives separately: original-challenge deadline cap versus a proposed five-minute lease beginning at successful challenge consumption. Pass: no capability outlives the owner-approved maximum, no resend extends it, and no implementation silently adopts the proposed change without recorded approval."
+    },
+    {
+      "id": "MD2-191",
+      "source": "markdown_revision_5_extension",
+      "scenario": "Recovery lease boundary and reconciliation",
+      "requirement": "Test just before, at, and after the capability deadline; race expiry with password submission, duplicate submission, delayed Admin result, and marker cleanup. Pass: exact expiry is deterministic, one-use state persists, unknown outcomes never reopen capability, and stale delayed writes remain fenced."
+    }
+  ]
+}

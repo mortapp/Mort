@@ -127,6 +127,20 @@ export async function startFixture(){
   const sql=`ALTER ROLE supabase_auth_admin PASSWORD '${state.password}';\nCREATE SCHEMA IF NOT EXISTS mort_fixture;\nREVOKE ALL ON SCHEMA mort_fixture FROM PUBLIC;\nCREATE TABLE IF NOT EXISTS mort_fixture.identity(id uuid PRIMARY KEY);\nINSERT INTO mort_fixture.identity VALUES ('${state.fixtureId}') ON CONFLICT DO NOTHING;\n`;
   docker(['exec','-i',dbName,'sh','-c','PGPASSWORD="$POSTGRES_PASSWORD" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1'],sql);
   docker(['exec','-i',dbName,'sh','-c','PGPASSWORD="$POSTGRES_PASSWORD" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1'],await readFile(resolve(root,'scripts/auth-email-guard/token-observer.sql'),'utf8'));
+  // A restored database is never its own freshness authority. Refuse provider
+  // startup if the private journal and DB disagree, even after runner restart.
+  const hasControl=docker(['exec',dbName,'sh','-c','PGPASSWORD="$POSTGRES_PASSWORD" psql -U supabase_admin -d postgres -At -c "SELECT to_regclass(\'mort_auth_guard.control\') IS NOT NULL"']);
+  if(hasControl==='t'){
+    const generation=Number(docker(['exec',dbName,'sh','-c','PGPASSWORD="$POSTGRES_PASSWORD" psql -U supabase_admin -d postgres -At -c "SELECT restore_generation FROM mort_auth_guard.control"']));
+    const {readJournal}=await import('./control.mjs');
+    let safe=false;
+    try{const external=await readJournal(stateDir,state.fixtureId);safe=(external===null&&generation===1&&state.guardJournalRequired!==true)||external===generation;}catch{}
+    if(!safe){
+      const present=spawnSync('docker',['inspect','--format','{{.Name}}',container(state,'auth')],{encoding:'utf8',windowsHide:true});
+      if(present.status===0){inspect(state,'auth');docker(['stop','--time','5',container(state,'auth')]);}
+      throw new Error('Fixture journal mismatch; provider remains stopped');
+    }
+  }
   const authStarted=spawnSync('docker',[...args,'up','-d','auth'],{env:composeEnv(state),encoding:'utf8',timeout:60_000,windowsHide:true});
   if(authStarted.status!==0)throw new Error('Fixture Auth startup failed');inspect(state,'auth');
   for(let i=0;i<100;i++){
@@ -150,6 +164,7 @@ export async function observeFixture(state) {
     anonymousEnabled:settings.external?.anonymous_users===true,emailExpiry:600,jwtExpiry:3600,providerVersion:health.version};
   // Inspect only allowlisted non-secret settings, not the container's full environment.
   const values=docker(['exec',container(state,'auth'),'sh','-c','printf "%s %s %s %s" "$GOTRUE_MAILER_OTP_EXP" "$GOTRUE_JWT_EXP" "$GOTRUE_EXTERNAL_PHONE_ENABLED" "$GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED"']).split(' ');
+  if(docker(['exec',container(state,'auth'),'sh','-c','printf "%s" "$GOTRUE_LOG_LEVEL"'])!=='fatal')throw new Error('Fixture provider logging privacy rejected');
   [observed.emailExpiry,observed.jwtExpiry]=values.slice(0,2).map(Number);
   observed.phoneEnabled=values[2]!=='false';observed.anonymousEnabled=values[3]!=='false';assertMortAuthFixture(state,observed);
   return {...state,observed,dbUrl:`postgresql://supabase_admin:${state.password}@127.0.0.1:55422/postgres`,serviceKey:signJwt(state.jwtSecret,'service_role'),anonKey:signJwt(state.jwtSecret,'anon'),smtpUrl:'smtp://127.0.0.1:55425',imageDigests:IMAGES,trackedAccounts:new Set()};

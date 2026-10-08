@@ -1,0 +1,100 @@
+import {readFile} from 'node:fs/promises';
+import {spawnSync} from 'node:child_process';
+import {resolve} from 'node:path';
+import pg from 'pg';
+import {startFixture,fixtureProcessEnv} from './fixture.mjs';
+import {captureAssertions,serializeEvidence,digestState} from './evidence.mjs';
+import {caseMappings,operationalMappings,runCase} from './cases.mjs';
+import {loadRequirements} from './coverage.mjs';
+import {auditFixtureLogs} from './log-audit.mjs';
+const root=resolve(import.meta.dirname,'../..');
+const cleanText=text=>text.replace(/\x1b\[[0-9;]*m/g,'');
+async function stateDigest(handle){
+  const db=new pg.Client({connectionString:handle.dbUrl,connectionTimeoutMillis:2000});
+  try{
+    await db.connect();
+    const state=(await db.query(`SELECT enabled,activation_generation,restore_generation,
+      (SELECT count(*) FROM mort_auth_guard.families) families,
+      (SELECT count(*) FROM mort_auth_guard.families WHERE state='active') active_families,
+      (SELECT count(*) FROM mort_auth_guard.capabilities WHERE state IN('issued','reserved')) capabilities,
+      (SELECT count(*) FROM mort_auth_guard.operation_grants WHERE state IN('reserved','pending')) grants,
+      (SELECT count(*) FROM mort_auth_guard.outbox WHERE encrypted_envelope IS NOT NULL) encrypted_payloads,
+      (SELECT count(*) FROM mort_auth_guard.quota_events) quota_events,
+      (SELECT count(*) FROM mort_auth_guard.address_proofs WHERE retired_at IS NULL) proofs
+      FROM mort_auth_guard.control`)).rows[0];return digestState(state);
+  }finally{await db.end();}
+}
+function child(command,args,extra={}){
+  const result=spawnSync(command,args,{cwd:root,env:{...fixtureProcessEnv(),...extra},windowsHide:true,encoding:'utf8',timeout:90_000,maxBuffer:8*1024*1024});
+  if(result.status!==0)throw new Error('Certification child assertion failed (output redacted)');
+  return cleanText(result.stdout);
+}
+async function sourceOwner(name,files,kind){
+  for(const file of files){
+    const source=await readFile(resolve(root,file),'utf8');
+    const pattern=kind==='deno'?/Deno\.test\("([^"\n]+)"/g:/test\(['"]([^'"\n]+)['"]/g;
+    for(const match of source.matchAll(pattern))if(match[1]===name)return {file,line:source.slice(0,match.index).split('\n').length};
+    if(file.endsWith('fixture.test.mjs')&&['rejectsObservedMismatch:','rejectsWrongTargetBeforeImport:'].some(prefix=>name.startsWith(prefix))){
+      const stem=name.split(':')[0];return {file,line:source.slice(0,source.indexOf('test(`'+stem+':')).split('\n').length};
+    }
+  }
+  throw new Error('Executed test lacks reviewed source owner');
+}
+export async function run(){
+  const requirements=await loadRequirements(),head=child('git',['rev-parse','HEAD']).trim();
+  const guardSourceClean=!child('git',['status','--porcelain','--','scripts/auth-email-guard','web/auth/challenge','supabase/functions/_shared/auth_email_guard','supabase/functions/mort-auth-email-hook','supabase/functions/mort-auth-email-guard','supabase/migrations/20261008130945_mort_email_fixture_control_retention.sql','supabase/migrations/20261008135853_mort_email_restore_session_epoch.sql','supabase/migrations/20261008151312_mort_email_fixture_baseline_snapshot.sql']).trim();
+  if(!/^[a-f0-9]{40}$/.test(head))throw new Error('Candidate identity unavailable');
+  const fixture=await startFixture(),observations=[],started=performance.now();
+  const suiteNames=['state','issuance','grant','bypass','hook-boundary','delivery','smtp-fault','cutover','retention','load','security','log-audit'];
+  const timings={},suiteStates={};
+  for(const name of suiteNames){
+    const since=new Date().toISOString(),began=performance.now(),before=await stateDigest(fixture);
+    const suite=await import(`./${name}.test.mjs`);
+    observations.push(...await captureAssertions(name,()=>suite.run(fixture)));
+    auditFixtureLogs(fixture,since);timings[name]=Math.round(performance.now()-began);
+    suiteStates[name]={before,after:await stateDigest(fixture)};
+    console.log('PASS certified isolated suite:',name);
+  }
+  const denoFiles=['supabase/functions/mort-auth-email-hook/handler_test.ts','supabase/functions/mort-auth-email-guard/handler_test.ts','supabase/functions/_shared/secure_codes_test.ts',...['admission','config','crypto','outbox','parser','provider','redaction'].map(s=>`supabase/functions/_shared/auth_email_guard/${s}_test.ts`)];
+  const unitOutput=child('deno',['test','--frozen','--allow-env=ETHEREAL_API,ETHEREAL_WEB,ETHEREAL_API_KEY,ETHEREAL_CACHE','--config','supabase/functions/auth-email-guard.deno.json',...denoFiles]);
+  for(const match of unitOutput.matchAll(/^(.+?) \.\.\. ok(?: |$)/gm)){
+    const name=match[1];observations.push({key:`unit:${name}`,suite:'unit',...await sourceOwner(name,denoFiles,'deno'),assertion:'named_test',executions:1,status:'PASS'});
+  }
+  const nodeFiles=['scripts/auth-email-guard/fixture.test.mjs','scripts/auth-email-guard/control.test.mjs','scripts/auth-email-guard/coverage.test.mjs','scripts/auth-email-guard/evidence.test.mjs'];
+  const browserFiles=['web/auth/challenge/controller.test.mjs','web/auth/challenge/transport.test.mjs','web/auth/challenge/build.test.mjs','web/auth/challenge/browser.test.mjs'];
+  const nodeOutput=child('node',['--test','--test-reporter=tap',...nodeFiles,...browserFiles],{MORT_GUARD_BROWSER_MODULES:process.env.MORT_GUARD_BROWSER_MODULES??'C:\\Users\\micha\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\node_modules'});
+  for(const match of nodeOutput.matchAll(/^ok \d+ - (.+)$/gm)){
+    const name=match[1],owner=await sourceOwner(name,[...nodeFiles,...browserFiles],'node'),suite=owner.file.startsWith('web/')?'browser':'unit';
+    observations.push({key:`${suite}:${name}`,suite,...owner,assertion:'named_test',executions:1,status:'PASS'});
+  }
+  const db=new pg.Client({connectionString:fixture.dbUrl});let state;
+  try{
+    await db.connect();
+    state=(await db.query(`SELECT enabled,activation_generation,restore_generation,
+      (SELECT count(*)::int FROM mort_auth_guard.families WHERE state='active' AND family_expires_at>clock_timestamp()) active_families,
+      (SELECT count(*)::int FROM mort_auth_guard.operation_grants WHERE state IN('reserved','pending')) temporary_permissions,
+      (SELECT count(*)::int FROM mort_auth_guard.outbox WHERE encrypted_envelope IS NOT NULL) encrypted_payloads FROM mort_auth_guard.control`)).rows[0];
+    if(state.enabled||state.active_families||state.temporary_permissions||state.encrypted_payloads||fixture.trackedAccounts.size)throw new Error('Fixture cleanup proof failed');
+  }finally{await db.end();}
+  const context={head,fixtureId:fixture.fixtureId,callerRole:'synthetic_fixture',requestShape:'synthetic-redacted-operation',concurrency:20,elapsedMs:Math.round(performance.now()-started),expected:'named assertions pass',observed:'executed',counterChanges:'asserted by named tests',stateDigest:digestState(state),logClean:true,cleanup:true};
+  const cases=caseMappings.map(row=>{
+    const evidence=runCase(row.id,observations,context);
+    if(evidence.status!=='PASS')evidence.observed='not executed';
+    return JSON.parse(serializeEvidence(evidence));
+  });
+  const summary=Object.fromEntries(['PASS','NOT_RUN','BLOCKED','OWNER_SCOPED_OUT'].map(status=>[status,cases.filter(c=>c.status===status).length]));
+  const operationalCases=operationalMappings.map(row=>{
+    const evidence=runCase(row.id,observations,context);if(evidence.status!=='PASS')evidence.observed='not executed';return JSON.parse(serializeEvidence(evidence));
+  });
+  const operationalSummary=Object.fromEntries(['PASS','NOT_RUN','BLOCKED'].map(status=>[status,operationalCases.filter(c=>c.status===status).length]));
+  const report={schema:1,head,guardSourceClean,fixtureId:fixture.fixtureId,sourceSha256:requirements.sourceSha256,currentRequirements:191,retainedHistoricalRecords:328,totalHistoricalAndCurrentRecords:519,fullGuardCertified:false,activationProfile:'private_provider_rehearsal',summary,operationalSummary,operationalCases,timings,suiteStates,executedAssertions:observations.length,cases,historical:requirements.records.filter(r=>!r.id.startsWith('MD2-')).map(r=>({id:r.id,status:'RETAINED_HISTORY_NOT_INHERITED',source:r.source})),hostedChanged:false};
+  // Deduplicate exact assertion provenance in output; the validated case records
+  // reference it by key. Never persist raw provider/SQL/request values.
+  const compactCase=row=>({id:row.id,status:row.status,...(row.reason?{reason:row.reason}:{}),assertionKeys:row.assertions.map(proof=>proof.key)});
+  const output={...report,context,assertions:observations,cases:cases.map(compactCase),operationalCases:operationalCases.map(compactCase)};
+  console.log('MORT_GUARD_EVIDENCE_JSON '+JSON.stringify(output));return report;
+}
+if(process.argv[1]&&resolve(process.argv[1])===resolve(import.meta.filename)){
+  try{const result=await run();if(result.summary.NOT_RUN||result.operationalSummary.NOT_RUN)process.exitCode=1;else if(!result.fullGuardCertified&&!process.argv.includes('--allow-external-gates'))process.exitCode=2;}
+  catch{console.error('FAIL certification: required fixture assertion, log, ownership or cleanup gate failed (values redacted)');process.exitCode=1;}
+}

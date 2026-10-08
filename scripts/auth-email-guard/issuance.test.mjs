@@ -9,6 +9,7 @@ export async function run(handle){
   const db=new pg.Client({connectionString:handle.dbUrl,connectionTimeoutMillis:2000});
   const pool=new pg.Pool({connectionString:handle.dbUrl,max:8,connectionTimeoutMillis:2000});
   const accounts=new Set();const events=new Set();let connected=false;
+  let controlGeneration;
   async function account(confirmed=false){
     const user=await pending(handle);accounts.add(user.id);
     if(confirmed)await call(handle,`/admin/users/${user.id}`,{email_confirm:true},true,'PUT');
@@ -16,7 +17,7 @@ export async function run(handle){
   }
   function request(user,source=digest(),purpose='confirmation'){
     const event={accountId:user.id,recipientHash:user.recipientHash,sourceHash:source,purpose,eventDigest:digest(),bodyDigest:digest(),signedAt:new Date().toISOString()};
-    const material={familyId:randomUUID(),itemId:randomUUID(),codeDigest:digest(),linkDigest:digest(),encryptedEnvelope:'v1.fixture-ciphertext',addressGeneration:1,credentialGeneration:1,activationGeneration:1,restoreGeneration:1};
+    const material={familyId:randomUUID(),itemId:randomUUID(),codeDigest:digest(),linkDigest:digest(),encryptedEnvelope:'v1.fixture-ciphertext',addressGeneration:1,credentialGeneration:1,activationGeneration:Number(controlGeneration.activation_generation),restoreGeneration:Number(controlGeneration.restore_generation)};
     events.add(event.eventDigest);accounts.add(user.id);return {event,material};
   }
   const issueWith=async(client,req)=>(await client.query('SELECT mort_auth_guard.issue_event($1::jsonb,$2::jsonb) AS result',[JSON.stringify(req.event),JSON.stringify(req.material)])).rows[0].result;
@@ -35,6 +36,7 @@ export async function run(handle){
   }
   try{
     await db.connect();connected=true;
+    controlGeneration=(await db.query('SELECT activation_generation,restore_generation FROM mort_auth_guard.control')).rows[0];
     const functions=await db.query("SELECT count(*)=4 AS installed FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='mort_auth_guard' AND p.proname=ANY($1)",[['issue_event','claim_delivery','begin_dispatch','finish_delivery']]);
     assert.ok(functions.rows[0].installed,'Issuance, claim, dispatch and promotion helpers must exist');
     await db.query('UPDATE mort_auth_guard.control SET enabled=true');
@@ -73,12 +75,22 @@ export async function run(handle){
     assert.ok((await inspect(third.material.itemId)).state==='usable'&&(await inspect(failed.material.itemId)).state==='retired','Ambiguous successor preserves last delivered item');
     await scopeClean();
     // The signed hook can precede signup commit. No account lookup occurs at admission.
+    const failedSend=request(await account());assert.ok((await issue(failedSend)).ok,'SMTP-failure positive has a real queued item');const failedSendLease=await claim();
+    assert.ok((await dispatch(failedSendLease)).ok,'SMTP failure keeps an actual charged dispatch reservation');
+    assert.ok(!await finish(failedSendLease,'failed')&&(await inspect(failedSend.material.itemId)).state==='retired','Failed SMTP outcome cannot promote challenge eligibility');
+    await scopeClean();
     const deferred={id:randomUUID(),recipientHash:digest()};const queued=request(deferred);assert.ok((await issue(queued)).ok,'Admission supports uncommitted synthetic signup');
     assert.ok(!(await claim()).ok,'Uncommitted signup defers instead of sending');
     assert.ok((await db.query('SELECT state=\'deferred\' AND encrypted_envelope IS NOT NULL AS deferred FROM mort_auth_guard.outbox WHERE item_id=$1',[queued.material.itemId])).rows[0].deferred,'Deferral retains bounded encrypted work');
     assert.ok((await db.query('SELECT count(*)=0 AS empty FROM mort_auth_guard.quota_events WHERE kind=\'dispatch\'')).rows[0].empty,'Deferral has zero dispatch charge');
     await db.query("UPDATE mort_auth_guard.outbox SET expires_at=clock_timestamp()-interval '1 second' WHERE item_id=$1",[queued.material.itemId]);await claim();
     assert.ok((await db.query('SELECT state=\'terminal\' AND encrypted_envelope IS NULL AS purged FROM mort_auth_guard.outbox WHERE item_id=$1',[queued.material.itemId])).rows[0].purged,'Rolled-back signup expires and purges ciphertext');
+    await scopeClean();
+    const mailbox=await account(),mailboxRequest=request(mailbox);assert.ok((await issue(mailboxRequest)).ok,'Recipient-race positive starts with real queued work');
+    const mailboxChanged=`qa-${randomUUID()}@mort-fixture.invalid`;handle.trackedEmails.add(mailboxChanged);
+    assert.equal((await call(handle,`/admin/users/${mailbox.id}`,{email:mailboxChanged},true,'PUT')).status,200);
+    assert.ok(!(await claim()).ok,'Worker cannot claim a queued message after actual recipient binding changes');
+    assert.ok((await db.query('SELECT encrypted_envelope IS NULL AND state=\'terminal\' AS erased FROM mort_auth_guard.outbox WHERE item_id=$1',[mailboxRequest.material.itemId])).rows[0].erased,'Address-change race clears stale encrypted recipient payload');
     await scopeClean();
     const sourceA=digest(),sourceB=digest();for(let i=0;i<3;i++)assert.ok((await issue(request(await account(),sourceA))).ok,'Source family quota positive');
     assert.ok(!(await issue(request(await account(),sourceA))).ok,'Fourth source family is denied');
