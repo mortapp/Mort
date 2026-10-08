@@ -45,6 +45,7 @@ async function cleanup(handle){
   }
   for(const id of handle.trackedAccounts){
     const result=await call(handle,`/admin/users/${id}`,null,true,'DELETE');
+    if(result.status!==200)console.error('Fixture account cleanup HTTP status:',result.status);
     assert.ok(result.status===200,'Synthetic provider account cleanup must succeed');
     handle.trackedAccounts.delete(id);
   }

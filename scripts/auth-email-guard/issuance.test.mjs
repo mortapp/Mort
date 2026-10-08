@@ -129,7 +129,11 @@ export async function run(handle){
     await scopeClean();
     console.log('PASS issuance/promotion: idempotency, fixed family, cooldown/grace, terminal states, source quotas, delivery concurrency, deferred signup, queue bounds and positive controls');
   }finally{
-    let failed=false;if(connected){try{await scopeClean();await db.query('UPDATE mort_auth_guard.control SET enabled=false');await cleanup(handle);}catch{failed=true;}}
+    let failed=false;if(connected){
+      try{await scopeClean();}catch(error){console.error('Fixture cleanup failed: private scope',typeof error.code==='string'?error.code:'unclassified');failed=true;}
+      try{await db.query('UPDATE mort_auth_guard.control SET enabled=false');}catch{console.error('Fixture cleanup failed: disable control');failed=true;}
+      try{await cleanup(handle);}catch{console.error('Fixture cleanup failed: owned provider accounts');failed=true;}
+    }
     await pool.end();await db.end();if(failed)throw new Error('Fixture lifecycle cleanup failed');
   }
 }
