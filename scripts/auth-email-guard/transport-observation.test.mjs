@@ -1,5 +1,16 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
+import * as measurements from './transport-observation.mjs';
+
+test('reaccepted transport cannot borrow an earlier denial to evade the observation deadline',()=>{
+  assert.equal(typeof measurements.withinObservationDeadline,'function','Bounded observation must inspect the current sample');
+  const row={perTransport:{postgrest:{status:'ACCEPTED',afterSignedExpiryMs:120001,rejectionAfterSignedExpiryMs:31000},storage:{status:'DENIED',afterSignedExpiryMs:120001,rejectionAfterSignedExpiryMs:1000},realtime:{status:'DENIED',afterSignedExpiryMs:120001,rejectionAfterSignedExpiryMs:1000}}};
+  assert.equal(measurements.withinObservationDeadline(row,120000),false);
+  row.perTransport.postgrest.status='DENIED';
+  assert.equal(measurements.withinObservationDeadline(row,120000),true);
+  row.perTransport.postgrest.rejectionAfterSignedExpiryMs=120000;
+  assert.equal(measurements.withinObservationDeadline(row,120000),false);
+});
 
 let recordTransportSample;
 try { ({recordTransportSample}=await import('./transport-observation.mjs')); }

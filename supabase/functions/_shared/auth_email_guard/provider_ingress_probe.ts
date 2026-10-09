@@ -4,8 +4,9 @@ import { handleEmailHook } from "../../mort-auth-email-hook/handler.ts";
 import { createFixtureStore } from "./store.ts";
 import { secretDigest } from "./crypto.ts";
 import { runDeliveryBatch, sendFixedEmail } from "./delivery.ts";
+let stage = "shape";
 function check(value: unknown): asserts value {
-  if (!value) throw new Error("Fixture ingress assertion failed");
+  if (!value) throw new Error("Fixture ingress assertion failed: " + stage);
 }
 const config = JSON.parse(await new Response(Deno.stdin.readable).text());
 check(
@@ -18,11 +19,13 @@ const db = new pg.Client({ connectionString: config.dbUrl });
 let store: Awaited<ReturnType<typeof createFixtureStore>> | undefined;
 let gateway: Deno.HttpServer | undefined;
 try {
+  stage = "database";
   await db.connect();
   check(
     (await db.query("SELECT id FROM mort_fixture.identity")).rows[0].id ===
       config.fixtureId,
   );
+  stage = "receipt";
   const rows = (await db.query(
     `SELECT i.*,u.email FROM mort_fixture.email_ingress i
     JOIN auth.users u ON u.id=i.account_id WHERE i.account_id=$1 AND used_at IS NULL`,
@@ -49,6 +52,7 @@ try {
       body: raw,
       headers: h,
     });
+  stage = "store";
   store = await createFixtureStore(config);
   const key = await crypto.subtle.generateKey(
     { name: "AES-GCM", length: 256 },
@@ -90,6 +94,7 @@ try {
         resolveTrustedSource: async () => null,
       }),
   );
+  stage = "outside";
   const outside = await fetch("http://127.0.0.1:55426/hook", {
     method: "POST",
     headers,
@@ -97,6 +102,7 @@ try {
   });
   check(outside.status === 400);
   await outside.body?.cancel();
+  stage = "wrong-secret";
   const wrong = new Webhook(crypto.getRandomValues(new Uint8Array(32)), {
     format: "raw",
   });
@@ -115,7 +121,9 @@ try {
       [ticket.id],
     )).rows[0].ok,
   );
+  stage = "trusted-relay";
   check((await handleEmailHook(makeRequest(), deps)).status === 200);
+  stage = "replay";
   check((await handleEmailHook(makeRequest(), deps)).status === 400);
   check(
     (await db.query(
@@ -123,6 +131,7 @@ try {
       [ticket.account_id],
     )).rows[0].n === 1,
   );
+  stage = "delivery";
   const stats = await runDeliveryBatch({
     mode: "local_fixture",
     key,
@@ -141,6 +150,27 @@ try {
   console.log(
     "PASS provider-origin relay; outside-path, replay and wrong-secret denied; synthetic SMTP acknowledged",
   );
+} catch (error) {
+  // Fixed labels only: never expose messages, SQL arguments, addresses or keys.
+  const candidate = error as { name?: string; code?: string };
+  const name = [
+      "Error",
+      "TypeError",
+      "InvalidData",
+      "PermissionDenied",
+      "ConnectionRefused",
+      "ConnectionReset",
+      "TimedOut",
+    ].includes(candidate.name ?? "")
+    ? candidate.name
+    : "unclassified";
+  const code = /^[A-Z0-9_]{1,24}$/.test(candidate.code ?? "")
+    ? candidate.code
+    : "unclassified";
+  console.error(
+    `Fixture ingress diagnostic: stage=${stage} name=${name} code=${code}`,
+  );
+  throw new Error("Fixture ingress assertion failed: " + stage);
 } finally {
   await gateway?.shutdown();
   await store?.close();

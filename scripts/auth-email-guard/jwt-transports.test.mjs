@@ -5,7 +5,7 @@ import {readFile} from 'node:fs/promises';
 import {startFixtureTransports,fixtureSql,refreshFixtureApiCredentials} from './fixture.mjs';
 import {pending,call,signIn,cleanup} from './provider.test.mjs';
 import {backupFixture,restoreFixture,discardBackup} from './control.mjs';
-import {recordTransportSample} from './transport-observation.mjs';
+import {recordTransportSample,withinObservationDeadline} from './transport-observation.mjs';
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 async function realtimeJoin(handle,token,id){
   return new Promise(resolve=>{
@@ -19,7 +19,7 @@ async function realtimeJoin(handle,token,id){
     ws.on('close',()=>finish('connection_rejected'));
   });
 }
-async function probe(handle,token,id){
+export async function probe(handle,token,id){
   refreshFixtureApiCredentials(handle);
   const headers={authorization:`Bearer ${token}`};
   const rest=await fetch(`http://127.0.0.1:55431/records?id=eq.${id}`,{headers,signal:AbortSignal.timeout(4000)});
@@ -105,7 +105,7 @@ export async function run(handle,{failAfterUpload=false}={}){
           // Keep measuring real responses; this does not grant a grace period
           // or upgrade MD2-070/145. PostgREST's built-in skew is a finding.
           console.log('PROGRESS signed-expiry transport states: '+JSON.stringify({event:entry.row.event,strictExpiryStatus:entry.row.strictExpiryCheck?.status,transports:Object.fromEntries(Object.entries(entry.row.perTransport).map(([name,value])=>[name,{status:value.status,afterSignedExpiryMs:value.afterSignedExpiryMs}]))}));
-          assert.ok(Object.values(entry.row.perTransport).every(value=>(value.firstRejectedMs===undefined?value.afterSignedExpiryMs:value.rejectionAfterSignedExpiryMs)<120_000),'Bounded observation must reach actual rejection; timeout is unresolved, never policy grace');
+          assert.ok(withinObservationDeadline(entry.row,120_000),'Bounded observation must reach actual rejection; timeout is unresolved, never policy grace');
           if(!measured.allDenied){
             continue;
           }

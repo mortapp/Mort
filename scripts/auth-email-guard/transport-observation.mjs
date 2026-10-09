@@ -2,6 +2,16 @@ const transports=['postgrest','storage','realtime'];
 const measurementFailure=()=>{throw new Error('Transport measurement failed: invalid state or clock');};
 const finite=value=>typeof value==='number'&&Number.isFinite(value);
 
+export function withinObservationDeadline(row,deadlineMs){
+  if(!finite(deadlineMs)||deadlineMs<=0)return false;
+  return transports.every(name=>{
+    const value=row?.perTransport?.[name];
+    if(!value||!['ACCEPTED','DENIED'].includes(value.status))return false;
+    const elapsed=value.status==='ACCEPTED'?value.afterSignedExpiryMs:value.rejectionAfterSignedExpiryMs;
+    return finite(elapsed)&&elapsed<deadlineMs;
+  });
+}
+
 // Observe actual responses without changing JWT expiry or the strict policy.
 // Validate the entire sample before mutating its evidence row.
 export function recordTransportSample(row,sample,{signedExpiryMs,lifecycleAtMs,checkedAtMs}={}){

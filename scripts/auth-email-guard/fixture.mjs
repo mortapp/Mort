@@ -109,10 +109,16 @@ async function loadState() {
   if (!/^[a-f0-9]{64}$/.test(state.password) || !/^[a-f0-9]{64}$/.test(state.jwtSecret)) throw new Error('Fixture credential rejected');
   return state;
 }
-function signJwt(secret,role) {
+function signJwt(secret,role,issuedAt=Math.floor(Date.now()/1000)) {
   const head=Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url');
-  const body=Buffer.from(JSON.stringify({role,iss:'fixture',aud:'authenticated',iat:Math.floor(Date.now()/1000),exp:Math.floor(Date.now()/1000)+3600})).toString('base64url');
+  const body=Buffer.from(JSON.stringify({role,iss:'fixture',aud:'authenticated',iat:issuedAt,exp:issuedAt+3600})).toString('base64url');
   return `${head}.${body}.${createHmac('sha256',secret).update(`${head}.${body}`).digest('base64url')}`;
+}
+export function fixtureTransportRoleTokens(state,previous,now=Math.floor(Date.now()/1000)){
+  if(!Number.isSafeInteger(now)||now<0||!/^[a-f0-9]{64}$/.test(state.jwtSecret))throw new Error('Fixture role issuance rejected');
+  const valid=value=>Number.isSafeInteger(value)&&value>=0&&value<=now&&value+3600>now+60;
+  const retain=valid(previous?.anonIssuedAt)&&valid(previous?.serviceIssuedAt);
+  return {anonKey:signJwt(state.jwtSecret,'anon',retain?previous.anonIssuedAt:now),serviceKey:signJwt(state.jwtSecret,'service_role',retain?previous.serviceIssuedAt:now)};
 }
 export function refreshFixtureApiCredentials(handle){
   assertMortAuthFixture(handle,handle.observed);
@@ -144,19 +150,29 @@ export async function configureFixtureAuth(handle,{sendEmail=false,logLevel='fat
 export async function startFixtureTransports(handle){
   assertMortAuthFixture(handle,handle.observed);
   const state=await loadState();
+  let previous;
   for(const role of ['rest','storage','realtime']){
     const existing=spawnSync('docker',['inspect',container(state,role)],{encoding:'utf8',windowsHide:true});
-    if(existing.status===0)inspect(state,role);
+    if(existing.status===0){
+      inspect(state,role);
+      if(role==='storage'){
+        // Read issuance timestamps only, never export the container environment or keys.
+        const metadata=spawnSync('docker',['exec',container(state,role),'node','-e',"const read=k=>JSON.parse(Buffer.from(process.env[k].split('.')[1],'base64url')).iat;console.log(JSON.stringify({anonIssuedAt:read('ANON_KEY'),serviceIssuedAt:read('SERVICE_KEY')}))"],{encoding:'utf8',windowsHide:true,timeout:10_000});
+        if(metadata.status===0)try{previous=JSON.parse(metadata.stdout);}catch{}
+      }
+    }
     else await portFree({rest:55431,storage:55432,realtime:55433}[role]);
   }
   await fixtureSql(handle,`ALTER ROLE authenticator PASSWORD '${state.password}';ALTER ROLE supabase_storage_admin PASSWORD '${state.password}';CREATE SCHEMA IF NOT EXISTS _realtime;ALTER SCHEMA _realtime OWNER TO supabase_admin;CREATE SCHEMA IF NOT EXISTS mort_transport;`);
-  const started=spawnSync('docker',['compose','--env-file',resolve(stateDir,'empty.env'),'-p','mort-mobile','-f',resolve(root,'scripts/auth-email-guard/compose.yaml'),'up','-d','--no-deps','rest','storage','realtime'],{env:composeEnv(state),encoding:'utf8',timeout:60_000,windowsHide:true});
+  const tokens=fixtureTransportRoleTokens(state,previous);
+  const started=spawnSync('docker',['compose','--env-file',resolve(stateDir,'empty.env'),'-p','mort-mobile','-f',resolve(root,'scripts/auth-email-guard/compose.yaml'),'up','-d','--no-deps','rest','storage','realtime'],{env:{...composeEnv(state),FIXTURE_ANON_KEY:tokens.anonKey,FIXTURE_SERVICE_KEY:tokens.serviceKey},encoding:'utf8',timeout:60_000,windowsHide:true});
   if(started.status!==0)throw new Error('Fixture transport startup failed');
   for(const role of ['rest','storage','realtime'])inspect(state,role);
   for(const url of ['http://127.0.0.1:55431/','http://127.0.0.1:55432/status','http://127.0.0.1:55433/healthcheck']){
+    let observation='not-observed';
     for(let i=0;i<100;i++){
-      try{if((await fetch(url,{signal:AbortSignal.timeout(1000)})).ok)break;}catch{}
-      if(i===99)throw new Error('Fixture transport health timeout');await new Promise(r=>setTimeout(r,100));
+      try{const response=await fetch(url,{signal:AbortSignal.timeout(1000)});observation=String(response.status);await response.body?.cancel().catch(()=>{});if(response.ok)break;}catch(error){observation=/^[A-Z0-9_]{1,64}$/.test(error.cause?.code??'')?error.cause.code:['TimeoutError','AbortError','TypeError'].includes(error.name)?error.name:'unclassified';}
+      if(i===99)throw new Error(`Fixture transport health timeout: port ${new URL(url).port}, outcome ${observation}`);await new Promise(r=>setTimeout(r,100));
     }
   }
   return {restUrl:'http://127.0.0.1:55431',storageUrl:'http://127.0.0.1:55432',realtimeUrl:'ws://127.0.0.1:55433',resourceIds:['rest','storage','realtime'].map(role=>container(state,role))};

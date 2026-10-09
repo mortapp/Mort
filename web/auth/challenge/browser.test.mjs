@@ -36,7 +36,7 @@ test('disposable real browser: scanner/reload/back make no redemption; human-onl
       res.writeHead(reply==='busy'?429:reply==='deny'?400:200,{'Content-Type':'application/json'});res.end(JSON.stringify(out));
     });await new Promise((resolve,reject)=>{gateway.once('error',reject);gateway.listen(55426,'127.0.0.1',resolve);});
     browser=await chromium.launch({headless:true});const context=await browser.newContext({serviceWorkers:'block'}),page=await context.newPage();
-    context.on('request',req=>requests.push({url:req.url(),method:req.method(),headers:req.headers()}));
+    context.on('request',req=>requests.push({url:req.url(),method:req.method(),headers:req.headers(),resourceType:req.resourceType()}));
     const link=randomBytes(32).toString('base64url'),id=randomUUID(),url=base+'/auth/confirmation/#itemId='+id+'&linkSecret='+link;
     await page.goto(url);await page.waitForFunction(()=>location.hash==='');check(posts.length===0,'Page load performs no redemption');
     check((await page.locator('#status').textContent()).includes('Press Continue'),'Neutral human-click message');
@@ -65,6 +65,8 @@ test('disposable real browser: scanner/reload/back make no redemption; human-onl
     check(await page.locator('#status').getAttribute('aria-live')==='polite','Status announced');
     check(requests.every(req=>![link,cap,password,posts[2].data.verifier].some(value=>req.url.includes(value)||(req.headers.referer??'').includes(value))),'No secret in request URLs/referrers');
     check(requests.every(req=>req.url.startsWith(base+'/')||req.url.startsWith('http://127.0.0.1:55426/')),'No third-party network');
+    assert.deepEqual([...new Set(requests.filter(req=>req.resourceType==='script').map(req=>new URL(req.url).pathname))].sort(),['/auth/challenge/config.mjs','/auth/challenge/controller.mjs','/auth/challenge/page.mjs','/auth/challenge/transport.mjs','/auth/password-policy.mjs'],'Actual local auth origin loads exactly the approved script inventory');
+    check((await page.evaluate(()=>navigator.serviceWorker.getRegistrations().then(rows=>rows.length)))===0,'Disposable auth origin has no registered service worker');
     const response=await fetch(base+'/auth/recovery/');check(response.headers.get('cache-control')==='no-store'&&response.headers.get('referrer-policy')==='no-referrer','Runtime security headers');
     await context.close();
   }catch{throw new Error('Disposable guard browser assertion/setup failed (redacted).');}
