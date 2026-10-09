@@ -10,6 +10,7 @@ import {auditFixtureLogs} from './log-audit.mjs';
 import {sessionLiveCharacterization} from './local-characterizations.mjs';
 const root=resolve(import.meta.dirname,'../..');
 const cleanText=text=>text.replace(/\x1b\[[0-9;]*m/g,'');
+let certificationStage='initialization';
 async function stateDigest(handle){
   const db=new pg.Client({connectionString:handle.dbUrl,connectionTimeoutMillis:2000});
   try{
@@ -42,6 +43,7 @@ async function sourceOwner(name,files,kind){
   throw new Error('Executed test lacks reviewed source owner');
 }
 export async function run(){
+  certificationStage='requirements';
   const requirements=await loadRequirements(),head=child('git',['rev-parse','HEAD']).trim();
   const sourcePaths=['scripts/auth-email-guard','web/auth/challenge','supabase/functions/_shared/auth_email_guard','supabase/functions/mort-auth-email-hook','supabase/functions/mort-auth-email-guard','supabase/migrations/20261008130945_mort_email_fixture_control_retention.sql','supabase/migrations/20261008135853_mort_email_restore_session_epoch.sql','supabase/migrations/20261008151312_mort_email_fixture_baseline_snapshot.sql'];
   const sourceStatus=()=>child('git',['status','--porcelain','--',...sourcePaths]).trim();
@@ -54,16 +56,21 @@ export async function run(){
   const guardSourceSha256=await sourceSnapshot();
   let guardSourceClean=!startSourceStatus;
   if(!/^[a-f0-9]{40}$/.test(head))throw new Error('Candidate identity unavailable');
+  certificationStage='fixture-start';
   const fixture=await startFixture(),observations=[],started=performance.now();
   const suiteNames=['provider-ingress','provider-recovery','session-live','transport-cleanup','guarded-jwt-transports','provider-drift','logging','state','issuance','grant','bypass','hook-boundary','delivery','smtp-fault','cutover','retention','load','security','log-audit'];
   const timings={},suiteStates={};
   for(const name of suiteNames){
+    certificationStage=name+':state-before';
     const since=new Date().toISOString(),began=performance.now(),before=await stateDigest(fixture);
     const suite=await import(`./${name}.test.mjs`);
+    certificationStage=name+':assertions';
     observations.push(...await captureAssertions(name,()=>suite.run(fixture)));
     // Logging intentionally characterizes unsafe raw default output. Its named
     // assertions are observations, never a raw-telemetry privacy certification.
+    certificationStage=name+':log-audit';
     if(name!=='logging')auditFixtureLogs(fixture,since);timings[name]=Math.round(performance.now()-began);
+    certificationStage=name+':state-after';
     suiteStates[name]={before,after:await stateDigest(fixture)};
     console.log('PASS certified isolated suite:',name);
   }
@@ -117,5 +124,5 @@ export async function run(){
 }
 if(process.argv[1]&&resolve(process.argv[1])===resolve(import.meta.filename)){
   try{const result=await run();if(result.summary.NOT_RUN||result.operationalSummary.NOT_RUN)process.exitCode=1;else if(!result.fullGuardCertified&&!process.argv.includes('--allow-external-gates'))process.exitCode=2;}
-  catch(error){console.error('FAIL certification: '+(error.guardAssertion?JSON.stringify(error.guardAssertion):'required fixture assertion, log, ownership or cleanup gate failed (values redacted)'));process.exitCode=1;}
+  catch(error){const name=['Error','AssertionError','TypeError','TimeoutError','AbortError'].includes(error.name)?error.name:'unclassified';const code=/^[A-Z0-9_]{1,24}$/.test(error.code??'')?error.code:'unclassified';console.error('FAIL certification: '+(error.guardAssertion?JSON.stringify(error.guardAssertion):`stage=${certificationStage} name=${name} code=${code}; values redacted`));process.exitCode=1;}
 }
