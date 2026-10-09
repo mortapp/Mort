@@ -1,9 +1,11 @@
 import {readFile,writeFile,rename,unlink,open} from 'node:fs/promises';
 import {resolve,dirname} from 'node:path';
 import {randomUUID,createHash} from 'node:crypto';
-import {spawnSync} from 'node:child_process';
+import {spawnSync as nodeSpawnSync} from 'node:child_process';
+import {recordSubprocessFailure} from './subprocess-diagnostic.mjs';
 import pg from 'pg';
 import {assertMortAuthFixture,assertOwnedResource,fixtureProcessEnv} from './fixture.mjs';
+const spawnSync=(...args)=>recordSubprocessFailure(nodeSpawnSync(...args));
 export const fixtureDirectory=resolve(import.meta.dirname,'../../.superpowers/sdd/2026-10-08-managed-email-challenge-guard/fixture');
 export function assertActivationReadiness(checks){
   const required=['sendEmailHook','tokenHook','mutationGuard','browser','delivery','trustedIngress','keyConfiguration','providerCompatibility'];
@@ -49,10 +51,7 @@ function docker(handle,args,input,binary=false){
   assertOwnedResource(name,JSON.parse(inspected.stdout),handle.fixtureId);
   const result=spawnSync('docker',[args[0],...(args[0]==='exec'?['-i']:[]),name,...args.slice(1)],{input,env:fixtureProcessEnv(),...(binary?{}:{encoding:'utf8'}),timeout:60_000,maxBuffer:32*1024*1024,windowsHide:true});
   if(result.status!==0){
-    const raw=String(result.stderr??'');
-    const category=['cannot drop','already exists','permission denied','must be owner','does not exist'].find(term=>raw.includes(term))??result.error?.code??'operation';
-    const dependencies=[...raw.matchAll(/(?:ERROR:\s+cannot drop|depends on) (?:[a-z_]+ )?[a-z_.]+/g)].map(match=>match[0]).join(',');
-    throw new Error(`Fixture control operation failed (${category}; ${dependencies}; values redacted)`);
+    throw new Error('Fixture control operation failed (output redacted)');
   }return result.stdout;
 }
 async function connection(handle){assertMortAuthFixture(handle,handle.observed);const db=new pg.Client({connectionString:handle.dbUrl,connectionTimeoutMillis:2000});await db.connect();return db;}

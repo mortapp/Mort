@@ -1,9 +1,11 @@
-import {execFileSync, spawnSync} from 'node:child_process';
+import {execFileSync, spawnSync as nodeSpawnSync} from 'node:child_process';
+import {recordSubprocessFailure} from './subprocess-diagnostic.mjs';
 import {createHmac, randomBytes, randomUUID} from 'node:crypto';
 import {mkdir, readFile, writeFile} from 'node:fs/promises';
 import {createServer} from 'node:net';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
+const spawnSync=(...args)=>recordSubprocessFailure(nodeSpawnSync(...args));
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'../..');
 const stateDir=resolve(root,'.superpowers/sdd/2026-10-08-managed-email-challenge-guard/fixture');

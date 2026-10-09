@@ -11,5 +11,23 @@ export function sessionLiveCharacterization(value){
       output[event][name]={status:probe.status,denied:true,measuredAfterLifecycleMs:probe.measuredAfterLifecycleMs};
     }
   }
+  if(value.earlySamples!==undefined){
+    output.earlySamples={};
+    for(const event of ['revocation','passwordChange','restore']){
+      const samples=value.earlySamples[event];
+      if(!Array.isArray(samples)||samples.length!==2)failure();
+      output.earlySamples[event]=samples.map((sample,index)=>{
+        const targetOffsetMs=index===0?5000:30000;
+        if(sample.targetOffsetMs!==targetOffsetMs||sample.freshControlsPassed!==true||sample.predicateDenied!==true)failure();
+        const observations={};
+        for(const name of ['postgrest','storage','realtime']){
+          const observed=sample.observations?.[name];
+          if(!Number.isFinite(observed?.measuredAfterLifecycleMs)||observed.measuredAfterLifecycleMs<targetOffsetMs||(name==='realtime'?observed.status!=='error':![200,400,401,403,404].includes(observed.status)))failure();
+          observations[name]={status:observed.status,measuredAfterLifecycleMs:observed.measuredAfterLifecycleMs};
+        }
+        return {targetOffsetMs,freshControlsPassed:true,predicateDenied:true,observations};
+      });
+    }
+  }
   return output;
 }

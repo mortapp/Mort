@@ -17,3 +17,14 @@ test('session characterization refuses missing unexecuted or accepting transport
   const value=fixture();value.revocation.storage.denied=false;
   assert.throws(()=>characterize(value),/Session evidence/);
 });
+test('early session evidence requires paired five and thirty second denials and fresh controls',()=>{
+  const value=fixture();
+  const samples=Object.fromEntries(['revocation','passwordChange','restore'].map(event=>[event,[5000,30000].map(targetOffsetMs=>({targetOffsetMs,freshControlsPassed:true,predicateDenied:true,secret:'private-marker',observations:Object.fromEntries(['postgrest','storage','realtime'].map(name=>[name,{status:name==='realtime'?'error':200,measuredAfterLifecycleMs:targetOffsetMs+50}]))}))]));
+  value.earlySamples=samples;
+  const result=characterize(value);
+  assert.equal(result.earlySamples.restore[1].targetOffsetMs,30000);
+  assert.ok(!JSON.stringify(result).includes('private-marker'));
+  for(const bad of [[],[samples.restore[0]],samples.restore.map(row=>({...row,freshControlsPassed:false})),samples.restore.map(row=>({...row,predicateDenied:false}))]){
+    assert.throws(()=>characterize({...value,earlySamples:{...samples,restore:bad}}),/Session evidence/);
+  }
+});

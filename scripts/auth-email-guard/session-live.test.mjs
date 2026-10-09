@@ -6,9 +6,29 @@ import {pending,call,signIn,cleanup} from './provider.test.mjs';
 import {probe} from './jwt-transports.test.mjs';
 import {backupFixture,restoreFixture,discardBackup} from './control.mjs';
 import {strictExpiryObservation} from './transport-observation.mjs';
+import {runSessionLatency} from './session-latency.mjs';
 
 export async function run(handle,{signedExpiry=false}={}){
   const transports=await startFixtureTransports(handle);let owner,backup;
+  let phase='setup',primaryFailure;
+  const earlyEvidence={};
+  async function earlyChecks(event,at,oldToken,newToken){
+    const rows=[];
+    for(const targetOffsetMs of [5000,30000]){
+      const remaining=at+targetOffsetMs-Date.now();
+      if(remaining>0)await new Promise(resolve=>setTimeout(resolve,remaining));
+      const old=await probe(handle,oldToken,owner.id);
+      assert.ok(old.postgrest.denied&&old.storage.denied&&old.realtime.status==='error','Early lifecycle sample denies old token on all three protected transports');
+      const live=await probe(handle,newToken,owner.id);
+      assert.ok(live.postgrest.accepted&&live.storage.accepted&&live.realtime.status==='ok','Fresh-session positive control succeeds alongside every early lifecycle denial');
+      const claims=JSON.parse(Buffer.from(oldToken.split('.')[1],'base64url'));
+      assert.ok(claims.exp>Math.floor(Date.now()/1000),'Early denial occurs before unchanged signed token expiry');
+      const decision=await fixtureSql(handle,`BEGIN;SET LOCAL ROLE authenticated;SELECT set_config('request.jwt.claims','${JSON.stringify(claims)}',true) IS NOT NULL;SELECT mort_fixture.session_is_live();ROLLBACK`);
+      assert.ok(decision.split('\n').includes('f'),'Actual old token claims fail session-live predicate while fresh transport controls succeed');
+      rows.push({targetOffsetMs,observations:Object.fromEntries(Object.entries(old).map(([name,value])=>[name,{status:value.status,measuredAfterLifecycleMs:value.checkedAtMs-at}])),freshControlsPassed:true,predicateDenied:true});
+    }
+    earlyEvidence[event]=rows;
+  }
   try{
     for(let i=0;i<100;i++){
       if(await fixtureSql(handle,"SELECT to_regclass('realtime.messages') IS NOT NULL AND to_regclass('storage.objects') IS NOT NULL")==='t')break;
@@ -43,6 +63,8 @@ export async function run(handle,{signedExpiry=false}={}){
     handle.privateAudit.add(fresh.data.access_token);
     const positive=await probe(handle,fresh.data.access_token,owner.id);
     assert.ok(positive.postgrest.accepted&&positive.storage.accepted&&positive.realtime.status==='ok','Fresh owner session retains access to all three transports');
+    phase='early-revocation';
+    await earlyChecks('revocation',revokedAt,session.data.access_token,fresh.data.access_token);
     const nextPassword=`Bb8!${randomBytes(20).toString('base64url')}`;
     assert.equal((await call(handle,`/admin/users/${owner.id}`,{password:nextPassword},true,'PUT')).status,200,'Actual provider password replacement succeeds');
     const changedAt=Date.now();
@@ -53,6 +75,8 @@ export async function run(handle,{signedExpiry=false}={}){
     handle.privateAudit.add(current.data.access_token);
     const currentPositive=await probe(handle,current.data.access_token,owner.id);
     assert.ok(currentPositive.postgrest.accepted&&currentPositive.storage.accepted&&currentPositive.realtime.status==='ok','Post-password-change owner retains all three transport paths');
+    phase='early-password-change';
+    await earlyChecks('passwordChange',changedAt,fresh.data.access_token,current.data.access_token);
     const currentClaims=JSON.parse(Buffer.from(current.data.access_token.split('.')[1],'base64url'));
     const expiredClaims={sub:owner.id,role:'authenticated',session_id:currentClaims.session_id,exp:Math.floor(Date.now()/1000)-1};
     const expiryResult=await fixtureSql(handle,`BEGIN;SET LOCAL ROLE authenticated;SELECT set_config('request.jwt.claims','${JSON.stringify(expiredClaims)}',true) IS NOT NULL;SELECT mort_fixture.session_is_live();ROLLBACK`);
@@ -77,9 +101,18 @@ export async function run(handle,{signedExpiry=false}={}){
     handle.privateAudit.add(afterRestore.data.access_token);
     const restoredPositive=await probe(handle,afterRestore.data.access_token,owner.id);
     assert.ok(restoredPositive.postgrest.accepted&&restoredPositive.storage.accepted&&restoredPositive.realtime.status==='ok','Fresh post-restore owner retains all three transport paths');
+    phase='early-restore';
+    await earlyChecks('restore',restoredAt,current.data.access_token,afterRestore.data.access_token);
     const timings=(sample,at)=>Object.fromEntries(Object.entries(sample).map(([name,value])=>[name,{status:value.status,denied:name==='realtime'?value.status==='error':value.denied,measuredAfterLifecycleMs:value.checkedAtMs-at}]));
     handle.sessionLiveEvidence={jwtLifetimeSeconds:3600,revocation:timings(after,revokedAt),passwordChange:timings(passwordDenied,changedAt),restore:timings(restoreDenied,restoredAt),scope:'owned SELECT private GET new private joins',hostedChanged:false};
+    handle.sessionLiveEvidence.earlySamples=earlyEvidence;
+    console.log('OBSERVED early session controls: '+JSON.stringify(earlyEvidence));
+    phase='latency-measurement';
+    handle.sessionLatencyEvidence=await runSessionLatency(handle,afterRestore.data.access_token,owner.id,probe);
+    assert.ok(handle.sessionLatencyEvidence.policiesRestored,'Bounded request latency measurement restores all three session-live policies');
+    console.log('OBSERVED session latency: '+JSON.stringify(handle.sessionLatencyEvidence));
     if(signedExpiry){
+      phase='signed-expiry-wait';
       const token=afterRestore.data.access_token;
       const signedClaims=JSON.parse(Buffer.from(token.split('.')[1],'base64url'));
       assert.equal(signedClaims.exp-signedClaims.iat,3600,'Guarded signed-token expiry retains the original one-hour lifetime');
@@ -95,7 +128,9 @@ export async function run(handle,{signedExpiry=false}={}){
         console.log('PROGRESS guarded signed expiry: '+JSON.stringify({remainingSeconds:Math.max(0,Math.ceil((expiryMs-Date.now())/1000)),policiesInstalled:true}));
       }
       const checkpointStartedAtMs=Date.now();
+      phase='signed-expiry-probe';
       const expired=await probe(handle,token,owner.id,{parallel:true});
+      console.log('OBSERVED guarded expiry: '+JSON.stringify({startedAfterExpiryMs:checkpointStartedAtMs-expiryMs,observations:Object.fromEntries(Object.entries(expired).map(([name,value])=>[name,{status:value.status,afterExpiryMs:value.checkedAtMs-expiryMs}]))}));
       assert.ok(strictExpiryObservation(expired,{signedExpiryMs:expiryMs,startedAtMs:checkpointStartedAtMs}).withinStrictWindow,'Strict expiry collects all three actual denials by original signed expiry plus one second; delayed measurement is not PASS');
       assert.equal(await fixtureSql(handle,`SELECT count(*) FROM auth.sessions WHERE id='${signedClaims.session_id}' AND user_id='${owner.id}'`),'1','Expired-token control retains the actual session row');
       assert.equal(await fixtureSql(handle,"SELECT count(*) FROM pg_policies WHERE policyname IN('guard_fixture_live_record','guard_fixture_live_storage','guard_fixture_live_channel')"),'3','All three session-live RLS policies are installed at the signed-expiry checkpoint');
@@ -105,7 +140,12 @@ export async function run(handle,{signedExpiry=false}={}){
       assert.ok(replacementPositive.postgrest.accepted&&replacementPositive.storage.accepted&&replacementPositive.realtime.status==='ok','Fresh actual token retains owner access after guarded expiry denial');
       handle.guardedExpiryEvidence={policy:'REJECT_BY_SIGNED_EXPIRY_PLUS_1_SECOND',jwtLifetimeSeconds:3600,signedExpiryMs:expiryMs,checkpointStartedAtMs,observations:Object.fromEntries(Object.entries(expired).map(([name,value])=>[name,{status:value.status,denied:name==='realtime'?value.status==='error':value.denied,checkedAtMs:value.checkedAtMs,afterSignedExpiryMs:value.checkedAtMs-expiryMs}])),scope:'owned SELECT private GET new private joins',policiesInstalled:true,hostedChanged:false};
     }
+  }catch(error){
+    primaryFailure=error;
+    console.error(`FAIL session-live phase=${phase}; private values redacted`);
+    throw error;
   }finally{
+    try{
     refreshFixtureApiCredentials(handle);
     if(backup)await discardBackup(handle,backup);
     if(owner){
@@ -115,5 +155,9 @@ export async function run(handle,{signedExpiry=false}={}){
     await fixtureSql(handle,'DELETE FROM mort_transport.records;UPDATE mort_auth_guard.control SET enabled=false');
     await cleanup(handle);
     await fixtureSql(handle,`DROP POLICY IF EXISTS guard_fixture_live_record ON mort_transport.records;DROP POLICY IF EXISTS guard_fixture_live_storage ON storage.objects;DROP POLICY IF EXISTS guard_fixture_live_channel ON realtime.messages;DROP TRIGGER IF EXISTS mort_fixture_password_fence ON auth.users;DROP FUNCTION IF EXISTS mort_fixture.retire_password_sessions();DROP FUNCTION IF EXISTS mort_fixture.session_is_live();DROP TABLE IF EXISTS mort_fixture.credential_fences;REVOKE USAGE ON SCHEMA mort_fixture FROM authenticated`);
+    }catch(cleanupError){
+      console.error('FAIL session-live cleanup; private values redacted');
+      throw primaryFailure??cleanupError;
+    }
   }
 }

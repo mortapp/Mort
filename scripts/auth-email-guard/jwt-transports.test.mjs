@@ -6,6 +6,7 @@ import {startFixtureTransports,fixtureSql,refreshFixtureApiCredentials} from './
 import {pending,call,signIn,cleanup} from './provider.test.mjs';
 import {backupFixture,restoreFixture,discardBackup} from './control.mjs';
 import {recordTransportSample,withinObservationDeadline} from './transport-observation.mjs';
+import {completeParallelRequests} from './parallel-probe.mjs';
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 async function realtimeJoin(handle,token,id){
   return new Promise(resolve=>{
@@ -23,7 +24,7 @@ export async function probe(handle,token,id,{parallel=false}={}){
   refreshFixtureApiCredentials(handle);
   const headers={authorization:`Bearer ${token}`};
   if(parallel){
-    const [postgrest,storage,realtime]=await Promise.all([
+    const [postgrest,storage,realtime]=await completeParallelRequests([
       (async()=>{const response=await fetch(`http://127.0.0.1:55431/records?id=eq.${id}`,{headers,signal:AbortSignal.timeout(4000)});let rows=[];try{rows=await response.json()}catch{}return {status:response.status,accepted:response.ok&&Array.isArray(rows)&&rows.length===1&&rows[0].value==='synthetic',denied:[401,403].includes(response.status)||(response.ok&&Array.isArray(rows)&&rows.length===0),checkedAtMs:Date.now()};})(),
       (async()=>{const response=await fetch(`http://127.0.0.1:55432/object/authenticated/mort-fixture/${id}/probe.txt`,{headers,signal:AbortSignal.timeout(4000)});const text=await response.text();return {status:response.status,accepted:response.ok&&text==='synthetic',denied:[400,401,403,404].includes(response.status),checkedAtMs:Date.now()};})(),
       (async()=>({status:await realtimeJoin(handle,token,id),checkedAtMs:Date.now()}))(),

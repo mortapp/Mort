@@ -1,5 +1,6 @@
 import {readFile} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
+import {recordSubprocessFailure} from './subprocess-diagnostic.mjs';
 import {resolve} from 'node:path';
 import pg from 'pg';
 import {startFixture,fixtureProcessEnv} from './fixture.mjs';
@@ -28,6 +29,7 @@ async function stateDigest(handle){
 }
 function child(command,args,extra={}){
   const result=spawnSync(command,args,{cwd:root,env:{...fixtureProcessEnv(),...extra},windowsHide:true,encoding:'utf8',timeout:90_000,maxBuffer:8*1024*1024});
+  recordSubprocessFailure(result);
   if(result.status!==0)throw new Error('Certification child assertion failed (output redacted)');
   return cleanText(result.stdout);
 }
@@ -80,6 +82,8 @@ export async function run(){
     const name=match[1];observations.push({key:`unit:${name}`,suite:'unit',...await sourceOwner(name,denoFiles,'deno'),assertion:'named_test',executions:1,status:'PASS'});
   }
   const nodeFiles=['scripts/auth-email-guard/fixture.test.mjs','scripts/auth-email-guard/control.test.mjs','scripts/auth-email-guard/coverage.test.mjs','scripts/auth-email-guard/evidence.test.mjs','scripts/auth-email-guard/transport-observation.test.mjs','scripts/auth-email-guard/local-characterizations.test.mjs','scripts/auth-email-guard/transport-role-tokens.test.mjs','scripts/auth-email-guard/strict-expiry.test.mjs'];
+  nodeFiles.push('scripts/auth-email-guard/subprocess-diagnostic.test.mjs','scripts/auth-email-guard/session-latency.test.mjs');
+  nodeFiles.push('scripts/auth-email-guard/parallel-probe.test.mjs');
   const browserFiles=['web/auth/challenge/controller.test.mjs','web/auth/challenge/transport.test.mjs','web/auth/challenge/build.test.mjs','web/auth/challenge/browser.test.mjs'];
   const nodeOutput=child('node',['--test','--test-reporter=tap',...nodeFiles,...browserFiles],{MORT_GUARD_BROWSER_MODULES:process.env.MORT_GUARD_BROWSER_MODULES??'C:\\Users\\micha\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\node_modules'});
   for(const match of nodeOutput.matchAll(/^ok \d+ - (.+)$/gm)){
@@ -116,6 +120,7 @@ export async function run(){
   const compactCase=row=>({id:row.id,status:row.status,...(row.reason?{reason:row.reason}:{}),assertionKeys:row.assertions.map(proof=>proof.key)});
   const output={...report,context,assertions:observations,cases:cases.map(compactCase),operationalCases:operationalCases.map(compactCase),localCharacterizations:{oldJwt:{requirements:['MD2-070','MD2-145'],status:'RED_FINDING',observations:fixture.transportEvidence},logging:{requirement:'MD-119',status:'RED_FINDING',hostedTelemetryCertified:false,observations:fixture.loggingEvidence}},rawDefaultTelemetryCertified:false,logCleanScope:'Only audited non-logging-suite paths; raw default telemetry is explicitly not certified.',cleanupState:state};
   output.localCharacterizations.sessionLive=sessionLiveCharacterization(fixture.sessionLiveEvidence);
+  output.localCharacterizations.sessionLatency=fixture.sessionLatencyEvidence;
   delete output.localCharacterizations.oldJwt.observations;
   output.localCharacterizations.oldJwt.status='HISTORICAL_RED_FINDING_UNPROTECTED_BASELINE';
   output.localCharacterizations.oldJwt.historicalHead='082e8431b1aa4b788b6edb4c9c3245f007f1660c';

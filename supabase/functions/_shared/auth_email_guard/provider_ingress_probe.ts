@@ -178,7 +178,8 @@ try {
   );
   if (
     error instanceof Error &&
-    /^Recovery control failed: [a-z ]+$/.test(error.message)
+    /^Recovery control failed: (?:[a-z ]+|actual SMTP recovery (?:code|link))$/
+      .test(error.message)
   ) console.error(error.message);
   throw new Error("Fixture ingress assertion failed: " + stage);
 } finally {
