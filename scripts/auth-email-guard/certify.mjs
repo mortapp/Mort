@@ -55,7 +55,7 @@ export async function run(){
   let guardSourceClean=!startSourceStatus;
   if(!/^[a-f0-9]{40}$/.test(head))throw new Error('Candidate identity unavailable');
   const fixture=await startFixture(),observations=[],started=performance.now();
-  const suiteNames=['provider-ingress','provider-recovery','session-live','transport-cleanup','jwt-transports','provider-drift','logging','state','issuance','grant','bypass','hook-boundary','delivery','smtp-fault','cutover','retention','load','security','log-audit'];
+  const suiteNames=['provider-ingress','provider-recovery','session-live','transport-cleanup','guarded-jwt-transports','provider-drift','logging','state','issuance','grant','bypass','hook-boundary','delivery','smtp-fault','cutover','retention','load','security','log-audit'];
   const timings={},suiteStates={};
   for(const name of suiteNames){
     const since=new Date().toISOString(),began=performance.now(),before=await stateDigest(fixture);
@@ -72,7 +72,7 @@ export async function run(){
   for(const match of unitOutput.matchAll(/^(.+?) \.\.\. ok(?: |$)/gm)){
     const name=match[1];observations.push({key:`unit:${name}`,suite:'unit',...await sourceOwner(name,denoFiles,'deno'),assertion:'named_test',executions:1,status:'PASS'});
   }
-  const nodeFiles=['scripts/auth-email-guard/fixture.test.mjs','scripts/auth-email-guard/control.test.mjs','scripts/auth-email-guard/coverage.test.mjs','scripts/auth-email-guard/evidence.test.mjs','scripts/auth-email-guard/transport-observation.test.mjs','scripts/auth-email-guard/local-characterizations.test.mjs','scripts/auth-email-guard/transport-role-tokens.test.mjs'];
+  const nodeFiles=['scripts/auth-email-guard/fixture.test.mjs','scripts/auth-email-guard/control.test.mjs','scripts/auth-email-guard/coverage.test.mjs','scripts/auth-email-guard/evidence.test.mjs','scripts/auth-email-guard/transport-observation.test.mjs','scripts/auth-email-guard/local-characterizations.test.mjs','scripts/auth-email-guard/transport-role-tokens.test.mjs','scripts/auth-email-guard/strict-expiry.test.mjs'];
   const browserFiles=['web/auth/challenge/controller.test.mjs','web/auth/challenge/transport.test.mjs','web/auth/challenge/build.test.mjs','web/auth/challenge/browser.test.mjs'];
   const nodeOutput=child('node',['--test','--test-reporter=tap',...nodeFiles,...browserFiles],{MORT_GUARD_BROWSER_MODULES:process.env.MORT_GUARD_BROWSER_MODULES??'C:\\Users\\micha\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\node_modules'});
   for(const match of nodeOutput.matchAll(/^ok \d+ - (.+)$/gm)){
@@ -109,6 +109,10 @@ export async function run(){
   const compactCase=row=>({id:row.id,status:row.status,...(row.reason?{reason:row.reason}:{}),assertionKeys:row.assertions.map(proof=>proof.key)});
   const output={...report,context,assertions:observations,cases:cases.map(compactCase),operationalCases:operationalCases.map(compactCase),localCharacterizations:{oldJwt:{requirements:['MD2-070','MD2-145'],status:'RED_FINDING',observations:fixture.transportEvidence},logging:{requirement:'MD-119',status:'RED_FINDING',hostedTelemetryCertified:false,observations:fixture.loggingEvidence}},rawDefaultTelemetryCertified:false,logCleanScope:'Only audited non-logging-suite paths; raw default telemetry is explicitly not certified.',cleanupState:state};
   output.localCharacterizations.sessionLive=sessionLiveCharacterization(fixture.sessionLiveEvidence);
+  delete output.localCharacterizations.oldJwt.observations;
+  output.localCharacterizations.oldJwt.status='HISTORICAL_RED_FINDING_UNPROTECTED_BASELINE';
+  output.localCharacterizations.oldJwt.historicalHead='082e8431b1aa4b788b6edb4c9c3245f007f1660c';
+  output.localCharacterizations.guardedJwt=fixture.guardedExpiryEvidence;
   console.log('MORT_GUARD_EVIDENCE_JSON '+JSON.stringify(output));return report;
 }
 if(process.argv[1]&&resolve(process.argv[1])===resolve(import.meta.filename)){

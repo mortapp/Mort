@@ -5,8 +5,9 @@ import {startFixtureTransports,fixtureSql,refreshFixtureApiCredentials} from './
 import {pending,call,signIn,cleanup} from './provider.test.mjs';
 import {probe} from './jwt-transports.test.mjs';
 import {backupFixture,restoreFixture,discardBackup} from './control.mjs';
+import {strictExpiryObservation} from './transport-observation.mjs';
 
-export async function run(handle){
+export async function run(handle,{signedExpiry=false}={}){
   const transports=await startFixtureTransports(handle);let owner,backup;
   try{
     for(let i=0;i<100;i++){
@@ -22,7 +23,7 @@ export async function run(handle){
     const session=await signIn(handle,owner,owner.password);assert.equal(session.status,200);
     (handle.privateAudit??=new Set()).add(session.data.access_token);
     const claims=JSON.parse(Buffer.from(session.data.access_token.split('.')[1],'base64url'));
-    assert.match(claims.session_id,/^[0-9a-f-]{36}$/,'Actual provider token has session_id');
+    assert.ok(/^[0-9a-f-]{36}$/.test(claims.session_id),'Actual provider token has session_id');
     assert.equal(claims.exp-claims.iat,3600,'Original access-token lifetime is unchanged');
     await fixtureSql(handle,`INSERT INTO mort_transport.records VALUES('${owner.id}','${owner.id}','synthetic')`);
     await fetch(`${transports.storageUrl}/bucket`,{method:'POST',headers:{authorization:`Bearer ${handle.serviceKey}`,'content-type':'application/json'},body:JSON.stringify({id:'mort-fixture',name:'mort-fixture',public:false})});
@@ -78,6 +79,32 @@ export async function run(handle){
     assert.ok(restoredPositive.postgrest.accepted&&restoredPositive.storage.accepted&&restoredPositive.realtime.status==='ok','Fresh post-restore owner retains all three transport paths');
     const timings=(sample,at)=>Object.fromEntries(Object.entries(sample).map(([name,value])=>[name,{status:value.status,denied:name==='realtime'?value.status==='error':value.denied,measuredAfterLifecycleMs:value.checkedAtMs-at}]));
     handle.sessionLiveEvidence={jwtLifetimeSeconds:3600,revocation:timings(after,revokedAt),passwordChange:timings(passwordDenied,changedAt),restore:timings(restoreDenied,restoredAt),scope:'owned SELECT private GET new private joins',hostedChanged:false};
+    if(signedExpiry){
+      const token=afterRestore.data.access_token;
+      const signedClaims=JSON.parse(Buffer.from(token.split('.')[1],'base64url'));
+      assert.equal(signedClaims.exp-signedClaims.iat,3600,'Guarded signed-token expiry retains the original one-hour lifetime');
+      const expiryMs=signedClaims.exp*1000;
+      while(Date.now()<expiryMs){
+        assert.equal(await fixtureSql(handle,"SELECT count(*) FROM pg_policies WHERE policyname IN('guard_fixture_live_record','guard_fixture_live_storage','guard_fixture_live_channel')"),'3','All three session-live RLS policies remain installed during real expiry measurement');
+        if(Date.now()<expiryMs-2000){
+          const live=await probe(handle,token,owner.id);
+          assert.ok(live.postgrest.accepted&&live.storage.accepted&&live.realtime.status==='ok','Actual unexpired live token retains all three transport paths');
+        }
+        const remaining=expiryMs-Date.now();
+        if(remaining>0)await new Promise(resolve=>setTimeout(resolve,Math.min(30_000,remaining)));
+        console.log('PROGRESS guarded signed expiry: '+JSON.stringify({remainingSeconds:Math.max(0,Math.ceil((expiryMs-Date.now())/1000)),policiesInstalled:true}));
+      }
+      const checkpointStartedAtMs=Date.now();
+      const expired=await probe(handle,token,owner.id,{parallel:true});
+      assert.ok(strictExpiryObservation(expired,{signedExpiryMs:expiryMs,startedAtMs:checkpointStartedAtMs}).withinStrictWindow,'Strict expiry collects all three actual denials by original signed expiry plus one second; delayed measurement is not PASS');
+      assert.equal(await fixtureSql(handle,`SELECT count(*) FROM auth.sessions WHERE id='${signedClaims.session_id}' AND user_id='${owner.id}'`),'1','Expired-token control retains the actual session row');
+      assert.equal(await fixtureSql(handle,"SELECT count(*) FROM pg_policies WHERE policyname IN('guard_fixture_live_record','guard_fixture_live_storage','guard_fixture_live_channel')"),'3','All three session-live RLS policies are installed at the signed-expiry checkpoint');
+      const replacement=await signIn(handle,owner,owner.password);assert.equal(replacement.status,200,'Verified owner signs in after original signed-token expiry');
+      handle.privateAudit.add(replacement.data.access_token);
+      const replacementPositive=await probe(handle,replacement.data.access_token,owner.id);
+      assert.ok(replacementPositive.postgrest.accepted&&replacementPositive.storage.accepted&&replacementPositive.realtime.status==='ok','Fresh actual token retains owner access after guarded expiry denial');
+      handle.guardedExpiryEvidence={policy:'REJECT_BY_SIGNED_EXPIRY_PLUS_1_SECOND',jwtLifetimeSeconds:3600,signedExpiryMs:expiryMs,checkpointStartedAtMs,observations:Object.fromEntries(Object.entries(expired).map(([name,value])=>[name,{status:value.status,denied:name==='realtime'?value.status==='error':value.denied,checkedAtMs:value.checkedAtMs,afterSignedExpiryMs:value.checkedAtMs-expiryMs}])),scope:'owned SELECT private GET new private joins',policiesInstalled:true,hostedChanged:false};
+    }
   }finally{
     refreshFixtureApiCredentials(handle);
     if(backup)await discardBackup(handle,backup);

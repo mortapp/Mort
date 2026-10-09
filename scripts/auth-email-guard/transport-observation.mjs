@@ -1,6 +1,14 @@
 const transports=['postgrest','storage','realtime'];
 const measurementFailure=()=>{throw new Error('Transport measurement failed: invalid state or clock');};
 const finite=value=>typeof value==='number'&&Number.isFinite(value);
+export function strictExpiryObservation(sample,{signedExpiryMs,startedAtMs}={}){
+  const valid=finite(signedExpiryMs)&&finite(startedAtMs)&&startedAtMs>=signedExpiryMs&&startedAtMs<=signedExpiryMs+1000;
+  const withinStrictWindow=valid&&transports.every(name=>{
+    const value=sample?.[name];
+    return value&&finite(value.checkedAtMs)&&value.checkedAtMs>=startedAtMs&&value.checkedAtMs<=signedExpiryMs+1000&&(name==='realtime'?value.status==='error':value.denied===true);
+  });
+  return {withinStrictWindow,policy:'REJECT_BY_SIGNED_EXPIRY_PLUS_1_SECOND'};
+}
 
 export function withinObservationDeadline(row,deadlineMs){
   if(!finite(deadlineMs)||deadlineMs<=0)return false;

@@ -4,6 +4,7 @@ import { handleEmailHook } from "../../mort-auth-email-hook/handler.ts";
 import { createFixtureStore } from "./store.ts";
 import { secretDigest } from "./crypto.ts";
 import { runDeliveryBatch, sendFixedEmail } from "./delivery.ts";
+import { recoveryFlow } from "./recovery_flow_probe.ts";
 let stage = "shape";
 function check(value: unknown): asserts value {
   if (!value) throw new Error("Fixture ingress assertion failed: " + stage);
@@ -150,6 +151,11 @@ try {
   console.log(
     "PASS provider-origin relay; outside-path, replay and wrong-secret denied; synthetic SMTP acknowledged",
   );
+  if (config.recoveryScenario) {
+    await gateway.shutdown();
+    gateway = undefined;
+    await recoveryFlow(config, store, codeKey, db);
+  }
 } catch (error) {
   // Fixed labels only: never expose messages, SQL arguments, addresses or keys.
   const candidate = error as { name?: string; code?: string };
@@ -170,6 +176,10 @@ try {
   console.error(
     `Fixture ingress diagnostic: stage=${stage} name=${name} code=${code}`,
   );
+  if (
+    error instanceof Error &&
+    /^Recovery control failed: [a-z ]+$/.test(error.message)
+  ) console.error(error.message);
   throw new Error("Fixture ingress assertion failed: " + stage);
 } finally {
   await gateway?.shutdown();
