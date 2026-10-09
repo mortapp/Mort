@@ -33,7 +33,7 @@ const policyBoolean=output=>{
 // Docker. The public runner below binds the actual owned-fixture checks and SQL.
 export function createSessionLatencyRunner({assertFixture,sql,now=Date.now}){
   return async function runSessionLatency(handle,token,id,probe){
-    let stage='identity',restoreNeeded=false,result;
+    let stage='identity',restoreNeeded=false,result,failure;
     try{
       assertFixture(handle,handle?.observed);
       if(typeof token!=='string'||!token.length||token.length>8192
@@ -73,15 +73,25 @@ export function createSessionLatencyRunner({assertFixture,sql,now=Date.now}){
         delta:Object.fromEntries(names.map(name=>[name,{p50Ms:protectedProfile[name].p50Ms-baseline[name].p50Ms,p95Ms:protectedProfile[name].p95Ms-baseline[name].p95Ms}])),
         policiesRestored:false,hostedChanged:false};
     }catch{
-      throw new Error('Session latency measurement failed at '+stage);
+      failure=new Error('Session latency measurement failed at '+stage);
+      failure.latencyFailure={primaryStage:stage};
     }finally{
       if(restoreNeeded){
         try{
           if(!policyBoolean(await sql(handle,transaction(restore))))throw new Error();
           if(result)result.policiesRestored=true;
-        }catch{throw new Error('Session latency measurement failed at restoration');}
+        }catch{
+          if(failure){
+            failure.message+='; policy restoration also failed';
+            failure.latencyFailure.restorationStage='restoration';
+          }else{
+            failure=new Error('Session latency measurement failed at restoration');
+            failure.latencyFailure={primaryStage:'restoration'};
+          }
+        }
       }
     }
+    if(failure)throw failure;
     return result;
   };
 }

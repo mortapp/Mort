@@ -90,6 +90,31 @@ test('failed restoration verification prevents a successful report',async()=>{
   assert.equal(restored,true);
 });
 
+test('baseline and restoration failures preserve both safe phases and the primary failure',async()=>{
+  let baseline=false,restorationAttempts=0;
+  const runner=createSessionLatencyRunner({assertFixture:()=>{},sql:async(_handle,statement)=>{
+    if(statement.includes('CREATE POLICY')){
+      restorationAttempts++;
+      const error=new Error('private restoration stderr');error.cause='private restoration cause';throw error;
+    }
+    if(statement.includes('DROP POLICY'))baseline=true;
+    return baseline?'f':'t';
+  },now:()=>0});
+  const probe=async()=>{
+    if(baseline){const error=new Error('private baseline token');error.cause='private baseline cause';throw error;}
+    return {postgrest:{status:200,accepted:true,denied:false,checkedAtMs:1},storage:{status:200,accepted:true,denied:false,checkedAtMs:1},realtime:{status:'ok',checkedAtMs:1}};
+  };
+  await assert.rejects(()=>runner({observed:{}},'private-owner-token','12345678-1234-4234-8234-123456789abc',probe),error=>{
+    assert.equal(error.message,'Session latency measurement failed at baseline; policy restoration also failed');
+    assert.deepEqual(error.latencyFailure,{primaryStage:'baseline',restorationStage:'restoration'});
+    assert.equal(error.cause,undefined);
+    assert.ok(!JSON.stringify(error).includes('private'));
+    assert.ok(!error.stack.includes('private'));
+    return true;
+  });
+  assert.equal(restorationAttempts,1);
+});
+
 test('transaction command tags do not hide the final fixture policy boolean row',async()=>{
   const {state,runner,handle,token,id,probe}=setup({commandTags:true});
   const result=await runner(handle,token,id,probe);
