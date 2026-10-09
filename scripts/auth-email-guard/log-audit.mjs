@@ -1,4 +1,4 @@
-import {spawnSync} from 'node:child_process';
+import {spawnSync} from './subprocess-runner.mjs';
 import {assertMortAuthFixture,fixtureProcessEnv} from './fixture.mjs';
 export function auditFixtureLogs(handle,since){
   assertMortAuthFixture(handle,handle.observed);

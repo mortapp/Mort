@@ -25,7 +25,13 @@ export function sessionLiveCharacterization(value){
           if(!Number.isFinite(observed?.measuredAfterLifecycleMs)||observed.measuredAfterLifecycleMs<targetOffsetMs||(name==='realtime'?observed.status!=='error':![200,400,401,403,404].includes(observed.status)))failure();
           observations[name]={status:observed.status,measuredAfterLifecycleMs:observed.measuredAfterLifecycleMs};
         }
-        return {targetOffsetMs,freshControlsPassed:true,predicateDenied:true,observations};
+        const reason={};
+        for(const field of ['sessionPresent','passwordFenceRejects','restoreFenceRejects','accountActive']){
+          if(typeof sample.reason?.[field]!=='boolean')failure();
+          reason[field]=sample.reason[field];
+        }
+        if(!reason.accountActive||(event==='revocation'?reason.sessionPresent:event==='passwordChange'?(reason.sessionPresent&&!reason.passwordFenceRejects):(!reason.sessionPresent||!reason.restoreFenceRejects)))failure();
+        return {targetOffsetMs,freshControlsPassed:true,predicateDenied:true,observations,reason};
       });
     }
   }

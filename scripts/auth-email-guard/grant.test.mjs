@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {createHash,randomUUID,randomBytes} from 'node:crypto';
 import pg from 'pg';
 import {assertMortAuthFixture,fixtureProcessEnv} from './fixture.mjs';
-import {spawnSync} from 'node:child_process';
+import {spawnSync} from './subprocess-runner.mjs';
 import {pending,call,cleanup,signIn,signupLink,confirmed} from './provider.test.mjs';
 import {startOidcFixture} from './oidc-fixture.mjs';
 import {createServer} from 'node:http';

@@ -77,6 +77,7 @@ export async function run(){
     console.log('PASS certified isolated suite:',name);
   }
   const denoFiles=['supabase/functions/mort-auth-email-hook/handler_test.ts','supabase/functions/mort-auth-email-guard/handler_test.ts','supabase/functions/_shared/secure_codes_test.ts',...['admission','config','crypto','outbox','parser','provider','redaction'].map(s=>`supabase/functions/_shared/auth_email_guard/${s}_test.ts`)];
+  denoFiles.push('supabase/functions/_shared/auth_email_guard/store-initialization-diagnostic_test.ts');
   const unitOutput=child('deno',['test','--frozen','--allow-env=ETHEREAL_API,ETHEREAL_WEB,ETHEREAL_API_KEY,ETHEREAL_CACHE','--config','supabase/functions/auth-email-guard.deno.json',...denoFiles]);
   for(const match of unitOutput.matchAll(/^(.+?) \.\.\. ok(?: |$)/gm)){
     const name=match[1];observations.push({key:`unit:${name}`,suite:'unit',...await sourceOwner(name,denoFiles,'deno'),assertion:'named_test',executions:1,status:'PASS'});
@@ -84,6 +85,7 @@ export async function run(){
   const nodeFiles=['scripts/auth-email-guard/fixture.test.mjs','scripts/auth-email-guard/control.test.mjs','scripts/auth-email-guard/coverage.test.mjs','scripts/auth-email-guard/evidence.test.mjs','scripts/auth-email-guard/transport-observation.test.mjs','scripts/auth-email-guard/local-characterizations.test.mjs','scripts/auth-email-guard/transport-role-tokens.test.mjs','scripts/auth-email-guard/strict-expiry.test.mjs'];
   nodeFiles.push('scripts/auth-email-guard/subprocess-diagnostic.test.mjs','scripts/auth-email-guard/session-latency.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/parallel-probe.test.mjs');
+  nodeFiles.push('scripts/auth-email-guard/subprocess-runner.test.mjs');
   const browserFiles=['web/auth/challenge/controller.test.mjs','web/auth/challenge/transport.test.mjs','web/auth/challenge/build.test.mjs','web/auth/challenge/browser.test.mjs'];
   const nodeOutput=child('node',['--test','--test-reporter=tap',...nodeFiles,...browserFiles],{MORT_GUARD_BROWSER_MODULES:process.env.MORT_GUARD_BROWSER_MODULES??'C:\\Users\\micha\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\node_modules'});
   for(const match of nodeOutput.matchAll(/^ok \d+ - (.+)$/gm)){

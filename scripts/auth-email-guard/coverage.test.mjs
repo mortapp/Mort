@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {validateCoverage,loadRequirements,canonicalSourceDigest} from './coverage.mjs';
 import {readFile} from 'node:fs/promises';
-import {spawnSync} from 'node:child_process';
+import {spawnSync} from './subprocess-runner.mjs';
 import {caseMappings} from './cases.mjs';
 import {fixtureProcessEnv} from './fixture.mjs';
 test('immutable requirement digests tolerate Git line-ending conversion but reject content changes',async()=>{

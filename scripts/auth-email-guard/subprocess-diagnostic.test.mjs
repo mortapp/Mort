@@ -107,3 +107,18 @@ test('database stderr failures expose fixed classes without identifiers or SQL v
   }
   assert.deepEqual(diagnose({status:1,stderr:'arbitrary private-secret words'}).stderrCategories,[]);
 });
+
+test('store initialization stderr retains reviewed classes and measured elapsed time without arbitrary values',()=>{
+  const stderr=[
+    'Fixture store initialization failed: class=connection_deadline sqlstate=none elapsedMs=104',
+    'Fixture store initialization failed: class=database_sqlstate sqlstate=42P01 elapsedMs=17',
+    'Fixture store initialization failed: class=database_sqlstate sqlstate=unclassified elapsedMs=17',
+    'Fixture store initialization failed: class=private-secret sqlstate=none elapsedMs=104',
+    'Fixture store initialization failed: class=database_sqlstate sqlstate=S3CR3 elapsedMs=17',
+    'Fixture store initialization failed: class=query_deadline sqlstate=none elapsedMs=1000 private-secret',
+  ].join('\n');
+  const result=diagnose({status:1,stderr});
+  assert.deepEqual(result.reviewedLines,stderr.split('\n').slice(0,3));
+  assert.ok(!JSON.stringify(result).includes('private-secret'));
+  assert.ok(!JSON.stringify(result).includes('S3CR3'));
+});

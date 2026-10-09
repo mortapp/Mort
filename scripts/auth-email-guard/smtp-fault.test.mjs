@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFile,unlink} from 'node:fs/promises';
 import {createServer} from 'node:net';
 import {TLSSocket,createSecureContext} from 'node:tls';
-import {spawn,execFileSync} from 'node:child_process';
+import {spawn,execFileSync} from './subprocess-runner.mjs';
 import {resolve} from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {assertMortAuthFixture,observeFixture,fixtureProcessEnv} from './fixture.mjs';

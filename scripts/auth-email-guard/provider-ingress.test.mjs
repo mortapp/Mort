@@ -45,7 +45,7 @@ export async function run(handle,{logLevel='fatal',action='signup',recoveryScena
     recordSubprocessFailure(child);
     if(recoveryAuditPath){
       const credentials=JSON.parse(await readFile(recoveryAuditPath,'utf8'));
-      assert.ok(Array.isArray(credentials)&&credentials.length>=1&&credentials.every(value=>typeof value==='string'&&value.length<=4096),'Recovery child supplies privately tracked credentials for sink audit');
+      assert.ok(Array.isArray(credentials)&&(child.status!==0||credentials.length>=1)&&credentials.every(value=>typeof value==='string'&&value.length<=4096),'Recovery child supplies privately tracked credentials for sink audit');
       for(const value of credentials)(handle.privateAudit??=new Set()).add(value);
       assert.ok(credentials.every(value=>!(child.stdout+child.stderr).includes(value)),'Recovery child diagnostics contain no privately generated credentials');
     }

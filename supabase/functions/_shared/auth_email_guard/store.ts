@@ -1,6 +1,10 @@
 import pg from "pg";
 import { canonicalId } from "./parser.ts";
 import type { DeliveryLease, DeliveryOutcome } from "./delivery.ts";
+import {
+  FixtureStoreIdentityMismatch,
+  FixtureStoreInitializationError,
+} from "./store-initialization-diagnostic.ts";
 export class GuardBusy extends Error {
   constructor() {
     super("MORT is busy. Try again shortly.");
@@ -27,14 +31,19 @@ export async function createFixtureStore(config: StoreConfig) {
     connectionTimeoutMillis: 100,
     query_timeout: 1000,
   });
+  const initializationStarted = performance.now();
   try {
     const identity = await pool.query("SELECT id FROM mort_fixture.identity");
     if (
       identity.rows.length !== 1 || identity.rows[0].id !== config.fixtureId
-    ) throw new Error("Fixture store refused");
-  } catch {
-    await pool.end();
-    throw new Error("Fixture store refused");
+    ) throw new FixtureStoreIdentityMismatch();
+  } catch (error) {
+    const failure = new FixtureStoreInitializationError(
+      error,
+      performance.now() - initializationStarted,
+    );
+    await pool.end().catch(() => {});
+    throw failure;
   }
   async function execute(name: string, args: unknown[], signal?: AbortSignal) {
     signal?.throwIfAborted();

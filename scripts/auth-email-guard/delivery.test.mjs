@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {spawn,execFileSync} from 'node:child_process';
+import {spawn,execFileSync} from './subprocess-runner.mjs';
 import {createServer} from 'node:net';
 import {resolve} from 'node:path';
 import {assertMortAuthFixture,fixtureProcessEnv,observeFixture} from './fixture.mjs';

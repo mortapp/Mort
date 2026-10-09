@@ -1,4 +1,5 @@
-import {execFileSync, spawnSync as nodeSpawnSync} from 'node:child_process';
+import {spawnSync as nodeSpawnSync} from 'node:child_process';
+import {execFileSync} from './subprocess-runner.mjs';
 import {recordSubprocessFailure} from './subprocess-diagnostic.mjs';
 import {createHmac, randomBytes, randomUUID} from 'node:crypto';
 import {mkdir, readFile, writeFile} from 'node:fs/promises';

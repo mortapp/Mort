@@ -25,7 +25,14 @@ export async function run(handle,{signedExpiry=false}={}){
       assert.ok(claims.exp>Math.floor(Date.now()/1000),'Early denial occurs before unchanged signed token expiry');
       const decision=await fixtureSql(handle,`BEGIN;SET LOCAL ROLE authenticated;SELECT set_config('request.jwt.claims','${JSON.stringify(claims)}',true) IS NOT NULL;SELECT mort_fixture.session_is_live();ROLLBACK`);
       assert.ok(decision.split('\n').includes('f'),'Actual old token claims fail session-live predicate while fresh transport controls succeed');
-      rows.push({targetOffsetMs,observations:Object.fromEntries(Object.entries(old).map(([name,value])=>[name,{status:value.status,measuredAfterLifecycleMs:value.checkedAtMs-at}])),freshControlsPassed:true,predicateDenied:true});
+      const reason=JSON.parse(await fixtureSql(handle,`SELECT json_build_object(
+        'sessionPresent',EXISTS(SELECT 1 FROM auth.sessions WHERE id='${claims.session_id}' AND user_id='${owner.id}'),
+        'passwordFenceRejects',EXISTS(SELECT 1 FROM auth.sessions s JOIN mort_fixture.credential_fences f ON f.account_id=s.user_id WHERE s.id='${claims.session_id}' AND s.created_at<f.not_before),
+        'restoreFenceRejects',EXISTS(SELECT 1 FROM auth.sessions s CROSS JOIN mort_auth_guard.control c WHERE s.id='${claims.session_id}' AND s.created_at<c.session_not_before),
+        'accountActive',EXISTS(SELECT 1 FROM auth.users WHERE id='${owner.id}' AND deleted_at IS NULL AND (banned_until IS NULL OR banned_until<=now())))`));
+      assert.ok(reason.accountActive,'Early denial is not caused by account deletion or a ban');
+      assert.ok(event==='revocation'?!reason.sessionPresent:event==='passwordChange'?(!reason.sessionPresent||reason.passwordFenceRejects):(reason.sessionPresent&&reason.restoreFenceRejects),'Early denial has actual session revocation credential fencing or restore fencing evidence');
+      rows.push({targetOffsetMs,observations:Object.fromEntries(Object.entries(old).map(([name,value])=>[name,{status:value.status,measuredAfterLifecycleMs:value.checkedAtMs-at}])),freshControlsPassed:true,predicateDenied:true,reason});
     }
     earlyEvidence[event]=rows;
   }

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {spawnSync} from 'node:child_process';
+import {spawnSync} from './subprocess-runner.mjs';
 import {configureFixtureAuth,fixtureSql,fixtureProcessEnv} from './fixture.mjs';
 import {cleanup} from './provider.test.mjs';
 import {run as providerIngress} from './provider-ingress.test.mjs';

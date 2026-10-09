@@ -1,5 +1,5 @@
 import {startFixture,assertMortAuthFixture,fixtureProcessEnv} from './fixture.mjs';
-import {spawnSync} from 'node:child_process';
+import {spawnSync} from './subprocess-runner.mjs';
 import {resolve} from 'node:path';
 const [flag,suite]=process.argv.slice(2);
 const allowed=new Set(['health','dependency','provider','bypass','hook-boundary','smtp-fault','state','issuance','delivery','grant','security','cutover','retention','load','log-audit','provider-ingress','provider-recovery','session-live','guarded-jwt-transports','transport-cleanup','jwt-transports','provider-drift','logging']);

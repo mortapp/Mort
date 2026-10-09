@@ -6,6 +6,8 @@ const stages=new Set(['shape','database','receipt','store','outside','wrong-secr
 const names=new Set(['Error','TypeError','InvalidData','PermissionDenied','ConnectionRefused','ConnectionReset','TimedOut','unclassified']);
 const recoveryLabels=new Set(['scenario','actual SMTP recovery code','actual SMTP recovery link','expired link denied','expired link changes no password','expired link grants no capability','wrong link denied','wrong link changes no password','real recovery capability','reused link denied','password replacement committed','reused capability denied','stored password actually changed','replacement password signs in','admission released']);
 const reviewedCodes=new Set([...codes,'unclassified']);
+const storeClasses=new Set(['connection_deadline','query_deadline','database_sqlstate','identity_mismatch','connection_error','unclassified']);
+const storeSqlstates=new Set(['08000','08001','08003','08004','08006','08P01','22P02','22023','23502','23503','23505','28000','28P01','3D000','3F000','40P01','42501','42601','42704','42710','42883','42P01','53300','53400','55P03','57014','57P01','57P02','57P03','58000','58030','P0001','XX000','unclassified']);
 const allowlisted=(value,allowed)=>value==null?null:allowed.has(value)?value:'unclassified';
 const stderrClasses=[
   ['duplicate_object',/\bERROR:\s+[^\r\n]*\balready exists\b/i],
@@ -30,9 +32,11 @@ export function subprocessDiagnostic(result){
     const assertion=/^Fixture ingress assertion failed: ([a-z-]+)$/.exec(line);
     const detail=/^Fixture ingress diagnostic: stage=([a-z-]+) name=([A-Za-z]+) code=([A-Z0-9_]+|unclassified)$/.exec(line);
     const recovery=/^Recovery control failed: (.+)$/.exec(line);
+    const store=/^Fixture store initialization failed: class=([a-z_]+) sqlstate=([A-Z0-9]+|none|unclassified) elapsedMs=(0|[1-9][0-9]{0,15})$/.exec(line);
     if(assertion&&stages.has(assertion[1]))reviewedLines.add(`Fixture ingress assertion failed: ${assertion[1]}`);
     else if(detail&&stages.has(detail[1])&&names.has(detail[2])&&reviewedCodes.has(detail[3]))reviewedLines.add(`Fixture ingress diagnostic: stage=${detail[1]} name=${detail[2]} code=${detail[3]}`);
     else if(recovery&&recoveryLabels.has(recovery[1]))reviewedLines.add(`Recovery control failed: ${recovery[1]}`);
+    else if(store&&storeClasses.has(store[1])&&(store[1]==='database_sqlstate'?storeSqlstates.has(store[2]):store[2]==='none')&&Number.isSafeInteger(Number(store[3])))reviewedLines.add(`Fixture store initialization failed: class=${store[1]} sqlstate=${store[2]} elapsedMs=${Number(store[3])}`);
     if(reviewedLines.size===12)break;
   }
   const category=errorCode==='ETIMEDOUT'?'timeout':errorCode&&errorCode!=='unclassified'?'spawn_error':signal&&signal!=='unclassified'?'signal':status!==null&&status!==0?'exit_code':status===0&&!signal&&!errorCode?'success':'unknown_failure';
