@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "gates": [
+    {"id":"architecture-session-live", "scopeOutApproved":false},
+    {"id":"architecture-path-register", "scopeOutApproved":false},
+    {"id":"architecture-trusted-source", "scopeOutApproved":false},
+    {"id":"architecture-key-ring", "scopeOutApproved":false},
+    {"id":"architecture-password-parity", "scopeOutApproved":false},
+    {"id":"hosted-staging", "scopeOutApproved":false},
+    {"id":"external-mail", "scopeOutApproved":false},
+    {"id":"device-compatibility", "scopeOutApproved":false},
+    {"id":"live-oauth", "scopeOutApproved":false},
+    {"id":"dedicated-auth-origin", "scopeOutApproved":false},
+    {"id":"unexplained-failures", "scopeOutApproved":false}
+  ]
+}

@@ -1,4 +1,4 @@
-import {readFile} from 'node:fs/promises';
+import {readFile,writeFile} from 'node:fs/promises';
 import {spawnSync} from './subprocess-runner.mjs';
 import {recordSubprocessFailure} from './subprocess-diagnostic.mjs';
 import {resolve} from 'node:path';
@@ -10,6 +10,8 @@ import {loadRequirements} from './coverage.mjs';
 import {auditFixtureLogs} from './log-audit.mjs';
 import {sessionLiveCharacterization} from './local-characterizations.mjs';
 import {captureFailureSnapshot} from './failure-snapshot.mjs';
+import {computeCertification,loadExternalGates} from './certification-gates.mjs';
+import {fixtureDirectory} from './control.mjs';
 const root=resolve(import.meta.dirname,'../..');
 const cleanText=text=>text.replace(/\x1b\[[0-9;]*m/g,'');
 let certificationStage='initialization';
@@ -95,6 +97,7 @@ export async function run(){
   nodeFiles.push('scripts/auth-email-guard/idle-wait.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/lifecycle-deadline.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/failure-snapshot.test.mjs');
+  nodeFiles.push('scripts/auth-email-guard/certification-gates.test.mjs');
   const browserFiles=['web/auth/challenge/controller.test.mjs','web/auth/challenge/transport.test.mjs','web/auth/challenge/build.test.mjs','web/auth/challenge/browser.test.mjs'];
   const nodeOutput=child('node',['--test','--test-reporter=tap',...nodeFiles,...browserFiles],{MORT_GUARD_BROWSER_MODULES:process.env.MORT_GUARD_BROWSER_MODULES??'C:\\Users\\micha\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\node_modules'});
   for(const match of nodeOutput.matchAll(/^ok \d+ - (.+)$/gm)){
@@ -125,7 +128,18 @@ export async function run(){
   const operationalSummary=Object.fromEntries(['PASS','NOT_RUN','BLOCKED'].map(status=>[status,operationalCases.filter(c=>c.status===status).length]));
   if(child('git',['rev-parse','HEAD']).trim()!==head||sourceStatus()!==startSourceStatus||await sourceSnapshot()!==guardSourceSha256)throw new Error('Candidate changed during certification');
   guardSourceClean=guardSourceClean&&!sourceStatus();
-  const report={schema:1,head,guardSourceClean,guardSourceSha256,fixtureId:fixture.fixtureId,sourceSha256:requirements.sourceSha256,currentRequirements:191,retainedHistoricalRecords:328,totalHistoricalAndCurrentRecords:519,fullGuardCertified:false,activationProfile:'private_provider_rehearsal',summary,operationalSummary,operationalCases,timings,suiteStates,executedAssertions:observations.length,cases,historical:requirements.records.filter(r=>!r.id.startsWith('MD2-')).map(r=>({id:r.id,status:'RETAINED_HISTORY_NOT_INHERITED',source:r.source})),hostedChanged:false};
+  const externalRegistry=JSON.parse(await readFile(new URL('./external-gates.json',import.meta.url),'utf8'));
+  const registry={schema:1,gates:[...caseMappings,...operationalMappings].map(row=>({id:row.id,scopeOutApproved:['MD2-162','MD2-163','MD2-164','MD2-165','MD2-166'].includes(row.id)})).concat(externalRegistry.gates)};
+  const externalEvidence=await loadExternalGates(externalRegistry.gates,resolve(fixtureDirectory,'external-gates'),{head,sourceSha256:guardSourceSha256});
+  const gateFile={schema:1,head,sourceSha256:guardSourceSha256,sourceClean:guardSourceClean,gates:[...cases,...operationalCases].map(row=>({id:row.id,status:row.status,head,sourceSha256:guardSourceSha256,executions:row.assertions.reduce((total,proof)=>total+proof.executions,0),assertionKeys:row.assertions.map(proof=>proof.key),cleanup:row.cleanup,logClean:row.logClean})).concat(externalEvidence)};
+  const evidencePath=resolve(fixtureDirectory,'certification-gates-evidence.json');
+  const gateEvidenceSha256=digestState(gateFile);
+  await writeFile(evidencePath,JSON.stringify(gateFile),{mode:0o600});
+  const persistedGateFile=JSON.parse(await readFile(evidencePath,'utf8'));
+  if(digestState(persistedGateFile)!==gateEvidenceSha256)throw new Error('Persisted gate evidence changed');
+  const certification=computeCertification(registry,persistedGateFile,{head,sourceSha256:guardSourceSha256});
+  if(child('git',['rev-parse','HEAD']).trim()!==head||sourceStatus()!==startSourceStatus||await sourceSnapshot()!==guardSourceSha256)throw new Error('Candidate changed during gate evidence persistence');
+  const report=Object.freeze({schema:1,head,guardSourceClean,guardSourceSha256,gateEvidenceSha256,gates:certification.gates,fixtureId:fixture.fixtureId,sourceSha256:requirements.sourceSha256,currentRequirements:191,retainedHistoricalRecords:328,totalHistoricalAndCurrentRecords:519,fullGuardCertified:certification.fullGuardCertified,activationProfile:'private_provider_rehearsal',summary,operationalSummary,operationalCases,timings,suiteStates,executedAssertions:observations.length,cases,historical:requirements.records.filter(r=>!r.id.startsWith('MD2-')).map(r=>({id:r.id,status:'RETAINED_HISTORY_NOT_INHERITED',source:r.source})),hostedChanged:false});
   // Deduplicate exact assertion provenance in output; the validated case records
   // reference it by key. Never persist raw provider/SQL/request values.
   const compactCase=row=>({id:row.id,status:row.status,...(row.reason?{reason:row.reason}:{}),assertionKeys:row.assertions.map(proof=>proof.key)});
