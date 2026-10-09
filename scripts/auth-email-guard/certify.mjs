@@ -1,5 +1,5 @@
 import {readFile} from 'node:fs/promises';
-import {spawnSync} from 'node:child_process';
+import {spawnSync} from './subprocess-runner.mjs';
 import {recordSubprocessFailure} from './subprocess-diagnostic.mjs';
 import {resolve} from 'node:path';
 import pg from 'pg';
@@ -9,6 +9,7 @@ import {caseMappings,operationalMappings,runCase} from './cases.mjs';
 import {loadRequirements} from './coverage.mjs';
 import {auditFixtureLogs} from './log-audit.mjs';
 import {sessionLiveCharacterization} from './local-characterizations.mjs';
+import {captureFailureSnapshot} from './failure-snapshot.mjs';
 const root=resolve(import.meta.dirname,'../..');
 const cleanText=text=>text.replace(/\x1b\[[0-9;]*m/g,'');
 let certificationStage='initialization';
@@ -67,7 +68,12 @@ export async function run(){
     const since=new Date().toISOString(),began=performance.now(),before=await stateDigest(fixture);
     const suite=await import(`./${name}.test.mjs`);
     certificationStage=name+':assertions';
-    observations.push(...await captureAssertions(name,()=>suite.run(fixture)));
+    try{observations.push(...await captureAssertions(name,()=>suite.run(fixture)));}
+    catch(error){
+      try{console.error('FAILURE certified suite snapshot: '+JSON.stringify(captureFailureSnapshot(fixture)));}
+      catch{console.error('FAILURE certified suite snapshot unavailable; primary failure retained');}
+      throw error;
+    }
     // Logging intentionally characterizes unsafe raw default output. Its named
     // assertions are observations, never a raw-telemetry privacy certification.
     certificationStage=name+':log-audit';
@@ -86,6 +92,9 @@ export async function run(){
   nodeFiles.push('scripts/auth-email-guard/subprocess-diagnostic.test.mjs','scripts/auth-email-guard/session-latency.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/parallel-probe.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/subprocess-runner.test.mjs');
+  nodeFiles.push('scripts/auth-email-guard/idle-wait.test.mjs');
+  nodeFiles.push('scripts/auth-email-guard/lifecycle-deadline.test.mjs');
+  nodeFiles.push('scripts/auth-email-guard/failure-snapshot.test.mjs');
   const browserFiles=['web/auth/challenge/controller.test.mjs','web/auth/challenge/transport.test.mjs','web/auth/challenge/build.test.mjs','web/auth/challenge/browser.test.mjs'];
   const nodeOutput=child('node',['--test','--test-reporter=tap',...nodeFiles,...browserFiles],{MORT_GUARD_BROWSER_MODULES:process.env.MORT_GUARD_BROWSER_MODULES??'C:\\Users\\micha\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\node_modules'});
   for(const match of nodeOutput.matchAll(/^ok \d+ - (.+)$/gm)){

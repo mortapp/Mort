@@ -1,11 +1,9 @@
 import {readFile,writeFile,rename,unlink,open} from 'node:fs/promises';
 import {resolve,dirname} from 'node:path';
 import {randomUUID,createHash} from 'node:crypto';
-import {spawnSync as nodeSpawnSync} from 'node:child_process';
-import {recordSubprocessFailure} from './subprocess-diagnostic.mjs';
+import {spawnSync} from './subprocess-runner.mjs';
 import pg from 'pg';
 import {assertMortAuthFixture,assertOwnedResource,fixtureProcessEnv} from './fixture.mjs';
-const spawnSync=(...args)=>recordSubprocessFailure(nodeSpawnSync(...args));
 export const fixtureDirectory=resolve(import.meta.dirname,'../../.superpowers/sdd/2026-10-08-managed-email-challenge-guard/fixture');
 export function assertActivationReadiness(checks){
   const required=['sendEmailHook','tokenHook','mutationGuard','browser','delivery','trustedIngress','keyConfiguration','providerCompatibility'];

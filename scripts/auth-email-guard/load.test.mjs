@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {spawn} from 'node:child_process';
+import {spawn} from './subprocess-runner.mjs';
 import {assertMortAuthFixture,fixtureProcessEnv} from './fixture.mjs';
 import {pending,call,cleanup} from './provider.test.mjs';
 export async function run(handle){

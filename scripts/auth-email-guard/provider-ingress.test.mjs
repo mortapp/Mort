@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {fixtureSql,configureFixtureAuth,fixtureProcessEnv} from './fixture.mjs';
 import {readFile,writeFile,unlink} from 'node:fs/promises';
 import {randomBytes,randomUUID} from 'node:crypto';
-import {spawnSync} from 'node:child_process';
+import {spawnSync} from './subprocess-runner.mjs';
 import {resolve} from 'node:path';
 import {call,cleanup,pending,signIn} from './provider.test.mjs';
 import {planControl,applyLocalControl,fixtureDirectory} from './control.mjs';

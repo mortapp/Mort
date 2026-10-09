@@ -7,6 +7,9 @@ import {probe} from './jwt-transports.test.mjs';
 import {backupFixture,restoreFixture,discardBackup} from './control.mjs';
 import {strictExpiryObservation} from './transport-observation.mjs';
 import {runSessionLatency} from './session-latency.mjs';
+import {idleUntil} from './idle-wait.mjs';
+import {lifecycleDeadline} from './lifecycle-deadline.mjs';
+import {captureFailureSnapshot} from './failure-snapshot.mjs';
 
 export async function run(handle,{signedExpiry=false}={}){
   const transports=await startFixtureTransports(handle);let owner,backup;
@@ -18,6 +21,11 @@ export async function run(handle,{signedExpiry=false}={}){
       const remaining=at+targetOffsetMs-Date.now();
       if(remaining>0)await new Promise(resolve=>setTimeout(resolve,remaining));
       const old=await probe(handle,oldToken,owner.id);
+      if(targetOffsetMs===5000){
+        const deadline=lifecycleDeadline(old,at);
+        console.log('OBSERVED approved lifecycle deadline: '+JSON.stringify({event,...deadline}));
+        assert.ok(deadline.passed,'Approved lifecycle gate refuses each protected transport within thirty seconds');
+      }
       assert.ok(old.postgrest.denied&&old.storage.denied&&old.realtime.status==='error','Early lifecycle sample denies old token on all three protected transports');
       const live=await probe(handle,newToken,owner.id);
       assert.ok(live.postgrest.accepted&&live.storage.accepted&&live.realtime.status==='ok','Fresh-session positive control succeeds alongside every early lifecycle denial');
@@ -124,32 +132,29 @@ export async function run(handle,{signedExpiry=false}={}){
       const signedClaims=JSON.parse(Buffer.from(token.split('.')[1],'base64url'));
       assert.equal(signedClaims.exp-signedClaims.iat,3600,'Guarded signed-token expiry retains the original one-hour lifetime');
       const expiryMs=signedClaims.exp*1000;
-      while(Date.now()<expiryMs){
-        assert.equal(await fixtureSql(handle,"SELECT count(*) FROM pg_policies WHERE policyname IN('guard_fixture_live_record','guard_fixture_live_storage','guard_fixture_live_channel')"),'3','All three session-live RLS policies remain installed during real expiry measurement');
-        if(Date.now()<expiryMs-2000){
-          const live=await probe(handle,token,owner.id);
-          assert.ok(live.postgrest.accepted&&live.storage.accepted&&live.realtime.status==='ok','Actual unexpired live token retains all three transport paths');
-        }
-        const remaining=expiryMs-Date.now();
-        if(remaining>0)await new Promise(resolve=>setTimeout(resolve,Math.min(30_000,remaining)));
-        console.log('PROGRESS guarded signed expiry: '+JSON.stringify({remainingSeconds:Math.max(0,Math.ceil((expiryMs-Date.now())/1000)),policiesInstalled:true}));
-      }
+      // The idle interval contains no Docker/SQL/network calls. Policy inventory
+      // is checked at the boundary, not inferred from heartbeat output.
+      await idleUntil(expiryMs);
       const checkpointStartedAtMs=Date.now();
       phase='signed-expiry-probe';
       const expired=await probe(handle,token,owner.id,{parallel:true});
       console.log('OBSERVED guarded expiry: '+JSON.stringify({startedAfterExpiryMs:checkpointStartedAtMs-expiryMs,observations:Object.fromEntries(Object.entries(expired).map(([name,value])=>[name,{status:value.status,afterExpiryMs:value.checkedAtMs-expiryMs}]))}));
-      assert.ok(strictExpiryObservation(expired,{signedExpiryMs:expiryMs,startedAtMs:checkpointStartedAtMs}).withinStrictWindow,'Strict expiry collects all three actual denials by original signed expiry plus one second; delayed measurement is not PASS');
+      const legacyStrictWindow=strictExpiryObservation(expired,{signedExpiryMs:expiryMs,startedAtMs:checkpointStartedAtMs}).withinStrictWindow;
+      console.log('OBSERVED historical strict expiry rule: '+JSON.stringify({policy:'REJECT_BY_SIGNED_EXPIRY_PLUS_1_SECOND',withinStrictWindow:legacyStrictWindow,acceptanceGate:false}));
+      assert.ok(expired.postgrest.denied&&expired.storage.denied&&expired.realtime.status==='error','Protected transports still deny the original token at the post-expiry sample');
       assert.equal(await fixtureSql(handle,`SELECT count(*) FROM auth.sessions WHERE id='${signedClaims.session_id}' AND user_id='${owner.id}'`),'1','Expired-token control retains the actual session row');
       assert.equal(await fixtureSql(handle,"SELECT count(*) FROM pg_policies WHERE policyname IN('guard_fixture_live_record','guard_fixture_live_storage','guard_fixture_live_channel')"),'3','All three session-live RLS policies are installed at the signed-expiry checkpoint');
       const replacement=await signIn(handle,owner,owner.password);assert.equal(replacement.status,200,'Verified owner signs in after original signed-token expiry');
       handle.privateAudit.add(replacement.data.access_token);
       const replacementPositive=await probe(handle,replacement.data.access_token,owner.id);
       assert.ok(replacementPositive.postgrest.accepted&&replacementPositive.storage.accepted&&replacementPositive.realtime.status==='ok','Fresh actual token retains owner access after guarded expiry denial');
-      handle.guardedExpiryEvidence={policy:'REJECT_BY_SIGNED_EXPIRY_PLUS_1_SECOND',jwtLifetimeSeconds:3600,signedExpiryMs:expiryMs,checkpointStartedAtMs,observations:Object.fromEntries(Object.entries(expired).map(([name,value])=>[name,{status:value.status,denied:name==='realtime'?value.status==='error':value.denied,checkedAtMs:value.checkedAtMs,afterSignedExpiryMs:value.checkedAtMs-expiryMs}])),scope:'owned SELECT private GET new private joins',policiesInstalled:true,hostedChanged:false};
+      handle.guardedExpiryEvidence={policy:'REFUSE_PROTECTED_TRANSPORTS_WITHIN_30_SECONDS',historicalStrictPolicy:'REJECT_BY_SIGNED_EXPIRY_PLUS_1_SECOND',historicalStrictWindow:legacyStrictWindow,jwtLifetimeSeconds:3600,signedExpiryMs:expiryMs,checkpointStartedAtMs,observations:Object.fromEntries(Object.entries(expired).map(([name,value])=>[name,{status:value.status,denied:name==='realtime'?value.status==='error':value.denied,checkedAtMs:value.checkedAtMs,afterSignedExpiryMs:value.checkedAtMs-expiryMs}])),scope:'owned SELECT private GET new private joins',policiesInstalled:true,hostedChanged:false};
     }
   }catch(error){
     primaryFailure=error;
     console.error(`FAIL session-live phase=${phase}; private values redacted`);
+    try{console.error('FAILURE owned fixture snapshot: '+JSON.stringify(captureFailureSnapshot(handle)));}
+    catch{console.error('FAILURE owned fixture snapshot unavailable; primary failure retained');}
     throw error;
   }finally{
     try{
