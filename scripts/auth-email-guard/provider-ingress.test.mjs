@@ -9,19 +9,26 @@ import {planControl,applyLocalControl,fixtureDirectory} from './control.mjs';
 export async function run(handle,{logLevel='fatal',action='signup',recoveryScenario,beforeCleanup}={}){
   assert.ok(['signup','recovery'].includes(action),'Only named fixture ingress actions are allowed');
   const recoveryAuditPath=recoveryScenario?resolve(fixtureDirectory,`recovery-audit-${randomUUID()}.json`):undefined;
+  let phase='install';
   try{
     await fixtureSql(handle,await readFile(new URL('./send-email-hook.sql',import.meta.url),'utf8'));
     await fixtureSql(handle,'UPDATE mort_auth_guard.control SET enabled=true');
+    phase='configure';
     await configureFixtureAuth(handle,{sendEmail:true,logLevel});
     assert.equal(await fixtureSql(handle,"SELECT to_regprocedure('mort_fixture.send_email(jsonb)') IS NOT NULL"),'t','Real provider Send Email hook must be installed');
     let email,id;
     if(action==='recovery'){
+      phase='create-account';
       const user=await pending(handle);email=user.email;id=user.id;
+      phase='confirm-account';
       assert.equal((await call(handle,`/admin/users/${id}`,{email_confirm:true},true,'PUT')).status,200,'Recovery positive control is a confirmed synthetic account');
       if(recoveryScenario){
+        phase='activate-baseline';
         await applyLocalControl(await planControl('activate',handle),handle,{localFixture:true,apply:true,privateProviderRehearsal:true});
+        phase='baseline-signin';
         assert.equal((await signIn(handle,user,user.password)).status,200,'Verified baseline recovery account signs in before reset');
       }
+      phase='provider-recover';
       assert.equal((await call(handle,'/recover',{email})).status,200,'Actual public provider recovery reaches the installed Send Email hook');
     }else{
       email=`qa-${randomUUID()}@mort-fixture.invalid`;
@@ -50,6 +57,10 @@ export async function run(handle,{logLevel='fatal',action='signup',recoveryScena
     handle.hookLogEvidence={addressOccurrences:(child.stdout+child.stderr).split(email).length-1,bytesInspected:Buffer.byteLength(child.stdout+child.stderr)};
     assert.equal(handle.hookLogEvidence.addressOccurrences,0,'Real guard hook relay stdout and stderr contain no synthetic address');
     if(beforeCleanup)await beforeCleanup({email,id});
+  }catch(error){
+    const categories=new Map([['Fixture transition failed closed (redacted)','transition'],['Fixture provider resume health failed','resume-health'],['Fixture provider logging privacy rejected','logging-privacy']]);
+    console.error(`Fixture recovery setup failed: phase=${phase} category=${categories.get(error.message)??'unclassified'}`);
+    throw error;
   }finally{
     if(recoveryAuditPath)await unlink(recoveryAuditPath).catch(error=>{if(error.code!=='ENOENT')throw error;});
     await configureFixtureAuth(handle);
