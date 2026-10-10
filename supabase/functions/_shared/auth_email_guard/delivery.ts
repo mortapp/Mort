@@ -1,3 +1,4 @@
+import type { KeyRing } from "./key-ring.ts";
 import nodemailer from "nodemailer";
 import { Socket } from "node:net";
 import { smtpDiagnostic } from "./smtp-diagnostic.ts";
@@ -119,6 +120,7 @@ export async function sendFixedEmail(
 export type WorkerDeps = {
   mode: "disabled" | "local_fixture";
   key: CryptoKey;
+  keyRing?: KeyRing;
   store: {
     claim(): Promise<DeliveryLease | { ok: false }>;
     beginDispatch(lease: DeliveryLease): Promise<{ ok: boolean }>;
@@ -138,7 +140,7 @@ export async function runDeliveryBatch(
     let outcome: DeliveryOutcome = "failed";
     try {
       const envelope = parseEnvelope(
-        await decryptEnvelope(
+        deps.keyRing ? await deps.keyRing.decrypt(lease.encryptedEnvelope,envelopeBinding(lease)) : await decryptEnvelope(
           lease.encryptedEnvelope,
           envelopeBinding(lease),
           deps.key,

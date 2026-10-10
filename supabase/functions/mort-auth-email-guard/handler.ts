@@ -1,3 +1,4 @@
+import type { KeyRing } from "../_shared/auth_email_guard/key-ring.ts";
 import { Admission } from "../_shared/auth_email_guard/admission.ts";
 import {
   canonicalId,
@@ -19,7 +20,9 @@ export type GuardDeps = {
   admission: Admission;
   allowedOrigins: string[];
   codeKey: CryptoKey;
+  keyRing?: KeyRing;
   store: {
+    codeKid?(itemId:string,signal:AbortSignal):Promise<string|null>;
     consume(
       input: Record<string, unknown>,
       material: Record<string, unknown>,
@@ -142,7 +145,9 @@ export async function handleEmailGuard(
           const input = parseContinue(raw);
           if (!ticket.bind(input.itemId)) throw new GuardBusy();
           const credentialDigest = input.kind === "code"
-            ? await codeDigest(input.credential, input.itemId, deps.codeKey)
+            ? deps.keyRing
+              ? await deps.keyRing.digestForKid(input.credential,input.itemId,(await deps.store.codeKid?.(input.itemId,controller.signal)) ?? '')
+              : await codeDigest(input.credential, input.itemId, deps.codeKey)
             : await secretDigest(input.credential);
           capability = makeSecret();
           controller.signal.throwIfAborted();

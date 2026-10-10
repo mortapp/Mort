@@ -3,6 +3,8 @@ import {createHash} from 'node:crypto';
 const signals=new Set(['SIGABRT','SIGALRM','SIGBUS','SIGFPE','SIGHUP','SIGILL','SIGINT','SIGKILL','SIGPIPE','SIGQUIT','SIGSEGV','SIGTERM','SIGTRAP','SIGUSR1','SIGUSR2']);
 const codes=new Set(['EACCES','EAGAIN','EBADF','ECONNREFUSED','ECONNRESET','EFAULT','EINTR','EINVAL','EIO','EISDIR','EMFILE','ENFILE','ENOBUFS','ENOENT','ENOMEM','ENOTDIR','EPERM','EPIPE','ETIMEDOUT','23505','42501','P0001']);
 const stages=new Set(['shape','database','receipt','store','outside','wrong-secret','trusted-relay','replay','delivery']);
+const ringStages=new Set(['database','old-key-hook','old-key-worker','old-key-redemption','new-provider-request','new-key-hook','new-key-worker','new-key-redemption']);
+const ringAssertions=new Set(['code-after-rotation-consumed','unknown-stored-kid-rejected','reused-code-rejected','real-password-replacement','real-new-password-signin','ring-enabled-hook-stores-kid','stored-kid-and-ciphertext','rotated-worker-decrypts-old-key','unclassified']);
 const names=new Set(['Error','TypeError','InvalidData','PermissionDenied','ConnectionRefused','ConnectionReset','TimedOut','unclassified']);
 const recoveryLabels=new Set(['scenario','actual SMTP recovery code','actual SMTP recovery link','expired link denied','expired link changes no password','expired link grants no capability','wrong link denied','wrong link changes no password','real recovery capability','reused link denied','password replacement committed','reused capability denied','stored password actually changed','replacement password signs in','admission released']);
 const reviewedCodes=new Set([...codes,'unclassified']);
@@ -30,6 +32,10 @@ export function subprocessDiagnostic(result){
   const reviewedLines=new Set();
   for(const raw of stderrText.split(/\r?\n/)){
     const line=raw.replace(/\x1b\[[0-9;]*m/g,'').replace(/^error: Uncaught(?: \(in promise\))? Error: /,'');
+    const ringStage=/^Owned ring failure stage: ([a-z-]+)$/.exec(line);
+    const ringAssertion=/^Owned ring assertion: ([a-z-]+)$/.exec(line);
+    if(ringStage&&ringStages.has(ringStage[1]))reviewedLines.add('Owned ring failure stage: '+ringStage[1]);
+    if(ringAssertion&&ringAssertions.has(ringAssertion[1]))reviewedLines.add('Owned ring assertion: '+ringAssertion[1]);
     const assertion=/^Fixture ingress assertion failed: ([a-z-]+)$/.exec(line);
     const detail=/^Fixture ingress diagnostic: stage=([a-z-]+) name=([A-Za-z]+) code=([A-Z0-9_]+|unclassified)$/.exec(line);
     const recovery=/^Recovery control failed: (.+)$/.exec(line);

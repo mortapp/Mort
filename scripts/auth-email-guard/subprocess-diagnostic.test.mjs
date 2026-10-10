@@ -130,3 +130,5 @@ test('store initialization stderr retains reviewed classes and measured elapsed 
   assert.ok(!JSON.stringify(result).includes('private-secret'));
   assert.ok(!JSON.stringify(result).includes('S3CR3'));
 });
+
+test('ring diagnostics expose only reviewed fixed stages and assertions',()=>{const result=diagnose({status:1,stderr:'Owned ring failure stage: new-key-hook\nOwned ring assertion: ring-enabled-hook-stores-kid\nOwned ring assertion: private-secret\n'});assert.deepEqual(result.reviewedLines,['Owned ring failure stage: new-key-hook','Owned ring assertion: ring-enabled-hook-stores-kid']);assert.ok(!JSON.stringify(result).includes('private-secret'))});

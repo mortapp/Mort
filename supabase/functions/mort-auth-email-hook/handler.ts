@@ -1,3 +1,4 @@
+import type { KeyRing } from "../_shared/auth_email_guard/key-ring.ts";
 import { Webhook } from "standardwebhooks";
 import { parseHook } from "../_shared/auth_email_guard/parser.ts";
 import {
@@ -16,6 +17,7 @@ export type HookDeps = {
   signingSecret: Uint8Array;
   encryptionKey: CryptoKey;
   codeKey: CryptoKey;
+  keyRing?: KeyRing;
   resolveTrustedSource(
     eventDigest: string,
     accountId: string,
@@ -156,18 +158,16 @@ export async function handleEmailHook(
       sourceHash,
       ...context,
     };
-    const encryptedEnvelope = await encryptEnvelope(
-      new TextEncoder().encode(
-        JSON.stringify({ recipient: event.recipient, code, linkSecret }),
-      ),
-      envelopeBinding({ ...bound, itemId } as EnvelopeContext),
-      deps.encryptionKey,
-    );
+    const plaintext = new TextEncoder().encode(JSON.stringify({recipient:event.recipient,code,linkSecret}));
+    const binding = envelopeBinding({...bound,itemId} as EnvelopeContext);
+    const encryptedEnvelope = deps.keyRing ? await deps.keyRing.encrypt(plaintext,binding) : await encryptEnvelope(plaintext,binding,deps.encryptionKey);
+    const keyedCode = deps.keyRing ? await deps.keyRing.code(code,itemId) : undefined;
     const material = {
       ...context,
       familyId,
       itemId,
-      codeDigest: await codeDigest(code, itemId, deps.codeKey),
+      codeDigest: keyedCode?.digest ?? await codeDigest(code, itemId, deps.codeKey),
+      ...(keyedCode ? {codeKid:keyedCode.kid} : {}),
       linkDigest: await secretDigest(linkSecret),
       encryptedEnvelope,
     };

@@ -1,0 +1,16 @@
+import {codeDigest,equalDigest} from './crypto.ts';import {encryptEnvelope,decryptEnvelope} from './outbox.ts';
+export type KeyPair={code:CryptoKey;outbox:CryptoKey};export type RingConfig={current:string;previous?:{kid:string;retireAt:number};keys:Record<string,KeyPair>};
+const fail=():never=>{throw Error('Credential unavailable')};const validKid=(kid:string)=>/^[a-zA-Z0-9_-]{1,32}$/.test(kid);
+export class KeyRing{
+ readonly currentKid:string;#keys:Readonly<Record<string,Readonly<KeyPair>>>;#previous?:Readonly<{kid:string;retireAt:number}>;#clock:()=>number;
+ constructor(config:RingConfig,clock=()=>Date.now()){
+  const now=clock();if(!Number.isSafeInteger(now)||now<0||!validKid(config.current)||!config.keys[config.current])fail();const expected=[config.current];if(config.previous){if(!validKid(config.previous.kid)||config.previous.kid===config.current||!Number.isSafeInteger(config.previous.retireAt)||config.previous.retireAt>now+1_200_000||!config.keys[config.previous.kid])fail();expected.push(config.previous.kid)}if(Object.keys(config.keys).length!==expected.length||Object.keys(config.keys).some(k=>!expected.includes(k)))fail();
+  const keys:Record<string,Readonly<KeyPair>>=Object.create(null);for(const kid of expected){const pair=config.keys[kid];if(!(pair.code instanceof CryptoKey)||pair.code.algorithm.name!=='HMAC'||(pair.code.algorithm as HmacKeyAlgorithm).hash.name!=='SHA-256'||(pair.code.algorithm as HmacKeyAlgorithm).length<256||!pair.code.usages.includes('sign')||!(pair.outbox instanceof CryptoKey)||pair.outbox.algorithm.name!=='AES-GCM'||(pair.outbox.algorithm as AesKeyAlgorithm).length!==256||!pair.outbox.usages.includes('encrypt')||!pair.outbox.usages.includes('decrypt'))fail();keys[kid]=Object.freeze({code:pair.code,outbox:pair.outbox})}this.currentKid=config.current;this.#keys=Object.freeze(keys);this.#previous=config.previous?Object.freeze({...config.previous}):undefined;this.#clock=clock;
+ }
+ #select(kid:string):Readonly<KeyPair>{const now=this.#clock();if(!Number.isSafeInteger(now)||now<0)return fail();if(!validKid(kid)||!(kid in this.#keys))return fail();if(kid!==this.currentKid&&(!this.#previous||kid!==this.#previous.kid||now>=this.#previous.retireAt))return fail();return this.#keys[kid]}
+ async digestForKid(code:string,item:string,kid:string):Promise<string>{return await codeDigest(code,JSON.stringify(['mort-code-kid-v1',kid,item]),this.#select(kid).code)}
+ async code(code:string,item:string):Promise<{kid:string;digest:string}>{return{kid:this.currentKid,digest:await this.digestForKid(code,item,this.currentKid)}}
+ async verifyCode(code:string,item:string,kid:string,digest:string):Promise<boolean>{try{return equalDigest(await this.digestForKid(code,item,kid),digest)}catch{return false}}
+ async encrypt(bytes:Uint8Array,binding:string):Promise<string>{const kid=this.currentKid;return 'v2.'+kid+'.'+await encryptEnvelope(bytes,JSON.stringify(['mort-outbox-kid-v1',kid,binding]),this.#select(kid).outbox)}
+ async decrypt(ciphertext:string,binding:string):Promise<Uint8Array>{if(ciphertext.length>22_080)return fail();const match=/^v2\.([a-zA-Z0-9_-]{1,32})\.(v1\.[A-Za-z0-9+/]+={0,2})$/.exec(ciphertext);if(!match)return fail();try{return await decryptEnvelope(match[2],JSON.stringify(['mort-outbox-kid-v1',match[1],binding]),this.#select(match[1]).outbox)}catch{return fail()}}
+}

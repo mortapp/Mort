@@ -8,11 +8,13 @@ import {call,cleanup,pending,signIn} from './provider.test.mjs';
 import {planControl,applyLocalControl,fixtureDirectory} from './control.mjs';
 import {recordSubprocessFailure} from './subprocess-diagnostic.mjs';
 import {completeCleanup} from './cleanup-primary.mjs';
-export async function run(handle,{logLevel='fatal',action='signup',recoveryScenario,beforeCleanup,beforeProviderRequest}={}){
+export async function run(handle,{logLevel='fatal',action='signup',recoveryScenario,beforeCleanup,beforeProviderRequest,probe='standard'}={}){
+  assert.ok(['standard','key-ring'].includes(probe),'Only reviewed owned probe modules are allowed');
   assert.ok(['signup','recovery'].includes(action),'Only named fixture ingress actions are allowed');
   const recoveryAuditPath=recoveryScenario?resolve(fixtureDirectory,`recovery-audit-${randomUUID()}.json`):undefined;
-  let phase='install',primaryFailure;
+  let phase='install',primaryFailure,secondary,keyringFixtureOwned=false;
   try{
+    if(probe==='key-ring'){assert.equal(await fixtureSql(handle,"SELECT to_regclass('mort_fixture.item_key_ids') IS NULL AND to_regprocedure('mort_fixture.issue_with_kid(jsonb,jsonb)') IS NULL"),'t','Owned ring adapter starts absent');await fixtureSql(handle,'BEGIN;'+await readFile(new URL('./key-ring-fixture.sql',import.meta.url),'utf8')+'COMMIT;');keyringFixtureOwned=true;}
     await fixtureSql(handle,await readFile(new URL('./send-email-hook.sql',import.meta.url),'utf8'));
     await fixtureSql(handle,'UPDATE mort_auth_guard.control SET enabled=true');
     phase='configure';
@@ -31,6 +33,7 @@ export async function run(handle,{logLevel='fatal',action='signup',recoveryScena
         assert.equal((await signIn(handle,user,user.password)).status,200,'Verified baseline recovery account signs in before reset');
       }
       if(beforeProviderRequest)await beforeProviderRequest({id});
+      if(probe==='key-ring'){secondary=await pending(handle);assert.equal((await call(handle,`/admin/users/${secondary.id}`,{email_confirm:true},true,'PUT')).status,200,'Rotation fresh-flow owner is isolated synthetic confirmed account');}
       phase='provider-recover';
       assert.equal((await call(handle,'/recover',{email})).status,200,'Actual public provider recovery reaches the installed Send Email hook');
     }else{
@@ -43,7 +46,7 @@ export async function run(handle,{logLevel='fatal',action='signup',recoveryScena
     assert.equal(await fixtureSql(handle,`SELECT count(*) FROM mort_fixture.email_ingress WHERE account_id='${id}' AND used_at IS NULL`),'1','Provider transaction commits exactly one private ingress event');
     const certificate=resolve(import.meta.dirname,'../../.superpowers/sdd/2026-10-08-managed-email-challenge-guard/fixture/smtp.pem');
     if(recoveryAuditPath)await writeFile(recoveryAuditPath,'[]',{mode:0o600});
-    const child=spawnSync('deno',['run','--frozen','--config','supabase/functions/auth-email-guard.deno.json','--allow-env',`--allow-read=${certificate}`,...(recoveryAuditPath?[`--allow-write=${recoveryAuditPath}`]:[]),'--allow-net=127.0.0.1:55421,127.0.0.1:55422,127.0.0.1:55424,127.0.0.1:55425,127.0.0.1:55426','supabase/functions/_shared/auth_email_guard/provider_ingress_probe.ts'],{env:{...fixtureProcessEnv(),MORT_FIXTURE_VERIFIED:'1'},input:JSON.stringify({mode:'local_fixture',fixtureId:handle.fixtureId,dbUrl:handle.dbUrl,accountId:id,certificate,...(recoveryScenario?{recoveryScenario,privateAuditPath:recoveryAuditPath,authUrl:handle.authUrl,serviceKey:handle.serviceKey,anonKey:handle.anonKey}: {})}),encoding:'utf8',timeout:40_000,windowsHide:true});
+    const child=spawnSync('deno',['run','--frozen','--config','supabase/functions/auth-email-guard.deno.json','--allow-env',`--allow-read=${certificate}`,...(recoveryAuditPath?[`--allow-write=${recoveryAuditPath}`]:[]),'--allow-net=127.0.0.1:55421,127.0.0.1:55422,127.0.0.1:55424,127.0.0.1:55425,127.0.0.1:55426',probe==='key-ring'?'supabase/functions/_shared/auth_email_guard/keyring_fixture_probe.ts':'supabase/functions/_shared/auth_email_guard/provider_ingress_probe.ts'],{env:{...fixtureProcessEnv(),MORT_FIXTURE_VERIFIED:'1'},input:JSON.stringify({mode:'local_fixture',fixtureId:handle.fixtureId,dbUrl:handle.dbUrl,accountId:id,certificate,...(secondary?{secondary:{id:secondary.id,email:secondary.email},authUrl:handle.authUrl,serviceKey:handle.serviceKey,anonKey:handle.anonKey}:{}),...(recoveryScenario?{recoveryScenario,privateAuditPath:recoveryAuditPath,authUrl:handle.authUrl,serviceKey:handle.serviceKey,anonKey:handle.anonKey}: {})}),encoding:'utf8',timeout:40_000,windowsHide:true});
     recordSubprocessFailure(child);
     if(recoveryAuditPath){
       const credentials=JSON.parse(await readFile(recoveryAuditPath,'utf8'));
@@ -51,10 +54,12 @@ export async function run(handle,{logLevel='fatal',action='signup',recoveryScena
       for(const value of credentials)(handle.privateAudit??=new Set()).add(value);
       assert.ok(credentials.every(value=>!(child.stdout+child.stderr).includes(value)),'Recovery child diagnostics contain no privately generated credentials');
     }
-    assert.equal(child.status,0,'Actual provider ingress relay, wrong-secret, external-path and replay assertions pass');
+    assert.equal(child.status,0,probe==='key-ring'?'Real provider receipt and ring recovery assertions pass':'Actual provider ingress relay, wrong-secret, external-path and replay assertions pass');
+    if(probe==='key-ring'){handle.keyRingEvidence=JSON.parse(child.stdout.trim());assert.equal(handle.keyRingEvidence.status,'PASS','Owned ring probe reports completed named checks');}else{
     assert.equal(child.stdout.trim(),'PASS provider-origin relay; outside-path, replay and wrong-secret denied; synthetic SMTP acknowledged'+(recoveryScenario?'\nPASS real recovery '+recoveryScenario+' controls':''),'Probe must execute every named ingress assertion');
     if(recoveryScenario==='replace')assert.ok(child.stdout.includes('PASS real recovery replace controls'),'Real recovery replaces password and signs in; wrong and reused links and reused capability are denied');
     if(recoveryScenario==='expired')assert.ok(child.stdout.includes('PASS real recovery expired controls'),'Expired recovery link changes no password and issues no capability');
+    }
     handle.hookLogEvidence={addressOccurrences:(child.stdout+child.stderr).split(email).length-1,bytesInspected:Buffer.byteLength(child.stdout+child.stderr)};
     assert.equal(handle.hookLogEvidence.addressOccurrences,0,'Real guard hook relay stdout and stderr contain no synthetic address');
     if(beforeCleanup)await beforeCleanup({email,id});
@@ -65,9 +70,10 @@ export async function run(handle,{logLevel='fatal',action='signup',recoveryScena
     throw error;
   }finally{
     await completeCleanup(primaryFailure,[
+      async()=>{if(keyringFixtureOwned)await fixtureSql(handle,'DROP FUNCTION mort_fixture.issue_with_kid(jsonb,jsonb);DROP TABLE mort_fixture.item_key_ids');},
       async()=>{if(recoveryAuditPath)await unlink(recoveryAuditPath).catch(error=>{if(error.code!=='ENOENT')throw error;});},
       ()=>configureFixtureAuth(handle),
-      ()=>fixtureSql(handle,'UPDATE mort_auth_guard.control SET enabled=false;DELETE FROM mort_fixture.email_ingress;DELETE FROM mort_auth_guard.families;DELETE FROM mort_auth_guard.quota_events;DELETE FROM mort_auth_guard.account_generations'),
+      ()=>fixtureSql(handle,'UPDATE mort_auth_guard.control SET enabled=false;DELETE FROM mort_fixture.email_ingress;DELETE FROM mort_auth_guard.operation_grants;DELETE FROM mort_auth_guard.families;DELETE FROM mort_auth_guard.quota_events;DELETE FROM mort_auth_guard.account_generations'),
       ()=>cleanup(handle),
       ()=>fetch(`${handle.captureUrl}/api/v1/messages`,{method:'DELETE'}),
     ]);

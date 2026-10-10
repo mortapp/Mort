@@ -559,17 +559,19 @@
     },
     {
       "id": "CP7",
-      "status": "IN_PROGRESS",
-      "commit": "",
-      "tag": "",
+      "status": "DONE",
+      "commit": "44787968e5abcbdf63a59d9925dd40909cb629db",
+      "tag": "guard-cp7-4478796",
       "startedAt": "2026-10-10T08:12:59.372Z",
-      "finishedAt": "",
+      "finishedAt": "2026-10-10T08:35:00Z",
       "audit": {
-        "sourceTests": 6,
-        "sharedAssertions": 77,
-        "limitedRecoveryAssertions": 17,
-        "exactHead": "pending",
-        "hostedSourceHeader": "BLOCKED"
+        "nodeTests": 126,
+        "denoTests": 44,
+        "browserTests": 9,
+        "scanFiles": 2663,
+        "findings": 0,
+        "remoteEqualsHead": true,
+        "evidenceSha256": "bdb6f667230a2196b2cb5202cbb9578fee8754700cd6f84eb425492913e5b4c8"
       },
       "claimAuditSample": [],
       "blockedReason": "",
@@ -577,15 +579,20 @@
     },
     {
       "id": "CP8",
-      "status": "NOT_STARTED",
+      "status": "BLOCKED",
       "commit": "",
       "tag": "",
-      "startedAt": "",
-      "finishedAt": "",
-      "audit": {},
+      "startedAt": "2026-10-10T11:48:32.450Z",
+      "finishedAt": "2026-10-10T11:48:32.451Z",
+      "audit": {
+        "keyRingTests": 7,
+        "diagnosticTests": 11,
+        "rotationPlanTests": 1,
+        "exactHead": "pending"
+      },
       "claimAuditSample": [],
-      "blockedReason": "",
-      "notes": ""
+      "blockedReason": "Three integration diagnostics failed; current/new key flow intermittent. Real key manager waits for staging.",
+      "notes": "One final revisit reserved. No threshold change; CP8.md."
     },
     {
       "id": "CP9",

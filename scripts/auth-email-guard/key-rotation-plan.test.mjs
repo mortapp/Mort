@@ -1,0 +1,2 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {rotationPlan} from './key-rotation-plan.mjs';
+test('rotation rehearsal is plan-only and bounded to twenty minutes',()=>{const p=rotationPlan({current:'k1',next:'k2',now:1800000000000});assert.equal(p.overlapMs,1200000);assert.equal(p.retireAt,1800001200000);assert.equal(p.executesHostedChanges,false);assert.throws(()=>rotationPlan({current:'k1',next:'k1',now:0}));assert.throws(()=>rotationPlan({current:'k1',next:'k2',now:NaN}));assert.ok(!JSON.stringify(p).includes('secret'))});
