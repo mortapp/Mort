@@ -519,16 +519,21 @@
     },
     {
       "id": "CP5",
-      "status": "IN_PROGRESS",
-      "commit": "",
-      "tag": "",
+      "status": "DONE",
+      "commit": "b54444329347d5c1b751b0ebb4539e114fef0fdc",
+      "tag": "guard-cp5-b544443",
       "startedAt": "2026-10-10T08:09:51.656Z",
-      "finishedAt": "",
+      "finishedAt": "2026-10-10T08:12:59.371Z",
       "audit": {
-        "providerSdkAssertions": 13,
+        "sdkAssertions": 13,
         "classificationTests": 4,
-        "noRedundantHelper": true,
-        "exactCommitVerification": "pending"
+        "nodePassed": 126,
+        "denoPassed": 38,
+        "webPassed": 9,
+        "committedScanFiles": 2657,
+        "findings": 0,
+        "evidenceSha256": "da377b6f6af62f40e0a617c0e3759d99e0a1df1acc8e0d24cb75fbb122f56cc2",
+        "remoteEqualsHead": true
       },
       "claimAuditSample": [],
       "blockedReason": "",
@@ -536,22 +541,27 @@
     },
     {
       "id": "CP6",
-      "status": "NOT_STARTED",
+      "status": "BLOCKED",
       "commit": "",
       "tag": "",
-      "startedAt": "",
-      "finishedAt": "",
-      "audit": {},
+      "startedAt": "2026-10-10T08:12:59.372Z",
+      "finishedAt": "2026-10-10T08:12:59.372Z",
+      "audit": {
+        "migrationWritten": false,
+        "migrationApplied": false,
+        "noEmptyPass": true
+      },
       "claimAuditSample": [],
       "blockedReason": "",
-      "notes": ""
+      "notes": "",
+      "blockedBy": "CP4 native restore fresh publication positive control failed; migration prerequisite incomplete"
     },
     {
       "id": "CP7",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "commit": "",
       "tag": "",
-      "startedAt": "",
+      "startedAt": "2026-10-10T08:12:59.372Z",
       "finishedAt": "",
       "audit": {},
       "claimAuditSample": [],

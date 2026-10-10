@@ -28,3 +28,5 @@ CP3 DONE at a1bb1dc:66 runtime assertions; fixed30s nine combinations; generatio
 CP4 BLOCKED afterthree diagnostic attempts: restored fresh native publication subscriber failed. Revisit once at end. WholeG14 corrected toNOT_RUN because CP3 covered onlyPostgREST. CP5 independent providergetUser evidence begins.
 
 CP4 pushed/tagged atd32f0c8. Exact archive blobs2652, scan0; Node122/Deno38/web9. Archive dependency/history failures were setup failures, fixed without changing assertions. Evidence SHA2563ae5287aff9d6bf815fa23dba48d225b206d432ca429b821c198f08168d14c32.
+
+CP5 DONE atb544443: SDK13/Node126/Deno38/web9, scan2657/0; remote equals. CP6 BLOCKED byCP4, no migration written. CP7 independent source-admission work begins.
