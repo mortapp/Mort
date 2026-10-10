@@ -76,3 +76,6 @@ CP11 above0d6d6b7: base backup failed twice, exit1/stderr158bytes/SHA2563c1251d6
 ## U12 — EXPLAINED (subprocess timestamp race)
 
 Exact2f4c1d3 Node run: lifecycle start/completion differed by1ms (start12:33:00.972Z versus completion.973Z),134passed1failed. begin and runStep captured UTC independently with logging between them. Deterministic regression delays start logging5ms and reproduces the same assertion. Shared single captured start fixes it; no timing threshold relaxed. The failed2f4c1d3 run remains recorded, and newHEAD requires all reruns.
+
+## U13 — OPEN
+CP14 quota invocation above3c19757 failed with Error and no named assertion. No subprocess reported failure and no cleanup-failure label was recorded. Cause remains unproven. Second attempt failed named idle-fixture precondition;5 orphan nonterminal families/outbox rows with0 provider accounts explained that assertion. Scoped orphan cleanup followed by third pass does not diagnose the original Error. Three log files retained outside Git.

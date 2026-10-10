@@ -700,15 +700,22 @@
     },
     {
       "id": "CP14",
-      "status": "NOT_STARTED",
+      "status": "BLOCKED",
       "commit": "",
       "tag": "",
-      "startedAt": "",
+      "startedAt": "2026-10-10T13:43:41.886Z",
       "finishedAt": "",
-      "audit": {},
+      "audit": {
+        "recoveryNamedAssertions": 19,
+        "issuanceAssertions": 71,
+        "sharedSourceAssertionsIncludingIssuance": 77,
+        "httpLoadAssertions": 4,
+        "externalMessages": 0,
+        "thresholdsUnchanged": true
+      },
       "claimAuditSample": [],
-      "blockedReason": "",
-      "notes": ""
+      "blockedReason": "Local suites green after diagnosed residual cleanup; original quota Error U13 unexplained. Hosted HTTP decision remains staging-only.",
+      "notes": "Counts overlap. Exact finalHEAD full certifier must rerun; no prior PASS inherited."
     },
     {
       "id": "CP15",
