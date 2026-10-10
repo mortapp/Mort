@@ -10,6 +10,10 @@ const diagnose=result=>{
   assert.equal(typeof subprocessDiagnostic,'function','Redacted child diagnostics must exist');
   return subprocessDiagnostic(result);
 };
+test('Storage direct-delete protection is classified without exposing provider details',()=>{
+  const r=diagnose({status:3,stderr:'ERROR: Direct deletion from storage tables is not allowed. Use the Storage API instead.\nprivate provider detail'});
+  assert.deepEqual(r.stderrCategories,['storage_delete_protected']);
+});
 test('SMTP fixed categories survive redaction while arbitrary SMTP details do not',()=>{
   const result=diagnose({status:1,stderr:'Fixture SMTP failed: class=socket\nFixture SMTP failed: class=private-value\n'});
   assert.deepEqual(result.reviewedLines,['Fixture SMTP failed: class=socket']);

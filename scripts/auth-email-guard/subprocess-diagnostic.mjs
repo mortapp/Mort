@@ -10,6 +10,7 @@ const storeClasses=new Set(['connection_deadline','query_deadline','database_sql
 const storeSqlstates=new Set(['08000','08001','08003','08004','08006','08P01','22P02','22023','23502','23503','23505','28000','28P01','3D000','3F000','40P01','42501','42601','42704','42710','42883','42P01','53300','53400','55P03','57014','57P01','57P02','57P03','58000','58030','P0001','XX000','unclassified']);
 const allowlisted=(value,allowed)=>value==null?null:allowed.has(value)?value:'unclassified';
 const stderrClasses=[
+  ['storage_delete_protected',/\bERROR:\s+Direct deletion from storage tables is not allowed\b/i],
   ['duplicate_object',/\bERROR:\s+[^\r\n]*\balready exists\b/i],
   ['undefined_function',/\bERROR:\s+function\b[^\r\n]*\bdoes not exist\b/i],
   ['undefined_object',/\bERROR:\s+(?!function\b)[^\r\n]*\bdoes not exist\b/i],

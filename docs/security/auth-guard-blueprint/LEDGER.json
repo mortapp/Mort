@@ -469,31 +469,46 @@
     },
     {
       "id": "CP3",
-      "status": "IN_PROGRESS",
-      "commit": "",
-      "tag": "",
+      "status": "DONE",
+      "commit": "a1bb1dc1b9577e03e4d07488082773367743eead",
+      "tag": "guard-cp3-a1bb1dc",
       "startedAt": "",
-      "finishedAt": "",
-      "audit": {},
-      "claimAuditSample": [],
+      "finishedAt": "2026-10-10T07:19:43.039Z",
+      "audit": {
+        "A1": "PASS: see CP3.md exact evidence and scope",
+        "A2": "PASS: see CP3.md exact evidence and scope",
+        "A3": "PASS: see CP3.md exact evidence and scope",
+        "A4": "PASS: see CP3.md exact evidence and scope",
+        "A5": "PASS: see CP3.md exact evidence and scope",
+        "A6": "PASS: see CP3.md exact evidence and scope",
+        "A7": "PASS: see CP3.md exact evidence and scope",
+        "A8": "PASS: see CP3.md exact evidence and scope",
+        "A9": "PASS: see CP3.md exact evidence and scope",
+        "A10": "PASS: see CP3.md exact evidence and scope"
+      },
+      "claimAuditSample": [
+        "CP0:blueprintLockVerifiesWhenUntouched",
+        "CP1:startupFailureNamesPhase",
+        "CP2:planted gate evidence fails its independent file digest"
+      ],
       "blockedReason": "",
-      "notes": ""
+      "notes": "Prerequisite16 rerun; lifecycle extension RED(no-op ignored) thenGREEN63. Exactfinal66 assertions incl9 lifecycle combinations, generation reason/fresh pairs, serviceRole and400requests/concurrency20/pool8/60s wall. Node118/Deno38/web9;2644 committed blobs scan0. Admin path removes sessions; trigger-alone not claimed. Final service role mutation RED/GREEN proved late assertion sensitivity after push; sequencing deviation recorded. No hosted changes."
     },
     {
       "id": "CP4",
-      "status": "NOT_STARTED",
+      "status": "BLOCKED",
       "commit": "",
       "tag": "",
-      "startedAt": "",
+      "startedAt": "2026-10-10T07:34:44.954Z",
       "finishedAt": "",
       "audit": {},
       "claimAuditSample": [],
-      "blockedReason": "",
-      "notes": ""
+      "blockedReason": "After three diagnostic attempts, fresh native published-change positive control failed after actual restore. Revocation/password-change stream controls had passed earlier in the same run; no complete native-suite PASS. Publication membership and Realtime cache rebind hypotheses remain untested.",
+      "notes": "Native catalog tests RED3 thenGREEN3. Native transport script RED missing realtime helper before implementation. First native execution failed catalog coverage; rollback-only actual catalog reproduction found sole uncovered legacy mort-fixture bucket. Restrictive fixture scope extended to that owned bucket; rollback-only catalog nowhasno gaps. Native transport diagnostic2 running; no native lifecycle PASS claimed. Diagnostic2 failed direct SQL deletion with223stderr bytes. Storage protect-delete function exists; empty residual count0 was removed through Storage API status200, remainingcount0. Added reviewed error category RED/GREEN and named native phases/snapshots; diagnostic3 running. Exact byte-hash replay stillpending; no unproven historical error closed. Third diagnostic: Fresh private subscriber receives actual published change assertion failed at lifecycle-restore. Containersrunning/noPause/restart/OOM; known-secret/emailLike false in failure snapshot. Revisit once at end under three-attempt rule. Published restore fresh-control failure is not called a guard denial."
     },
     {
       "id": "CP5",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "commit": "",
       "tag": "",
       "startedAt": "",
@@ -750,12 +765,12 @@
     {
       "id": "G11",
       "description": "30 s lifecycle gate, PostgREST (table, view, RPC; password change, revocation, restore)",
-      "status": "NOT_RUN",
-      "sha": "",
-      "evidenceFile": "",
-      "evidenceSha256": "",
-      "logAuditClean": false,
-      "cleanupComplete": false,
+      "status": "PASS",
+      "sha": "a1bb1dc1b9577e03e4d07488082773367743eead",
+      "evidenceFile": "C:/Users/micha/Mort/guard-evidence/cp3-a1bb1dc.json",
+      "evidenceSha256": "67b64e309f0cbcf51d083eda54cd6bf72bff94b2004c9c19f7fb950385ef885c",
+      "logAuditClean": true,
+      "cleanupComplete": true,
       "blockedBy": ""
     },
     {
@@ -784,12 +799,12 @@
       "id": "G14",
       "description": "Session gate flag-off no-op",
       "status": "NOT_RUN",
-      "sha": "",
-      "evidenceFile": "",
-      "evidenceSha256": "",
-      "logAuditClean": false,
-      "cleanupComplete": false,
-      "blockedBy": ""
+      "sha": "a1bb1dc1b9577e03e4d07488082773367743eead",
+      "evidenceFile": "C:/Users/micha/Mort/guard-evidence/cp3-a1bb1dc.json",
+      "evidenceSha256": "67b64e309f0cbcf51d083eda54cd6bf72bff94b2004c9c19f7fb950385ef885c",
+      "logAuditClean": true,
+      "cleanupComplete": true,
+      "blockedBy": "CP3 proves PostgREST flag-off only; full migration/native flag-off coverage awaits CP4/CP6. Prior broaderPASS corrected."
     },
     {
       "id": "G15",
@@ -1350,6 +1365,11 @@
       "id": "U7",
       "status": "OPEN",
       "cause": "03173c0 recovery failedstore connection deadline399ms; container snapshots running/noOOM/noPause. Underlying connection delay notdiagnosed"
+    },
+    {
+      "id": "U8",
+      "status": "OPEN",
+      "cause": "Native fresh published change not received after restore; 4000ms fixed observation timeout. Publication membership/cache/OID and missingheartbeat hypotheses untested."
     }
   ],
   "stateClaims": [
@@ -1471,6 +1491,27 @@
       "cause": "Second diagnosed run: owned SMTP STARTTLS rejected expired two-day synthetic certificate; expiredCertificateRejected=true. Expiry05:11UTC was before run.",
       "evidence": "mort-cp1-recovery-diagnostic-2.log and mort-cp1-tls-peer.log",
       "remediation": "Renew owned fake root with original2-day lifetime; strict TLS unchanged; new boundary test RED/GREEN"
+    },
+    {
+      "checkpoint": "CP3",
+      "check": "push-order",
+      "result": "FAIL",
+      "cause": "Final service-role mutation audit followed push instead of preceding it",
+      "remediation": "Completed mutation sensitivity proof and cleanup at same sourceHEAD; retained sequence deviation"
+    },
+    {
+      "checkpoint": "CP4",
+      "check": "native-catalog",
+      "result": "FAIL",
+      "cause": "Existing owned mort-fixture bucket lacked session guard while new named resources were covered",
+      "remediation": "Rollback-only actual catalog reproduction RED; include legacy fixture bucket in new restrictive scope; actual rollback-only catalog GREEN"
+    },
+    {
+      "checkpoint": "CP4",
+      "check": "G14-scope",
+      "result": "FAIL",
+      "cause": "CP3 ledger marked wholeG14PASS on PostgREST-only proof",
+      "remediation": "CorrectedwholegateNOT_RUN, retained exact scopedCP3 proof"
     }
   ]
 }

@@ -22,3 +22,7 @@ CP0 completed at5ff33c1; remote equals commit. Initial zero-file scan INVALID; c
 CP1 BLOCKED at03173c0 (remote equals). Node112/Deno38/web9 passed; committed scan2637/0. Three-run recovery streak absent; failures U6/U7 remain open. No threshold changed. CP2 continues independently; CP1 revisit reserved for end.
 
 CP2 DONE at75c6477; remote equals. ExactNode116/Deno38/web9; committed scan2640/0. Evidence SHA256675311e7e2ce9cca91ba8bd141f5941330cead4730a73e81df18ba0a6118d6f5. Full certification remains derivedfalse; NOT_CERTIFIED. CP3 prerequisite rerun started.
+
+CP3 DONE at a1bb1dc:66 runtime assertions; fixed30s nine combinations; generation proof;400requests/20concurrent/pool8. Node118/Deno38/web9; scan2644/0. Native Storage/Realtime CP4 begins; no hosted changes.
+
+CP4 BLOCKED afterthree diagnostic attempts: restored fresh native publication subscriber failed. Revisit once at end. WholeG14 corrected toNOT_RUN because CP3 covered onlyPostgREST. CP5 independent providergetUser evidence begins.

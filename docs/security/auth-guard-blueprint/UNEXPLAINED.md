@@ -57,3 +57,6 @@ Exact a826 run2: delivery failed, exit1 after3346ms. Missing SMTP category. Late
 
 ## U7 — OPEN
 Exact03173c0: store connection_deadline at399ms; original100ms pool deadline preserved. Containers running/no pause/restart/OOM. Host scheduling, cold socket setup and database contention hypotheses remain untested.
+
+## U8 — OPEN
+Native fresh published change not received after restore within fixed4000ms. Phase and assertion captured. All containersrunning/no pause/restart/OOM. Publication membership/OID/cache-rebind and missing-client-heartbeat hypotheses remain untested; no rerun diagnosis claimed.
