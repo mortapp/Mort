@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "hostedStatus": "BLOCKED_NOT_INSPECTED",
+  "fatalIsRedaction": false,
+  "sinks": [
+    {
+      "sink": "provider",
+      "containsAddress": "OBSERVED_PRESENT",
+      "access": "UUID-owned local fixture operator only",
+      "retention": "Docker logs retained in UUID-owned local containers; hosted policy unapproved",
+      "observation": "Info recovery profile:17 address occurrences; fatal:0 (suppression)"
+    },
+    {
+      "sink": "hook",
+      "containsAddress": "OBSERVED_ABSENT_IN_NAMED_FLOW",
+      "access": "UUID-owned local fixture operator only",
+      "retention": "Docker logs retained in UUID-owned local containers; hosted policy unapproved",
+      "observation": "Combined actual recovery child stdout/stderr:0 address occurrences; component streams not separately isolated"
+    },
+    {
+      "sink": "worker",
+      "containsAddress": "OBSERVED_ABSENT_IN_NAMED_FLOW",
+      "access": "UUID-owned local fixture operator only",
+      "retention": "Docker logs retained in UUID-owned local containers; hosted policy unapproved",
+      "observation": "Combined actual recovery child stdout/stderr:0 address occurrences; component streams not separately isolated"
+    },
+    {
+      "sink": "guard",
+      "containsAddress": "OBSERVED_ABSENT_IN_NAMED_FLOW",
+      "access": "UUID-owned local fixture operator only",
+      "retention": "Docker logs retained in UUID-owned local containers; hosted policy unapproved",
+      "observation": "Combined actual recovery child stdout/stderr:0 address occurrences; component streams not separately isolated"
+    },
+    {
+      "sink": "database-logs",
+      "containsAddress": "OBSERVED_ABSENT_IN_NAMED_FLOW",
+      "access": "UUID-owned local fixture operator only",
+      "retention": "Docker logs retained in UUID-owned local containers; hosted policy unapproved"
+    },
+    {
+      "sink": "smtp-capture",
+      "containsAddress": "OBSERVED_PRESENT",
+      "access": "UUID-owned loopback SMTP capture only",
+      "retention": "Messages deleted by each fixture test cleanup"
+    },
+    {
+      "sink": "auth-audit",
+      "containsAddress": "OBSERVED_PRESENT",
+      "access": "Fixture database administrator only",
+      "retention": "Parameterized fixture purge; hosted policy unapproved",
+      "observation": "Seven address-bearing audit rows in each profile; tracked credential occurrences0"
+    }
+  ],
+  "notes": [
+    "SMTP message body intentionally carries the recipient credential; it is authorized mail content, not telemetry. Do not assert zero secrets in that body.",
+    "Log credential leakage is a separate hard gate from known address findings.",
+    "Fatal suppression is not redaction."
+  ]
+}

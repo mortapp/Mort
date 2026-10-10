@@ -298,3 +298,5 @@ Deno.test("password policy is revealed only after verifier possession; raw passw
     "Unknown provider outcome must never claim success",
   );
 });
+
+Deno.test('guardMalformedDenialLogsNoAddress',async()=>{const f=await setup();const observed:string[]=[];const original={log:console.log,error:console.error,warn:console.warn};const capture=(...args:unknown[])=>observed.push(args.map(String).join(' '));console.log=capture;console.error=capture;console.warn=capture;try{const r=await handleEmailGuard(f.request({email:'synthetic@mort-fixture.invalid'}),f.deps);check(r.status===400,'Malformed guard denial');check(observed.length===0,'No guard log output on malformed denial')}finally{Object.assign(console,original)}});

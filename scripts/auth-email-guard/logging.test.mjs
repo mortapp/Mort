@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import pg from 'pg';
 import {spawnSync} from './subprocess-runner.mjs';
 import {configureFixtureAuth,fixtureSql,fixtureProcessEnv} from './fixture.mjs';
 import {cleanup} from './provider.test.mjs';
@@ -12,7 +13,7 @@ export async function run(handle){
       const databaseLevel=level==='fatal'?'fatal':originalDbLevel;
       await fixtureSql(handle,`ALTER SYSTEM SET log_min_messages='${databaseLevel}';SELECT pg_reload_conf()`);
       assert.equal(await fixtureSql(handle,'SHOW log_min_messages'),databaseLevel,'Database log level is actually applied for the profile');
-      await providerIngress(handle,{logLevel:level,beforeCleanup:async({email,id})=>{
+      await providerIngress(handle,{logLevel:level,action:'recovery',recoveryScenario:'replace',beforeCleanup:async({email,id})=>{
       const since=new Date(Date.now()-60_000).toISOString();
       const sinks={};
       for(const [sink,role] of [['provider','auth'],['smtp','capture'],['database','db']]){
@@ -23,8 +24,11 @@ export async function run(handle){
         sinks[sink]={addressOccurrences:raw.split(email).length-1,otherPrivateOccurrences:privateValues.filter(value=>raw.includes(value)).length,bytesInspected:Buffer.byteLength(raw)};
       }
       const audits=await fixtureSql(handle,`SELECT count(*) FROM auth.audit_log_entries WHERE payload::text LIKE '%${email}%'`);
-      sinks.databaseAudit={addressOccurrences:Number(audits)};
+      const auditClient=new pg.Client({connectionString:handle.dbUrl});await auditClient.connect();let auditRaw;try{auditRaw=JSON.stringify((await auditClient.query('SELECT payload FROM auth.audit_log_entries')).rows)}finally{await auditClient.end()}const auditSecrets=[handle.password,handle.jwtSecret,handle.anonKey,handle.serviceKey,...handle.privateAudit].filter(value=>value.length>=8&&!value.includes('@'));
+      sinks.databaseAudit={addressOccurrences:Number(audits),otherPrivateOccurrences:auditSecrets.filter(value=>auditRaw.includes(value)).length};
       sinks.hook=handle.hookLogEvidence;
+      assert.ok(Object.values(sinks).every(sink=>sink.otherPrivateOccurrences===undefined||sink.otherPrivateOccurrences===0),'credentialLeakageZeroAllInspectedLogs: provider, SMTP and database raw logs contain no tracked credentials');
+      assert.equal(sinks.hook.addressOccurrences,0,'Combined hook, worker and guard real recovery stdout/stderr never exposes the synthetic address on this named flow');
       evidence.push({providerLevel:level,databaseLevel,smtpLevel:'default',sinks});
       if(process.env.MORT_EXPECT_RAW_LOG_CLEAN==='1')assert.equal(sinks.provider.addressOccurrences,0,'RED default provider logging must not expose addresses');
       await fixtureSql(handle,`DELETE FROM auth.audit_log_entries WHERE payload::text LIKE '%${email}%'`);

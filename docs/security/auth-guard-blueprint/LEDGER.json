@@ -601,14 +601,18 @@
     {
       "id": "CP9",
       "status": "BLOCKED",
-      "commit": "",
-      "tag": "",
+      "commit": "7f72650dd8360a4d637d55b265758cceae4d687c",
+      "tag": "guard-cp9-blocked-7f72650",
       "startedAt": "2026-10-10T11:52:59.500Z",
       "finishedAt": "2026-10-10T11:52:59.500Z",
       "audit": {
         "namedTests": 3,
         "pass": 1,
-        "fail": 2
+        "fail": 2,
+        "exactCommittedTests": true,
+        "scanFiles": 2675,
+        "findings": 0,
+        "remoteEqualsHead": true
       },
       "claimAuditSample": [],
       "blockedReason": "Protected signup source overlap and provider parity not verified",
@@ -616,15 +620,21 @@
     },
     {
       "id": "CP10",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "commit": "",
       "tag": "",
-      "startedAt": "",
+      "startedAt": "2026-10-10T12:01:40.770Z",
       "finishedAt": "",
-      "audit": {},
+      "audit": {
+        "loggingAssertions": 23,
+        "auditRetention": "working-source GREEN",
+        "sinkInventory": 1,
+        "guardHandlerTests": 8,
+        "exactHead": "pending"
+      },
       "claimAuditSample": [],
       "blockedReason": "",
-      "notes": ""
+      "notes": "Known provider/address-audit findings retained. Hosted BLOCKED. See CP10.md."
     },
     {
       "id": "CP11",
