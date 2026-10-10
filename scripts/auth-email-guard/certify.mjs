@@ -88,6 +88,7 @@ export async function run(){
   }
   const denoFiles=['supabase/functions/mort-auth-email-hook/handler_test.ts','supabase/functions/mort-auth-email-guard/handler_test.ts','supabase/functions/_shared/secure_codes_test.ts',...['admission','config','crypto','outbox','parser','provider','redaction'].map(s=>`supabase/functions/_shared/auth_email_guard/${s}_test.ts`)];
   denoFiles.push('supabase/functions/_shared/auth_email_guard/store-initialization-diagnostic_test.ts');
+  denoFiles.push('supabase/functions/_shared/auth_email_guard/smtp-diagnostic_test.ts');
   const unitOutput=child('deno',['test','--frozen','--allow-env=ETHEREAL_API,ETHEREAL_WEB,ETHEREAL_API_KEY,ETHEREAL_CACHE','--config','supabase/functions/auth-email-guard.deno.json',...denoFiles]);
   for(const match of unitOutput.matchAll(/^(.+?) \.\.\. ok(?: |$)/gm)){
     const name=match[1];observations.push({key:`unit:${name}`,suite:'unit',...await sourceOwner(name,denoFiles,'deno'),assertion:'named_test',executions:1,status:'PASS'});

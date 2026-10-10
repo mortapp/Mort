@@ -32,10 +32,12 @@ export function subprocessDiagnostic(result){
     const assertion=/^Fixture ingress assertion failed: ([a-z-]+)$/.exec(line);
     const detail=/^Fixture ingress diagnostic: stage=([a-z-]+) name=([A-Za-z]+) code=([A-Z0-9_]+|unclassified)$/.exec(line);
     const recovery=/^Recovery control failed: (.+)$/.exec(line);
+    const smtp=/^Fixture SMTP failed: class=(authentication|envelope|timeout|connection|tls|socket|unclassified)$/.exec(line);
     const store=/^Fixture store initialization failed: class=([a-z_]+) sqlstate=([A-Z0-9]+|none|unclassified) elapsedMs=(0|[1-9][0-9]{0,15})$/.exec(line);
     if(assertion&&stages.has(assertion[1]))reviewedLines.add(`Fixture ingress assertion failed: ${assertion[1]}`);
     else if(detail&&stages.has(detail[1])&&names.has(detail[2])&&reviewedCodes.has(detail[3]))reviewedLines.add(`Fixture ingress diagnostic: stage=${detail[1]} name=${detail[2]} code=${detail[3]}`);
     else if(recovery&&recoveryLabels.has(recovery[1]))reviewedLines.add(`Recovery control failed: ${recovery[1]}`);
+    else if(smtp)reviewedLines.add(`Fixture SMTP failed: class=${smtp[1]}`);
     else if(store&&storeClasses.has(store[1])&&(store[1]==='database_sqlstate'?storeSqlstates.has(store[2]):store[2]==='none')&&Number.isSafeInteger(Number(store[3])))reviewedLines.add(`Fixture store initialization failed: class=${store[1]} sqlstate=${store[2]} elapsedMs=${Number(store[3])}`);
     if(reviewedLines.size===12)break;
   }

@@ -146,6 +146,7 @@ try {
         ca: Deno.readTextFileSync(config.certificate),
         user: "fixture",
         password: "fixture-only",
+        diagnostic: (category) => console.error(`Fixture SMTP failed: class=${category}`),
       }),
   });
   check(stats.acknowledged === 1);

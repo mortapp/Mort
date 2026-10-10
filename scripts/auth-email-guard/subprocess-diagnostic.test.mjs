@@ -10,6 +10,10 @@ const diagnose=result=>{
   assert.equal(typeof subprocessDiagnostic,'function','Redacted child diagnostics must exist');
   return subprocessDiagnostic(result);
 };
+test('SMTP fixed categories survive redaction while arbitrary SMTP details do not',()=>{
+  const result=diagnose({status:1,stderr:'Fixture SMTP failed: class=socket\nFixture SMTP failed: class=private-value\n'});
+  assert.deepEqual(result.reviewedLines,['Fixture SMTP failed: class=socket']);
+});
 
 test('nonzero child status retains exit metadata and stderr fingerprint without arbitrary values',()=>{
   const stderr='private-fixture-secret\nprivate@example.invalid\n';

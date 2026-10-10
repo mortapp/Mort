@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { Socket } from "node:net";
+import { smtpDiagnostic } from "./smtp-diagnostic.ts";
 import { secretDigest } from "./crypto.ts";
 import { decryptEnvelope } from "./outbox.ts";
 import {
@@ -25,6 +26,7 @@ export type FixtureSmtp = {
   ca: string;
   user: "fixture";
   password: string;
+  diagnostic?: (category: string) => void;
 };
 export async function sendFixedEmail(
   message: FixedMail,
@@ -99,6 +101,7 @@ export async function sendFixedEmail(
           ? "acknowledged" as const
           : "failed" as const;
       } catch (error) {
+        config.diagnostic?.(smtpDiagnostic(error));
         return ["EAUTH", "EENVELOPE"].includes(
             (error as { code?: string }).code ?? "",
           )
