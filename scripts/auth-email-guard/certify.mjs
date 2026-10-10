@@ -98,6 +98,7 @@ export async function run(){
   nodeFiles.push('scripts/auth-email-guard/lifecycle-deadline.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/failure-snapshot.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/certification-gates.test.mjs');
+  nodeFiles.push('scripts/auth-email-guard/catalog-coverage.test.mjs');
   const browserFiles=['web/auth/challenge/controller.test.mjs','web/auth/challenge/transport.test.mjs','web/auth/challenge/build.test.mjs','web/auth/challenge/browser.test.mjs'];
   const nodeOutput=child('node',['--test','--test-reporter=tap',...nodeFiles,...browserFiles],{MORT_GUARD_BROWSER_MODULES:process.env.MORT_GUARD_BROWSER_MODULES??'C:\\Users\\micha\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\node_modules'});
   for(const match of nodeOutput.matchAll(/^ok \d+ - (.+)$/gm)){
