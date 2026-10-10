@@ -643,15 +643,18 @@
     {
       "id": "CP11",
       "status": "BLOCKED",
-      "commit": "",
-      "tag": "",
+      "commit": "d21520c61b1ef38fd12203f2eef75e98ba79cda6",
+      "tag": "guard-cp11-blocked-d21520c",
       "startedAt": "2026-10-10T12:19:52.335Z",
       "finishedAt": "2026-10-10T12:19:52.335Z",
       "audit": {
-        "helperUnitTests": 4,
-        "streamingAssertionsExecuted": 0,
-        "promotionAssertionsExecuted": 0,
-        "exactHead": "pending"
+        "nodeTests": 133,
+        "denoTests": 52,
+        "browserTests": 9,
+        "scanFiles": 2684,
+        "findings": 0,
+        "remoteEqualsHead": true,
+        "evidenceSha256": "6a24810a7b07e668a9976983321ee0308be0ee57384443ec0af95ee293cfdaec"
       },
       "claimAuditSample": [],
       "blockedReason": "Three diagnostic attempts exhausted; pinned base-backup step exit1 unclassified158bytes",
@@ -659,15 +662,23 @@
     },
     {
       "id": "CP12",
-      "status": "NOT_STARTED",
+      "status": "BLOCKED",
       "commit": "",
       "tag": "",
-      "startedAt": "",
-      "finishedAt": "",
-      "audit": {},
+      "startedAt": "2026-10-10T12:31:09.456Z",
+      "finishedAt": "2026-10-10T12:31:09.456Z",
+      "audit": {
+        "localPages": 2,
+        "approvedScriptsEach": 5,
+        "serviceWorkersLocal": 0,
+        "liveHttpReadOnly": true,
+        "previewsCreated": 0,
+        "productionChanges": 0,
+        "exactHead": "pending"
+      },
       "claimAuditSample": [],
-      "blockedReason": "",
-      "notes": ""
+      "blockedReason": "HS-2: no authenticated preview cleanup capability; owner access requested",
+      "notes": "CP13-16 not reached because hard stop; all independent prior gates preserved."
     },
     {
       "id": "CP13",

@@ -1,0 +1,310 @@
+{
+  "observedAt": "2026-10-10T12:31:09.452Z",
+  "mode": "READ_ONLY_PUBLIC_HTTP",
+  "hostedSupabaseRequests": 0,
+  "productionChanges": 0,
+  "pages": [
+    {
+      "path": "/",
+      "status": 200,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://rakjydmgwwgtdislanbt.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+        "cache-control": "private, no-cache, no-store, max-age=0, must-revalidate",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "DENY",
+        "service-worker-allowed": null,
+        "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+      },
+      "bytesInspected": 42711,
+      "truncated": false,
+      "bodySha256": "d93204f3dd2eadb22b950ef73ec75c82c5a11f2398a747905b250dccaa6a7900",
+      "scripts": [
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/20es43nb27oti.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/0uzkjfewjdkx0.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/13xlxnefy68q7.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/turbopack-0-2d4_sh69yv2.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/3q_-vo144m6xi.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/3mh3xqpfo1y5r.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/34w2r8bqazbsv.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/0c0hxoamwjsbw.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/25kvgcvbp6c14.js",
+          "sameOrigin": true
+        },
+        {
+          "inline": true
+        },
+        {
+          "inline": true
+        }
+      ],
+      "cookieNames": [],
+      "serviceWorkerRuntime": "NOT_EXECUTED_TO_AVOID_HOSTED_SUBREQUESTS"
+    },
+    {
+      "path": "/auth/recovery/",
+      "status": 308,
+      "headers": {
+        "content-type": "text/plain",
+        "content-security-policy": null,
+        "cache-control": "public, max-age=0, must-revalidate",
+        "referrer-policy": null,
+        "x-frame-options": null,
+        "service-worker-allowed": null,
+        "strict-transport-security": "max-age=63072000"
+      },
+      "bytesInspected": 15,
+      "truncated": false,
+      "bodySha256": "7c040f8633b8823d72ed63da9b3b2dfe9846e912c66a64c9433ec9c4815d76c2",
+      "scripts": [],
+      "cookieNames": [],
+      "serviceWorkerRuntime": "NOT_EXECUTED_TO_AVOID_HOSTED_SUBREQUESTS"
+    },
+    {
+      "path": "/auth/recovery",
+      "status": 200,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://rakjydmgwwgtdislanbt.supabase.co; img-src 'self' data:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests",
+        "cache-control": "no-store",
+        "referrer-policy": "no-referrer",
+        "x-frame-options": "DENY",
+        "service-worker-allowed": null,
+        "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+      },
+      "bytesInspected": 1710,
+      "truncated": false,
+      "bodySha256": "ba860841dcf3714d2627219613d7468f62de24676c07108b445d977039a36608",
+      "scripts": [
+        {
+          "url": "https://mortapp.org/auth/recovery/supabase.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/auth/recovery/recovery.js",
+          "sameOrigin": true
+        }
+      ],
+      "cookieNames": [],
+      "serviceWorkerRuntime": "NOT_EXECUTED_TO_AVOID_HOSTED_SUBREQUESTS"
+    },
+    {
+      "path": "/auth/confirmation/",
+      "status": 308,
+      "headers": {
+        "content-type": "text/plain",
+        "content-security-policy": null,
+        "cache-control": "public, max-age=0, must-revalidate",
+        "referrer-policy": null,
+        "x-frame-options": null,
+        "service-worker-allowed": null,
+        "strict-transport-security": "max-age=63072000"
+      },
+      "bytesInspected": 15,
+      "truncated": false,
+      "bodySha256": "7c040f8633b8823d72ed63da9b3b2dfe9846e912c66a64c9433ec9c4815d76c2",
+      "scripts": [],
+      "cookieNames": [],
+      "serviceWorkerRuntime": "NOT_EXECUTED_TO_AVOID_HOSTED_SUBREQUESTS"
+    },
+    {
+      "path": "/auth/confirmation",
+      "status": 404,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://rakjydmgwwgtdislanbt.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "DENY",
+        "service-worker-allowed": null,
+        "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+      },
+      "bytesInspected": 8908,
+      "truncated": false,
+      "bodySha256": "2a500534c4587cf21e498cf9fa5cbb8646c93b027c375ec7c3a6a68e355d50e4",
+      "scripts": [
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/20es43nb27oti.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/0uzkjfewjdkx0.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/13xlxnefy68q7.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/turbopack-0-2d4_sh69yv2.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/3q_-vo144m6xi.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/3mh3xqpfo1y5r.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/0c0hxoamwjsbw.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/25kvgcvbp6c14.js",
+          "sameOrigin": true
+        },
+        {
+          "inline": true
+        },
+        {
+          "inline": true
+        }
+      ],
+      "cookieNames": [],
+      "serviceWorkerRuntime": "NOT_EXECUTED_TO_AVOID_HOSTED_SUBREQUESTS"
+    },
+    {
+      "path": "/sw.js",
+      "status": 404,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://rakjydmgwwgtdislanbt.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "DENY",
+        "service-worker-allowed": null,
+        "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+      },
+      "bytesInspected": 8908,
+      "truncated": false,
+      "bodySha256": "2a500534c4587cf21e498cf9fa5cbb8646c93b027c375ec7c3a6a68e355d50e4",
+      "scripts": [
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/20es43nb27oti.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/0uzkjfewjdkx0.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/13xlxnefy68q7.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/turbopack-0-2d4_sh69yv2.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/3q_-vo144m6xi.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/3mh3xqpfo1y5r.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/0c0hxoamwjsbw.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/25kvgcvbp6c14.js",
+          "sameOrigin": true
+        },
+        {
+          "inline": true
+        },
+        {
+          "inline": true
+        }
+      ],
+      "cookieNames": [],
+      "serviceWorkerRuntime": "NOT_EXECUTED_TO_AVOID_HOSTED_SUBREQUESTS"
+    },
+    {
+      "path": "/service-worker.js",
+      "status": 404,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://rakjydmgwwgtdislanbt.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-frame-options": "DENY",
+        "service-worker-allowed": null,
+        "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+      },
+      "bytesInspected": 8908,
+      "truncated": false,
+      "bodySha256": "2a500534c4587cf21e498cf9fa5cbb8646c93b027c375ec7c3a6a68e355d50e4",
+      "scripts": [
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/20es43nb27oti.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/0uzkjfewjdkx0.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/13xlxnefy68q7.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/turbopack-0-2d4_sh69yv2.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/3q_-vo144m6xi.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/3mh3xqpfo1y5r.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/0c0hxoamwjsbw.js",
+          "sameOrigin": true
+        },
+        {
+          "url": "https://mortapp.org/_next/static/immutable/chunks/25kvgcvbp6c14.js",
+          "sameOrigin": true
+        },
+        {
+          "inline": true
+        },
+        {
+          "inline": true
+        }
+      ],
+      "cookieNames": [],
+      "serviceWorkerRuntime": "NOT_EXECUTED_TO_AVOID_HOSTED_SUBREQUESTS"
+    }
+  ]
+}

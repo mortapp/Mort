@@ -40,3 +40,5 @@ CP8 pushed8948e19, exact128Node/51Deno/9browser, scan2672/0. CP9 BLOCKED: provid
 CP9 pushed7f72650; exactcontract1PASS2FAIL, scan2675/0,remoteequals. CP10 actualrecoverylogging23 and auditretention GREEN; knownINFOaddress17/Authaudit7 perprofile retained. ExactHEAD checks pending.
 
 CP10 DONE at0d6d6b7: exact129Node/52Deno/9browser, retention8/logging23, scan2680/0, remoteequals. CP11 BLOCKED afterthree attempts; helper4GREEN but no streaming/promotion PASS. Underlying basebackup failure unproven.
+
+CP11 pushedd21520c: exact133Node/52Deno/9browser, scan2684/0. CP12 localcrawl GREEN; live readonly findings recorded. HS-2 previewcleanupcredential/capability missing; owner requested. Preview0, hosted0, messages0. CP13-16 notexecuted.

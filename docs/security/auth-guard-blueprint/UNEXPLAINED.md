@@ -60,3 +60,15 @@ Exact03173c0: store connection_deadline at399ms; original100ms pool deadline pre
 
 ## U8 — OPEN
 Native fresh published change not received after restore within fixed4000ms. Phase and assertion captured. All containersrunning/no pause/restart/OOM. Publication membership/OID/cache-rebind and missing-client-heartbeat hypotheses remain untested; no rerun diagnosis claimed.
+
+## U9 — OPEN
+
+CP8 working source above4478796: current/new-key recovery failed at new-key-redemption, then new-key-hook (ring-enabled-hook-stores-kid); exit1. Last stderr90bytes SHA25645614585460ee8f03293be8baa144fa02b6835f423a231acb2384f650477c973. Underlying concurrency/latency/store cause unproven. Applied v1-only validation is a separate deterministic source mismatch; its adapter fix does not explain these later failures. Three attempts, one final revisit reserved.
+
+## U10 — EXPLAINED (fixture cleanup)
+
+CP8 SQLSTATE23503 at operation_grants_capability_digest_fkey. Read-only catalog confirmed dependency; failing cleanup reproduced in a transaction. Grant-first cleanup executed successfully on the same owned fixture. Original primary integration failures remain open; cleanup success does not close U9.
+
+## U11 — OPEN
+
+CP11 above0d6d6b7: base backup failed twice, exit1/stderr158bytes/SHA2563c1251d66d4016867f4ee62261187e48e0a3aa65340098fcd82c4a7cccc5a935. Temporary replication HBA rule left fingerprint unchanged. Binary-only version probe passed, ruling out missing pg_basebackup executable. Actual stderr cause still unproven; no fourth integration attempt. One final revisit reserved.

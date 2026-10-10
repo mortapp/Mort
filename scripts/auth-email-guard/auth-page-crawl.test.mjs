@@ -1,0 +1,2 @@
+import{localAuthInventory}from'./auth-page-inventory.mjs';import{captureAssertions}from'./evidence.mjs';export async function run(){return await localAuthInventory()}
+if(process.argv[1]?.endsWith('auth-page-crawl.test.mjs')){try{let result;const a=await captureAssertions('auth-page-crawl',async()=>{result=await run()});console.log(JSON.stringify({status:'PASS',assertions:a.length,inventory:result}))}catch(e){console.error(JSON.stringify({status:'FAIL',assertion:e.guardAssertion??null,name:e.name==='AssertionError'?'AssertionError':'Error'}));process.exitCode=1}}
