@@ -663,8 +663,8 @@
     {
       "id": "CP12",
       "status": "BLOCKED",
-      "commit": "",
-      "tag": "",
+      "commit": "ba825ec994af758e76678a232eb616ce11826392",
+      "tag": "guard-cp12-blocked-ba825ec",
       "startedAt": "2026-10-10T12:31:09.456Z",
       "finishedAt": "2026-10-10T12:31:09.456Z",
       "audit": {
@@ -674,22 +674,28 @@
         "liveHttpReadOnly": true,
         "previewsCreated": 0,
         "productionChanges": 0,
-        "exactHead": "pending"
+        "exactHead": "ba825ec994af758e76678a232eb616ce11826392"
       },
       "claimAuditSample": [],
       "blockedReason": "HS-2: no authenticated preview cleanup capability; owner access requested",
-      "notes": "CP13-16 not reached because hard stop; all independent prior gates preserved."
+      "notes": "Owner clarification: HS2 blocks only dependent work. Continue CP13-16 independently; no Vercel retry or deployment mutation."
     },
     {
       "id": "CP13",
-      "status": "NOT_STARTED",
+      "status": "BLOCKED",
       "commit": "",
       "tag": "",
-      "startedAt": "",
+      "startedAt": "2026-10-10T13:34:10.464Z",
       "finishedAt": "",
-      "audit": {},
+      "audit": {
+        "apkUnchanged": true,
+        "installed": true,
+        "httpsIntentTargets": "Chrome only",
+        "externalMessages": 0,
+        "hostedChanged": false
+      },
       "claimAuditSample": [],
-      "blockedReason": "",
+      "blockedReason": "Emulator intent resolution executed; fragment round-trip/custom-scheme denial not yet proven; external mail waits staging.",
       "notes": ""
     },
     {
@@ -986,13 +992,13 @@
     {
       "id": "G24",
       "description": "Auth page inventory on Vercel preview",
-      "status": "NOT_RUN",
+      "status": "BLOCKED",
       "sha": "",
       "evidenceFile": "",
       "evidenceSha256": "",
       "logAuditClean": false,
       "cleanupComplete": false,
-      "blockedBy": ""
+      "blockedBy": "Owner confirms no authenticated Vercel access; no retry; no deployment creation/deletion."
     },
     {
       "id": "G25",
