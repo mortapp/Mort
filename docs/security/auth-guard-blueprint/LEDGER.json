@@ -719,15 +719,15 @@
     },
     {
       "id": "CP15",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "commit": "",
       "tag": "",
-      "startedAt": "",
+      "startedAt": "2026-10-10T13:44:41.865Z",
       "finishedAt": "",
       "audit": {},
       "claimAuditSample": [],
       "blockedReason": "",
-      "notes": ""
+      "notes": "Final run evidence/ledger snapshot outsideGit binds exactHEAD; no source edits during serial runs. Approved30s threshold unchanged; original lifetime measured once separately."
     },
     {
       "id": "CP16",

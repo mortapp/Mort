@@ -102,6 +102,7 @@ export async function run(){
   nodeFiles.push('scripts/auth-email-guard/parallel-probe.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/subprocess-runner.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/idle-wait.test.mjs');
+  nodeFiles.push('scripts/auth-email-guard/guarded-transport-schedule.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/lifecycle-deadline.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/failure-snapshot.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/certification-gates.test.mjs');
@@ -167,6 +168,7 @@ export async function run(){
   output.localCharacterizations.oldJwt.status='HISTORICAL_RED_FINDING_UNPROTECTED_BASELINE';
   output.localCharacterizations.oldJwt.historicalHead='082e8431b1aa4b788b6edb4c9c3245f007f1660c';
   output.localCharacterizations.guardedJwt=fixture.guardedExpiryEvidence;
+  output.localCharacterizations.guardedLifecycle=fixture.guardedLifecycleEvidence;
   output.localCharacterizations.preRequestLifecycle=fixture.preRequestLifecycleEvidence;
   output.localCharacterizations.nativeSession=fixture.nativeSessionEvidence;
   console.log('MORT_GUARD_EVIDENCE_JSON '+JSON.stringify(output));return report;
