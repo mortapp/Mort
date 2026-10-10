@@ -1,0 +1,269 @@
+{
+  "baseline": "d32f0c83e19844f539afc05210d2eecf3b245bbc",
+  "entries": [
+    {
+      "path": "supabase/functions/account-deletion-processor/index.ts",
+      "caller": "INTERNAL_SHARED_SECRET",
+      "mechanism": "x-mort-deletion-secret constantTimeEqual",
+      "baselineSha256": "e875d270ae98daf9c2918c9d0844ad7601c438dd90d6a2b071a892572a215e71"
+    },
+    {
+      "path": "supabase/functions/admob-reward-ssv/index.ts",
+      "caller": "SIGNED_PROVIDER_CALLBACK",
+      "mechanism": "verifyAdMobCallback / ECDSA provider callback",
+      "baselineSha256": "81212dea31ed81db20b23470a013b9df9bd203bdeb7c98685342f568e6d2b1f6"
+    },
+    {
+      "path": "supabase/functions/ai-safety/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "auth.getUser in entrypoint",
+      "baselineSha256": "8a2e17459485e546dc6f3476d24df6cb7aa6993dc591a4e0feb44a13d503c51d"
+    },
+    {
+      "path": "supabase/functions/ai-support/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "auth.getUser in entrypoint",
+      "baselineSha256": "bae3ce51f192d951eaa1c039102494a8078abf986456feb78fa4cc0b51ff8fba"
+    },
+    {
+      "path": "supabase/functions/avatar-url/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "auth.getUser in entrypoint",
+      "baselineSha256": "82dc31671b6b0de4e7eb8e1e4375bfaa85b3eb5b3ca2d26b291704109de725dd"
+    },
+    {
+      "path": "supabase/functions/document-vault-access/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "auth.getUser in entrypoint",
+      "baselineSha256": "e3f5bb29584368bb72e33d7f76814755ae83cc329d79fedb4d3203fe07b220b2"
+    },
+    {
+      "path": "supabase/functions/google-play-rtdn/index.ts",
+      "caller": "PROVIDER_SHARED_SECRET",
+      "mechanism": "x-mort-rtdn-secret constantTimeEqual",
+      "baselineSha256": "7c992ad1ac8de60e15debc3ff6d4f7782825dea78e01aa96fe8c05e4f2224de4"
+    },
+    {
+      "path": "supabase/functions/google-play-verify-purchase/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "_shared/google_play.ts authenticate -> auth.getUser(token)",
+      "baselineSha256": "08074d920f351b3a3529a7f1d196a70555f4dee85b53abc3e33f6de57cbb01b4"
+    },
+    {
+      "path": "supabase/functions/identity-verification-session/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "auth.getUser in entrypoint",
+      "baselineSha256": "8885c2efed23a5a64647a9001dfeee87bf6f9ca7044d3c9647d261b5a5f7e41e"
+    },
+    {
+      "path": "supabase/functions/identity-verification-webhook/index.ts",
+      "caller": "SIGNED_PROVIDER_WEBHOOK",
+      "mechanism": "validateWebhookEnvelope(rawBody, headers, secret)",
+      "baselineSha256": "f719be9458ce9839398c48fdfc794f6a149ca787438b8af3b7ef2f77d27d9506"
+    },
+    {
+      "path": "supabase/functions/mort-verify/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "auth.getUser in entrypoint",
+      "baselineSha256": "65c81c17865e20dafa8e9368ea825c782b4c4741b032a2d9e050d7238663c907"
+    },
+    {
+      "path": "supabase/functions/revenuecat-webhook/index.ts",
+      "caller": "PROVIDER_SHARED_SECRET",
+      "mechanism": "authorization mapped through configured webhook secrets",
+      "baselineSha256": "e76ac9e107cbe27845b68cbcbcb904ce72126b4bc35d71816ee7f8d06cfc38b1"
+    },
+    {
+      "path": "supabase/functions/safety-travel-eta/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "auth.getUser in entrypoint",
+      "baselineSha256": "831d0e6940fe0d05163ae28ef412bc8dbf2e2514b01f201cd001e831792310b5"
+    },
+    {
+      "path": "supabase/functions/send-push/index.ts",
+      "caller": "INTERNAL_SHARED_SECRET",
+      "mechanism": "x-mort-push-secret constantTimeEqual",
+      "baselineSha256": "027cd313b23e110ab1dc0b5de1da18e3531d15d55b71b2e495805043ab5fdd67"
+    },
+    {
+      "path": "supabase/functions/stripe-config/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "authenticate(request) -> _shared/stripe.ts auth.getUser(accessToken)",
+      "baselineSha256": "9d2761017b0fce5a7220797a99219fd55bc62b8db64c1264bb1cb4b50fd38dc8"
+    },
+    {
+      "path": "supabase/functions/stripe-create-connected-account/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "authenticate(request) -> _shared/stripe.ts auth.getUser(accessToken)",
+      "baselineSha256": "1700a3f21cc409cd758af836624126884a53ce531c696c79632168f14a70a904"
+    },
+    {
+      "path": "supabase/functions/stripe-create-job-funding-quote/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "authenticate(request) -> _shared/stripe.ts auth.getUser(accessToken)",
+      "baselineSha256": "214be4e37fd198d08cdc4f56e90c6589e28eb85353120145cc6fa34d1899717c"
+    },
+    {
+      "path": "supabase/functions/stripe-create-job-payment-intent/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "authenticate(request) -> _shared/stripe.ts auth.getUser(accessToken)",
+      "baselineSha256": "94c5e82ee6f0bcfd10df595032a4ad94cdb2d04061924f27d98caeecf512c7e2"
+    },
+    {
+      "path": "supabase/functions/stripe-create-job-refund/index.ts",
+      "caller": "USER_SESSION_PLUS_OPERATIONS_SECRET",
+      "mechanism": "authenticate(request) -> _shared/stripe.ts auth.getUser(accessToken)",
+      "baselineSha256": "fc650cec99cc50d6418bb0fdef902324a7ca57b2b91ddabd61fcb3b6bbdd22bf"
+    },
+    {
+      "path": "supabase/functions/stripe-create-job-transfer/index.ts",
+      "caller": "USER_SESSION_PLUS_OPERATIONS_SECRET",
+      "mechanism": "authenticate(request) -> _shared/stripe.ts auth.getUser(accessToken)",
+      "baselineSha256": "5bdc9146b96ef2b5e6096f247dc1e1716ac939d57becbe744004357f1efdeb1e"
+    },
+    {
+      "path": "supabase/functions/stripe-create-onboarding-link/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "authenticate(request) -> _shared/stripe.ts auth.getUser(accessToken)",
+      "baselineSha256": "136d812a65e0e5d1ec46d2e3b2a55f9446970aedbfcd682ea3c55cf8aca3c621"
+    },
+    {
+      "path": "supabase/functions/stripe-create-tip-payment-intent/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "authenticate(request) -> _shared/stripe.ts auth.getUser(accessToken)",
+      "baselineSha256": "4db05d9533570c548dcc54cd8270629136b79f1328d347b9d682839c02402a12"
+    },
+    {
+      "path": "supabase/functions/stripe-create-tip-transfer/index.ts",
+      "caller": "USER_SESSION_PLUS_OPERATIONS_SECRET",
+      "mechanism": "authenticate(request) -> _shared/stripe.ts auth.getUser(accessToken)",
+      "baselineSha256": "077b081fce389e76a35290d75b29d29f45ac88b437e96501f9d08d637693a67f"
+    },
+    {
+      "path": "supabase/functions/stripe-get-connected-account-status/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "authenticate(request) -> _shared/stripe.ts auth.getUser(accessToken)",
+      "baselineSha256": "892f35b33395a8f54584fe6bc2d88fa170294155092ff7c35b5b9d051cd18b41"
+    },
+    {
+      "path": "supabase/functions/stripe-get-financial-document/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "authenticate(request) -> _shared/stripe.ts auth.getUser(accessToken)",
+      "baselineSha256": "11613f4d49e759dfc8ee75021455f2f25921cd23224cb131f6fdee19c8609b59"
+    },
+    {
+      "path": "supabase/functions/stripe-get-job-payment-status/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "authenticate(request) -> _shared/stripe.ts auth.getUser(accessToken)",
+      "baselineSha256": "763d57aa59a424c654836697da078262540ed9a999cf0f030d8b9f2b541828e2"
+    },
+    {
+      "path": "supabase/functions/stripe-list-financial-history/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "authenticate(request) -> _shared/stripe.ts auth.getUser(accessToken)",
+      "baselineSha256": "ab0c0c1180d5cb0be2666c4b725747cfc54ad08baf84e42f39f79f22edc26377"
+    },
+    {
+      "path": "supabase/functions/stripe-resolve-job-payment/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "authenticate(request) -> _shared/stripe.ts auth.getUser(accessToken)",
+      "baselineSha256": "55c46794e1a76a777a34a36a5ce430050821c611f36e7f1cf28ebafc98a435da"
+    },
+    {
+      "path": "supabase/functions/stripe-webhook/index.ts",
+      "caller": "SIGNED_PROVIDER_WEBHOOK",
+      "mechanism": "Stripe-Signature -> verifyWebhookEvent -> provider signature verification",
+      "baselineSha256": "f10f5f161be275d508052bd3eb3b92fc63da8428f28835081384ef8d174c5930"
+    },
+    {
+      "path": "supabase/functions/support-admin-copilot/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "support_runtime userContext -> auth.getUser(token)",
+      "baselineSha256": "962f81653ae0413f39479791054acc6676c7e7200643c14a80eb3f90866fecdc"
+    },
+    {
+      "path": "supabase/functions/support-chat/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "support_runtime userContext -> auth.getUser(token)",
+      "baselineSha256": "6fe287ed30b4c1098640c12be9771b59487455b282f3a0a6cd07e89f07dad227"
+    },
+    {
+      "path": "supabase/functions/support-create-ticket/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "support_runtime userContext -> auth.getUser(token)",
+      "baselineSha256": "02343de261a9c3c25a8747795c87be098162080435723e3787a9e223b095507e"
+    },
+    {
+      "path": "supabase/functions/support-escalate/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "support_runtime userContext -> auth.getUser(token)",
+      "baselineSha256": "08517116485c253d19fe6918ea5526500d49719fc9129a704b17183b034f98d1"
+    },
+    {
+      "path": "supabase/functions/support-evaluation-runner/index.ts",
+      "caller": "SERVICE_ROLE_INTERNAL",
+      "mechanism": "support_runtime internalContext -> support_internal_authorize -> auth.role() = service_role",
+      "baselineSha256": "6e0e37201cfac3c2d65267f440e6ed23c8e02547557291ab008bdf54d9ea9c6b"
+    },
+    {
+      "path": "supabase/functions/support-evidence-url/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "auth.getUser in entrypoint",
+      "baselineSha256": "4d028863ddd5c77a220136ae96227ba5ab5ec476df205eb04176a752e2d19e80"
+    },
+    {
+      "path": "supabase/functions/support-feedback/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "support_runtime userContext -> auth.getUser(token)",
+      "baselineSha256": "0a3ab15ffe8d6dcfb2fb9265aabc4b9274f3bd3d96fb5d0b84fc78dfc83d2857"
+    },
+    {
+      "path": "supabase/functions/support-intent-classify/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "support_runtime userContext -> auth.getUser(token)",
+      "baselineSha256": "5b7464c69217b1f3301dd1c40f64f2518b0e507c6b694985ba333de68c6e8c55"
+    },
+    {
+      "path": "supabase/functions/support-kb-search/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "support_runtime userContext -> auth.getUser(token)",
+      "baselineSha256": "9ea8f718f36dfdc61006ff4d8bb8cf63c3dc6596925cee3f1dd2127d1213ba19"
+    },
+    {
+      "path": "supabase/functions/support-report-ai-response/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "support_runtime userContext -> auth.getUser(token)",
+      "baselineSha256": "a002ec829c3a13df7f72f405b184c03d54de4027c7299b3e2995cc0e2d7c4328"
+    },
+    {
+      "path": "supabase/functions/support-retention-cleanup/index.ts",
+      "caller": "SERVICE_ROLE_INTERNAL",
+      "mechanism": "support_runtime internalContext -> support_internal_authorize -> auth.role() = service_role",
+      "baselineSha256": "302596580648b5af7065031a77cf5bf24eac3e5ab49930fbf405f6778a9cbca3"
+    },
+    {
+      "path": "supabase/functions/support-safety-triage/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "support_runtime userContext -> auth.getUser(token)",
+      "baselineSha256": "fbd345f1b15e9826dbdf9d364f5048ab19fbec5a8f775a030b58d98e9ce8c590"
+    },
+    {
+      "path": "supabase/functions/support-tool-execute/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "support_runtime userContext -> auth.getUser(token)",
+      "baselineSha256": "217a4ef89a3a7d365efa60b6698cab36043d1fc034b7ee92a59014e0b038a7c5"
+    },
+    {
+      "path": "supabase/functions/support-upload-authorize/index.ts",
+      "caller": "USER_SESSION",
+      "mechanism": "support_runtime userContext -> auth.getUser(token)",
+      "baselineSha256": "369e07beee4543bf07597f3925b19083d7d956e9511ab1abf27286c7260f4572"
+    },
+    {
+      "path": "supabase/functions/teen-verification-retention-processor/index.ts",
+      "caller": "SERVICE_ROLE_INTERNAL",
+      "mechanism": "authorization constantTimeEqual against service-role bearer",
+      "baselineSha256": "d562db1f356f9628455413f002bde77d95601bcaf722105f6efcc1cbbd781d9d"
+    }
+  ]
+}

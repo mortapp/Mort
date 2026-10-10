@@ -69,7 +69,7 @@ export async function run(){
   if(!/^[a-f0-9]{40}$/.test(head))throw new Error('Candidate identity unavailable');
   certificationStage='fixture-start';
   const fixture=await startFixture(),observations=[],started=performance.now();
-  const suiteNames=['provider-ingress','provider-recovery','session-live','transport-cleanup','guarded-jwt-transports','pre-request-lifecycle','native-session-live','provider-drift','logging','state','issuance','grant','bypass','hook-boundary','delivery','smtp-fault','cutover','retention','load','security','log-audit'];
+  const suiteNames=['provider-ingress','provider-recovery','session-live','transport-cleanup','guarded-jwt-transports','pre-request-lifecycle','native-session-live','sdk-session','provider-drift','logging','state','issuance','grant','bypass','hook-boundary','delivery','smtp-fault','cutover','retention','load','security','log-audit'];
   const timings={},suiteStates={};
   for(const name of suiteNames){
     certificationStage=name+':state-before';
@@ -109,6 +109,7 @@ export async function run(){
   nodeFiles.push('scripts/auth-email-guard/blueprint-certification.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/request-gate-load.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/native-catalog.test.mjs');
+  nodeFiles.push('scripts/auth-email-guard/edge-callers.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/verify-blueprint-lock.test.mjs','scripts/auth-email-guard/checkpoint-diagnostics.test.mjs','scripts/auth-email-guard/fixture-certificate.test.mjs','scripts/auth-email-guard/startup-diagnostic.test.mjs','scripts/auth-email-guard/cleanup-primary.test.mjs');
   const browserFiles=['web/auth/challenge/controller.test.mjs','web/auth/challenge/transport.test.mjs','web/auth/challenge/build.test.mjs','web/auth/challenge/browser.test.mjs'];
   const nodeOutput=child('node',['--test','--test-reporter=tap',...nodeFiles,...browserFiles],{MORT_GUARD_BROWSER_MODULES:process.env.MORT_GUARD_BROWSER_MODULES??'C:\\Users\\micha\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\node_modules'});

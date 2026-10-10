@@ -497,11 +497,22 @@
     {
       "id": "CP4",
       "status": "BLOCKED",
-      "commit": "",
-      "tag": "",
+      "commit": "d32f0c83e19844f539afc05210d2eecf3b245bbc",
+      "tag": "guard-cp4-blocked-d32f0c8",
       "startedAt": "2026-10-10T07:34:44.954Z",
-      "finishedAt": "",
-      "audit": {},
+      "finishedAt": "2026-10-10T08:09:51.655Z",
+      "audit": {
+        "committedScan": {
+          "files": 2652,
+          "findings": 0
+        },
+        "nodePassed": 122,
+        "denoPassed": 38,
+        "webPassed": 9,
+        "evidenceSha256": "3ae5287aff9d6bf815fa23dba48d225b206d432ca429b821c198f08168d14c32",
+        "remoteEqualsHead": true,
+        "nativeGate": "BLOCKED"
+      },
       "claimAuditSample": [],
       "blockedReason": "After three diagnostic attempts, fresh native published-change positive control failed after actual restore. Revocation/password-change stream controls had passed earlier in the same run; no complete native-suite PASS. Publication membership and Realtime cache rebind hypotheses remain untested.",
       "notes": "Native catalog tests RED3 thenGREEN3. Native transport script RED missing realtime helper before implementation. First native execution failed catalog coverage; rollback-only actual catalog reproduction found sole uncovered legacy mort-fixture bucket. Restrictive fixture scope extended to that owned bucket; rollback-only catalog nowhasno gaps. Native transport diagnostic2 running; no native lifecycle PASS claimed. Diagnostic2 failed direct SQL deletion with223stderr bytes. Storage protect-delete function exists; empty residual count0 was removed through Storage API status200, remainingcount0. Added reviewed error category RED/GREEN and named native phases/snapshots; diagnostic3 running. Exact byte-hash replay stillpending; no unproven historical error closed. Third diagnostic: Fresh private subscriber receives actual published change assertion failed at lifecycle-restore. Containersrunning/noPause/restart/OOM; known-secret/emailLike false in failure snapshot. Revisit once at end under three-attempt rule. Published restore fresh-control failure is not called a guard denial."
@@ -511,9 +522,14 @@
       "status": "IN_PROGRESS",
       "commit": "",
       "tag": "",
-      "startedAt": "",
+      "startedAt": "2026-10-10T08:09:51.656Z",
       "finishedAt": "",
-      "audit": {},
+      "audit": {
+        "providerSdkAssertions": 13,
+        "classificationTests": 4,
+        "noRedundantHelper": true,
+        "exactCommitVerification": "pending"
+      },
       "claimAuditSample": [],
       "blockedReason": "",
       "notes": ""
