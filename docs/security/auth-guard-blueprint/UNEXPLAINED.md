@@ -72,3 +72,7 @@ CP8 SQLSTATE23503 at operation_grants_capability_digest_fkey. Read-only catalog 
 ## U11 — OPEN
 
 CP11 above0d6d6b7: base backup failed twice, exit1/stderr158bytes/SHA2563c1251d66d4016867f4ee62261187e48e0a3aa65340098fcd82c4a7cccc5a935. Temporary replication HBA rule left fingerprint unchanged. Binary-only version probe passed, ruling out missing pg_basebackup executable. Actual stderr cause still unproven; no fourth integration attempt. One final revisit reserved.
+
+## U12 — EXPLAINED (subprocess timestamp race)
+
+Exact2f4c1d3 Node run: lifecycle start/completion differed by1ms (start12:33:00.972Z versus completion.973Z),134passed1failed. begin and runStep captured UTC independently with logging between them. Deterministic regression delays start logging5ms and reproduces the same assertion. Shared single captured start fixes it; no timing threshold relaxed. The failed2f4c1d3 run remains recorded, and newHEAD requires all reruns.

@@ -6,7 +6,7 @@ export function runStep({name,timeoutMs,run}){
  const finish=result=>({name,startedAt,elapsedMs:performance.now()-began,timeoutMs,
   exitCode:result.status??null,signal:result.signal??null,
   stderrRedacted:subprocessDiagnostic(result),failed:result.status!==0});
- if(!run)return {finish};
+ if(!run)return {finish,startedAt};
  try{const value=run();return value&&typeof value.then==='function'?value.then(finish,error=>finish({error,status:null,stderr:error?.stderr})):finish(value);}
  catch(error){return finish({error,status:null,stderr:error?.stderr});}
 }

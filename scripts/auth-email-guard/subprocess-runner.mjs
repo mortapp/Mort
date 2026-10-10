@@ -46,12 +46,14 @@ export function subprocessCommandMetadata(file,args){
   return {executable,dockerOperation,fixtureRole,commandKind};
 }
 function begin(api,file,args,options){
-  const metadata={api,...subprocessCommandMetadata(file,args),startedAt:new Date().toISOString(),
+  const metadata={api,...subprocessCommandMetadata(file,args),
     timeoutMs:Number.isFinite(options?.timeout)&&options.timeout>=0?options.timeout:null};
   const began=performance.now();
-  console.error('Fixture subprocess started: '+JSON.stringify(metadata));
   const name=['subprocess',api,metadata.executable,metadata.dockerOperation,metadata.fixtureRole,metadata.commandKind].filter(Boolean).join('.');
-  return {metadata,began,step:runStep({name,timeoutMs:metadata.timeoutMs})};
+  const step=runStep({name,timeoutMs:metadata.timeoutMs});
+  metadata.startedAt=step.startedAt;
+  console.error('Fixture subprocess started: '+JSON.stringify(metadata));
+  return {metadata,began,step};
 }
 function complete(context,result,{stderrAvailable=result.stderr!=null,truncated=false}={}){
   const stderr=Buffer.isBuffer(result.stderr)?result.stderr:typeof result.stderr==='string'?Buffer.from(result.stderr):Buffer.alloc(0);

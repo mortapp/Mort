@@ -166,3 +166,5 @@ test('exec timeout records its original timeout code without printing synthetic 
     assert.equal(parsed(logger).errorCode,'ETIMEDOUT');assert.ok(!diagnostic(logger).includes('setInterval'));
   }finally{logger.mock.restore();}
 });
+
+test('one captured UTC start survives a logger crossing a clock tick',()=>{implementation();const logger=mock.method(console,'error',line=>{if(String(line).startsWith('Fixture subprocess started: ')){const end=Date.now()+5;while(Date.now()<end){}}});try{const result=runner.spawnSync(process.execPath,['-e','process.exit(0)'],{encoding:'utf8',windowsHide:true});assert.equal(result.status,0);assert.equal(metadata(logger,'completed')[0].startedAt,metadata(logger,'started')[0].startedAt)}finally{logger.mock.restore()}});
