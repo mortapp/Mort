@@ -20,3 +20,5 @@ No runtime gate inherits a historical PASS. All external gates BLOCKED; mail sen
 CP0 completed at5ff33c1; remote equals commit. Initial zero-file scan INVALID; corrected archive scan2626/0. CP1 in progress: six RED tests, focused27 GREEN.
 
 CP1 BLOCKED at03173c0 (remote equals). Node112/Deno38/web9 passed; committed scan2637/0. Three-run recovery streak absent; failures U6/U7 remain open. No threshold changed. CP2 continues independently; CP1 revisit reserved for end.
+
+CP2 DONE at75c6477; remote equals. ExactNode116/Deno38/web9; committed scan2640/0. Evidence SHA256675311e7e2ce9cca91ba8bd141f5941330cead4730a73e81df18ba0a6118d6f5. Full certification remains derivedfalse; NOT_CERTIFIED. CP3 prerequisite rerun started.

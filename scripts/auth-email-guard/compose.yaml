@@ -79,6 +79,7 @@ services:
       PGRST_DB_URI: postgres://authenticator:${FIXTURE_DB_PASSWORD:?}@db:5432/postgres
       PGRST_DB_SCHEMAS: mort_transport,storage
       PGRST_DB_ANON_ROLE: anon
+      PGRST_DB_POOL: '8'
       PGRST_JWT_SECRET: ${FIXTURE_JWT_SECRET:?}
     ports: ['127.0.0.1:55431:3000']
     networks: [fixture]

@@ -5,11 +5,11 @@ import {pending,call,signIn,cleanup} from './provider.test.mjs';
 import {captureAssertions} from './evidence.mjs';
 import {captureFailureSnapshot} from './failure-snapshot.mjs';
 import {catalogCoverage} from './catalog-coverage.mjs';
-export async function run(handle){
+export async function run(handle,{verifyLifecycle}={}){
   let owner,primaryFailure;let phase='transport-start';
-  const request=async(path,token,method='GET')=>{
+  const request=async(path,token,method='GET',outerSignal)=>{
     const started=performance.now();
-    const response=await fetch('http://127.0.0.1:55431/'+path,{method,headers:{...(token?{authorization:'Bearer '+token}:{}),'content-type':'application/json'},...(method==='POST'?{body:'{}'}:{}),signal:AbortSignal.timeout(4000)});
+    const response=await fetch('http://127.0.0.1:55431/'+path,{method,headers:{...(token?{authorization:'Bearer '+token}:{}),'content-type':'application/json'},...(method==='POST'?{body:'{}'}:{}),signal:outerSignal?AbortSignal.any([outerSignal,AbortSignal.timeout(4000)]):AbortSignal.timeout(4000)});
     const data=await response.json();return {status:response.status,data,elapsedMs:performance.now()-started};
   };
   try{
@@ -65,6 +65,7 @@ export async function run(handle){
     const percentile=(rows,p)=>[...rows].sort((a,b)=>a-b)[Math.ceil(rows.length*p)-1];
     handle.preRequestEvidence={scope:'fixture PostgREST table view definer RPC',latencyScope:'owner table GET; serial off then on; client-observed, not isolated SQL cost',requests:40,concurrency:1,off:{p50Ms:percentile(timings.off,.5),p95Ms:percentile(timings.off,.95)},on:{p50Ms:percentile(timings.on,.5),p95Ms:percentile(timings.on,.95)},hostedChanged:false};
     console.log('OBSERVED pre-request latency: '+JSON.stringify(handle.preRequestEvidence));
+    if(verifyLifecycle)await verifyLifecycle({owner,fresh,paths,request});
   }catch(error){primaryFailure=error;console.error('FAIL pre-request fixture: '+JSON.stringify(error.guardAssertion??{stage:phase,name:['Error','TypeError','TimeoutError','AbortError'].includes(error.name)?error.name:'unknown',healthDiagnostic:/^Fixture transport health timeout: port [0-9]+, outcome [A-Za-z0-9_]+$/.test(error.message??'')?error.message:null,valuesRedacted:true}));console.error('FAILURE fixture snapshot: '+JSON.stringify(captureFailureSnapshot(handle)));throw error;}
   finally{
     try{

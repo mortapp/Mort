@@ -6,7 +6,7 @@ import pg from 'pg';
 import {startFixture,fixtureProcessEnv} from './fixture.mjs';
 import {captureAssertions,serializeEvidence,digestState} from './evidence.mjs';
 import {caseMappings,operationalMappings,runCase} from './cases.mjs';
-import {loadRequirements} from './coverage.mjs';
+import {loadRequirements,validateCoverage} from './coverage.mjs';
 import {auditFixtureLogs} from './log-audit.mjs';
 import {sessionLiveCharacterization} from './local-characterizations.mjs';
 import {captureFailureSnapshot} from './failure-snapshot.mjs';
@@ -55,6 +55,7 @@ export async function run(){
   assertLongRunSafety({durationMs:3600000,powerRequestVerified:process.env.MORT_GUARD_POWER_REQUEST_VERIFIED==='process-scoped-windows'});
   certificationStage='requirements';
   const requirements=await loadRequirements(),head=child('git',['rev-parse','HEAD']).trim();
+  validateCoverage(requirements.records.filter(r=>r.id.startsWith('MD2-')).map(r=>r.id),caseMappings);
   const sourcePaths=['scripts/auth-email-guard','web/auth/challenge','supabase/functions/_shared/auth_email_guard','supabase/functions/mort-auth-email-hook','supabase/functions/mort-auth-email-guard','supabase/migrations/20261008130945_mort_email_fixture_control_retention.sql','supabase/migrations/20261008135853_mort_email_restore_session_epoch.sql','supabase/migrations/20261008151312_mort_email_fixture_baseline_snapshot.sql'];
   const sourceStatus=()=>child('git',['status','--porcelain','--',...sourcePaths]).trim();
   const sourceSnapshot=async()=>{
@@ -68,7 +69,7 @@ export async function run(){
   if(!/^[a-f0-9]{40}$/.test(head))throw new Error('Candidate identity unavailable');
   certificationStage='fixture-start';
   const fixture=await startFixture(),observations=[],started=performance.now();
-  const suiteNames=['provider-ingress','provider-recovery','session-live','transport-cleanup','guarded-jwt-transports','provider-drift','logging','state','issuance','grant','bypass','hook-boundary','delivery','smtp-fault','cutover','retention','load','security','log-audit'];
+  const suiteNames=['provider-ingress','provider-recovery','session-live','transport-cleanup','guarded-jwt-transports','pre-request-lifecycle','provider-drift','logging','state','issuance','grant','bypass','hook-boundary','delivery','smtp-fault','cutover','retention','load','security','log-audit'];
   const timings={},suiteStates={};
   for(const name of suiteNames){
     certificationStage=name+':state-before';
@@ -106,6 +107,7 @@ export async function run(){
   nodeFiles.push('scripts/auth-email-guard/certification-gates.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/catalog-coverage.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/blueprint-certification.test.mjs');
+  nodeFiles.push('scripts/auth-email-guard/request-gate-load.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/verify-blueprint-lock.test.mjs','scripts/auth-email-guard/checkpoint-diagnostics.test.mjs','scripts/auth-email-guard/fixture-certificate.test.mjs','scripts/auth-email-guard/startup-diagnostic.test.mjs','scripts/auth-email-guard/cleanup-primary.test.mjs');
   const browserFiles=['web/auth/challenge/controller.test.mjs','web/auth/challenge/transport.test.mjs','web/auth/challenge/build.test.mjs','web/auth/challenge/browser.test.mjs'];
   const nodeOutput=child('node',['--test','--test-reporter=tap',...nodeFiles,...browserFiles],{MORT_GUARD_BROWSER_MODULES:process.env.MORT_GUARD_BROWSER_MODULES??'C:\\Users\\micha\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\node_modules'});
@@ -162,6 +164,7 @@ export async function run(){
   output.localCharacterizations.oldJwt.status='HISTORICAL_RED_FINDING_UNPROTECTED_BASELINE';
   output.localCharacterizations.oldJwt.historicalHead='082e8431b1aa4b788b6edb4c9c3245f007f1660c';
   output.localCharacterizations.guardedJwt=fixture.guardedExpiryEvidence;
+  output.localCharacterizations.preRequestLifecycle=fixture.preRequestLifecycleEvidence;
   console.log('MORT_GUARD_EVIDENCE_JSON '+JSON.stringify(output));return report;
 }
 if(process.argv[1]&&resolve(process.argv[1])===resolve(import.meta.filename)){

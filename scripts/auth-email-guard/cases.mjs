@@ -118,7 +118,7 @@ export const operationalMappings=[
   {id:'MD-119',disposition:'BLOCKED',assertions:[],reason:'RED finding: actual default GoTrue output exposes synthetic mailbox identifiers, and Auth audit payload retains them under default/fatal provider profiles. Hook, SMTP and database-output observations are recorded separately; fatal suppression is not redaction. Hosted traces, metrics, error-reporting and deployed sinks remain uninspected.'},
   {id:'MD-120',disposition:'EXECUTE',assertions:['cutover:Snapshot expired and consumed challenges remain unusable after actual restore','cutover:Restored once-used item cannot issue authority again','cutover:Restored capability cannot reserve again','cutover:Restored old Admin grant cannot change a password','cutover:Restore never revives a pre-backup refresh session revoked by recovery','retention:Expired encrypted recipient/payload erased immediately','state:Deletion racing redemption leaves no active orphan proof']},
 ];
-validateCoverage(Array.from({length:191},(_,i)=>`MD2-${String(i+1).padStart(3,'0')}`),caseMappings);
+validateCoverage([...mappings.keys()].sort((a,b)=>a-b).map(i=>`MD2-${String(i).padStart(3,'0')}`),caseMappings);
 export function runCase(id,observations,context){
   const mapping=[...caseMappings,...operationalMappings].find(row=>row.id===id);if(!mapping)throw new Error('Unowned requirement');
   if(mapping.disposition!=='EXECUTE')return {id,status:mapping.disposition,reason:mapping.reason,assertions:[],...context};
