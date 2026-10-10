@@ -69,7 +69,7 @@ export async function run(){
   if(!/^[a-f0-9]{40}$/.test(head))throw new Error('Candidate identity unavailable');
   certificationStage='fixture-start';
   const fixture=await startFixture(),observations=[],started=performance.now();
-  const suiteNames=['provider-ingress','provider-recovery','session-live','transport-cleanup','guarded-jwt-transports','pre-request-lifecycle','native-session-live','sdk-session','provider-drift','logging','state','issuance','grant','bypass','hook-boundary','delivery','smtp-fault','cutover','retention','load','security','log-audit'];
+  const suiteNames=['provider-ingress','provider-recovery','session-live','transport-cleanup','guarded-jwt-transports','pre-request-lifecycle','native-session-live','sdk-session','shared-source-limits','limited-source-recovery','provider-drift','logging','state','issuance','grant','bypass','hook-boundary','delivery','smtp-fault','cutover','retention','load','security','log-audit'];
   const timings={},suiteStates={};
   for(const name of suiteNames){
     certificationStage=name+':state-before';

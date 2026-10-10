@@ -1,3 +1,4 @@
+import { directPeerSource } from "./trusted-source.ts";
 import pg from "pg";
 import { Webhook } from "standardwebhooks";
 import { createFixtureStore } from "./store.ts";
@@ -197,7 +198,7 @@ try {
   );
   check(capturedLink, "Captured owned link required for real gateway test");
   const provider = await createFixtureProvider(config, store!);
-  const admission = new Admission(), sourceSalt = makeSecret();
+  const admission = new Admission(), sourceKey = await crypto.subtle.generateKey({name:"HMAC",hash:"SHA-256"},false,["sign"]);
   gateway = Deno.serve({
     hostname: "127.0.0.1",
     port: 55426,
@@ -212,7 +213,7 @@ try {
     }
     return await handleEmailGuard(request, {
       mode: "local_fixture",
-      sourceHash: await secretDigest(sourceSalt + ":" + remote.hostname),
+      sourceHash: await directPeerSource(remote.hostname, sourceKey),
       admission,
       allowedOrigins: ["https://mortapp.org"],
       codeKey,

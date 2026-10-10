@@ -8,7 +8,7 @@ import {call,cleanup,pending,signIn} from './provider.test.mjs';
 import {planControl,applyLocalControl,fixtureDirectory} from './control.mjs';
 import {recordSubprocessFailure} from './subprocess-diagnostic.mjs';
 import {completeCleanup} from './cleanup-primary.mjs';
-export async function run(handle,{logLevel='fatal',action='signup',recoveryScenario,beforeCleanup}={}){
+export async function run(handle,{logLevel='fatal',action='signup',recoveryScenario,beforeCleanup,beforeProviderRequest}={}){
   assert.ok(['signup','recovery'].includes(action),'Only named fixture ingress actions are allowed');
   const recoveryAuditPath=recoveryScenario?resolve(fixtureDirectory,`recovery-audit-${randomUUID()}.json`):undefined;
   let phase='install',primaryFailure;
@@ -30,6 +30,7 @@ export async function run(handle,{logLevel='fatal',action='signup',recoveryScena
         phase='baseline-signin';
         assert.equal((await signIn(handle,user,user.password)).status,200,'Verified baseline recovery account signs in before reset');
       }
+      if(beforeProviderRequest)await beforeProviderRequest({id});
       phase='provider-recover';
       assert.equal((await call(handle,'/recover',{email})).status,200,'Actual public provider recovery reaches the installed Send Email hook');
     }else{

@@ -4,7 +4,7 @@ import pg from 'pg';
 import {assertMortAuthFixture} from './fixture.mjs';
 import {pending,call,cleanup} from './provider.test.mjs';
 const digest=(value=randomBytes(32))=>createHash('sha256').update(value).digest('hex');
-export async function run(handle){
+export async function run(handle,{verifySharedSources}={}){
   assertMortAuthFixture(handle,handle.observed);
   const db=new pg.Client({connectionString:handle.dbUrl,connectionTimeoutMillis:2000});
   const pool=new pg.Pool({connectionString:handle.dbUrl,max:8,connectionTimeoutMillis:2000});
@@ -139,6 +139,7 @@ export async function run(handle){
     assert.ok(admissions.filter(x=>x.ok).length===20,'Eight real connections atomically admit at most twenty of twenty-four queued events');
     const extra={id:randomUUID(),recipientHash:digest()};assert.ok(!(await issue(request(extra))).ok,'Concurrent-safe queue occupancy is capped at twenty');
     await scopeClean();
+    if(verifySharedSources)await verifySharedSources({account,request,issueWith,scopeClean,claim,dispatch,finish,db});
     console.log('PASS issuance/promotion: idempotency, fixed family, cooldown/grace, terminal states, source quotas, delivery concurrency, deferred signup, queue bounds and positive controls');
   }finally{
     let failed=false;if(connected){

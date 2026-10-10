@@ -542,14 +542,15 @@
     {
       "id": "CP6",
       "status": "BLOCKED",
-      "commit": "",
-      "tag": "",
+      "commit": "473db941beb79981351ba1ec0c6c85b76c8859a5",
+      "tag": "guard-cp6-blocked-473db94",
       "startedAt": "2026-10-10T08:12:59.372Z",
       "finishedAt": "2026-10-10T08:12:59.372Z",
       "audit": {
         "migrationWritten": false,
-        "migrationApplied": false,
-        "noEmptyPass": true
+        "scanFiles": 2658,
+        "findings": 0,
+        "remoteEqualsHead": true
       },
       "claimAuditSample": [],
       "blockedReason": "",
@@ -563,7 +564,13 @@
       "tag": "",
       "startedAt": "2026-10-10T08:12:59.372Z",
       "finishedAt": "",
-      "audit": {},
+      "audit": {
+        "sourceTests": 6,
+        "sharedAssertions": 77,
+        "limitedRecoveryAssertions": 17,
+        "exactHead": "pending",
+        "hostedSourceHeader": "BLOCKED"
+      },
       "claimAuditSample": [],
       "blockedReason": "",
       "notes": ""
