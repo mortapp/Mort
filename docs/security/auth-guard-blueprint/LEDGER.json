@@ -620,17 +620,21 @@
     },
     {
       "id": "CP10",
-      "status": "IN_PROGRESS",
-      "commit": "",
-      "tag": "",
+      "status": "DONE",
+      "commit": "0d6d6b7373238b5a34b0bc29f0eeaaeeafbdee0a",
+      "tag": "guard-cp10-0d6d6b7",
       "startedAt": "2026-10-10T12:01:40.770Z",
-      "finishedAt": "",
+      "finishedAt": "2026-10-10T12:19:52.334Z",
       "audit": {
+        "nodeTests": 129,
+        "denoTests": 52,
+        "browserTests": 9,
+        "retentionAssertions": 8,
         "loggingAssertions": 23,
-        "auditRetention": "working-source GREEN",
-        "sinkInventory": 1,
-        "guardHandlerTests": 8,
-        "exactHead": "pending"
+        "scanFiles": 2680,
+        "findings": 0,
+        "remoteEqualsHead": true,
+        "evidenceSha256": "6acf72a32c87831f4541d054e5c9a39fc9cfc7dcee8ff7308ba3bfb9a870a46f"
       },
       "claimAuditSample": [],
       "blockedReason": "",
@@ -638,15 +642,20 @@
     },
     {
       "id": "CP11",
-      "status": "NOT_STARTED",
+      "status": "BLOCKED",
       "commit": "",
       "tag": "",
-      "startedAt": "",
-      "finishedAt": "",
-      "audit": {},
+      "startedAt": "2026-10-10T12:19:52.335Z",
+      "finishedAt": "2026-10-10T12:19:52.335Z",
+      "audit": {
+        "helperUnitTests": 4,
+        "streamingAssertionsExecuted": 0,
+        "promotionAssertionsExecuted": 0,
+        "exactHead": "pending"
+      },
       "claimAuditSample": [],
-      "blockedReason": "",
-      "notes": ""
+      "blockedReason": "Three diagnostic attempts exhausted; pinned base-backup step exit1 unclassified158bytes",
+      "notes": "One final revisit reserved; known setup failure retained."
     },
     {
       "id": "CP12",

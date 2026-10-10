@@ -38,3 +38,5 @@ CP7 DONE at4478796: exactNode126/Deno44/web9; scan2663/0; remoteequals. CP8 BLOC
 CP8 pushed8948e19, exact128Node/51Deno/9browser, scan2672/0. CP9 BLOCKED: provider complexity notconfigured, protectedsignupcopy lacksmax128. Namedtests1GREEN2RED; no provider parity or Flutterruntimeclaim. CP10 continues.
 
 CP9 pushed7f72650; exactcontract1PASS2FAIL, scan2675/0,remoteequals. CP10 actualrecoverylogging23 and auditretention GREEN; knownINFOaddress17/Authaudit7 perprofile retained. ExactHEAD checks pending.
+
+CP10 DONE at0d6d6b7: exact129Node/52Deno/9browser, retention8/logging23, scan2680/0, remoteequals. CP11 BLOCKED afterthree attempts; helper4GREEN but no streaming/promotion PASS. Underlying basebackup failure unproven.
