@@ -7,6 +7,9 @@ class SchoolDirectoryEntry {
     required this.state,
     required this.schoolType,
     this.district,
+    this.schoolRecordVerified = false,
+    this.lowestGrade,
+    this.highestGrade,
   });
 
   final String id;
@@ -16,6 +19,9 @@ class SchoolDirectoryEntry {
   final String state;
   final String schoolType;
   final String? district;
+  final bool schoolRecordVerified;
+  final int? lowestGrade;
+  final int? highestGrade;
 
   factory SchoolDirectoryEntry.fromJson(Map<String, dynamic> json) =>
       SchoolDirectoryEntry(
@@ -26,7 +32,20 @@ class SchoolDirectoryEntry {
         city: json['city'] as String,
         state: json['state'] as String,
         schoolType: json['school_type'] as String,
+        schoolRecordVerified: json['school_record_verified'] == true,
+        lowestGrade: (json['lowest_grade'] as num?)?.toInt(),
+        highestGrade: (json['highest_grade'] as num?)?.toInt(),
       );
+
+  String get locationLabel => '$city, $state';
+
+  String? get gradeSpanLabel {
+    final low = lowestGrade;
+    final high = highestGrade;
+    if (low == null || high == null) return null;
+    if (low == high) return 'Grade $low';
+    return 'Grades $low–$high';
+  }
 
   String get typeLabel => switch (schoolType) {
     'high_school' => 'High school',
