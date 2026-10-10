@@ -1,0 +1,388 @@
+{
+  "sha": "dccf5eb5b14eebdb15f8f5a4ebe11c9d9fe604a6",
+  "branch": "feature/mort-age-aware-auth-social",
+  "capturedAt": "2026-10-10T06:15:48.227Z",
+  "leftAlonePathsFile": "docs/security/auth-guard-blueprint/left-alone.txt",
+  "entries": [
+    {
+      "path": "backend/convex-recovery/.gitignore",
+      "sha256": "9c544d8e5c22a7e07720fb92c232920153a1842bcf131d846f15cfa7664a2eb4"
+    },
+    {
+      "path": "backend/convex-recovery/README.md",
+      "sha256": "47363422a0a462269cf423d43783913ff963f8cec4cd12ef6d9e65b8c564d113"
+    },
+    {
+      "path": "backend/convex-recovery/compose.yaml",
+      "sha256": "f93c832e565b552e08df9af6f788c9b7f7fc0d50bb3fe92a87cfa075bd8115c3"
+    },
+    {
+      "path": "backend/convex-recovery/convex/recovery.ts",
+      "sha256": "651ffeaa5aa0ab9458fd05a0021b6eb25fe468a901ba6336e2952129004be71f"
+    },
+    {
+      "path": "backend/convex-recovery/convex/schema.ts",
+      "sha256": "03ba42a8105fe71135f45ee31062af970605c950b9dd0a141aa9e89a306fd3ed"
+    },
+    {
+      "path": "backend/convex-recovery/deploy-local.mjs",
+      "sha256": "811c2061f19b0e08a3ac6a1195ba94a314c2f96a3ca44d31f8bbeb6553b78746"
+    },
+    {
+      "path": "backend/convex-recovery/lib/envelope.mjs",
+      "sha256": "75d4f974ed43778ac6e6512186f90aa2f869faffe93dd6affda6edd0495ab6b9"
+    },
+    {
+      "path": "backend/convex-recovery/lib/runtime-secrets.mjs",
+      "sha256": "55214d7294b52ae964484dbda07dcc2a07268049ddab5d24f68fdc9a57d26ed5"
+    },
+    {
+      "path": "backend/convex-recovery/lib/snapshots.mjs",
+      "sha256": "a112b3350dd212ed827fdf80e46e005e6bad7e93652bd7b349d94a2ee5656ad7"
+    },
+    {
+      "path": "backend/convex-recovery/package-lock.json",
+      "sha256": "42b432e4c3b3699e94751c8baf4dbd0cf4dfcbfd3867373b9d8b2563e0ebb542"
+    },
+    {
+      "path": "backend/convex-recovery/package.json",
+      "sha256": "274c4d582378bd4b0b5d18850672f23bdfeb14dcb11d0ff779df36f27775c0ea"
+    },
+    {
+      "path": "backend/convex-recovery/qa-local.mjs",
+      "sha256": "fac322485a8abcb6ea412a45af16fc4ee63b22ed1fbf9e60cf32a27cb42d5412"
+    },
+    {
+      "path": "backend/convex-recovery/start-local.ps1",
+      "sha256": "c60ce7088dc4c04fe1068e4337d44d3b19cf659f9d6e567bbffda0a610414f54"
+    },
+    {
+      "path": "backend/convex-recovery/test/envelope.test.mjs",
+      "sha256": "214ac6689e5ea47251166c36da59c344b394fe37402adb62a2a230ffb7a6aa9b"
+    },
+    {
+      "path": "backend/convex-recovery/tsconfig.json",
+      "sha256": "f9c9fa2f717b3170cde437b227bae8d57899f9a1b8b841d77ba5f369410aa06a"
+    },
+    {
+      "path": "docs/security/MORT_AUTH_EMAIL_OPERATIONS.md",
+      "sha256": "d494f116587ffc6d4e6aa814eb9e6b43b76910157276e9649f8ea2cc93d09040"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-10-07-age-auth-friends-recovery.md",
+      "sha256": "d81c8cffa37d27cf43beb9a1c6388077546a7c804791f5f9829e50e955f0fe5b"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-10-07-age-auth-friends-recovery-design.md",
+      "sha256": "e61b4c1bd0303afb258aafcc903c178df93261ec460d9feb5e329d7585c73c7c"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-10-07-managed-email-five-attempt-guard-design.md",
+      "sha256": "c9cc08802757298addae9acdec709765b8805eb0edbfc3b29a54736f37c5bf82"
+    },
+    {
+      "path": "flutter_mort/lib/data/repositories/adult_phone_auth_repository.dart",
+      "sha256": "64f3cb2779b3dde406f04f8d0a833ddbbb35b4c8c24aaa082eef5b7134c32ff1"
+    },
+    {
+      "path": "flutter_mort/lib/data/repositories/friends_repository.dart",
+      "sha256": "0a6bde13278babb323f41f33d177d4c13329eb2d3c6c36f7d6b796559df51fa4"
+    },
+    {
+      "path": "flutter_mort/lib/features/auth/adult_phone_auth_screen.dart",
+      "sha256": "aa55826d0aa809a9f6e0daca18b5a4309c65aaee4c9b2b1d7555c5428039fd9b"
+    },
+    {
+      "path": "flutter_mort/lib/features/auth/auth_challenge_screen.dart",
+      "sha256": "3faedccf46798dcabecce10dc55a4a8cfff62861e3f51b68103b7f69775d350e"
+    },
+    {
+      "path": "flutter_mort/lib/features/auth/auth_challenge_view.dart",
+      "sha256": "7d8b32f6c6b9235796287f394960e37e4936d2c5eafd0c33fdcc560b5f71258c"
+    },
+    {
+      "path": "flutter_mort/lib/features/auth/auth_challenge_view_native.dart",
+      "sha256": "9bc153d68b57cadb73aac2e2d5fd2292c28b3e94b1732eac4e1a3a9d659b04ae"
+    },
+    {
+      "path": "flutter_mort/lib/features/auth/auth_challenge_view_stub.dart",
+      "sha256": "f639e29367bd944c458adf0ded943e4f211e3e764d7b1591f8ace27bb6277274"
+    },
+    {
+      "path": "flutter_mort/lib/features/auth/auth_challenge_view_web.dart",
+      "sha256": "39c1f1044a9e21f0bffbb3a9208c82c4442c2693307e5c002c1574ba4bf9ba91"
+    },
+    {
+      "path": "flutter_mort/lib/features/auth/email_verification_screen.dart",
+      "sha256": "a91bd7173b99d7a64dfcb3ebbce7f2d8f245e2a41dbd797959de633a9590d753"
+    },
+    {
+      "path": "flutter_mort/lib/features/friends/friends_screens.dart",
+      "sha256": "f9ed47389423caf32b6cb7eca3e71e8d940b62b4c53b06a09d0f39748c92d950"
+    },
+    {
+      "path": "flutter_mort/test/adult_phone_auth_test.dart",
+      "sha256": "1f43f72fc30c0fe5284e9067d46d7aeca7f67dca939903a89d9828e16493d1f0"
+    },
+    {
+      "path": "flutter_mort/test/friends_auth_navigation_test.dart",
+      "sha256": "7da4bc3ca6ee4f380705ace9d4b35e65064fd2d21cbcbcafaa500f13a545a82a"
+    },
+    {
+      "path": "flutter_mort/test/guardian_acceptance_rpc_test.dart",
+      "sha256": "de0ce497610aab1d3b4f2d889e24cc4b6dfd39489d04cd6a2e9364a60d9928f4"
+    },
+    {
+      "path": "scripts/mort-auth-provider-audit.mjs",
+      "sha256": "d6c4a7136428b2449a07e9ad190dfadb26d2bdf943dbbb2f435ef74edf2b0590"
+    },
+    {
+      "path": "scripts/qa-secure-invite-credentials.mjs",
+      "sha256": "8ba18f5caf96d79f07d23f1b2c82846084fea253c987bd919d87bd738cd13329"
+    },
+    {
+      "path": "supabase/migrations/20261007155743_protected_friends_auth_readiness.sql",
+      "sha256": "886fa982ea1f20e7dc51159223b482bed7739101160997caaba2a29c4603893f"
+    },
+    {
+      "path": "supabase/migrations/20261007161557_protected_friend_safety_evidence.sql",
+      "sha256": "4415088aaae718bdb0fbcd2752ae06fe4ab101d7bc9bc2c1a1dbdb54c6a0d6fe"
+    },
+    {
+      "path": "supabase/migrations/20261007221624_secure_invite_credentials_and_email_expiry.sql",
+      "sha256": "59045b559bb69f27a1a3e45a91f289a69da9fe71aa7ebafdedbe9e76cc4aa694"
+    },
+    {
+      "path": "supabase/migrations/20261007223409_compatibility_alias_secure_invite_credentials_and_email_expiry.sql",
+      "sha256": "3cfcdff6de196e6afc2eea13b9f2e28fedb1b6bb50b4690de9cd1df1506d0328"
+    },
+    {
+      "path": "supabase/tests/protected_friends.sql",
+      "sha256": "be642df473a36545860b478b0557d0f2c0b45094e53a467848da891b9b5831d9"
+    },
+    {
+      "path": "web/auth/build-auth-pages.mjs",
+      "sha256": "49048e6c2576af7d445fbad559c819ca4bb955d68975dca87de3d28b9949cc4b"
+    },
+    {
+      "path": "web/auth/recovery/index.html",
+      "sha256": "7dc38a9fc4fdb9507e92f4dfb1b7011c93bf475ecde01f4236c1f9c8852e3d19"
+    },
+    {
+      "path": "web/auth/recovery/recovery-gate.mjs",
+      "sha256": "d760af0b76969f2c4efceef039388b72edea8f3f5d6a505d062273c010724362"
+    },
+    {
+      "path": "web/auth/recovery/recovery.css",
+      "sha256": "7502fe4de5da9d2813e8bded3891616608820fbac191444d567d1dd278594274"
+    },
+    {
+      "path": "web/auth/recovery/recovery.js",
+      "sha256": "5243d77c9b390a3679a25cc6102b164d9fcaf80065d6c21fbaf35870d9d6efc3"
+    },
+    {
+      "path": "web/auth/recovery/recovery.test.mjs",
+      "sha256": "17fcf88c09f3034f44be687a0ad7c5cb66689e83e7abf03d68db66bc90092185"
+    },
+    {
+      "path": "web/auth/security-check/index.html",
+      "sha256": "d70e37f0a2d8ee7a02fea823c58f2caa513c7a3e98484e107570b8aed63ec737"
+    },
+    {
+      "path": "web/auth/security-check/security-check.css",
+      "sha256": "c163fe72343e082687986e607b6e17744c897792d7f2dd2b0cf1ebef0fe95f1d"
+    },
+    {
+      "path": "web/auth/security-check/security-check.js",
+      "sha256": "987933eca0dcc38d828fd6a7e0a18220dfa20089055d2b0789810e00aa2e7cdb"
+    },
+    {
+      "path": "web/public/auth/password-policy.mjs",
+      "sha256": "3ba0f1e9605923f93bad2788edef1c80f0b55ba9453642ace66def6557913b27"
+    },
+    {
+      "path": "web/public/auth/recovery/index.html",
+      "sha256": "7dc38a9fc4fdb9507e92f4dfb1b7011c93bf475ecde01f4236c1f9c8852e3d19"
+    },
+    {
+      "path": "web/public/auth/recovery/public-config.mjs",
+      "sha256": "8b16a9766e66c33dda2a081f35eb08ceb9a582609948e43e52abc4ca452882b0"
+    },
+    {
+      "path": "web/public/auth/recovery/recovery-gate.mjs",
+      "sha256": "d760af0b76969f2c4efceef039388b72edea8f3f5d6a505d062273c010724362"
+    },
+    {
+      "path": "web/public/auth/recovery/recovery.css",
+      "sha256": "7502fe4de5da9d2813e8bded3891616608820fbac191444d567d1dd278594274"
+    },
+    {
+      "path": "web/public/auth/recovery/recovery.js",
+      "sha256": "5243d77c9b390a3679a25cc6102b164d9fcaf80065d6c21fbaf35870d9d6efc3"
+    },
+    {
+      "path": "web/public/auth/security-check/index.html",
+      "sha256": "d70e37f0a2d8ee7a02fea823c58f2caa513c7a3e98484e107570b8aed63ec737"
+    },
+    {
+      "path": "web/public/auth/security-check/security-check.css",
+      "sha256": "c163fe72343e082687986e607b6e17744c897792d7f2dd2b0cf1ebef0fe95f1d"
+    },
+    {
+      "path": "web/public/auth/security-check/security-check.js",
+      "sha256": "987933eca0dcc38d828fd6a7e0a18220dfa20089055d2b0789810e00aa2e7cdb"
+    },
+    {
+      "path": "deno.lock",
+      "sha256": "5b31f595af90b423bdc2dd48728c1ed20db457f46fe1c077db8cd48a213d33c2"
+    },
+    {
+      "path": "flutter_mort/lib/core/routing/app_router.dart",
+      "sha256": "ecb74613009fc32f5720e005fcad4db98b71b2579894f21144c87a7e0aebb04a"
+    },
+    {
+      "path": "flutter_mort/lib/data/repositories/auth_repository.dart",
+      "sha256": "89d3aad81a29872628967eb4753db67ea36c0c3b8b45d99cf40461bfe1dcb881"
+    },
+    {
+      "path": "flutter_mort/lib/data/repositories/guardian_repository.dart",
+      "sha256": "7521c0e4fa9c5f02a6803be05f0e370b48adc1b47bbab26223b7889264308f4a"
+    },
+    {
+      "path": "flutter_mort/lib/features/auth/unified_auth_screen.dart",
+      "sha256": "f0c997c832a9c924b5833de8affe406860009c74a9f40aa26eeefa66f50d4078"
+    },
+    {
+      "path": "flutter_mort/lib/features/guardian/guardian_mode_screens.dart",
+      "sha256": "44ada1beeb16d6b3001f9fe00d54d6686ada95f96742d33f9bdbfffc1f20f3a1"
+    },
+    {
+      "path": "flutter_mort/lib/features/mort_screens.dart",
+      "sha256": "8522b9f7af180f86c9679997e409179a22d84bc20f76a274e189341e5789c48c"
+    },
+    {
+      "path": "flutter_mort/lib/features/safety/trust_safety_screens.dart",
+      "sha256": "c8ed2dc150909dd16f0fc33b5b5ab78401817ebe7e15cdfe248191f3432c7706"
+    },
+    {
+      "path": "flutter_mort/pubspec.lock",
+      "sha256": "09e6b7963e9d0bd7cd12fab83723523829a06e7164ba55aa9f50fff4c7e34367"
+    },
+    {
+      "path": "flutter_mort/pubspec.yaml",
+      "sha256": "fcb5be163e6e496854483fced85ce2b523e4277459afa822fb2f56c279cf5f00"
+    },
+    {
+      "path": "flutter_mort/test/production_readiness_contract_test.dart",
+      "sha256": "f594d7622db2c4f7966f14ba688cb91e7ef00b3073b9f52b7ca6b96f8a9f3529"
+    },
+    {
+      "path": "lib/uploads.ts",
+      "sha256": "64b43204eb49f681db45c77ad15b540b399b24216a8954b82e61d46c130b16d0"
+    },
+    {
+      "path": "package.json",
+      "sha256": "1c27da27040249929ac1732baf137c673b32af9082ac1d3a5f2342732cf20b80"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "sha256": "24b3ff41d84af4f416d29042d8558209b8f4118654894cf1c69d4f501477c8ce"
+    },
+    {
+      "path": "scripts/build-public-legal-site.mjs",
+      "sha256": "1e19387bc6845cf55f423c8f6a561eec849c96eb2c5d91a8dc639d006476a408"
+    },
+    {
+      "path": "scripts/qa-migration-reconciliation-parity.mjs",
+      "sha256": "36947fa249e756895523cd3b2797ce18d21560c2a52dea9e7a3e918d4b112466"
+    },
+    {
+      "path": "supabase/config.toml",
+      "sha256": "65be6c76465bc46a08e6e300fcc32e1a7cc66bbcdfca2a32734477a91984f4af"
+    },
+    {
+      "path": "supabase/functions/mort-verify/index.ts",
+      "sha256": "e321f7e9f548c550444c760fcd4090e762dc69621a57d0d6386e6ee01d5a81e2"
+    },
+    {
+      "path": "web/netlify.toml",
+      "sha256": "046a31d5644031d5ec18216952a19c4f8cb48df17dd0100834a06d9eb8489728"
+    },
+    {
+      "path": "web/public/_headers",
+      "sha256": "0974877b012c085af8be5345c02e7ff75ed8a7246bb226371eeb098ec750dcf3"
+    },
+    {
+      "path": "web/public/_redirects",
+      "sha256": "1c8d5abd7a4b8fc20d71f73f3f9412b38c18db829e01ab5893af7c0e36880a18"
+    },
+    {
+      "path": "web/public/accessibility/index.html",
+      "sha256": "2092c19f1a901392b6b7bd35524b66b1169f28a6b0d19f02d4d3577a51e56907"
+    },
+    {
+      "path": "web/public/account-deletion/index.html",
+      "sha256": "2bf4fb48c297a88da08ec583a3a251088736e5f2a47930ecd2072af88464aa7a"
+    },
+    {
+      "path": "web/public/assets/archive.css",
+      "sha256": "fa2bff031cae80d2c4a245ba2a946e6a1db0878dda6437ea93648e19d1138dc2"
+    },
+    {
+      "path": "web/public/assets/favicon.svg",
+      "sha256": "27a42408bf46fc68863fba87bcb23290db9107b667c9cf229ff19c6ab0e3526c"
+    },
+    {
+      "path": "web/public/child-safety-standards/index.html",
+      "sha256": "f5401e2838b250351af15194c1d1ea3aa4ac122905c8978d2261b0dc71883a4c"
+    },
+    {
+      "path": "web/public/community-guidelines/index.html",
+      "sha256": "b3805991306e5f4e2b3a161c3072ab1697fc90617821d652ab142ac5c9be7f92"
+    },
+    {
+      "path": "web/public/contact/index.html",
+      "sha256": "75741b403ac3b53679d7e8fe63a420ff055acb5e1f56b8485bf7a76be6d80489"
+    },
+    {
+      "path": "web/public/index.html",
+      "sha256": "5a812a85a9052454683acf8388f8da0c3ec5936d03f82b5042ce365893970578"
+    },
+    {
+      "path": "web/public/payment-disputes/index.html",
+      "sha256": "54f17eb9a3a5e92a08a4a0ae01a4e8036cf824be7230751c4fe02dfa05afac44"
+    },
+    {
+      "path": "web/public/privacy/index.html",
+      "sha256": "88853ab26ccbbced7007c819fbbdcf1116d8cd87402bb242d7966539db3c5670"
+    },
+    {
+      "path": "web/public/prohibited-jobs/index.html",
+      "sha256": "70d2c5ef9d5d9cbdd88b6b054f0acb7a4a5c309fd46b839b8dcc573c81b1e402"
+    },
+    {
+      "path": "web/public/release-status.json",
+      "sha256": "a9d06983c9ae7319324e1ba344cc3b9aaa35cfbb8ac8113b33f68da94b10b1fa"
+    },
+    {
+      "path": "web/public/safety/index.html",
+      "sha256": "33aeb051a35ba24efe4d36e4074ae164693e5be0741d51ec1350878228d428cc"
+    },
+    {
+      "path": "web/public/support/index.html",
+      "sha256": "261d20bb16a839ac0a9a372c9bb791cd99c60a5f9a8ecb96059abf92c9b045cb"
+    },
+    {
+      "path": "web/public/terms-of-use/index.html",
+      "sha256": "ed55bf665c1b75fe1fabab858d3e3f704fd0a10c0b3fee6c3939772ecc56e06f"
+    },
+    {
+      "path": "web/public/terms/index.html",
+      "sha256": "41dbf8de5b0e21a0cbf155edf1a80414671fa1d6140578290090de6e49439a3d"
+    },
+    {
+      "path": "web/public/vercel.json",
+      "sha256": "3561079e17c851e243a4af6dee8d241455299b9d374f2df903e74e7109d0c95d"
+    }
+  ]
+}

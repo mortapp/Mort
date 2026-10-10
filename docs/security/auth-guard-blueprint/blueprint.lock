@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "algorithm": "SHA-256",
+  "normalization": "CRLF to LF only",
+  "sections": [
+    {
+      "part": 1,
+      "heading": "1. MISSION AND END GOAL [IMMUTABLE]",
+      "sha256": "a95eff70df8e3bc64d9dcf0b7be9f9c6d23df79da317041c88d311b4014ee7ae"
+    },
+    {
+      "part": 1,
+      "heading": "2. THE IMMUTABLE CORE [IMMUTABLE]",
+      "sha256": "070b56706c74d56a9e34df5705942a33bbe97859033c4dc551b7b4164b84bab7"
+    },
+    {
+      "part": 1,
+      "heading": "3. APPROVED DECISIONS [IMMUTABLE]",
+      "sha256": "3365310ba94df937241edf680a3308b3c11f962f20c5fd1e5e514a6c7ee8bbd4"
+    },
+    {
+      "part": 2,
+      "heading": "2. SELF-AUDIT PROTOCOL [IMMUTABLE]",
+      "sha256": "1912cd391dda59b21100ba51edc5333fdc5072ab55b3b3097cd4a9422bdd315a"
+    },
+    {
+      "part": 2,
+      "heading": "3. GITHUB PLAYBOOK [IMMUTABLE]",
+      "sha256": "0ff29676fdb53aa46850eb2a4b59e5d57f3c29c7e2e1fd8901198f087e112b09"
+    },
+    {
+      "part": 2,
+      "heading": "4. VERCEL AND mortapp.org PLAYBOOK [IMMUTABLE]",
+      "sha256": "a34ab785a7b584333c0cc785806ff13e79e7684e5a45f00526c7659a41fbb360"
+    },
+    {
+      "part": 2,
+      "heading": "5. SELF-EDIT PROTOCOL [IMMUTABLE]",
+      "sha256": "d1ed159b77e3bc94ddb0e7fbb72f732c77f01c2dbba342ff64d8f411f5006525"
+    },
+    {
+      "part": 2,
+      "heading": "8. ANTI-PATTERNS (do not do these) [IMMUTABLE]",
+      "sha256": "4df9cc48f2728ca6efb92219911cc4d519b140f6232e1e37c4d69973989db45e"
+    }
+  ],
+  "sha256": "c3832ce41552ccb8dadcdaf5dfc919678fac2fb40354cd03772bc22c54a0ae4b"
+}
