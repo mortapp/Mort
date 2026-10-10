@@ -580,15 +580,19 @@
     {
       "id": "CP8",
       "status": "BLOCKED",
-      "commit": "",
-      "tag": "",
+      "commit": "8948e19d547fc986ee6536fca347d0b6d3c312b4",
+      "tag": "guard-cp8-blocked-8948e19",
       "startedAt": "2026-10-10T11:48:32.450Z",
       "finishedAt": "2026-10-10T11:48:32.451Z",
       "audit": {
-        "keyRingTests": 7,
-        "diagnosticTests": 11,
-        "rotationPlanTests": 1,
-        "exactHead": "pending"
+        "nodeTests": 128,
+        "denoTests": 51,
+        "browserTests": 9,
+        "scanFiles": 2672,
+        "findings": 0,
+        "protectedFiles": 95,
+        "remoteEqualsHead": true,
+        "evidenceSha256": "bc3ac4e8f0a5342ff5bec951e69bb58ae6189d9bb5b975c77b41f1eba6799fb5"
       },
       "claimAuditSample": [],
       "blockedReason": "Three integration diagnostics failed; current/new key flow intermittent. Real key manager waits for staging.",
@@ -596,15 +600,19 @@
     },
     {
       "id": "CP9",
-      "status": "NOT_STARTED",
+      "status": "BLOCKED",
       "commit": "",
       "tag": "",
-      "startedAt": "",
-      "finishedAt": "",
-      "audit": {},
+      "startedAt": "2026-10-10T11:52:59.500Z",
+      "finishedAt": "2026-10-10T11:52:59.500Z",
+      "audit": {
+        "namedTests": 3,
+        "pass": 1,
+        "fail": 2
+      },
       "claimAuditSample": [],
-      "blockedReason": "",
-      "notes": ""
+      "blockedReason": "Protected signup source overlap and provider parity not verified",
+      "notes": "Contract source only. No Flutter runtime or provider parity PASS."
     },
     {
       "id": "CP10",

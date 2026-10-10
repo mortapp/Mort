@@ -34,3 +34,5 @@ CP5 DONE atb544443: SDK13/Node126/Deno38/web9, scan2657/0; remote equals. CP6 BL
 CP6 pushed/tagged473db94 with scan2658/0. CP7 source parser6GREEN, actual shared77GREEN, limited-source real recovery17GREEN. Existing PostgreSQL hourly limits already present; no duplicate counters or cap changes. Exact newHEAD checks pending.
 
 CP7 DONE at4478796: exactNode126/Deno44/web9; scan2663/0; remoteequals. CP8 BLOCKED after three integration diagnostics; primitive7/diagnostics11/plan1 GREEN, exact checkpoint verification pending. No hosted execution.
+
+CP8 pushed8948e19, exact128Node/51Deno/9browser, scan2672/0. CP9 BLOCKED: provider complexity notconfigured, protectedsignupcopy lacksmax128. Namedtests1GREEN2RED; no provider parity or Flutterruntimeclaim. CP10 continues.
