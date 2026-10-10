@@ -1,5 +1,7 @@
 import {spawnSync,execFileSync} from './subprocess-runner.mjs';
-import {createHmac, randomBytes, randomUUID} from 'node:crypto';
+import {createHmac, randomBytes, randomUUID, X509Certificate} from 'node:crypto';
+import {certificateCurrent} from './fixture-certificate.mjs';
+import {runStartup} from './startup-diagnostic.mjs';
 import {mkdir, readFile, writeFile} from 'node:fs/promises';
 import {createServer} from 'node:net';
 import {dirname, resolve} from 'node:path';
@@ -197,6 +199,7 @@ export async function stopDriftFixture(handle){
   assertMortAuthFixture(handle,handle.observed);for(const role of ['drift-auth','drift-db']){inspect(handle,role);docker(['stop','--time','2',container(handle,role)]);}
 }
 export async function startFixture(){
+ return runStartup(async context=>{
   let state;
   try {state=await loadState();} catch (error) {
     if (error.code!=='ENOENT') throw error;
@@ -206,25 +209,37 @@ export async function startFixture(){
     const openssl=process.platform==='win32'?'C:\\Program Files\\Git\\usr\\bin\\openssl.exe':'openssl';
     execFileSync(openssl,['req','-x509','-newkey','rsa:2048','-nodes','-days','2','-keyout',resolve(stateDir,'smtp.key'),'-out',resolve(stateDir,'smtp.pem'),'-subj','/CN=capture','-addext','subjectAltName=DNS:capture,DNS:localhost,IP:127.0.0.1'],{stdio:'ignore',windowsHide:true});
   }
-  assertConfig(state);
+  context.phase('identity');assertConfig(state);context.state=state;
   restrictFixtureDirectory();
-  preflightExisting(state);
+  context.phase('preflight');preflightExisting(state);
+  // Two-day synthetic TLS roots expire between checkpoints. Renew only the
+  // owned fixture root; never weaken rejectUnauthorized or extend its lifetime.
+  context.phase('tls');const certificate=new X509Certificate(await readFile(resolve(stateDir,'smtp.pem')));
+  if(!certificateCurrent(certificate)){
+    const captureName=inspect(state,'capture');
+    docker(['stop','--time','2',captureName]);
+    const openssl=process.platform==='win32'?'C:\\Program Files\\Git\\usr\\bin\\openssl.exe':'openssl';
+    execFileSync(openssl,['req','-x509','-newkey','rsa:2048','-nodes','-days','2','-keyout',resolve(stateDir,'smtp.key'),'-out',resolve(stateDir,'smtp.pem'),'-subj','/CN=capture','-addext','subjectAltName=DNS:capture,DNS:localhost,IP:127.0.0.1'],{stdio:'ignore',windowsHide:true});
+    restrictFixtureDirectory();
+    if(!certificateCurrent(new X509Certificate(await readFile(resolve(stateDir,'smtp.pem')))))throw new Error('Fixture TLS renewal failed closed');
+    console.log('Fixture synthetic TLS certificate renewed; original two-day lifetime and strict verification preserved');
+  }
   const emptyEnv=resolve(stateDir,'empty.env');await writeFile(emptyEnv,'# No repository environment is loaded.\n',{mode:0o600});
   const args=['compose','--env-file',emptyEnv,'-p','mort-mobile','-f',resolve(root,'scripts/auth-email-guard/compose.yaml')];
   // Explicit named services only. Never invoke project-wide down/prune/reset.
-  const started=spawnSync('docker',[...args,'up','-d','db','capture'],{env:composeEnv(state),encoding:'utf8',timeout:60_000,windowsHide:true});
+  context.phase('database-start');const started=spawnSync('docker',[...args,'up','-d','db','capture'],{env:composeEnv(state),encoding:'utf8',timeout:60_000,windowsHide:true});
   if (started.status!==0) throw new Error('Fixture database/capture startup failed');
   const dbName=inspect(state,'db');inspect(state,'capture');
-  for(let i=0;i<60;i++){
+  context.phase('database-health');for(let i=0;i<60;i++){
     try{docker(['exec',dbName,'pg_isready','-U','postgres','-d','postgres']);break;}
     catch{if(i===59)throw new Error('Fixture database health timeout');await new Promise(r=>setTimeout(r,250));}
   }
-  const sql=`ALTER ROLE supabase_auth_admin PASSWORD '${state.password}';\nCREATE SCHEMA IF NOT EXISTS mort_fixture;\nREVOKE ALL ON SCHEMA mort_fixture FROM PUBLIC;\nCREATE TABLE IF NOT EXISTS mort_fixture.identity(id uuid PRIMARY KEY);\nINSERT INTO mort_fixture.identity VALUES ('${state.fixtureId}') ON CONFLICT DO NOTHING;\n`;
+  context.phase('schema');const sql=`ALTER ROLE supabase_auth_admin PASSWORD '${state.password}';\nCREATE SCHEMA IF NOT EXISTS mort_fixture;\nREVOKE ALL ON SCHEMA mort_fixture FROM PUBLIC;\nCREATE TABLE IF NOT EXISTS mort_fixture.identity(id uuid PRIMARY KEY);\nINSERT INTO mort_fixture.identity VALUES ('${state.fixtureId}') ON CONFLICT DO NOTHING;\n`;
   docker(['exec','-i',dbName,'sh','-c','PGPASSWORD="$POSTGRES_PASSWORD" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1'],sql);
   docker(['exec','-i',dbName,'sh','-c','PGPASSWORD="$POSTGRES_PASSWORD" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1'],await readFile(resolve(root,'scripts/auth-email-guard/token-observer.sql'),'utf8'));
   // A restored database is never its own freshness authority. Refuse provider
   // startup if the private journal and DB disagree, even after runner restart.
-  const hasControl=docker(['exec',dbName,'sh','-c','PGPASSWORD="$POSTGRES_PASSWORD" psql -U supabase_admin -d postgres -At -c "SELECT to_regclass(\'mort_auth_guard.control\') IS NOT NULL"']);
+  context.phase('journal');const hasControl=docker(['exec',dbName,'sh','-c','PGPASSWORD="$POSTGRES_PASSWORD" psql -U supabase_admin -d postgres -At -c "SELECT to_regclass(\'mort_auth_guard.control\') IS NOT NULL"']);
   if(hasControl==='t'){
     const generation=Number(docker(['exec',dbName,'sh','-c','PGPASSWORD="$POSTGRES_PASSWORD" psql -U supabase_admin -d postgres -At -c "SELECT restore_generation FROM mort_auth_guard.control"']));
     const {readJournal}=await import('./control.mjs');
@@ -236,13 +251,18 @@ export async function startFixture(){
       throw new Error('Fixture journal mismatch; provider remains stopped');
     }
   }
-  const authStarted=spawnSync('docker',[...args,'up','-d','auth'],{env:composeEnv(state),encoding:'utf8',timeout:60_000,windowsHide:true});
+  context.phase('auth-start');const authStarted=spawnSync('docker',[...args,'up','-d','auth'],{env:composeEnv(state),encoding:'utf8',timeout:60_000,windowsHide:true});
   if(authStarted.status!==0)throw new Error('Fixture Auth startup failed');inspect(state,'auth');
-  for(let i=0;i<100;i++){
+  context.phase('auth-health');for(let i=0;i<100;i++){
     try{const health=await fetch(`${state.authUrl}/health`,{signal:AbortSignal.timeout(1000)});if(health.ok)break;}catch{}
     if(i===99)throw new Error('Fixture Auth health timeout');await new Promise(r=>setTimeout(r,250));
   }
-  return await observeFixture(state);
+  context.phase('observe');return await observeFixture(state);
+ },{snapshot:async state=>{
+   if(!state)return {identityUnavailable:true};
+   const {createFailureSnapshotRunner}=await import('./failure-snapshot.mjs');
+   return createFailureSnapshotRunner({assertFixture:()=>assertConfig(state)})(state);
+ }});
 }
 export async function observeFixture(state) {
   state ??= await loadState();

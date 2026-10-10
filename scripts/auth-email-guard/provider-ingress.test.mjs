@@ -7,10 +7,11 @@ import {resolve} from 'node:path';
 import {call,cleanup,pending,signIn} from './provider.test.mjs';
 import {planControl,applyLocalControl,fixtureDirectory} from './control.mjs';
 import {recordSubprocessFailure} from './subprocess-diagnostic.mjs';
+import {completeCleanup} from './cleanup-primary.mjs';
 export async function run(handle,{logLevel='fatal',action='signup',recoveryScenario,beforeCleanup}={}){
   assert.ok(['signup','recovery'].includes(action),'Only named fixture ingress actions are allowed');
   const recoveryAuditPath=recoveryScenario?resolve(fixtureDirectory,`recovery-audit-${randomUUID()}.json`):undefined;
-  let phase='install';
+  let phase='install',primaryFailure;
   try{
     await fixtureSql(handle,await readFile(new URL('./send-email-hook.sql',import.meta.url),'utf8'));
     await fixtureSql(handle,'UPDATE mort_auth_guard.control SET enabled=true');
@@ -57,14 +58,17 @@ export async function run(handle,{logLevel='fatal',action='signup',recoveryScena
     assert.equal(handle.hookLogEvidence.addressOccurrences,0,'Real guard hook relay stdout and stderr contain no synthetic address');
     if(beforeCleanup)await beforeCleanup({email,id});
   }catch(error){
+    primaryFailure=error;
     const categories=new Map([['Fixture transition failed closed (redacted)','transition'],['Fixture provider resume health failed','resume-health'],['Fixture provider logging privacy rejected','logging-privacy']]);
     console.error(`Fixture recovery setup failed: phase=${phase} category=${categories.get(error.message)??'unclassified'}`);
     throw error;
   }finally{
-    if(recoveryAuditPath)await unlink(recoveryAuditPath).catch(error=>{if(error.code!=='ENOENT')throw error;});
-    await configureFixtureAuth(handle);
-    await fixtureSql(handle,'UPDATE mort_auth_guard.control SET enabled=false;DELETE FROM mort_fixture.email_ingress;DELETE FROM mort_auth_guard.families;DELETE FROM mort_auth_guard.quota_events;DELETE FROM mort_auth_guard.account_generations');
-    await cleanup(handle);
-    await fetch(`${handle.captureUrl}/api/v1/messages`,{method:'DELETE'});
+    await completeCleanup(primaryFailure,[
+      async()=>{if(recoveryAuditPath)await unlink(recoveryAuditPath).catch(error=>{if(error.code!=='ENOENT')throw error;});},
+      ()=>configureFixtureAuth(handle),
+      ()=>fixtureSql(handle,'UPDATE mort_auth_guard.control SET enabled=false;DELETE FROM mort_fixture.email_ingress;DELETE FROM mort_auth_guard.families;DELETE FROM mort_auth_guard.quota_events;DELETE FROM mort_auth_guard.account_generations'),
+      ()=>cleanup(handle),
+      ()=>fetch(`${handle.captureUrl}/api/v1/messages`,{method:'DELETE'}),
+    ]);
   }
 }

@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 import {assertMortAuthFixture,assertOwnedResource,fixtureProcessEnv} from './fixture.mjs';
 import {subprocessDiagnostic} from './subprocess-diagnostic.mjs';
 
-const roles=['auth','db','realtime','storage'];
+const roles=['auth','db','realtime','storage','rest','guard'];
 const statuses=new Set(['created','running','paused','restarting','removing','exited','dead']);
 const bytes=value=>Buffer.isBuffer(value)?value:typeof value==='string'?Buffer.from(value):Buffer.alloc(0);
 const errorDiagnostic=error=>subprocessDiagnostic({status:error?.status??null,signal:error?.signal,error,stderr:error?.stderr});

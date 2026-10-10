@@ -6,7 +6,7 @@ let createFailureSnapshotRunner;
 try{({createFailureSnapshotRunner}=await import('./failure-snapshot.mjs'));}
 catch(error){if(error.code!=='ERR_MODULE_NOT_FOUND')throw error;}
 const fixtureId='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
-const roles=['auth','db','realtime','storage'];
+const roles=['auth','db','realtime','storage','rest','guard'];
 const owned=role=>`mort-mobile-auth-guard-qa-${role}-${fixtureId}`;
 const labels={'com.docker.compose.project':'mort-mobile','mort.guard.fixture':fixtureId};
 const setup=({rejectIdentity=false,foreignRole,failOperation,throwOperation}={})=>{
@@ -47,7 +47,7 @@ test('failure snapshot verifies exact ownership before bounded role status and r
     assert.deepEqual(calls.filter(call=>call.role===role).map(call=>call.operation),['ownership','status','logs']);
     assert.equal(result.roles.find(value=>value.role===role).status.status,'running');
   }
-  assert.equal(calls.length,12);
+  assert.equal(calls.length,18);
 });
 
 test('failure snapshot exports only safe status log fingerprints classes and privacy booleans',()=>{

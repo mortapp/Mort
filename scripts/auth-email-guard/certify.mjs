@@ -12,6 +12,7 @@ import {sessionLiveCharacterization} from './local-characterizations.mjs';
 import {captureFailureSnapshot} from './failure-snapshot.mjs';
 import {computeCertification,loadExternalGates} from './certification-gates.mjs';
 import {fixtureDirectory} from './control.mjs';
+import {assertLongRunSafety} from './long-run-safety.mjs';
 const root=resolve(import.meta.dirname,'../..');
 const cleanText=text=>text.replace(/\x1b\[[0-9;]*m/g,'');
 let certificationStage='initialization';
@@ -48,6 +49,7 @@ async function sourceOwner(name,files,kind){
   throw new Error('Executed test lacks reviewed source owner');
 }
 export async function run(){
+  assertLongRunSafety({durationMs:3600000,powerRequestVerified:process.env.MORT_GUARD_POWER_REQUEST_VERIFIED==='process-scoped-windows'});
   certificationStage='requirements';
   const requirements=await loadRequirements(),head=child('git',['rev-parse','HEAD']).trim();
   const sourcePaths=['scripts/auth-email-guard','web/auth/challenge','supabase/functions/_shared/auth_email_guard','supabase/functions/mort-auth-email-hook','supabase/functions/mort-auth-email-guard','supabase/migrations/20261008130945_mort_email_fixture_control_retention.sql','supabase/migrations/20261008135853_mort_email_restore_session_epoch.sql','supabase/migrations/20261008151312_mort_email_fixture_baseline_snapshot.sql'];
@@ -99,6 +101,7 @@ export async function run(){
   nodeFiles.push('scripts/auth-email-guard/failure-snapshot.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/certification-gates.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/catalog-coverage.test.mjs');
+  nodeFiles.push('scripts/auth-email-guard/verify-blueprint-lock.test.mjs','scripts/auth-email-guard/checkpoint-diagnostics.test.mjs','scripts/auth-email-guard/fixture-certificate.test.mjs','scripts/auth-email-guard/startup-diagnostic.test.mjs','scripts/auth-email-guard/cleanup-primary.test.mjs');
   const browserFiles=['web/auth/challenge/controller.test.mjs','web/auth/challenge/transport.test.mjs','web/auth/challenge/build.test.mjs','web/auth/challenge/browser.test.mjs'];
   const nodeOutput=child('node',['--test','--test-reporter=tap',...nodeFiles,...browserFiles],{MORT_GUARD_BROWSER_MODULES:process.env.MORT_GUARD_BROWSER_MODULES??'C:\\Users\\micha\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\node_modules'});
   for(const match of nodeOutput.matchAll(/^ok \d+ - (.+)$/gm)){

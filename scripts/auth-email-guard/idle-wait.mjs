@@ -3,7 +3,7 @@ export async function idleUntil(expiryMs,{wallNow=Date.now,monoNow=()=>performan
   while(wall<expiryMs){
     await sleep(Math.min(30000,expiryMs-wall));
     const nextWall=wallNow(),nextMono=monoNow();
-    emit({timestamp:new Date(nextWall).toISOString(),gapMs:nextWall-wall,monotonicGapMs:Math.round(nextMono-mono),remainingMs:Math.max(0,expiryMs-nextWall)});
+    emit({timestamp:new Date(nextWall).toISOString(),gapMs:nextWall-wall,monotonicGapMs:Math.round(nextMono-mono),possibleHostPause:nextWall-wall>60000||nextMono-mono>60000,remainingMs:Math.max(0,expiryMs-nextWall)});
     wall=nextWall;mono=nextMono;
   }
 }

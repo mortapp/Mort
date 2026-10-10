@@ -396,10 +396,33 @@
   "checkpoints": [
     {
       "id": "CP0",
+      "status": "DONE",
+      "commit": "5ff33c19b74aead2a75b042f6f0631d5ff8e6d1c",
+      "tag": "",
+      "startedAt": "2026-10-10T06:17:41.642Z",
+      "finishedAt": "2026-10-10T06:22:33.709Z",
+      "audit": {
+        "A1": "PASS",
+        "A2": "PASS",
+        "A3": "PASS",
+        "A4": "PASS",
+        "A5": "PASS",
+        "A6": "PASS",
+        "A7": "PASS",
+        "A8": "PASS",
+        "A9": "PASS",
+        "A10": "PASS"
+      },
+      "claimAuditSample": [],
+      "blockedReason": "",
+      "notes": "Lock RED: 2 missing-implementation assertion failures; GREEN: 2. Baseline Node99/Deno37/web8 units passed. No long wait. No runtime gate PASS inherited. Self-audit: all95 left-alone hashes unchanged; no gate PASS claimed; CP0 has no earlier PASS claim-audit sample, so sample not applicable rather than fabricated. Source instructions copied byte-identically. INVALID initial archive scan: zero files. Corrected exact archive scan2626/0. Checkpoint was pushed before invalid scan caught; process defect retained."
+    },
+    {
+      "id": "CP1",
       "status": "IN_PROGRESS",
       "commit": "",
       "tag": "",
-      "startedAt": "2026-10-10T06:17:41.642Z",
+      "startedAt": "2026-10-10T06:22:33.710Z",
       "finishedAt": "",
       "audit": {
         "A1": "PASS",
@@ -415,19 +438,7 @@
       },
       "claimAuditSample": [],
       "blockedReason": "",
-      "notes": "Lock RED: 2 missing-implementation assertion failures; GREEN: 2. Baseline Node99/Deno37/web8 units passed. No long wait. No runtime gate PASS inherited. Self-audit: all95 left-alone hashes unchanged; no gate PASS claimed; CP0 has no earlier PASS claim-audit sample, so sample not applicable rather than fabricated. Source instructions copied byte-identically."
-    },
-    {
-      "id": "CP1",
-      "status": "NOT_STARTED",
-      "commit": "",
-      "tag": "",
-      "startedAt": "",
-      "finishedAt": "",
-      "audit": {},
-      "claimAuditSample": [],
-      "blockedReason": "",
-      "notes": ""
+      "notes": "Six diagnostics tests RED6 then GREEN; broader focused27 pass. No recovery streak or long-run safety integration PASS yet. Diagnostics and TLS validity tests RED/GREEN;111Node pass. Actual Windows process sleep request succeeded and released. Renewed recovery diagnostic passed; not the required exact-HEAD streak. Guard container absent: ephemeral child stderr captured; do not claim container log coverage. Exact committed scan/recovery streak pending."
     },
     {
       "id": "CP2",
@@ -1297,6 +1308,23 @@
           "evidence": ""
         }
       ]
+    },
+    {
+      "id": "U5",
+      "status": "open",
+      "symptom": "First CP1 recovery run ended with generic error after DB identity read; no named provider phase captured. Do not assume it shares the later expired-certificate cause.",
+      "hypotheses": [
+        {
+          "text": "Startup fetch race or error before ingress suite entered",
+          "state": "untested",
+          "evidence": "mort-cp1-recovery-diagnostic.log"
+        },
+        {
+          "text": "Expired TLS certificate",
+          "state": "untested",
+          "evidence": "Proven for second run; first run lacks delivery-stage provenance"
+        }
+      ]
     }
   ],
   "stateClaims": [
@@ -1387,7 +1415,37 @@
     "previews": []
   },
   "github": {
-    "pushes": [],
+    "pushes": [
+      {
+        "sha": "5ff33c19b74aead2a75b042f6f0631d5ff8e6d1c",
+        "remoteShaVerified": true
+      }
+    ],
     "draftPr": ""
-  }
+  },
+  "auditFailures": [
+    {
+      "checkpoint": "CP0",
+      "check": "A6",
+      "result": "INVALID_ZERO_FILE_SCAN",
+      "cause": "Archive update-index pipeline did not index files; subsequent exact pathspec hit two historically tracked ignored archives",
+      "remediation": "NUL-delimited exact git ls-tree pathspec including historically tracked ignored files; nonzero scan2626 files"
+    },
+    {
+      "checkpoint": "CP1",
+      "check": "startup",
+      "result": "FAIL",
+      "cause": "New reviewed-step label regex rejected pg_isready underscore before Docker execution; health loop caught it and exhausted existing60 attempts",
+      "evidence": "mort-cp1-name-red.log: exact label rejects; GREEN after including underscore in label grammar",
+      "remediation": "Correct name grammar only; no health timeout or retry threshold changed"
+    },
+    {
+      "checkpoint": "CP1",
+      "check": "recovery",
+      "result": "FAIL",
+      "cause": "Second diagnosed run: owned SMTP STARTTLS rejected expired two-day synthetic certificate; expiredCertificateRejected=true. Expiry05:11UTC was before run.",
+      "evidence": "mort-cp1-recovery-diagnostic-2.log and mort-cp1-tls-peer.log",
+      "remediation": "Renew owned fake root with original2-day lifetime; strict TLS unchanged; new boundary test RED/GREEN"
+    }
+  ]
 }

@@ -1,6 +1,7 @@
 import {spawn as nodeSpawn,spawnSync as nodeSpawnSync,execFileSync as nodeExecFileSync} from 'node:child_process';
 import {performance} from 'node:perf_hooks';
 import {recordSubprocessFailure,subprocessDiagnostic} from './subprocess-diagnostic.mjs';
+import {runStep} from './run-step.mjs';
 
 const captureLimit=4*1024*1024;
 const executables=new Set(['node','deno','docker','git','whoami','icacls','openssl','pnpm','npm']);
@@ -49,14 +50,15 @@ function begin(api,file,args,options){
     timeoutMs:Number.isFinite(options?.timeout)&&options.timeout>=0?options.timeout:null};
   const began=performance.now();
   console.error('Fixture subprocess started: '+JSON.stringify(metadata));
-  return {metadata,began};
+  const name=['subprocess',api,metadata.executable,metadata.dockerOperation,metadata.fixtureRole,metadata.commandKind].filter(Boolean).join('.');
+  return {metadata,began,step:runStep({name,timeoutMs:metadata.timeoutMs})};
 }
 function complete(context,result,{stderrAvailable=result.stderr!=null,truncated=false}={}){
   const stderr=Buffer.isBuffer(result.stderr)?result.stderr:typeof result.stderr==='string'?Buffer.from(result.stderr):Buffer.alloc(0);
   const bounded={status:result.status,signal:result.signal,error:result.error,stderr:stderr.subarray(0,captureLimit)};
   truncated=truncated||stderr.length>captureLimit;
   console.error('Fixture subprocess completed: '+JSON.stringify({...context.metadata,
-    elapsedMs:performance.now()-context.began,stderrAvailable,stderrTruncated:truncated,diagnostic:subprocessDiagnostic(bounded)}));
+    ...context.step.finish(bounded),stderrAvailable,stderrTruncated:truncated,diagnostic:subprocessDiagnostic(bounded)}));
   if(result.status!==0){
     if(truncated)console.error('Fixture subprocess stderr capture truncated at 4194304 bytes; fingerprint covers captured prefix only');
     recordSubprocessFailure(bounded);

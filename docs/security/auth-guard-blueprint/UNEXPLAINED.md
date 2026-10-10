@@ -47,3 +47,7 @@ First pre-request startup failed with unclassified diagnostics. Original cause u
 - UNTESTED: Windows subprocess, output pipe, antivirus or disk stall
 - UNTESTED: Container memory pressure
 - UNTESTED: Guard race or retry defect
+
+## U5 — OPEN
+
+First CP1 recovery run ended in generic startup/suite error without assertion identity. Later delivery failure is independently explained by expired fixture TLS; do not inherit that diagnosis. Startup fetch race and shared TLS cause remain untested for the first run.
