@@ -4,15 +4,9 @@ import { dirname, resolve } from 'node:path';
 const root = resolve(import.meta.dirname, '..');
 const output = resolve(root, 'web', 'public');
 const legalTheme = resolve(root, 'web', 'legal-theme');
-const supabaseBrowserBundle = resolve(
-  root,
-  'node_modules',
-  '@supabase',
-  'supabase-js',
-  'dist',
-  'umd',
-  'supabase.js',
-);
+const supabaseBrowserBundle = resolve(root, 'node_modules', '@supabase', 'supabase-js', 'dist', 'umd', 'supabase.js');
+const REVISION = '2026-10-10-nationwide-us-legal-v2';
+
 const requiredConfigNames = [
   'MORT_PUBLIC_PUBLISHER_NAME',
   'MORT_PUBLIC_SUPPORT_EMAIL',
@@ -21,24 +15,15 @@ const requiredConfigNames = [
   'MORT_PUBLIC_WEBSITE_URL',
   'MORT_PUBLIC_EFFECTIVE_DATE',
 ];
-const publicConfig = Object.fromEntries(
-  requiredConfigNames.map((name) => [name, process.env[name]?.trim() ?? '']),
-);
+const publicConfig = Object.fromEntries(requiredConfigNames.map((name) => [name, process.env[name]?.trim() ?? '']));
 const missingMetadataConfig = requiredConfigNames.filter((name) => !publicConfig[name]);
 const supabase = readSupabasePublicConfig();
-const missingConfig = [
-  ...missingMetadataConfig,
-  ...(!supabase.key ? ['EXPO_PUBLIC_SUPABASE_ANON_KEY'] : []),
-];
+const missingConfig = [...missingMetadataConfig, ...(!supabase.key ? ['EXPO_PUBLIC_SUPABASE_ANON_KEY'] : [])];
 const deploymentReady = missingConfig.length === 0;
 
-if (!existsSync(supabaseBrowserBundle)) {
-  throw new Error('The pinned local Supabase browser bundle is missing. Run pnpm install first.');
-}
+if (!existsSync(supabaseBrowserBundle)) throw new Error('The pinned local Supabase browser bundle is missing. Run pnpm install first.');
 for (const asset of ['legal.css', 'atmosphere.js', 'mort-mark.svg']) {
-  if (!existsSync(resolve(legalTheme, asset))) {
-    throw new Error(`The legal redesign asset is missing: ${asset}`);
-  }
+  if (!existsSync(resolve(legalTheme, asset))) throw new Error(`The legal redesign asset is missing: ${asset}`);
 }
 mkdirSync(output, { recursive: true });
 for (const entry of readdirSync(output)) {
@@ -53,16 +38,9 @@ function write(relative, content) {
   writeFileSync(path, `${content.trim()}\n`);
 }
 function escapeHtml(value) {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
+  return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
 }
-function display(name, pending) {
-  return escapeHtml(publicConfig[name] || pending);
-}
+function display(name, pending) { return escapeHtml(publicConfig[name] || pending); }
 function readSupabasePublicConfig() {
   const envPath = resolve(root, '.env.local');
   let url = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim() ?? '';
@@ -76,19 +54,12 @@ function readSupabasePublicConfig() {
       if (name === 'EXPO_PUBLIC_SUPABASE_URL' && !url) url = value;
       if (name === 'EXPO_PUBLIC_SUPABASE_ANON_KEY' && !key) key = value;
     }
-  } catch {
-    // Account deletion remains visibly unavailable until public config exists.
-  }
+  } catch { /* Vercel environment may provide the public values directly. */ }
   const expectedUrl = 'https://rakjydmgwwgtdislanbt.supabase.co';
   if (url && url !== expectedUrl) throw new Error('Public legal site points to the wrong Supabase project.');
   if (key) {
-    try {
-      const payload = JSON.parse(Buffer.from(key.split('.')[1], 'base64url').toString('utf8'));
-      if (payload.role !== 'anon') throw new Error('Only the Supabase anon key may be published.');
-    } catch (error) {
-      if (error instanceof SyntaxError) throw new Error('The configured Supabase public key is not a valid JWT.');
-      throw error;
-    }
+    const payload = JSON.parse(Buffer.from(key.split('.')[1], 'base64url').toString('utf8'));
+    if (payload.role !== 'anon') throw new Error('Only the Supabase anon key may be published.');
   }
   return { url: url || expectedUrl, key };
 }
@@ -98,6 +69,10 @@ const routes = [
   ['/privacy/', 'Privacy'],
   ['/terms/', 'Terms'],
   ['/dispute-resolution/', 'Dispute resolution'],
+  ['/us-state-law-addendum/', 'U.S. state law'],
+  ['/guardian-terms/', 'Guardian terms'],
+  ['/verification-privacy-notice/', 'Verification privacy'],
+  ['/paid-services/', 'Paid services'],
   ['/terms-of-use/', 'Terms of use'],
   ['/community-guidelines/', 'Community guidelines'],
   ['/safety/', 'Safety'],
@@ -110,444 +85,212 @@ const routes = [
   ['/accessibility/', 'Accessibility'],
 ];
 const routeSummaries = {
-  '/privacy/': 'Production privacy disclosures for accounts, teen data, verification, location, safety, ads, payments, retention, and rights.',
-  '/terms/': 'Comprehensive MORT Terms of Service for teen, adult, business, guardian, marketplace, safety, payment, and subscription use.',
-  '/dispute-resolution/': 'Mandatory informal resolution, individual arbitration, class-action waiver, jury waiver, and legal exceptions.',
-  '/terms-of-use/': 'Plain-language rules for lawful account, job, message, safety, and marketplace use.',
-  '/community-guidelines/': 'Behavior and content standards for participants and organizations.',
-  '/safety/': 'Reporting, blocking, job-context, and real-world safety guidance.',
-  '/child-safety-standards/': 'Standards against child sexual abuse, exploitation, grooming, and solicitation.',
-  '/prohibited-jobs/': 'Work categories and conditions that are not allowed in MORT.',
-  '/payment-disputes/': 'How MORT handles payment status, evidence, cancellations, and disagreements.',
+  '/privacy/': 'How MORT handles account, teen, verification, safety, location, payment, and technical information.',
+  '/terms/': 'Nationwide U.S. Terms of Service for Teen, Adult, Business, Guardian, marketplace, safety, and paid-service use.',
+  '/dispute-resolution/': 'Informal resolution, individual arbitration, class-action and jury-trial waivers, exceptions, and opt-out rights.',
+  '/us-state-law-addendum/': 'State-specific rights, mandatory-law savings rules, privacy, youth-work, biometric, and subscription supplements.',
+  '/guardian-terms/': 'Parent and legal guardian authorization, responsibilities, and limits for Teen User participation.',
+  '/verification-privacy-notice/': 'Additional notice for school, identity, age-assurance, liveness, facial, and biometric verification.',
+  '/paid-services/': 'Subscriptions, in-app purchases, recurring billing, renewals, cancellation, refunds, and payment platforms.',
+  '/terms-of-use/': 'Plain-language rules for lawful account, job, message, and safety-tool use.',
+  '/community-guidelines/': 'Behavior and content standards for MORT participants and organizations.',
+  '/safety/': 'Reporting, blocking, job-context, check-in, location, and real-world safety guidance.',
+  '/child-safety-standards/': 'Standards against child sexual abuse, exploitation, grooming, trafficking, and solicitation.',
+  '/prohibited-jobs/': 'Work categories and conditions that MORT does not allow.',
+  '/payment-disputes/': 'Payment status, evidence, cancellations, holds, refunds, and disagreements.',
   '/account-deletion/': 'Request account deletion without reinstalling the app.',
-  '/support/': 'Account, privacy, and safety support routes.',
-  '/contact/': 'Public contact points for support, privacy, and child safety.',
-  '/accessibility/': 'Accessibility commitments, supported controls, and feedback.',
+  '/support/': 'Account, privacy, billing, verification, and safety support routes.',
+  '/contact/': 'Public support, privacy, child-safety, legal-notice, and arbitration-opt-out contact points.',
+  '/accessibility/': 'Accessibility commitments, supported controls, reduced motion, and feedback.',
 };
-
 function navFor(activeRoute) {
-  return routes
-    .map(([href, label]) => href === activeRoute
-      ? `<a href="${href}" aria-current="page" class="active">${label}</a>`
-      : `<a href="${href}">${label}</a>`)
-    .join('');
+  return routes.map(([href, label]) => href === activeRoute ? `<a href="${href}" aria-current="page" class="active">${label}</a>` : `<a href="${href}">${label}</a>`).join('');
 }
-const publisher = display('MORT_PUBLIC_PUBLISHER_NAME', 'Publisher identity pending - deployment blocked');
-const supportEmail = display('MORT_PUBLIC_SUPPORT_EMAIL', 'Support contact pending - deployment blocked');
-const privacyEmail = display('MORT_PUBLIC_PRIVACY_EMAIL', 'Privacy contact pending - deployment blocked');
-const childSafetyEmail = display('MORT_PUBLIC_CHILD_SAFETY_EMAIL', 'Child-safety contact pending - deployment blocked');
-const websiteUrl = display('MORT_PUBLIC_WEBSITE_URL', 'Public website URL pending - deployment blocked');
-const effectiveDate = display('MORT_PUBLIC_EFFECTIVE_DATE', 'Effective date pending - deployment blocked');
-const blocker = deploymentReady
-  ? ''
-  : `<div class="blocker" role="status"><strong>Release blocker:</strong> Required publisher or public configuration is incomplete.</div>`;
+
+const publisher = display('MORT_PUBLIC_PUBLISHER_NAME', 'MORT');
+const supportEmail = display('MORT_PUBLIC_SUPPORT_EMAIL', 'mortapp.help@gmail.com');
+const privacyEmail = display('MORT_PUBLIC_PRIVACY_EMAIL', 'mortapp.help@gmail.com');
+const childSafetyEmail = display('MORT_PUBLIC_CHILD_SAFETY_EMAIL', 'mortapp.help@gmail.com');
+const websiteUrl = display('MORT_PUBLIC_WEBSITE_URL', 'https://mortapp.org');
+const effectiveDate = display('MORT_PUBLIC_EFFECTIVE_DATE', '2026-10-10');
+const blocker = deploymentReady ? '' : `<div class="blocker" role="status"><strong>Configuration notice:</strong> Some account-deletion functionality is unavailable in this build because required public configuration is incomplete.</div>`;
 
 function page({ route, title, description, body, scripts = '' }) {
-  const nav = navFor(route);
   return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#02040a">
-  <meta name="description" content="${escapeHtml(description)}">
-  <title>${escapeHtml(title)} | MORT</title>
-  <link rel="icon" href="/mort-mark.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/legal.css">
-</head>
-<body>
-  <a class="skip" href="#content">Skip to content</a>
-  <canvas id="legal-sky" aria-hidden="true"></canvas>
-  <div class="veil" aria-hidden="true"></div>
-  <header class="topbar"><a class="brand" href="/"><img src="/mort-mark.svg" width="28" height="28" alt="">MORT <small>Legal &amp; safety</small></a><span class="sp"></span><span class="draft">Draft — pending qualified legal review</span><a class="back" href="https://mortapp.org">&larr; Back to MORT</a></header>
-  <div class="wrap">
-    <aside class="side"><div class="lbl">Legal &amp; safety</div><nav aria-label="Legal and support">${nav}</nav></aside>
-    <main id="content" class="content">
-      <div class="eyebrow">Public policy &amp; safety</div>
-      <h1>${escapeHtml(title)}</h1>
-      <p class="tagline">${escapeHtml(description)}</p>
-${blocker}
-      <div class="callout"><b>Important:</b> MORT is a 13+ local-work marketplace and safety platform. Feature availability can vary by age, role, jurisdiction, account status, app version, verification state, and payment-provider readiness. Verification and safety tools reduce risk but do not guarantee identity, safety, job quality, payment, or legal compliance.</div>
-      ${body}
-    </main>
-  </div>
-  <footer class="foot"><div class="row"><span><b>MORT</b> &nbsp;&middot;&nbsp; Publisher: ${publisher}</span><span>Support: ${supportEmail}</span><span>Effective: ${effectiveDate}</span><span>Website: ${websiteUrl}</span></div><div class="row" style="margin-top:8px"><span>Draft — pending qualified legal review. Rights that applicable law makes nonwaivable remain protected.</span></div></footer>
-  ${scripts}
-  <script src="/assets/atmosphere.js"></script>
-</body>
-</html>`.replace(/^[ \t]+$/gm, '');
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#02040a"><meta name="description" content="${escapeHtml(description)}"><title>${escapeHtml(title)} | MORT</title><link rel="icon" href="/mort-mark.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/legal.css"></head>
+<body><a class="skip" href="#content">Skip to content</a><canvas id="legal-sky" aria-hidden="true"></canvas><div class="veil" aria-hidden="true"></div>
+<header class="topbar"><a class="brand" href="/"><img src="/mort-mark.svg" width="28" height="28" alt="">MORT <small>Legal &amp; safety</small></a><span class="sp"></span><span class="draft">Effective ${effectiveDate} · United States</span><a class="back" href="https://mortapp.org">&larr; Back to MORT</a></header>
+<div class="wrap"><aside class="side"><div class="lbl">Legal &amp; safety</div><nav aria-label="Legal and support">${navFor(route)}</nav></aside><main id="content" class="content"><div class="eyebrow">MORT Legal &amp; Safety · United States</div><h1>${escapeHtml(title)}</h1><p class="tagline">${escapeHtml(description)}</p>${blocker}<div class="callout"><b>Important:</b> MORT is a 13+ local-work marketplace and safety platform. Feature and job eligibility can vary by age, role, jurisdiction, school status, verification state, account status, app version, and provider readiness. Verification and safety tools reduce risk but do not guarantee identity, safety, job quality, payment, or legal compliance.</div>${body}</main></div>
+<footer class="foot"><div class="row"><span><b>MORT</b> &nbsp;·&nbsp; Publisher: ${publisher}</span><span>Support: ${supportEmail}</span><span>Effective: ${effectiveDate}</span><span>Website: ${websiteUrl}</span></div><div class="row" style="margin-top:8px"><span>Mandatory rights under applicable law remain protected. State-specific provisions appear in the U.S. State Law Addendum.</span></div></footer>${scripts}<script src="/assets/atmosphere.js"></script></body></html>`;
 }
 
-write('assets/legal.css', readFileSync(resolve(legalTheme, 'legal.css'), 'utf8'));
-write('assets/atmosphere.js', readFileSync(resolve(legalTheme, 'atmosphere.js'), 'utf8'));
-write('mort-mark.svg', readFileSync(resolve(legalTheme, 'mort-mark.svg'), 'utf8'));
+const termsBody = `
+<h2>1. Agreement and acceptance</h2><p>These Terms of Service (“Terms”) govern access to and use of MORT's applications, websites, marketplace, messaging, verification, safety, payment, subscription, purchase, support, and related services (“Services”). A contract is formed only through a legally sufficient acceptance process. Where MORT gives conspicuous notice that an action constitutes acceptance, you agree by tapping or clicking an identified acceptance control such as <b>I Agree, Accept, Create Account, Continue, Confirm, Buy, Subscribe, or Confirm Purchase</b>, or by another electronic action clearly presented as acceptance. MORT does not rely solely on a hidden link or the fact that a person visited a webpage.</p><p>Where permitted by law, continued use after conspicuous notice of updated Terms and their effective date may constitute acceptance. MORT may require affirmative re-acceptance of material changes.</p>
+<h2>2. Electronic records</h2><p>An electronic acceptance action may constitute an electronic signature. MORT may retain the agreement version or immutable identifier, acceptance timestamp, account identifier, authentication state, acceptance surface, relevant device/session information, and guardian acceptance where applicable to establish what was presented and accepted.</p>
+<h2>3. Incorporated agreements</h2><p>The <a href="/privacy/">Privacy Policy</a>, <a href="/dispute-resolution/">Arbitration and Dispute Resolution Agreement</a>, <a href="/us-state-law-addendum/">U.S. State Law Addendum</a>, <a href="/guardian-terms/">Guardian Terms</a>, <a href="/verification-privacy-notice/">Verification Privacy Notice</a>, <a href="/paid-services/">Paid Services Terms</a>, Community Guidelines, Safety rules, Child Safety Standards, Prohibited Jobs Policy, and Payment Dispute rules are incorporated where applicable. A specialized agreement controls over these Terms only for the feature or subject it specifically governs.</p>
+<h2>4. Age and eligibility</h2><p>Ordinary MORT accounts are intended for people age 13 or older. Teen Users are users under the age of legal majority. Eligibility for an account does not establish eligibility for every job, payment feature, transaction, subscription, verification method, or location. MORT may require age, role, jurisdiction, school-status, permit, guardian, or verification conditions before enabling a feature.</p>
+<h2>5. Teen assent and guardian authorization</h2><p>Teen Users must assent to rules presented to them. MORT may separately require a parent or legal guardian to accept the Guardian Terms and authorize specific marketplace, verification, safety, payment, or other functionality. A guardian represents that the guardian has authority to provide the authorization given. No provision claims to eliminate a minor's nonwaivable rights or to make a minor's agreement enforceable where applicable law provides otherwise.</p>
+<h2>6. Accounts and truthful information</h2><p>You must provide accurate, current information and protect account credentials. You may not falsify age, identity, school, business, guardian relationship, verification result, credentials, eligibility, location, authority, or job history. MORT may restrict, recover, suspend, or terminate accounts reasonably necessary for safety, fraud prevention, legal compliance, security, or enforcement.</p>
+<h2>7. Verification</h2><p>MORT may use school ID, school email, government ID, business information, age assurance, liveness or presence checks, provider reference IDs, and fraud or security signals. A verification badge means only that specified verification steps were completed. It is <b>not</b> a guarantee of identity, criminal history, trustworthiness, safety, job legality, financial responsibility, or future conduct.</p>
+<h2>8. Marketplace role</h2><p>MORT provides technology for eligible users to discover, post, apply for, accept, schedule, communicate about, document, and resolve issues concerning local opportunities. Merely using MORT does not by itself make MORT the employer, employee, staffing agency, contractor, insurer, fiduciary, guardian, transportation provider, principal, or legal representative of marketplace users. Contract labels do not override any worker, employment, agency, or other classification imposed by applicable law based on actual facts.</p>
+<h2>9. Adult and business responsibilities</h2><p>Adult and Business Users must accurately describe work, pay, duration, location type, supervision, equipment, material hazards, and expected conditions. They are responsible for laws that apply to their activity, including wage, child-labor, payroll, tax, permit, insurance, worker-classification, safety, nondiscrimination, recordkeeping, and supervision obligations. Publication or a MORT badge is not legal clearance.</p>
+<h2>10. Youth work and jurisdiction</h2><p>Federal, state, and local youth-work rules may overlap. When multiple requirements apply, users must comply with the rule that actually governs and MORT may apply the more protective restriction. MORT may block or restrict work based on age, state, locality, school-day status, hours, night-work limits, hazardous occupations, permits or certificates, supervision, equipment, or other eligibility. MORT does not warrant that an eligibility engine alone proves legal compliance.</p>
+<h2>11. Prohibited work and conduct</h2><p>Users may not use MORT for illegal activity; sexual or exploitative work; grooming; trafficking; adult-minor sexual solicitation; weapons, drugs, gambling, fraud, or credential theft; dangerous prohibited occupations; harassment; threats; impersonation; doxxing; malware; evidence manipulation; verification evasion; or other conduct prohibited by MORT policy or law.</p>
+<h2>12. Real-world safety</h2><p>No MORT rule requires a Teen User to remain in a situation the Teen User reasonably believes is unsafe. MORT may offer check-ins, Guardian Mode, trusted contacts, Safety Exit, reports, blocking, job-status sharing, or emergency-related tools. These controls reduce risk but cannot eliminate it. MORT is not a police, fire, emergency medical, child-protection, or emergency-response service.</p>
+<h2>13. Communications and moderation</h2><p>MORT may process communications using automated and human systems to deliver messages and detect scams, grooming, sexual solicitation, threats, harassment, fraud, policy violations, or unsafe job activity. Users should not assume messages are immune from authorized safety review. Automated systems may make mistakes, and MORT may warn, restrict, escalate, or review based on severity and confidence.</p>
+<h2>14. Location</h2><p>Public discovery should use only the location precision reasonably necessary for the feature. Precise Teen User location is not an ordinary public profile field. More precise job or safety location may become available only at an appropriate transaction or safety stage. Users may not circumvent location protections or use information to stalk, harass, or endanger another person.</p>
+<h2>15. Start, finish, check-in, and evidence systems</h2><p>MORT may use PINs, timestamps, confirmations, photos, files, device events, status history, and other records to document job activity. These are evidence tools and do not independently prove identity, legal compliance, entitlement to payment, quality, or safety.</p>
+<h2>16. Payments</h2><p>Where enabled, MORT or identified providers may process authorizations, charges, holds, refunds, transfers, payouts, disputes, and related payment events. Provider terms may also apply. MORT does not guarantee authorization, settlement, chargeback outcomes, payout eligibility, processor availability, or recovery of every debt or loss. Users remain responsible for applicable tax and reporting duties unless MORT expressly assumes one.</p>
+<h2>17. Paid services and in-app purchases</h2><p>Subscriptions, boosts, digital items, or other purchases are also governed by the <a href="/paid-services/">Paid Services Terms</a>. Completing a purchase reaffirms these Terms and the Arbitration Agreement only when the checkout interface provides conspicuous notice that the final purchase action constitutes that agreement and supplies accessible links before the action.</p>
+<h2>18. XP, ranks, badges, Motion Tokens, and digital items</h2><p>Unless MORT expressly states otherwise, XP, levels, ranks, badges, Motion Tokens, cosmetics, and similar digital features have no cash value and are licensed for use within MORT rather than sold as legal tender, securities, deposits, cryptocurrency, or guaranteed property rights.</p>
+<h2>19. User content</h2><p>You retain rights you own in your content. You grant MORT a non-exclusive, worldwide, royalty-free license to host, reproduce, process, format, transmit, display, moderate, preserve, and use submitted content as reasonably necessary to operate the Services, deliver requested functionality, investigate safety matters, resolve disputes, prevent abuse, enforce policy, and comply with law. This license does not authorize unrelated commercial exploitation of private Teen User safety information.</p>
+<h2>20. Reviews and reputation</h2><p>Reviews must concern genuine experiences. Users may not buy, fabricate, coerce, retaliate through, or manipulate ratings, reviews, XP, badges, rankings, or reputation systems.</p>
+<h2>21. Enforcement</h2><p>MORT may reject listings, remove content, restrict messaging or features, pause transactions, remove verification, preserve relevant evidence, suspend or terminate accounts, or contact appropriate authorities where reasonably necessary for safety, security, fraud prevention, legal compliance, or policy enforcement. Immediate action may occur before a full review where reasonably necessary to protect people or systems.</p>
+<h2>22. Third-party services</h2><p>MORT may rely on providers for hosting, databases, authentication, notifications, identity, age assurance, app-store billing, payments, subscriptions, analytics, moderation, maps, fraud prevention, or support. Third parties may have separate terms and privacy practices. MORT is not responsible for independent services outside its control except where applicable law provides otherwise.</p>
+<h2>23. No guarantee of jobs or income</h2><p>MORT does not guarantee listings, applications, acceptance, employment, customers, income, payment, ratings, transaction volume, or a particular result.</p>
+<h2>24. Service changes and availability</h2><p>The Services may contain errors or experience outages. MORT may add, test, modify, restrict, suspend, or discontinue features, subject to applicable law and paid-service obligations.</p>
+<h2>25. Disclaimer of warranties</h2><p><b>TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE SERVICES ARE PROVIDED “AS IS” AND “AS AVAILABLE.”</b> MORT disclaims warranties that may lawfully be disclaimed, including implied warranties of merchantability, fitness for a particular purpose, and non-infringement. MORT does not warrant that every user is who they claim to be, every job is safe or lawful, every payment succeeds, every alert arrives, or every feature is error-free. Nonwaivable warranties remain protected.</p>
+<h2>26. Limitation of liability</h2><p><b>TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, MORT AND ITS LAWFUL OPERATORS, AFFILIATES, PERSONNEL, AND SERVICE PROVIDERS WILL NOT BE LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, PUNITIVE, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS, BUSINESS, DATA, OR GOODWILL.</b></p><p>To the maximum extent permitted by applicable law, MORT's aggregate liability for claims arising from the Services will not exceed the <b>greater of $100</b> or the amount the claimant paid directly to MORT during the 12 months preceding the event giving rise to the claim. This limitation does not apply where applicable law prohibits limitation, including where required for fraud, intentional misconduct, gross negligence, death or personal injury, statutory remedies, or another nonwaivable obligation.</p>
+<h2>27. User-to-user conduct</h2><p>To the maximum extent permitted by law, MORT is not liable merely because an independent user injures, deceives, threatens, scams, or breaches an agreement with another user. Nothing in this section excuses an obligation imposed directly on MORT by applicable law.</p>
+<h2>28. Adult and business indemnification</h2><p>To the maximum extent permitted by law, Adult and Business Users agree to defend, indemnify, and hold harmless MORT from third-party claims arising from their unlawful listing, wage or youth-work violation, unsafe worksite, undisclosed hazard, fraud, intentional misconduct, infringement, misuse of personal information, or material breach of these Terms. This provision is not intended to impose an unlawful or unconscionable indemnification obligation on Teen Users.</p>
+<h2>29. Disputes</h2><p>The <a href="/dispute-resolution/">Arbitration and Dispute Resolution Agreement</a> is incorporated into these Terms. It includes a 60-day informal process, individual arbitration where enforceable, a class-action waiver, jury-trial waiver, exceptions, and a 30-day opt-out.</p>
+<h2>30. Changes, termination, and survival</h2><p>MORT may update these Terms prospectively. Material changes receive appropriate notice and affirmative re-acceptance where required. Users may stop using MORT and request account deletion. MORT may restrict or terminate access for violations, fraud, safety risks, security needs, or legal requirements. Provisions that logically must survive—such as payment, dispute, intellectual-property, evidence-preservation, liability, indemnification, and arbitration provisions—survive to the extent enforceable.</p>
+<h2>31. State and federal savings</h2><p>These Terms do not waive rights that applicable law makes nonwaivable. If a mandatory federal, state, or local rule conflicts with these Terms, that rule controls only to the extent required. See the <a href="/us-state-law-addendum/">U.S. State Law Addendum</a>.</p>
+<h2>32. Contact</h2><p>Support and legal notices may be sent to ${supportEmail}. Arbitration opt-outs must use the process in the Arbitration Agreement. MORT will publish a legal mailing address when an appropriate operating-entity address is established; no personal home address is designated by these Terms.</p>`;
 
 const privacyBody = `
-<h2>1. Scope</h2>
-<p>This Privacy Policy explains how MORT collects, uses, shares, protects, retains, and deletes information when people use the MORT mobile application, websites, public policy pages, marketplace, support, safety, verification, subscription, advertising, and related services.</p>
-<p>MORT does not collect every category described here from every user. Collection depends on the features a person uses and the person's age, role, location, permissions, verification status, and account configuration.</p>
-
-<h2>2. Who may use MORT</h2>
-<p>MORT accounts are generally intended for people age 13 or older. Teen accounts are intended primarily for eligible users ages 13–17. Adult, business, guardian, moderator, support, and administrator roles may have additional eligibility requirements.</p>
-<p>MORT does not knowingly provide ordinary MORT accounts to children under 13. If MORT learns that an ordinary account belongs to a person under 13, MORT may restrict or delete the account and associated information, subject to narrow safety, fraud-prevention, abuse-prevention, legal, and evidence-preservation requirements.</p>
-
-<h2>3. Teen privacy principles</h2>
-<ul>
-<li><b>Data minimization.</b> MORT should collect only information reasonably necessary for the applicable feature, safety purpose, legal obligation, marketplace transaction, or user request.</li>
-<li><b>Private by default.</b> Sensitive teen information is not public merely because an account exists.</li>
-<li><b>No sale of teen personal information for money.</b></li>
-<li><b>No cross-context behavioral advertising to Teen Users.</b> Teen ads, where enabled, are contextual or non-personalized.</li>
-<li><b>Safety before monetization.</b> Essential reporting, blocking, safety, and emergency-related functions are not conditioned on a paid subscription or ad view.</li>
-</ul>
-
-<h2>4. Account and authentication information</h2>
-<p>MORT may process an account ID, email address, username, display name, authentication provider, optional recovery information, session data, login history, role, onboarding status, account restrictions, policy acceptance records, and security events. Password authentication is handled by the authentication provider; MORT is not designed to store readable passwords.</p>
-
-<h2>5. Age and eligibility information</h2>
-<p>MORT may process date of birth, age band, jurisdiction, teen/adult status, role eligibility, marketplace eligibility, job-category eligibility, guardian requirements, verification status, age-assurance results, and legal-document acceptance. MORT should ordinarily use age bands or eligibility results instead of exposing an exact date of birth.</p>
-
-<h2>6. Profile information</h2>
-<p>Users may provide a profile image, username, biography, skills, availability, general service area, job preferences, badges, rank, XP, completion statistics, ratings, reviews, and trust or safety indicators. Public visibility depends on role, age, feature, privacy setting, and safety requirements.</p>
-
-<h2>7. Sensitive teen information that is not an ordinary public profile field</h2>
-<p>MORT does not treat a Teen User's full date of birth, exact home address, precise live location, private email, private phone number, school email, school ID, government ID, guardian identity, trusted-contact identity, private messages, safety reports, dispute evidence, private job evidence, emergency information, or account-recovery information as an ordinary public directory field.</p>
-
-<h2>8. Marketplace and job information</h2>
-<p>MORT may process job posts, categories, descriptions, approximate locations, requirements, pay information, schedules, skills, equipment, hazards, expected people, supervision, applications, applicant decisions, accepted jobs, job agreements, cancellations, scope changes, safety holds, work progress, Start and Finish PIN events, completion, reviews, ratings, work history, payment status, and dispute status.</p>
-
-<h2>9. Communications and moderation</h2>
-<p>MORT may process job-context messages, support conversations, report descriptions, appeals, safety messages, dispute communications, attachments, and moderation events. Communications may be scanned or reviewed to deliver messages, detect spam or scams, identify grooming or sexual solicitation, detect threats and harassment, prevent prohibited off-platform contact, protect minors, investigate reports, enforce policies, and comply with law.</p>
-<p>Automated systems can make mistakes. Depending on severity and confidence, MORT may warn, block, hide, restrict, escalate, or refer content for human review. MORT does not place private message bodies into ordinary advertising analytics.</p>
-
-<h2>10. Identity, age, school, and business verification</h2>
-<p>MORT may offer or require verification using government ID, school ID, school email, business information, age-assurance results, liveness or presence signals where lawful, provider reference IDs, or fraud-prevention signals. Verification is one trust-and-safety signal and is not a guarantee that a person is safe, trustworthy, lawful, financially responsible, or suitable for every job.</p>
-<p>School IDs, school email addresses, and verification documents are not ordinary public profile information and are not used for personalized advertising.</p>
-
-<h2>11. Facial and biometric information</h2>
-<p>If an age-assurance or identity feature uses a photograph, video, facial analysis, or biometric identifier, MORT will provide any additional notice or consent required by law. MORT's intended design is to restrict use to verification, security, fraud prevention, or a legally required purpose; retain raw media for the shortest reasonably necessary period; avoid advertising uses; avoid sale; and retain a verification result or provider reference instead of raw material whenever reasonably possible.</p>
-<p>MORT does not intend to operate a general-purpose facial-recognition database. Device Face ID, Touch ID, fingerprint, or passcode protection ordinarily returns an authentication success/failure result to MORT rather than the device's raw biometric template.</p>
-
-<h2>12. Location</h2>
-<p>MORT may process city, state, general area, service radius, manually selected area, or approximate device location for local discovery and eligibility. Where enabled and authorized, MORT may temporarily process more precise location for an accepted job, arrival, active-job safety, check-ins, emergency-related functions, or authorized status sharing.</p>
-<p>Precise Teen User location is not a public field and is not used for personalized advertising. If device permission is denied, MORT does not secretly bypass that permission, although location-dependent features may become unavailable.</p>
-
-<h2>13. Safety and guardian information</h2>
-<p>MORT may process safety check-ins, Safety Exit events, emergency states, trusted contacts, Guardian Mode links, guardian approvals, arrival/departure status, safety escalations, incident reports, and related evidence. Guardian access is not automatic merely because someone knows a Teen User's name, username, or email. Access is limited to what the authorized feature, permissions, and law allow.</p>
-<p>Guardian Mode does not silently grant unrestricted access to every private Teen User message. Additional information may be disclosed when permitted or required in a serious safety situation.</p>
-
-<h2>14. Photos, video, camera, and files</h2>
-<p>MORT may process images or files selected for avatars, identity verification, job proof, disputes, support, reports, or safety investigations. MORT may resize files, remove unnecessary metadata, scan for malicious or prohibited content, validate file type, and generate secure previews.</p>
-
-<h2>15. Payments and subscriptions</h2>
-<p>MORT may maintain agreed job compensation, payment status, refund status, dispute status, provider identifiers, transaction identifiers, provider status, and limited payment-method descriptions supplied by an approved provider. Payment providers may separately process card, bank, tax, identity, or payout information under their own privacy terms.</p>
-<p>For Plus, Pro, or other digital products, MORT may process subscription tier, product ID, purchase status, renewal status, entitlement, purchase platform, transaction reference, and expiration. App stores, RevenueCat, or another authorized billing provider may separately process billing information.</p>
-
-<h2>16. Progression and leaderboards</h2>
-<p>MORT may process XP, level, rank, badges, completed-job count, safety streak, goals, Motion Tokens, cosmetic unlocks, and leaderboard preferences. Teen leaderboard participation is intended to be optional where required by the feature design, and public leaderboard data should not expose exact age, home address, school, private email, or precise location.</p>
-
-<h2>17. Device and technical information</h2>
-<p>MORT and its providers may process device type, operating system, app version, IP address, language, time zone, push token, session identifiers, request metadata, network information, security events, rate limits, app-integrity results, crash information, error records, and performance information to operate, secure, diagnose, and improve the service.</p>
-
-<h2>18. Information from other sources</h2>
-<p>MORT may receive information from authentication providers, app stores, verification providers, payment providers, fraud-prevention providers, linked guardians, businesses, support providers, users involved in the same job, public business registries, law enforcement, government authorities, safety organizations, and other sources authorized by the user or law. MORT does not purchase broad data-broker dossiers about Teen Users for advertising.</p>
-
-<h2>19. How MORT uses information</h2>
-<p>MORT may use information to provide and maintain the service, authenticate and recover accounts, determine age and role eligibility, verify identity or business status, operate jobs and messaging, support Guardian Mode, operate safety tools, document completion, maintain job records, process subscriptions and approved payments, deliver notifications, support users, investigate reports and disputes, prevent fraud and exploitation, enforce policies, secure systems, comply with law, establish or defend legal claims, and improve reliability, accessibility, and safety.</p>
-
-<h2>20. Sharing</h2>
-<p>MORT may disclose information to authorized job participants, verified guardians or safety contacts, and contracted service providers only as reasonably necessary for the feature or purpose involved. Providers may include authentication, database, hosting, file storage, notification, fraud, moderation, age-assurance, identity-verification, payment, subscription, advertising, analytics, support, crash-diagnostics, and security providers.</p>
-<p>MORT may also preserve or disclose information where reasonably necessary to protect a person, investigate suspected abuse or fraud, comply with valid legal process, enforce policies, report child sexual abuse material as required, or establish or defend legal claims.</p>
-
-<h2>21. Advertising</h2>
-<p>MORT may display advertising on eligible non-sensitive surfaces. Teen advertising is intended to be non-personalized or contextual. Precise location, private messages, identity documents, school-verification information, guardian data, private safety data, and dispute evidence are not advertising data.</p>
-<p>MORT does not sell Teen Users' personal information for money and does not use Teen User personal information for cross-context behavioral advertising. Where a law defines sale, sharing, or targeted advertising more broadly, MORT will provide any legally required control or opt-out.</p>
-
-<h2>22. Analytics</h2>
-<p>Limited analytics may be used for reliability, performance, crashes, feature usage, aggregate engagement, marketplace health, security, and technical failures. Ordinary analytics should exclude private message bodies, raw identity documents, raw school IDs, precise live location, private safety-report narratives, private dispute evidence, passwords, authentication secrets, and Start or Finish PINs.</p>
-
-<h2>23. Security</h2>
-<p>MORT uses administrative, organizational, and technical safeguards designed to protect information, including authentication, private storage, row-level and server-side authorization, short-lived signed links, access controls, rate limits, logs, audit events, restricted administrative roles, encrypted network transport, security testing, and separation of public and private data.</p>
-<p>No internet-connected system can guarantee absolute security. Users should protect their credentials, email account, device, and authentication factors and should report suspected unauthorized access promptly.</p>
-
-<h2>24. Retention</h2>
-<p>MORT retains information only as long as reasonably necessary for the purpose collected and legitimate account, marketplace, safety, fraud-prevention, security, contractual, tax, payment, dispute, insurance, legal, and evidence-preservation needs. Raw identity or age-assurance material should be retained for the shortest reasonably necessary period where MORT can instead preserve a verification result or reference.</p>
-<p>Temporary precise-location sessions are intended to expire when the active job or safety purpose ends, subject to narrow incident, security, dispute, or legal holds. Backups may retain deleted information for a limited rotation period. When retention is no longer justified, MORT may delete, anonymize, aggregate, or deidentify information.</p>
-
-<h2>25. Account and data deletion</h2>
-<p>Users can request deletion through MORT account controls or the <a href="/account-deletion/">public deletion page</a>. MORT may verify account ownership. Deletion generally removes or deidentifies ordinary account data that is no longer needed, but limited information may remain for unresolved safety investigations, fraud prevention, security, disputes, appeals, payment or job records, tax obligations, legal compliance, preventing repeat abuse, valid legal process, and evidence preservation.</p>
-<p>Some records involve more than one person. Deleting one account does not necessarily require deletion of another person's lawful copy or a legitimate shared transaction, safety, or dispute record.</p>
-
-<h2>26. Privacy rights</h2>
-<p>Depending on applicable law, users may have rights to confirm processing, access, correction, deletion, portability, opt out of qualifying sale, targeted advertising, or profiling, withdraw consent where relevant, limit certain sensitive-data uses, appeal a denied privacy request, and exercise rights without unlawful discrimination. MORT may verify identity, account ownership, guardian authority, or authorized-agent status before fulfilling a request.</p>
-<p>Eligible Indiana residents may have rights under the Indiana Consumer Data Protection Act, including access, correction, deletion, portability, applicable opt-outs, and appeal. Other state or international rights may also apply.</p>
-
-<h2>27. Child sexual abuse and exploitation</h2>
-<p>MORT has zero tolerance for child sexual abuse or exploitation, grooming, sexual solicitation, sextortion, trafficking, requests for sexual images, sexual jobs, or attempts to use MORT to endanger a minor. MORT may preserve and report apparent child sexual abuse material or related information when required by law. Do not email, download, forward, or redistribute suspected child sexual abuse material.</p>
-
-<h2>28. Business transfers</h2>
-<p>If MORT is involved in a merger, acquisition, financing, restructuring, bankruptcy, asset transfer, sale, or corporate reorganization, information may be transferred where permitted by law, subject to applicable privacy obligations and notice where required.</p>
-
-<h2>29. International processing</h2>
-<p>MORT and approved providers may process information in the United States and other places where they operate. Where required, MORT will use an appropriate transfer mechanism or lawful safeguard.</p>
-
-<h2>30. Changes and contact</h2>
-<p>MORT may update this Policy when products, providers, laws, safety practices, or data uses change. Material changes may receive in-app, email, or website notice and renewed consent or acceptance where required. A new policy page alone does not replace legally required consent for a materially new sensitive-data use.</p>
-<p>Privacy contact: ${privacyEmail}. Support: ${supportEmail}.</p>
-<p><b>Do not send passwords, authentication codes, Start/Finish PINs, full card numbers, bank passwords, Social Security numbers, unrequested identity documents, or suspected CSAM through ordinary support email.</b></p>
-`;
-
-const termsBody = `
-<h2>1. Agreement and incorporated policies</h2>
-<p>These Terms govern access to and use of the MORT mobile application, websites, marketplace, communications, verification, safety, subscription, payment, and related services. By creating or using an account or otherwise accepting these Terms, you agree to them and to incorporated policies presented by MORT, including the Privacy Policy, Community Guidelines, Teen Safety rules, Parent/Guardian notices, prohibited-job rules, and payment/dispute rules where applicable.</p>
-
-<h2>2. What MORT is</h2>
-<p>MORT is a local opportunity and work marketplace designed primarily to help eligible teenagers discover and participate in appropriate nearby opportunities while giving eligible adults and businesses tools to post work. Features may include listings, applications, scheduling, messaging, age or identity verification, school verification, business verification, safety check-ins, Guardian Mode, approximate location, Start/Finish PINs, evidence, ratings, disputes, XP, ranks, badges, leaderboards, subscriptions, notifications, advertising, and payment-related services.</p>
-<p>Not every feature is available to every user, age group, role, jurisdiction, platform, or release.</p>
-
-<h2>3. Minimum age and teen eligibility</h2>
-<p>You must generally be at least 13 to hold an ordinary MORT account. A Teen User is generally an eligible user ages 13–17. Account age eligibility does not mean a Teen User is legally eligible for every paid job. Job access may be restricted by age, location, law, school schedule, guardian requirements, verification status, account standing, job category, safety classification, and other requirements.</p>
-
-<h2>4. Parent and guardian involvement</h2>
-<p>MORT may require parent or guardian notice, linking, authorization, confirmation, or approval for specified teen activities where required by law, policy, risk level, or product configuration. A Teen User may not impersonate a guardian or falsify guardian information. Guardian access is limited to the information disclosed by the feature and does not automatically grant unrestricted access to all private messages.</p>
-
-<h2>5. Adult and business responsibilities</h2>
-<p>Adults interacting with Teen Users have heightened responsibilities. Adults and businesses must use accurate identities and authority, accurately describe work, disclose relevant hazards and expected people, provide lawful and age-appropriate work, respect teen privacy, communicate through permitted channels, and comply with applicable youth-employment, wage, supervision, safety, tax, insurance, nondiscrimination, permit, and recordkeeping requirements.</p>
-<p>A MORT eligibility result or verification badge is not legal clearance to employ or engage a minor.</p>
-
-<h2>6. Account security and verification</h2>
-<p>Users must provide accurate information, protect credentials, and promptly report suspected compromise. Users may not falsify age, guardian status, business authority, verification data, or identity. MORT may require government ID, school ID, school email, age assurance, guardian verification, business verification, or other checks. A verified indicator means only that specified checks were completed; it is not a guarantee of safety, trustworthiness, solvency, criminal-history status, legal eligibility, or performance.</p>
-
-<h2>7. Marketplace and job rules</h2>
-<p>Job posters must accurately state the work, category, general location, schedule, estimated duration, compensation, skills, equipment, known hazards, people expected to be present, supervision, completion expectations, and lawful cancellation terms. A material job change after acceptance requires the Teen User's agreement and may require renewed safety or guardian approval. Teen Users may refuse unexpected work.</p>
-
-<h2>8. Youth-employment compliance</h2>
-<p>All participants must comply with applicable federal, state, and local rules governing minors and work, including age, hours, school-day restrictions, permitted occupations, hazardous work, equipment, supervision, wage, payroll, tax, permit, and recordkeeping rules. MORT may impose stricter restrictions for safety. A job appearing in MORT does not establish that the job is lawful for every Teen User.</p>
-
-<h2>9. Prohibited work</h2>
-<p>Without express authorization and legal review, MORT prohibits sexual or adult services, pornography, escort activity, alcohol, tobacco, vaping or nicotine products, illegal drugs, controlled substances outside lawful contexts, weapons, explosives, gambling, transporting unknown packages, driving jobs for Teen Users, dangerous construction, demolition, roofing, mining, prohibited machinery, dangerous cutting equipment, hazardous chemicals, unsafe heights, isolated locked-room work, jobs designed to evade labor law, exploitation, illegal activity, deceptive work, or tasks requiring unnecessary disclosure of sensitive teen information. See <a href="/prohibited-jobs/">Prohibited Jobs</a> for additional rules.</p>
-
-<h2>10. Safety comes before completion</h2>
-<p>No user is required by MORT to continue a job the user reasonably believes is unsafe. A Teen User may leave or use a safety-exit feature. Safety-related cancellations should not automatically be treated as misconduct, though MORT may review what occurred. MORT is not an emergency service and its safety technology can fail or be delayed.</p>
-
-<h2>11. Location and meetings</h2>
-<p>Public job listings should use approximate location rather than a private residential address or precise coordinates. Exact job location may be released only at an appropriate authorized stage. Users may not attempt to obtain hidden location information through technical or social-engineering methods. Unexpected changes involving address, people present, transportation, private areas, schedule, equipment, or scope may justify delaying, declining, canceling, or reporting a job.</p>
-
-<h2>12. Messaging and off-platform contact</h2>
-<p>MORT messaging may be monitored by automated and human safety systems. Users may not sexually communicate with a minor, groom or exploit a minor, request intimate images, threaten, harass, extort, scam, solicit illegal activity, request passwords or unnecessary sensitive information, pressure Teen Users into secrecy, manipulate users into unsafe meetings, evade safety controls, or engage in discriminatory abuse.</p>
-<p>MORT may restrict adult attempts to move conversations with Teen Users to private texting, Snapchat, Instagram, Discord, WhatsApp, Telegram, private email, or other channels when doing so would bypass MORT safety controls.</p>
-
-<h2>13. Job status, PINs, and evidence</h2>
-<p>A job may move through Applied, Accepted, Scheduled, In Progress, Completed, Paid, canceled, safety-hold, dispute, review, or appeal states. Start and Finish PINs document stage actions but are not identity, safety, quality, legal-compliance, or payment guarantees. Users may submit relevant evidence for job, safety, or dispute review and may not fabricate, manipulate, or unnecessarily expose private material.</p>
-
-<h2>14. Payments and compensation</h2>
-<p>MORT may operate different payment modes depending on release, provider readiness, and jurisdiction. Compensation, fees, and provider terms should be displayed before commitment. Unless a checkout screen expressly states that MORT or an identified provider is processing a payment, MORT does not represent that it holds the funds. Provider terms, chargeback rules, payout requirements, tax requirements, and verification requirements may apply when live payments are enabled.</p>
-
-<h2>15. Payment disputes and cancellations</h2>
-<p>MORT may review job records, messages, timestamps, PIN events, safety events, evidence, reports, and payment records when resolving a platform dispute. MORT's internal decision is a platform-contract decision, not a court judgment, criminal finding, legal representation, or definitive employment-law classification. Cancellation consequences may depend on timing, work completed, safety concerns, participant conduct, provider rules, and applicable law.</p>
-
-<h2>16. Digital subscriptions</h2>
-<p>MORT may offer optional Plus, Pro, or other plans. Price, billing period, included features, renewal, trial terms, and cancellation methods must be shown before purchase. Automatically renewing subscriptions continue until canceled according to the purchase terms and applicable platform rules. App-store purchases may be governed by Apple, Google, or another authorized platform.</p>
-
-<h2>17. Ratings, progression, and leaderboards</h2>
-<p>Ratings must reflect genuine marketplace experiences and may not be purchased, fabricated, coordinated, or used for retaliation. XP, levels, ranks, badges, safety streaks, Motion Tokens, goals, and cosmetic unlocks are digital experience features and, unless expressly stated otherwise, have no cash value, are not currency, and do not guarantee jobs or earnings. Teen leaderboard participation should be optional where required by the feature design.</p>
-
-<h2>18. User content</h2>
-<p>Users retain ownership of content they lawfully own. By submitting content, users grant MORT a limited, non-exclusive license to host, store, reproduce, process, display, and use that content as reasonably necessary to operate features, moderate content, investigate safety issues, resolve disputes, prevent fraud, enforce policies, and comply with law. Users may not upload illegal material, child sexual abuse material, nonconsensual intimate imagery, malware, fraudulent evidence, or content that infringes another person's rights.</p>
-
-<h2>19. Moderation and enforcement</h2>
-<p>MORT may reject or remove listings, block communications, restrict features, pause jobs, place accounts under review, suspend or ban accounts, remove verification indicators, disable leaderboard participation, preserve relevant evidence, and investigate suspected fraud or abuse. Immediate restrictions may occur before a full investigation when reasonably necessary for safety or security. Appeals may be available but do not automatically restore access.</p>
-
-<h2>20. MORT's role and no guarantees</h2>
-<p>MORT provides technology to help users connect, communicate, coordinate, and use safety and marketplace tools. These Terms do not determine the legal classification of a particular work relationship. MORT does not guarantee job availability, applicants, acceptance, completion, payment, income, work quality, ratings, continued access, user honesty, or safety. Verification, moderation, ratings, check-ins, guardian tools, and location controls reduce risk but cannot eliminate it.</p>
-
-<h2>21. Taxes, insurance, and transportation</h2>
-<p>Users and businesses are responsible for determining their own tax, insurance, permit, payroll, wage, transportation, and other legal obligations. Unless MORT expressly states otherwise, MORT does not automatically provide workers' compensation, health, automobile, property, general-liability, or professional-liability insurance.</p>
-
-<h2>22. Third-party services and service availability</h2>
-<p>MORT may rely on providers for authentication, hosting, verification, notifications, analytics, crash reporting, payments, app-store billing, maps, and other functions. Third parties have their own terms and privacy policies. MORT may modify, suspend, test, or discontinue features and does not guarantee uninterrupted operation.</p>
-
-<h2>23. Disclaimers</h2>
-<p>To the maximum extent permitted by law, MORT is provided on an “as available” and “as is” basis. MORT does not promise that every user is safe, every listing is accurate, every verification is perfect, every job is lawful, every participant performs as promised, every dispute can be resolved, every safety message arrives, or every feature always works. Nonwaivable warranties and rights remain protected.</p>
-
-<h2>24. Limitation of liability</h2>
-<p>To the maximum extent permitted by applicable law, MORT and its lawful operators, personnel, affiliates, and service providers are not liable for indirect, incidental, special, consequential, exemplary, or punitive damages arising from the service where such limitation is legally permitted. Any final aggregate monetary liability cap must be approved by qualified counsel after MORT's legal entity, insurance, payment structure, marketplace structure, and launch jurisdictions are finalized. Nothing limits liability where applicable law prohibits limitation.</p>
-
-<h2>25. Adult and business indemnification</h2>
-<p>To the maximum extent permitted by law, Adult and Business Users agree to defend, indemnify, and hold harmless MORT and its lawful operators, officers, employees, agents, affiliates, successors, and service providers from third-party claims arising from that user's unlawful job posting, child-labor or wage violations, unsafe workplace, undisclosed hazard, fraud, intentional misconduct, policy breach, infringing content, or misuse of another person's information. MORT does not rely on broad minor indemnification as its primary risk-management mechanism.</p>
-
-<h2>26. Dispute resolution</h2>
-<p>U.S. users are subject to the separate <a href="/dispute-resolution/">MORT Dispute Resolution and Arbitration Agreement</a>, which includes a mandatory informal dispute process and, for covered claims where enforceable, binding individual arbitration, a class-action waiver, and a jury-trial waiver. Exceptions and nonwaivable rights apply. The arbitration language is intentionally separate from this Privacy Policy.</p>
-
-<h2>27. Termination and survival</h2>
-<p>Users may request account deletion through available controls. MORT may suspend or terminate accounts for serious safety threats, grooming, exploitation, fraud, scams, identity manipulation, harassment, prohibited jobs, payment abuse, ban evasion, falsified evidence, or other serious violations. Dispute, payment, evidence-preservation, intellectual-property, indemnification, and other provisions that by their nature should survive may remain effective after account termination to the extent permitted by law.</p>
-
-<h2>28. Changes</h2>
-<p>MORT may revise these Terms as the product, law, providers, and safety practices change. Material changes should receive a new version, effective date, appropriate notice, and renewed acceptance where required. Continued use cannot waive rights that applicable law makes nonwaivable.</p>
-
-<h2>29. Contact</h2>
-<p>Support: ${supportEmail}. Legal operator and mailing address will be displayed once finalized for broader public marketplace activation.</p>
-`;
+<h2>1. Scope and acknowledgement</h2><p>This Privacy Policy explains how MORT collects, uses, discloses, protects, retains, and deletes personal information. Receiving or using this Policy is not blanket consent to every possible data use. Where applicable law requires separate consent—such as for certain biometric, precise-location, sensitive-data, or marketing processing—MORT will request that consent separately.</p>
+<h2>2. Who may use MORT</h2><p>Ordinary accounts are intended for people age 13 or older. MORT does not knowingly provide ordinary accounts to children under 13. If MORT learns that an ordinary account belongs to a child under 13, it may restrict or delete the account subject to narrow safety, fraud, abuse-prevention, payment, evidence-preservation, and legal obligations.</p>
+<h2>3. Nationwide Teen User baseline</h2><ul><li><b>Data minimization:</b> collect information reasonably necessary for the feature, transaction, safety purpose, legal obligation, or user request.</li><li><b>Private by default:</b> sensitive teen information is not public merely because an account exists.</li><li><b>No sale of Teen User personal information for money.</b></li><li><b>No cross-context behavioral advertising to Teen Users.</b> Teen advertising, where enabled, is contextual or non-personalized.</li><li><b>Safety before monetization:</b> essential reporting, blocking, and emergency-related controls are not conditioned on a paid subscription or ad view.</li></ul>
+<h2>4. Information MORT may collect</h2><p>Depending on features used, MORT may process account identifiers, email, username, display name, authentication data, role, date of birth or age band, general location, skills, availability, marketplace activity, listings, applications, schedules, communications, guardian relationships, reports, blocks, verification records, school information, transaction status, subscriptions, device and network information, push tokens, diagnostics, security events, acceptance records, and support interactions.</p>
+<h2>5. Teen-sensitive information</h2><p>Full date of birth, exact home address, precise live location, private email or phone, school email, school ID, government ID, guardian information, trusted-contact information, private messages, safety reports, dispute evidence, job evidence, emergency information, payment credentials, and recovery information are not ordinary public profile fields.</p>
+<h2>6. Age, school, identity, and business verification</h2><p>MORT may process school ID, school email, government ID, business information, age-assurance results, liveness or presence signals, provider identifiers, fraud signals, and eligibility results. Where reasonably possible, MORT should retain a verification result or provider reference instead of raw documents longer than needed. See the <a href="/verification-privacy-notice/">Verification Privacy Notice</a>.</p>
+<h2>7. Facial and biometric information</h2><p>If a verification method uses a photograph, video, facial analysis, biometric identifier, or biometric information, MORT provides any separate notice and consent required by applicable law. Raw facial or biometric material is not advertising data. MORT does not intend to operate a general-purpose facial-recognition database.</p>
+<h2>8. Location</h2><p>MORT may process city, state, service area, or approximate device location for discovery and eligibility. Where enabled and authorized, more precise location may be processed for an accepted job, arrival, active-job safety, check-ins, emergency-related functions, or authorized status sharing. Precise Teen User location is not an ordinary public profile field and is not used for personalized advertising.</p>
+<h2>9. Communications and moderation</h2><p>MORT may process messages, attachments, support conversations, reports, appeals, and safety communications to deliver them and to detect scams, grooming, sexual solicitation, threats, harassment, fraud, abuse, or policy violations. Authorized automated and human review may be used. Private message bodies are not ordinary advertising analytics data.</p>
+<h2>10. Marketplace, safety, guardian, and evidence records</h2><p>MORT may process listings, applications, schedules, accepted-job details, PIN events, check-ins, safety exits, Guardian Mode relationships, trusted contacts, status sharing, files, photos, reports, ratings, reviews, cancellations, disputes, and evidence needed to operate and protect marketplace interactions.</p>
+<h2>11. Payments, purchases, and subscriptions</h2><p>Payment and platform providers may independently process card, bank, tax, payout, billing, or identity information. MORT may receive provider IDs, entitlement status, product, price, renewal, expiration, payment-method summary, transaction status, refund, dispute, charge, and payout status. Completing a purchase does not grant unlimited permission to process unrelated personal information.</p>
+<h2>12. Progression and reputation</h2><p>MORT may process XP, levels, ranks, badges, Motion Tokens, goals, streaks, cosmetic selections, completion statistics, ratings, and leaderboard participation. Leaderboard visibility may be restricted or private by default for Teen Users according to product settings and safety rules.</p>
+<h2>13. Technical information</h2><p>MORT may process IP address, device type, operating system, app version, identifiers used for security or notifications, network events, crash and diagnostic records, authentication events, timestamps, and abuse-prevention signals.</p>
+<h2>14. Sources</h2><p>Information may come from the user, an authorized guardian, another marketplace participant, the user's device with permission, payment or verification providers, app stores, service providers, security systems, public or authorized records, or lawful authorities.</p>
+<h2>15. How MORT uses information</h2><p>MORT may use information to operate accounts, authenticate users, determine eligibility, verify users, provide marketplace and communication functions, support safety features, process transactions and subscriptions, provide support, investigate disputes, prevent fraud and exploitation, secure systems, enforce rules, comply with law, improve reliability, and establish or defend legal claims.</p>
+<h2>16. Service providers</h2><p>MORT may disclose information to contracted providers performing hosting, database, storage, authentication, notifications, verification, age assurance, payment, subscriptions, analytics, fraud prevention, security, moderation, mapping, support, or similar functions. Providers should receive information reasonably necessary for their role and be subject to applicable contractual or legal safeguards.</p>
+<h2>17. Other users and guardians</h2><p>Information may be shared with another marketplace participant when reasonably necessary to operate an accepted transaction. MORT minimizes disclosure of sensitive Teen User information. An authorized guardian may receive information made available by Guardian Mode; linking a guardian does not automatically create unrestricted access to every private Teen User message.</p>
+<h2>18. Legal and safety disclosures</h2><p>MORT may preserve or disclose information to respond to valid legal process, protect a person, investigate exploitation, prevent fraud, protect systems, enforce agreements, report suspected child sexual exploitation where required, or establish or defend legal claims. Users may contact a government agency or law enforcement as permitted by law.</p>
+<h2>19. Advertising</h2><p>MORT does not sell Teen User personal information for money and does not use Teen User data for cross-context behavioral advertising. Precise location, verification documents, school verification, guardian data, private messages, dispute evidence, and private safety reports are not ordinary advertising data.</p>
+<h2>20. Analytics</h2><p>MORT may use limited analytics for reliability, crashes, feature usage, marketplace health, security, aggregate engagement, and service improvement. Teen-sensitive data should not be added to ordinary advertising analytics merely because it exists elsewhere in MORT.</p>
+<h2>21. Security</h2><p>MORT uses safeguards intended to protect information, which may include authentication, authorization controls, private storage, signed URLs, encryption in transit, rate limits, audit records, restricted administrative access, and security testing. No internet-connected service can guarantee absolute security.</p>
+<h2>22. Security incidents</h2><p>If an incident triggers a legal notification duty, MORT will notify affected people, regulators, consumer-reporting agencies, or other recipients as required by applicable law. Timing, content, encryption exceptions, and regulator requirements differ by jurisdiction; this Policy does not replace those mandatory rules.</p>
+<h2>23. Retention</h2><p>MORT retains information only as reasonably necessary for the purpose collected and for legitimate safety, fraud, transaction, dispute, security, tax, contractual, insurance, legal, or evidence-preservation needs. Verification material should be retained for the shortest reasonably necessary period where a verification result can serve the purpose.</p>
+<h2>24. Deletion</h2><p>Users may request account deletion. Deletion does not necessarily require immediate deletion of information needed for unresolved payments, safety or abuse investigations, fraud prevention, disputes, taxes, legal duties, evidence preservation, or shared transaction records. Data no longer needed may be deleted or deidentified according to applicable law and retention controls.</p>
+<h2>25. U.S. privacy rights</h2><p>Depending on residence and applicable law, users may have rights to confirm processing; access, correct, delete, or obtain data; opt out of qualifying sale, sharing, targeted advertising, or profiling; limit certain sensitive-data processing; withdraw consent; use an authorized agent; or appeal a privacy decision. MORT may verify identity or authority before acting. See the <a href="/us-state-law-addendum/">U.S. State Law Addendum</a>.</p>
+<h2>26. California and minors</h2><p>Where California law applies, MORT preserves applicable CCPA/CPRA rights, Global Privacy Control treatment where legally required, and special rules for sale or sharing of personal information of people under 16. MORT's own teen baseline is stricter for ordinary MORT operations: no sale of Teen User personal information for money and no cross-context behavioral advertising to Teen Users.</p>
+<h2>27. Child safety</h2><p>MORT prohibits child sexual exploitation, grooming, sexual solicitation, sextortion, trafficking, and sexual jobs involving minors. MORT may preserve and report information as required by applicable law and may restrict accounts or transactions to protect users.</p>
+<h2>28. Business transfers and international processing</h2><p>If MORT undergoes a merger, financing, acquisition, reorganization, bankruptcy, or asset transfer, information may be transferred subject to applicable law and protections. Providers may process information in other U.S. states or countries; legally required transfer safeguards apply where relevant.</p>
+<h2>29. Changes</h2><p>MORT may update this Policy when products, providers, laws, safety practices, or data uses change. Material changes receive appropriate notice and new consent where a materially new processing activity requires it. A changed webpage alone does not substitute for legally required consent.</p>
+<h2>30. Contact</h2><p>Privacy: ${privacyEmail}. Support: ${supportEmail}. Do not email passwords, authentication codes, Start/Finish PINs, full card numbers, bank passwords, Social Security numbers, unrequested identity documents, or suspected CSAM.</p>`;
 
 const disputeBody = `
-<h2>Important notice</h2>
-<p><b>Except for the exceptions below and to the maximum extent permitted by law, covered U.S. disputes between a user and MORT must first go through mandatory informal dispute resolution and, if unresolved, binding individual arbitration rather than a court trial. Covered claims may be brought only on an individual basis, not as a class, collective, consolidated, representative, or private-attorney-general action where that waiver is enforceable. Arbitration has different procedures, including more limited discovery and appellate review. Nothing here eliminates rights that applicable law does not permit a user to waive.</b></p>
+<div class="callout"><b>ARBITRATION NOTICE:</b> Except for stated exceptions and to the maximum extent permitted by law, covered U.S. disputes must first go through a 60-day informal process and, if unresolved, binding <b>individual arbitration</b> rather than a court trial. This Agreement includes a <b>class-action waiver</b> and <b>jury-trial waiver</b>, subject to applicable law and the exceptions below.</div>
+<h2>1. Acceptance and scope</h2><p>This Arbitration and Dispute Resolution Agreement is incorporated into the MORT Terms. It applies only where a user or guardian received conspicuous notice and validly accepted the agreement. It covers disputes between a user and MORT arising from or relating to MORT, an account, marketplace activity, moderation, verification, privacy, security, communications, payments, subscriptions, safety tools, content, suspension, deletion, or the relationship with MORT, under contract, tort, statute, regulation, common law, equity, negligence, misrepresentation, consumer law, or privacy law. It does not purport to govern a dispute solely between users.</p>
+<h2>2. Teen Users and guardians</h2><p>MORT may require a parent or legal guardian to separately accept this Agreement before specified Teen User functionality is enabled. No provision claims to bind a minor where applicable law makes the agreement unenforceable. Unenforceability as to one person does not automatically invalidate an otherwise enforceable agreement with a separate adult, guardian, or business.</p>
+<h2>3. Mandatory informal dispute resolution</h2><p>Before starting arbitration or covered litigation, a claimant must send a written Notice of Dispute to ${supportEmail} with subject <b>LEGAL NOTICE</b>, providing the claimant's name, MORT account information sufficient to identify the account, relevant guardian information if applicable, facts, dates, alleged harm, requested relief, and signature or authorized-representative signature. The parties will attempt in good faith to resolve the matter for <b>60 days</b>. Either side may request a telephone or video settlement conference. Limitation periods are tolled during this period where required by law.</p>
+<h2>4. Individual arbitration</h2><p>If unresolved, covered disputes will be resolved through binding individual arbitration administered by the American Arbitration Association (“AAA”) under the applicable Consumer Arbitration Rules where those rules apply. The Federal Arbitration Act governs this Agreement to the maximum extent applicable. Arbitration has different discovery and appellate procedures from court.</p>
+<h2>5. Court questions and arbitrator authority</h2><p>The arbitrator decides the merits of arbitrable claims and issues delegated to the arbitrator by enforceable law and agreement. A court decides whether an agreement was actually formed, whether a person validly opted out, and any question that applicable law requires a court to decide.</p>
+<h2>6. Class, collective, and representative waiver</h2><p><b>TO THE MAXIMUM EXTENT PERMITTED BY LAW, EACH PARTY MAY BRING COVERED CLAIMS ONLY IN AN INDIVIDUAL CAPACITY AND NOT AS A PLAINTIFF, CLAIMANT, OR CLASS MEMBER IN A PURPORTED CLASS, COLLECTIVE, CONSOLIDATED, REPRESENTATIVE, OR PRIVATE-ATTORNEY-GENERAL PROCEEDING.</b> This clause does not eliminate public injunctive relief or another remedy that applicable law does not permit MORT to waive.</p>
+<h2>7. Jury-trial waiver</h2><p>For covered claims lawfully subject to arbitration, the parties waive trial by jury. For a covered claim that lawfully remains in court, each side waives a jury only to the extent such waiver is enforceable.</p>
+<h2>8. Small-claims exception</h2><p>Either side may bring an individual qualifying dispute in small-claims court while the matter remains within that court's jurisdiction.</p>
+<h2>9. Government, regulatory, and reporting rights</h2><p>Nothing prevents a person from filing a complaint with or cooperating with a government agency, regulator, law-enforcement agency, child-protection authority, or emergency service. Government enforcement authority is not waived.</p>
+<h2>10. Emergency and protective relief</h2><p>Nothing prevents legally permitted emergency court relief concerning imminent physical harm, child exploitation, serious cybersecurity harm, destruction of evidence, or comparable irreparable harm, nor appropriate intellectual-property relief where permitted.</p>
+<h2>11. Sexual assault and sexual harassment</h2><p>Nothing eliminates a person's election under applicable federal law, including 9 U.S.C. chapter 4, to proceed in court for a dispute relating to sexual assault or sexual harassment where that law applies.</p>
+<h2>12. Fees and hearing format</h2><p>AAA filing, administration, and arbitrator fees will be allocated under applicable AAA consumer rules and law, and MORT will pay amounts it is required to pay. Hearings may occur by documents, telephone, video, or another format permitted by the rules and law. Any in-person hearing will occur at a legally appropriate location.</p>
+<h2>13. Non-public proceedings</h2><p>Arbitration proceedings should be non-public to the extent permitted by law and applicable rules. This does not prohibit disclosures reasonably necessary to a lawyer, guardian, witness, expert, insurer, auditor, regulator, law-enforcement agency, or court, and does not prohibit legally protected reporting.</p>
+<h2>14. Coordinated and mass filings</h2><p>If substantially similar individual claims are coordinated by the same or related counsel, applicable AAA mass-arbitration rules and lawful procedures may apply. Nothing in this section authorizes class arbitration.</p>
+<h2>15. 30-day arbitration opt-out</h2><p>You may opt out within <b>30 days</b> after first accepting this Arbitration Agreement. Email ${supportEmail} with subject <b>ARBITRATION OPT OUT</b> and include the account email or username, full name, a clear statement that you opt out of the MORT Arbitration Agreement, and the date. A legally authorized guardian may submit an opt-out concerning a Teen User where applicable. Opting out of arbitration alone will not terminate access to MORT.</p>
+<h2>16. State-law remedies</h2><p>Nothing in this Agreement waives a remedy that applicable state law makes nonwaivable. In particular, California public injunctive relief that cannot lawfully be waived in every forum remains available in the forum required by law.</p>
+<h2>17. Changes</h2><p>Material changes receive conspicuous notice and, where appropriate or required, affirmative re-acceptance and a new opt-out opportunity. MORT does not rely on silent retroactive changes to capture a dispute that arose before an amendment where law forbids that result.</p>
+<h2>18. Severability and survival</h2><p>If a provision is unenforceable, enforceable portions remain effective to the maximum extent permitted by law. A claim that cannot lawfully be arbitrated may be severed while arbitrable claims proceed where permitted. This Agreement survives account termination or deletion to the extent enforceable.</p>`;
 
-<h2>1. Covered disputes</h2>
-<p>“Dispute” is intended to be interpreted broadly and includes, to the maximum extent permitted by law, past, present, or future claims arising from or relating to MORT, these Terms, an account, marketplace activity, moderation, verification, privacy, security, communications, payments, subscriptions, safety tools, content, suspension, deletion, or the relationship between a user and MORT, whether based in contract, tort, statute, regulation, common law, equity, negligence, misrepresentation, consumer law, privacy law, or another legal theory.</p>
+const stateBody = `
+<h2>1. Purpose and mandatory-law rule</h2><p>This U.S. State Law Addendum supplements the MORT Terms, Privacy Policy, Arbitration Agreement, Verification Privacy Notice, and Paid Services Terms for residents or transactions subject to particular state law. It is not a representation that every MORT marketplace feature is activated in every state. If a mandatory state right conflicts with another MORT term, the mandatory state right controls to the extent of the conflict.</p>
+<h2>2. All fifty states: youth work</h2><p>MORT treats youth-work eligibility as jurisdiction-sensitive. Relevant rules may include minimum age, occupation restrictions, school-day and school-week hours, non-school hours, night-work windows, hazardous occupations, employment or age certificates, school authorization, parental permission, wage requirements, and supervision. Federal, state, and local law may overlap; MORT may apply the more protective restriction. A listing, verification badge, or platform eligibility result is not legal clearance.</p><p>States in scope: Alabama, Alaska, Arizona, Arkansas, California, Colorado, Connecticut, Delaware, Florida, Georgia, Hawaii, Idaho, Illinois, Indiana, Iowa, Kansas, Kentucky, Louisiana, Maine, Maryland, Massachusetts, Michigan, Minnesota, Mississippi, Missouri, Montana, Nebraska, Nevada, New Hampshire, New Jersey, New Mexico, New York, North Carolina, North Dakota, Ohio, Oklahoma, Oregon, Pennsylvania, Rhode Island, South Carolina, South Dakota, Tennessee, Texas, Utah, Vermont, Virginia, Washington, West Virginia, Wisconsin, and Wyoming.</p>
+<h2>3. All fifty states: security incidents</h2><p>Every state has security-breach notification requirements. MORT preserves state-specific timing, content, regulator, consumer-reporting-agency, encryption, risk-of-harm, and other mandatory requirements instead of promising one national deadline.</p>
+<h2>4. State privacy laws</h2><p>Where applicable, MORT preserves rights under comprehensive privacy regimes, including rights that may apply in California, Colorado, Connecticut, Delaware, Florida, Indiana, Iowa, Kentucky, Maryland, Minnesota, Montana, Nebraska, New Hampshire, New Jersey, Oregon, Rhode Island, Tennessee, Texas, Utah, Virginia, and any other state whose law becomes applicable. Rights may include confirmation, access, correction, deletion, portability, opt-out, consent withdrawal, appeal, authorized-agent, targeted-advertising, sale or sharing, profiling, and sensitive-data protections.</p>
+<h2>5. California</h2><p>Where applicable, California residents retain CCPA/CPRA rights to access, deletion, correction, qualifying sale or sharing opt-out, sensitive-information limitations, non-discrimination, and authorized-agent procedures. MORT will honor Global Privacy Control where legally required. California's special consent rules concerning sale or sharing of personal information of people under 16 remain protected; MORT's ordinary Teen User baseline is not to sell Teen User personal information for money or use Teen User data for cross-context behavioral advertising. California Automatic Renewal Law rights apply to covered recurring services. Nothing in MORT's dispute terms eliminates public injunctive relief where California law makes such relief nonwaivable.</p>
+<h2>6. Colorado</h2><p>Where applicable, Colorado residents retain Colorado Privacy Act rights and covered recurring-service protections, including legally required disclosures, acknowledgments, cancellation methods, and notices.</p>
+<h2>7. Illinois biometric information</h2><p>Where the Illinois Biometric Information Privacy Act applies, MORT will provide the required written notice of biometric collection or storage, disclose purpose and term, obtain the legally required written release before collection, maintain the required retention and destruction policy, not sell, lease, trade, or otherwise profit from biometric identifiers or biometric information as prohibited, restrict disclosures, and use the required standard of care for storage and protection.</p>
+<h2>8. Texas biometric information</h2><p>Where Texas biometric law applies, MORT will provide legally required notice and obtain consent before commercial capture of covered biometric identifiers and will comply with applicable disclosure, retention, destruction, and protection restrictions.</p>
+<h2>9. Washington biometric information</h2><p>Where Washington biometric law applies, MORT will comply with legally required notice or consent for biometric enrollment, permitted-use, disclosure, retention, security, and consumer-protection requirements.</p>
+<h2>10. Vermont recurring contracts</h2><p>Where Vermont law applies to a covered automatically renewing consumer contract, MORT preserves applicable affirmative opt-in, disclosure, reminder, and cancellation requirements.</p>
+<h2>11. Other state rights</h2><p>This Addendum is not an exhaustive catalogue of every state wage, worker-classification, youth-work, privacy, biometric, consumer-protection, subscription, health-data, security, contract, or safety law. A mandatory right not specifically named remains protected. MORT may update this Addendum prospectively as laws and product operations change.</p>`;
 
-<h2>2. Minors and guardian consent</h2>
-<p>MORT may require a Teen User's parent or legal guardian to separately review and accept the Terms and this Agreement before specified marketplace functionality is enabled. Where legally permitted, the guardian agrees on the guardian's own behalf and consents to the minor's use. Nothing claims to bind a minor where applicable law makes the agreement unenforceable; unenforceability as to a minor does not automatically invalidate an otherwise enforceable agreement with an adult, guardian, business, or other contracting party.</p>
+const guardianBody = `
+<h2>1. Who this applies to</h2><p>These Guardian Terms apply when MORT requires or permits a parent or legal guardian to authorize specified activity for a Teen User. Guardian authorization is separate from the Teen User's own assent to age-appropriate platform rules.</p>
+<h2>2. Authority</h2><p>By accepting as a guardian, you represent that you are the Teen User's parent or legal guardian or otherwise have legal authority to provide the authorization requested. You must provide truthful information and must not impersonate another guardian.</p>
+<h2>3. What authorization may cover</h2><p>Depending on the feature and law, guardian authorization may cover marketplace participation, verification, safety settings, transportation-related representations, communication or status-sharing features, payments or payouts, or other functionality identified at the time of consent. MORT should not treat one guardian action as unlimited consent for unrelated future processing.</p>
+<h2>4. No guarantee</h2><p>Guardian authorization does not guarantee that a job is safe, lawful, suitable, insured, supervised, or compliant with youth-work rules. Guardians and users remain responsible for reviewing job circumstances and applicable law, while MORT may impose stricter safety restrictions.</p>
+<h2>5. Guardian visibility</h2><p>Guardian Mode may expose safety status, accepted-job context, check-ins, or other information identified by the feature. Guardian linking does not automatically create unrestricted access to every private Teen User conversation or sensitive record.</p>
+<h2>6. Withdrawal and account effects</h2><p>A guardian may request withdrawal of authorization where law and the feature permit. Withdrawal may disable functionality that depends on that authorization and does not require deletion of records MORT must lawfully retain for safety, fraud, disputes, payments, evidence, or legal obligations.</p>
+<h2>7. Minor-contract savings</h2><p>Nothing in these Guardian Terms claims that guardian authorization makes every contract involving a minor enforceable in every jurisdiction or eliminates a Teen User's nonwaivable rights. MORT preserves mandatory state and federal protections.</p>
+<h2>8. Disputes</h2><p>When a guardian validly accepts MORT's <a href="/dispute-resolution/">Arbitration Agreement</a> on the guardian's own behalf, that agreement governs the guardian's covered disputes with MORT to the extent enforceable. Any effect on a minor is determined by applicable law.</p>`;
 
-<h2>3. Mandatory informal dispute resolution</h2>
-<p>Before starting arbitration or covered litigation, a claimant must send MORT a written Notice of Dispute containing the claimant's full legal name, MORT username, account email, mailing address, applicable guardian information, detailed description, relevant dates, support case number if any, alleged harm, requested relief, and signature or authorized representative signature.</p>
-<p>Notice should be sent to the legal address MORT designates in its current Terms and may also be sent to ${supportEmail} when electronic notice is enabled. The parties will then attempt in good faith to resolve the matter for 60 days. Either side may request a telephone or video settlement conference. Applicable limitation periods are tolled during this process to the extent required by law.</p>
+const verificationBody = `
+<h2>1. Scope</h2><p>This notice supplements the Privacy Policy when MORT uses school, identity, age-assurance, liveness, facial, or biometric verification. It does not mean every verification method is active in every jurisdiction.</p>
+<h2>2. Information</h2><p>Depending on the method, MORT or a disclosed provider may process school ID, school email, government ID, age-band evidence, photograph or video, liveness or presence signal, facial geometry or another biometric identifier where legally permitted, provider reference ID, fraud signals, review decisions, reviewer identity, and verification timestamps.</p>
+<h2>3. Purpose</h2><p>Verification information may be used to determine age or role eligibility, school affiliation, business status, account integrity, fraud risk, duplicate or manipulated submissions, trust-and-safety status, or compliance with legal and product requirements. A verification result is not a criminal-background check or guarantee of safety.</p>
+<h2>4. Teen school verification</h2><p>School email and school ID are private verification inputs, not ordinary public profile fields. MORT may associate a school using stable identifiers such as NCES School ID, State School ID, or equivalent records where available rather than relying on school name text alone. Grade-span information may be used to determine whether a school category is eligible for a feature.</p>
+<h2>5. Retention and deletion</h2><p>MORT's design is to retain raw identity or biometric material for the shortest reasonably necessary period and, where practical, retain a verification result or provider reference instead. Retention may be extended where reasonably necessary for an active fraud, abuse, dispute, security, evidence-preservation, or legal obligation. Applicable biometric destruction deadlines control where stricter.</p>
+<h2>6. No advertising use or sale</h2><p>School IDs, government IDs, school email, raw facial media, biometric identifiers, liveness material, and verification evidence are not ordinary advertising data. MORT does not sell biometric identifiers or biometric information and does not use Teen User verification data for cross-context behavioral advertising.</p>
+<h2>7. Illinois</h2><p>If Illinois BIPA applies, before collecting or obtaining a covered biometric identifier or biometric information MORT will provide legally required written notice that the information is being collected or stored, state the specific purpose and length of term, and obtain a written release. MORT will maintain a publicly available retention/destruction policy as required, will not sell, lease, trade, or otherwise profit from covered biometric data as prohibited, will restrict disclosure, and will protect it using the legally required standard of care.</p>
+<h2>8. Texas</h2><p>If Texas biometric requirements apply, MORT will provide notice and obtain consent before commercial capture of covered biometric identifiers and comply with applicable disclosure, retention, destruction, and security restrictions.</p>
+<h2>9. Washington</h2><p>If Washington biometric requirements apply, MORT will comply with legally required notice or consent for enrollment, permitted use, disclosure, retention, and protection of biometric identifiers.</p>
+<h2>10. Other states</h2><p>Other state privacy, biometric, health-data, consumer-protection, or youth-protection requirements remain applicable even if not individually listed here. MORT will request separate consent where required.</p>
+<h2>11. Device biometrics</h2><p>When MORT uses device-level Face ID, Touch ID, fingerprint, or passcode protection through the operating system, MORT ordinarily receives an authentication success/failure result rather than the device's raw biometric template.</p>
+<h2>12. Contact</h2><p>Verification and privacy questions: ${privacyEmail}. Do not send an unsolicited copy of an ID through ordinary support email.</p>`;
 
-<h2>4. Settlement confidentiality</h2>
-<p>To the maximum extent permitted by law, settlement offers, compromise proposals, and statements made solely for settlement are confidential and subject to applicable evidentiary protections. Evidence otherwise discoverable does not become undiscoverable merely because it was referenced during settlement.</p>
-
-<h2>5. Binding individual arbitration</h2>
-<p>If a covered dispute remains unresolved after the informal process, it will be resolved by binding individual arbitration rather than litigation in court, subject to the exceptions below. Arbitration will be administered by the American Arbitration Association under the rules it determines apply, generally including its Consumer Arbitration Rules for qualifying consumer disputes and other rule sets where legally required.</p>
-
-<h2>6. Federal Arbitration Act</h2>
-<p>To the maximum extent permitted by law, this Arbitration Agreement involves interstate commerce and is governed by the Federal Arbitration Act, 9 U.S.C. § 1 et seq.</p>
-
-<h2>7. No judge or jury</h2>
-<p>Arbitration is conducted before a neutral arbitrator rather than a judge or jury, and court review of an award is limited. The arbitrator may award individualized relief authorized by applicable law.</p>
-
-<h2>8. Individual relief and class-action waiver</h2>
-<p><b>TO THE MAXIMUM EXTENT PERMITTED BY LAW, USER AND MORT EACH WAIVE THE RIGHT TO BRING, JOIN, PARTICIPATE IN, OR RECEIVE RELIEF THROUGH A CLASS ACTION, CLASS ARBITRATION, COLLECTIVE ACTION, CONSOLIDATED ACTION, REPRESENTATIVE ACTION, OR PRIVATE-ATTORNEY-GENERAL ACTION AGAINST THE OTHER.</b></p>
-<p>Claims must proceed individually unless applicable law makes that limitation unenforceable for a particular claim or remedy. Applicable mass-arbitration procedures may govern coordinated individual filings when their requirements are satisfied.</p>
-
-<h2>9. Jury-trial waiver</h2>
-<p><b>TO THE MAXIMUM EXTENT PERMITTED BY LAW, FOR ANY COVERED DISPUTE THAT IS PERMITTED TO PROCEED IN COURT, USER AND MORT EACH KNOWINGLY AND VOLUNTARILY WAIVE THE RIGHT TO TRIAL BY JURY.</b></p>
-
-<h2>10. Confidentiality</h2>
-<p>To the maximum extent permitted by law and applicable arbitration rules, arbitration is non-public. Arbitration submissions, discovery exchanged solely for arbitration, non-public exhibits, hearing testimony, settlement information, and awards should be treated as confidential except as reasonably necessary for the proceeding, counsel, guardians, experts, witnesses, insurers, auditors, regulators, law enforcement, legal compliance, safety, or court confirmation/enforcement of an award.</p>
-
-<h2>11. Location, format, fees, and attorneys' fees</h2>
-<p>Where permitted, arbitration may occur by documents, phone, or video. Any in-person hearing will occur at a location permitted by applicable rules and consumer-protection law. Fees are allocated according to applicable law, AAA rules, and the applicable fee schedule. MORT will pay fees it is legally or contractually required to pay. Each side ordinarily bears its own attorneys' fees except where law, rules, or an arbitrator authorize otherwise.</p>
-
-<h2>12. Small claims</h2>
-<p>Either party may pursue an individual qualifying claim in a legally authorized small-claims court if the case remains within that court's jurisdiction and remains individual.</p>
-
-<h2>13. Emergency, safety, and intellectual-property relief</h2>
-<p>Nothing prevents a party from seeking legally permitted temporary or emergency individualized court relief necessary to address imminent physical harm, child exploitation, unauthorized disclosure of highly sensitive information, serious cybersecurity harm, destruction of evidence, or irreparable intellectual-property harm. Qualifying intellectual-property claims may also proceed in court where law or this Agreement permits.</p>
-
-<h2>14. Government agencies and nonwaivable rights</h2>
-<p>This Agreement does not prevent reporting suspected unlawful conduct, filing a government complaint, cooperating with regulators or law enforcement, or participating in a government investigation. It does not waive statutory government-enforcement authority, protected whistleblower rights, legally nonwaivable claims, or any right applicable law prohibits parties from waiving.</p>
-
-<h2>15. Arbitration opt-out</h2>
-<p>A new user may opt out of the Arbitration Agreement within 30 days after first accepting it, unless a longer period is required by law, without losing MORT access solely because of that choice. A legally authorized parent or guardian may submit an opt-out for a minor where applicable. The notice must include the user's full name, MORT username, account email, a clear statement opting out, and the user's or authorized guardian's signature. The final production Terms will designate the legal mailing address and may permit electronic opt-out.</p>
-
-<h2>16. Changes and severability</h2>
-<p>If MORT materially changes this Arbitration Agreement, MORT may provide renewed notice and any legally required new opt-out opportunity. If a provision is unenforceable, it will be limited or severed to the minimum extent permitted while the remaining enforceable provisions continue. If a particular claim cannot lawfully be arbitrated, that claim may be severed while other covered claims remain subject to arbitration where enforceable.</p>
-
-<h2>17. Survival</h2>
-<p>Dispute-resolution, arbitration, class-waiver, jury-waiver, confidentiality, applicable indemnification, limitation-of-liability, intellectual-property, payment, evidence-preservation, and other provisions that by their nature should survive account termination will survive to the extent permitted by law.</p>
-
-<h2>18. Emergency services</h2>
-<p>Nothing in this Agreement prevents any person from calling 911, police, emergency medical services, child-protection authorities, or other emergency resources. MORT's dispute procedures are never a substitute for emergency assistance.</p>
-`;
+const paidBody = `
+<h2>1. Scope</h2><p>These Paid Services Terms govern MORT subscriptions, in-app purchases, boosts, digital items, paid features, trials, and other consumer purchases where offered. Feature availability and payment provider can vary by platform and jurisdiction.</p>
+<h2>2. Price and purchase disclosure</h2><p>Before the final purchase action, MORT will disclose the price, currency, material product or service, billing interval, whether billing recurs, trial conversion if any, material renewal terms, and a cancellation method as required by law and platform rules.</p>
+<h2>3. Express consent</h2><p>Recurring charges require affirmative consent through a purchase flow that clearly discloses recurring billing before the final action. By tapping <b>Buy, Subscribe, or Confirm Purchase</b> after receiving conspicuous notice and accessible links, the user agrees to these Paid Services Terms and may reaffirm the current MORT Terms and Arbitration Agreement as the purchase screen states.</p>
+<h2>4. Renewals and price changes</h2><p>Unless disclosed otherwise, an automatically renewing subscription continues until cancelled. MORT or the applicable platform will provide legally required renewal, long-duration, trial-ending, or price-change notices. A material price change applies only as permitted by law and the provider's rules.</p>
+<h2>5. Cancellation</h2><p>Where a subscription was enrolled online, MORT will provide an online cancellation method where required and will not intentionally add artificial friction to prevent cancellation. A platform-billed subscription may need to be cancelled through Apple, Google, or the applicable store account settings.</p>
+<h2>6. Refunds</h2><p>Refund eligibility depends on the product, payment platform, disclosed refund rules, and applicable law. Nothing in these Terms eliminates a statutory refund, cancellation, chargeback, or cooling-off right that cannot lawfully be waived.</p>
+<h2>7. Payment and subscription providers</h2><p>Apple, Google, RevenueCat, Stripe, or another disclosed provider may process billing, entitlement, authorization, refund, tax, or transaction data under its own terms. MORT's use of a provider does not eliminate MORT obligations imposed directly by applicable law.</p>
+<h2>8. Digital items</h2><p>Unless expressly stated otherwise, Motion Tokens, XP, badges, cosmetics, boosts, or other digital items have no cash value, cannot be redeemed for money, and are licensed for use in MORT rather than treated as deposits, legal tender, securities, or cryptocurrency.</p>
+<h2>9. State recurring-service rights</h2><p>California, Colorado, Vermont, and other states may impose additional automatic-renewal, consent, notice, acknowledgment, or cancellation requirements. Those mandatory rights control. See the <a href="/us-state-law-addendum/">U.S. State Law Addendum</a>.</p>
+<h2>10. Minors</h2><p>MORT may require guardian authorization or restrict purchases for Teen Users based on age, product, platform rules, account configuration, or applicable law. A purchase interface must not imply that payment creates eligibility for an otherwise restricted job or feature.</p>`;
 
 const pages = {
-  'index.html': page({
-    route: '/',
-    title: 'Legal and safety center',
-    description: 'Public privacy, terms, dispute resolution, safety, support, accessibility, and account-control information for MORT.',
-    body: `<section class="sec"><h2>The written record</h2><p>MORT is a 13+ local-work marketplace and safety platform. These public pages explain MORT's current privacy, account, safety, marketplace, and dispute rules. Marketplace access remains subject to server-approved eligibility and feature-specific requirements.</p><p><b>Legal status:</b> the current public package remains a draft pending qualified legal review. Publication does not mean a lawyer has approved every provision.</p></section><div class="hubgrid">${routes.slice(1).map(([href, label]) => `<a class="glass hubcard" href="${href}"><h3>${label}</h3><p>${routeSummaries[href]}</p><span class="arw">Read &rarr;</span></a>`).join('')}</div>`,
-  }),
-  'privacy/index.html': page({
-    route: '/privacy/',
-    title: 'Privacy policy',
-    description: 'How MORT collects, uses, shares, protects, retains, and deletes information, with heightened teen protections.',
-    body: privacyBody,
-  }),
-  'terms/index.html': page({
-    route: '/terms/',
-    title: 'Terms of Service',
-    description: 'Comprehensive rules governing MORT accounts, marketplace activity, teen safety, payments, subscriptions, content, and enforcement.',
-    body: termsBody,
-  }),
-  'dispute-resolution/index.html': page({
-    route: '/dispute-resolution/',
-    title: 'Dispute resolution & arbitration',
-    description: 'Informal dispute resolution, individual arbitration, class-action waiver, jury waiver, exceptions, and opt-out terms.',
-    body: disputeBody,
-  }),
-  'terms-of-use/index.html': page({
-    route: '/terms-of-use/',
-    title: 'Terms of use',
-    description: 'Plain-language rules for using MORT accounts, jobs, messages, and safety tools.',
-    body: `<h2>Use MORT lawfully</h2><p>Use MORT only for lawful, age-appropriate, job-related activity. Do not impersonate others, falsify age or authority, evade blocks or bans, scrape participant data, expose private addresses, pressure Teen Users off-platform, manipulate ratings, falsify evidence, or misuse reporting tools.</p><h2>Messaging</h2><p>Messaging is job-contextual and subject to eligibility, restrictions, rate limits, automated safety checks, and human review. No sexual content involving minors, grooming, threats, scams, harassment, coercion, private-photo requests, unsafe meeting pressure, or attempts to defeat MORT safety controls.</p><h2>Safety</h2><p>Follow job, location, check-in, Guardian Mode, PIN, report, and Safety Exit rules. MORT is not an emergency service and does not guarantee that automated detection or notifications will always work.</p><h2>Legal terms</h2><p>The full <a href="/terms/">Terms of Service</a>, <a href="/privacy/">Privacy Policy</a>, and <a href="/dispute-resolution/">Dispute Resolution &amp; Arbitration Agreement</a> govern where applicable.</p>`,
-  }),
-  'community-guidelines/index.html': page({
-    route: '/community-guidelines/',
-    title: 'Community guidelines',
-    description: 'Behavior and content standards for MORT participants and organizations.',
-    body: `<h2>Be job-focused</h2><p>Keep posts and conversations relevant to a legitimate work opportunity. Use accurate scope, schedule, supervision, location type, and payment information.</p><h2>Protect minors</h2><p>No grooming, romantic or sexual adult-minor interaction, sexual solicitation, trafficking, sexual images, private minor directory, anonymous chat, or retaliation for reports.</p><h2>Respect boundaries</h2><p>No harassment, hate, discrimination, threats, doxxing, fraud, spam, block evasion, coercion, unsafe off-platform pressure, deceptive verification, or manipulation of evidence or ratings.</p><h2>Report concerns</h2><p>Use report and block controls. Do not place private incident evidence in ordinary messages. Contact local emergency services for immediate danger.</p>`,
-  }),
-  'safety/index.html': page({
-    route: '/safety/',
-    title: 'Safety center',
-    description: 'Reporting, blocking, job-context, and real-world safety guidance for MORT.',
-    body: `<h2>Immediate danger</h2><p>MORT is not an emergency service and is not continuously monitored. Leave an unsafe situation and contact local emergency services.</p><h2>Before work</h2><ul><li>Review scope, people present, location type, transportation, tools, and compensation.</li><li>Use general areas until an authorized location stage and never post a home address publicly.</li><li>Decline work that is sexual, isolated, illegal, dangerous, deceptive, or materially different from the listing.</li></ul><h2>During work</h2><p>Use check-ins, job-context messages, Guardian or trusted-contact features where configured, Start/Finish controls, and Safety Exit. Safety notifications can fail or be delayed and do not replace emergency services.</p><h2>Contact</h2><p>Child-safety contact: ${childSafetyEmail}</p>`,
-  }),
-  'child-safety-standards/index.html': page({
-    route: '/child-safety-standards/',
-    title: 'Child safety standards',
-    description: 'MORT standards against child sexual abuse, exploitation, grooming, trafficking, and solicitation.',
-    body: `<h2>Zero tolerance</h2><p>MORT prohibits CSAM, child sexual abuse and exploitation, grooming, sextortion, trafficking, sexual solicitation, sexual jobs, romantic or sexual adult-minor interaction, requests for sexual images, sexual off-platform pressure, and evasion after blocking.</p><h2>Reporting and enforcement</h2><p>Users can report supported profiles, jobs, messages, and conduct and can block accounts. MORT may block content, restrict accounts, preserve narrow lawful evidence, prevent contact, and escalate serious matters to trained adults or lawful authorities.</p><h2>Evidence boundaries</h2><p>Never ask a child to resend sexual material. Do not email, download, forward, or place suspected CSAM in ordinary tickets. Authorized adults follow applicable reporting and preservation law.</p><h2>Child-safety contact</h2><p>${childSafetyEmail}</p><p>MORT is not an emergency service.</p>`,
-  }),
-  'prohibited-jobs/index.html': page({
-    route: '/prohibited-jobs/',
-    title: 'Prohibited jobs',
-    description: 'Work categories and conditions that are not allowed in MORT.',
-    body: `<h2>Always prohibited or restricted</h2><ul><li>Sexual, romantic, escort, pornography, exploitative, or trafficking-related services.</li><li>Illegal activity, weapons, explosives, controlled substances, age-restricted goods, gambling, fraud, theft, or surveillance abuse.</li><li>Dangerous construction, demolition, roofing, heavy machinery, prohibited power equipment, hazardous chemicals, driving jobs for Teen Users, or other unlawful youth work.</li><li>Secret or isolated locations designed to bypass safety controls, locked private-room work, requests to hide the job, or unnecessary exposure of private teen information.</li><li>Deceptive compensation, requests for money or gift cards, banking credentials, passwords, or account access.</li></ul><h2>Review</h2><p>Jobs may be rejected, paused, or removed. Account eligibility never overrides labor, licensing, wage, safety, or supervision law.</p>`,
-  }),
-  'payment-disputes/index.html': page({
-    route: '/payment-disputes/',
-    title: 'Payment disputes',
-    description: 'How MORT handles payment status, evidence, cancellations, and marketplace disagreements.',
-    body: `<h2>Payment mode matters</h2><p>MORT may track compensation and payment status and, where enabled, may use an approved payment provider. The checkout screen and provider terms determine whether MORT or a provider is processing a particular payment. MORT is not a bank and does not ask users to send full card or bank credentials through ordinary messages.</p><h2>Disagreement workflow</h2><p>Participants may dispute completion, cancellation, payment, scope changes, or related issues. MORT may review job-context records, messages, timestamps, PIN events, safety events, reports, evidence, and provider records. Anti-retaliation controls may apply.</p><h2>Decision limits</h2><p>MORT's internal decision is a platform decision, not a court judgment, criminal finding, legal representation, or definitive employment-law classification. Outside legal, labor-agency, payment-provider, or court remedies may still exist.</p>`,
-  }),
-  'support/index.html': page({
-    route: '/support/',
-    title: 'Support',
-    description: 'Account, privacy, and safety support routes for MORT users and reviewers.',
-    body: `<h2>Account-linked help</h2><p>Signed-in users should use the in-app Support Center when available so requests carry authorized account context.</p><h2>Other routes</h2><p>Delete an account through <a href="/account-deletion/">account deletion</a>. Review safety guidance in the <a href="/safety/">Safety Center</a>. For urgent danger, contact local emergency services.</p><h2>Support contact</h2><p>${supportEmail}</p>`,
-  }),
-  'contact/index.html': page({
-    route: '/contact/',
-    title: 'Contact',
-    description: 'Public contact points for MORT support, privacy, and child safety.',
-    body: `<h2>Publisher</h2><p>${publisher}</p><h2>Support</h2><p>${supportEmail}</p><h2>Privacy</h2><p>${privacyEmail}</p><h2>Child safety</h2><p>${childSafetyEmail}</p><p>Do not send suspected CSAM, passwords, PINs, full financial credentials, or unrequested identity documents by ordinary email. Contact emergency services for immediate danger.</p>`,
-  }),
-  'accessibility/index.html': page({
-    route: '/accessibility/',
-    title: 'Accessibility',
-    description: 'Accessibility commitments, supported controls, and feedback for MORT.',
-    body: `<h2>Products covered</h2><p>This statement covers MORT public web pages and the MORT mobile applications.</p><h2>Design goals</h2><p>MORT is designed for screen readers, scalable text, keyboard navigation on web, visible focus, dark mode, reduced motion, descriptive labels, and permission-denial alternatives. MORT does not claim a specific WCAG conformance level unless and until that level has been verified.</p><h2>Feedback</h2><p>Report accessibility barriers to ${supportEmail}. Include the platform, device, OS, page or screen, assistive technology if any, and what you expected, without sending passwords or sensitive evidence.</p>`,
-  }),
+  'privacy/index.html': page({ route: '/privacy/', title: 'Privacy Policy', description: routeSummaries['/privacy/'], body: privacyBody }),
+  'terms/index.html': page({ route: '/terms/', title: 'Terms of Service', description: routeSummaries['/terms/'], body: termsBody }),
+  'dispute-resolution/index.html': page({ route: '/dispute-resolution/', title: 'Arbitration & Dispute Resolution', description: routeSummaries['/dispute-resolution/'], body: disputeBody }),
+  'us-state-law-addendum/index.html': page({ route: '/us-state-law-addendum/', title: 'U.S. State Law Addendum', description: routeSummaries['/us-state-law-addendum/'], body: stateBody }),
+  'guardian-terms/index.html': page({ route: '/guardian-terms/', title: 'Parent & Guardian Terms', description: routeSummaries['/guardian-terms/'], body: guardianBody }),
+  'verification-privacy-notice/index.html': page({ route: '/verification-privacy-notice/', title: 'Verification Privacy Notice', description: routeSummaries['/verification-privacy-notice/'], body: verificationBody }),
+  'paid-services/index.html': page({ route: '/paid-services/', title: 'Paid Services Terms', description: routeSummaries['/paid-services/'], body: paidBody }),
+  'terms-of-use/index.html': page({ route: '/terms-of-use/', title: 'Terms of use', description: routeSummaries['/terms-of-use/'], body: `<h2>Use MORT lawfully</h2><p>Use MORT only for lawful, age-appropriate activity. Do not impersonate others, falsify age or authority, evade bans, scrape private participant information, expose private addresses, pressure Teen Users off-platform, manipulate ratings, falsify evidence, or defeat safety controls.</p><h2>Legal package</h2><p>The <a href="/terms/">Terms</a>, <a href="/privacy/">Privacy Policy</a>, <a href="/dispute-resolution/">Arbitration Agreement</a>, and <a href="/us-state-law-addendum/">U.S. State Law Addendum</a> govern where applicable.</p>` }),
+  'community-guidelines/index.html': page({ route: '/community-guidelines/', title: 'Community guidelines', description: routeSummaries['/community-guidelines/'], body: `<h2>Keep MORT job-focused</h2><p>Use accurate scope, schedule, supervision, location type, hazards, and pay information. No fraud, spam, impersonation, harassment, retaliation, coercion, doxxing, or evidence manipulation.</p><h2>Protect minors</h2><p>No grooming, sexual or romantic adult-minor conduct, sexual solicitation, trafficking, sextortion, requests for intimate material, private minor directories, or attempts to bypass MORT safety restrictions.</p><h2>Enforcement</h2><p>MORT may remove content, restrict features, suspend accounts, preserve evidence, or contact appropriate authorities consistent with law and the Terms.</p>` }),
+  'safety/index.html': page({ route: '/safety/', title: 'Safety Center', description: routeSummaries['/safety/'], body: `<h2>Immediate danger</h2><p>If someone is in immediate danger, contact 911 or the appropriate local emergency service. MORT is not an emergency responder.</p><h2>Before a job</h2><p>Review job scope, approximate location, pay, timing, people expected to be present, supervision, transportation, tools, and hazards. Use Guardian Mode or trusted-contact features where available.</p><h2>During and after a job</h2><p>Use Start/Finish PINs, check-ins, status sharing, reporting, blocking, and Safety Exit as appropriate. Leave an unsafe situation. Preserve relevant evidence without putting yourself at additional risk.</p>` }),
+  'child-safety-standards/index.html': page({ route: '/child-safety-standards/', title: 'Child Safety Standards', description: routeSummaries['/child-safety-standards/'], body: `<h2>Zero tolerance</h2><p>MORT prohibits child sexual abuse and exploitation, grooming, sexual solicitation, sextortion, trafficking, sexualized jobs involving minors, and attempts to obtain or distribute child sexual abuse material.</p><h2>Reports and evidence</h2><p>MORT may restrict accounts, preserve relevant evidence, and make legally required reports. Do not send suspected CSAM through ordinary email or re-upload it to report it.</p><h2>Contact</h2><p>Child-safety contact: ${childSafetyEmail}. For immediate danger, contact emergency services.</p>` }),
+  'prohibited-jobs/index.html': page({ route: '/prohibited-jobs/', title: 'Prohibited Jobs Policy', description: routeSummaries['/prohibited-jobs/'], body: `<h2>Never allowed</h2><p>No sexual or exploitative work; illegal activity; weapons, drugs, gambling, trafficking, fraud, credential theft, or scams; or work designed to obtain private or intimate material from a minor.</p><h2>Dangerous work</h2><p>MORT may prohibit or restrict hazardous construction, roofing, demolition, excavation, heavy machinery, dangerous power-driven equipment, toxic or hazardous substances, driving or delivery by minors, extreme heat or cold exposure, isolated or hidden work, and any occupation prohibited for the user's age or jurisdiction.</p><h2>Law controls</h2><p>This list is not exhaustive. Federal, state, and local youth-work rules control, and MORT may apply stricter safety restrictions.</p>` }),
+  'payment-disputes/index.html': page({ route: '/payment-disputes/', title: 'Payment disputes', description: routeSummaries['/payment-disputes/'], body: `<h2>When payment features are enabled</h2><p>MORT may record authorization, charge, payout, refund, cancellation, evidence, safety hold, and dispute states. Payment availability depends on provider readiness, age, role, transaction, and jurisdiction.</p><h2>Evidence</h2><p>MORT may consider job status, messages, PIN events, timestamps, scope changes, files, photos, cancellations, reports, provider records, and other relevant evidence. An internal decision is not a court judgment and does not eliminate nonwaivable legal rights.</p><h2>Provider disputes</h2><p>Card-network, bank, app-store, or payment-provider dispute rights may separately apply.</p>` }),
+  'support/index.html': page({ route: '/support/', title: 'Support', description: routeSummaries['/support/'], body: `<h2>Get help</h2><p>Use the in-app Support Center when available. Email ${supportEmail} for account, privacy, verification, billing, or general support.</p><h2>Safety</h2><p>For immediate danger contact emergency services. For child-safety matters use ${childSafetyEmail}. Do not email passwords, authentication codes, full payment credentials, unsolicited identity documents, or suspected CSAM.</p>` }),
+  'contact/index.html': page({ route: '/contact/', title: 'Contact MORT', description: routeSummaries['/contact/'], body: `<h2>Public contacts</h2><p>Publisher: ${publisher}<br>Support: ${supportEmail}<br>Privacy: ${privacyEmail}<br>Child safety: ${childSafetyEmail}</p><h2>Legal notices and arbitration opt-out</h2><p>Legal notices: ${supportEmail}, subject <b>LEGAL NOTICE</b>.<br>Arbitration opt-out: ${supportEmail}, subject <b>ARBITRATION OPT OUT</b>. Follow the information requirements in the <a href="/dispute-resolution/">Arbitration Agreement</a>.</p>` }),
+  'accessibility/index.html': page({ route: '/accessibility/', title: 'Accessibility', description: routeSummaries['/accessibility/'], body: `<h2>Accessibility goals</h2><p>MORT aims to support screen readers, scalable text, keyboard navigation where applicable, visible focus, dark mode, and reduced-motion preferences. These are product commitments, not a claim of a specific formal conformance certification unless MORT separately verifies one.</p><h2>Feedback</h2><p>Send accessibility feedback to ${supportEmail}, including the page or feature and the barrier encountered.</p>` }),
 };
 
 const deletionBody = `<section class="sec"><h2>What happens</h2><p>After ownership verification, MORT creates an auditable request to remove the account and ordinary profile data. Narrow safety, fraud, dispute, security, evidence-preservation, payment, contractual, and legal records may be retained with restricted access when legitimately necessary.</p></section><section id="request-panel" class="glass form-panel"><h2>1. Verify account ownership</h2><form id="deletion-link-form" novalidate><div class="field"><label for="email">Account email</label><input id="email" name="email" type="email" autocomplete="email" required></div><button class="btn" type="submit">Send private sign-in link</button></form><p id="link-result" class="result" role="status" aria-live="polite"></p></section><section id="confirmed-panel" class="glass form-panel" hidden><h2>2. Submit deletion request</h2><p>You are signed in for this request. MORT will not require a support conversation first.</p><button id="submit-deletion" class="btn" type="button">Request account deletion</button><button id="sign-out" class="btn secondary" type="button">Sign out</button><p id="deletion-result" class="result" role="status" aria-live="polite"></p></section><section class="sec"><h2>Use the app</h2><p>Open Settings, Account, then Delete account. Reinstallation is not required.</p></section><section class="sec"><h2>Privacy</h2><p>The email-link form always gives a generic public response and does not reveal whether an account exists.</p></section>`;
-pages['account-deletion/index.html'] = page({
-  route: '/account-deletion/',
-  title: 'Delete your MORT account',
-  description: 'Request account deletion without reinstalling the app.',
-  body: deletionBody,
-  scripts: '<script src="/assets/supabase.js"></script><script src="/assets/public-config.js"></script><script src="/assets/account-deletion.js"></script>',
-});
+pages['account-deletion/index.html'] = page({ route: '/account-deletion/', title: 'Delete your MORT account', description: routeSummaries['/account-deletion/'], body: deletionBody, scripts: '<script src="/assets/supabase.js"></script><script src="/assets/public-config.js"></script><script src="/assets/account-deletion.js"></script>' });
+
+const indexCards = routes.filter(([route]) => route !== '/').map(([route, label]) => `<a class="glass card" href="${route}"><h2>${escapeHtml(label)}</h2><p>${escapeHtml(routeSummaries[route] || 'MORT legal, policy, safety, and support information.')}</p></a>`).join('');
+pages['index.html'] = page({ route: '/', title: 'Legal and safety center', description: 'MORT legal, privacy, safety, verification, payments, state-law, guardian, and support information for the United States.', body: `<section class="glass"><h2>Effective ${effectiveDate}</h2><p>This legal package applies to MORT's United States service as described in each document. It does not claim that every marketplace feature is activated or legally eligible in every state.</p></section><div class="cards">${indexCards}</div>` });
 
 for (const [relative, content] of Object.entries(pages)) write(relative, content);
+write('assets/legal.css', readFileSync(resolve(legalTheme, 'legal.css'), 'utf8'));
+write('assets/atmosphere.js', readFileSync(resolve(legalTheme, 'atmosphere.js'), 'utf8'));
+write('mort-mark.svg', readFileSync(resolve(legalTheme, 'mort-mark.svg'), 'utf8'));
 write('assets/supabase.js', readFileSync(supabaseBrowserBundle, 'utf8'));
-write(
-  'assets/public-config.js',
-  `window.MORT_PUBLIC_CONFIG = Object.freeze(${JSON.stringify({
-    supabaseUrl: supabase.url,
-    supabaseAnonKey: supabase.key,
-  })});`,
-);
+write('assets/public-config.js', `window.MORT_PUBLIC_CONFIG = Object.freeze(${JSON.stringify({ supabaseUrl: supabase.url, supabaseAnonKey: supabase.key })});`);
 write('assets/account-deletion.js', `
 const config = window.MORT_PUBLIC_CONFIG || {};
 const form = document.querySelector('#deletion-link-form');
@@ -579,86 +322,49 @@ if (!config.supabaseUrl || !config.supabaseAnonKey) {
     form.querySelector('button').disabled = true;
     try {
       await client.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: new URL('/account-deletion/?confirm=1', location.origin).toString() } });
-    } finally {
-      result.textContent = 'If that email can receive a MORT sign-in link, check its inbox. This page never confirms whether an account exists.';
-      form.reset();
-      form.querySelector('button').disabled = false;
-    }
+      result.textContent = 'If that address belongs to an eligible MORT account, a private sign-in link has been sent.';
+    } catch { result.textContent = 'If that address belongs to an eligible MORT account, a private sign-in link has been sent.'; }
+    finally { form.querySelector('button').disabled = false; }
   });
   submit.addEventListener('click', async () => {
     submit.disabled = true;
-    deletionResult.textContent = 'Submitting your verified request...';
-    const { data, error } = await client.rpc('request_account_deletion', { p_source: 'web' });
-    deletionResult.textContent = !error && data?.ok === true
-      ? 'Deletion request submitted. Current status: ' + data.request.status.replaceAll('_', ' ') + '.'
-      : data?.code === 'recent_reauthentication_required'
-        ? 'The private link expired. Sign out and request a new link.'
-        : 'The request could not be submitted. Try again later or use the in-app deletion control.';
-    submit.disabled = false;
+    try {
+      const { data, error } = await client.rpc('request_account_deletion');
+      if (error || data?.ok === false) throw error || new Error(data?.code || 'request_failed');
+      deletionResult.textContent = 'Your deletion request was submitted.';
+    } catch { deletionResult.textContent = 'We could not submit the request. Try again or use the in-app deletion control.'; }
+    finally { submit.disabled = false; }
   });
   signOut.addEventListener('click', async () => { await client.auth.signOut(); await showSession(); });
-  client.auth.onAuthStateChange(() => { void showSession(); });
-  void showSession();
+  client.auth.onAuthStateChange(() => { showSession(); });
+  showSession();
 }
 `);
 
-write(
-  'release-status.json',
-  JSON.stringify(
-    {
-      generatedAt: new Date().toISOString(),
-      projectRef: 'rakjydmgwwgtdislanbt',
-      packageStatus: 'built',
-      deploymentReady,
-      missingConfiguration: missingConfig,
-      requiredRoutes: routes.map(([route]) => route),
-      legalApprovalClaimed: false,
-      publicDeploymentClaimed: true,
-      legalPackageRevision: '2026-10-08-protective-terms-privacy-arbitration',
-    },
-    null,
-    2,
-  ),
-);
-write('_headers', `
-/*
-  X-Content-Type-Options: nosniff
-  X-Frame-Options: DENY
-  Referrer-Policy: no-referrer
-  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
-  Content-Security-Policy: default-src 'self'; script-src 'self'; connect-src 'self' https://rakjydmgwwgtdislanbt.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; font-src 'self' data: https://fonts.gstatic.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; worker-src 'none'; upgrade-insecure-requests
-`);
-write('_redirects', '/* /index.html 404');
-write('app-ads.txt', 'google.com, pub-9883419411387958, DIRECT, f08c47fec0942fa0');
-write(
-  '../netlify.toml',
-  `[build]\n  publish = "public"\n  command = "node ../scripts/build-public-legal-site.mjs"\n`,
-);
-write(
-  'vercel.json',
-  JSON.stringify(
-    {
-      headers: [
-        {
-          source: '/(.*)',
-          headers: [
-            { key: 'X-Content-Type-Options', value: 'nosniff' },
-            { key: 'X-Frame-Options', value: 'DENY' },
-            { key: 'Referrer-Policy', value: 'no-referrer' },
-            { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
-            {
-              key: 'Content-Security-Policy',
-              value: "default-src 'self'; script-src 'self'; connect-src 'self' https://rakjydmgwwgtdislanbt.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; font-src 'self' data: https://fonts.gstatic.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; worker-src 'none'; upgrade-insecure-requests",
-            },
-          ],
-        },
-      ],
-    },
-    null,
-    2,
-  ),
-);
+write('release-status.json', JSON.stringify({
+  revision: REVISION,
+  generatedAt: new Date().toISOString(),
+  effectiveDate: publicConfig.MORT_PUBLIC_EFFECTIVE_DATE || '2026-10-10',
+  scope: 'United States',
+  deploymentReady,
+  missingConfig,
+  legalApprovalClaimed: false,
+  externalLegalReviewPending: true,
+  publicDeploymentClaimed: true,
+  routes: routes.map(([route]) => route),
+}, null, 2));
 
-process.stdout.write(
-  `Built MORT public legal/support package with ${routes.length} routes. Deployment ready: ${deploymentReady}.\n`,
-);
+write('vercel.json', JSON.stringify({
+  cleanUrls: true,
+  trailingSlash: true,
+  headers: [{ source: '/(.*)', headers: [
+    { key: 'X-Content-Type-Options', value: 'nosniff' },
+    { key: 'X-Frame-Options', value: 'DENY' },
+    { key: 'Referrer-Policy', value: 'no-referrer' },
+    { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
+    { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+    { key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://rakjydmgwwgtdislanbt.supabase.co wss://rakjydmgwwgtdislanbt.supabase.co; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" },
+  ] }],
+}, null, 2));
+
+console.log(JSON.stringify({ revision: REVISION, output, deploymentReady, missingConfig, routes: routes.length }, null, 2));
