@@ -18,3 +18,5 @@ CP0 IN_PROGRESS. Baseline units: Node 99, Deno 37, web 8 passed. New lock tests:
 No runtime gate inherits a historical PASS. All external gates BLOCKED; mail sent 0.
 
 CP0 completed at5ff33c1; remote equals commit. Initial zero-file scan INVALID; corrected archive scan2626/0. CP1 in progress: six RED tests, focused27 GREEN.
+
+CP1 BLOCKED at03173c0 (remote equals). Node112/Deno38/web9 passed; committed scan2637/0. Three-run recovery streak absent; failures U6/U7 remain open. No threshold changed. CP2 continues independently; CP1 revisit reserved for end.

@@ -1,10 +1,19 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {validateCoverage,loadRequirements,canonicalSourceDigest} from './coverage.mjs';
+import * as coverage from './coverage.mjs';
+const {validateCoverage,loadRequirements,canonicalSourceDigest}=coverage;
 import {readFile} from 'node:fs/promises';
 import {spawnSync} from './subprocess-runner.mjs';
 import {caseMappings} from './cases.mjs';
 import {fixtureProcessEnv} from './fixture.mjs';
+test('catalog counts derive from complete consecutive matrix and retained records without magic totals',()=>{
+  assert.equal(typeof coverage.validateRequirementInventory,'function');
+  const inventory={records:[{id:'MD-001'},{id:'MD2-001'},{id:'MD2-002'}]};
+  assert.deepEqual(coverage.validateRequirementInventory(inventory,'1. First\n2. Second\n'),{currentRequirements:2,retainedHistoricalRequirements:1,total:3});
+  assert.throws(()=>coverage.validateRequirementInventory(inventory,'1. First\n'));
+  assert.throws(()=>coverage.validateRequirementInventory({records:[...inventory.records,{id:'MD-001'}]},'1. First\n2. Second\n'));
+  assert.throws(()=>coverage.validateRequirementInventory(inventory,'1. First\n3. Third\n'));
+});
 test('immutable requirement digests tolerate Git line-ending conversion but reject content changes',async()=>{
   const source=await readFile(new URL('./sources/matrix.md',import.meta.url));
   assert.equal(canonicalSourceDigest(source),canonicalSourceDigest(Buffer.from(source.toString('utf8').replaceAll('\n','\r\n'))));

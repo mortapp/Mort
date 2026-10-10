@@ -13,6 +13,8 @@ import {captureFailureSnapshot} from './failure-snapshot.mjs';
 import {computeCertification,loadExternalGates} from './certification-gates.mjs';
 import {fixtureDirectory} from './control.mjs';
 import {assertLongRunSafety} from './long-run-safety.mjs';
+import {verifyBlueprintLock} from './verify-blueprint-lock.mjs';
+import {registryFromAppendix,readBlueprintEvidence,certifyBlueprint} from './blueprint-certification.mjs';
 const root=resolve(import.meta.dirname,'../..');
 const cleanText=text=>text.replace(/\x1b\[[0-9;]*m/g,'');
 let certificationStage='initialization';
@@ -49,6 +51,7 @@ async function sourceOwner(name,files,kind){
   throw new Error('Executed test lacks reviewed source owner');
 }
 export async function run(){
+  await verifyBlueprintLock();
   assertLongRunSafety({durationMs:3600000,powerRequestVerified:process.env.MORT_GUARD_POWER_REQUEST_VERIFIED==='process-scoped-windows'});
   certificationStage='requirements';
   const requirements=await loadRequirements(),head=child('git',['rev-parse','HEAD']).trim();
@@ -102,6 +105,7 @@ export async function run(){
   nodeFiles.push('scripts/auth-email-guard/failure-snapshot.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/certification-gates.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/catalog-coverage.test.mjs');
+  nodeFiles.push('scripts/auth-email-guard/blueprint-certification.test.mjs');
   nodeFiles.push('scripts/auth-email-guard/verify-blueprint-lock.test.mjs','scripts/auth-email-guard/checkpoint-diagnostics.test.mjs','scripts/auth-email-guard/fixture-certificate.test.mjs','scripts/auth-email-guard/startup-diagnostic.test.mjs','scripts/auth-email-guard/cleanup-primary.test.mjs');
   const browserFiles=['web/auth/challenge/controller.test.mjs','web/auth/challenge/transport.test.mjs','web/auth/challenge/build.test.mjs','web/auth/challenge/browser.test.mjs'];
   const nodeOutput=child('node',['--test','--test-reporter=tap',...nodeFiles,...browserFiles],{MORT_GUARD_BROWSER_MODULES:process.env.MORT_GUARD_BROWSER_MODULES??'C:\\Users\\micha\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\node_modules'});
@@ -143,8 +147,11 @@ export async function run(){
   const persistedGateFile=JSON.parse(await readFile(evidencePath,'utf8'));
   if(digestState(persistedGateFile)!==gateEvidenceSha256)throw new Error('Persisted gate evidence changed');
   const certification=computeCertification(registry,persistedGateFile,{head,sourceSha256:guardSourceSha256});
+  const blueprintRegistry=registryFromAppendix(await readFile(resolve(root,'docs/security/auth-guard-blueprint/PART2.md'),'utf8'));
+  const blueprintEvidence=await readBlueprintEvidence(resolve(fixtureDirectory,'blueprint-gates'),{head,sourceSha256:guardSourceSha256});
+  const blueprintCertification=certifyBlueprint(blueprintRegistry,blueprintEvidence,{head,sourceSha256:guardSourceSha256});
   if(child('git',['rev-parse','HEAD']).trim()!==head||sourceStatus()!==startSourceStatus||await sourceSnapshot()!==guardSourceSha256)throw new Error('Candidate changed during gate evidence persistence');
-  const report=Object.freeze({schema:1,head,guardSourceClean,guardSourceSha256,gateEvidenceSha256,gates:certification.gates,fixtureId:fixture.fixtureId,sourceSha256:requirements.sourceSha256,currentRequirements:191,retainedHistoricalRecords:328,totalHistoricalAndCurrentRecords:519,fullGuardCertified:certification.fullGuardCertified,activationProfile:'private_provider_rehearsal',summary,operationalSummary,operationalCases,timings,suiteStates,executedAssertions:observations.length,cases,historical:requirements.records.filter(r=>!r.id.startsWith('MD2-')).map(r=>({id:r.id,status:'RETAINED_HISTORY_NOT_INHERITED',source:r.source})),hostedChanged:false});
+  const report=Object.freeze({schema:1,head,guardSourceClean,guardSourceSha256,gateEvidenceSha256,gates:certification.gates,fixtureId:fixture.fixtureId,sourceSha256:requirements.sourceSha256,currentRequirements:requirements.counts.currentRequirements,retainedHistoricalRecords:requirements.counts.retainedHistoricalRequirements,totalHistoricalAndCurrentRecords:requirements.counts.total,blueprintCertification,fullGuardCertified:certification.fullGuardCertified&&blueprintCertification.fullGuardCertified,activationProfile:'private_provider_rehearsal',summary,operationalSummary,operationalCases,timings,suiteStates,executedAssertions:observations.length,cases,historical:requirements.records.filter(r=>!r.id.startsWith('MD2-')).map(r=>({id:r.id,status:'RETAINED_HISTORY_NOT_INHERITED',source:r.source})),hostedChanged:false});
   // Deduplicate exact assertion provenance in output; the validated case records
   // reference it by key. Never persist raw provider/SQL/request values.
   const compactCase=row=>({id:row.id,status:row.status,...(row.reason?{reason:row.reason}:{}),assertionKeys:row.assertions.map(proof=>proof.key)});

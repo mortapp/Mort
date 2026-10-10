@@ -419,11 +419,11 @@
     },
     {
       "id": "CP1",
-      "status": "IN_PROGRESS",
-      "commit": "",
-      "tag": "",
+      "status": "BLOCKED",
+      "commit": "03173c004dbb650362d5661359a6a9767cd395c7",
+      "tag": "guard-cp1-blocked-03173c0",
       "startedAt": "2026-10-10T06:22:33.710Z",
-      "finishedAt": "",
+      "finishedAt": "2026-10-10T06:52:05.033Z",
       "audit": {
         "A1": "PASS",
         "A2": "PASS",
@@ -432,25 +432,36 @@
         "A5": "PASS",
         "A6": "PASS",
         "A7": "PASS",
-        "A8": "PASS",
-        "A9": "PASS",
+        "A8": "PARTIAL: unit/scan results tied to exact03173c0; no runtime recovery PASS at03173c0",
+        "A9": "PASS: checkpoint BLOCKED; diagnostic rerun does not diagnose earlier failures",
         "A10": "PASS"
       },
       "claimAuditSample": [],
-      "blockedReason": "",
-      "notes": "Six diagnostics tests RED6 then GREEN; broader focused27 pass. No recovery streak or long-run safety integration PASS yet. Diagnostics and TLS validity tests RED/GREEN;111Node pass. Actual Windows process sleep request succeeded and released. Renewed recovery diagnostic passed; not the required exact-HEAD streak. Guard container absent: ephemeral child stderr captured; do not claim container log coverage. Exact committed scan/recovery streak pending."
+      "blockedReason": "Three diagnostic attempts did not establish a consecutive recovery streak. Intermittent delivery failure remains unexplained; latest exact candidate failed store connection deadline at399ms with the existing100ms pool connection timeout unchanged.",
+      "notes": "Six diagnostics tests RED6 then GREEN; broader focused27 pass. No recovery streak or long-run safety integration PASS yet. Diagnostics and TLS validity tests RED/GREEN;111Node pass. Actual Windows process sleep request succeeded and released. Renewed recovery diagnostic passed; not the required exact-HEAD streak. Guard container absent: ephemeral child stderr captured; do not claim container log coverage. Exact committed scan/recovery streak pending. Exact03173c0 Node112/Deno38/web9 pass;2637 committed files scan0. Exacta826 run1 passed18 named assertions, run2 faileddelivery exit1 elapsed3346ms; no three-run PASS. Exact03173c0 run1 failedstore deadline elapsed399ms. Actual process-scoped sleep prevention tested; no long wait executed. Three-attempt rule applied; revisit once at end."
     },
     {
       "id": "CP2",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "commit": "",
       "tag": "",
-      "startedAt": "",
+      "startedAt": "2026-10-10T06:57:41.634Z",
       "finishedAt": "",
-      "audit": {},
+      "audit": {
+        "A1": "PASS: intended guard/ledger changes;95 preserved path hashes unchanged",
+        "A2": "PASS",
+        "A3": "PASS: recorded RED/GREEN sequences",
+        "A4": "PASS: exact complete evidence positive control; missing/stale/mutated/duplicate/unclean controls",
+        "A5": "PASS: no operational threshold modified; removed magic inventory totals only",
+        "A6": "PENDING: exact committed scan",
+        "A7": "PASS: fixture enforcement defaults unchanged",
+        "A8": "PENDING: committed evidence",
+        "A9": "PASS: no runtime certification claim",
+        "A10": "PASS: feature push only; no hosted/mail/artifact action"
+      },
       "claimAuditSample": [],
       "blockedReason": "",
-      "notes": ""
+      "notes": "Dynamic count test RED1/GREEN; appendix registry tests RED2/GREEN; serial-run mandatory assertion RED1/GREEN; planted independent digest test RED1/GREEN. Main certifier verifies immutable lock, derives matrix counts, and ANDs historical certification with complete blueprint gate certification. No runtime gate marked PASS; exact committed verification pending."
     },
     {
       "id": "CP3",
@@ -1325,6 +1336,16 @@
           "evidence": "Proven for second run; first run lacks delivery-stage provenance"
         }
       ]
+    },
+    {
+      "id": "U6",
+      "status": "OPEN",
+      "cause": "a826 recovery second serial run faileddelivery exit1 after3346ms; noSMTP category captured. Later passingdiagnostic notdiagnosis"
+    },
+    {
+      "id": "U7",
+      "status": "OPEN",
+      "cause": "03173c0 recovery failedstore connection deadline399ms; container snapshots running/noOOM/noPause. Underlying connection delay notdiagnosed"
     }
   ],
   "stateClaims": [

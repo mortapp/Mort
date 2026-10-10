@@ -51,3 +51,9 @@ First pre-request startup failed with unclassified diagnostics. Original cause u
 ## U5 — OPEN
 
 First CP1 recovery run ended in generic startup/suite error without assertion identity. Later delivery failure is independently explained by expired fixture TLS; do not inherit that diagnosis. Startup fetch race and shared TLS cause remain untested for the first run.
+
+## U6 — OPEN
+Exact a826 run2: delivery failed, exit1 after3346ms. Missing SMTP category. Later diagnostic recovery pass is not a diagnosis.
+
+## U7 — OPEN
+Exact03173c0: store connection_deadline at399ms; original100ms pool deadline preserved. Containers running/no pause/restart/OOM. Host scheduling, cold socket setup and database contention hypotheses remain untested.
