@@ -137,10 +137,16 @@ async function checkPaymentSheetContract(scope) {
 async function checkWebhookSignature(scope) {
   const webhook = await text("supabase/functions/stripe-webhook/index.ts");
   const verification = await text("supabase/functions/stripe-webhook/verification.ts");
+  const migration = await text("supabase/migrations/20261025012531_mort_financial_integrity_and_webhook_fencing.sql");
   assertQa(webhook.includes("await request.text()"), "webhook does not preserve raw body");
   assertQa(verification.includes("constructEventAsync(rawBody, signature"), "Stripe signature verification is absent");
-  assertQa(webhook.includes("verifyWebhookEvent(runtime.stripe, rawBody, signature"), "webhook source verification is not enforced before dispatch");
-  qaLog(scope, "webhook verifies Stripe-Signature against the untouched raw body before dispatch");
+  assertQa(webhook.includes("await verifyWebhookEvent("), "webhook handler does not invoke source-aware signature verification");
+  assertQa(webhook.includes("runtime.connectWebhookSecret"), "Connect webhook signing secret is not wired to verification");
+  const routeCheckIndex = webhook.indexOf("assertWebhookEventRoute(event, verified.source)");
+  const claimIndex = webhook.indexOf('"stripe_server_claim_webhook_event"');
+  assertQa(routeCheckIndex >= 0 && claimIndex > routeCheckIndex, "webhook source/event allowlist is not checked before dispatch");
+  assertQa(migration.includes("'payment_intent.requires_action'"), "requires_action is not accepted by the webhook SQL dispatcher");
+  qaLog(scope, "webhook verifies raw-body signatures against platform or Connect secrets and routes only allowed source/event pairs before database dispatch");
 }
 
 async function checkWebhookReplay(scope) {

@@ -397,7 +397,7 @@ begin
   end if;
   if jsonb_typeof(p_payload) <> 'object' then raise exception 'stripe_webhook_payload_invalid'; end if;
 
-  if p_event_type in ('payment_intent.succeeded', 'payment_intent.processing', 'payment_intent.payment_failed', 'payment_intent.canceled') then
+  if p_event_type in ('payment_intent.succeeded', 'payment_intent.processing', 'payment_intent.requires_action', 'payment_intent.payment_failed', 'payment_intent.canceled') then
     v_result := public.stripe_server_apply_payment_event(
       p_environment, p_provider_event_id, p_event_type,
       p_payload->>'provider_payment_intent_id', p_payload->>'provider_charge_id',

@@ -6,6 +6,7 @@ import {
   sha256,
   webhookRuntime,
 } from "../_shared/stripe.ts";
+import { assertWebhookEventRoute, verifyWebhookEvent } from "./verification.ts";
 
 const maximumWebhookBytes = 512 * 1024;
 
@@ -32,11 +33,17 @@ Deno.serve(async (request: Request) => {
       return json({ ok: false, code: "payload_too_large" }, 413);
     }
 
-    const event = await runtime.stripe.webhooks.constructEventAsync(
+    const verified = await verifyWebhookEvent(
+      runtime.stripe,
       rawBody,
       signature,
-      runtime.webhookSecret!,
+      {
+        platform: runtime.webhookSecret,
+        connect: runtime.connectWebhookSecret,
+      },
     );
+    const event = verified.event;
+    assertWebhookEventRoute(event, verified.source);
     eventId = event.id;
     if (event.livemode !== (environment === "live")) {
       return json({ ok: false, code: "stripe_environment_mismatch" }, 400);
@@ -102,6 +109,7 @@ async function normalizeEvent(
     [
       "payment_intent.succeeded",
       "payment_intent.processing",
+      "payment_intent.requires_action",
       "payment_intent.payment_failed",
       "payment_intent.canceled",
     ].includes(event.type)
