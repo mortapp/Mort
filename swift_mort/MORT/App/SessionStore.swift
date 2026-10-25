@@ -39,6 +39,7 @@ final class SessionStore {
     private let router: Router
     private var authTask: Task<Void, Never>?
     private var pendingNotificationURL: URL?
+    private var lastHandledNotificationURL: String?
 
     private(set) var phase: SessionPhase = .restoring
     private(set) var userID: UUID?
@@ -136,10 +137,15 @@ final class SessionStore {
     }
 
     func handleDeepLink(_ url: URL) async {
+        guard !isDuplicateNotificationURL(url) else { return }
         await perform { try await authRepository.handleDeepLink(url) }
     }
 
     func handleIncomingURL(_ url: URL) async {
+        if isDuplicateNotificationURL(url) {
+            return
+        }
+
         switch NotificationDestinationResolver.linkResolution(for: url, role: profile?.role) {
         case .notNotification:
             await handleDeepLink(url)
@@ -164,6 +170,7 @@ final class SessionStore {
 
     func signOut() async {
         pendingNotificationURL = nil
+        lastHandledNotificationURL = nil
         await perform {
             await revenueCat.logOut()
             try await authRepository.signOut()
@@ -202,6 +209,8 @@ final class SessionStore {
         userID = nil
         email = nil
         profile = nil
+        pendingNotificationURL = nil
+        lastHandledNotificationURL = nil
         router.reset()
         phase = .signedOut
     }
@@ -213,8 +222,21 @@ final class SessionStore {
                   role: profile?.role
               )
         else { return }
+
+        let key = url.absoluteString
+        guard lastHandledNotificationURL != key else {
+            pendingNotificationURL = nil
+            return
+        }
+
+        lastHandledNotificationURL = key
         pendingNotificationURL = nil
         router.push(route)
+    }
+
+    private func isDuplicateNotificationURL(_ url: URL) -> Bool {
+        guard let key = url.absoluteString.removingPercentEncoding else { return false }
+        return lastHandledNotificationURL == key
     }
 
     private func validateCredentials(email: String, password: String) -> Bool {
