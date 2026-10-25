@@ -39,6 +39,35 @@ void main() {
     expect(preferences.copyWith(pushEnabled: false).pushEnabled, isFalse);
   });
 
+  test(
+    'user preference cannot claim remote delivery while server delivery is off',
+    () {
+      final status = PushRegistrationStatus.fromMap({
+        'remote_push_enabled': true,
+        'push_preference_enabled': true,
+        'delivery_available': false,
+        'active_device_count': 1,
+        'provider': 'fcm',
+        'provider_delivery_verified': false,
+      });
+
+      expect(status.remotePushEnabled, isFalse);
+      expect(status.pushPreferenceEnabled, isTrue);
+      expect(status.deliveryAvailable, isFalse);
+    },
+  );
+
+  test('unknown server availability fails closed for remote push status', () {
+    final status = PushRegistrationStatus.fromMap({
+      'remote_push_enabled': true,
+      'push_preference_enabled': true,
+      'active_device_count': 1,
+    });
+
+    expect(status.remotePushEnabled, isFalse);
+    expect(status.deliveryAvailable, isFalse);
+  });
+
   test('mobile push source keeps provider secrets server-side', () {
     final appConfig = File(
       'lib/core/config/app_config.dart',
@@ -63,6 +92,9 @@ void main() {
     expect(coordinator, contains('unregisterDevices('));
     expect(repository, contains('register_my_push_device_v2'));
     expect(repository, contains('unregister_my_push_devices_v2'));
+    expect(repository, contains('get_my_push_status_v2'));
+    expect(repository, contains('get_push_delivery_availability'));
+    expect(coordinator, contains('deliveryAvailable()'));
     expect(provider, contains("@pragma('vm:entry-point')"));
     expect(provider, contains('getInitialMessage'));
     expect(provider, contains('onMessageOpenedApp'));

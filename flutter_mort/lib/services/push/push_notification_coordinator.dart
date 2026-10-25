@@ -98,9 +98,22 @@ class PushNotificationCoordinator {
     return _provider.permissionStatus();
   }
 
+  /// Checks the server-controlled delivery gate. Errors fail closed so the app
+  /// never asks for permission or registers a token on an unknown status.
+  Future<bool> deliveryAvailable() async {
+    if (!_provider.configured || !SupabaseService.isInitialized) return false;
+    try {
+      return await NotificationsRepository().getPushDeliveryAvailability();
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<RemotePushPermission> requestPermissionAndRegister() async {
     if (!_provider.configured) return RemotePushPermission.unavailable;
+    if (!await deliveryAvailable()) return RemotePushPermission.unavailable;
     await initialize();
+    if (!await deliveryAvailable()) return RemotePushPermission.unavailable;
     final permission = await _provider.requestPermission();
     if (_canRegister(permission)) {
       await syncRegistration(force: true);
@@ -115,6 +128,7 @@ class PushNotificationCoordinator {
     if (SupabaseService.client.auth.currentUser == null) return;
     _syncing = true;
     try {
+      if (!await deliveryAvailable()) return;
       final permission = await _provider.permissionStatus();
       if (!_canRegister(permission)) return;
       final token = await _provider.registrationToken();

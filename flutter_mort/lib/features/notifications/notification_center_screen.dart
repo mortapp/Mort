@@ -358,7 +358,8 @@ class _NotificationCenterScreenState
   Widget _buildSettings(_NotificationSettingsSnapshot snapshot) {
     final preferences = snapshot.preferences;
     final coordinator = PushNotificationCoordinator.instance;
-    final providerAvailable = coordinator.configured;
+    final providerAvailable =
+        coordinator.configured && snapshot.status.deliveryAvailable;
     return MortCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -366,9 +367,11 @@ class _NotificationCenterScreenState
           Text('Device alerts', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: MortSpacing.xs),
           Text(
-            providerAvailable
-                ? '${snapshot.status.activeDeviceCount} active device${snapshot.status.activeDeviceCount == 1 ? '' : 's'} using FCM.'
-                : 'Remote alerts are not configured in this build. In-app updates remain available.',
+            !coordinator.configured
+                ? 'Remote alerts are not configured in this build. In-app updates remain available.'
+                : !snapshot.status.deliveryAvailable
+                ? 'MORT remote alert delivery is currently unavailable. In-app updates remain available.'
+                : '${snapshot.status.activeDeviceCount} active device${snapshot.status.activeDeviceCount == 1 ? '' : 's'} using FCM.',
           ),
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
