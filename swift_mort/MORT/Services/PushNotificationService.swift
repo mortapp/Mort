@@ -17,6 +17,7 @@ final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate 
     private(set) var apnsDeviceToken: String?
     private(set) var registrationError: String?
     private var didRequestAuthorization = false
+    private var lastResolvedAuthorizationState: PushAuthorizationState?
 
     override init() {
         super.init()
@@ -25,7 +26,9 @@ final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate 
 
     func refreshAuthorizationState() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
-        authorizationState = Self.map(settings.authorizationStatus)
+        let status = Self.map(settings.authorizationStatus)
+        authorizationState = status
+        lastResolvedAuthorizationState = status
     }
 
     func ensureAuthorizedIfNeeded() async {
@@ -34,11 +37,13 @@ final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate 
 
         switch status {
         case .authorized, .provisional:
-            UIApplication.shared.registerForRemoteNotifications()
             authorizationState = status
+            lastResolvedAuthorizationState = status
+            UIApplication.shared.registerForRemoteNotifications()
             return
         case .denied:
             authorizationState = .denied
+            lastResolvedAuthorizationState = .denied
             return
         case .unknown:
             guard !didRequestAuthorization else { return }
@@ -52,25 +57,32 @@ final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate 
                 } else {
                     authorizationState = .denied
                 }
+                lastResolvedAuthorizationState = authorizationState
             } catch {
                 registrationError = error.localizedDescription
                 authorizationState = .denied
+                lastResolvedAuthorizationState = .denied
             }
         }
     }
 
-    func requestPermission() async throws -> Bool {
-        let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
+    func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool {
+        let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: options)
         await refreshAuthorizationState()
-        if granted { UIApplication.shared.registerForRemoteNotifications() }
+        return granted
+    }
+
+    func requestPermission() async throws -> Bool {
+        let granted = try await requestAuthorization(options: [.alert, .badge, .sound])
+        if granted {
+            UIApplication.shared.registerForRemoteNotifications()
+        }
         return granted
     }
 
     func didRegister(deviceToken: Data) {
         apnsDeviceToken = deviceToken.map { String(format: "%02x", $0) }.joined()
         registrationError = nil
-        // The current backend push_tokens table stores Expo tokens only. APNs persistence stays disabled
-        // until an additive backend contract and APNs provider are deployed.
     }
 
     func didFailToRegister(error: Error) {
