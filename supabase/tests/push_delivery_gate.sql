@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public;
 
-select plan(9);
+select plan(12);
 
 create temporary table push_delivery_gate_fixture (
   user_id uuid not null,
@@ -20,9 +20,9 @@ values (gen_random_uuid(), gen_random_uuid(), gen_random_uuid());
 
 insert into auth.users (id)
 select user_id from push_delivery_gate_fixture;
-insert into public.notification_preferences (user_id, push_enabled)
-select user_id, true from push_delivery_gate_fixture;
-
+delete from public.notification_preferences preferences
+using push_delivery_gate_fixture fixture
+where preferences.user_id = fixture.user_id;
 -- Exercise the important split-brain case: the worker flag is on, but the
 -- centrally controlled release policy still has remote push disabled.
 update public.push_delivery_runtime set remote_push_enabled = true
@@ -33,9 +33,30 @@ select is(
   'false',
   'availability requires both the runtime switch and release policy'
 );
+select is(
+  (select provolatile::text from pg_proc
+   where oid = 'public.get_my_push_status_v2()'::regprocedure),
+  's',
+  'push status is safe for PostgREST read-only transactions'
+);
 select set_config(
   'request.jwt.claim.sub', (select user_id::text from push_delivery_gate_fixture), true
 );
+update push_delivery_gate_fixture set status = public.get_my_push_status_v2();
+select is(
+  (select status ->> 'push_preference_enabled' from push_delivery_gate_fixture),
+  'false',
+  'an account without stored push preferences defaults to opted out'
+);
+select ok(
+  not exists (
+    select 1 from public.notification_preferences preferences
+    join push_delivery_gate_fixture fixture using (user_id)
+  ),
+  'reading push status does not create a preference row'
+);
+insert into public.notification_preferences (user_id, push_enabled)
+select user_id, true from push_delivery_gate_fixture;
 update push_delivery_gate_fixture set status = public.get_my_push_status_v2();
 select is(
   (select status ->> 'push_preference_enabled' from push_delivery_gate_fixture),

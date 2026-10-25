@@ -16,11 +16,46 @@ No credential is included in this document or in mobile source.
    `FCM_SERVICE_ACCOUNT_PRIVATE_KEY`.
 5. Keep `SEND_PUSH_INVOKE_SECRET` server-only. Rotate it if its custody is ever
    uncertain.
-6. Supply Firebase public client values to the release build using the
+6. After applying `mort_push_delivery_scheduler` through the approved hosted
+   migration process, add these values to Supabase Vault:
+   - `mort_supabase_url`: the MORT project URL from Supabase API settings.
+   - `mort_supabase_anon_key`: the current legacy anon JWT from Supabase API
+     settings. Do not use a service-role key for the scheduled invocation.
+   - `mort_send_push_invoke_secret`: the same protected value already used for
+     the `SEND_PUSH_INVOKE_SECRET` Edge Function secret.
+7. Supply Firebase public client values to the release build using the
    `MORT_FIREBASE_*` Dart defines documented in `AppConfig`; do not commit a
    generated configuration file containing environment-specific values.
-7. Set the hosted remote-push runtime flag only after the credential and device
+8. Set the hosted remote-push runtime flag only after the credential and device
    checks below pass.
+
+Use the Supabase Dashboard SQL Editor with the protected values sourced from
+their approved settings; never place values in this repository or runbook:
+
+```sql
+select vault.create_secret('<MORT project URL>', 'mort_supabase_url');
+select vault.create_secret('<current MORT legacy anon JWT>', 'mort_supabase_anon_key');
+select vault.create_secret('<existing SEND_PUSH_INVOKE_SECRET value>', 'mort_send_push_invoke_secret');
+```
+
+The scheduler calls the active `send-push` Edge Function only when both backend
+push gates are on, all three Vault entries are present, and the URL matches
+MORT's Supabase project. Its Cron job runs once per minute. Do not enable the
+runtime flag until the FCM Edge Function secrets are installed and device
+delivery checks pass.
+
+To verify the schedule without reading secret values or request headers:
+
+```sql
+select jobname, schedule, active
+from cron.job
+where jobname = 'mort-send-push';
+
+select created, status_code, error_msg
+from net._http_response
+order by created desc
+limit 20;
+```
 
 ## Required Device Verification
 
@@ -46,5 +81,9 @@ No credential is included in this document or in mobile source.
 - FCM provider secrets: absent.
 - Database and client remote-push flags: false.
 - Real FCM delivery: not verified.
+- `pg_cron` is enabled; `pg_net` is disabled.
 - No scheduled invocation of `send-push` is configured.
+- The repository contains a fail-closed scheduler migration, but it has not been
+  applied to the hosted database. Hosted migration history must be reconciled
+  through the approved owner process before any migration is applied.
 

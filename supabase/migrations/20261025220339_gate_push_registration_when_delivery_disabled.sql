@@ -42,17 +42,32 @@ security definer
 set search_path = ''
 as $$
 declare
-  status jsonb;
+  actor uuid := auth.uid();
   preference_enabled boolean;
   delivery_available boolean;
+  active_count integer;
 begin
-  status := public.get_my_push_status();
-  if status ->> 'ok' <> 'true' then
-    return status;
+  if actor is null then
+    return jsonb_build_object('ok', false, 'code', 'authentication_required');
   end if;
-  preference_enabled := coalesce(status ->> 'remote_push_enabled' = 'true', false);
+
+  -- This RPC is called through PostgREST's read-only transaction path. Do not
+  -- delegate to get_my_push_status(), which initializes defaults by inserting.
+  preference_enabled := coalesce((
+    select preferences.push_enabled
+    from public.notification_preferences preferences
+    where preferences.user_id = actor
+  ), false);
+  select count(*)::integer into active_count
+  from public.push_tokens token
+  where token.user_id = actor and token.provider = 'fcm' and token.is_active;
+
   delivery_available := private.push_delivery_available();
-  return status || jsonb_build_object(
+  return jsonb_build_object(
+    'ok', true,
+    'active_device_count', active_count,
+    'provider', 'fcm',
+    'provider_delivery_verified', false,
     'push_preference_enabled', preference_enabled,
     'delivery_available', delivery_available,
     'remote_push_enabled', preference_enabled and delivery_available
