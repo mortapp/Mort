@@ -20,6 +20,7 @@ const excludedFragments = [
   "\\backups\\",
   "\\outputs\\",
   "\\.git\\",
+  "\\.worktrees\\",
   "\\supabase\\.temp\\",
 ];
 const files = listFiles(repoRoot, excludedFragments).filter((file) => {
@@ -39,7 +40,10 @@ const forbiddenAssignmentPatterns = [
 ];
 
 for (const file of files) {
-  const text = readFileSync(file, "utf8");
+  const text = readFileSync(file, "utf8").replace(
+    /\$env:([A-Z][A-Z0-9_]*)\s*=\s*\[Environment\]::GetEnvironmentVariable\(\s*'\1'\s*,\s*'User'\s*\)/gi,
+    "",
+  ).replace(/\$env:[A-Z][A-Z0-9_]*\s*=\s*\$null/gi, "");
   for (const pattern of forbiddenAssignmentPatterns) {
     if (pattern.test(text)) {
       fail(`Forbidden secret assignment-like text in ${relative(repoRoot, file)}.`);
@@ -49,10 +53,22 @@ for (const file of files) {
 pass("No server secret assignments found in source/docs/scripts.");
 
 const flutterConfig = readFileSync(`${repoRoot}\\flutter_mort\\lib\\core\\config\\app_config.dart`, "utf8");
-if (!/String\.fromEnvironment\(\s*['"]REVENUECAT_FLUTTER_IOS_SDK_KEY['"]/s.test(flutterConfig)) {
-  fail("Flutter iOS RevenueCat SDK key is not read from Dart define.");
+const revenueCatService = readFileSync(`${repoRoot}\\flutter_mort\\lib\\features\\monetization\\data\\revenuecat_service.dart`, "utf8");
+const flutterPubspec = readFileSync(`${repoRoot}\\flutter_mort\\pubspec.yaml`, "utf8");
+if (!flutterConfig.includes("static const nativeBillingCompiledIn = false")) {
+  fail("Native billing compile boundary is not disabled.");
 }
-pass("Flutter iOS RevenueCat SDK key uses Dart define.");
+if (!/IAP_ENABLED[\s\S]{0,100}defaultValue: false/.test(flutterConfig)) {
+  fail("IAP does not default disabled.");
+}
+if (!revenueCatService.includes("Purchase facade for builds where native billing is deliberately not linked") ||
+    !revenueCatService.includes("Optional purchases are not available right now.")) {
+  fail("RevenueCat facade does not fail closed in this release.");
+}
+if (/^\s*(?:purchases_flutter|purchases_ui_flutter)\s*:/m.test(flutterPubspec)) {
+  fail("Native RevenueCat packages are linked in this release.");
+}
+pass("Native billing is unlinked, defaults disabled, and the RevenueCat facade fails closed.");
 
 const publicKeyHits = [];
 for (const file of files) {

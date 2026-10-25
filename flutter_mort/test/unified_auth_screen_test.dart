@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_mort/core/theme/mort_theme.dart';
+import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/features/auth/unified_auth_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,7 +21,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Welcome back'), findsOneWidget);
+    expect(find.text('WELCOME BACK'), findsOneWidget);
     var fields = tester.widgetList<TextFormField>(find.byType(TextFormField));
     expect(fields, hasLength(2));
     await tester.enterText(
@@ -37,7 +38,7 @@ void main() {
     await tester.tap(createMode);
     await tester.pumpAndSettle();
 
-    expect(find.text('Age-gated'), findsOneWidget);
+    expect(find.text('NEW ACCOUNT'), findsOneWidget);
     expect(find.textContaining('Use at least 12 characters'), findsOneWidget);
     fields = tester.widgetList<TextFormField>(find.byType(TextFormField));
     expect(fields.first.controller?.text, 'teen@example.com');
@@ -85,6 +86,76 @@ void main() {
     expect(find.byType(Checkbox), findsOneWidget);
     expect(find.text('Terms'), findsOneWidget);
     expect(find.text('Privacy Policy'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Sign In mode shows "Continue with Google" button', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [googleAuthEnabledProvider.overrideWithValue(true)],
+        child: MaterialApp(
+          theme: MortTheme.dark(),
+          home: const UnifiedAuthScreen(initialMode: UnifiedAuthMode.signIn),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('WELCOME BACK'), findsOneWidget);
+    expect(find.text('Continue with Google'), findsOneWidget);
+    expect(find.text('Sign up with Google'), findsNothing);
+    expect(find.byIcon(Icons.login_rounded), findsWidgets);
+  });
+
+  testWidgets('Sign Up mode shows "Sign up with Google" button', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [googleAuthEnabledProvider.overrideWithValue(true)],
+        child: MaterialApp(
+          theme: MortTheme.dark(),
+          home: const UnifiedAuthScreen(initialMode: UnifiedAuthMode.signUp),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('NEW ACCOUNT'), findsOneWidget);
+    expect(find.text('Sign up with Google'), findsOneWidget);
+    expect(find.text('Continue with Google'), findsNothing);
+  });
+
+  testWidgets('Google auth button survives narrow screen with keyboard', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 720);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [googleAuthEnabledProvider.overrideWithValue(true)],
+        child: MaterialApp(
+          theme: MortTheme.dark(),
+          home: MediaQuery(
+            data: const MediaQueryData(
+              viewInsets: EdgeInsets.only(bottom: 300),
+              textScaler: TextScaler.linear(1.2),
+            ),
+            child: const UnifiedAuthScreen(initialMode: UnifiedAuthMode.signUp),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sign up with Google'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

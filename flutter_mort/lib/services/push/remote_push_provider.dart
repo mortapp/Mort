@@ -17,8 +17,7 @@ RemotePushPermission remotePushPermissionFromFirebase(
 ) => switch (status) {
   AuthorizationStatus.authorized => RemotePushPermission.authorized,
   AuthorizationStatus.provisional => RemotePushPermission.provisional,
-  AuthorizationStatus.denied ||
-  AuthorizationStatus.deniedPermanently => RemotePushPermission.denied,
+  AuthorizationStatus.denied => RemotePushPermission.denied,
   AuthorizationStatus.notDetermined => RemotePushPermission.notDetermined,
 };
 

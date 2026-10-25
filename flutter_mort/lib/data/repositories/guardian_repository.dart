@@ -11,29 +11,11 @@ class GuardianRepository extends RepositoryBase {
   }
 
   Future<Map<String, dynamic>> acceptInvite(String code) async {
-    try {
-      final result = await client.rpc(
-        'accept_guardian_invite',
-        params: {'p_invite_code': code.trim().toUpperCase()},
-      );
-      return {'ok': true, 'link_id': result};
-    } catch (error) {
-      if (error.toString().contains('guardian_invite_invalid_or_expired')) {
-        throw const MortCodedError(
-          'guardian_invite_invalid_or_expired',
-          'That guardian invite code is invalid or expired.',
-        );
-      }
-      if (error.toString().contains(
-        'guardian_invite_accept_rate_limit_reached',
-      )) {
-        throw const MortCodedError(
-          'guardian_invite_accept_rate_limit_reached',
-          'Too many attempts. Please wait a while before trying again.',
-        );
-      }
-      rethrow;
-    }
+    final result = await client.rpc(
+      'accept_guardian_invite',
+      params: {'p_invite_code': code.trim().toUpperCase()},
+    );
+    return _requireSuccess(result);
   }
 
   Future<void> skipSetup() async {

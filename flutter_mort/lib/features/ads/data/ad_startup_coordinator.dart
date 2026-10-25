@@ -3,15 +3,12 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
+import '../../../core/auth/auth_startup.dart';
 import '../../../core/observability/structured_log.dart';
-import '../../../data/repositories/providers.dart';
 import 'ad_consent_service.dart';
 
 enum AdStartupResult { ready, timedOut, failed }
 
-/// Owns the single consent-then-SDK startup sequence shared by every ad slot.
-/// Ad startup is optional to the app; widgets wait for this bounded result
-/// before they ask the native SDK to load an ad.
 class AdStartupCoordinator {
   AdStartupCoordinator({
     required Future<void> Function() ensureConsent,
@@ -29,6 +26,7 @@ class AdStartupCoordinator {
   final Future<void> Function() _ensureConsent;
   final Future<void> Function() _initializeMobileAds;
   final Duration timeout;
+
   Future<AdStartupResult>? _initialization;
 
   Future<AdStartupResult> initialize() {
@@ -69,14 +67,10 @@ class AdStartupCoordinator {
 
 final adStartupCoordinatorProvider = Provider<AdStartupCoordinator>((ref) {
   return AdStartupCoordinator(
-    ensureConsent: () async {
-      // Teen and unknown profiles use the conservative UMP setting. Ad slots
-      // only become available after the authenticated profile is resolved.
-      final profile = await ref.read(currentProfileProvider.future);
-      await const AdConsentService().ensureConsent(
-        underAgeOfConsent: profile == null || profile.isTeen,
-      );
-    },
+    ensureConsent: () => const AdConsentService().ensureConsent(
+      underAgeOfConsent:
+          ref.read(authStartupSnapshotProvider).underAgeOfConsent ?? true,
+    ),
     initializeMobileAds: () async {
       await MobileAds.instance.initialize();
     },
@@ -86,3 +80,7 @@ final adStartupCoordinatorProvider = Provider<AdStartupCoordinator>((ref) {
 final adStartupStateProvider = FutureProvider<AdStartupResult>((ref) {
   return ref.read(adStartupCoordinatorProvider).initialize();
 });
+
+Future<void> initializeAdsSafely(WidgetRef ref) async {
+  await ref.read(adStartupStateProvider.future);
+}

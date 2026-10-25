@@ -22,7 +22,7 @@ void main() {
     expect(AppConfig.identityVerificationEnabled, isFalse);
   });
 
-  test('native billing stays excluded and Stripe SDK is sandbox-gated', () {
+  test('native billing and unavailable Stripe payment sheet stay excluded', () {
     final pubspec = _read('pubspec.yaml');
     final pluginRegistry = _read(
       'android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java',
@@ -32,12 +32,12 @@ void main() {
       expect(pubspec, isNot(contains(dependency)));
       expect(pluginRegistry, isNot(contains(dependency)));
     }
-    expect(pubspec, contains('flutter_stripe'));
+    expect(pubspec, isNot(contains('flutter_stripe')));
     expect(AppConfig.nativeBillingCompiledIn, isFalse);
     expect(AppConfig.supportsNativePurchases, isFalse);
     expect(pubspec, isNot(contains('in_app_purchase:')));
-    expect(AppConfig.nativeStripePaymentSheetCompiledIn, isTrue);
-    expect(AppConfig.supportsStripePaymentSheet, isTrue);
+    expect(AppConfig.nativeStripePaymentSheetCompiledIn, isFalse);
+    expect(AppConfig.supportsStripePaymentSheet, isFalse);
   });
 
   test('native ads SDK is present and gated correctly, not excluded', () {

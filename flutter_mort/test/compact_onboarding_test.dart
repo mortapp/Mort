@@ -291,7 +291,7 @@ void main() {
       for (var segment = 0; segment < colors.length; segment++) {
         expect(
           colors[segment],
-          segment <= index ? MortColors.accent : MortColors.line,
+          segment <= index ? MortColors.primary : MortColors.line,
         );
       }
       if (stage.$1 == OnboardingStepV2.safetySupport) {

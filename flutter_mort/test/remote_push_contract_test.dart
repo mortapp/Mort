@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('permanent notification denial maps to denied permission', () {
     expect(
-      remotePushPermissionFromFirebase(AuthorizationStatus.deniedPermanently),
+      remotePushPermissionFromFirebase(AuthorizationStatus.denied),
       RemotePushPermission.denied,
     );
   });

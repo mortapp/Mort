@@ -14,16 +14,12 @@ import 'core/theme/mort_theme.dart';
 import 'core/widgets/mort_widgets.dart';
 import 'data/services/supabase_service.dart';
 import 'core/config/app_config.dart';
-import 'features/qa/browserstack_qa_app.dart';
 import 'services/push/push_notification_coordinator.dart';
 import 'services/push/remote_push_provider.dart';
+import 'features/qa/browserstack_qa_app.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (AppConfig.browserStackQaMode) {
-    _runApp();
-    return;
-  }
   // Android 15+ (targetSdk 35+, which MORT uses) enforces edge-to-edge
   // display regardless of app preference -- content draws behind system
   // bars whether or not the app asks for it. Without explicitly opting
@@ -35,6 +31,10 @@ Future<void> main() async {
   // Flutter's MediaQuery.viewPadding/SafeArea calculations in sync with
   // the OS's actual (mandatory) edge-to-edge behavior.
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  if (AppConfig.browserStackQaMode) {
+    runApp(const BrowserStackQaApp());
+    return;
+  }
   configureRemotePushBackgroundHandler();
   if (MortSentryCrashProvider.canInitialize) {
     try {
@@ -101,7 +101,12 @@ class MortBootstrap extends StatefulWidget {
   });
 
   final Future<void> Function()? initialize;
+
+  /// Test/preview override for [AppConfig.maintenanceMode].
   final bool? maintenanceMode;
+
+  /// Test/preview override for the running app version used by the
+  /// mandatory-update gate. Null defers to PackageInfo at runtime.
   final String? currentAppVersion;
 
   @override
@@ -118,7 +123,11 @@ class _MortBootstrapState extends State<MortBootstrap> {
   }
 
   void _start() {
-    if (widget.maintenanceMode ?? AppConfig.maintenanceMode) return;
+    // Maintenance mode is a fail-closed terminal state: no backend calls,
+    // no initialization work until the flag is lifted at build time.
+    if (widget.maintenanceMode ?? AppConfig.maintenanceMode) {
+      return;
+    }
     _initialization = _initializeAfterFirstFrame();
   }
 
@@ -130,9 +139,6 @@ class _MortBootstrapState extends State<MortBootstrap> {
   Future<Object?> _initializeSafely() async {
     try {
       AppConfig.assertValidReleaseConfiguration();
-      if (AppConfig.browserStackQaMode) {
-        return null;
-      }
       await AppConfig.assertSupportedAppVersion(
         currentVersion: widget.currentAppVersion,
       );
@@ -163,6 +169,16 @@ class _MortBootstrapState extends State<MortBootstrap> {
     });
   }
 
+  Future<void> _openPlayStore() async {
+    final uri = Uri.parse(AppConfig.playStoreListingUrl);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      MortStructuredLog.instance.record(
+        'mort.startup.store_link_failed',
+        level: MortLogLevel.warning,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.maintenanceMode ?? AppConfig.maintenanceMode) {
@@ -182,6 +198,12 @@ class _MortBootstrapState extends State<MortBootstrap> {
               message:
                   'We are making MORT better right now. Please check back again shortly.',
             ),
+            const SizedBox(height: 16),
+            MortButton(
+              label: 'Try again',
+              icon: Icons.refresh,
+              onPressed: _retry,
+            ),
           ],
         ),
       );
@@ -192,13 +214,14 @@ class _MortBootstrapState extends State<MortBootstrap> {
         final failed =
             snapshot.connectionState == ConnectionState.done &&
             snapshot.data != null;
-        final updateRequired = snapshot.data is AppUpdateRequiredException;
         if (snapshot.connectionState == ConnectionState.done && !failed) {
-          if (AppConfig.browserStackQaMode) {
-            return const BrowserStackQaApp();
-          }
           return const MortApp();
         }
+        final error = snapshot.data;
+        final updateRequired = error is AppUpdateRequiredException
+            ? error
+            : null;
+        final configFailure = error is AppConfigValidationException;
 
         return MaterialApp(
           title: 'MORT',
@@ -211,31 +234,42 @@ class _MortBootstrapState extends State<MortBootstrap> {
                 title: 'MORT',
                 subtitle: 'Connecting securely...',
               ),
-              if (failed) ...[
+              if (updateRequired != null) ...[
                 MortErrorState(
-                  title: updateRequired
-                      ? 'MORT needs an update'
-                      : 'MORT could not start',
-                  message: updateRequired
-                      ? 'This version is no longer supported. Install the latest version to continue.'
-                      : 'Check your connection and try again. No private key is required in the app.',
+                  title: 'MORT needs an update',
+                  message:
+                      'You are using version ${updateRequired.currentVersion}. '
+                      'Update to the latest version of MORT to keep '
+                      'earning safely.',
                 ),
                 const SizedBox(height: 16),
-                if (updateRequired)
-                  MortButton(
-                    label: 'Update MORT',
-                    icon: Icons.system_update_alt,
-                    onPressed: () => launchUrl(
-                      Uri.parse(AppConfig.playStoreListingUrl),
-                      mode: LaunchMode.externalApplication,
-                    ),
-                  )
-                else
-                  MortButton(
-                    label: 'Retry startup',
-                    icon: Icons.refresh,
-                    onPressed: _retry,
-                  ),
+                MortButton(
+                  label: 'Update MORT',
+                  icon: Icons.system_update_alt,
+                  onPressed: _openPlayStore,
+                ),
+                const SizedBox(height: 8),
+                MortButton(
+                  label: 'Retry startup',
+                  icon: Icons.refresh,
+                  onPressed: _retry,
+                ),
+              ] else if (failed) ...[
+                MortErrorState(
+                  title: 'MORT could not start',
+                  message: configFailure
+                      ? 'MORT could not finish its secure setup on this '
+                            'device. Check the app store for an update, then '
+                            'try again. No private key is required in the app.'
+                      : 'Check your connection and try again. No private key '
+                            'is required in the app.',
+                ),
+                const SizedBox(height: 16),
+                MortButton(
+                  label: 'Retry startup',
+                  icon: Icons.refresh,
+                  onPressed: _retry,
+                ),
               ] else
                 const MortLoading(
                   label: 'Restoring your session...',

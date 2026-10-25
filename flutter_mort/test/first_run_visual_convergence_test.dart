@@ -2,12 +2,14 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_mort/core/atmosphere/mort_atmospheric_background.dart';
+import 'package:flutter_mort/core/atmosphere/mort_wordmark_reveal.dart';
 import 'package:flutter_mort/core/auth/oauth_flow.dart';
 import 'package:flutter_mort/core/reviewer/reviewer_session.dart';
 import 'package:flutter_mort/core/theme/mort_colors.dart';
 import 'package:flutter_mort/core/theme/mort_theme.dart';
 import 'package:flutter_mort/core/widgets/mort_widgets.dart';
-import 'package:flutter_mort/data/models/onboarding_progress.dart';
+import 'package:flutter_mort/core/widgets/mort_motion_mark.dart';
 import 'package:flutter_mort/data/repositories/auth_repository.dart';
 import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/features/auth/google_auth_screens.dart';
@@ -30,25 +32,16 @@ void main() {
       disableAnimations: true,
     );
 
-    expect(find.byType(MortSpaceBackground), findsOneWidget);
-    expect(find.byType(MortAnimatedBrandMark), findsOneWidget);
-    expect(
-      find.descendant(
-        of: find.byType(MortAnimatedBrandMark),
-        matching: find.byType(AnimatedBuilder),
-      ),
-      findsNothing,
-    );
+    expect(find.byType(MortAtmosphericBackground), findsOneWidget);
+    expect(find.byType(MortMotionMark), findsOneWidget);
+    expect(find.byType(MortWordmarkReveal), findsOneWidget);
     expect(find.text('Enter MORT'), findsOneWidget);
     expect(find.text('Sign in'), findsOneWidget);
     final enter = tester.widget<MortButton>(
       find.widgetWithText(MortButton, 'Enter MORT'),
     );
-    final signIn = tester.widget<MortButton>(
-      find.widgetWithText(MortButton, 'Sign in'),
-    );
     expect(enter.style, MortButtonStyle.primary);
-    expect(signIn.style, MortButtonStyle.ghost);
+    expect(find.widgetWithText(TextButton, 'Sign in'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -64,9 +57,9 @@ void main() {
         bottomSystemInset: 24,
       );
 
-      expect(find.byType(MortSpaceBackground), findsOneWidget);
-      expect(find.byType(MortLogo), findsOneWidget);
-      expect(find.text('Welcome to MORT'), findsOneWidget);
+      expect(find.byType(MortAtmosphericBackground), findsOneWidget);
+      expect(find.byType(MortMotionMark), findsOneWidget);
+      expect(find.text('Built for local work'), findsOneWidget);
       final createFinder = find.widgetWithText(MortButton, 'Create account');
       final signInFinder = find.widgetWithText(
         MortButton,
@@ -87,27 +80,15 @@ void main() {
       }
       expect(
         tester.widget<Icon>(find.byIcon(Icons.schedule_rounded)).color,
-        MortColors.silver,
+        MortColors.primary,
       );
-      final safetyCard = find.ancestor(
-        of: find.text('Safety stays free'),
-        matching: find.byType(MortGlassCard),
-      );
-      expect(tester.widget<MortGlassCard>(safetyCard).infoAccent, isTrue);
       expect(
-        tester
-            .widget<Icon>(
-              find.descendant(
-                of: safetyCard,
-                matching: find.byIcon(Icons.shield_outlined),
-              ),
-            )
-            .color,
+        tester.widget<Icon>(find.byIcon(Icons.shield_outlined).first).color,
         MortColors.lightBlue,
       );
       expect(
         tester.widget<Icon>(find.byIcon(Icons.pin_outlined)).color,
-        MortColors.silver,
+        MortColors.primary,
       );
       expect(tester.takeException(), isNull);
     }
@@ -127,14 +108,9 @@ void main() {
     expect(find.byIcon(Icons.cloud_done), findsOneWidget);
     expect(
       tester.widget<Icon>(find.byIcon(Icons.cloud_done)).color,
-      MortColors.accent,
+      MortColors.primary,
     );
-    expect(
-      find.text(
-        'Connected securely. Marketplace actions may still require account eligibility or verification.',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('Secure connection ready.'), findsOneWidget);
     expect(find.text('Retry connection'), findsNothing);
   });
 
@@ -155,9 +131,7 @@ void main() {
       MortColors.warning,
     );
     expect(
-      find.text(
-        'MORT cannot connect right now. Account features remain unavailable until service returns.',
-      ),
+      find.text('Connection unavailable. Account features will wait safely.'),
       findsOneWidget,
     );
     expect(find.text('Retry connection'), findsOneWidget);
@@ -181,10 +155,7 @@ void main() {
       tester.widget<Icon>(find.byIcon(Icons.cloud_sync)).color,
       MortColors.silver,
     );
-    expect(
-      find.text('Checking the secure service connection...'),
-      findsOneWidget,
-    );
+    expect(find.text('Checking secure connection...'), findsOneWidget);
     expect(find.text('Retry connection'), findsNothing);
   });
 
@@ -223,7 +194,7 @@ void main() {
       keyboardInset: 220,
     );
 
-    expect(find.byType(MortLogo), findsOneWidget);
+    expect(find.text('Access MORT'), findsOneWidget);
     expect(find.byType(TextFormField), findsNWidgets(2));
     expect(find.byType(EditableText), findsNWidgets(2));
     expect(find.bySemanticsLabel('Email'), findsOneWidget);
@@ -231,10 +202,6 @@ void main() {
     semantics.dispose();
     expect(find.text('Terms'), findsOneWidget);
     expect(find.text('Privacy Policy'), findsOneWidget);
-    expect(
-      find.text(' ($mortOnboardingAcknowledgementVersion)'),
-      findsOneWidget,
-    );
     expect(find.text('Google Play Review Mode'), findsNothing);
     expect(find.text('Continue as Play Reviewer'), findsNothing);
     final password = tester.widget<TextFormField>(
@@ -318,7 +285,7 @@ void main() {
       disableAnimations: true,
     );
 
-    expect(find.byType(MortLogo), findsOneWidget);
+    expect(find.byType(MortBrandMark), findsOneWidget);
     expect(find.widgetWithText(TextFormField, 'Email'), findsOneWidget);
     expect(find.text('Send reset email'), findsOneWidget);
     expect(tester.takeException(), isNull);

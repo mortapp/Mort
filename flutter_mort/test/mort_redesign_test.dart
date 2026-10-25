@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_mort/core/atmosphere/mort_wordmark_reveal.dart';
 import 'package:flutter_mort/core/theme/mort_colors.dart';
 import 'package:flutter_mort/core/theme/mort_theme.dart';
 import 'package:flutter_mort/core/widgets/mort_widgets.dart';
+import 'package:flutter_mort/core/widgets/mort_motion_mark.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -26,12 +28,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('M O R T'), findsOneWidget);
+    // The wordmark is written by MortWordmarkReveal's handwriting
+    // animation, not a static "M O R T" Text widget -- see mort_brand.dart.
+    expect(find.byType(MortWordmarkReveal), findsOneWidget);
     expect(find.text('Safety and location status'), findsOneWidget);
-    expect(find.byType(Image), findsOneWidget);
-    expect(MortColors.accent, const Color(0xFFDCE7F2));
-    expect(MortColors.bg, const Color(0xFF030507));
-    expect(MortColors.lightBlue, const Color(0xFF75C7F7));
+    expect(find.byType(MortMotionMark), findsOneWidget);
+    // Black/graphite/silver identity -- MortColors.roseGold/lightBlue are
+    // legacy compatibility aliases that now resolve to the silver palette
+    // (no rose gold, no bright cobalt-first UI).
+    expect(MortColors.roseGold, const Color(0xFFD6DAE0));
+    expect(MortColors.lightBlue, const Color(0xFFE9EDF2));
   });
 
   testWidgets('core controls honor reduced motion and remain focus visible', (

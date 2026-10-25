@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../theme/mort_colors.dart';
+import '../theme/mort_spacing.dart';
 
 /// Root-location and fallback-route knowledge shared by every back
 /// affordance in the app (floating back button, MortHeader,
@@ -88,6 +89,8 @@ class MortBackNavigation {
     if (normalized == '/onboarding/preferences') return '/onboarding/guardian';
     if (normalized == '/onboarding/safety') return '/onboarding/preferences';
     if (normalized == '/onboarding/review') return '/onboarding/preferences';
+    if (normalized == '/financial') return '/teen/home';
+    if (normalized.startsWith('/financial/')) return '/financial';
     if (normalized.startsWith('/teen/jobs/')) return '/teen/home';
     if (normalized == '/teen/profile/edit') return '/teen/profile';
     if (normalized.startsWith('/teen/safety/applications/')) {
@@ -206,9 +209,9 @@ class MortBackButton extends StatelessWidget {
           }
         },
         style: IconButton.styleFrom(
-          backgroundColor: MortColors.glass,
           foregroundColor: MortColors.text,
-          minimumSize: const Size.square(48),
+          highlightColor: MortColors.glass,
+          minimumSize: const Size.square(MortSpacing.minTouchTarget),
           padding: const EdgeInsets.all(12),
         ),
       ),

@@ -134,6 +134,8 @@ class _JobPaymentHistoryScreenState extends State<JobPaymentHistoryScreen> {
             icon: Icons.expand_more,
             style: MortButtonStyle.secondary,
             onPressed: widget.onLoadMore,
+            busy: widget.onLoadMore == null,
+            busyLabel: 'Loading more',
           ),
       ],
     );

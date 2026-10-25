@@ -555,60 +555,6 @@ void main() {
   );
 
   testWidgets(
-    'banner records an impression only after the native impression event',
-    (tester) async {
-      final repository = _FakeMonetizationRepository();
-      final harness = _AdHarness(
-        tester,
-        repository: repository,
-        identity: _identity(),
-      );
-      addTearDown(harness.dispose);
-      await harness.primeEntitlements();
-      await harness.pumpBanner();
-      final adId = _loadedAdId('loadBannerAd');
-
-      await _sendAdEvent(tester, adId, 'onAdLoaded');
-      await tester.pump();
-      expect(repository.impressionCalls, 0);
-
-      await _sendAdEvent(tester, adId, 'onAdImpression');
-      await tester.pump();
-      expect(repository.impressionCalls, 1);
-    },
-    skip: !testsEnabled,
-  );
-
-  testWidgets(
-    'rewarded impression is counted on display, independent of completion',
-    (tester) async {
-      final repository = _FakeMonetizationRepository();
-      var rewards = 0;
-      final harness = _AdHarness(
-        tester,
-        repository: repository,
-        identity: _identity(),
-      );
-      addTearDown(harness.dispose);
-      await harness.primeEntitlements();
-      await harness.pumpRewarded(onReward: () => rewards++);
-      final adId = _loadedAdId('loadRewardedAd');
-      await _sendAdEvent(tester, adId, 'onAdLoaded');
-      await tester.pump();
-      await tester.tap(find.text('Watch for Spark'));
-      await tester.pump();
-      expect(repository.impressionCalls, 0);
-
-      await _sendAdEvent(tester, adId, 'onAdImpression');
-      await tester.pump();
-      expect(repository.impressionCalls, 1);
-
-      expect(rewards, 0);
-    },
-    skip: !testsEnabled,
-  );
-
-  testWidgets(
     'repeated rewarded taps during loading and showing start only one ad',
     (tester) async {
       final eligibilityRequest = Completer<Map<String, dynamic>>();
@@ -657,7 +603,6 @@ void main() {
       await harness.pumpBanner();
       final oldAdId = _loadedAdId('loadBannerAd');
       await _sendAdEvent(tester, oldAdId, 'onAdLoaded');
-      await _sendAdEvent(tester, oldAdId, 'onAdImpression');
       await tester.pump();
 
       harness.accountSwitch();

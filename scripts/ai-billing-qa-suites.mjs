@@ -278,7 +278,9 @@ async function billingFreeCore(scope) {
   const access = await text("flutter_mort/lib/features/monetization/domain/feature_access.dart");
   const paywall = await text("flutter_mort/lib/features/monetization/screens/google_play_billing_screens.dart");
   for (const marker of ["safetyToolsFree", "basicApplyingFree", "basicGuardianModeFree", "proofUploadFree", "reportBlockSafetyPingFree"]) assertQa(access.includes(marker), `missing free-core contract: ${marker}`);
-  assertQa(paywall.includes("Core app, jobs, and safety remain free"), "paywall omits free-core disclosure");
+  for (const disclosure of ["jobs", "applications", "messaging", "reports", "blocking", "Safety Ping", "basic Guardian Mode", "remain available without an upgrade"]) {
+    assertQa(paywall.toLowerCase().includes(disclosure.toLowerCase()), `paywall omits free-core disclosure: ${disclosure}`);
+  }
   qaLog(scope, "job, proof, Guardian, report, block, and Safety Ping access remains independent of billing");
 }
 
@@ -291,11 +293,17 @@ async function paywallDisclosures(scope) {
 
 async function admobDisabledMode(scope) {
   const config = await text("flutter_mort/lib/core/config/app_config.dart");
+  const service = await text("flutter_mort/lib/features/ads/data/admob_service.dart");
   const manifest = await text("flutter_mort/android/app/src/main/AndroidManifest.xml");
-  assertQa(config.includes("static const nativeAdsCompiledIn = false"), "native ads are compiled in");
+  const progression = await text("supabase/migrations/20260920235334_mort_progression_v1.sql");
+  assertQa(config.includes("static const nativeAdsCompiledIn = true"), "native ad compile boundary is missing");
   assertQa(config.match(/ADS_ENABLED[\s\S]{0,100}defaultValue: false/), "ads do not default disabled");
+  assertQa(service.includes("ADS_ENABLED=false."), "runtime-disabled decision is absent");
   assertQa(manifest.match(/AD_ID[^>]+tools:node="remove"/), "advertising ID is not explicitly stripped");
-  qaLog(scope, "AdMob SDK/runtime remains disabled and Android advertising IDs are stripped");
+  for (const forbidden of ["ad_impression", "ad_click", "rewarded_ad"]) {
+    assertQa(!progression.toLowerCase().includes(forbidden), `ads can mutate progression through ${forbidden}`);
+  }
+  qaLog(scope, "AdMob SDK is compiled, runtime defaults disabled, Android advertising IDs are stripped, and ads cannot mutate progression");
 }
 
 async function admobTestMode(scope) {

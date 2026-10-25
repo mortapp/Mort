@@ -8,29 +8,34 @@ void main() {
     expect(AdStartupCoordinator.defaultTimeout, const Duration(seconds: 5));
   });
 
-  test('initializes consent before ads and shares concurrent work', () async {
-    final order = <String>[];
-    final consent = Completer<void>();
-    final coordinator = AdStartupCoordinator(
-      ensureConsent: () async {
-        order.add('consent');
-        await consent.future;
-      },
-      initializeMobileAds: () async => order.add('mobile_ads'),
-    );
+  test(
+    'initializes consent before ads and shares concurrent startup work',
+    () async {
+      final order = <String>[];
+      final consent = Completer<void>();
+      final coordinator = AdStartupCoordinator(
+        ensureConsent: () async {
+          order.add('consent');
+          await consent.future;
+        },
+        initializeMobileAds: () async {
+          order.add('mobile_ads');
+        },
+      );
 
-    final first = coordinator.initialize();
-    final second = coordinator.initialize();
-    expect(second, same(first));
-    expect(order, ['consent']);
+      final first = coordinator.initialize();
+      final second = coordinator.initialize();
+      expect(second, same(first));
+      expect(order, ['consent']);
 
-    consent.complete();
-    expect(await first, AdStartupResult.ready);
-    expect(order, ['consent', 'mobile_ads']);
-  });
+      consent.complete();
+      expect(await first, AdStartupResult.ready);
+      expect(order, ['consent', 'mobile_ads']);
+    },
+  );
 
   test(
-    'consent timeout never starts ads after consent eventually ends',
+    'consent timeout does not start mobile ads after consent eventually ends',
     () async {
       final consent = Completer<void>();
       var mobileAdsStarted = false;
@@ -47,28 +52,34 @@ void main() {
     },
   );
 
-  test('SDK initialization is covered by the remaining deadline', () async {
-    final mobileAds = Completer<void>();
-    final coordinator = AdStartupCoordinator(
-      ensureConsent: () async {},
-      initializeMobileAds: () => mobileAds.future,
-      timeout: const Duration(milliseconds: 20),
-    );
+  test(
+    'mobile ads initialization is covered by the remaining deadline',
+    () async {
+      final mobileAds = Completer<void>();
+      final coordinator = AdStartupCoordinator(
+        ensureConsent: () async {},
+        initializeMobileAds: () => mobileAds.future,
+        timeout: const Duration(milliseconds: 20),
+      );
 
-    expect(await coordinator.initialize(), AdStartupResult.timedOut);
-    mobileAds.complete();
-  });
+      expect(await coordinator.initialize(), AdStartupResult.timedOut);
+      mobileAds.complete();
+    },
+  );
 
-  test('consent failures fail closed without initializing ads', () async {
-    var mobileAdsStarted = false;
-    final coordinator = AdStartupCoordinator(
-      ensureConsent: () => Future<void>.error(StateError('consent failed')),
-      initializeMobileAds: () async => mobileAdsStarted = true,
-    );
+  test(
+    'consent failures fail closed without initializing mobile ads',
+    () async {
+      var mobileAdsStarted = false;
+      final coordinator = AdStartupCoordinator(
+        ensureConsent: () => Future<void>.error(StateError('consent failed')),
+        initializeMobileAds: () async => mobileAdsStarted = true,
+      );
 
-    expect(await coordinator.initialize(), AdStartupResult.failed);
-    expect(mobileAdsStarted, isFalse);
-  });
+      expect(await coordinator.initialize(), AdStartupResult.failed);
+      expect(mobileAdsStarted, isFalse);
+    },
+  );
 
   test('rejects a non-positive timeout', () {
     expect(

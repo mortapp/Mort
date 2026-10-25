@@ -57,7 +57,7 @@ class LiquidGlassContainer extends StatelessWidget {
     final blur = _useLiveBlur(context);
     final base = switch (variant) {
       MortGlassVariant.regular => MortColors.bgElevated,
-      MortGlassVariant.clear => MortColors.silverBright,
+      MortGlassVariant.clear => Colors.white,
       MortGlassVariant.soft => MortColors.cardAlt,
     };
     final baseAlpha = highContrast
@@ -77,7 +77,7 @@ class LiquidGlassContainer extends StatelessWidget {
     final borderColor = highContrast
         ? MortColors.silver
         : Color.lerp(
-            MortColors.silverBright.withValues(alpha: 0.14),
+            Colors.white.withValues(alpha: 0.14),
             effectiveTint.withValues(alpha: 0.44),
             tint == null ? 0.0 : 0.58,
           )!;
@@ -112,9 +112,7 @@ class LiquidGlassContainer extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: const Alignment(0.25, 0.25),
                   colors: [
-                    MortColors.silverBright.withValues(
-                      alpha: highContrast ? 0.02 : 0.16,
-                    ),
+                    Colors.white.withValues(alpha: highContrast ? 0.02 : 0.04),
                     Colors.transparent,
                   ],
                 ),
@@ -149,21 +147,14 @@ class LiquidGlassContainer extends StatelessWidget {
     );
 
     if (onTap != null) {
-      surface = ConstrainedBox(
-        constraints: const BoxConstraints(
-          minWidth: MortSpacing.minTouchTarget,
-          minHeight: MortSpacing.minTouchTarget,
-        ),
-        child: surface,
-      );
       surface = Material(
         color: Colors.transparent,
         borderRadius: radius,
         child: InkWell(
           borderRadius: radius,
           onTap: onTap,
-          splashColor: MortColors.accent.withValues(alpha: 0.12),
-          highlightColor: MortColors.accent.withValues(alpha: 0.06),
+          splashColor: MortColors.roseGold.withValues(alpha: 0.12),
+          highlightColor: MortColors.roseGoldLight.withValues(alpha: 0.06),
           child: surface,
         ),
       );
@@ -269,12 +260,12 @@ class MortGlassNavigationBar extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: currentIndex == index
-                              ? MortColors.silverBright.withValues(alpha: 0.14)
+                              ? MortColors.roseGold.withValues(alpha: 0.18)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(MortRadii.card),
                           border: currentIndex == index
                               ? Border.all(
-                                  color: MortColors.silver.withValues(
+                                  color: MortColors.roseGold.withValues(
                                     alpha: 0.36,
                                   ),
                                 )
@@ -289,7 +280,7 @@ class MortGlassNavigationBar extends StatelessWidget {
                                   : destinations[index].icon,
                               size: 22,
                               color: currentIndex == index
-                                  ? MortColors.silverBright
+                                  ? MortColors.roseGoldLight
                                   : MortColors.silver,
                             ),
                             const SizedBox(height: MortSpacing.xxs),
@@ -301,7 +292,7 @@ class MortGlassNavigationBar extends StatelessWidget {
                               style: Theme.of(context).textTheme.labelMedium
                                   ?.copyWith(
                                     color: currentIndex == index
-                                        ? MortColors.silverBright
+                                        ? MortColors.roseGoldLight
                                         : MortColors.textMuted,
                                     fontSize: 10,
                                   ),
@@ -434,7 +425,7 @@ class MortGlassButton extends StatelessWidget {
     final tint = danger
         ? MortColors.danger
         : primary
-        ? MortColors.silver
+        ? MortColors.roseGold
         : null;
     return Opacity(
       opacity: enabled ? 1 : 0.52,
@@ -530,12 +521,12 @@ class MortSegmentedControl<T> extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: option.value == value
-                          ? MortColors.silverBright.withValues(alpha: 0.16)
+                          ? MortColors.roseGold.withValues(alpha: 0.22)
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(MortRadii.pill),
                       border: option.value == value
                           ? Border.all(
-                              color: MortColors.silver.withValues(alpha: 0.5),
+                              color: MortColors.roseGold.withValues(alpha: 0.5),
                             )
                           : null,
                     ),
@@ -546,7 +537,7 @@ class MortSegmentedControl<T> extends StatelessWidget {
                           option.icon,
                           size: 18,
                           color: option.value == value
-                              ? MortColors.silverBright
+                              ? MortColors.roseGoldLight
                               : MortColors.silver,
                         ),
                         const SizedBox(width: MortSpacing.xs),
@@ -558,7 +549,7 @@ class MortSegmentedControl<T> extends StatelessWidget {
                             style: Theme.of(context).textTheme.labelLarge
                                 ?.copyWith(
                                   color: option.value == value
-                                      ? MortColors.silverBright
+                                      ? MortColors.roseGoldLight
                                       : MortColors.silver,
                                 ),
                           ),
@@ -596,15 +587,15 @@ class MortChip extends StatelessWidget {
     selected: selected,
     onSelected: onSelected,
     showCheckmark: false,
-    selectedColor: MortColors.silverBright.withValues(alpha: 0.16),
+    selectedColor: MortColors.roseGold.withValues(alpha: 0.22),
     backgroundColor: MortColors.glass,
     side: BorderSide(
       color: selected
-          ? MortColors.silver.withValues(alpha: 0.5)
+          ? MortColors.roseGold.withValues(alpha: 0.5)
           : MortColors.lineStrong,
     ),
     labelStyle: TextStyle(
-      color: selected ? MortColors.silverBright : MortColors.silver,
+      color: selected ? MortColors.roseGoldLight : MortColors.silver,
       fontWeight: FontWeight.w600,
     ),
   );
@@ -665,7 +656,7 @@ class MortSectionLabel extends StatelessWidget {
     child: Text(
       label.toUpperCase(),
       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-        color: MortColors.textMuted,
+        color: MortColors.textDisabled,
         letterSpacing: 1.1,
       ),
     ),
@@ -741,17 +732,16 @@ class MortSafetyPulse extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: SizedBox(
-      width: 224,
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 224, minWidth: 220),
       child: LiquidGlassContainer(
         tint: color,
         borderRadius: BorderRadius.circular(MortRadii.pill),
         onTap: onPressed,
         semanticLabel: '$title. $status',
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 192),
+        child: Padding(
+          padding: const EdgeInsets.all(MortSpacing.md),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: 52, color: color),

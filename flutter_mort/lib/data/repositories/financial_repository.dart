@@ -219,10 +219,11 @@ class FinancialRepository extends RepositoryBase {
   }
 
   Future<void> removeReceipt(String expenseId, String path) async {
-    await client.rpc(
+    final response = await client.rpc(
       'set_my_expense_receipt',
       params: {'p_id': expenseId, 'p_path': null},
     );
+    _ok(response, 'receipt_not_cleared');
     try {
       await client.storage.from(receiptsBucket).remove([path]);
     } catch (_) {

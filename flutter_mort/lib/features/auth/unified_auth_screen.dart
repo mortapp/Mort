@@ -2,9 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../core/errors/user_facing_error.dart';
+import '../../core/config/app_config.dart';
 import '../../core/reviewer/reviewer_session.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
@@ -103,7 +103,9 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
   Future<void> _recordAcknowledgement() async {
     if (!_legalAcknowledged) return;
     try {
-      final package = await PackageInfo.fromPlatform();
+      // Bounded read: a hung plugin call must never wedge the sign-in flow.
+      final package = await AppConfig.tryReadPackageInfo();
+      if (package == null) return;
       final platform = kIsWeb
           ? 'flutter_web'
           : 'flutter_${defaultTargetPlatform.name}';
@@ -199,23 +201,19 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final eyebrow = _isSignIn ? 'Welcome back' : 'Age-gated';
+    final eyebrow = _isSignIn ? 'WELCOME BACK' : 'NEW ACCOUNT';
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.midnight,
       children: [
-        const Center(child: MortLogo(size: 72, showWordmark: true)),
-        const SizedBox(height: MortSpacing.md),
-        MortGlassHeader(
+        MortHeader(
           eyebrow: eyebrow,
           title: _reviewerIdentifierEntered ? 'Sign in' : 'Access MORT',
           subtitle: _isSignIn
-              ? 'Use your account or switch to create one without leaving this screen.'
-              : 'Create an account, confirm your email, then complete age and role onboarding.',
-          showBack: true,
-          onBack: () => Navigator.of(context).canPop()
-              ? Navigator.of(context).pop()
-              : context.go('/splash'),
+              ? 'Sign in securely or create a new account.'
+              : 'Create your account, then complete the four-step setup.',
+          showBackButton: true,
+          backFallbackRoute: '/splash',
         ),
-        const SizedBox(height: MortSpacing.md),
         if (!_reviewerIdentifierEntered)
           MortSegmentedControl<UnifiedAuthMode>(
             value: _mode,
@@ -233,6 +231,13 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
             ],
             onChanged: _switchMode,
           ),
+        // Real Google OAuth, top of the auth form, above the manual
+        // email/password fields (the section itself renders the "or"
+        // divider between the Google button and the form).
+        if (!_reviewerIdentifierEntered) ...[
+          const SizedBox(height: MortSpacing.md),
+          GoogleAuthSection(signUp: !_isSignIn),
+        ],
         if (!_backendReady) ...[
           const SizedBox(height: MortSpacing.md),
           const MortSafetyBanner(
@@ -330,10 +335,22 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
                   ),
                   if (!_isSignIn) ...[
                     const SizedBox(height: MortSpacing.sm),
-                    const MortGlassSoftSurface(
-                      child: Text(
-                        'Use at least 12 characters with uppercase, lowercase, a number, and a symbol.',
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.info_outline_rounded,
+                          size: 18,
+                          color: MortColors.textMuted,
+                        ),
+                        const SizedBox(width: MortSpacing.xs),
+                        Expanded(
+                          child: Text(
+                            'Use at least 12 characters with uppercase, lowercase, a number, and a symbol.',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                   const SizedBox(height: MortSpacing.md),
@@ -380,21 +397,25 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
         ),
         if (!_reviewerIdentifierEntered) ...[
           const SizedBox(height: MortSpacing.md),
-          const GoogleAuthSection(),
           const AppleAuthSection(),
         ],
         const SizedBox(height: MortSpacing.sm),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Checkbox(
-              value: _legalAcknowledged,
-              onChanged: _busy
-                  ? null
-                  : (value) => setState(() {
-                      _legalAcknowledged = value == true;
-                      if (_legalAcknowledged) _legalError = false;
-                    }),
+            Semantics(
+              label: _isSignIn
+                  ? 'I have read MORT\'s Terms and Privacy Policy'
+                  : 'I agree to MORT\'s Terms and Privacy Policy',
+              child: Checkbox(
+                value: _legalAcknowledged,
+                onChanged: _busy
+                    ? null
+                    : (value) => setState(() {
+                        _legalAcknowledged = value == true;
+                        if (_legalAcknowledged) _legalError = false;
+                      }),
+              ),
             ),
             Expanded(
               child: Column(
@@ -427,7 +448,6 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
                         onPressed: () => context.push('/legal/privacy'),
                         child: const Text('Privacy Policy'),
                       ),
-                      Text(' ($mortOnboardingAcknowledgementVersion)'),
                     ],
                   ),
                   if (_legalError)

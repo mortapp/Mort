@@ -30,8 +30,6 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
   bool _loaded = false;
   bool _loading = false;
   final _sessionGuard = AdRequestSessionGuard();
-  final _eligibilityRequests = <(String, String, DateTime?, String)>{};
-  bool _awaitingEntitlementsAfterAuth = false;
   Timer? _sessionExpiryTimer;
 
   int get _generation => _sessionGuard.generation;
@@ -54,7 +52,6 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
   }
 
   Future<void> _loadRealAd() async {
-    // TEMP_DEBUG
     if (_loading || _ad != null || !mounted) return;
     final identity = ref.read(adSessionIdentityReaderProvider)();
     if (identity == null ||
@@ -64,13 +61,6 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
         !_adStartupReady) {
       return;
     }
-    final eligibilityKey = (
-      identity.userId,
-      identity.accessToken,
-      identity.expiresAt,
-      widget.placement,
-    );
-    if (!_eligibilityRequests.add(eligibilityKey)) return;
 
     final generation = _sessionGuard.begin();
     final placement = widget.placement;
@@ -84,17 +74,12 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
       placement: placement,
       userAdFree: widget.userAdFree,
     );
-    late final AdMobDecision decision;
-    try {
-      decision = await const AdMobService().confirmWithServer(
-        decision: local,
-        repository: ref.read(monetizationRepositoryProvider),
-        placement: placement,
-        adFormat: 'banner',
-      );
-    } finally {
-      _eligibilityRequests.remove(eligibilityKey);
-    }
+    final decision = await const AdMobService().confirmWithServer(
+      decision: local,
+      repository: ref.read(monetizationRepositoryProvider),
+      placement: placement,
+      adFormat: 'banner',
+    );
     if (!_isCurrent(identity, generation, placement)) {
       if (mounted && generation == _generation) {
         setState(() => _loading = false);
@@ -107,7 +92,6 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
       return;
     }
 
-    var impressionRecorded = false;
     final ad = BannerAd(
       adUnitId: decision.adUnitId!,
       size: AdSize.banner,
@@ -132,6 +116,14 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
             _loaded = true;
             _loading = false;
           });
+          ref
+              .read(monetizationRepositoryProvider)
+              .recordAdImpression(
+                placement: placement,
+                format: 'banner',
+                adUnitId: decision.adUnitId,
+                requestNonPersonalized: decision.requestNonPersonalized,
+              );
         },
         onAdFailedToLoad: (ad, error) {
           if (identical(_ad, ad)) {
@@ -149,21 +141,6 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
             _loaded = false;
             _loading = false;
           });
-        },
-        onAdImpression: (_) {
-          if (impressionRecorded ||
-              !_isCurrent(identity, generation, placement)) {
-            return;
-          }
-          impressionRecorded = true;
-          ref
-              .read(monetizationRepositoryProvider)
-              .recordAdImpression(
-                placement: placement,
-                format: 'banner',
-                adUnitId: decision.adUnitId,
-                requestNonPersonalized: decision.requestNonPersonalized,
-              );
         },
       ),
     );
@@ -198,33 +175,11 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
       ref.read(adStartupStateProvider).asData?.value == AdStartupResult.ready;
 
   void _handleAuthChange() {
-    _awaitingEntitlementsAfterAuth = true;
     ref.invalidate(backendEntitlementsProvider);
-    _invalidateAndReload(reload: false);
+    _invalidateAndReload();
   }
 
-  void _handleEntitlementsChange(
-    AsyncValue<Map<String, dynamic>>? previous,
-    AsyncValue<Map<String, dynamic>> next,
-  ) {
-    if (next.isLoading || next.hasError || next.asData == null) return;
-    if (_awaitingEntitlementsAfterAuth) {
-      _awaitingEntitlementsAfterAuth = false;
-      _invalidateAndReload();
-      return;
-    }
-    final previousValue = previous?.asData?.value;
-    if (previousValue == null) {
-      if (!_loading && _ad == null) _loadRealAd();
-      return;
-    }
-    if (const AdMobService().entitlementsAllowAds(previousValue) !=
-        _serverEntitlementsAllowAds()) {
-      _invalidateAndReload();
-    }
-  }
-
-  void _invalidateAndReload({bool reload = true}) {
+  void _invalidateAndReload() {
     _sessionGuard.invalidate();
     _sessionExpiryTimer?.cancel();
     _sessionExpiryTimer = null;
@@ -235,7 +190,7 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
     _loading = false;
     if (mounted) {
       setState(() {});
-      if (reload && AppConfig.nativeAdsCompiledIn && AppConfig.adsEnabled) {
+      if (AppConfig.nativeAdsCompiledIn && AppConfig.adsEnabled) {
         _loadRealAd();
       }
     }
@@ -258,7 +213,7 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
         _handleAuthChange();
       });
       ref.listen(backendEntitlementsProvider, (previous, next) {
-        _handleEntitlementsChange(previous, next);
+        _invalidateAndReload();
       });
     }
     if (!AppConfig.nativeAdsCompiledIn || !AppConfig.adsEnabled) {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -10,6 +12,8 @@ class AppConfig {
 
   static const appName = 'MORT';
   static const slogan = 'Earn nearby. Move smart.';
+  static const playStoreListingUrl =
+      'https://play.google.com/store/apps/details?id=com.mortapp.mobile';
   static const releaseStage = String.fromEnvironment(
     'MORT_RELEASE_STAGE',
     defaultValue: 'development',
@@ -118,8 +122,6 @@ class AppConfig {
     'MORT_MINIMUM_SUPPORTED_APP_VERSION',
     defaultValue: '0.9.11',
   );
-  static const playStoreListingUrl =
-      'https://play.google.com/store/apps/details?id=com.mortapp.mobile';
   static const maintenanceMode = bool.fromEnvironment(
     'MORT_MAINTENANCE_MODE',
     defaultValue: false,
@@ -201,7 +203,7 @@ class AppConfig {
   );
   static const publicWebOrigin = String.fromEnvironment(
     'MORT_PUBLIC_WEB_ORIGIN',
-    defaultValue: 'https://mort-web.vercel.app',
+    defaultValue: 'https://mortapp.org',
   );
 
   static String get resolvedAuthRedirectUrl => kIsWeb
@@ -301,7 +303,7 @@ class AppConfig {
   );
   static const nativeAdsCompiledIn = true;
   static const nativeBillingCompiledIn = false;
-  static const nativeStripePaymentSheetCompiledIn = true;
+  static const nativeStripePaymentSheetCompiledIn = false;
   static const webPreviewMode = bool.fromEnvironment(
     'WEB_PREVIEW_MODE',
     defaultValue: false,
@@ -488,62 +490,107 @@ class AppConfig {
   static void assertValidReleaseConfiguration() {
     final errors = validationErrors;
     if (errors.isEmpty) return;
-    throw StateError(
-      'Invalid MORT release configuration: ${errors.join('; ')}.',
-    );
+    throw AppConfigValidationException(errors);
   }
 
+  /// Bounded, best-effort read of platform package info. Returns null when
+  /// the read is unavailable or slow (tests, exotic platforms, hung plugin) —
+  /// callers fail open; a hung version read must never wedge a user flow.
+  static Future<PackageInfo?> tryReadPackageInfo() async {
+    try {
+      return await PackageInfo.fromPlatform().timeout(
+        const Duration(seconds: 3),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Checks the running app version against the approved minimum
+  /// ([minimumSupportedAppVersion], supplied at build time).
+  ///
+  /// Throws [AppUpdateRequiredException] when the running version is below
+  /// the minimum. When version metadata cannot be read at all (tests, exotic
+  /// platforms), this fails open: an unreadable version cannot be proven
+  /// unsupported, and blocking startup would make the app unusable.
+  static Future<void> assertSupportedAppVersion({
+    String? currentVersion,
+    String? minimumVersion,
+  }) async {
+    final String running;
+    if (currentVersion != null) {
+      running = currentVersion;
+    } else {
+      final info = await tryReadPackageInfo();
+      if (info == null) return;
+      running = info.version;
+    }
+    if (!isAppVersionSupported(running, minimumVersion: minimumVersion)) {
+      throw AppUpdateRequiredException(
+        currentVersion: running,
+        minimumVersion: minimumSupportedAppVersion,
+      );
+    }
+  }
+
+  /// True when [current] is greater than or equal to [minimum] (defaults to
+  /// [minimumSupportedAppVersion]). Versions are dotted numeric triples; an
+  /// unparseable value fails closed — it cannot be proven supported.
   static bool isAppVersionSupported(
-    String currentVersion, {
-    required String minimum,
+    String current, {
+    String? minimum,
+    String? minimumVersion,
   }) {
-    final current = _parseVersion(currentVersion);
-    final required = _parseVersion(minimum);
-    if (current == null || required == null) return false;
-    for (var index = 0; index < current.length; index++) {
-      if (current[index] != required[index]) {
-        return current[index] > required[index];
+    final currentParts = _versionParts(current);
+    final minimumParts = _versionParts(
+      minimumVersion ?? minimum ?? minimumSupportedAppVersion,
+    );
+    if (currentParts == null || minimumParts == null) return false;
+    for (var i = 0; i < 3; i++) {
+      if (currentParts[i] != minimumParts[i]) {
+        return currentParts[i] > minimumParts[i];
       }
     }
     return true;
   }
 
-  static Future<void> assertSupportedAppVersion({
-    String? currentVersion,
-    String? minimumVersion,
-  }) async {
-    final minimum = minimumVersion ?? minimumSupportedAppVersion;
-    final installed =
-        currentVersion ??
-        await PackageInfo.fromPlatform()
-            .then((info) => info.version)
-            .timeout(const Duration(seconds: 5))
-            .catchError((Object _) => '');
-    // Some test hosts and unsupported platforms do not expose package
-    // metadata. Enforce the gate when it is known, without stranding users
-    // because a platform plugin failed to respond.
-    if (installed.isNotEmpty &&
-        !isAppVersionSupported(installed, minimum: minimum)) {
-      throw AppUpdateRequiredException(
-        currentVersion: installed,
-        minimumVersion: minimum,
-      );
+  static List<int>? _versionParts(String value) {
+    final parts = value.trim().split('-').first.split('.');
+    if (parts.isEmpty || parts.length > 3) return null;
+    final parsed = <int>[];
+    for (final part in parts) {
+      final number = int.tryParse(part);
+      if (number == null || number < 0) return null;
+      parsed.add(number);
     }
-  }
-
-  static List<int>? _parseVersion(String value) {
-    if (!RegExp(r'^\d+\.\d+\.\d+$').hasMatch(value)) return null;
-    return value.split('.').map(int.parse).toList(growable: false);
+    while (parsed.length < 3) {
+      parsed.add(0);
+    }
+    return parsed;
   }
 
   static bool get supportsNativePurchases => false;
 
   static bool get supportsNativeAds => nativeAdsCompiledIn && !kIsWeb;
 
-  static bool get supportsStripePaymentSheet =>
-      nativeStripePaymentSheetCompiledIn && !kIsWeb;
+  static bool get supportsStripePaymentSheet => false;
 }
 
+/// Thrown when release-configuration validation fails at startup.
+///
+/// The [errors] list is for crash/structured logging only. It must never be
+/// rendered to users: entries describe internal configuration categories.
+class AppConfigValidationException implements Exception {
+  const AppConfigValidationException(this.errors);
+
+  final List<String> errors;
+
+  @override
+  String toString() =>
+      'Invalid MORT release configuration: ${errors.join('; ')}.';
+}
+
+/// Thrown when the running app version is below the approved minimum.
 class AppUpdateRequiredException implements Exception {
   const AppUpdateRequiredException({
     required this.currentVersion,
@@ -555,5 +602,5 @@ class AppUpdateRequiredException implements Exception {
 
   @override
   String toString() =>
-      'MORT $currentVersion is no longer supported; update to $minimumVersion.';
+      'App update required: $currentVersion is below $minimumVersion.';
 }

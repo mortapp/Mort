@@ -19,14 +19,13 @@ class TeenProfileDestinationScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(currentProfileProvider);
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.quiet,
       children: [
         MortTeenDestinationHeader(
           eyebrow: 'Your MORT identity',
           title: 'Profile',
           subtitle: 'Your work history, trust signals, and account controls.',
-          trailing: MortIconButton(
-            icon: Icons.settings_outlined,
-            tooltip: 'Settings',
+          trailing: MortSettingsButton(
             onPressed: () => context.push('/settings'),
           ),
         ),
@@ -64,6 +63,15 @@ class _TeenProfileBody extends ConsumerWidget {
     final displayName = profile.displayName?.trim().isNotEmpty == true
         ? profile.displayName!
         : 'MORT member';
+    final silverFrame = ref
+        .watch(myProgressionProvider)
+        .when(
+          data: (snapshot) => snapshot.cosmetics.any(
+            (cosmetic) => cosmetic.key == 'silver_edge' && cosmetic.equipped,
+          ),
+          loading: () => false,
+          error: (_, _) => false,
+        );
     final joined = profile.createdAt == null
         ? 'Join date unavailable'
         : 'Member since ${profile.createdAt!.year}';
@@ -74,12 +82,24 @@ class _TeenProfileBody extends ConsumerWidget {
           tint: MortColors.silver,
           child: Column(
             children: [
-              ProfileAvatarView(
-                profileId: profile.id,
-                avatarPath: profile.avatarPath,
-                avatarUpdatedAt: profile.avatarUpdatedAt,
-                fallbackLabel: displayName,
-                radius: 48,
+              Container(
+                padding: EdgeInsets.all(silverFrame ? 5 : 0),
+                decoration: silverFrame
+                    ? BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: MortColors.silverBright,
+                          width: 2,
+                        ),
+                      )
+                    : null,
+                child: ProfileAvatarView(
+                  profileId: profile.id,
+                  avatarPath: profile.avatarPath,
+                  avatarUpdatedAt: profile.avatarUpdatedAt,
+                  fallbackLabel: displayName,
+                  radius: 48,
+                ),
               ),
               const SizedBox(height: MortSpacing.sm),
               Text(
@@ -218,6 +238,15 @@ class _TeenProfileBody extends ConsumerWidget {
               },
             ),
         const MortSectionLabel(label: 'Account'),
+        MortButton(
+          label: 'Progression',
+          icon: Icons.auto_graph_rounded,
+          onPressed: () {
+            ref.invalidate(myProgressionProvider);
+            context.push('/teen/progression');
+          },
+        ),
+        const SizedBox(height: MortSpacing.sm),
         MortButton(
           label: 'Edit profile',
           icon: Icons.edit_outlined,

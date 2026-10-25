@@ -37,8 +37,6 @@ class _MortNativeRewardedAdButtonState
   bool _loading = false;
   bool _showing = false;
   final _sessionGuard = AdRequestSessionGuard();
-  final _eligibilityRequests = <(String, String, DateTime?, String)>{};
-  bool _awaitingEntitlementsAfterAuth = false;
   AdSessionIdentity? _adSession;
   Timer? _sessionExpiryTimer;
 
@@ -77,13 +75,6 @@ class _MortNativeRewardedAdButtonState
         !_adStartupReady) {
       return;
     }
-    final eligibilityKey = (
-      identity.userId,
-      identity.accessToken,
-      identity.expiresAt,
-      widget.placement,
-    );
-    if (!_eligibilityRequests.add(eligibilityKey)) return;
 
     final generation = _sessionGuard.begin();
     final placement = widget.placement;
@@ -94,17 +85,12 @@ class _MortNativeRewardedAdButtonState
     );
     setState(() => _loading = true);
     final local = const AdMobService().rewardedDecision(placement: placement);
-    late final AdMobDecision decision;
-    try {
-      decision = await const AdMobService().confirmWithServer(
-        decision: local,
-        repository: ref.read(monetizationRepositoryProvider),
-        placement: placement,
-        adFormat: 'rewarded',
-      );
-    } finally {
-      _eligibilityRequests.remove(eligibilityKey);
-    }
+    final decision = await const AdMobService().confirmWithServer(
+      decision: local,
+      repository: ref.read(monetizationRepositoryProvider),
+      placement: placement,
+      adFormat: 'rewarded',
+    );
     if (!_isCurrent(identity, generation, placement)) {
       if (mounted && generation == _generation) {
         setState(() => _loading = false);
@@ -164,23 +150,7 @@ class _MortNativeRewardedAdButtonState
       _ad = null;
       _showing = true;
     });
-    var impressionRecorded = false;
     ad.fullScreenContentCallback = FullScreenContentCallback(
-      onAdImpression: (ad) {
-        if (impressionRecorded ||
-            !_isCurrent(identity, generation, placement)) {
-          return;
-        }
-        impressionRecorded = true;
-        ref
-            .read(monetizationRepositoryProvider)
-            .recordAdImpression(
-              placement: placement,
-              format: 'rewarded',
-              adUnitId: _pendingAdUnitId,
-              requestNonPersonalized: _pendingNonPersonalized,
-            );
-      },
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         if (!mounted) return;
@@ -200,6 +170,14 @@ class _MortNativeRewardedAdButtonState
         // The reward is granted only here, inside the SDK's own
         // earned-reward callback -- never on tap, and never before the ad
         // has actually been watched to completion.
+        ref
+            .read(monetizationRepositoryProvider)
+            .recordAdImpression(
+              placement: placement,
+              format: 'rewarded',
+              adUnitId: _pendingAdUnitId,
+              requestNonPersonalized: _pendingNonPersonalized,
+            );
         widget.onReward?.call();
       },
     );
@@ -231,33 +209,11 @@ class _MortNativeRewardedAdButtonState
       ref.read(adStartupStateProvider).asData?.value == AdStartupResult.ready;
 
   void _handleAuthChange() {
-    _awaitingEntitlementsAfterAuth = true;
     ref.invalidate(backendEntitlementsProvider);
-    _invalidateAndReload(reload: false);
+    _invalidateAndReload();
   }
 
-  void _handleEntitlementsChange(
-    AsyncValue<Map<String, dynamic>>? previous,
-    AsyncValue<Map<String, dynamic>> next,
-  ) {
-    if (next.isLoading || next.hasError || next.asData == null) return;
-    if (_awaitingEntitlementsAfterAuth) {
-      _awaitingEntitlementsAfterAuth = false;
-      _invalidateAndReload();
-      return;
-    }
-    final previousValue = previous?.asData?.value;
-    if (previousValue == null) {
-      if (!_loading && _ad == null) _loadIfNeeded();
-      return;
-    }
-    if (const AdMobService().entitlementsAllowAds(previousValue) !=
-        _serverEntitlementsAllowAds()) {
-      _invalidateAndReload();
-    }
-  }
-
-  void _invalidateAndReload({bool reload = true}) {
+  void _invalidateAndReload() {
     _sessionGuard.invalidate();
     _sessionExpiryTimer?.cancel();
     _sessionExpiryTimer = null;
@@ -269,7 +225,7 @@ class _MortNativeRewardedAdButtonState
     _loading = false;
     if (mounted) {
       setState(() {});
-      if (reload && AppConfig.nativeAdsCompiledIn && AppConfig.adsEnabled) {
+      if (AppConfig.nativeAdsCompiledIn && AppConfig.adsEnabled) {
         _loadIfNeeded();
       }
     }
@@ -282,7 +238,7 @@ class _MortNativeRewardedAdButtonState
         _handleAuthChange();
       });
       ref.listen(backendEntitlementsProvider, (previous, next) {
-        _handleEntitlementsChange(previous, next);
+        _invalidateAndReload();
       });
     }
     if (!AppConfig.nativeAdsCompiledIn || !AppConfig.adsEnabled) {
