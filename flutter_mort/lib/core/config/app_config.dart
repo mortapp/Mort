@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'release_profile.dart';
 
@@ -117,6 +118,8 @@ class AppConfig {
     'MORT_MINIMUM_SUPPORTED_APP_VERSION',
     defaultValue: '0.9.11',
   );
+  static const playStoreListingUrl =
+      'https://play.google.com/store/apps/details?id=com.mortapp.mobile';
   static const maintenanceMode = bool.fromEnvironment(
     'MORT_MAINTENANCE_MODE',
     defaultValue: false,
@@ -490,10 +493,67 @@ class AppConfig {
     );
   }
 
+  static bool isAppVersionSupported(
+    String currentVersion, {
+    required String minimum,
+  }) {
+    final current = _parseVersion(currentVersion);
+    final required = _parseVersion(minimum);
+    if (current == null || required == null) return false;
+    for (var index = 0; index < current.length; index++) {
+      if (current[index] != required[index]) {
+        return current[index] > required[index];
+      }
+    }
+    return true;
+  }
+
+  static Future<void> assertSupportedAppVersion({
+    String? currentVersion,
+    String? minimumVersion,
+  }) async {
+    final minimum = minimumVersion ?? minimumSupportedAppVersion;
+    final installed =
+        currentVersion ??
+        await PackageInfo.fromPlatform()
+            .then((info) => info.version)
+            .timeout(const Duration(seconds: 5))
+            .catchError((Object _) => '');
+    // Some test hosts and unsupported platforms do not expose package
+    // metadata. Enforce the gate when it is known, without stranding users
+    // because a platform plugin failed to respond.
+    if (installed.isNotEmpty &&
+        !isAppVersionSupported(installed, minimum: minimum)) {
+      throw AppUpdateRequiredException(
+        currentVersion: installed,
+        minimumVersion: minimum,
+      );
+    }
+  }
+
+  static List<int>? _parseVersion(String value) {
+    if (!RegExp(r'^\d+\.\d+\.\d+$').hasMatch(value)) return null;
+    return value.split('.').map(int.parse).toList(growable: false);
+  }
+
   static bool get supportsNativePurchases => false;
 
   static bool get supportsNativeAds => nativeAdsCompiledIn && !kIsWeb;
 
   static bool get supportsStripePaymentSheet =>
       nativeStripePaymentSheetCompiledIn && !kIsWeb;
+}
+
+class AppUpdateRequiredException implements Exception {
+  const AppUpdateRequiredException({
+    required this.currentVersion,
+    required this.minimumVersion,
+  });
+
+  final String currentVersion;
+  final String minimumVersion;
+
+  @override
+  String toString() =>
+      'MORT $currentVersion is no longer supported; update to $minimumVersion.';
 }

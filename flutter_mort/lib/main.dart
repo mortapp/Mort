@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'app.dart';
 import 'core/observability/crash_reporting.dart';
@@ -92,10 +93,16 @@ void _runAppWithFallbackHandlers() {
 }
 
 class MortBootstrap extends StatefulWidget {
-  const MortBootstrap({super.key, this.initialize, this.maintenanceMode});
+  const MortBootstrap({
+    super.key,
+    this.initialize,
+    this.maintenanceMode,
+    this.currentAppVersion,
+  });
 
   final Future<void> Function()? initialize;
   final bool? maintenanceMode;
+  final String? currentAppVersion;
 
   @override
   State<MortBootstrap> createState() => _MortBootstrapState();
@@ -126,6 +133,9 @@ class _MortBootstrapState extends State<MortBootstrap> {
       if (AppConfig.browserStackQaMode) {
         return null;
       }
+      await AppConfig.assertSupportedAppVersion(
+        currentVersion: widget.currentAppVersion,
+      );
       if (AppConfig.crashReportingEnabled &&
           !MortCrashReporting.instance.providerConfigured) {
         throw StateError('The configured crash provider is unavailable.');
@@ -182,6 +192,7 @@ class _MortBootstrapState extends State<MortBootstrap> {
         final failed =
             snapshot.connectionState == ConnectionState.done &&
             snapshot.data != null;
+        final updateRequired = snapshot.data is AppUpdateRequiredException;
         if (snapshot.connectionState == ConnectionState.done && !failed) {
           if (AppConfig.browserStackQaMode) {
             return const BrowserStackQaApp();
@@ -201,17 +212,30 @@ class _MortBootstrapState extends State<MortBootstrap> {
                 subtitle: 'Connecting securely...',
               ),
               if (failed) ...[
-                const MortErrorState(
-                  title: 'MORT could not start',
-                  message:
-                      'Check your connection and try again. No private key is required in the app.',
+                MortErrorState(
+                  title: updateRequired
+                      ? 'MORT needs an update'
+                      : 'MORT could not start',
+                  message: updateRequired
+                      ? 'This version is no longer supported. Install the latest version to continue.'
+                      : 'Check your connection and try again. No private key is required in the app.',
                 ),
                 const SizedBox(height: 16),
-                MortButton(
-                  label: 'Retry startup',
-                  icon: Icons.refresh,
-                  onPressed: _retry,
-                ),
+                if (updateRequired)
+                  MortButton(
+                    label: 'Update MORT',
+                    icon: Icons.system_update_alt,
+                    onPressed: () => launchUrl(
+                      Uri.parse(AppConfig.playStoreListingUrl),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                  )
+                else
+                  MortButton(
+                    label: 'Retry startup',
+                    icon: Icons.refresh,
+                    onPressed: _retry,
+                  ),
               ] else
                 const MortLoading(
                   label: 'Restoring your session...',

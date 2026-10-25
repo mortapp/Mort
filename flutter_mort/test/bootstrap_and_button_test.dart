@@ -28,6 +28,26 @@ void main() {
     expect(initializeCalls, 0);
   });
 
+  testWidgets('unsupported app version blocks startup and offers update', (
+    tester,
+  ) async {
+    var initializeCalls = 0;
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MortBootstrap(
+          currentAppVersion: '0.9.10',
+          initialize: () async => initializeCalls++,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('MORT needs an update'), findsOneWidget);
+    expect(find.text('Update MORT'), findsOneWidget);
+    expect(find.text('Retry startup'), findsNothing);
+    expect(initializeCalls, 0);
+  });
+
   testWidgets('startup failure renders an honest retry action', (tester) async {
     var attempts = 0;
     Future<void> initialize() async {
