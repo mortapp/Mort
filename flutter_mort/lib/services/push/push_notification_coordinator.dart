@@ -16,6 +16,10 @@ class PushNotificationCoordinator {
   PushNotificationCoordinator._({RemotePushProvider? provider})
     : _provider = provider ?? createRemotePushProvider();
 
+  @visibleForTesting
+  PushNotificationCoordinator.forTesting({required RemotePushProvider provider})
+    : _provider = provider;
+
   static final instance = PushNotificationCoordinator._();
   static const _deviceIdKey = 'mort.push.installation_id';
   static const _uuid = Uuid();
@@ -24,33 +28,57 @@ class PushNotificationCoordinator {
   final _foregroundController = StreamController<RemotePushMessage>.broadcast();
   final _openedController = StreamController<RemotePushMessage>.broadcast();
   bool _initialized = false;
+  bool _providerInitialized = false;
+  bool _listenersBound = false;
+  bool _initialMessageHandled = false;
   bool _syncing = false;
+  Future<void>? _initialization;
 
   bool get configured => _provider.configured;
   Stream<RemotePushMessage> get foregroundMessages =>
       _foregroundController.stream;
   Stream<RemotePushMessage> get openedMessages => _openedController.stream;
 
-  Future<void> initialize() async {
-    if (_initialized) return;
-    _initialized = true;
-    if (!_provider.configured) return;
-    await _provider.initialize();
-    _provider.tokenRefreshes.listen((_) {
-      unawaited(syncRegistration());
-    });
-    _provider.foregroundMessages.listen(_foregroundController.add);
-    _provider.openedMessages.listen(_openedController.add);
-    SupabaseService.client.auth.onAuthStateChange.listen((state) {
-      if (state.event == AuthChangeEvent.signedIn ||
-          state.event == AuthChangeEvent.tokenRefreshed ||
-          state.event == AuthChangeEvent.userUpdated) {
-        unawaited(syncRegistration());
+  Future<void> initialize() {
+    if (_initialized) return Future<void>.value();
+    return _initialization ??= _initialize();
+  }
+
+  Future<void> _initialize() async {
+    try {
+      if (!_provider.configured) {
+        _initialized = true;
+        return;
       }
-    });
-    final initial = await _provider.initialMessage();
-    if (initial != null) _openedController.add(initial);
-    await syncRegistration();
+      if (!_providerInitialized) {
+        await _provider.initialize();
+        _providerInitialized = true;
+      }
+      if (!_listenersBound) {
+        _provider.tokenRefreshes.listen((_) {
+          unawaited(syncRegistration());
+        });
+        _provider.foregroundMessages.listen(_foregroundController.add);
+        _provider.openedMessages.listen(_openedController.add);
+        SupabaseService.client.auth.onAuthStateChange.listen((state) {
+          if (state.event == AuthChangeEvent.signedIn ||
+              state.event == AuthChangeEvent.tokenRefreshed ||
+              state.event == AuthChangeEvent.userUpdated) {
+            unawaited(syncRegistration());
+          }
+        });
+        _listenersBound = true;
+      }
+      if (!_initialMessageHandled) {
+        final initial = await _provider.initialMessage();
+        _initialMessageHandled = true;
+        if (initial != null) _openedController.add(initial);
+      }
+      await syncRegistration();
+      _initialized = true;
+    } finally {
+      _initialization = null;
+    }
   }
 
   Future<RemotePushPermission> permissionStatus() async {
