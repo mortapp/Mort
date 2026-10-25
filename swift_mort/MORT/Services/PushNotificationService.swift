@@ -16,6 +16,7 @@ final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate 
     private(set) var authorizationState: PushAuthorizationState = .unknown
     private(set) var apnsDeviceToken: String?
     private(set) var registrationError: String?
+    private var didRequestAuthorization = false
 
     override init() {
         super.init()
@@ -25,6 +26,37 @@ final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate 
     func refreshAuthorizationState() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         authorizationState = Self.map(settings.authorizationStatus)
+    }
+
+    func ensureAuthorizedIfNeeded() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        let status = Self.map(settings.authorizationStatus)
+
+        switch status {
+        case .authorized, .provisional:
+            UIApplication.shared.registerForRemoteNotifications()
+            authorizationState = status
+            return
+        case .denied:
+            authorizationState = .denied
+            return
+        case .unknown:
+            guard !didRequestAuthorization else { return }
+            didRequestAuthorization = true
+
+            do {
+                let granted = try await requestAuthorization(options: [.alert, .badge, .sound])
+                if granted {
+                    UIApplication.shared.registerForRemoteNotifications()
+                    authorizationState = .authorized
+                } else {
+                    authorizationState = .denied
+                }
+            } catch {
+                registrationError = error.localizedDescription
+                authorizationState = .denied
+            }
+        }
     }
 
     func requestPermission() async throws -> Bool {
