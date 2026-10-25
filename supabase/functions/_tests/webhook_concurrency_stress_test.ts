@@ -1,10 +1,4 @@
 const container = "supabase_db_mort-mobile";
-const migration = await Deno.readTextFile(
-  new URL(
-    "../../migrations/20261025012531_mort_financial_integrity_and_webhook_fencing.sql",
-    import.meta.url,
-  ),
-);
 
 function assertEquals<T>(actual: T, expected: T, label: string): void {
   if (actual !== expected) {
@@ -107,7 +101,15 @@ Deno.test("webhook claims are fenced under true concurrent PostgreSQL sessions",
     ]);
     await docker(["exec", container, "rm", "-f", dumpPath]);
 
-    await psql(database, migration);
+    const migrationApplied = await psql(
+      database,
+      `SELECT count(*) = 1 FROM supabase_migrations.schema_migrations WHERE version = '20261025012531';`,
+    );
+    assertEquals(
+      migrationApplied,
+      "t",
+      "clean regression database contains the financial integrity migration",
+    );
 
     const catalog = await psql(
       database,
