@@ -235,11 +235,12 @@ void main() {
         initialRecoveryGrace: const Duration(milliseconds: 500),
         retryDelay: Duration.zero,
       );
-
       final startupFuture = startup.start();
-      await Future<void>.delayed(const Duration(milliseconds: 700));
+      await Future<void>.delayed(const Duration(milliseconds: 525));
       gateway.controller.add(
-        MortAuthEvent(MortAuthEventType.initialSession, _session()),
+        // The normal event handler intentionally ignores `other`; the
+        // startup waiter must consume a session delivered during its tail.
+        MortAuthEvent(MortAuthEventType.other, _session()),
       );
       gateway.profile = {
         'id': 'user-1',

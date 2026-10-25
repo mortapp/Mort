@@ -438,6 +438,7 @@ class AuthStartupController extends ChangeNotifier {
         initialRecoveryGrace,
         onTimeout: () async {
           await Future<void>.delayed(const Duration(milliseconds: 250));
+          if (completer.isCompleted) return completer.future;
           return _gateway.currentSession;
         },
       );
