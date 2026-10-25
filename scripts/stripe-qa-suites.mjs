@@ -123,14 +123,15 @@ async function checkPaymentSheetContract(scope) {
   const edge = await text("supabase/functions/stripe-create-job-payment-intent/index.ts");
   const client = await text("flutter_mort/lib/features/payments/stripe_payment_sheet_service.dart");
   const config = await text("flutter_mort/lib/core/config/app_config.dart");
+  const screen = await text("flutter_mort/lib/features/payments/stripe_marketplace_screens.dart");
   const pubspec = await text("flutter_mort/pubspec.yaml");
   assertQa(edge.includes("payment_intent_client_secret") && edge.includes("customer_ephemeral_key_secret"), "server Payment Sheet contract is incomplete");
-  assertQa(client.includes("stripe_sandbox_configuration_invalid"), "sandbox Payment Sheet configuration gate is absent");
-  assertQa(config.includes("nativeStripePaymentSheetCompiledIn = true"), "native Stripe compilation boundary is not explicit");
-  assertQa(pubspec.includes("flutter_stripe:"), "sandbox PaymentSheet SDK is not declared");
-  assertQa(client.includes("initPaymentSheet") && client.includes("presentPaymentSheet"), "PaymentSheet execution is not wired");
-  assertQa(client.includes("pk_test_"), "PaymentSheet does not reject non-test publishable keys");
-  qaLog(scope, "sandbox PaymentSheet is compiled and executable only behind test-key validation while public activation remains separately gated");
+  assertQa(client.includes("marketplace_payments_disabled"), "Flutter payment service does not fail closed");
+  assertQa(config.includes("nativeStripePaymentSheetCompiledIn = false"), "native Stripe SDK must remain excluded from this release");
+  assertQa(config.includes("supportsStripePaymentSheet => false"), "Stripe Payment Sheet support gate is not disabled");
+  assertQa(screen.includes("fundingEnabled && nativeSupported && !_busy"), "marketplace funding controls are not disabled without server and native support");
+  assertQa(!pubspec.includes("flutter_stripe:"), "Stripe Payment Sheet SDK is unexpectedly compiled into this release");
+  qaLog(scope, "Flutter keeps marketplace funding disabled without the native Stripe SDK while the backend payment contract remains separately gated");
 }
 
 async function checkWebhookSignature(scope) {
