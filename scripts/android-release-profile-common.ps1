@@ -106,10 +106,10 @@ $firebaseAndroidAppId = ''
 $firebaseStorageBucket = ''
 if ($RemotePushEnabled) {
   $firebaseInputs = @(
-    @('FIREBASE_PROJECT_ID', 'EXPO_PUBLIC_FIREBASE_PROJECT_ID'),
-    @('FIREBASE_MESSAGING_SENDER_ID', 'EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'),
-    @('FIREBASE_ANDROID_API_KEY', 'EXPO_PUBLIC_FIREBASE_ANDROID_API_KEY'),
-    @('FIREBASE_ANDROID_APP_ID', 'EXPO_PUBLIC_FIREBASE_ANDROID_APP_ID')
+    @('FIREBASE_PROJECT_ID', 'FIREBASE_PROJECT_ID'),
+    @('FIREBASE_MESSAGING_SENDER_ID', 'FIREBASE_MESSAGING_SENDER_ID'),
+    @('FIREBASE_ANDROID_API_KEY', 'FIREBASE_ANDROID_API_KEY'),
+    @('FIREBASE_ANDROID_APP_ID', 'FIREBASE_ANDROID_APP_ID')
   )
   $firebaseValues = @()
   foreach ($input in $firebaseInputs) {
@@ -125,7 +125,7 @@ if ($RemotePushEnabled) {
   $firebaseAndroidAppId = $firebaseValues[3]
   $firebaseStorageBucket = Get-MortPublicConfigValue `
     -PrimaryName 'FIREBASE_STORAGE_BUCKET' `
-    -ExpoName 'EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET' `
+    -ExpoName 'FIREBASE_STORAGE_BUCKET' `
     -Root $root
   if ($firebaseStorageBucket) { $firebaseStorageBucket = $firebaseStorageBucket.Trim() }
 }
@@ -134,7 +134,7 @@ $sentryDsn = ''
 if ($CrashReportingEnabled) {
   $sentryDsn = Get-MortPublicConfigValue `
     -PrimaryName 'SENTRY_DSN' `
-    -ExpoName 'EXPO_PUBLIC_SENTRY_DSN' `
+    -ExpoName 'SENTRY_DSN' `
     -Root $root
   $sentryUri = $null
   if ([string]::IsNullOrWhiteSpace($sentryDsn) -or

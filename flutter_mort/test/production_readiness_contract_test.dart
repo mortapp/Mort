@@ -52,6 +52,8 @@ void main() {
     expect(buildScript, contains('FIREBASE_MESSAGING_SENDER_ID'));
     expect(buildScript, contains('FIREBASE_ANDROID_API_KEY'));
     expect(buildScript, contains('FIREBASE_ANDROID_APP_ID'));
+    expect(buildScript, isNot(contains('EXPO_PUBLIC_FIREBASE')));
+    expect(buildScript, isNot(contains('EXPO_PUBLIC_SENTRY')));
     expect(buildScript, contains('if (\$RemotePushEnabled)'));
     expect(buildScript, contains("\$defines['FIREBASE_ANDROID_API_KEY'] ="));
     expect(buildScript, contains("\$defines['FIREBASE_ANDROID_APP_ID'] ="));
