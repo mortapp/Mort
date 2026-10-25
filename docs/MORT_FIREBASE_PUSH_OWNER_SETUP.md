@@ -86,9 +86,9 @@ limit 20;
 - `send-push`: ACTIVE, JWT verification enabled.
 - Hosted release policy: `closed_test` / `closed_pilot`.
 - Remote-push policy and runtime flags: false.
-- FCM provider secrets and all three scheduler Vault entries: absent from
-  Supabase Vault as of the 2026-10-25 read-only check. Edge Function secret
-  values were not inspected.
+- All three scheduler Vault entries: absent from Supabase Vault as of the
+  2026-10-25 read-only check. FCM Edge Function secret presence was not
+  inspected; secret values were not read.
 - Real FCM delivery: not verified.
 - `pg_cron` is enabled; `pg_net` is disabled.
 - No `mort-send-push-every-minute` schedule is configured.

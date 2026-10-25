@@ -168,8 +168,7 @@ class PushNotificationCoordinator {
   }
 
   Future<void> prepareForSignOut({required bool allDevices}) async {
-    if (!_provider.configured ||
-        !SupabaseService.isInitialized ||
+    if (!SupabaseService.isInitialized ||
         SupabaseService.client.auth.currentUser == null) {
       return;
     }
@@ -178,7 +177,7 @@ class PushNotificationCoordinator {
       allDevices: allDevices,
       clientRequestId: _uuid.v4(),
     );
-    await _provider.deleteToken();
+    if (_provider.configured) await _provider.deleteToken();
   }
 
   Future<String> localTimezoneName() => _timezoneName();

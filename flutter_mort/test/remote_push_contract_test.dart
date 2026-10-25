@@ -120,4 +120,20 @@ void main() {
     expect(screen, contains('Remote push is disabled in this build'));
     expect(service, isNot(contains('requestNotifications()')));
   });
+
+  test('sign-out revokes backend tokens when app-side push is disabled', () {
+    final coordinator = File(
+      'lib/services/push/push_notification_coordinator.dart',
+    ).readAsStringSync();
+    final start = coordinator.indexOf('Future<void> prepareForSignOut(');
+    final end = coordinator.indexOf(
+      'Future<String> localTimezoneName()',
+      start,
+    );
+    final signOut = coordinator.substring(start, end);
+
+    expect(signOut, contains('unregisterDevices('));
+    expect(signOut, isNot(contains('!_provider.configured')));
+    expect(signOut, contains('if (_provider.configured)'));
+  });
 }
