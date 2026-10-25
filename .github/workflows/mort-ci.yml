@@ -264,11 +264,5 @@ jobs:
           cache: true
       - shell: pwsh
         run: ./scripts/build-android-device-test-apk.ps1
-      - uses: actions/upload-artifact@v4
-        with:
-          name: mort-android-device-test-apk
-          path: build/device-test/mort-device-test.apk
-          if-no-files-found: error
-          retention-days: 7
 
 
