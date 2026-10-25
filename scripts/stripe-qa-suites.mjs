@@ -258,8 +258,8 @@ async function checkGooglePlayBoundary(scope) {
   assertQa(!pubspec.includes("purchases_flutter"), "legacy RevenueCat SDK returned to the signed client");
   assertQa(!pubspec.includes("in_app_purchase:"), "Google Play Billing SDK is compiled into an IAP-disabled release");
   assertQa(!manifest.includes("com.android.vending.BILLING"), "Android billing permission is present in an IAP-disabled release");
-  assertQa(config.includes("nativeBillingCompiledIn = false") && config.includes("nativeStripePaymentSheetCompiledIn = true"), "native financial compilation gates are not explicit");
-  qaLog(scope, "Google Play Billing remains absent while sandbox Stripe PaymentSheet is the separate physical-service payment surface");
+  assertQa(config.includes("nativeBillingCompiledIn = false") && config.includes("nativeStripePaymentSheetCompiledIn = false"), "native billing and Stripe compilation gates are not explicitly disabled");
+  qaLog(scope, "Google Play Billing and Stripe Payment Sheet remain absent from the native client while marketplace payments are disabled");
 }
 
 async function checkSavedPaymentConsent(scope) {
