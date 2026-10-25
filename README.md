@@ -1,88 +1,54 @@
 # MORT
 
-MORT is a safety-sensitive local job marketplace for teens ages 13-17, adults and businesses, optional guardians, community partners, and authorized moderators.
+MORT is a teen-first local hustle marketplace that helps teens earn money safely through local jobs, build trust, complete goals, and connect with their community.
 
-## Authoritative client
+## Source of truth
 
-The production-track mobile client is the Flutter application in `flutter_mort`.
+The authoritative production client is the Flutter app in `flutter_mort`.
 
 - Android package: `com.mortapp.mobile`
-- Current version: `0.9.7+97`
+- Current verified release track: closed-test Android build
 - Hosted backend: Supabase project `rakjydmgwwgtdislanbt`
-- Android target SDK: 36
-- Android minimum SDK: 24
+- Production builds must come from `flutter_mort` only
 
-The root Expo project and `swift_mort` are retained as legacy/reference clients. They are not the Play release source and must not be used to generate store artifacts.
+## Repository layout
 
-## Current release boundary
+The repo is intentionally structured to keep the active product client separate from legacy/reference implementations.
 
-The verified profile is a free, isolated closed-test build. It keeps all of the following disabled:
+- `flutter_mort/` — active Flutter app and production build source of truth
+- `swift_mort/` — native iOS reference implementation
+- `app/`, `lib/`, `providers/`, `components/`, `config/` — retained Expo reference client and supporting legacy files
+- `supabase/` — database schema, migrations, and related SQL
+- `scripts/` — build, QA, and release automation
+- `docs/` — runbooks, readiness notes, and release documentation
 
-- public marketplace activation
-- marketplace payment processing and platform fees
-- Google Play Billing and RevenueCat purchases
-- AdMob
-- production identity-document collection
-- Google sign-in
-- production remote push and crash reporting
+## Operating rules
 
-MORT does not process, hold, guarantee, or escrow job compensation in this release. Personal Cash App and Square handles are not collected. Public adult-to-teen marketplace access remains closed until identity, legal, moderation, provider, and native-device gates have objective evidence.
+1. Treat `flutter_mort` as the only production client.
+2. Treat the Expo app and `swift_mort` as reference-only code paths.
+3. Do not ship store artifacts or release builds from the legacy Expo app.
+4. Keep app-level config and platform tooling aligned with the Flutter-first release model.
+5. Prefer the docs and scripts in the root repo for operational guidance.
 
-## Flutter setup
+## Local development
+
+Use the Flutter app for the actual product build and validation flow.
 
 ```powershell
-cd C:\Users\micha\Mort\flutter_mort
+cd flutter_mort
 flutter pub get
 flutter analyze
 flutter test
 flutter run
 ```
 
-Runtime public configuration is supplied with Dart defines. Never place a service-role key, database password, access token, signing password, Stripe secret, or webhook secret in Flutter source or a release archive.
+## Release and validation
 
-## Supabase
-
-The linked project is `rakjydmgwwgtdislanbt`. The mobile app uses only the hosted URL and public anon key. Privileged credentials remain in the Supabase server environment or protected operator environment.
-
-Before any future migration:
-
-1. Confirm the linked project ref.
-2. Create timestamped schema and data backups outside release artifacts.
-3. Run `npx supabase db push --linked --dry-run`.
-4. Apply only reviewed additive migrations.
-5. Re-run migration alignment, database lint, smoke tests, and the full RLS regression.
-
-Do not run `supabase db reset`, drop, truncate, or destructive repair commands against this project.
-
-## Android release profiles
+Release workflows and release gates are managed via the root scripts and docs, not the legacy Expo shell.
 
 ```powershell
-cd C:\Users\micha\Mort
-.\scripts\build-closed-test-aab.ps1
-.\scripts\build-closed-test-apk.ps1
+cd .
+.
 ```
 
-The closed-test scripts validate version, target project, upload certificate, release flags, signing, package ID, SDK levels, merged permissions, exported components, reviewer boundary, and artifact hash. Obfuscation symbols are written outside the repository under `%USERPROFILE%\MortSymbols`.
-
-The production pilot and public scripts intentionally fail closed until their external gates are met:
-
-```powershell
-.\scripts\build-production-pilot-aab.ps1
-.\scripts\build-production-public-aab.ps1
-```
-
-## Verification
-
-```powershell
-cd C:\Users\micha\Mort\flutter_mort
-dart format --output=none --set-exit-if-changed lib test
-flutter analyze
-flutter test
-
-cd C:\Users\micha\Mort
-.\scripts\run-final-supabase-regression.ps1
-.\scripts\secret-scan.ps1
-.\scripts\sensitive-file-scan.ps1
-```
-
-See `docs/MORT_PRODUCTION_READINESS_REPORT.md` for the current evidence and blockers. See `docs/MORT_RELEASE_RUNBOOK.md` before creating or uploading any artifact.
+The repo includes a dedicated release and readiness flow for the Flutter client, including release docs and QA automation. Use those for production validation, build packaging, and release gates.
