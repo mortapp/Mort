@@ -10,6 +10,7 @@ import '../../core/config/app_config.dart';
 import '../../data/repositories/notifications_repository.dart';
 import '../../data/services/secure_device_storage.dart';
 import '../../data/services/supabase_service.dart';
+import 'coalesced_async_task.dart';
 import 'remote_push_provider.dart';
 
 class PushNotificationCoordinator {
@@ -33,9 +34,9 @@ class PushNotificationCoordinator {
   bool _providerInitialized = false;
   bool _listenersBound = false;
   bool _initialMessageHandled = false;
-  bool _syncing = false;
   Future<void>? _initialization;
   RemotePushMessage? _pendingInitialMessage;
+  final _registrationSync = CoalescedAsyncTask();
 
   bool get configured => _provider.configured;
   Stream<RemotePushMessage> get foregroundMessages =>
@@ -122,37 +123,34 @@ class PushNotificationCoordinator {
   }
 
   Future<void> syncRegistration({bool force = false}) async {
-    if (!_provider.configured || _syncing || !SupabaseService.isInitialized) {
+    if (!_provider.configured || !SupabaseService.isInitialized) {
       return;
     }
+    return _registrationSync.run(_syncRegistrationOnce);
+  }
+
+  Future<void> _syncRegistrationOnce() async {
     if (SupabaseService.client.auth.currentUser == null) return;
-    _syncing = true;
-    try {
-      if (!await deliveryAvailable()) return;
-      final permission = await _provider.permissionStatus();
-      if (!_canRegister(permission)) return;
-      final token = await _provider.registrationToken();
-      if (token == null || token.trim().isEmpty) return;
-      final package = await PackageInfo.fromPlatform();
-      await NotificationsRepository().registerDevice(
-        deviceId: await _deviceId(),
-        provider: 'fcm',
-        registrationToken: token,
-        platform: defaultTargetPlatform == TargetPlatform.iOS
-            ? 'ios'
-            : 'android',
-        permissionStatus: permission == RemotePushPermission.provisional
-            ? 'provisional'
-            : 'authorized',
-        appVersion: '${package.version}+${package.buildNumber}',
-        locale: PlatformDispatcher.instance.locale.toLanguageTag(),
-        timezoneName: await _timezoneName(),
-        environment: AppConfig.releaseStage,
-        clientRequestId: _uuid.v4(),
-      );
-    } finally {
-      _syncing = false;
-    }
+    if (!await deliveryAvailable()) return;
+    final permission = await _provider.permissionStatus();
+    if (!_canRegister(permission)) return;
+    final token = await _provider.registrationToken();
+    if (token == null || token.trim().isEmpty) return;
+    final package = await PackageInfo.fromPlatform();
+    await NotificationsRepository().registerDevice(
+      deviceId: await _deviceId(),
+      provider: 'fcm',
+      registrationToken: token,
+      platform: defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android',
+      permissionStatus: permission == RemotePushPermission.provisional
+          ? 'provisional'
+          : 'authorized',
+      appVersion: '${package.version}+${package.buildNumber}',
+      locale: PlatformDispatcher.instance.locale.toLanguageTag(),
+      timezoneName: await _timezoneName(),
+      environment: AppConfig.releaseStage,
+      clientRequestId: _uuid.v4(),
+    );
   }
 
   Future<void> disableAllRemoteNotifications() async {
