@@ -266,7 +266,3 @@ jobs:
           cache: true
       - shell: pwsh
         run: ./scripts/build-android-device-test-apk.ps1
-
-
-
-
