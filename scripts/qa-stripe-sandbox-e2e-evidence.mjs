@@ -192,6 +192,10 @@ async function validateRegressionManifest() {
     path.join(root, "scripts", "run-mort-stripe-regression.ps1"),
     "utf8",
   );
+  const localSupabaseStart = await readFile(
+    path.join(root, "scripts", "local-supabase-start.ps1"),
+    "utf8",
+  );
   const finalRegression = await readFile(
     path.join(root, "scripts", "run-final-supabase-regression.ps1"),
     "utf8",
@@ -240,6 +244,19 @@ async function validateRegressionManifest() {
   ];
   for (const token of requiredRunnerTokens) {
     assert(runner.includes(token), `regression runner missing ${token}`);
+  }
+  for (const token of [
+    "2.122.0",
+    "ghcr.io/supabase/storage-api:v1.84.19",
+    "public.ecr.aws/supabase/storage-api:v1.84.19",
+    "ghcr.io/supabase/postgres:17.11.0.006",
+    "public.ecr.aws/supabase/postgres:17.11.0.006",
+    '"--exclude"',
+  ]) {
+    assert(
+      localSupabaseStart.includes(token),
+      `minimal Supabase startup missing ${token}`,
+    );
   }
 
   const requiredStripeQa = [
