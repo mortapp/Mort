@@ -1,10 +1,18 @@
 import 'dart:io';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_mort/data/repositories/notifications_repository.dart';
 import 'package:flutter_mort/services/push/remote_push_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('permanent notification denial maps to denied permission', () {
+    expect(
+      remotePushPermissionFromFirebase(AuthorizationStatus.deniedPermanently),
+      RemotePushPermission.denied,
+    );
+  });
+
   test('disabled provider is a safe no-op', () async {
     const provider = DisabledRemotePushProvider();
     await provider.initialize();

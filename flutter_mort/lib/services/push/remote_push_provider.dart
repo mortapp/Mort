@@ -12,6 +12,16 @@ enum RemotePushPermission {
   provisional,
 }
 
+RemotePushPermission remotePushPermissionFromFirebase(
+  AuthorizationStatus status,
+) => switch (status) {
+  AuthorizationStatus.authorized => RemotePushPermission.authorized,
+  AuthorizationStatus.provisional => RemotePushPermission.provisional,
+  AuthorizationStatus.denied ||
+  AuthorizationStatus.deniedPermanently => RemotePushPermission.denied,
+  AuthorizationStatus.notDetermined => RemotePushPermission.notDetermined,
+};
+
 class RemotePushMessage {
   const RemotePushMessage({required this.data});
 
@@ -157,12 +167,8 @@ class FirebaseRemotePushProvider implements RemotePushProvider {
   @override
   Future<void> deleteToken() => FirebaseMessaging.instance.deleteToken();
 
-  RemotePushPermission _map(AuthorizationStatus status) => switch (status) {
-    AuthorizationStatus.authorized => RemotePushPermission.authorized,
-    AuthorizationStatus.provisional => RemotePushPermission.provisional,
-    AuthorizationStatus.denied => RemotePushPermission.denied,
-    AuthorizationStatus.notDetermined => RemotePushPermission.notDetermined,
-  };
+  RemotePushPermission _map(AuthorizationStatus status) =>
+      remotePushPermissionFromFirebase(status);
 }
 
 RemotePushProvider createRemotePushProvider() =>
