@@ -71,7 +71,7 @@ try {
     try {
       $env:MORT_LOCAL_SUPABASE_CONFIRM = 'LOCAL_ONLY'
       Invoke-Step 'Start local Supabase' 'scripts/local-supabase-start.ps1' {
-        & (Join-Path $PSScriptRoot 'local-supabase-start.ps1')
+        & (Join-Path $PSScriptRoot 'local-supabase-start.ps1') -Minimal
       }
       Invoke-Step 'Local Supabase reset' 'scripts/local-supabase-reset.ps1' {
         & (Join-Path $PSScriptRoot 'local-supabase-reset.ps1')

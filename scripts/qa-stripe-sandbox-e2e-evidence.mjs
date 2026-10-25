@@ -213,6 +213,7 @@ async function validateRegressionManifest() {
     "MORT_QA_LOCAL_SUPABASE",
     "SUPABASE_DB_URL",
     "run-final-supabase-regression.ps1",
+    "local-supabase-start.ps1') -Minimal",
     "qa-stripe-pre-provider-gate.mjs",
     "deno test --node-modules-dir=auto --allow-read --allow-env --allow-run=docker supabase/functions/_tests",
     "audit-supabase-advisors.mjs",
