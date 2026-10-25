@@ -122,3 +122,16 @@ CREDENTIAL_REQUIRED=NO to keep the app from crashing (already fixed with Google'
 PROVIDER=Google AdMob
 LAUNCH_IMPACT=Without this fix, MORT crashed on launch on every real iPhone, regardless of ADS_ENABLED — this was a P0 correctness defect, not merely an ads-feature gap.
 FAIL_CLOSED_BEHAVIOR=N/A (this was a gap in the fail-closed design, now corrected; ads themselves remain fully gated behind ADS_ENABLED and assertValidReleaseConfiguration's ad-unit-configured check)
+
+---
+
+## Current Flutter production-readiness update (2026-10-25)
+
+This dated update reflects checks on `codex/mort-production-readiness` at PR #28. It supersedes earlier statements above where the current local checkout provides newer evidence.
+
+- **Android upload key:** The existing upload keystore was found in the owner's protected local archive, outside the repository. Its alias and certificate fingerprint match MORT's release documentation. The associated credential record is Windows-user protected; the keystore password was not tested. No key or credential was copied into this repository, printed, or replaced.
+- **GitHub release secrets:** The repository has no configured upload-key secrets, so the signed closed-test workflow remains blocked until the owner supplies the existing key and passwords through repository secrets. The signed workflow was not run; no release artifact was signed or uploaded.
+- **iOS entitlements:** The current release configuration includes the production APNs environment entitlement. Apple distribution signing and App Store submission remain unverified; Sign in with Apple is not enabled by this entitlement file.
+- **Current local checks:** `dart analyze --format machine lib test` is clean; the complete Flutter suite passes (736 passed, 23 skipped); `flutter build apk --debug --no-pub` succeeds; and the signed-build service-role boundary check passes. These checks do not establish release signing or real-device QA for this exact commit.
+- **Backend rollout:** The Supabase migrations and Edge Function changes in PR #28 have not been applied to the production project. Live Stripe job payments remain deliberately disabled until the account, credentials, legal approvals, and production controls are configured and verified.
+- **Real-device reruns:** The BrowserStack run cited above is historical evidence. The current BrowserStack quota is exhausted, so this candidate has not received a fresh cloud-device matrix.
