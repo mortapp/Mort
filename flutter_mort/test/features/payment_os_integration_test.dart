@@ -75,6 +75,24 @@ void main() {
     },
   );
 
+  testWidgets('unavailable payment history can retry its backend read', (
+    tester,
+  ) async {
+    var retryCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: JobPaymentHistoryScreen(
+          backendUnavailable: true,
+          onRetry: () => retryCount++,
+        ),
+      ),
+    );
+
+    expect(find.text('Payment history is not available yet'), findsOneWidget);
+    await tester.tap(find.text('Try again'));
+    expect(retryCount, 1);
+  });
+
   testWidgets(
     'payment review exposes tip selector and authoritative review rows',
     (tester) async {

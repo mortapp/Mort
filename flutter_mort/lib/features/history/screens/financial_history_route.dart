@@ -71,6 +71,7 @@ class _FinancialHistoryRouteState extends ConsumerState<FinancialHistoryRoute> {
     entries: _entries,
     isLoading: _loading,
     backendUnavailable: _unavailable,
+    onRetry: () => unawaited(_load()),
     hasNextPage: _hasNextPage,
     onLoadMore: _loadingMore ? null : () => unawaited(_load(append: true)),
   );
