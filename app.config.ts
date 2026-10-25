@@ -20,8 +20,8 @@ const admobAndroidAppId =
   process.env.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID || "ca-app-pub-3940256099942544~3347511713";
 
 const config: ExpoConfig = {
-  name: "MORT",
-  slug: "mort-mobile",
+  name: "MORT Legacy Reference",
+  slug: "mort-mobile-reference",
   scheme: "mort",
   version: "0.1.0",
   orientation: "portrait",
