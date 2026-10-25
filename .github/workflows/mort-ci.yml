@@ -67,7 +67,7 @@ jobs:
           cache: true
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.122.0
       - run: pnpm install --frozen-lockfile
       - shell: pwsh
         env:
