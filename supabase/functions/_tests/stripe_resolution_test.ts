@@ -10,14 +10,17 @@ function assertEquals(actual: string, expected: string, label: string): void {
   }
 }
 
+Deno.test("financial integrity migration is applied before its SQL fixtures", async () => {
+  const result = await executeLocalSql(`
+SELECT count(*) = 1
+FROM supabase_migrations.schema_migrations
+WHERE version = '20261025012531';
+`);
+  assertEquals(result, "t", "financial integrity migration version");
+});
+
 const container = "supabase_db_mort-mobile";
 const encoder = new TextEncoder();
-const migration = await Deno.readTextFile(
-  new URL(
-    "../../migrations/20261025012531_mort_financial_integrity_and_webhook_fencing.sql",
-    import.meta.url,
-  ),
-);
 
 async function executeLocalSql(sql: string): Promise<string> {
   const child = new Deno.Command("docker", {
@@ -42,7 +45,7 @@ async function executeLocalSql(sql: string): Promise<string> {
   }).spawn();
   const writer = child.stdin.getWriter();
   await writer.write(
-    encoder.encode("BEGIN;\n" + migration + "\n" + sql + "\nROLLBACK;\n"),
+    encoder.encode("BEGIN;\n" + sql + "\nROLLBACK;\n"),
   );
   await writer.close();
   const result = await child.output();
