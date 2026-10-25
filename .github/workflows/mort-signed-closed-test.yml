@@ -42,7 +42,6 @@ jobs:
           MORT_UPLOAD_KEY_PASSWORD: ${{ secrets.MORT_UPLOAD_KEY_PASSWORD }}
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           ./scripts/build-standard-closed-test-apk.ps1
           ./scripts/build-standard-closed-test-aab.ps1
@@ -56,4 +55,5 @@ jobs:
             build/play/reports/**
           if-no-files-found: error
           retention-days: 14
+
 
