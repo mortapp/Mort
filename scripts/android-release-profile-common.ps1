@@ -99,6 +99,53 @@ if (Test-Path -LiteralPath $envLocalPath) {
   }
 }
 
+$firebaseProjectId = ''
+$firebaseMessagingSenderId = ''
+$firebaseAndroidApiKey = ''
+$firebaseAndroidAppId = ''
+$firebaseStorageBucket = ''
+if ($RemotePushEnabled) {
+  $firebaseInputs = @(
+    @('FIREBASE_PROJECT_ID', 'EXPO_PUBLIC_FIREBASE_PROJECT_ID'),
+    @('FIREBASE_MESSAGING_SENDER_ID', 'EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'),
+    @('FIREBASE_ANDROID_API_KEY', 'EXPO_PUBLIC_FIREBASE_ANDROID_API_KEY'),
+    @('FIREBASE_ANDROID_APP_ID', 'EXPO_PUBLIC_FIREBASE_ANDROID_APP_ID')
+  )
+  $firebaseValues = @()
+  foreach ($input in $firebaseInputs) {
+    $value = Get-MortPublicConfigValue -PrimaryName $input[0] -ExpoName $input[1] -Root $root
+    if ([string]::IsNullOrWhiteSpace($value)) {
+      throw "Remote push requires public Firebase client config: $($input[0])."
+    }
+    $firebaseValues += $value.Trim()
+  }
+  $firebaseProjectId = $firebaseValues[0]
+  $firebaseMessagingSenderId = $firebaseValues[1]
+  $firebaseAndroidApiKey = $firebaseValues[2]
+  $firebaseAndroidAppId = $firebaseValues[3]
+  $firebaseStorageBucket = Get-MortPublicConfigValue `
+    -PrimaryName 'FIREBASE_STORAGE_BUCKET' `
+    -ExpoName 'EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET' `
+    -Root $root
+  if ($firebaseStorageBucket) { $firebaseStorageBucket = $firebaseStorageBucket.Trim() }
+}
+
+$sentryDsn = ''
+if ($CrashReportingEnabled) {
+  $sentryDsn = Get-MortPublicConfigValue `
+    -PrimaryName 'SENTRY_DSN' `
+    -ExpoName 'EXPO_PUBLIC_SENTRY_DSN' `
+    -Root $root
+  $sentryUri = $null
+  if ([string]::IsNullOrWhiteSpace($sentryDsn) -or
+      -not [Uri]::TryCreate($sentryDsn, [UriKind]::Absolute, [ref]$sentryUri) -or
+      $sentryUri.Scheme -ne 'https' -or
+      [string]::IsNullOrWhiteSpace($sentryUri.Host)) {
+    throw 'Crash reporting requires a valid HTTPS SENTRY_DSN.'
+  }
+  $sentryDsn = $sentryDsn.Trim()
+}
+
 if ($ReleaseStage -ne 'closed_test' -and $PlayReviewModeEnabled) {
   throw 'Reviewer mode is forbidden outside the closed-test profile.'
 }
@@ -158,6 +205,18 @@ $defines = [ordered]@{
   # rollout requires a deliberate follow-up change here, not an
   # accidental one.
   USE_TEST_ADS = 'true'
+}
+if ($RemotePushEnabled) {
+  $defines['FIREBASE_PROJECT_ID'] = $firebaseProjectId
+  $defines['FIREBASE_MESSAGING_SENDER_ID'] = $firebaseMessagingSenderId
+  $defines['FIREBASE_ANDROID_API_KEY'] = $firebaseAndroidApiKey
+  $defines['FIREBASE_ANDROID_APP_ID'] = $firebaseAndroidAppId
+  if ($firebaseStorageBucket) {
+    $defines['FIREBASE_STORAGE_BUCKET'] = $firebaseStorageBucket
+  }
+}
+if ($CrashReportingEnabled) {
+  $defines['SENTRY_DSN'] = $sentryDsn
 }
 foreach ($name in $defines.Keys) {
   if ($name -match '(?i)(SERVICE.?ROLE|ACCESS.?TOKEN|REFRESH.?TOKEN|PASSWORD|CLIENT.?SECRET|PRIVATE.?KEY|WEBHOOK.?SECRET)') {

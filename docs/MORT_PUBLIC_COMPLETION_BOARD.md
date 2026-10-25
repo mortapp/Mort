@@ -1,5 +1,14 @@
 # MORT Public-Production Completion Board
 
+## Current product state — 2026-10-25
+
+The owner confirms MORT is in public production, and Google Play production
+access has been granted. Hosted Supabase currently reports `closed_test` /
+`closed_pilot` with public marketplace, remote push, live billing, and real
+document collection disabled. These backend capability settings are tracked
+separately from distribution status. The dated entries below are historical
+engineering notes; read their timestamps as part of each status claim.
+
 Tracks the public-production master run (78-section directive, 2026-08-18
 onward). Status values: NOT_STARTED, IN_PROGRESS, PASS, BLOCKED_EXTERNAL.
 Never faked -- a PASS here means the specific claim after it was actually

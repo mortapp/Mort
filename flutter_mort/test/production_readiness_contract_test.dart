@@ -45,6 +45,20 @@ void main() {
     expect(main, contains('FlutterError.presentError'));
   });
 
+  test('Android release build injects configured push and crash clients', () {
+    final buildScript = _read('../scripts/android-release-profile-common.ps1');
+
+    expect(buildScript, contains('FIREBASE_PROJECT_ID'));
+    expect(buildScript, contains('FIREBASE_MESSAGING_SENDER_ID'));
+    expect(buildScript, contains('FIREBASE_ANDROID_API_KEY'));
+    expect(buildScript, contains('FIREBASE_ANDROID_APP_ID'));
+    expect(buildScript, contains('if (\$RemotePushEnabled)'));
+    expect(buildScript, contains("\$defines['FIREBASE_ANDROID_API_KEY'] ="));
+    expect(buildScript, contains("\$defines['FIREBASE_ANDROID_APP_ID'] ="));
+    expect(buildScript, contains('if (\$CrashReportingEnabled)'));
+    expect(buildScript, contains("\$defines['SENTRY_DSN'] ="));
+  }, skip: scriptsSkip);
+
   test(
     'reviewer routes are compile-gated and production scripts exclude them',
     () {
