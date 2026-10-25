@@ -50,10 +50,18 @@ void main() {
     () {
       final router = _read('lib/core/routing/app_router.dart');
       final pilot = _read('../scripts/build-production-pilot-aab.ps1');
+      final crashProvider = File(
+        'lib/core/observability/sentry_crash_provider.dart',
+      );
+      final pushProvider = File('lib/services/push/remote_push_provider.dart');
 
       expect(router, contains('if (AppConfig.playReviewModeEnabled)'));
       expect(pilot, contains(r'-PlayReviewModeEnabled $false'));
       expect(pilot, contains('BLOCKED-EXTERNAL'));
+      expect(pilot, contains('sentry_crash_provider.dart'));
+      expect(pilot, contains('remote_push_provider.dart'));
+      expect(crashProvider.existsSync(), isTrue);
+      expect(pushProvider.existsSync(), isTrue);
     },
     skip: scriptsSkip,
   );
