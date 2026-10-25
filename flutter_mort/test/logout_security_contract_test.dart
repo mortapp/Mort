@@ -29,6 +29,7 @@ void main() {
     expect(auth, contains('SupabaseService.clearPersistedSession()'));
     expect(service, contains('removePersistedSession()'));
     expect(settings, contains('invalidateUserScopedProviders(ref)'));
+    expect(settings, contains('clearUserDrafts(userId)'));
     for (final provider in [
       'currentProfileProvider',
       'openJobsProvider',

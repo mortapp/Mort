@@ -23,7 +23,10 @@ class AppLockController extends ChangeNotifier {
   AppLockController({
     FlutterSecureStorage? storage,
     DeviceAuthenticationService? authentication,
+    Future<Map<String, String>> Function()? settingsReader,
   }) : _storage = storage ?? mortSecureDeviceStorage,
+       _settingsReader =
+           settingsReader ?? (storage ?? mortSecureDeviceStorage).readAll,
        _authentication = authentication ?? DeviceAuthenticationService();
 
   static final instance = AppLockController();
@@ -31,9 +34,11 @@ class AppLockController extends ChangeNotifier {
   static const _minutesKey = 'mort.app_lock.minutes';
 
   final FlutterSecureStorage _storage;
+  final Future<Map<String, String>> Function() _settingsReader;
   final DeviceAuthenticationService _authentication;
   DateTime? _backgroundedAt;
   bool _initialized = false;
+  bool _initializing = false;
   bool _authenticating = false;
 
   bool enabled = false;
@@ -45,20 +50,25 @@ class AppLockController extends ChangeNotifier {
       const DeviceAuthenticationCapability.unavailable();
 
   Future<void> initialize() async {
-    if (_initialized) return;
-    _initialized = true;
+    if (_initialized || _initializing) return;
+    _initializing = true;
+    failureMessage = null;
+    notifyListeners();
     try {
-      final settings = await _storage.readAll();
+      final settings = await _settingsReader();
       enabled = settings[_enabledKey] == 'true';
       final storedMinutes = int.tryParse(settings[_minutesKey] ?? '');
       inactivityMinutes = (storedMinutes ?? 15).clamp(1, 240);
       capability = await _authentication.capability();
       isLocked = enabled && capability.supported;
+      _initialized = true;
     } catch (_) {
       failureMessage =
           'Local app-lock settings could not be restored on this device.';
+    } finally {
+      _initializing = false;
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   Future<DeviceAuthenticationResult> testAuthentication() async {
@@ -78,6 +88,11 @@ class AppLockController extends ChangeNotifier {
     required bool requireLock,
     required int minutes,
   }) async {
+    if (!_initialized) {
+      failureMessage = 'Restore local app-lock settings before changing them.';
+      notifyListeners();
+      return false;
+    }
     if (requireLock) {
       final result = await testAuthentication();
       if (!result.succeeded) return false;
@@ -148,4 +163,5 @@ class AppLockController extends ChangeNotifier {
 
   bool get authenticating => _authenticating;
   bool get initialized => _initialized;
+  bool get initializing => _initializing;
 }

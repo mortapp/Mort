@@ -55,7 +55,16 @@ class _SecuritySessionsScreenState
     if (_busy || !await _confirm(global: global)) return;
     setState(() => _busy = true);
     Object? remoteFailure;
+    Object? draftCleanupFailure;
     final auth = ref.read(authRepositoryProvider);
+    final userId = auth.currentUser?.id;
+    if (userId != null) {
+      try {
+        await ref.read(secureDraftStorageProvider).clearUserDrafts(userId);
+      } catch (error) {
+        draftCleanupFailure = error;
+      }
+    }
     try {
       if (global) {
         await auth.signOutGlobal();
@@ -72,6 +81,12 @@ class _SecuritySessionsScreenState
     }
 
     if (!mounted) return;
+    if (draftCleanupFailure != null) {
+      MortToast.show(
+        context,
+        'This device signed out, but MORT could not confirm removing saved drafts from protected device storage.',
+      );
+    }
     if (remoteFailure != null && global) {
       MortToast.show(
         context,

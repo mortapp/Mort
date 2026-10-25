@@ -76,6 +76,22 @@ void main() {
       expect(recovered?['title'], 'Safe yard cleanup');
     });
 
+    test('clears only the signing-out user profile and job drafts', () async {
+      final store = _MemoryDraftStore();
+      final storage = MortSecureDraftStorage(store: store);
+      await storage.writeProfileDraft('user-a', {'display_name': 'A'});
+      await storage.writeJobDraft('user-a', {'title': 'A job'});
+      await storage.writeProfileDraft('user-b', {'display_name': 'B'});
+      await storage.writeJobDraft('user-b', {'title': 'B job'});
+
+      await storage.clearUserDrafts('user-a');
+
+      expect(await storage.readProfileDraft('user-a'), isNull);
+      expect(await storage.readJobDraft('user-a'), isNull);
+      expect(await storage.readProfileDraft('user-b'), {'display_name': 'B'});
+      expect(await storage.readJobDraft('user-b'), {'title': 'B job'});
+    });
+
     test('refuses oversized encrypted draft payloads', () async {
       final storage = MortSecureDraftStorage(store: _MemoryDraftStore());
 

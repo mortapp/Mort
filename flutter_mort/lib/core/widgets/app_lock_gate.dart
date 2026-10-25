@@ -26,7 +26,7 @@ class AppLockGate extends StatelessWidget {
             child ?? const SizedBox.shrink(),
             if (controller.privacyCovered ||
                 (signedIn && !controller.initialized))
-              const Positioned.fill(child: _PrivacyCover()),
+              Positioned.fill(child: _PrivacyCover(controller: controller)),
             if (signedIn && controller.isLocked)
               Positioned.fill(child: _LockedView(controller: controller)),
           ],
@@ -37,14 +37,40 @@ class AppLockGate extends StatelessWidget {
 }
 
 class _PrivacyCover extends StatelessWidget {
-  const _PrivacyCover();
+  const _PrivacyCover({required this.controller});
+
+  final AppLockController controller;
 
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
       color: MortColors.bg,
-      child: const Center(
-        child: Icon(Icons.shield, color: MortColors.lightBlue, size: 52),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(MortSpacing.xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.shield, color: MortColors.lightBlue, size: 52),
+              if (controller.failureMessage case final message?) ...[
+                const SizedBox(height: MortSpacing.lg),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: MortColors.warning),
+                ),
+                const SizedBox(height: MortSpacing.md),
+                MortButton(
+                  label: 'Retry',
+                  icon: Icons.refresh,
+                  busy: controller.initializing,
+                  busyLabel: 'Restoring settings...',
+                  onPressed: controller.initialize,
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
