@@ -1,10 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../data/repositories/providers.dart';
+import '../../monetization/providers/revenuecat_providers.dart';
 import '../data/admob_service.dart';
+import '../data/ad_session_identity.dart';
+import '../data/ad_startup_coordinator.dart';
 
 class MortBannerAd extends ConsumerStatefulWidget {
   const MortBannerAd({
@@ -23,6 +28,13 @@ class MortBannerAd extends ConsumerStatefulWidget {
 class _MortBannerAdState extends ConsumerState<MortBannerAd> {
   BannerAd? _ad;
   bool _loaded = false;
+  bool _loading = false;
+  final _sessionGuard = AdRequestSessionGuard();
+  final _eligibilityRequests = <(String, String, DateTime?, String)>{};
+  bool _awaitingEntitlementsAfterAuth = false;
+  Timer? _sessionExpiryTimer;
+
+  int get _generation => _sessionGuard.generation;
 
   @override
   void initState() {
@@ -32,39 +44,118 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
     }
   }
 
+  @override
+  void didUpdateWidget(covariant MortBannerAd oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.placement != widget.placement ||
+        oldWidget.userAdFree != widget.userAdFree) {
+      _invalidateAndReload();
+    }
+  }
+
   Future<void> _loadRealAd() async {
+    // TEMP_DEBUG
+    if (_loading || _ad != null || !mounted) return;
+    final identity = ref.read(adSessionIdentityReaderProvider)();
+    if (identity == null ||
+        !identity.isActive ||
+        widget.userAdFree ||
+        !_serverEntitlementsAllowAds() ||
+        !_adStartupReady) {
+      return;
+    }
+    final eligibilityKey = (
+      identity.userId,
+      identity.accessToken,
+      identity.expiresAt,
+      widget.placement,
+    );
+    if (!_eligibilityRequests.add(eligibilityKey)) return;
+
+    final generation = _sessionGuard.begin();
+    final placement = widget.placement;
+    _sessionExpiryTimer?.cancel();
+    _sessionExpiryTimer = Timer(
+      identity.expiresAt!.difference(DateTime.now().toUtc()),
+      _invalidateAndReload,
+    );
+    setState(() => _loading = true);
     final local = const AdMobService().bannerDecision(
-      placement: widget.placement,
+      placement: placement,
       userAdFree: widget.userAdFree,
     );
-    final decision = await const AdMobService().confirmWithServer(
-      decision: local,
-      repository: ref.read(monetizationRepositoryProvider),
-      placement: widget.placement,
-      adFormat: 'banner',
-    );
-    if (!mounted || !decision.canShow || decision.adUnitId == null) return;
+    late final AdMobDecision decision;
+    try {
+      decision = await const AdMobService().confirmWithServer(
+        decision: local,
+        repository: ref.read(monetizationRepositoryProvider),
+        placement: placement,
+        adFormat: 'banner',
+      );
+    } finally {
+      _eligibilityRequests.remove(eligibilityKey);
+    }
+    if (!_isCurrent(identity, generation, placement)) {
+      if (mounted && generation == _generation) {
+        setState(() => _loading = false);
+      }
+      return;
+    }
+    if (!decision.canShow || decision.adUnitId == null) {
+      _sessionExpiryTimer?.cancel();
+      setState(() => _loading = false);
+      return;
+    }
 
     final ad = BannerAd(
       adUnitId: decision.adUnitId!,
       size: AdSize.banner,
       request: AdRequest(nonPersonalizedAds: decision.requestNonPersonalized),
       listener: BannerAdListener(
-        onAdLoaded: (_) {
-          if (!mounted) return;
-          setState(() => _loaded = true);
+        onAdLoaded: (loadedAd) {
+          if (!_isCurrent(identity, generation, placement)) {
+            if (identical(_ad, loadedAd)) {
+              loadedAd.dispose();
+              _ad = null;
+            }
+            if (mounted && generation == _generation) {
+              _sessionExpiryTimer?.cancel();
+              setState(() {
+                _loaded = false;
+                _loading = false;
+              });
+            }
+            return;
+          }
+          setState(() {
+            _loaded = true;
+            _loading = false;
+          });
           ref
               .read(monetizationRepositoryProvider)
               .recordAdImpression(
-                placement: widget.placement,
+                placement: placement,
                 format: 'banner',
                 adUnitId: decision.adUnitId,
                 requestNonPersonalized: decision.requestNonPersonalized,
               );
         },
         onAdFailedToLoad: (ad, error) {
-          ad.dispose();
-          if (mounted) setState(() => _ad = null);
+          if (identical(_ad, ad)) {
+            ad.dispose();
+            _ad = null;
+          }
+          if (!_isCurrent(identity, generation, placement)) {
+            if (mounted && generation == _generation) {
+              setState(() => _loading = false);
+            }
+            return;
+          }
+          setState(() {
+            _ad = null;
+            _loaded = false;
+            _loading = false;
+          });
         },
       ),
     );
@@ -72,17 +163,114 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
     ad.load();
   }
 
+  bool _isCurrent(
+    AdSessionIdentity identity,
+    int generation,
+    String placement,
+  ) {
+    return mounted &&
+        generation == _generation &&
+        placement == widget.placement &&
+        !widget.userAdFree &&
+        _serverEntitlementsAllowAds() &&
+        _sessionGuard.isCurrent(
+          generation,
+          identity,
+          ref.read(adSessionIdentityReaderProvider)(),
+        );
+  }
+
+  bool _serverEntitlementsAllowAds() {
+    return const AdMobService().entitlementsAllowAds(
+      ref.read(backendEntitlementsProvider).asData?.value,
+    );
+  }
+
+  bool get _adStartupReady =>
+      ref.read(adStartupStateProvider).asData?.value == AdStartupResult.ready;
+
+  void _handleAuthChange() {
+    _awaitingEntitlementsAfterAuth = true;
+    ref.invalidate(backendEntitlementsProvider);
+    _invalidateAndReload(reload: false);
+  }
+
+  void _handleEntitlementsChange(
+    AsyncValue<Map<String, dynamic>>? previous,
+    AsyncValue<Map<String, dynamic>> next,
+  ) {
+    if (next.isLoading || next.hasError || next.asData == null) return;
+    if (_awaitingEntitlementsAfterAuth) {
+      _awaitingEntitlementsAfterAuth = false;
+      _invalidateAndReload();
+      return;
+    }
+    final previousValue = previous?.asData?.value;
+    if (previousValue == null) {
+      if (!_loading && _ad == null) _loadRealAd();
+      return;
+    }
+    if (const AdMobService().entitlementsAllowAds(previousValue) !=
+        _serverEntitlementsAllowAds()) {
+      _invalidateAndReload();
+    }
+  }
+
+  void _invalidateAndReload({bool reload = true}) {
+    _sessionGuard.invalidate();
+    _sessionExpiryTimer?.cancel();
+    _sessionExpiryTimer = null;
+    final ad = _ad;
+    _ad = null;
+    ad?.dispose();
+    _loaded = false;
+    _loading = false;
+    if (mounted) {
+      setState(() {});
+      if (reload && AppConfig.nativeAdsCompiledIn && AppConfig.adsEnabled) {
+        _loadRealAd();
+      }
+    }
+  }
+
   @override
   void dispose() {
-    _ad?.dispose();
+    _sessionGuard.invalidate();
+    _sessionExpiryTimer?.cancel();
+    final ad = _ad;
+    _ad = null;
+    ad?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (AppConfig.nativeAdsCompiledIn && AppConfig.adsEnabled) {
+      ref.listen(authStateProvider, (previous, next) {
+        _handleAuthChange();
+      });
+      ref.listen(backendEntitlementsProvider, (previous, next) {
+        _handleEntitlementsChange(previous, next);
+      });
+    }
     if (!AppConfig.nativeAdsCompiledIn || !AppConfig.adsEnabled) {
       return const SizedBox.shrink();
     }
+    final identity = ref.read(adSessionIdentityReaderProvider)();
+    if (identity == null ||
+        !identity.isActive ||
+        widget.userAdFree ||
+        !_serverEntitlementsAllowAds()) {
+      return const SizedBox.shrink();
+    }
+    ref.watch(adStartupStateProvider);
+    ref.listen(adStartupStateProvider, (previous, next) {
+      if (next.asData?.value == AdStartupResult.ready) {
+        _loadRealAd();
+      } else if (previous?.asData?.value == AdStartupResult.ready) {
+        _invalidateAndReload();
+      }
+    });
     if (!_loaded || _ad == null) return const SizedBox.shrink();
     return SizedBox(
       width: _ad!.size.width.toDouble(),

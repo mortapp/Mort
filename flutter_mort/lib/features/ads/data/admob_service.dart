@@ -24,6 +24,12 @@ class AdMobDecision {
 class AdMobService {
   const AdMobService();
 
+  bool entitlementsAllowAds(Map<String, dynamic>? entitlements) {
+    return entitlements != null &&
+        entitlements['ad_free_active'] == false &&
+        entitlements['premium_active'] == false;
+  }
+
   // Google's own official, publicly-documented sample ad unit IDs -- safe
   // to hardcode, meant exactly for this purpose. Used whenever
   // AppConfig.useTestAds is true (the default), so a build that forgets to
