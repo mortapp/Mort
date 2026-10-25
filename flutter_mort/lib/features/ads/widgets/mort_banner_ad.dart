@@ -107,6 +107,7 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
       return;
     }
 
+    var impressionRecorded = false;
     final ad = BannerAd(
       adUnitId: decision.adUnitId!,
       size: AdSize.banner,
@@ -131,14 +132,6 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
             _loaded = true;
             _loading = false;
           });
-          ref
-              .read(monetizationRepositoryProvider)
-              .recordAdImpression(
-                placement: placement,
-                format: 'banner',
-                adUnitId: decision.adUnitId,
-                requestNonPersonalized: decision.requestNonPersonalized,
-              );
         },
         onAdFailedToLoad: (ad, error) {
           if (identical(_ad, ad)) {
@@ -156,6 +149,21 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
             _loaded = false;
             _loading = false;
           });
+        },
+        onAdImpression: (_) {
+          if (impressionRecorded ||
+              !_isCurrent(identity, generation, placement)) {
+            return;
+          }
+          impressionRecorded = true;
+          ref
+              .read(monetizationRepositoryProvider)
+              .recordAdImpression(
+                placement: placement,
+                format: 'banner',
+                adUnitId: decision.adUnitId,
+                requestNonPersonalized: decision.requestNonPersonalized,
+              );
         },
       ),
     );

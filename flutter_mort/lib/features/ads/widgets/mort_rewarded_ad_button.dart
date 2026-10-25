@@ -164,7 +164,23 @@ class _MortNativeRewardedAdButtonState
       _ad = null;
       _showing = true;
     });
+    var impressionRecorded = false;
     ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdImpression: (ad) {
+        if (impressionRecorded ||
+            !_isCurrent(identity, generation, placement)) {
+          return;
+        }
+        impressionRecorded = true;
+        ref
+            .read(monetizationRepositoryProvider)
+            .recordAdImpression(
+              placement: placement,
+              format: 'rewarded',
+              adUnitId: _pendingAdUnitId,
+              requestNonPersonalized: _pendingNonPersonalized,
+            );
+      },
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         if (!mounted) return;
@@ -184,14 +200,6 @@ class _MortNativeRewardedAdButtonState
         // The reward is granted only here, inside the SDK's own
         // earned-reward callback -- never on tap, and never before the ad
         // has actually been watched to completion.
-        ref
-            .read(monetizationRepositoryProvider)
-            .recordAdImpression(
-              placement: placement,
-              format: 'rewarded',
-              adUnitId: _pendingAdUnitId,
-              requestNonPersonalized: _pendingNonPersonalized,
-            );
         widget.onReward?.call();
       },
     );
