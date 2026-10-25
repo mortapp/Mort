@@ -1,6 +1,6 @@
 # MORT Google Play Upload Signing Setup
 
-> Status: closed-test publication candidate dated 2026-07-20. Not legal approval, not a public launch, and not a production-readiness claim.
+> Status: closed-test release procedure, reviewed 2026-10-25. Not legal approval, not a public launch, and not a production-readiness claim.
 
 ## Implemented signing boundary
 
@@ -15,21 +15,21 @@ Required environment names are `MORT_UPLOAD_KEYSTORE_PATH`, `MORT_UPLOAD_KEY_ALI
 
 ## Build and verify
 
-`powershell
+```powershell
 .\scripts\build-play-aab.ps1
 .\scripts\verify-play-aab.ps1
-.\scripts\build-closed-test-apk.ps1
-`
+.\scripts\build-standard-closed-test-apk.ps1
+```
 
-The AAB build targets `rakjydmgwwgtdislanbt`, fixes release stage to `closed_test`, fixes operational mode to `closed_pilot`, disables public marketplace and real identity verification, disables ads and IAP, obfuscates Dart code, and stores symbol files outside the repository at `C:\Users\micha\MortSymbolsandroid\0.9.0+90`.
+The Play AAB build targets `rakjydmgwwgtdislanbt`, fixes release stage to `closed_test`, fixes operational mode to `closed_pilot`, disables public marketplace and real identity verification, disables ads and IAP, obfuscates Dart code, and stores symbol files outside the repository under `%USERPROFILE%\MortSymbols\android\<versionName>+<versionCode>`. For the current app version `0.9.16+107`, that directory is `%USERPROFILE%\MortSymbols\android\0.9.16+107`. The standard closed-test APK uses `build-standard-closed-test-apk.ps1`; `build-closed-test-apk.ps1` creates a separate reviewer-demo profile.
 
 ## Play App Signing
 
 1. The adult account owner creates the app in Play Console with package `com.mortapp.mobile`.
 2. Enroll in Play App Signing. Google protects the app-signing key; MORT keeps the separate upload key.
-3. Upload `build/play/mort-closed-test.aab` only after `verify-play-aab.ps1` passes.
+3. Upload `build/play/mort-closed-test-0.9.16-107.aab` only after `verify-play-aab.ps1` passes. The script derives this versioned artifact path from `flutter_mort/pubspec.yaml`.
 4. Compare Play Console's upload-certificate SHA-1 and SHA-256 with the checked-in public certificate report.
 5. Never upload or share the JKS. Only the signed AAB and public certificate may leave the release machine.
-6. Confirm the Play Console maximum prior version code is lower than 90. This repository cannot inspect Play upload history.
+6. Confirm the Play Console maximum prior version code is lower than the candidate's version code (`107` for `0.9.16+107`). This repository cannot inspect Play upload history.
 
 Official reference: https://developer.android.com/studio/publish/app-signing
