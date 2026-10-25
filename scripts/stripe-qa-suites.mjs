@@ -299,11 +299,13 @@ async function checkResolutionIdempotency(scope) {
 async function checkRefundWebhookReconciliation(scope) {
   const apply = await functionSource("public.stripe_server_apply_refund_event");
   const webhook = await text("supabase/functions/stripe-webhook/index.ts");
+  const migration = await text("supabase/migrations/20261025012531_mort_financial_integrity_and_webhook_fencing.sql");
   assertQa(apply.includes("stripe_refund_total_exceeds_capture"), "webhook refund total is not capture bounded");
   assertQa(apply.includes("provider_refund_id"), "refund provider reference is not reconciled");
-  assertQa(webhook.includes('"charge.refunded"') && webhook.includes("applyRefund"), "charge/refund webhook events are not reconciled");
+  assertQa(webhook.includes('"charge.refunded"') && webhook.includes("normalizeRefund"), "charge/refund webhook events are not normalized");
+  assertQa(migration.includes("elsif p_event_type = 'charge.refunded'") && migration.includes("public.stripe_server_apply_refund_event"), "charge.refunded does not dispatch through the database reconciliation path");
   assertQa(!webhook.includes('"refund_reconciliation_required"'), "refund events are still ignored");
-  qaLog(scope, "verified refund and charge.refunded events reconcile idempotent private payment state");
+  qaLog(scope, "verified refund events are normalized in the webhook and reconciled by the fenced database dispatcher");
 }
 
 async function checkPolicyVersioning(scope) {
