@@ -1,8 +1,8 @@
 {
-  "name": "mort-mobile",
+  "name": "mort-legacy-reference",
   "version": "0.1.0",
   "private": true,
-  "description": "MORT teen-safe local hustle marketplace for iOS-first Expo React Native and Supabase.",
+  "description": "Legacy Expo reference app for MORT. Production source of truth is flutter_mort; no store builds or release artifacts should be generated from this project.",
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
@@ -10,7 +10,7 @@
     "web": "expo start --web",
     "check": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "build": "expo export --platform web",
+    "build": "node -e \"console.error('MORT production builds must come from flutter_mort. This Expo app is reference-only and intentionally fails closed.'); process.exit(1);\"",
     "lint": "expo lint",
     "qa:smoke": "node scripts/qa-smoke.mjs",
     "qa:rls": "node scripts/qa-rls.mjs",
@@ -30,6 +30,7 @@
     "qa:old-project-rls": "node scripts/qa-old-project-rls.mjs",
     "qa:create-local-users": "node scripts/create-local-test-users.mjs",
     "qa:public-legal-site": "node scripts/qa-public-legal-site.mjs",
+    "legacy:status": "node -e \"console.log('MORT production source of truth: flutter_mort. This Expo app is reference-only.');\"",
     "expo:doctor": "npx expo-doctor",
     "supabase:types:local": "powershell -ExecutionPolicy Bypass -File ./scripts/generate-supabase-types.ps1",
     "supabase:types": "supabase gen types typescript --linked > types/supabase.generated.ts"
