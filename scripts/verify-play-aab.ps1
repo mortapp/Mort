@@ -32,9 +32,11 @@ if ($LASTEXITCODE -ne 0 -or ($jarsignerOutput -join "`n") -notmatch 'jar verifie
 }
 
 $ErrorActionPreference = 'Continue'
-$expected = & $keytool -list -v -keystore $signing.StorePath `
-  -storepass $signing.StorePassword -alias $signing.Alias 2>&1
-$expectedExitCode = $LASTEXITCODE
+$expectedResult = Invoke-MortKeytool -Executable $keytool `
+  -Arguments @('-list', '-v', '-keystore', $signing.StorePath, '-alias', $signing.Alias) `
+  -StorePassword $signing.StorePassword
+$expected = $expectedResult.Output
+$expectedExitCode = $expectedResult.ExitCode
 $actual = & $keytool -printcert -jarfile $BundlePath 2>&1
 $actualExitCode = $LASTEXITCODE
 $ErrorActionPreference = 'Stop'

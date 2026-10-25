@@ -19,8 +19,11 @@ if (-not (Test-Path -LiteralPath $signing.StorePath -PathType Leaf)) {
 $keytool = (Get-Command keytool -ErrorAction Stop).Source
 $previousPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
-$details = & $keytool -list -v -keystore $signing.StorePath -storepass $signing.StorePassword -alias $signing.Alias 2>&1
-$exitCode = $LASTEXITCODE
+$keytoolResult = Invoke-MortKeytool -Executable $keytool `
+  -Arguments @('-list', '-v', '-keystore', $signing.StorePath, '-alias', $signing.Alias) `
+  -StorePassword $signing.StorePassword
+$details = $keytoolResult.Output
+$exitCode = $keytoolResult.ExitCode
 $ErrorActionPreference = $previousPreference
 if ($exitCode -ne 0) { throw 'Could not inspect the original MORT upload certificate.' }
 

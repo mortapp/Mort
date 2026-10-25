@@ -37,11 +37,16 @@ $keyPassword = New-StrongPassword
 
 try {
   $ErrorActionPreference = 'Continue'
-  $generationOutput = & $keytool -genkeypair -v -keystore $storePath -storetype JKS `
-    -storepass $storePassword -keypass $keyPassword -alias $Alias `
-    -keyalg RSA -keysize 4096 -validity 10000 `
-    -dname 'CN=MORT Upload Key, OU=Mobile Release, O=MORT, L=Indianapolis, ST=Indiana, C=US' 2>&1
-  $generationExitCode = $LASTEXITCODE
+  $generationResult = Invoke-MortKeytool -Executable $keytool `
+    -Arguments @(
+      '-genkeypair', '-v', '-keystore', $storePath, '-storetype', 'JKS',
+      '-alias', $Alias, '-keyalg', 'RSA', '-keysize', '4096', '-validity', '10000',
+      '-dname', 'CN=MORT Upload Key, OU=Mobile Release, O=MORT, L=Indianapolis, ST=Indiana, C=US'
+    ) `
+    -StorePassword $storePassword `
+    -KeyPassword $keyPassword
+  $generationOutput = $generationResult.Output
+  $generationExitCode = $generationResult.ExitCode
   $ErrorActionPreference = 'Stop'
   $generationOutput | Where-Object { $_ -notmatch '(?i)password' }
   if ($generationExitCode -ne 0) { throw 'keytool failed to generate the upload key.' }
@@ -55,9 +60,11 @@ try {
   } | Export-Clixml -LiteralPath $credentialPath -Force
 
   $ErrorActionPreference = 'Continue'
-  $exportOutput = & $keytool -exportcert -rfc -keystore $storePath -storepass $storePassword `
-    -alias $Alias -file $certificatePath 2>&1
-  $exportExitCode = $LASTEXITCODE
+  $exportResult = Invoke-MortKeytool -Executable $keytool `
+    -Arguments @('-exportcert', '-rfc', '-keystore', $storePath, '-alias', $Alias, '-file', $certificatePath) `
+    -StorePassword $storePassword
+  $exportOutput = $exportResult.Output
+  $exportExitCode = $exportResult.ExitCode
   $ErrorActionPreference = 'Stop'
   $exportOutput | Where-Object { $_ -notmatch '(?i)password' }
   if ($exportExitCode -ne 0) { throw 'keytool failed to export the public upload certificate.' }
@@ -66,8 +73,11 @@ try {
   & icacls $SecretDirectory /inheritance:r /grant:r "${identity}:(OI)(CI)F" 'SYSTEM:(OI)(CI)F' | Out-Null
 
   $ErrorActionPreference = 'Continue'
-  $details = & $keytool -list -v -keystore $storePath -storepass $storePassword -alias $Alias 2>&1
-  $detailsExitCode = $LASTEXITCODE
+  $detailsResult = Invoke-MortKeytool -Executable $keytool `
+    -Arguments @('-list', '-v', '-keystore', $storePath, '-alias', $Alias) `
+    -StorePassword $storePassword
+  $details = $detailsResult.Output
+  $detailsExitCode = $detailsResult.ExitCode
   $ErrorActionPreference = 'Stop'
   if ($detailsExitCode -ne 0) { throw 'keytool could not inspect the upload certificate.' }
   $safeDetails = $details | Where-Object {

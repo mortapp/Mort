@@ -70,9 +70,11 @@ Set-MortUploadSigningEnvironment $signing
 $keytool = (Get-Command keytool -ErrorAction Stop).Source
 $previousPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
-$certificateOutput = & $keytool -list -v -keystore $signing.StorePath `
-  -storepass $signing.StorePassword -alias $signing.Alias 2>&1
-$certificateExitCode = $LASTEXITCODE
+$certificateResult = Invoke-MortKeytool -Executable $keytool `
+  -Arguments @('-list', '-v', '-keystore', $signing.StorePath, '-alias', $signing.Alias) `
+  -StorePassword $signing.StorePassword
+$certificateOutput = $certificateResult.Output
+$certificateExitCode = $certificateResult.ExitCode
 $ErrorActionPreference = $previousPreference
 if ($certificateExitCode -ne 0) { throw 'The upload certificate could not be inspected.' }
 $certificateSha256 = (($certificateOutput | Select-String '^\s*SHA256:' | Select-Object -First 1).Line -replace '^\s*SHA256:\s*','').Trim()
