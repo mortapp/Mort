@@ -1,6 +1,6 @@
 # MORT Firebase Push Owner Setup
 
-Updated: 2026-07-30
+Updated: 2026-10-25
 
 No credential is included in this document or in mobile source.
 
@@ -38,9 +38,13 @@ No credential is included in this document or in mobile source.
 
 ## Current Hosted State
 
+- Google Play production access/public availability is separate from Supabase's
+  internal release policy and push-delivery flags. This runbook describes the
+  backend delivery controls, not the Play release track.
 - `send-push`: ACTIVE, JWT verification enabled.
 - Server invoke secret: present.
 - FCM provider secrets: absent.
 - Database and client remote-push flags: false.
 - Real FCM delivery: not verified.
+- No scheduled invocation of `send-push` is configured.
 

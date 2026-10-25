@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public;
 
-select plan(8);
+select plan(9);
 
 create temporary table push_delivery_gate_fixture (
   user_id uuid not null,
@@ -11,6 +11,7 @@ create temporary table push_delivery_gate_fixture (
   request_id uuid not null,
   status jsonb,
   registration jsonb,
+  runtime jsonb,
   delivery_batch jsonb
 ) on commit drop;
 
@@ -75,6 +76,13 @@ select ok(
 );
 
 select set_config('request.jwt.claim.role', 'service_role', true);
+update push_delivery_gate_fixture set runtime =
+  public.service_get_push_runtime();
+select is(
+  (select runtime ->> 'remote_push_enabled' from push_delivery_gate_fixture),
+  'false',
+  'the Edge Function runtime gate reports effective release-policy state'
+);
 update push_delivery_gate_fixture set delivery_batch =
   public.service_claim_push_events(25, null);
 select is(

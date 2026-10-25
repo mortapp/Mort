@@ -190,6 +190,28 @@ begin
   return response;
 end;
 $$;
+create or replace function public.service_get_push_runtime()
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  runtime public.push_delivery_runtime%rowtype;
+begin
+  if auth.role() <> 'service_role' then
+    return jsonb_build_object('ok', false, 'code', 'service_role_required');
+  end if;
+  select * into runtime from public.push_delivery_runtime where singleton = true;
+  return jsonb_build_object(
+    'ok', true, 'provider', runtime.provider,
+    'remote_push_enabled', private.push_delivery_available(),
+    'maximum_attempts', runtime.maximum_attempts,
+    'stale_token_days', runtime.stale_token_days
+  );
+end;
+$$;
+
 create or replace function public.service_claim_push_events(
   p_limit integer default 25,
   p_notification_id uuid default null
