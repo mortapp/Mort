@@ -17,14 +17,26 @@ FAIL_CLOSED_BEHAVIOR=N/A (test infrastructure, not a production runtime gate)
 
 ---
 
+GATE=Google Play production access
+STATUS=GRANTED (owner-provided Google Play Support email and Console screenshots, 2026-10-25)
+WHY=Google Play Support confirmed production access for Mort (`com.mortapp.mobile`). The owner confirms MORT is already operating in production; this work must target production distribution and production backend behavior, not a closed-beta milestone.
+TECHNICAL_WORK_COMPLETE=YES for production-access eligibility. This approval does not provision signing automation or establish which artifact/revision is currently live.
+HUMAN_ACTION_REQUIRED=None for production-access eligibility. Continue with a production-signed release and verify its rollout against the live listing.
+CREDENTIAL_REQUIRED=YES for automated signing only (the existing upload key is locally recoverable).
+PROVIDER=Google Play
+LAUNCH_IMPACT=Production access is no longer a blocker. The production release pipeline, signing configuration, app artifact, and live rollout still require verification.
+FAIL_CLOSED_BEHAVIOR=N/A (account eligibility, not an app runtime control)
+
+---
+
 GATE=Android upload/release signing keystore
-STATUS=NOT_CONFIGURED (repo secrets), BUT CI PIPELINE ALREADY BUILT
-WHY=No `flutter_mort/android/key.properties` and no MORT_UPLOAD_* env vars are present locally. Both repository and `closed-test-release` environment secret inventories were checked by name only: only the BrowserStack repository secrets exist; upload-signing and Supabase publishable-key secrets are absent, and no Supabase URL variable is configured. `flutter_mort/android/app/build.gradle.kts` intentionally raises `Release signing is required. Debug-signing fallback is intentionally disabled.` when a release build is requested without signing values. The existing `.github/workflows/mort-signed-closed-test.yml` is `workflow_dispatch` only and expects the upload secrets plus `SUPABASE_ANON_KEY` and `SUPABASE_URL`; its security boundary explicitly forbids a service-role key. Keytool credential arguments were moved behind process-environment references and now have a regression check.
-TECHNICAL_WORK_COMPLETE=YES — both the fail-closed gate and the CI automation to produce a real signed build the moment secrets exist are already implemented; this session additionally verified the R8/shrink pipeline itself works by building and runtime-testing a release APK with a throwaway local-only key (never committed, deleted after use) on the `MORT_QA_Pixel6` emulator — launched and stayed resumed with no crash in logcat.
-HUMAN_ACTION_REQUIRED=Configure protected GitHub Actions secrets `MORT_UPLOAD_KEYSTORE_BASE64`, `MORT_UPLOAD_KEY_ALIAS`, `MORT_UPLOAD_STORE_PASSWORD`, `MORT_UPLOAD_KEY_PASSWORD`, and `SUPABASE_ANON_KEY`, plus the `SUPABASE_URL` repository variable, using the verified existing upload keystore. Never provide `SUPABASE_SERVICE_ROLE_KEY` to the signed mobile build.
-CREDENTIAL_REQUIRED=YES (owner keystore + passwords)
+STATUS=LOCAL KEY VERIFIED; GITHUB ACTIONS SIGNING SECRETS NOT CONFIGURED
+WHY=The existing upload keystore and DPAPI-protected credentials are present outside the repository and were verified against MORT's release certificate report. There is no local `flutter_mort/android/key.properties`, and the repository plus `closed-test-release` environment lack the protected upload and Supabase client secrets required by the current workflow. Gradle correctly fails closed when release signing inputs are missing. The only signing workflow currently in the repository is `mort-signed-closed-test`; it is not a production release workflow and forbids a service-role key.
+TECHNICAL_WORK_COMPLETE=YES for local key recovery and keytool argument secrecy. The release-signing boundary test and the Android device-test APK CI build pass. A production-signed AAB has not been built or uploaded.
+HUMAN_ACTION_REQUIRED=For signed CI, configure protected GitHub secrets `MORT_UPLOAD_KEYSTORE_BASE64`, `MORT_UPLOAD_KEY_ALIAS`, `MORT_UPLOAD_STORE_PASSWORD`, `MORT_UPLOAD_KEY_PASSWORD`, and `SUPABASE_ANON_KEY`, plus the `SUPABASE_URL` variable, using the existing upload key. Never provide `SUPABASE_SERVICE_ROLE_KEY` to a mobile build.
+CREDENTIAL_REQUIRED=YES for signed CI (owner keystore + passwords)
 PROVIDER=Google Play (app signing)
-LAUNCH_IMPACT=Blocks `flutter build apk --release` / `--appbundle --release` locally and the already-built `mort-signed-closed-test` CI workflow, and therefore Play Store submission
+LAUNCH_IMPACT=Blocks automated signed release builds in GitHub Actions. The protected local key is usable for local signing; the public production release path still needs to be implemented and verified.
 FAIL_CLOSED_BEHAVIOR=Correct — build hard-fails rather than silently falling back to debug signing.
 
 ---
@@ -127,12 +139,13 @@ FAIL_CLOSED_BEHAVIOR=N/A (this was a gap in the fail-closed design, now correcte
 
 ## Current Flutter production-readiness update (2026-10-25)
 
-This dated update reflects checks on `codex/mort-production-readiness` at PR #28. It supersedes earlier statements above where the current local checkout provides newer evidence.
+This dated update reflects checks on `codex/mort-production-readiness` at PR #28, head `b0f07ab`. It supersedes earlier statements above where the current checkout provides newer evidence.
 
+- **Google Play production access:** Granted for Mort (`com.mortapp.mobile`) according to the owner-provided Google Play Support email and Console screenshots on 2026-10-25. MORT is being prepared and assessed as a production app, not as a closed-beta milestone. The current live artifact/release revision was not independently visible in the supplied screenshots.
 - **Android upload key:** The existing upload keystore is present in the owner's protected local archive, outside the repository. Read-only `keytool -list -v` and `keytool -certreq` checks used the DPAPI-protected store and key passwords through temporary process environment variables; the alias and SHA-1/SHA-256 fingerprints match MORT's release certificate report, and the private key successfully produced a certificate request that was discarded without writing a file. The upload key and credentials are therefore locally recoverable and cryptographically usable. No key or credential was copied into this repository, printed, or replaced.
-- **GitHub release secrets:** The repository has no configured upload-key secrets, so the signed closed-test workflow remains blocked until the owner supplies the existing key and passwords through repository secrets. The signed workflow was not run; no release artifact was signed or uploaded.
+- **GitHub release secrets:** The repository has no configured upload-key secrets, so automated signed builds remain blocked until the owner provisions the existing key and passwords in the protected GitHub environment. The only signing workflow is closed-test-specific; no production-signed workflow exists yet. No release artifact was signed or uploaded in this turn.
 - **iOS entitlements:** The current release configuration includes the production APNs environment entitlement. Apple distribution signing and App Store submission remain unverified; Sign in with Apple is not enabled by this entitlement file.
-- **Current local checks:** `dart analyze --format machine lib test` is clean; the complete Flutter suite passes (744 passed, 23 skipped); `flutter build apk --debug --no-pub` succeeds; and the signed-build service-role boundary check passes. These checks do not establish release signing or real-device QA for this exact commit.
+- **Current local and CI checks:** `flutter analyze --no-pub` reports no issues; the complete local Flutter suite passes (745 passed, 23 skipped); the focused secure-draft suite passes (7/7); and the new GitHub CI run passed the authoritative Flutter job, Android device-test APK build, Stripe local regression, and Stripe security freeze. This does not establish a production-signed artifact or real-device installation of this exact commit.
 - **Backend rollout:** The Supabase migrations and Edge Function changes in PR #28 have not been applied to the production project. Live Stripe job payments remain deliberately disabled until the account, credentials, legal approvals, and production controls are configured and verified.
 - **Real-device reruns:** The BrowserStack run cited above is historical evidence. The current BrowserStack quota is exhausted, so this candidate has not received a fresh cloud-device matrix.
 
