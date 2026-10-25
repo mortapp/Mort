@@ -26,13 +26,16 @@ class PushNotificationCoordinator {
 
   final RemotePushProvider _provider;
   final _foregroundController = StreamController<RemotePushMessage>.broadcast();
-  final _openedController = StreamController<RemotePushMessage>.broadcast();
+  late final _openedController = StreamController<RemotePushMessage>.broadcast(
+    onListen: _deliverPendingInitialMessage,
+  );
   bool _initialized = false;
   bool _providerInitialized = false;
   bool _listenersBound = false;
   bool _initialMessageHandled = false;
   bool _syncing = false;
   Future<void>? _initialization;
+  RemotePushMessage? _pendingInitialMessage;
 
   bool get configured => _provider.configured;
   Stream<RemotePushMessage> get foregroundMessages =>
@@ -60,19 +63,27 @@ class PushNotificationCoordinator {
         });
         _provider.foregroundMessages.listen(_foregroundController.add);
         _provider.openedMessages.listen(_openedController.add);
-        SupabaseService.client.auth.onAuthStateChange.listen((state) {
-          if (state.event == AuthChangeEvent.signedIn ||
-              state.event == AuthChangeEvent.tokenRefreshed ||
-              state.event == AuthChangeEvent.userUpdated) {
-            unawaited(syncRegistration());
-          }
-        });
+        if (SupabaseService.isInitialized) {
+          SupabaseService.client.auth.onAuthStateChange.listen((state) {
+            if (state.event == AuthChangeEvent.signedIn ||
+                state.event == AuthChangeEvent.tokenRefreshed ||
+                state.event == AuthChangeEvent.userUpdated) {
+              unawaited(syncRegistration());
+            }
+          });
+        }
         _listenersBound = true;
       }
       if (!_initialMessageHandled) {
         final initial = await _provider.initialMessage();
         _initialMessageHandled = true;
-        if (initial != null) _openedController.add(initial);
+        if (initial != null) {
+          if (_openedController.hasListener) {
+            _openedController.add(initial);
+          } else {
+            _pendingInitialMessage = initial;
+          }
+        }
       }
       await syncRegistration();
       _initialized = true;
@@ -98,7 +109,9 @@ class PushNotificationCoordinator {
   }
 
   Future<void> syncRegistration({bool force = false}) async {
-    if (!_provider.configured || _syncing) return;
+    if (!_provider.configured || _syncing || !SupabaseService.isInitialized) {
+      return;
+    }
     if (SupabaseService.client.auth.currentUser == null) return;
     _syncing = true;
     try {
@@ -129,7 +142,8 @@ class PushNotificationCoordinator {
   }
 
   Future<void> disableAllRemoteNotifications() async {
-    if (SupabaseService.client.auth.currentUser != null) {
+    if (SupabaseService.isInitialized &&
+        SupabaseService.client.auth.currentUser != null) {
       await NotificationsRepository().unregisterDevices(
         deviceId: await _deviceId(),
         allDevices: true,
@@ -141,6 +155,7 @@ class PushNotificationCoordinator {
 
   Future<void> prepareForSignOut({required bool allDevices}) async {
     if (!_provider.configured ||
+        !SupabaseService.isInitialized ||
         SupabaseService.client.auth.currentUser == null) {
       return;
     }
@@ -157,6 +172,13 @@ class PushNotificationCoordinator {
   bool _canRegister(RemotePushPermission permission) =>
       permission == RemotePushPermission.authorized ||
       permission == RemotePushPermission.provisional;
+
+  void _deliverPendingInitialMessage() {
+    final message = _pendingInitialMessage;
+    if (message == null) return;
+    _pendingInitialMessage = null;
+    _openedController.add(message);
+  }
 
   Future<String> _deviceId() async {
     final stored = await mortSecureDeviceStorage.read(key: _deviceIdKey);
