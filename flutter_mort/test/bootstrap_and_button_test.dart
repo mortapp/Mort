@@ -7,6 +7,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('maintenance mode blocks app initialization', (tester) async {
+    var initializeCalls = 0;
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MortBootstrap(
+          maintenanceMode: true,
+          initialize: () async => initializeCalls++,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('MORT is briefly offline'), findsOneWidget);
+    expect(
+      find.textContaining('We are making MORT better right now.'),
+      findsOneWidget,
+    );
+    expect(find.text('Restoring your session...'), findsNothing);
+    expect(initializeCalls, 0);
+  });
+
   testWidgets('startup failure renders an honest retry action', (tester) async {
     var attempts = 0;
     Future<void> initialize() async {

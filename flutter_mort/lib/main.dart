@@ -92,9 +92,10 @@ void _runAppWithFallbackHandlers() {
 }
 
 class MortBootstrap extends StatefulWidget {
-  const MortBootstrap({super.key, this.initialize});
+  const MortBootstrap({super.key, this.initialize, this.maintenanceMode});
 
   final Future<void> Function()? initialize;
+  final bool? maintenanceMode;
 
   @override
   State<MortBootstrap> createState() => _MortBootstrapState();
@@ -110,6 +111,7 @@ class _MortBootstrapState extends State<MortBootstrap> {
   }
 
   void _start() {
+    if (widget.maintenanceMode ?? AppConfig.maintenanceMode) return;
     _initialization = _initializeAfterFirstFrame();
   }
 
@@ -153,6 +155,27 @@ class _MortBootstrapState extends State<MortBootstrap> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.maintenanceMode ?? AppConfig.maintenanceMode) {
+      return MaterialApp(
+        title: 'MORT',
+        debugShowCheckedModeBanner: false,
+        theme: MortTheme.dark(),
+        home: MortScreen(
+          children: [
+            const MortHeader(
+              eyebrow: 'Earn nearby. Move smart.',
+              title: 'MORT',
+              subtitle: 'Brief maintenance',
+            ),
+            const MortErrorState(
+              title: 'MORT is briefly offline',
+              message:
+                  'We are making MORT better right now. Please check back again shortly.',
+            ),
+          ],
+        ),
+      );
+    }
     return FutureBuilder<Object?>(
       future: _initialization,
       builder: (context, snapshot) {
