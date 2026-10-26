@@ -84,13 +84,21 @@ limit 20;
   on Google Play; this runbook describes backend delivery controls, not Play
   distribution.
 - `send-push`: ACTIVE, JWT verification enabled.
+- Hosted `send-push` is version 31 and its deployed `index.ts` matches this
+  checkout byte-for-byte (SHA-256 comparison). The Edge Function secret-name
+  list includes `SEND_PUSH_INVOKE_SECRET`, `SUPABASE_URL`, and
+  `SUPABASE_SERVICE_ROLE_KEY`; only names were inspected, never values.
+- The three required FCM Edge Function secret names are absent:
+  `FCM_PROJECT_ID`, `FCM_SERVICE_ACCOUNT_EMAIL`, and
+  `FCM_SERVICE_ACCOUNT_PRIVATE_KEY`. FCM delivery cannot succeed until the
+  owner provisions the approved Firebase service credential.
 - Hosted backend release policy: `closed_test` / `closed_pilot`; public
   marketplace and remote push are disabled in that backend policy.
-- Remote-push policy and runtime flags: false, confirmed by read-only check on
+- Remote-push policy and runtime flags: false, confirmed by a read-only check on
   2026-10-26.
 - All three scheduler Vault entries: absent from Supabase Vault as of the
   2026-10-26 read-only check. Only secret names were queried; secret values
-  were not read. FCM Edge Function secret presence was not inspected.
+  were not read.
 - Real FCM delivery: not verified.
 - `pg_cron` is enabled; `pg_net` is not installed.
 - No `mort-send-push` schedule is configured. The hosted database currently
