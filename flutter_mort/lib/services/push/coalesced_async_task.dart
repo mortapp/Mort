@@ -16,6 +16,8 @@ class CoalescedAsyncTask {
     return running;
   }
 
+  Future<void> waitForIdle() => _running ?? Future<void>.value();
+
   Future<void> _run(Future<void> Function() action) async {
     try {
       while (true) {

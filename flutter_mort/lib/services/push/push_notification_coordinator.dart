@@ -11,6 +11,7 @@ import '../../data/repositories/notifications_repository.dart';
 import '../../data/services/secure_device_storage.dart';
 import '../../data/services/supabase_service.dart';
 import 'coalesced_async_task.dart';
+import 'push_registration_workflow.dart';
 import 'remote_push_provider.dart';
 
 class PushNotificationCoordinator {
@@ -34,9 +35,11 @@ class PushNotificationCoordinator {
   bool _providerInitialized = false;
   bool _listenersBound = false;
   bool _initialMessageHandled = false;
+  bool _registrationSuppressed = false;
   Future<void>? _initialization;
   RemotePushMessage? _pendingInitialMessage;
   final _registrationSync = CoalescedAsyncTask();
+  final _registrationWorkflow = PushRegistrationWorkflow();
 
   bool get configured => _provider.configured;
   Stream<RemotePushMessage> get foregroundMessages =>
@@ -66,8 +69,12 @@ class PushNotificationCoordinator {
         _provider.openedMessages.listen(_openedController.add);
         if (SupabaseService.isInitialized) {
           SupabaseService.client.auth.onAuthStateChange.listen((state) {
-            if (state.event == AuthChangeEvent.signedIn ||
-                state.event == AuthChangeEvent.tokenRefreshed ||
+            if (state.event == AuthChangeEvent.signedOut) {
+              _registrationSuppressed = false;
+            } else if (state.event == AuthChangeEvent.signedIn) {
+              _registrationSuppressed = false;
+              unawaited(syncRegistration());
+            } else if (state.event == AuthChangeEvent.tokenRefreshed ||
                 state.event == AuthChangeEvent.userUpdated) {
               unawaited(syncRegistration());
             }
@@ -117,25 +124,48 @@ class PushNotificationCoordinator {
     if (!await deliveryAvailable()) return RemotePushPermission.unavailable;
     final permission = await _provider.requestPermission();
     if (_canRegister(permission)) {
+      final notifications = NotificationsRepository();
+      final preferences = await notifications.getPreferences();
+      await notifications.updatePreferences(
+        preferences.copyWith(
+          pushEnabled: true,
+          timezoneName: await _timezoneName(),
+        ),
+      );
+      _registrationSuppressed = false;
       await syncRegistration(force: true);
     }
     return permission;
   }
 
   Future<void> syncRegistration({bool force = false}) async {
-    if (!_provider.configured || !SupabaseService.isInitialized) {
+    if (_registrationSuppressed ||
+        !_provider.configured ||
+        !SupabaseService.isInitialized) {
       return;
     }
     return _registrationSync.run(_syncRegistrationOnce);
   }
 
   Future<void> _syncRegistrationOnce() async {
-    if (SupabaseService.client.auth.currentUser == null) return;
-    if (!await deliveryAvailable()) return;
-    final permission = await _provider.permissionStatus();
-    if (!_canRegister(permission)) return;
-    final token = await _provider.registrationToken();
-    if (token == null || token.trim().isEmpty) return;
+    if (_registrationSuppressed ||
+        SupabaseService.client.auth.currentUser == null) {
+      return;
+    }
+    await _registrationWorkflow.run(
+      deliveryAvailable: deliveryAvailable,
+      pushPreferenceEnabled: () async =>
+          (await NotificationsRepository().getPreferences()).pushEnabled,
+      permissionStatus: _provider.permissionStatus,
+      registrationToken: _provider.registrationToken,
+      register: _registerDevice,
+    );
+  }
+
+  Future<void> _registerDevice(
+    String token,
+    RemotePushPermission permission,
+  ) async {
     final package = await PackageInfo.fromPlatform();
     await NotificationsRepository().registerDevice(
       deviceId: await _deviceId(),
@@ -154,6 +184,8 @@ class PushNotificationCoordinator {
   }
 
   Future<void> disableAllRemoteNotifications() async {
+    _registrationSuppressed = true;
+    await _waitForRegistrationIdle();
     if (SupabaseService.isInitialized &&
         SupabaseService.client.auth.currentUser != null) {
       await NotificationsRepository().unregisterDevices(
@@ -170,12 +202,23 @@ class PushNotificationCoordinator {
         SupabaseService.client.auth.currentUser == null) {
       return;
     }
+    _registrationSuppressed = true;
+    await _waitForRegistrationIdle();
     await NotificationsRepository().unregisterDevices(
       deviceId: await _deviceId(),
       allDevices: allDevices,
       clientRequestId: _uuid.v4(),
     );
     if (_provider.configured) await _provider.deleteToken();
+  }
+
+  Future<void> _waitForRegistrationIdle() async {
+    try {
+      await _registrationSync.waitForIdle();
+    } catch (_) {
+      // An unsuccessful registration must not prevent opt-out or sign-out
+      // revocation from being attempted.
+    }
   }
 
   Future<String> localTimezoneName() => _timezoneName();
