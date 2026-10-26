@@ -99,7 +99,7 @@ limit 20;
   applied to the hosted database. Hosted migration history must be reconciled
   through the approved owner process before any migration is applied.
 - The hosted migration history currently has 275 records and ends at
-  `20261012014250`; this checkout has 247 migration files. The histories differ
-  in both directions, so do not apply or repair migrations until their mapping
-  has been reviewed against the hosted schema.
+  `20261012014250`; this checkout has 248 migration files. There are 34 hosted-
+  only versions and 7 checkout-only versions, so do not apply or repair
+  migrations until their mapping has been reviewed against the hosted schema.
 
