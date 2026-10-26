@@ -11,13 +11,28 @@ $fakeCliDirectory = Join-Path $tempRoot 'bin'
 $logPath = Join-Path $tempRoot 'calls.txt'
 New-Item -ItemType Directory -Path $fakeCliDirectory -Force | Out-Null
 
-$cliPath = Join-Path $fakeCliDirectory 'supabase.cmd'
-@'
+$runningOnWindows = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+  [System.Runtime.InteropServices.OSPlatform]::Windows
+)
+if ($runningOnWindows) {
+  $cliPath = Join-Path $fakeCliDirectory 'supabase.cmd'
+  @'
 @echo off
 echo %*>>"%MORT_SUPABASE_TEST_LOG%"
 if "%*"=="db push --dry-run" if "%MORT_SUPABASE_TEST_FAIL_DRY_RUN%"=="1" exit /b 23
 exit /b 0
 '@ | Set-Content -LiteralPath $cliPath -Encoding Ascii
+} else {
+  $cliPath = Join-Path $fakeCliDirectory 'supabase'
+  @'
+#!/bin/sh
+printf '%s\n' "$*" >> "$MORT_SUPABASE_TEST_LOG"
+if [ "$*" = "db push --dry-run" ] && [ "$MORT_SUPABASE_TEST_FAIL_DRY_RUN" = "1" ]; then exit 23; fi
+exit 0
+'@ | Set-Content -LiteralPath $cliPath -Encoding Ascii
+  & chmod +x $cliPath
+  if ($LASTEXITCODE -ne 0) { throw 'Could not make the fake Supabase CLI executable.' }
+}
 
 $oldPath = $env:Path
 $oldLog = $env:MORT_SUPABASE_TEST_LOG
@@ -65,4 +80,5 @@ try {
   Remove-Item -LiteralPath $tempRoot -Recurse -Force
 }
 
+$global:LASTEXITCODE = 0
 Write-Output '[fresh-supabase-dry-run-before-push] PASS: a dry-run precedes the migration push and failure prevents schema writes.'
