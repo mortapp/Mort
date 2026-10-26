@@ -129,7 +129,9 @@ void main() {
     expect(authRepository, contains("rpc('ensure_my_profile')"));
     expect(
       secureSessionStorage,
-      contains("'mort.rakjydmgwwgtdislanbt.auth.session.v1'"),
+      contains(
+        r"const mortSecureSessionKey = 'mort.$mortSupabaseProjectRef.auth.session.v1';",
+      ),
     );
     expect(secureSessionStorage, contains('persistSession('));
     expect(secureSessionStorage, contains('removePersistedSession('));

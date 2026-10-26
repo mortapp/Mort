@@ -30,7 +30,11 @@ void main() {
     final config = _read('lib/core/config/app_config.dart');
     final main = _read('lib/main.dart');
 
-    expect(AppConfig.expectedSupabaseProjectRef, 'rakjydmgwwgtdislanbt');
+    expect(config, contains('MORT_EXPECTED_SUPABASE_PROJECT_REF'));
+    expect(
+      config,
+      isNot(contains("expectedSupabaseProjectRef = 'rakjydmgwwgtdislanbt'")),
+    );
     expect(config, contains('assertValidReleaseConfiguration'));
     expect(
       config,

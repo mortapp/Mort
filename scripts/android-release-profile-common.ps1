@@ -22,8 +22,8 @@ Set-StrictMode -Version Latest
 $root = Split-Path $PSScriptRoot -Parent
 $flutterRoot = Join-Path $root 'flutter_mort'
 $outputDirectory = Join-Path $root 'build\play'
-$expectedUrl = 'https://rakjydmgwwgtdislanbt.supabase.co'
-$expectedProjectRef = 'rakjydmgwwgtdislanbt'
+$expectedProjectRef = ''
+$expectedUrl = ''
 $expectedAuthRedirectUrl = 'com.mortapp.mobile://app/auth-callback'
 $expectedCertificateSha256 = Get-MortUploadCertificateSha256
 $defineFile = $null
@@ -84,6 +84,22 @@ if ((ConvertTo-MortCertificateDigest $certificateSha256) -ne (ConvertTo-MortCert
 
 $supabaseUrl = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_URL' -ExpoName 'EXPO_PUBLIC_SUPABASE_URL' -Root $root
 $supabaseAnonKey = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_ANON_KEY' -ExpoName 'EXPO_PUBLIC_SUPABASE_ANON_KEY' -Root $root
+$configuredExpectedProjectRef = Get-MortPublicConfigValue `
+  -PrimaryName 'MORT_EXPECTED_SUPABASE_PROJECT_REF' `
+  -ExpoName 'MORT_EXPECTED_SUPABASE_PROJECT_REF' `
+  -Root $root
+$supabaseUri = $null
+if (-not [Uri]::TryCreate($supabaseUrl, [UriKind]::Absolute, [ref]$supabaseUri) -or
+    $supabaseUri.Scheme -ne 'https' -or
+    $supabaseUri.Host -notmatch '^(?<projectRef>[a-z0-9]+)\.supabase\.co$') {
+  throw 'Release build requires an HTTPS Supabase project URL.'
+}
+$expectedProjectRef = $Matches.projectRef
+if (-not [string]::IsNullOrWhiteSpace($configuredExpectedProjectRef) -and
+    $configuredExpectedProjectRef.Trim() -ne $expectedProjectRef) {
+  throw 'Configured Supabase project reference does not match SUPABASE_URL.'
+}
+$expectedUrl = "https://$expectedProjectRef.supabase.co"
 if ($supabaseUrl -ne $expectedUrl) { throw 'Release build targets the wrong Supabase project.' }
 if ([string]::IsNullOrWhiteSpace($supabaseAnonKey)) { throw 'The public Supabase key is missing.' }
 $env:SUPABASE_URL = $supabaseUrl
@@ -171,6 +187,7 @@ $defines = [ordered]@{
   SUPABASE_URL = $supabaseUrl
   SUPABASE_ANON_KEY = $supabaseAnonKey
   MORT_SUPABASE_PROJECT_REF = $expectedProjectRef
+  MORT_EXPECTED_SUPABASE_PROJECT_REF = $expectedProjectRef
   MORT_AUTH_REDIRECT_URL = $expectedAuthRedirectUrl
   MORT_RELEASE_STAGE = $ReleaseStage
   MORT_RELEASE_PROFILE = $ReleaseProfile
