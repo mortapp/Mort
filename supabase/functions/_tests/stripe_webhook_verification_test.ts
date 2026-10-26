@@ -63,6 +63,29 @@ Deno.test("accepts requires-action as a platform payment event", async () => {
   assertWebhookEventRoute(verified.event, verified.source);
 });
 
+Deno.test("fenced SQL dispatcher preserves requires-action payment state", async () => {
+  const migration = await Deno.readTextFile(
+    new URL(
+      "../../migrations/20261025012531_mort_financial_integrity_and_webhook_fencing.sql",
+      import.meta.url,
+    ),
+  );
+  const dispatcherStart = migration.indexOf(
+    "create or replace function public.stripe_server_apply_webhook_event(",
+  );
+  const dispatcherEnd = migration.indexOf(
+    "create or replace function public.stripe_server_fail_webhook_event_fenced(",
+    dispatcherStart,
+  );
+  const dispatcher = migration.slice(dispatcherStart, dispatcherEnd);
+
+  assertEquals(dispatcher.includes("'payment_intent.requires_action'"), true);
+  assertEquals(
+    dispatcher.includes("public.stripe_server_apply_payment_event_v2("),
+    true,
+  );
+});
+
 Deno.test("accepts a valid Connect signature", async () => {
   const signed = await signedEvent("acct_connected");
   const verified = await verifyWebhookEvent(stripe, signed.body, signed.signature, {
