@@ -43,7 +43,7 @@ $oldFreshConfirmation = $env:MORT_CONFIRM_FRESH_SUPABASE
 $oldLocation = Get-Location
 
 try {
-  $env:Path = "$fakeCliDirectory;$oldPath"
+  $env:Path = "$fakeCliDirectory$([System.IO.Path]::PathSeparator)$oldPath"
   $env:MORT_SUPABASE_TEST_LOG = $logPath
   $env:MORT_SUPABASE_TEST_FAIL_DRY_RUN = '0'
   $env:MORT_SUPABASE_PROJECT_REF = 'freshproject123'
