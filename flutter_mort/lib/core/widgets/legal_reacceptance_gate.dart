@@ -76,7 +76,7 @@ class _LegalReacceptanceGateState extends ConsumerState<LegalReacceptanceGate> {
         }
 
         final location = router.routerDelegate.currentConfiguration.uri.path;
-        if (location.startsWith('/legal-center')) {
+        if (location == '/legal-center' || location.startsWith('/legal-center/')) {
           _redirectScheduledForLocation = null;
           return widget.child;
         }

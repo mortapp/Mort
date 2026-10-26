@@ -48,6 +48,10 @@ void main() {
           builder: (_, state) =>
               Text('legal version ${state.pathParameters['id']}'),
         ),
+        GoRoute(
+          path: '/legal-center-extra',
+          builder: (_, _) => const Text('unrelated route'),
+        ),
       ],
     );
     container = ProviderContainer(
@@ -95,6 +99,15 @@ void main() {
       router.go('/legal-center/version/terms-v2');
       await pumpUi(tester);
       expect(find.text('legal version terms-v2'), findsOneWidget);
+
+      router.go('/legal-center-extra');
+      await pumpUi(tester);
+      expect(find.text('legal center'), findsOneWidget);
+      expect(find.text('unrelated route'), findsNothing);
+      expect(
+        router.routerDelegate.currentConfiguration.uri.path,
+        '/legal-center',
+      );
 
       router.go('/home');
       await pumpUi(tester);
