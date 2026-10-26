@@ -360,6 +360,8 @@ class _NotificationCenterScreenState
     final coordinator = PushNotificationCoordinator.instance;
     final providerAvailable =
         coordinator.configured && snapshot.status.deliveryAvailable;
+    final canChangePushPreference =
+        preferences.pushEnabled || providerAvailable;
     return MortCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -376,9 +378,13 @@ class _NotificationCenterScreenState
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
             title: const Text('Allow remote alerts'),
-            subtitle: Text(_permissionLabel(snapshot.permission)),
-            value: preferences.pushEnabled && providerAvailable,
-            onChanged: _settingsBusy || !providerAvailable
+            subtitle: Text(
+              preferences.pushEnabled && !providerAvailable
+                  ? 'Your alert preference is saved, but remote delivery is unavailable. You can still turn alerts off.'
+                  : _permissionLabel(snapshot.permission),
+            ),
+            value: preferences.pushEnabled,
+            onChanged: _settingsBusy || !canChangePushPreference
                 ? null
                 : _setPushEnabled,
           ),

@@ -186,15 +186,43 @@ class PushNotificationCoordinator {
   Future<void> disableAllRemoteNotifications() async {
     _registrationSuppressed = true;
     await _waitForRegistrationIdle();
+
+    Object? firstError;
+    StackTrace? firstStackTrace;
+    Future<void> attempt(Future<void> Function() action) async {
+      try {
+        await action();
+      } catch (error, stackTrace) {
+        firstError ??= error;
+        firstStackTrace ??= stackTrace;
+      }
+    }
+
     if (SupabaseService.isInitialized &&
         SupabaseService.client.auth.currentUser != null) {
-      await NotificationsRepository().unregisterDevices(
-        deviceId: await _deviceId(),
-        allDevices: true,
-        clientRequestId: _uuid.v4(),
+      final notifications = NotificationsRepository();
+      await attempt(() async {
+        final preferences = await notifications.getPreferences();
+        await notifications.updatePreferences(
+          preferences.copyWith(
+            pushEnabled: false,
+            timezoneName: await _timezoneName(),
+          ),
+        );
+      });
+      await attempt(
+        () async => notifications.unregisterDevices(
+          deviceId: await _deviceId(),
+          allDevices: true,
+          clientRequestId: _uuid.v4(),
+        ),
       );
     }
-    if (_provider.configured) await _provider.deleteToken();
+
+    if (_provider.configured) await attempt(_provider.deleteToken);
+    if (firstError != null) {
+      Error.throwWithStackTrace(firstError!, firstStackTrace!);
+    }
   }
 
   Future<void> prepareForSignOut({required bool allDevices}) async {

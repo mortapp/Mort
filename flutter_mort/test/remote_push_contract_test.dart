@@ -121,6 +121,25 @@ void main() {
     expect(service, isNot(contains('requestNotifications()')));
   });
 
+  test(
+    'remote push opt-out persists preference before revoking device tokens',
+    () {
+      final coordinator = File(
+        'lib/services/push/push_notification_coordinator.dart',
+      ).readAsStringSync();
+      final start = coordinator.indexOf(
+        'Future<void> disableAllRemoteNotifications()',
+      );
+      final end = coordinator.indexOf('Future<void> prepareForSignOut(', start);
+      final disable = coordinator.substring(start, end);
+      final preferenceWrite = disable.indexOf('updatePreferences(');
+      final tokenRevocation = disable.indexOf('unregisterDevices(');
+
+      expect(preferenceWrite, greaterThanOrEqualTo(0));
+      expect(preferenceWrite, lessThan(tokenRevocation));
+      expect(disable, contains('pushEnabled: false'));
+    },
+  );
   test('sign-out revokes backend tokens when app-side push is disabled', () {
     final coordinator = File(
       'lib/services/push/push_notification_coordinator.dart',
