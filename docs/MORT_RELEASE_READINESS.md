@@ -1,6 +1,6 @@
 # MORT Release Readiness
 
-## Current distribution and backend state — 2026-10-25
+## Current distribution and backend state — 2026-10-26
 
 The owner confirms MORT is in public production. Google Play production access
 was granted, as shown in the supplied Play Console evidence. The build and
@@ -12,6 +12,27 @@ The hosted backend currently reports `release_mode=closed_test`,
 disabled, live billing disabled, and real document collection disabled. These
 are backend capability settings and are tracked separately from the app's
 public production distribution.
+
+### Live owner and security gates (read-only snapshot — 2026-10-26)
+
+`get_public_release_readiness()` reports public activation and legal readiness
+false. Owner, counsel, Play declarations, privacy and support contacts,
+moderation staffing, child-safety contact, incident on-call, and identity
+provider readiness are not approved. The required published legal document
+keys are missing: `ai_support_disclosure_0_9_3_draft`,
+`mort_community_guidelines`, `mort_data_retention_and_deletion`,
+`mort_guardian_terms`, `mort_identity_review_disclosure`,
+`mort_location_and_meeting_policy`, `mort_moderation_and_appeals_policy`,
+`mort_payment_dispute_policy`, `mort_privacy_policy`,
+`mort_prohibited_work_policy`, `mort_safety_rules`,
+`mort_terms_of_service`, and `mort_terms_of_use`.
+
+The same readiness check reports one active `super_admin` role assignment
+without an expiry. Supabase's security advisor also reports leaked-password
+protection is disabled. These require the account owner to use the reviewed
+admin and Supabase Auth procedures; no live role, Auth, legal, or activation
+setting was changed during this review. Reconcile the hosted migration-history
+drift before applying schema changes.
 
 ## Historical verification evidence (0.9.3+93)
 
