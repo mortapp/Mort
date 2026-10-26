@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public;
 
-select plan(4);
+select plan(7);
 
 select ok(
   (
@@ -44,7 +44,8 @@ select ok(
 );
 
 insert into auth.users (id) values
-  ('10000000-0000-0000-0000-000000000001');
+  ('10000000-0000-0000-0000-000000000001'),
+  ('10000000-0000-0000-0000-000000000002');
 
 insert into private.financial_documents (
   id,
@@ -86,20 +87,37 @@ select is(
   'account deletion nulls the financial document owner'
 );
 
-do $$
-begin
-  begin
+select throws_ok(
+  $$
     update private.financial_documents
     set amount_cents = 124
-    where id = '20000000-0000-0000-0000-000000000001';
-    raise exception 'immutable financial document update unexpectedly succeeded';
-  exception when others then
-    if sqlerrm <> 'financial_document_immutable' then
-      raise;
-    end if;
-  end;
-end;
-$$;
+    where id = '20000000-0000-0000-0000-000000000001'
+  $$,
+  'P0001',
+  'financial_document_immutable',
+  'financial document contents remain immutable'
+);
+
+select throws_ok(
+  $$
+    update private.financial_documents
+    set owner_id = '10000000-0000-0000-0000-000000000002'
+    where id = '20000000-0000-0000-0000-000000000001'
+  $$,
+  'P0001',
+  'financial_document_immutable',
+  'financial document ownership cannot be reassigned'
+);
+
+select throws_ok(
+  $$
+    delete from private.financial_documents
+    where id = '20000000-0000-0000-0000-000000000001'
+  $$,
+  'P0001',
+  'financial_document_immutable',
+  'financial documents cannot be deleted'
+);
 
 select is(
   (select amount_cents from private.financial_documents
