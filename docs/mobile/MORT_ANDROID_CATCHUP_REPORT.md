@@ -4,7 +4,15 @@
 
 The owner confirms MORT is publicly distributed on Google Play, and the supplied Google Play Support email confirms production access for `com.mortapp.mobile`. That distribution status is separate from verification of the exact live artifact and from backend marketplace/provider activation.
 
-On PR #28 at `79a0f565fcf6e735a9f053319000caab3fdd74ad`, the Flutter Android integration suite passed on an Android 16/API 36 x86_64 QA emulator. The debug QA app installed and launched, and all three native integration tests passed. This is emulator evidence, not physical-device evidence, and the debug APK is not a Play release artifact. A production-signed AAB from this branch has not been built or uploaded; the public-build path continues to enforce the production activation gate. The live backend readiness snapshot remains restricted, with marketplace, remote push, identity verification, and live billing unavailable.
+On PR #28 at `79a0f565fcf6e735a9f053319000caab3fdd74ad`, the Flutter Android integration suite passed on an Android 16/API 36 x86_64 QA emulator. The debug QA app installed and launched, and all three native integration tests passed. This is emulator evidence, not physical-device evidence, and the debug APK is not a Play release artifact. A production-signed AAB from this branch has not been built or uploaded; the public-build path continues to enforce the production activation gate. The live backend readiness snapshot remains restricted, with marketplace, remote push, identity verification, and live billing unavailable. One legal record has since been published as described below; this does not change those backend gates.
+
+## Current legal record (updated 2026-10-26)
+
+- The owner supplied the three-page PDF identified as `MORT-LEGAL-2026-V1` and reported that counsel approved this exact version.
+- The existing production row contained a payment clause saying MORT held funds in escrow, which conflicted with the supplied PDF. The production Markdown and database record were corrected to the PDF's wording that MORT is not an escrow agent and describes Stripe marketplace authorization holds.
+- Production record: `mort_terms_of_service`, version `MORT-LEGAL-2026-V1`, status `published`, effective `2026-10-26`; content SHA-256 `cf1044b1415b644ff0bfa93fde0d132577b407bfab4951017a091515ab1cd542`. Counsel approval metadata records the owner's attestation; counsel identity and approval date were not supplied.
+- The version's stored hash matches its Markdown source. No existing active acceptance or reacceptance rows were queued for this version at verification time.
+- The overall legal package and public marketplace readiness checks remain false. Release mode remains `closed_test` and marketplace mode remains `closed_pilot`; other counsel, safety, privacy, Play-declaration, moderation, on-call, identity, payment, and operational gates are unchanged.
 
 ## Original catch-up snapshot (historical)
 
