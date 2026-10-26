@@ -64,7 +64,7 @@ At the time of the original catch-up report, Android shared-feature source parit
 - APK SHA-256: `9E3FCBA29925B1DDB0556C8D7EA6D9B65F76D02337A47947A0DABBB7EB8E3393`
 - Signing audit: unsigned (`DOES NOT VERIFY`); not a distributable Play release
 - Emulator runtime copy: signed only with the local Android debug key for QA; not a Play release
-- AAB: not created because release signing variables are absent
+- Production AAB: not produced. The public builder stopped before compilation because the local profile has `productionActivationApproved=false`; it did not bypass the gate. The protected local upload credential is recoverable and its certificate matches MORT's release identity, verified without printing credentials.
 - `flutter build web --release` against hosted Supabase: passed with ads/IAP disabled, confirming the Android additions did not break shared web compilation
 - Source secret scan: passed
 - Clean source/archive sensitive-file scan: passed for 1,023 files
@@ -73,6 +73,10 @@ At the time of the original catch-up report, Android shared-feature source parit
 - Denied-location QA: passed with manual city/state fallback and no background permission
 - Feature-count integrity QA: passed with no million-scale implementation claim
 - Preserved Expo reference: `pnpm check`, `pnpm lint`, 48-route web export, and Expo Doctor 20/20 passed after clean package staging was removed
+
+## Production AAB attempt (2026-10-26)
+
+The signed public-production entry point was run from this branch. It rejected the build during local profile validation because production activation is false, before compilation and before writing an AAB. The protected upload key was separately recovered through its configured Windows credential store; its SHA-256 certificate matched the checked-in MORT release identity. No credentials were displayed or changed. The hosted project independently still reports the closed-test/closed-pilot policy, so setting the local profile alone would not produce an acceptable public artifact.
 
 ## Device work still required
 
@@ -84,16 +88,16 @@ At the time of the original catch-up report, Android shared-feature source parit
 - Test deep-link cold start, warm start, email confirmation, and password recovery after adding the redirect URL in Supabase.
 - Run TalkBack, large text, display scaling, keyboard, low-memory, offline, and background/restore checks.
 
-## Release blockers
+## Production release blockers (verified 2026-10-26)
 
-- Stable release keystore and all `MORT_ANDROID_KEYSTORE_*` environment variables
-- Signed AAB and Play App Signing setup
-- Android RevenueCat public SDK key and Play products if optional purchases are enabled
-- Android AdMob app/ad-unit IDs and child/teen-safe policy review if ads are enabled
-- FCM/APNs-compatible push-token backend contract and provider deployment
-- Verified App Links domain and `assetlinks.json`
-- Privacy, App Store/Play, legal, youth-work, teen-safety, and jurisdiction review
-- Production verification provider; public marketplace remains closed
+- The public production builder fails closed at local profile validation because `productionActivationApproved=false`. No production AAB was generated.
+- Hosted Supabase remains `closed_test` / `closed_pilot`; public marketplace, remote push, live billing, identity verification, and real document collection remain disabled.
+- The full legal package is unready: V1 Terms is published, but 12 required document keys remain unpublished; owner, attorney package, child-safety, privacy, support, Play-declaration, moderation, and incident on-call controls remain false.
+- Identity/document collection readiness is 0 of 18 gates. Missing gates include an adult operating entity, privacy/legal review, trained reviewers, retention/deletion procedures, incident staffing, audit/monitoring, two-person approval, and production storage/RLS QA.
+- One legacy unbounded admin role assignment remains, which independently prevents public marketplace activation.
+- Production profile still has placeholder privacy, community-guidelines, and safety-rules versions. The approved Terms version is configured as `MORT-LEGAL-2026-V1`.
+- A production build still requires live push/crash provider configuration and successful hosted release validation. Do not switch the live release policy or bypass these checks without the corresponding evidence.
+- Verify the current live Play artifact/revision and physical-device critical flows before a public update.
 
 ## Emulator evidence boundary
 
