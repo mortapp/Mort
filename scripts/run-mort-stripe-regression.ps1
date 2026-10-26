@@ -73,10 +73,10 @@ try {
     }
   }
 
-  Invoke-Step 'Supabase CLI discovery' 'npx supabase --help; npx supabase migration --help' {
-    & npx supabase --help *> $null
+  Invoke-Step 'Supabase CLI discovery' 'pnpm exec supabase --help; pnpm exec supabase migration --help' {
+    & pnpm exec supabase --help *> $null
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    & npx supabase migration --help *> $null
+    & pnpm exec supabase migration --help *> $null
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
   }
 
