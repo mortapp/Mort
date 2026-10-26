@@ -43,7 +43,11 @@ $oldFreshConfirmation = $env:MORT_CONFIRM_FRESH_SUPABASE
 $oldLocation = Get-Location
 
 try {
-  $env:Path = "$fakeCliDirectory$([System.IO.Path]::PathSeparator)$oldPath"
+  $env:PATH = "$fakeCliDirectory$([System.IO.Path]::PathSeparator)$oldPath"
+  $resolvedFakeCli = Get-Command supabase -ErrorAction Stop
+  if ([System.IO.Path]::GetFullPath($resolvedFakeCli.Source) -ne [System.IO.Path]::GetFullPath($cliPath)) {
+    throw "The test must resolve its fake Supabase CLI before invoking the bootstrap (resolved '$($resolvedFakeCli.Source)')."
+  }
   $env:MORT_SUPABASE_TEST_LOG = $logPath
   $env:MORT_SUPABASE_TEST_FAIL_DRY_RUN = '0'
   $env:MORT_SUPABASE_PROJECT_REF = 'freshproject123'
@@ -71,7 +75,7 @@ try {
   Assert-Equal $failedCalls[0] 'db push --dry-run' 'Only the preflight should run when it fails'
 } finally {
   Set-Location -LiteralPath $oldLocation
-  $env:Path = $oldPath
+  $env:PATH = $oldPath
   $env:MORT_SUPABASE_TEST_LOG = $oldLog
   $env:MORT_SUPABASE_TEST_FAIL_DRY_RUN = $oldFailDryRun
   $env:MORT_SUPABASE_PROJECT_REF = $oldProjectRef
