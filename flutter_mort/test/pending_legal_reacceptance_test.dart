@@ -9,7 +9,9 @@ class _FakeLegalContractRepository extends LegalContractRepository {
   final Map<String, dynamic> Function() _response;
 
   @override
-  Future<Map<String, dynamic>> legalRequirements() async => _response();
+  Future<Map<String, dynamic>> legalRequirements({
+    String? expectedUserId,
+  }) async => _response();
 }
 
 ProviderContainer _containerWith(Map<String, dynamic> Function() response) {
@@ -35,7 +37,7 @@ void main() {
     );
 
     final pending = await container.read(
-      pendingRequiredLegalReacceptanceProvider.future,
+      pendingRequiredLegalReacceptanceProvider('user-1').future,
     );
 
     expect(pending, isTrue);
@@ -55,7 +57,7 @@ void main() {
     );
 
     final pending = await container.read(
-      pendingRequiredLegalReacceptanceProvider.future,
+      pendingRequiredLegalReacceptanceProvider('user-1').future,
     );
 
     expect(pending, isFalse);
@@ -75,19 +77,18 @@ void main() {
     );
 
     final pending = await container.read(
-      pendingRequiredLegalReacceptanceProvider.future,
+      pendingRequiredLegalReacceptanceProvider('user-1').future,
     );
 
     expect(pending, isFalse);
   });
 
-  test('fails open (false) rather than throwing on a network error', () async {
+  test('preserves lookup errors so the app can require a retry', () async {
     final container = _containerWith(() => throw Exception('offline'));
 
-    final pending = await container.read(
-      pendingRequiredLegalReacceptanceProvider.future,
+    await expectLater(
+      container.read(pendingRequiredLegalReacceptanceProvider('user-1').future),
+      throwsA(isA<Exception>()),
     );
-
-    expect(pending, isFalse);
   });
 }

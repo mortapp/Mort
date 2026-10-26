@@ -6,6 +6,13 @@ import 'package:go_router/go_router.dart';
 
 import 'helpers/mort_widget_harness.dart';
 
+Future<void> _pumpRouteTransition(WidgetTester tester) async {
+  // MortScreen keeps its atmospheric render loop active, so pumpAndSettle
+  // never settles while a legal document route is visible.
+  await tester.pump(const Duration(milliseconds: 100));
+  await tester.pump(const Duration(milliseconds: 400));
+}
+
 void main() {
   testMortWidgets('legal document action returns to its invoking route', (
     tester,
@@ -36,7 +43,7 @@ void main() {
 
     await tester.pumpWidget(MaterialApp.router(routerConfig: router));
     await tester.tap(find.text('Open terms'));
-    await tester.pumpAndSettle();
+    await _pumpRouteTransition(tester);
 
     final action = find.byWidgetPredicate(
       (widget) => widget is MortButton && widget.label == 'Back',
@@ -46,7 +53,7 @@ void main() {
 
     await tester.ensureVisible(action);
     await tester.tap(action);
-    await tester.pumpAndSettle();
+    await _pumpRouteTransition(tester);
 
     expect(router.state.uri.path, '/onboarding/safety');
     expect(find.text('Open terms'), findsOneWidget);
@@ -76,7 +83,7 @@ void main() {
     );
     await tester.ensureVisible(action);
     await tester.tap(action);
-    await tester.pumpAndSettle();
+    await _pumpRouteTransition(tester);
 
     expect(router.state.uri.path, '/legal-center');
     expect(find.text('Legal center'), findsOneWidget);

@@ -167,9 +167,9 @@ class _FakeProfileRepository extends ProfileRepository {
 
 class _FakeLegalContractRepository extends LegalContractRepository {
   @override
-  Future<Map<String, dynamic>> legalRequirements() async => const {
-    'requirements': <Map<String, dynamic>>[],
-  };
+  Future<Map<String, dynamic>> legalRequirements({
+    String? expectedUserId,
+  }) async => const {'requirements': <Map<String, dynamic>>[]};
 }
 
 Future<void> _pumpOnboarding(
