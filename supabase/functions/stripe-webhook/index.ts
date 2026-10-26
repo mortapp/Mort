@@ -6,6 +6,7 @@ import {
   sha256,
   webhookRuntime,
 } from "../_shared/stripe.ts";
+import { webhookClaimResponse } from "./delivery_response.ts";
 import { assertWebhookEventRoute, verifyWebhookEvent } from "./verification.ts";
 
 const maximumWebhookBytes = 512 * 1024;
@@ -61,14 +62,8 @@ Deno.serve(async (request: Request) => {
     );
     if (claimError) throw claimError;
     if (claimed.claimed !== true) {
-      if (claimed.in_flight === true) {
-        return json({ ok: false, code: "webhook_event_in_flight" }, 503);
-      }
-      return json({
-        ok: true,
-        duplicate: claimed.duplicate === true,
-        in_flight: claimed.in_flight === true,
-      });
+      const response = webhookClaimResponse(claimed);
+      if (response) return json(response.body, response.status);
     }
     if (typeof claimed.lease_token !== "string") {
       throw new Error("webhook_lease_token_missing");
