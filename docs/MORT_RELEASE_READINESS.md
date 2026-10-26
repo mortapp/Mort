@@ -28,11 +28,22 @@ keys are missing: `ai_support_disclosure_0_9_3_draft`,
 `mort_terms_of_service`, and `mort_terms_of_use`.
 
 The same readiness check reports one active `super_admin` role assignment
-without an expiry. Supabase's security advisor also reports leaked-password
-protection is disabled. These require the account owner to use the reviewed
-admin and Supabase Auth procedures; no live role, Auth, legal, or activation
-setting was changed during this review. Reconcile the hosted migration-history
-drift before applying schema changes.
+without an expiry. The owner must resolve it through a reviewed procedure
+that preserves the last active administrator and records an audit event.
+
+Supabase's security advisor currently reports five anonymous and 344
+authenticated `SECURITY DEFINER` RPC grants. These broad advisor findings need
+reconciliation against the existing function-by-function security review;
+they are not, by themselves, evidence of exploitable vulnerabilities. The
+advisor also reports leaked-password protection disabled. The existing
+Supabase audit confirms this is unavailable on the project's Free plan and is
+deferred until a separately authorized plan upgrade; current password
+mitigations and the follow-up procedure are recorded in
+[Enable Leaked-Password Protection](ENABLE_LEAKED_PASSWORD_PROTECTION.md).
+
+No live role, Auth, legal, or activation setting was changed during this
+review. Reconcile hosted migration-history drift before applying schema
+changes.
 
 ## Historical verification evidence (0.9.3+93)
 
