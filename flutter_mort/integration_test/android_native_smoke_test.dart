@@ -69,10 +69,13 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      // MortScreen intentionally animates continuously on a real device.
+      // Use a bounded pump so the integration binding does not wait forever
+      // for an atmosphere frame queue that is designed never to become idle.
+      await tester.pump(const Duration(seconds: 2));
 
       expect(find.text('Review MORT safety rules'), findsOneWidget);
-      expect(find.byType(CheckboxListTile), findsNWidgets(5));
+      expect(find.byType(CheckboxListTile), findsNWidgets(6));
       final finishButton = find.widgetWithText(
         ElevatedButton,
         'Save acknowledgments and review',

@@ -86,6 +86,7 @@ class _SecuritySessionsScreenState
     return PopScope(
       canPop: !_busy,
       child: MortScreen(
+        atmosphereIntensity: MortAtmosphereIntensity.settings,
         children: [
           const MortHeader(
             eyebrow: 'Account security',
@@ -229,6 +230,7 @@ class _AccountDeletionRequestScreenState
   @override
   Widget build(BuildContext context) {
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.settings,
       children: [
         const MortHeader(
           eyebrow: 'Account control',

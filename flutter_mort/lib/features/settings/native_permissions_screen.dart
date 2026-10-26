@@ -66,6 +66,7 @@ class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
   @override
   Widget build(BuildContext context) {
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.settings,
       children: [
         const MortHeader(
           eyebrow: 'Device controls',
