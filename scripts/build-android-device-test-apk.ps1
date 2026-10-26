@@ -17,12 +17,33 @@ if (-not $OutputPath) {
 # Public client configuration only. This is intentionally safe to compile into
 # the Android app; no service-role, database password, webhook secret, or other
 # privileged credential is used here.
-$supabaseUrl = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_URL' -ExpoName 'EXPO_PUBLIC_SUPABASE_URL' -Root $root
-$supabaseAnonKey = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_ANON_KEY' -ExpoName 'EXPO_PUBLIC_SUPABASE_ANON_KEY' -Root $root
-$configuredExpectedProjectRef = Get-MortPublicConfigValue `
-  -PrimaryName 'MORT_EXPECTED_SUPABASE_PROJECT_REF' `
-  -ExpoName 'MORT_EXPECTED_SUPABASE_PROJECT_REF' `
-  -Root $root
+$configuredExpectedProjectRef = ''
+if ($env:CI -eq 'true') {
+  # CI only reads explicitly supplied process-level config. It must not inherit
+  # a developer's user-level or .env.local connection to a real backend.
+  $supabaseUrl = [Environment]::GetEnvironmentVariable('SUPABASE_URL', 'Process')
+  if ([string]::IsNullOrWhiteSpace($supabaseUrl)) {
+    $supabaseUrl = [Environment]::GetEnvironmentVariable('EXPO_PUBLIC_SUPABASE_URL', 'Process')
+  }
+  $supabaseAnonKey = [Environment]::GetEnvironmentVariable('SUPABASE_ANON_KEY', 'Process')
+  if ([string]::IsNullOrWhiteSpace($supabaseAnonKey)) {
+    $supabaseAnonKey = [Environment]::GetEnvironmentVariable('EXPO_PUBLIC_SUPABASE_ANON_KEY', 'Process')
+  }
+  $configuredExpectedProjectRef = [Environment]::GetEnvironmentVariable('MORT_EXPECTED_SUPABASE_PROJECT_REF', 'Process')
+  if ([string]::IsNullOrWhiteSpace($supabaseUrl) -and [string]::IsNullOrWhiteSpace($supabaseAnonKey)) {
+  # The CI device APK exercises local UI/device paths only. Keep it incapable
+  # of contacting either the old or future hosted project.
+    $supabaseUrl = 'https://ciplaceholder.supabase.co'
+    $supabaseAnonKey = 'ci-placeholder-anon-key-not-a-real-credential'
+  }
+} else {
+  $supabaseUrl = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_URL' -ExpoName 'EXPO_PUBLIC_SUPABASE_URL' -Root $root
+  $supabaseAnonKey = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_ANON_KEY' -ExpoName 'EXPO_PUBLIC_SUPABASE_ANON_KEY' -Root $root
+  $configuredExpectedProjectRef = Get-MortPublicConfigValue `
+    -PrimaryName 'MORT_EXPECTED_SUPABASE_PROJECT_REF' `
+    -ExpoName 'MORT_EXPECTED_SUPABASE_PROJECT_REF' `
+    -Root $root
+}
 $supabaseUri = $null
 if ([string]::IsNullOrWhiteSpace($supabaseUrl) -or
     -not [Uri]::TryCreate($supabaseUrl, [UriKind]::Absolute, [ref]$supabaseUri) -or
