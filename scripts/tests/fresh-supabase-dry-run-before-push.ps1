@@ -36,7 +36,7 @@ exit 0
   if ($LASTEXITCODE -ne 0) { throw 'Could not make the fake Supabase CLI executable.' }
 }
 
-$oldPath = $env:Path
+$oldPath = $env:PATH
 $oldLog = $env:MORT_SUPABASE_TEST_LOG
 $oldFailDryRun = $env:MORT_SUPABASE_TEST_FAIL_DRY_RUN
 $oldProjectRef = $env:MORT_SUPABASE_PROJECT_REF
@@ -84,6 +84,10 @@ try {
   $env:MORT_CONFIRM_PROJECT_REF = $oldConfirmProjectRef
   $env:MORT_CONFIRM_FRESH_SUPABASE = $oldFreshConfirmation
   Remove-Item -LiteralPath $tempRoot -Recurse -Force
+}
+
+if ($env:PATH -ne $oldPath) {
+  throw 'The migration-preflight test must restore the original PATH for later regression steps.'
 }
 
 $global:LASTEXITCODE = 0
