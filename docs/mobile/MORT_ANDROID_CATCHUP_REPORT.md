@@ -1,8 +1,24 @@
 # MORT Android Catch-Up Report
 
-## Status
+## Current status (updated 2026-10-26)
 
-Android shared-feature source parity is implemented, the unsigned release APK compiles, and an Android 16 emulator ran both the optimized app and a native-plugin integration smoke. Physical Android-device testing, signed AAB creation, Play Console testing, and public release are not done. This is not a production-readiness claim.
+The owner confirms MORT is publicly distributed on Google Play, and the supplied Google Play Support email confirms production access for `com.mortapp.mobile`. That distribution status is separate from verification of the exact live artifact and from backend marketplace/provider activation.
+
+On PR #28 at `79a0f565fcf6e735a9f053319000caab3fdd74ad`, the Flutter Android integration suite passed on an Android 16/API 36 x86_64 QA emulator. The debug QA app installed and launched, and all three native integration tests passed. This is emulator evidence, not physical-device evidence, and the debug APK is not a Play release artifact. A production-signed AAB from this branch has not been built or uploaded; the public-build path continues to enforce the production activation gate. The live backend readiness snapshot remains restricted, with marketplace, remote push, identity verification, and live billing unavailable.
+
+## Original catch-up snapshot (historical)
+
+At the time of the original catch-up report, Android shared-feature source parity was implemented, the unsigned release APK compiled, and an Android 16 emulator ran the optimized app and a native-plugin integration smoke. The original snapshot did not include a physical Android-device run, signed AAB, or verification of Google Play distribution. It is not the current distribution status.
+
+## Current Android emulator verification (2026-10-26)
+
+- Source: PR #28, commit `79a0f565fcf6e735a9f053319000caab3fdd74ad`.
+- Device: dedicated `MORT_CODEX_QA_API36_20261026` AVD, Android 16/API 36, x86_64.
+- Artifact: debug QA APK for `com.mortapp.mobile`, version `0.9.16+107`; installed and launched successfully.
+- Integration command: `flutter drive --no-pub --driver=test_driver/integration_test.dart --target=integration_test/android_native_smoke_test.dart -d emulator-5554 --dart-define=MORT_EXPECTED_VERSION_NAME=0.9.16 --dart-define=MORT_EXPECTED_VERSION_CODE=107`.
+- Result: all 3 tests passed. Coverage includes secure-storage round-trip, device-auth capability, native permission snapshot, secure-screen acquire/release, and safety acknowledgements at 1.6x text scale.
+- The existing `MORT_QA_Pixel6` emulator already held version `0.9.16+113` signed with the protected Play upload certificate. It was left intact; the debug APK was tested on the separate QA AVD.
+- Limits: this does not verify physical hardware, credentialed account journeys, provider delivery, the current Play artifact, or a signed production AAB.
 
 ## Gaps found and fixed
 
