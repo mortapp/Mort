@@ -66,6 +66,13 @@ try {
     }
   }
 
+  Invoke-Step 'Fresh Supabase migration preflight contract' 'scripts/tests/fresh-supabase-dry-run-before-push.ps1' {
+    & (Join-Path $PSScriptRoot 'tests\fresh-supabase-dry-run-before-push.ps1')
+    if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+      throw 'Fresh Supabase migration preflight regression test failed.'
+    }
+  }
+
   Invoke-Step 'Supabase CLI discovery' 'npx supabase --help; npx supabase migration --help' {
     & npx supabase --help *> $null
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
