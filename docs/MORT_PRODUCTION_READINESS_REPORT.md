@@ -1,6 +1,13 @@
-# MORT Production Readiness Report
+# MORT Historical Production Readiness Report
 
 Recorded: 2026-07-28 (America/Indianapolis)
+
+> **Historical snapshot.** This report describes the 0.9.7+97 build and
+> backend state recorded on 2026-07-28. It does not describe MORT's current
+> Google Play distribution: the owner has since confirmed that MORT is
+> publicly distributed and supplied Play Console evidence showing production
+> access. For current distribution and hosted backend capability status, see
+> [MORT Release Readiness](MORT_RELEASE_READINESS.md).
 
 ## Verdict
 
@@ -13,7 +20,8 @@ Recorded: 2026-07-28 (America/Indianapolis)
 - Public production: BLOCKED-EXTERNAL. The public marketplace remains closed.
 - iPhone/TestFlight/App Store: not tested or approved in this pass.
 
-This report is not approval to publish to production or admit real teen/adult marketplace users.
+The historical verdict below must not be used as a statement of current Play
+availability or as authorization to change hosted backend capabilities.
 
 ## Scope and identity
 

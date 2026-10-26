@@ -45,6 +45,19 @@ No live role, Auth, legal, or activation setting was changed during this
 review. Reconcile hosted migration-history drift before applying schema
 changes.
 
+### Latest Android launch smoke (2026-10-25)
+
+- Built the Android device-test APK for package `com.mortapp.mobile`, version
+  `0.9.16+107` (SHA-256
+  `CF561A09B81D74085F8E219803B25E9BCFACA0DEF000975D220966827A8F41E4`).
+- Installed it on a fresh Android 16 API 36.1 emulator and launched
+  `com.mortapp.mobile/.MainActivity`; the app process remained alive and the
+  activity was foregrounded.
+- No fatal Android runtime log entries were observed during this smoke.
+- This was a debug-signed device-test build. It verifies installation and
+  foreground launch only; it is not evidence of production signing, backend
+  release readiness, or full user journeys.
+
 ## Historical verification evidence (0.9.3+93)
 
 ## Verified Here
