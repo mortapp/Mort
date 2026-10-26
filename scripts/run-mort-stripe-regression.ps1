@@ -76,6 +76,9 @@ try {
       Invoke-Step 'Local Supabase reset' 'scripts/local-supabase-reset.ps1' {
         & (Join-Path $PSScriptRoot 'local-supabase-reset.ps1')
       }
+      Invoke-Step 'Local pgTAP database tests' 'npx supabase test db --local' {
+        & npx supabase test db --local
+      }
       Invoke-Step 'Local migration list' 'npx supabase migration list --local' {
         & npx supabase migration list --local
       }
