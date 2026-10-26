@@ -73,7 +73,7 @@ current implementation status.
 | EXPLOIT_PREVENTION | PASS (reverified live tonight) | Same as BACKEND row. |
 | MODERATION | PASS (pre-existing, reverified live) | Reran `qa-moderation-legal-completion` live tonight: legal controls/inactive drafts/direct-write removal/hard activation trigger, coded job/review moderation with reason allowlists, access logging, ban-appeal isolation, assignment expiry, independent reversal. 0 findings. |
 | LEGAL | PASS (drafts) / OWNER_ACTION_REQUIRED (counsel approval) | Reinspected rather than rebuilt -- `docs/legal/` already holds a comprehensive draft package (Terms of Service, Terms of Use, Privacy Policy, Community Guidelines, Child Safety Standards, Acceptable Use, Prohibited Work, Payment/Cancellation/Dispute policies, Data Retention and Deletion, Guardian Terms, Business Account Agreement, Evidence and Dispute Policy, Moderation and Appeals Policy, Location and Meeting Policy, Marketplace Risk Disclosure, Limitation of Liability, plus a dedicated `MORT_LEGAL_REVIEW_PACKET.md` counsel handoff) and `lib/features/legal/legal_screens.dart` renders/gates them with version-and-hash-bound clickwrap. Reran `qa-legal-clickwrap` live tonight (affirmative, teen-summary-first, version/hash-bound acceptance) -- PASS. These remain drafts pending qualified attorney/adult review before public-production launch, as they always have been; Claude is not a lawyer and this session does not claim legal compliance. |
-| PLAY | PASS (prior session) | 0.9.16+107 approved on Closed testing - Alpha, 2026-08-18. Not re-touched tonight. |
+| PLAY | Historical snapshot (2026-08-18; superseded 2026-10-25) | 0.9.16+107 was approved on Closed testing - Alpha on 2026-08-18. Google Play production access was subsequently granted; see the current product state at the top of this board and `MORT_EXTERNAL_RELEASE_GATES.md`. |
 | ACCOUNT_DELETION | PASS (pre-existing, reverified live) | Reran `qa-account-deletion` (remote create/status/cancel, cross-account read denied) and `qa-account-deletion-in-app` (easy to locate, reauthenticated, dedicated, status-aware) live tonight -- both PASS. `qa-account-deletion-processor` requires server-only/service-role environment variables not present in this session (correct -- this session does not handle service-role or database-password secrets) and was not run; the in-app + remote-request paths that engineering controls were verified instead. |
 | REVIEWER_ACCESS | PASS (pre-existing, reverified live) | Reran `qa-play-reviewer-isolation` live tonight: reservation trigger enabled with no public execute grant, Auth Admin creation of the exact reviewer identifier denied, ordinary email/password auth unaffected, anonymous access cannot read profiles/messages/proof evidence, demo PINs rejected by production job-verification, destructive administration denied without a real authorized session. 0 findings. |
 | DATA_SAFETY | PASS (pre-existing, reverified live) | Reran `qa-data-safety-inventory` live tonight: declared data categories and detected privacy-relevant Flutter SDKs are inventoried and consistent. |
@@ -255,7 +255,9 @@ individually:
   as-is rather than churning working RLS for a planner hint.
 
 **Google Play Console (live browser session, `kolawoleorelesi@gmail.com`,
-"Mort" personal developer account, read-only navigation):** app
+"Mort" personal developer account, read-only navigation; **historical
+snapshot from 2026-08-21, superseded by the production-access grant recorded
+2026-10-25 in `MORT_EXTERNAL_RELEASE_GATES.md` and confirmed by the owner:** app
 `com.mortapp.mobile`, **still Closed testing**, installed audience 2, last
 published Aug 18, 2026, zero pending policy warnings on Publishing
 overview. Opened the Production track's own "Apply for access to
@@ -274,7 +276,8 @@ needs roughly 9 more continuous days of the existing 12+ testers staying
 opted in. Recording per the master directive's own instruction for this
 exact situation:
 
-**MORT_PUBLIC_PRODUCTION=EXTERNALLY_TIME_GATED**
+**Historical status as of 2026-08-21 — superseded:**
+`MORT_PUBLIC_PRODUCTION=EXTERNALLY_TIME_GATED`
 (~9 days of continuous 12+-tester closed-test opt-in remaining as of
 2026-08-21; re-check the same Play Console "Apply for access to
 production" panel to see the live day count -- do not guess a calendar
@@ -301,7 +304,12 @@ would not be tested against anything the current Closed Testing build
 isn't already covering, matching the same "not now" reasoning the prior
 session used.
 
-### MORT_FINAL_STATE=PRODUCTION_READY_EXTERNALLY_BLOCKED
+### Historical final state as of 2026-08-21 — superseded by public production access granted 2026-10-25
+
+`MORT_FINAL_STATE=PRODUCTION_READY_EXTERNALLY_BLOCKED` described the state at
+that dated checkpoint. It is not the current distribution state. MORT is now
+publicly distributed on Google Play per the owner's confirmation and the
+production-access evidence recorded above and in `MORT_EXTERNAL_RELEASE_GATES.md`.
 
 Every internally-controllable row on this board is PASS or an explicitly
 labeled, evidence-backed external/owner blocker (Apple Developer
