@@ -61,6 +61,9 @@ Deno.serve(async (request: Request) => {
     );
     if (claimError) throw claimError;
     if (claimed.claimed !== true) {
+      if (claimed.in_flight === true) {
+        return json({ ok: false, code: "webhook_event_in_flight" }, 503);
+      }
       return json({
         ok: true,
         duplicate: claimed.duplicate === true,
