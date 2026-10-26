@@ -26,7 +26,7 @@ Deno.test("completed Stripe webhook duplicates remain acknowledged", () => {
 
 Deno.test("claimed Stripe webhook events continue into processing", () => {
   assertEquals(
-    webhookClaimResponse({ claimed: true, lease_token: "opaque" }),
+    webhookClaimResponse({ claimed: true }),
     null,
     "claimed event response",
   );
