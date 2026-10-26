@@ -59,6 +59,13 @@ try {
     }
   }
 
+  Invoke-Step 'Docker image pull retry contract' 'scripts/tests/local-supabase-image-pull-retry.ps1' {
+    & (Join-Path $PSScriptRoot 'tests\local-supabase-image-pull-retry.ps1')
+    if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+      throw 'Docker image pull retry regression test failed.'
+    }
+  }
+
   Invoke-Step 'Supabase CLI discovery' 'npx supabase --help; npx supabase migration --help' {
     & npx supabase --help *> $null
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

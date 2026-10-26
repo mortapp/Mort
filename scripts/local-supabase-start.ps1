@@ -4,6 +4,7 @@ $ErrorActionPreference = "Stop"
 
 Set-Location -LiteralPath (Resolve-Path "$PSScriptRoot\..")
 . "$PSScriptRoot\resolve-supabase-cli.ps1"
+. "$PSScriptRoot\docker-image-pull.ps1"
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
   throw "Docker is not installed or not on PATH. Supabase local development requires Docker."
@@ -36,8 +37,7 @@ if ($Minimal) {
   )
   foreach ($image in $imageMirrors) {
     Write-Host "Preloading official Supabase image mirror: $($image.Source)" -ForegroundColor Cyan
-    & docker pull $image.Source
-    if ($LASTEXITCODE -ne 0) { throw "Failed to pull the Supabase image mirror $($image.Source)." }
+    Invoke-DockerImagePull -Image $image.Source
     & docker tag $image.Source $image.Target
     if ($LASTEXITCODE -ne 0) { throw "Failed to prepare the Supabase CLI image tag for $($image.Source)." }
   }
