@@ -1,6 +1,8 @@
 # MORT Release Runbook
 
-Status: operator runbook for verified closed testing. Production pilot and public release remain gated.
+Status: historical operator runbook for the previously verified closed-test artifact. These steps do not describe MORT's current Google Play distribution status and must not be used to infer that the app is still in beta.
+
+As of 2026-10-25, the owner confirms MORT is publicly distributed on Google Play, and Play production access has been granted. Backend release capabilities are tracked separately: see [MORT Release Readiness](MORT_RELEASE_READINESS.md) and [MORT Android Signing and Play Release Setup](mobile/MORT_PLAY_SIGNING_SETUP.md) for the current hosted backend gates and artifact profiles.
 
 ## Preconditions
 
