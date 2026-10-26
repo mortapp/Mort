@@ -53,6 +53,10 @@ class MortSecureDraftStorage {
   Future<void> clearJobDraft(String userId) =>
       _store.delete(_key('job', userId));
 
+  Future<void> clearUserDrafts(String userId) async {
+    await Future.wait<void>([clearProfileDraft(userId), clearJobDraft(userId)]);
+  }
+
   Future<Map<String, dynamic>?> _read({
     required String kind,
     required String userId,

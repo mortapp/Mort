@@ -44,6 +44,13 @@ if (-not $SkipLink) {
 }
 
 Write-Host "Applying migrations with supabase db push to confirmed fresh/staging project: $ProjectRef" -ForegroundColor Cyan
+$dryRunResult = Invoke-SupabaseCli -Arguments @("db", "push", "--dry-run")
+$dryRunResult.Output
+if ($dryRunResult.ExitCode -ne 0) {
+  throw "supabase db push --dry-run failed. No migrations were applied."
+}
+
+Write-Host "Dry-run passed. Applying the reviewed migrations to $ProjectRef" -ForegroundColor Cyan
 $pushResult = Invoke-SupabaseCli -Arguments @("db", "push")
 $pushResult.Output
 if ($pushResult.ExitCode -ne 0) {

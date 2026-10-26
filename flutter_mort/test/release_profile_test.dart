@@ -19,6 +19,8 @@ MortReleaseConfiguration configuration({
   bool iapEnabled = false,
   bool reviewerModeEnabled = false,
   bool productionActivationApproved = false,
+  String? projectRef,
+  String? expectedProjectRef,
   String termsVersion = 'draft-2026-07',
   String privacyVersion = 'draft-2026-07',
   String communityVersion = 'draft-2026-07',
@@ -27,14 +29,15 @@ MortReleaseConfiguration configuration({
   bool browserStackQaMode = false,
 }) {
   final hosted = profile.requiresHostedBackend;
+  final ref = projectRef ?? 'rakjydmgwwgtdislanbt';
   return MortReleaseConfiguration(
     profile: profile,
     releaseStage: releaseStage ?? profile.value,
     operationalMode: profile.value,
-    supabaseUrl: hosted ? 'https://rakjydmgwwgtdislanbt.supabase.co' : '',
+    supabaseUrl: hosted ? 'https://$ref.supabase.co' : '',
     supabaseAnonKey: hosted ? 'public-anon-key' : '',
-    supabaseProjectRef: hosted ? 'rakjydmgwwgtdislanbt' : '',
-    expectedSupabaseProjectRef: 'rakjydmgwwgtdislanbt',
+    supabaseProjectRef: hosted ? ref : '',
+    expectedSupabaseProjectRef: expectedProjectRef ?? 'rakjydmgwwgtdislanbt',
     googleAuthEnabled: googleAuthEnabled,
     appleAuthEnabled: appleAuthEnabled,
     oauthCallback: 'com.mortapp.mobile://app/auth-callback',
@@ -65,6 +68,36 @@ MortReleaseConfiguration configuration({
 }
 
 void main() {
+  test('hosted release can bind to a newly provisioned Supabase project', () {
+    final config = configuration(
+      profile: MortReleaseProfile.production,
+      projectRef: 'newmortproject123',
+      expectedProjectRef: 'newmortproject123',
+    );
+
+    expect(config.hostedBackendConfigured, isTrue);
+    expect(
+      config.validationErrors,
+      isNot(
+        contains('hosted Supabase public configuration is missing or wrong'),
+      ),
+    );
+  });
+
+  test('hosted release rejects a Supabase URL/ref mismatch', () {
+    final config = configuration(
+      profile: MortReleaseProfile.production,
+      projectRef: 'newmortproject123',
+      expectedProjectRef: 'anotherproject456',
+    );
+
+    expect(config.hostedBackendConfigured, isFalse);
+    expect(
+      config.validationErrors,
+      contains('hosted Supabase public configuration is missing or wrong'),
+    );
+  });
+
   test('defines the six authoritative release profiles', () {
     expect(MortReleaseProfile.values.map((profile) => profile.value), [
       'development',

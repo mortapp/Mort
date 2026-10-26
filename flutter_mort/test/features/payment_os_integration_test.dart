@@ -25,16 +25,27 @@ void main() {
         ),
       ],
     );
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpWidget(
+      MaterialApp.router(
+        routerConfig: router,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(disableAnimations: true),
+          child: child!,
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.ensureVisible(find.text('Job & payment history'));
     await tester.tap(find.text('Job & payment history'));
-    await tester.pumpAndSettle();
+    expect(router.state.uri.path, '/settings/payment-history');
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Job & payment history'), findsOneWidget);
     expect(find.text('No payment activity'), findsOneWidget);
 
     router.pop();
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Control your account'), findsOneWidget);
   });
 
@@ -64,6 +75,24 @@ void main() {
     },
   );
 
+  testWidgets('unavailable payment history can retry its backend read', (
+    tester,
+  ) async {
+    var retryCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: JobPaymentHistoryScreen(
+          backendUnavailable: true,
+          onRetry: () => retryCount++,
+        ),
+      ),
+    );
+
+    expect(find.text('Payment history is not available yet'), findsOneWidget);
+    await tester.tap(find.text('Try again'));
+    expect(retryCount, 1);
+  });
+
   testWidgets(
     'payment review exposes tip selector and authoritative review rows',
     (tester) async {
@@ -84,14 +113,19 @@ void main() {
   testWidgets('all payment states render without offering unsafe actions', (
     tester,
   ) async {
-    for (final state in MortPaymentState.values) {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(body: MortPaymentStatePanel(state: state)),
-        ),
-      );
-      expect(find.text(state.label), findsOneWidget);
-      expect(find.bySemanticsLabel(state.semanticLabel), findsOneWidget);
+    final semantics = tester.ensureSemantics();
+    try {
+      for (final state in MortPaymentState.values) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: MortPaymentStatePanel(state: state)),
+          ),
+        );
+        expect(find.text(state.label), findsOneWidget);
+        expect(find.bySemanticsLabel(state.semanticLabel), findsOneWidget);
+      }
+    } finally {
+      semantics.dispose();
     }
   });
 

@@ -167,9 +167,9 @@ class _FakeProfileRepository extends ProfileRepository {
 
 class _FakeLegalContractRepository extends LegalContractRepository {
   @override
-  Future<Map<String, dynamic>> legalRequirements() async => const {
-    'requirements': <Map<String, dynamic>>[],
-  };
+  Future<Map<String, dynamic>> legalRequirements({
+    String? expectedUserId,
+  }) async => const {'requirements': <Map<String, dynamic>>[]};
 }
 
 Future<void> _pumpOnboarding(
@@ -291,7 +291,7 @@ void main() {
       for (var segment = 0; segment < colors.length; segment++) {
         expect(
           colors[segment],
-          segment <= index ? MortColors.accent : MortColors.line,
+          segment <= index ? MortColors.primary : MortColors.line,
         );
       }
       if (stage.$1 == OnboardingStepV2.safetySupport) {

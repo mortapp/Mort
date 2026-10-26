@@ -1,10 +1,18 @@
 import 'dart:io';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_mort/data/repositories/notifications_repository.dart';
 import 'package:flutter_mort/services/push/remote_push_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('permanent notification denial maps to denied permission', () {
+    expect(
+      remotePushPermissionFromFirebase(AuthorizationStatus.denied),
+      RemotePushPermission.denied,
+    );
+  });
+
   test('disabled provider is a safe no-op', () async {
     const provider = DisabledRemotePushProvider();
     await provider.initialize();
@@ -31,6 +39,35 @@ void main() {
     expect(preferences.copyWith(pushEnabled: false).pushEnabled, isFalse);
   });
 
+  test(
+    'user preference cannot claim remote delivery while server delivery is off',
+    () {
+      final status = PushRegistrationStatus.fromMap({
+        'remote_push_enabled': true,
+        'push_preference_enabled': true,
+        'delivery_available': false,
+        'active_device_count': 1,
+        'provider': 'fcm',
+        'provider_delivery_verified': false,
+      });
+
+      expect(status.remotePushEnabled, isFalse);
+      expect(status.pushPreferenceEnabled, isTrue);
+      expect(status.deliveryAvailable, isFalse);
+    },
+  );
+
+  test('unknown server availability fails closed for remote push status', () {
+    final status = PushRegistrationStatus.fromMap({
+      'remote_push_enabled': true,
+      'push_preference_enabled': true,
+      'active_device_count': 1,
+    });
+
+    expect(status.remotePushEnabled, isFalse);
+    expect(status.deliveryAvailable, isFalse);
+  });
+
   test('mobile push source keeps provider secrets server-side', () {
     final appConfig = File(
       'lib/core/config/app_config.dart',
@@ -55,6 +92,9 @@ void main() {
     expect(coordinator, contains('unregisterDevices('));
     expect(repository, contains('register_my_push_device_v2'));
     expect(repository, contains('unregister_my_push_devices_v2'));
+    expect(repository, contains('get_my_push_status_v2'));
+    expect(repository, contains('get_push_delivery_availability'));
+    expect(coordinator, contains('deliveryAvailable()'));
     expect(provider, contains("@pragma('vm:entry-point')"));
     expect(provider, contains('getInitialMessage'));
     expect(provider, contains('onMessageOpenedApp'));
@@ -79,5 +119,40 @@ void main() {
     expect(screen, contains('!_pushCoordinator.configured'));
     expect(screen, contains('Remote push is disabled in this build'));
     expect(service, isNot(contains('requestNotifications()')));
+  });
+
+  test(
+    'remote push opt-out persists preference before revoking device tokens',
+    () {
+      final coordinator = File(
+        'lib/services/push/push_notification_coordinator.dart',
+      ).readAsStringSync();
+      final start = coordinator.indexOf(
+        'Future<void> disableAllRemoteNotifications()',
+      );
+      final end = coordinator.indexOf('Future<void> prepareForSignOut(', start);
+      final disable = coordinator.substring(start, end);
+      final preferenceWrite = disable.indexOf('updatePreferences(');
+      final tokenRevocation = disable.indexOf('unregisterDevices(');
+
+      expect(preferenceWrite, greaterThanOrEqualTo(0));
+      expect(preferenceWrite, lessThan(tokenRevocation));
+      expect(disable, contains('pushEnabled: false'));
+    },
+  );
+  test('sign-out revokes backend tokens when app-side push is disabled', () {
+    final coordinator = File(
+      'lib/services/push/push_notification_coordinator.dart',
+    ).readAsStringSync();
+    final start = coordinator.indexOf('Future<void> prepareForSignOut(');
+    final end = coordinator.indexOf(
+      'Future<String> localTimezoneName()',
+      start,
+    );
+    final signOut = coordinator.substring(start, end);
+
+    expect(signOut, contains('unregisterDevices('));
+    expect(signOut, isNot(contains('!_provider.configured')));
+    expect(signOut, contains('if (_provider.configured)'));
   });
 }

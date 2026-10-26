@@ -43,13 +43,15 @@ await withQaUsers(
     });
     assertQa(!uploaded.error, `owner upload failed: ${uploaded.error?.message}`);
 
-    const profileUpdate = await owner.client
-      .from("profiles")
-      .update({ avatar_path: firstPath, avatar_moderation_status: "active" })
-      .eq("id", owner.id)
-      .select("avatar_path")
-      .single();
-    assertQa(!profileUpdate.error && profileUpdate.data.avatar_path === firstPath, "avatar path did not persist");
+    const profileUpdate = await owner.client.rpc("update_my_profile", {
+      p_patch: { avatar_path: firstPath },
+    });
+    assertQa(
+      !profileUpdate.error &&
+        profileUpdate.data?.ok === true &&
+        profileUpdate.data.profile?.avatar_path === firstPath,
+      "avatar path did not persist",
+    );
     qaLog(scope, "owner can upload and attach only an owner-prefixed avatar path");
 
     const otherOverwrite = await other.client.storage
@@ -95,24 +97,28 @@ await withQaUsers(
       upsert: false,
     });
     assertQa(!replacement.error, `replacement upload failed: ${replacement.error?.message}`);
-    const replacementProfile = await owner.client
-      .from("profiles")
-      .update({ avatar_path: secondPath })
-      .eq("id", owner.id)
-      .select("avatar_path")
-      .single();
-    assertQa(replacementProfile.data?.avatar_path === secondPath, "replacement path did not persist");
+    const replacementProfile = await owner.client.rpc("update_my_profile", {
+      p_patch: { avatar_path: secondPath },
+    });
+    assertQa(
+      !replacementProfile.error &&
+        replacementProfile.data?.ok === true &&
+        replacementProfile.data.profile?.avatar_path === secondPath,
+      "replacement path did not persist",
+    );
     const removedOld = await owner.client.storage.from(bucket).remove([firstPath]);
     assertQa(!removedOld.error, `old avatar cleanup failed: ${removedOld.error?.message}`);
     qaLog(scope, "avatar replacement updates the profile and removes the stale object");
 
-    const cleared = await owner.client
-      .from("profiles")
-      .update({ avatar_path: null })
-      .eq("id", owner.id)
-      .select("avatar_path")
-      .single();
-    assertQa(!cleared.error && cleared.data.avatar_path === null, "avatar removal did not restore null fallback");
+    const cleared = await owner.client.rpc("update_my_profile", {
+      p_patch: { avatar_path: null },
+    });
+    assertQa(
+      !cleared.error &&
+        cleared.data?.ok === true &&
+        cleared.data.profile?.avatar_path === null,
+      "avatar removal did not restore null fallback",
+    );
     const removedReplacement = await owner.client.storage.from(bucket).remove([secondPath]);
     assertQa(!removedReplacement.error, "replacement object cleanup failed");
     qaLog(scope, "remove avatar restores the initials fallback state");

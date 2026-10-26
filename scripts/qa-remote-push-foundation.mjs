@@ -55,6 +55,93 @@ await withQaUsers(
   async ({ teen, adult }) => {
     const deviceA = randomUUID();
     const deviceB = randomUUID();
+    const availability = expectOk(
+      await serviceClient.rpc("get_push_delivery_availability"),
+      "push delivery availability lookup failed",
+    );
+    if (!availability.delivery_available) {
+      expectOk(
+        await teen.client.rpc("update_my_notification_preferences", {
+          p_push_enabled: true,
+          p_categories: categories,
+          p_quiet_hours_enabled: false,
+          p_quiet_start: "21:00:00",
+          p_quiet_end: "07:00:00",
+          p_timezone_name: "UTC",
+        }),
+        "push preference setup failed",
+      );
+      const status = expectOk(
+        await teen.client.rpc("get_my_push_status_v2"),
+        "push status failed",
+      );
+      assertQa(
+        status.push_preference_enabled === true &&
+          status.delivery_available === false &&
+          status.remote_push_enabled === false,
+        "disabled delivery was not kept separate from the user's preference",
+      );
+
+      const blockedToken = token("must_not_persist");
+      const rejected = await teen.client.rpc(
+        "register_my_push_device_v2",
+        registrationParams(deviceA, blockedToken),
+      );
+      assertQa(
+        !rejected.error && rejected.data?.code === "remote_push_disabled",
+        `registration should fail closed while remote push is disabled: ${rejected.data?.code ?? rejected.error?.message ?? "unexpected response"}`,
+      );
+      const persisted = await serviceClient
+        .from("push_tokens")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", teen.id)
+        .eq("registration_token", blockedToken);
+      assertQa(
+        !persisted.error && persisted.count === 0,
+        "disabled registration persisted an FCM token",
+      );
+
+      const runtimeEnabled = await serviceClient
+        .from("push_delivery_runtime")
+        .update({ remote_push_enabled: true })
+        .eq("singleton", true);
+      assertQa(!runtimeEnabled.error, "runtime gate fixture update failed");
+      try {
+        const stillUnavailable = expectOk(
+          await serviceClient.rpc("get_push_delivery_availability"),
+          "push delivery availability recheck failed",
+        );
+        const senderRuntime = expectOk(
+          await serviceClient.rpc("service_get_push_runtime"),
+          "service push runtime lookup failed",
+        );
+        const sender = expectOk(
+          await serviceClient.rpc("service_claim_push_events", {
+            p_limit: 1,
+            p_notification_id: null,
+          }),
+          "service push sender gate check failed",
+        );
+        assertQa(
+          stillUnavailable.delivery_available === false &&
+            senderRuntime.remote_push_enabled === false &&
+            sender.remote_push_enabled === false,
+          "release policy did not keep runtime reporting and the sender disabled when the runtime switch was on",
+        );
+      } finally {
+        await serviceClient
+          .from("push_delivery_runtime")
+          .update({ remote_push_enabled: false })
+          .eq("singleton", true);
+      }
+
+      qaLog(
+        scope,
+        "release policy keeps remote delivery disabled, registration token-free, and preference state truthful",
+      );
+      return;
+    }
+
     const firstToken = token("teen_first");
     const firstRequest = randomUUID();
     const first = expectOk(
@@ -126,7 +213,7 @@ await withQaUsers(
       .eq("provider", "fcm")
       .eq("is_active", true);
     const status = expectOk(
-      await teen.client.rpc("get_my_push_status"),
+      await teen.client.rpc("get_my_push_status_v2"),
       "push status failed",
     );
     assertQa(
@@ -134,6 +221,8 @@ await withQaUsers(
         activeTeenTokens.data?.length === 2 &&
         activeTeenTokens.data.some((item) => item.registration_token === rotatedToken) &&
         status.active_device_count === 2 &&
+        status.push_preference_enabled === true &&
+        status.delivery_available === true &&
         status.provider_delivery_verified === false &&
         !JSON.stringify(status).includes(rotatedToken),
       "rotation, multi-device registration, or safe status failed",

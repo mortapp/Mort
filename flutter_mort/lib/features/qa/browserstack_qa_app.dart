@@ -7,6 +7,7 @@ import '../../core/theme/mort_theme.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../financial/financial_safety_center.dart';
+import '../history/screens/job_payment_history_screen.dart';
 import '../legal/legal_screens.dart';
 import '../mort_screens.dart';
 import '../onboarding/compact_onboarding.dart';
@@ -45,6 +46,11 @@ class BrowserStackQaApp extends StatelessWidget {
         GoRoute(
           path: '/qa/settings',
           builder: (_, _) => const SettingsScreen(),
+        ),
+        GoRoute(
+          path: '/settings/payment-history',
+          builder: (_, _) =>
+              const JobPaymentHistoryScreen(backendUnavailable: true),
         ),
         GoRoute(
           path: '/qa/permissions',

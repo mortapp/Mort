@@ -9,8 +9,27 @@ import {
   withDatabase,
   withQaUsers,
 } from "./feature-qa-helpers.mjs";
+import { delayUntilStableRateLimitWindowMs } from "./support-rate-limit-window.mjs";
 
 const scope = "support-chatbot";
+
+async function waitForStableSupportChatQuotaWindow() {
+  const result = await withDatabase((database) =>
+    database.query(
+      "select extract(epoch from clock_timestamp())::double precision as epoch_seconds",
+    )
+  );
+  const delayMs = delayUntilStableRateLimitWindowMs(
+    Number(result.rows[0]?.epoch_seconds),
+  );
+  if (delayMs === 0) return;
+
+  qaLog(
+    scope,
+    `waiting ${Math.ceil(delayMs / 1000)} seconds to keep quota requests in one fixed window`,
+  );
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
+}
 
 async function accessToken(client) {
   const { data, error } = await client.auth.getSession();
@@ -633,6 +652,7 @@ await withQaUsers(
       "internal maintenance and global provider-budget endpoints reject ordinary users",
     );
 
+    await waitForStableSupportChatQuotaWindow();
     let throttledConversationId = null;
     for (let index = 0; index < 30; index += 1) {
       const ordinary = await invoke(guardian.client, "support-chat", {

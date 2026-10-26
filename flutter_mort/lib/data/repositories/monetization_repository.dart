@@ -32,7 +32,17 @@ class MonetizationRepository extends RepositoryBase {
 
   Future<Map<String, dynamic>> getMyEntitlements() async {
     final result = await client.rpc('get_my_entitlements');
-    return Map<String, dynamic>.from(result as Map);
+    return parseMyEntitlementsResponse(result);
+  }
+
+  static Map<String, dynamic> parseMyEntitlementsResponse(Object? result) {
+    if (result is Map) return Map<String, dynamic>.from(result);
+    if (result is List && result.length == 1 && result.single is Map) {
+      return Map<String, dynamic>.from(result.single as Map);
+    }
+    throw const FormatException(
+      'Unexpected get_my_entitlements response shape.',
+    );
   }
 
   Future<void> recordPaywallEvent({

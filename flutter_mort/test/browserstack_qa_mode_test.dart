@@ -10,19 +10,20 @@ void main() {
       'if (AppConfig.browserStackQaMode)',
       mainEntryPoint,
     );
-    final supabaseInitialization = main.indexOf(
-      'SupabaseService.initializeIfConfigured',
+    final providerInitialization = main.indexOf(
+      'configureRemotePushBackgroundHandler',
+      mainEntryPoint,
     );
 
     expect(mainEntryPoint, greaterThanOrEqualTo(0));
     expect(qaBranch, greaterThanOrEqualTo(0));
-    expect(supabaseInitialization, greaterThanOrEqualTo(0));
-    expect(qaBranch, lessThan(supabaseInitialization));
+    expect(providerInitialization, greaterThanOrEqualTo(0));
+    expect(qaBranch, lessThan(providerInitialization));
     expect(
-      main.indexOf('_runApp();', qaBranch),
-      lessThan(supabaseInitialization),
+      main.indexOf('runApp(const BrowserStackQaApp())', qaBranch),
+      lessThan(providerInitialization),
     );
-    expect(main.indexOf('return;', qaBranch), lessThan(supabaseInitialization));
+    expect(main.indexOf('return;', qaBranch), lessThan(providerInitialization));
     expect(
       main.substring(mainEntryPoint, qaBranch),
       isNot(contains('configureRemotePushBackgroundHandler')),

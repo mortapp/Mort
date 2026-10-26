@@ -488,9 +488,9 @@ class BrowserStackQaSafetyRepository extends SafetyRepository
 class BrowserStackQaLegalContractRepository extends LegalContractRepository
     with _BrowserStackQaMutationGuard {
   @override
-  Future<Map<String, dynamic>> legalRequirements() async => const {
-    'requirements': <Map<String, dynamic>>[],
-  };
+  Future<Map<String, dynamic>> legalRequirements({
+    String? expectedUserId,
+  }) async => const {'requirements': <Map<String, dynamic>>[]};
 
   @override
   Future<Map<String, dynamic>> publishedLegalVersion(String versionId) async =>

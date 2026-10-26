@@ -10,6 +10,8 @@ export 'mort_design_components.dart';
 export 'mort_liquid_glass.dart';
 export 'mort_space_background.dart';
 
+import '../atmosphere/mort_atmosphere_tuning.dart';
+import '../atmosphere/mort_atmospheric_background.dart';
 import '../config/app_config.dart';
 import '../constants/app_constants.dart';
 import '../preferences/mort_experience_preferences.dart';
@@ -17,19 +19,21 @@ import '../theme/mort_colors.dart';
 import '../theme/mort_spacing.dart';
 import '../theme/mort_tokens.dart';
 import 'mort_back_navigation.dart';
-import 'mort_brand.dart';
 import 'date_of_birth_field.dart';
+import 'mort_brand.dart';
 import 'mort_liquid_glass.dart';
 import 'mort_space_background.dart';
 
+export '../atmosphere/mort_atmosphere_tuning.dart' show MortAtmosphereIntensity;
+
 /// Floor for bottom safe-area clearance -- see the comment at its use
-/// site in [MortScaffold]. Sized to comfortably clear a real 3-button
+/// site in [MortScreen]. Sized to comfortably clear a real 3-button
 /// Android navigation bar (including the extra accessibility-shortcut
 /// icon some OEMs add to it) even when the OS under-reports the inset.
 const double _minimumBottomSafeArea = 48;
 
-class MortScaffold extends StatelessWidget {
-  const MortScaffold({
+class MortScreen extends StatelessWidget {
+  const MortScreen({
     super.key,
     required this.children,
     this.padding = const EdgeInsets.all(MortSpacing.md),
@@ -37,6 +41,8 @@ class MortScaffold extends StatelessWidget {
     this.scroll = true,
     this.onWillPop,
     this.scrollController,
+    this.atmosphereIntensity = MortAtmosphereIntensity.quiet,
+    this.atmosphereFocalLayer,
   });
 
   final List<Widget> children;
@@ -45,6 +51,14 @@ class MortScaffold extends StatelessWidget {
   final bool scroll;
   final Future<bool> Function(BuildContext context)? onWillPop;
   final ScrollController? scrollController;
+
+  /// Which atmospheric preset this screen renders behind its content --
+  /// see [MortAtmosphereIntensity]. Defaults to `quiet`, the versatile
+  /// middle intensity; screens named in the visual spec as higher/lower
+  /// priority (auth/onboarding/safety = midnight, settings = settings,
+  /// celebration = starfall) pass it explicitly.
+  final MortAtmosphereIntensity atmosphereIntensity;
+  final Widget? atmosphereFocalLayer;
 
   bool get _hasHeader =>
       children.any((child) => child is MortHeader || child is MortGlassHeader);
@@ -62,7 +76,8 @@ class MortScaffold extends StatelessWidget {
 
     final goRouter = GoRouter.maybeOf(context);
     final location = goRouter?.state.uri.path ?? '/';
-    final canPop = Navigator.maybeOf(context)?.canPop() ?? false;
+    final canPop =
+        goRouter?.canPop() ?? (Navigator.maybeOf(context)?.canPop() ?? false);
     if (!canPop &&
         goRouter != null &&
         !MortBackNavigation.isRootLocation(location)) {
@@ -102,11 +117,13 @@ class MortScaffold extends StatelessWidget {
     final showFloatingBack =
         !_hasHeader && !MortBackNavigation.isRootLocation(location);
     final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final canPop =
+        GoRouter.maybeOf(context)?.canPop() ??
+        (Navigator.maybeOf(context)?.canPop() ?? false);
     final allowImmediatePop =
         onWillPop == null &&
         !keyboardVisible &&
-        ((Navigator.maybeOf(context)?.canPop() ?? false) ||
-            MortBackNavigation.isRootLocation(location));
+        (canPop || MortBackNavigation.isRootLocation(location));
     // A physically-confirmed bug: on at least one real Android 15 device,
     // MediaQuery's reported bottom viewPadding did not reliably reflect
     // the actual system navigation bar height even after opting into
@@ -131,7 +148,7 @@ class MortScaffold extends StatelessWidget {
                     alignment: Alignment.centerRight,
                     child: MortBadge(
                       label: AppConfig.stageName,
-                      color: MortColors.warning,
+                      color: MortColors.textMuted,
                     ),
                   ),
                   const SizedBox(height: MortSpacing.sm),
@@ -151,48 +168,50 @@ class MortScaffold extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.transparent,
       bottomNavigationBar: bottom,
-      body: MortSpaceBackground(
-        child: PopScope<Object?>(
-          canPop: allowImmediatePop,
-          onPopInvokedWithResult: (didPop, _) =>
-              _handlePopInvoked(context, didPop: didPop),
-          child: showFloatingBack
-              ? Stack(
-                  children: [
-                    body,
-                    SafeArea(
-                      child: Align(
-                        alignment: Alignment.topLeft,
-                        child: Padding(
-                          padding: const EdgeInsets.all(MortSpacing.sm),
-                          child: MortBackButton(
-                            fallbackRoute: MortBackNavigation.fallbackRoute(
-                              location,
+      body: DecoratedBox(
+        // Cheap flat base beneath the animated atmosphere: covers the
+        // frame before the atmosphere's own LayoutBuilder settles, and
+        // is what remains visible if the atmosphere ever fails to build.
+        decoration: const BoxDecoration(gradient: MortGradients.background),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Positioned.fill(
+              child: MortAtmosphericBackground(
+                intensity: atmosphereIntensity,
+                focalLayer: atmosphereFocalLayer,
+              ),
+            ),
+            PopScope<Object?>(
+              canPop: allowImmediatePop,
+              onPopInvokedWithResult: (didPop, _) =>
+                  _handlePopInvoked(context, didPop: didPop),
+              child: showFloatingBack
+                  ? Stack(
+                      children: [
+                        body,
+                        SafeArea(
+                          child: Align(
+                            alignment: Alignment.topLeft,
+                            child: Padding(
+                              padding: const EdgeInsets.all(MortSpacing.sm),
+                              child: MortBackButton(
+                                fallbackRoute: MortBackNavigation.fallbackRoute(
+                                  location,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                  ],
-                )
-              : body,
+                      ],
+                    )
+                  : body,
+            ),
+          ],
         ),
       ),
     );
   }
-}
-
-/// Backwards-compatible scaffold name retained for existing feature routes.
-class MortScreen extends MortScaffold {
-  const MortScreen({
-    super.key,
-    required super.children,
-    super.padding = const EdgeInsets.all(MortSpacing.md),
-    super.bottom,
-    super.scroll = true,
-    super.onWillPop,
-    super.scrollController,
-  });
 }
 
 class MortHeader extends StatelessWidget {
@@ -246,19 +265,12 @@ class MortHeader extends StatelessWidget {
                   Text(
                     eyebrow!,
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: MortColors.silver,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.6,
+                      color: MortColors.primaryBright,
+                      letterSpacing: 1.4,
                     ),
                   ),
                 if (eyebrow != null) const SizedBox(height: MortSpacing.xs),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    fontWeight: FontWeight.w300,
-                    letterSpacing: -0.8,
-                  ),
-                ),
+                Text(title, style: Theme.of(context).textTheme.displaySmall),
                 if (subtitle != null) ...[
                   const SizedBox(height: MortSpacing.sm),
                   Text(subtitle!, style: Theme.of(context).textTheme.bodyLarge),
@@ -268,7 +280,7 @@ class MortHeader extends StatelessWidget {
           ),
           if (trailing != null) ...[
             const SizedBox(width: MortSpacing.md),
-            Flexible(child: trailing!),
+            trailing!,
           ],
         ],
       ),
@@ -335,7 +347,15 @@ class MortGlassCard extends StatelessWidget {
       allowAndroidBlur: blur,
       onTap: onTap,
       semanticLabel: semanticLabel,
-      child: child,
+      child: onTap == null
+          ? child
+          : ConstrainedBox(
+              constraints: const BoxConstraints(
+                minWidth: MortSpacing.minTouchTarget,
+                minHeight: MortSpacing.minTouchTarget,
+              ),
+              child: child,
+            ),
     );
   }
 }
@@ -381,7 +401,7 @@ class MortButton extends StatelessWidget {
     final enabled =
         onPressed != null && style != MortButtonStyle.disabled && !busy;
     final bg = switch (style) {
-      MortButtonStyle.primary => MortColors.silverBright,
+      MortButtonStyle.primary => MortColors.roseGold,
       MortButtonStyle.secondary => MortColors.cardAlt,
       MortButtonStyle.tertiary => Colors.transparent,
       MortButtonStyle.danger => MortColors.dangerDeep,
@@ -393,7 +413,7 @@ class MortButton extends StatelessWidget {
       MortButtonStyle.secondary => MortColors.text,
       MortButtonStyle.tertiary => MortColors.silverBright,
       MortButtonStyle.danger => MortColors.godWhite,
-      MortButtonStyle.ghost => MortColors.silverBright,
+      MortButtonStyle.ghost => MortColors.roseGold,
       MortButtonStyle.disabled => MortColors.textMuted,
     };
 
@@ -444,7 +464,7 @@ class MortButton extends StatelessWidget {
               : null,
           color: style == MortButtonStyle.primary ? null : bg,
           borderRadius: BorderRadius.circular(MortRadii.medium),
-          boxShadow: null,
+          boxShadow: style == MortButtonStyle.primary ? MortShadows.glow : null,
         ),
         child: button,
       ),
@@ -520,43 +540,10 @@ class MortIconButton extends StatelessWidget {
       icon: Icon(icon),
       style: IconButton.styleFrom(
         backgroundColor: MortColors.glass,
-        foregroundColor: MortColors.silverBright,
+        foregroundColor: MortColors.roseGoldLight,
         side: const BorderSide(color: MortColors.lineStrong),
         minimumSize: const Size.square(MortSpacing.minTouchTarget),
       ),
-    );
-  }
-}
-
-class MortToggle extends StatelessWidget {
-  const MortToggle({
-    super.key,
-    required this.label,
-    required this.value,
-    required this.onChanged,
-    this.subtitle,
-    this.enabled = true,
-  });
-
-  final String label;
-  final String? subtitle;
-  final bool value;
-  final ValueChanged<bool>? onChanged;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    return SwitchListTile.adaptive(
-      contentPadding: EdgeInsets.zero,
-      minTileHeight: MortSpacing.minTouchTarget,
-      title: Text(label),
-      subtitle: subtitle == null ? null : Text(subtitle!),
-      value: value,
-      onChanged: enabled ? onChanged : null,
-      activeThumbColor: MortColors.bg,
-      activeTrackColor: MortColors.silver,
-      inactiveThumbColor: MortColors.textMuted,
-      inactiveTrackColor: MortColors.line,
     );
   }
 }
@@ -630,43 +617,6 @@ class MortTextField extends StatelessWidget {
   }
 }
 
-class MortPasswordField extends MortTextField {
-  const MortPasswordField({
-    super.key,
-    required super.label,
-    super.controller,
-    super.hint,
-    super.validator,
-    super.textInputAction,
-    super.autofillHints,
-    super.onFieldSubmitted,
-    super.onChanged,
-    super.enabled,
-    super.maxLength,
-    super.suffixIcon,
-    super.errorText,
-    super.focusNode,
-  }) : super(obscureText: true, autocorrect: false, enableSuggestions: false);
-}
-
-/// Canonical form-system name for MORT's production date-of-birth field.
-///
-/// This inherits the native [TextFormField] implementation so accessibility
-/// services and Appium continue to observe `Date of birth\nMM/DD/YYYY`.
-class MortDateField extends DateOfBirthField {
-  const MortDateField({
-    super.key,
-    required super.controller,
-    super.validator,
-    super.onChanged,
-    super.onSubmitted,
-    super.enabled,
-    super.showDatePickerButton,
-    super.errorText,
-    super.focusNode,
-  });
-}
-
 class MortTextArea extends StatelessWidget {
   const MortTextArea({
     super.key,
@@ -733,9 +683,9 @@ class MortDropdown<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<T>(
+      focusNode: focusNode,
       value: value,
       isExpanded: true,
-      focusNode: focusNode,
       decoration: InputDecoration(labelText: label, errorText: errorText),
       dropdownColor: MortColors.cardAlt,
       items: items.entries
@@ -753,18 +703,6 @@ class MortDropdown<T> extends StatelessWidget {
       onChanged: onChanged,
     );
   }
-}
-
-class MortSelect<T> extends MortDropdown<T> {
-  const MortSelect({
-    super.key,
-    required super.label,
-    required super.value,
-    required super.items,
-    required super.onChanged,
-    super.errorText,
-    super.focusNode,
-  });
 }
 
 class MortSearchableDropdown<T> extends StatelessWidget {
@@ -920,134 +858,32 @@ class MortBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveSemanticLabel = semanticLabel ?? label;
-    return Semantics(
-      container: true,
-      label: effectiveSemanticLabel,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          border: Border.all(color: color.withValues(alpha: 0.45)),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              ExcludeSemantics(child: Icon(icon, size: 13, color: color)),
-              const SizedBox(width: 5),
-            ],
-            Flexible(
-              child: ExcludeSemantics(
-                child: Text(
-                  label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelMedium?.copyWith(color: color),
-                ),
-              ),
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+        borderRadius: BorderRadius.circular(999),
       ),
-    );
-  }
-}
-
-class MortPaymentStatusBadge extends StatelessWidget {
-  const MortPaymentStatusBadge({
-    super.key,
-    required this.label,
-    this.color = MortColors.paymentSuccess,
-    this.icon = Icons.check_circle_rounded,
-    this.semanticLabel,
-  });
-
-  final String label;
-  final Color color;
-  final IconData icon;
-  final String? semanticLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return MortBadge(
-      label: label,
-      color: color,
-      icon: icon,
-      semanticLabel: semanticLabel ?? 'Payment status $label',
-    );
-  }
-}
-
-class MortStatusCard extends StatelessWidget {
-  const MortStatusCard({
-    super.key,
-    required this.title,
-    required this.message,
-    required this.statusLabel,
-    this.statusColor = MortColors.accent,
-    this.icon,
-    this.action,
-  });
-
-  final String title;
-  final String message;
-  final String statusLabel;
-  final Color statusColor;
-  final IconData? icon;
-  final Widget? action;
-
-  @override
-  Widget build(BuildContext context) {
-    return MortCard(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final stackStatus =
-              constraints.maxWidth < 360 ||
-              MediaQuery.textScalerOf(context).scale(16) > 21;
-          final titleRow = Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (icon != null) ...[
-                Icon(icon, color: statusColor),
-                const SizedBox(width: MortSpacing.sm),
-              ],
-              Expanded(
-                child: Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-            ],
-          );
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (stackStatus) ...[
-                titleRow,
-                const SizedBox(height: MortSpacing.xs),
-                MortBadge(label: statusLabel, color: statusColor),
-              ] else
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: titleRow),
-                    const SizedBox(width: MortSpacing.sm),
-                    MortBadge(label: statusLabel, color: statusColor),
-                  ],
-                ),
-              const SizedBox(height: MortSpacing.xs),
-              Text(message, style: Theme.of(context).textTheme.bodyMedium),
-              if (action != null) ...[
-                const SizedBox(height: MortSpacing.md),
-                action!,
-              ],
-            ],
-          );
-        },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 5),
+          ],
+          Flexible(
+            child: Text(
+              label,
+              semanticsLabel: semanticLabel,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.labelMedium?.copyWith(color: color),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1072,11 +908,11 @@ class MortAvatar extends StatelessWidget {
 
     return CircleAvatar(
       radius: radius,
-      backgroundColor: MortColors.raisedBlack,
+      backgroundColor: MortColors.neonDeep,
       child: Text(
         initials,
         style: TextStyle(
-          color: MortColors.silverBright,
+          color: MortColors.neon,
           fontWeight: FontWeight.w800,
           fontSize: radius * 0.7,
         ),
@@ -1120,7 +956,7 @@ class MortLoading extends StatelessWidget {
             const SizedBox.square(
               dimension: 22,
               child: CircularProgressIndicator(
-                color: MortColors.silverBright,
+                color: MortColors.roseGold,
                 strokeWidth: 2.5,
               ),
             ),
@@ -1145,11 +981,6 @@ class MortLoading extends StatelessWidget {
       ],
     );
   }
-}
-
-/// Intent-based name for the existing loading presentation.
-class MortLoadingState extends MortLoading {
-  const MortLoadingState({super.key, super.label, super.fullScreen});
 }
 
 class MortEmptyState extends StatelessWidget {
@@ -1434,7 +1265,7 @@ class MortPlanCard extends StatelessWidget {
                 children: [
                   const Icon(
                     Icons.check_circle,
-                    color: MortColors.accent,
+                    color: MortColors.neon,
                     size: 17,
                   ),
                   const SizedBox(width: MortSpacing.xs),
@@ -1516,7 +1347,7 @@ class MortAdFreeBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MortBadge(
       label: 'Ad-free eligible',
-      color: MortColors.accent,
+      color: MortColors.neon,
       icon: Icons.visibility_off_outlined,
     );
   }
@@ -1530,7 +1361,7 @@ class MortJobStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = switch (status) {
-      'open' => MortColors.accent,
+      'open' => MortColors.neon,
       'closed' || 'removed' => MortColors.danger,
       'paused' => MortColors.warning,
       _ => MortColors.safetyBlue,
@@ -1549,7 +1380,7 @@ class MortTrustBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return MortBadge(
       label: label,
-      color: verified ? MortColors.lightBlue : MortColors.textMuted,
+      color: verified ? MortColors.neon : MortColors.textMuted,
       icon: verified ? Icons.verified : Icons.info_outline,
     );
   }
@@ -1573,12 +1404,12 @@ class MortCategoryPill extends StatelessWidget {
       label: Text(label),
       selected: selected,
       onSelected: onTap == null ? null : (_) => onTap!(),
-      selectedColor: MortColors.lineStrong,
+      selectedColor: MortColors.neonDeep,
       backgroundColor: MortColors.cardAlt,
       labelStyle: TextStyle(
-        color: selected ? MortColors.silverBright : MortColors.textSoft,
+        color: selected ? MortColors.neon : MortColors.textSoft,
       ),
-      side: BorderSide(color: selected ? MortColors.silver : MortColors.line),
+      side: BorderSide(color: selected ? MortColors.neon : MortColors.line),
     );
   }
 }
@@ -1678,7 +1509,7 @@ class MortStatCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: MortColors.accent),
+          Icon(icon, color: MortColors.neon),
           const SizedBox(height: MortSpacing.sm),
           Text(value, style: Theme.of(context).textTheme.headlineSmall),
           Text(label, style: Theme.of(context).textTheme.bodyMedium),
@@ -1782,7 +1613,7 @@ class MortQuickActionGrid extends StatelessWidget {
                   child: Icon(
                     action.icon,
                     color: enabled
-                        ? MortColors.silverBright
+                        ? MortColors.roseGoldLight
                         : MortColors.textDisabled,
                   ),
                 ),
@@ -1842,6 +1673,35 @@ class MortNotificationBell extends StatelessWidget {
   }
 }
 
+/// Canonical MORT settings control: an outlined silver gear on a transparent
+/// background with a full 48dp touch target. Root profile/account surfaces
+/// place this top-right; screens where Settings is not contextually
+/// appropriate must not expose it.
+class MortSettingsButton extends StatelessWidget {
+  const MortSettingsButton({super.key, this.onPressed});
+
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Settings',
+      child: IconButton(
+        tooltip: 'Settings',
+        icon: const Icon(Icons.settings_outlined, size: 24),
+        onPressed: onPressed,
+        style: IconButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          foregroundColor: MortColors.silverBright,
+          highlightColor: MortColors.glass,
+          minimumSize: const Size.square(MortSpacing.minTouchTarget),
+        ),
+      ),
+    );
+  }
+}
+
 class MortProgressBar extends StatelessWidget {
   const MortProgressBar({super.key, required this.value});
 
@@ -1855,7 +1715,7 @@ class MortProgressBar extends StatelessWidget {
         minHeight: 9,
         value: value.clamp(0, 1),
         backgroundColor: MortColors.line,
-        valueColor: const AlwaysStoppedAnimation<Color>(MortColors.accent),
+        valueColor: const AlwaysStoppedAnimation<Color>(MortColors.neon),
       ),
     );
   }
@@ -1879,7 +1739,7 @@ class MortStepper extends StatelessWidget {
               right: index == total - 1 ? 0 : MortSpacing.xs,
             ),
             decoration: BoxDecoration(
-              color: active ? MortColors.accent : MortColors.line,
+              color: active ? MortColors.neon : MortColors.line,
               borderRadius: BorderRadius.circular(99),
             ),
           ),
@@ -1902,29 +1762,52 @@ class MortConfirmSheet {
     final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (context) => _MortModalSurface(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: MortSpacing.sm),
-            Text(message, style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: MortSpacing.lg),
-            MortButton(
-              label: confirmLabel,
-              style: destructive
-                  ? MortButtonStyle.danger
-                  : MortButtonStyle.primary,
-              onPressed: () => Navigator.pop(context, true),
+      builder: (context) => AnimatedPadding(
+        duration: MortMotion.standard,
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom + MortSpacing.lg,
+        ),
+        child: SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.85,
             ),
-            const SizedBox(height: MortSpacing.sm),
-            MortButton(
-              label: 'Cancel',
-              style: MortButtonStyle.ghost,
-              onPressed: () => Navigator.pop(context, false),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(MortSpacing.lg),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: MortSpacing.sm),
+                    Text(
+                      message,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: MortSpacing.lg),
+                    MortButton(
+                      label: confirmLabel,
+                      style: destructive
+                          ? MortButtonStyle.danger
+                          : MortButtonStyle.primary,
+                      onPressed: () => Navigator.pop(context, true),
+                    ),
+                    const SizedBox(height: MortSpacing.sm),
+                    MortButton(
+                      label: 'Cancel',
+                      style: MortButtonStyle.ghost,
+                      onPressed: () => Navigator.pop(context, false),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -1939,55 +1822,11 @@ class MortBottomSheet {
     return showModalBottomSheet<T>(
       context: context,
       isScrollControlled: true,
-      builder: (context) => _MortModalSurface(child: child),
-    );
-  }
-}
-
-class MortModal {
-  const MortModal._();
-
-  static Future<T?> show<T>(BuildContext context, Widget child) =>
-      MortBottomSheet.show<T>(context, child);
-
-  static Future<bool> confirm(
-    BuildContext context, {
-    required String title,
-    required String message,
-    String confirmLabel = 'Confirm',
-    bool destructive = false,
-  }) {
-    return MortConfirmSheet.show(
-      context,
-      title: title,
-      message: message,
-      confirmLabel: confirmLabel,
-      destructive: destructive,
-    );
-  }
-}
-
-class _MortModalSurface extends StatelessWidget {
-  const _MortModalSurface({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    return SafeArea(
-      child: AnimatedPadding(
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : MortMotion.control,
-        curve: MortMotion.standardCurve,
-        padding: EdgeInsets.fromLTRB(
-          MortSpacing.lg,
-          MortSpacing.lg,
-          MortSpacing.lg,
-          MortSpacing.lg + bottomInset,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(MortSpacing.lg),
+          child: child,
         ),
-        child: SingleChildScrollView(child: child),
       ),
     );
   }
@@ -2018,4 +1857,361 @@ class MortSectionTitle extends StatelessWidget {
       ),
     );
   }
+}
+
+// Compatibility widgets retained for existing product routes.
+class MortScaffold extends StatelessWidget {
+  const MortScaffold({
+    super.key,
+    required this.children,
+    this.padding = const EdgeInsets.all(MortSpacing.md),
+    this.bottom,
+    this.scroll = true,
+    this.onWillPop,
+    this.scrollController,
+  });
+
+  final List<Widget> children;
+  final EdgeInsetsGeometry padding;
+  final Widget? bottom;
+  final bool scroll;
+  final Future<bool> Function(BuildContext context)? onWillPop;
+  final ScrollController? scrollController;
+
+  bool get _hasHeader =>
+      children.any((child) => child is MortHeader || child is MortGlassHeader);
+
+  Future<bool> _handleWillPop(BuildContext context) async {
+    final primaryFocus = FocusManager.instance.primaryFocus;
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+    if (keyboardVisible && primaryFocus != null && primaryFocus.hasFocus) {
+      primaryFocus.unfocus();
+      return false;
+    }
+    if (onWillPop != null) {
+      return await onWillPop!(context);
+    }
+
+    final goRouter = GoRouter.maybeOf(context);
+    final location = goRouter?.state.uri.path ?? '/';
+    final canPop = Navigator.maybeOf(context)?.canPop() ?? false;
+    if (!canPop &&
+        goRouter != null &&
+        !MortBackNavigation.isRootLocation(location)) {
+      final fallback = MortBackNavigation.fallbackRoute(location);
+      if (fallback != location) {
+        goRouter.go(fallback);
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  Future<void> _handlePopInvoked(
+    BuildContext context, {
+    required bool didPop,
+  }) async {
+    if (didPop) return;
+    final shouldPop = await _handleWillPop(context);
+    if (!context.mounted || !shouldPop) return;
+
+    final navigator = Navigator.maybeOf(context);
+    if (navigator?.canPop() ?? false) {
+      navigator!.pop();
+      return;
+    }
+
+    final location = GoRouter.maybeOf(context)?.state.uri.path ?? '/';
+    if (MortBackNavigation.isRootLocation(location)) {
+      await SystemNavigator.pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final location = GoRouter.maybeOf(context)?.state.uri.path ?? '/';
+    final showFloatingBack =
+        !_hasHeader && !MortBackNavigation.isRootLocation(location);
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final allowImmediatePop =
+        onWillPop == null &&
+        !keyboardVisible &&
+        ((Navigator.maybeOf(context)?.canPop() ?? false) ||
+            MortBackNavigation.isRootLocation(location));
+    // A physically-confirmed bug: on at least one real Android 15 device,
+    // MediaQuery's reported bottom viewPadding did not reliably reflect
+    // the actual system navigation bar height even after opting into
+    // edge-to-edge explicitly (see main.dart), leaving SafeArea with
+    // nothing to inset by -- the last interactive element on a screen
+    // could render (and receive touches) behind the system nav bar.
+    // `minimum` guarantees a floor regardless of what the OS reports.
+    final content = SafeArea(
+      minimum: const EdgeInsets.only(bottom: _minimumBottomSafeArea),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: MortSpacing.maxContentWidth,
+          ),
+          child: Padding(
+            padding: padding,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (AppConfig.showReleaseStageLabel) ...[
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: MortBadge(
+                      label: AppConfig.stageName,
+                      color: MortColors.warning,
+                    ),
+                  ),
+                  const SizedBox(height: MortSpacing.sm),
+                ],
+                ...children,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final body = scroll
+        ? SingleChildScrollView(controller: scrollController, child: content)
+        : content;
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      bottomNavigationBar: bottom,
+      body: MortSpaceBackground(
+        child: PopScope<Object?>(
+          canPop: allowImmediatePop,
+          onPopInvokedWithResult: (didPop, _) =>
+              _handlePopInvoked(context, didPop: didPop),
+          child: showFloatingBack
+              ? Stack(
+                  children: [
+                    body,
+                    SafeArea(
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.all(MortSpacing.sm),
+                          child: MortBackButton(
+                            fallbackRoute: MortBackNavigation.fallbackRoute(
+                              location,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : body,
+        ),
+      ),
+    );
+  }
+}
+
+class MortModal {
+  const MortModal._();
+
+  static Future<T?> show<T>(BuildContext context, Widget child) =>
+      MortBottomSheet.show<T>(context, child);
+
+  static Future<bool> confirm(
+    BuildContext context, {
+    required String title,
+    required String message,
+    String confirmLabel = 'Confirm',
+    bool destructive = false,
+  }) {
+    return MortConfirmSheet.show(
+      context,
+      title: title,
+      message: message,
+      confirmLabel: confirmLabel,
+      destructive: destructive,
+    );
+  }
+}
+
+class MortToggle extends StatelessWidget {
+  const MortToggle({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+    this.subtitle,
+    this.enabled = true,
+  });
+
+  final String label;
+  final String? subtitle;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile.adaptive(
+      contentPadding: EdgeInsets.zero,
+      minTileHeight: MortSpacing.minTouchTarget,
+      title: Text(label),
+      subtitle: subtitle == null ? null : Text(subtitle!),
+      value: value,
+      onChanged: enabled ? onChanged : null,
+      activeThumbColor: MortColors.bg,
+      activeTrackColor: MortColors.silver,
+      inactiveThumbColor: MortColors.textMuted,
+      inactiveTrackColor: MortColors.line,
+    );
+  }
+}
+
+class MortPasswordField extends MortTextField {
+  const MortPasswordField({
+    super.key,
+    required super.label,
+    super.controller,
+    super.hint,
+    super.validator,
+    super.textInputAction,
+    super.autofillHints,
+    super.onFieldSubmitted,
+    super.onChanged,
+    super.enabled,
+    super.maxLength,
+    super.suffixIcon,
+    super.errorText,
+    super.focusNode,
+  }) : super(obscureText: true, autocorrect: false, enableSuggestions: false);
+}
+
+class MortDateField extends DateOfBirthField {
+  const MortDateField({
+    super.key,
+    required super.controller,
+    super.validator,
+    super.onChanged,
+    super.onSubmitted,
+    super.enabled,
+    super.showDatePickerButton,
+    super.errorText,
+    super.focusNode,
+  });
+}
+
+class MortSelect<T> extends MortDropdown<T> {
+  const MortSelect({
+    super.key,
+    required super.label,
+    required super.value,
+    required super.items,
+    required super.onChanged,
+    super.errorText,
+    super.focusNode,
+  });
+}
+
+class MortPaymentStatusBadge extends StatelessWidget {
+  const MortPaymentStatusBadge({
+    super.key,
+    required this.label,
+    this.color = MortColors.paymentSuccess,
+    this.icon = Icons.check_circle_rounded,
+    this.semanticLabel,
+  });
+
+  final String label;
+  final Color color;
+  final IconData icon;
+  final String? semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: semanticLabel ?? 'Payment status $label',
+      container: true,
+      child: ExcludeSemantics(
+        child: MortBadge(label: label, color: color, icon: icon),
+      ),
+    );
+  }
+}
+
+class MortStatusCard extends StatelessWidget {
+  const MortStatusCard({
+    super.key,
+    required this.title,
+    required this.message,
+    required this.statusLabel,
+    this.statusColor = MortColors.accent,
+    this.icon,
+    this.action,
+  });
+
+  final String title;
+  final String message;
+  final String statusLabel;
+  final Color statusColor;
+  final IconData? icon;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    return MortCard(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stackStatus =
+              constraints.maxWidth < 360 ||
+              MediaQuery.textScalerOf(context).scale(16) > 21;
+          final titleRow = Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, color: statusColor),
+                const SizedBox(width: MortSpacing.sm),
+              ],
+              Expanded(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+            ],
+          );
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (stackStatus) ...[
+                titleRow,
+                const SizedBox(height: MortSpacing.xs),
+                MortBadge(label: statusLabel, color: statusColor),
+              ] else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: titleRow),
+                    const SizedBox(width: MortSpacing.sm),
+                    MortBadge(label: statusLabel, color: statusColor),
+                  ],
+                ),
+              const SizedBox(height: MortSpacing.xs),
+              Text(message, style: Theme.of(context).textTheme.bodyMedium),
+              if (action != null) ...[
+                const SizedBox(height: MortSpacing.md),
+                action!,
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class MortLoadingState extends MortLoading {
+  const MortLoadingState({super.key, super.label, super.fullScreen});
 }

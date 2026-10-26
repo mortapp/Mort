@@ -64,7 +64,7 @@ configuration as of this session, not the eventual production-pilot profile.
 
 | Data type | Collected | Shared | Purpose | Required/Optional | Notes |
 |---|---|---|---|---|---|
-| App interactions (jobs posted/applied, reviews, reports) | YES | NO | Core marketplace functionality | Required for marketplace features | `public.jobs`, `applications`, `reviews`, `reports` |
+| App interactions (jobs posted/applied, reviews, reports, progression) | YES | NO | Core marketplace and progression functionality | Required for marketplace features; leaderboard sharing is optional | `public.jobs`, `applications`, `reviews`, `reports`; private progression event, account, badge, token, and cosmetic ledgers. XP, level, rank, goals, and Safety Streak are derived from authoritative marketplace events. Progression adds no advertising identifier or cross-app tracking. |
 | In-app search history | NO | N/A | N/A | N/A | No persisted search-history table found |
 | Installed apps | NO | N/A | N/A | N/A | Not collected |
 | Other user-generated content | YES (reviews, support tickets) | NO | Trust/safety, customer support | Optional | `public.reviews`, `support_conversations` |

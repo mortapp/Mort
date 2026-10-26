@@ -310,15 +310,14 @@ await withQaUsers(
         .from("profile-avatars")
         .upload(avatarPath, avatarBytes, { contentType: "image/jpeg", upsert: false });
       assertQa(!uploadedAvatar.error, `Teen A avatar upload failed: ${uploadedAvatar.error?.message}`);
-      const attachedAvatar = await teenA.client
-        .from("profiles")
-        .update({ avatar_path: avatarPath, avatar_moderation_status: "active" })
-        .eq("id", teenA.id)
-        .select("avatar_path")
-        .single();
+      const attachedAvatar = await teenA.client.rpc("update_my_profile", {
+        p_patch: { avatar_path: avatarPath },
+      });
       assertQa(
-        !attachedAvatar.error && attachedAvatar.data.avatar_path === avatarPath,
-        `Teen A avatar path did not persist: ${attachedAvatar.error?.message ?? attachedAvatar.data?.avatar_path ?? "missing"}`,
+        !attachedAvatar.error &&
+          attachedAvatar.data?.ok === true &&
+          attachedAvatar.data.profile?.avatar_path === avatarPath,
+        `Teen A avatar path did not persist: ${attachedAvatar.error?.message ?? attachedAvatar.data?.code ?? attachedAvatar.data?.profile?.avatar_path ?? "missing"}`,
       );
       qaLog(scope, "16/30 Teen A uploads and attaches an owner-prefixed avatar");
 

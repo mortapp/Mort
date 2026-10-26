@@ -7,6 +7,13 @@ import 'package:image/image.dart' as image;
 String _read(String path) => File(path).readAsStringSync();
 
 void main() {
+  // The production checkout includes ../scripts; some handoff exports omit
+  // it. Skip truthfully instead of failing on a missing folder.
+  final scriptsPresent = Directory('../scripts').existsSync();
+  final scriptsSkip = scriptsPresent
+      ? false
+      : '../scripts not present in this checkout';
+
   test('shared Safety route is guarded and obsolete jobs alias is absent', () {
     final router = _read('lib/core/routing/app_router.dart');
     final support = _read('lib/features/support/support_screens.dart');
@@ -23,7 +30,11 @@ void main() {
     final config = _read('lib/core/config/app_config.dart');
     final main = _read('lib/main.dart');
 
-    expect(AppConfig.expectedSupabaseProjectRef, 'rakjydmgwwgtdislanbt');
+    expect(config, contains('MORT_EXPECTED_SUPABASE_PROJECT_REF'));
+    expect(
+      config,
+      isNot(contains("expectedSupabaseProjectRef = 'rakjydmgwwgtdislanbt'")),
+    );
     expect(config, contains('assertValidReleaseConfiguration'));
     expect(
       config,
@@ -38,16 +49,42 @@ void main() {
     expect(main, contains('FlutterError.presentError'));
   });
 
+  test('Android release build injects configured push and crash clients', () {
+    final buildScript = _read('../scripts/android-release-profile-common.ps1');
+
+    expect(buildScript, contains('FIREBASE_PROJECT_ID'));
+    expect(buildScript, contains('FIREBASE_MESSAGING_SENDER_ID'));
+    expect(buildScript, contains('FIREBASE_ANDROID_API_KEY'));
+    expect(buildScript, contains('FIREBASE_ANDROID_APP_ID'));
+    expect(buildScript, isNot(contains('EXPO_PUBLIC_FIREBASE')));
+    expect(buildScript, isNot(contains('EXPO_PUBLIC_SENTRY')));
+    expect(buildScript, contains('if (\$RemotePushEnabled)'));
+    expect(buildScript, contains("MORT_BROWSERSTACK_QA_MODE = 'false'"));
+    expect(buildScript, contains("\$defines['FIREBASE_ANDROID_API_KEY'] ="));
+    expect(buildScript, contains("\$defines['FIREBASE_ANDROID_APP_ID'] ="));
+    expect(buildScript, contains('if (\$CrashReportingEnabled)'));
+    expect(buildScript, contains("\$defines['SENTRY_DSN'] ="));
+  }, skip: scriptsSkip);
+
   test(
     'reviewer routes are compile-gated and production scripts exclude them',
     () {
       final router = _read('lib/core/routing/app_router.dart');
       final pilot = _read('../scripts/build-production-pilot-aab.ps1');
+      final crashProvider = File(
+        'lib/core/observability/sentry_crash_provider.dart',
+      );
+      final pushProvider = File('lib/services/push/remote_push_provider.dart');
 
       expect(router, contains('if (AppConfig.playReviewModeEnabled)'));
       expect(pilot, contains(r'-PlayReviewModeEnabled $false'));
       expect(pilot, contains('BLOCKED-EXTERNAL'));
+      expect(pilot, contains('sentry_crash_provider.dart'));
+      expect(pilot, contains('remote_push_provider.dart'));
+      expect(crashProvider.existsSync(), isTrue);
+      expect(pushProvider.existsSync(), isTrue);
     },
+    skip: scriptsSkip,
   );
 
   test(
@@ -98,8 +135,8 @@ void main() {
       expect(profileRepository, isNot(contains('savePaymentPreference')));
       expect(manifest, isNot(contains('com.android.vending.BILLING')));
       expect(pubspec, isNot(contains('in_app_purchase:')));
-      expect(pubspec, contains('flutter_stripe'));
-      expect(AppConfig.nativeStripePaymentSheetCompiledIn, isTrue);
+      expect(pubspec, isNot(contains('flutter_stripe')));
+      expect(AppConfig.nativeStripePaymentSheetCompiledIn, isFalse);
     },
   );
 
@@ -154,5 +191,5 @@ void main() {
     final verifier = _read('../scripts/verify-play-aab.ps1');
     expect(verifier, contains('androidx\\.profileinstaller'));
     expect(verifier, contains('android\\.permission\\.DUMP'));
-  });
+  }, skip: scriptsSkip);
 }

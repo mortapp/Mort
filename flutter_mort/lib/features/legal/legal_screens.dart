@@ -236,6 +236,10 @@ class _LegalClickwrapScreenState extends ConsumerState<LegalClickwrapScreen> {
             signature: _signature.text,
           );
       if (!mounted) return;
+      final userId = ref.read(authRepositoryProvider).currentUser?.id;
+      if (userId != null) {
+        ref.invalidate(pendingRequiredLegalReacceptanceProvider(userId));
+      }
       setState(() => _affirmative = false);
       MortToast.show(
         context,

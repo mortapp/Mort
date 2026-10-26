@@ -100,6 +100,7 @@ class MortReleaseConfiguration {
   final bool browserStackQaMode;
 
   bool get hostedBackendConfigured =>
+      expectedSupabaseProjectRef.trim().isNotEmpty &&
       supabaseUrl == 'https://$expectedSupabaseProjectRef.supabase.co' &&
       supabaseProjectRef == expectedSupabaseProjectRef &&
       supabaseAnonKey.trim().isNotEmpty;

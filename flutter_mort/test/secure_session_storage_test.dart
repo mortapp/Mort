@@ -36,6 +36,20 @@ String _session({String userId = 'user-1'}) => jsonEncode({
 
 void main() {
   group('MortSecureSessionStorage', () {
+    test(
+      'does not migrate old-project sessions into a new Supabase project',
+      () {
+        expect(
+          legacySessionPreferenceKeysForProject('newmortproject123'),
+          isEmpty,
+        );
+        expect(
+          legacySessionPreferenceKeysForProject('rakjydmgwwgtdislanbt'),
+          contains(mortLegacySupabaseSessionKey),
+        );
+      },
+    );
+
     test('uses the stable project-scoped key', () {
       expect(mortSecureSessionKey, 'mort.rakjydmgwwgtdislanbt.auth.session.v1');
       expect(mortSupabaseProjectRef, 'rakjydmgwwgtdislanbt');

@@ -244,10 +244,22 @@ class _ReviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final removedByModeration = review.moderationStatus != 'approved';
     return MortCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (removedByModeration) ...[
+            // Master contract 178: explain the moderation state in plain
+            // language from the real moderation_status field, with the
+            // appeal route as the next action. Never renders removed
+            // content as if it were still live.
+            const MortSafetyBanner(
+              message:
+                  'This review is not publicly visible. MORT moderation is holding or removed it under the community rules. You can appeal the decision.',
+            ),
+            const SizedBox(height: MortSpacing.sm),
+          ],
           Row(
             children: [
               for (var index = 1; index <= 5; index++)
@@ -267,6 +279,12 @@ class _ReviewCard extends StatelessWidget {
           const SizedBox(height: MortSpacing.sm),
           MortActionRow(
             actions: [
+              if (removedByModeration)
+                const MortAction(
+                  label: 'Appeal moderation decision',
+                  icon: Icons.gavel_outlined,
+                  route: '/settings/trust-appeal',
+                ),
               MortAction(
                 label: 'Report review',
                 icon: Icons.flag_outlined,
