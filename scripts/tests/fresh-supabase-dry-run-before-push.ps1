@@ -24,12 +24,14 @@ exit /b 0
 '@ | Set-Content -LiteralPath $cliPath -Encoding Ascii
 } else {
   $cliPath = Join-Path $fakeCliDirectory 'supabase'
-  @'
+  $fakeCliScript = @'
 #!/bin/sh
 printf '%s\n' "$*" >> "$MORT_SUPABASE_TEST_LOG"
 if [ "$*" = "db push --dry-run" ] && [ "$MORT_SUPABASE_TEST_FAIL_DRY_RUN" = "1" ]; then exit 23; fi
 exit 0
-'@ | Set-Content -LiteralPath $cliPath -Encoding Ascii
+'@
+  $fakeCliScript = $fakeCliScript -replace "`r`n", "`n"
+  [System.IO.File]::WriteAllText($cliPath, $fakeCliScript + "`n", [System.Text.Encoding]::ASCII)
   & chmod +x $cliPath
   if ($LASTEXITCODE -ne 0) { throw 'Could not make the fake Supabase CLI executable.' }
 }
