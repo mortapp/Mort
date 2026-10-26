@@ -1,6 +1,6 @@
 # MORT Firebase Push Owner Setup
 
-Updated: 2026-10-25
+Updated: 2026-10-26
 
 No credential is included in this document or in mobile source.
 
@@ -80,19 +80,26 @@ limit 20;
 ## Current Hosted State
 
 - Google Play production access/public availability is separate from Supabase's
-  backend release policy and push-delivery flags. The owner confirms MORT is
-  currently in public production; this runbook describes backend delivery
-  controls, not Play distribution.
+  backend release policy and push-delivery flags. MORT is in public production
+  on Google Play; this runbook describes backend delivery controls, not Play
+  distribution.
 - `send-push`: ACTIVE, JWT verification enabled.
-- Hosted release policy: `closed_test` / `closed_pilot`.
-- Remote-push policy and runtime flags: false.
+- Hosted backend release policy: `closed_test` / `closed_pilot`; public
+  marketplace and remote push are disabled in that backend policy.
+- Remote-push policy and runtime flags: false, confirmed by read-only check on
+  2026-10-26.
 - All three scheduler Vault entries: absent from Supabase Vault as of the
-  2026-10-25 read-only check. FCM Edge Function secret presence was not
-  inspected; secret values were not read.
+  2026-10-26 read-only check. Only secret names were queried; secret values
+  were not read. FCM Edge Function secret presence was not inspected.
 - Real FCM delivery: not verified.
-- `pg_cron` is enabled; `pg_net` is disabled.
-- No `mort-send-push` schedule is configured.
+- `pg_cron` is enabled; `pg_net` is not installed.
+- No `mort-send-push` schedule is configured. The hosted database currently
+  has three other active MORT cron jobs.
 - The repository contains a fail-closed scheduler migration, but it has not been
   applied to the hosted database. Hosted migration history must be reconciled
   through the approved owner process before any migration is applied.
+- The hosted migration history currently has 275 records and ends at
+  `20261012014250`; this checkout has 247 migration files. The histories differ
+  in both directions, so do not apply or repair migrations until their mapping
+  has been reviewed against the hosted schema.
 
