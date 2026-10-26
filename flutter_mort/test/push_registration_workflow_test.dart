@@ -63,7 +63,13 @@ void main() {
 
       expect(registered, isTrue);
       expect(registrations, 1);
-      expect(calls, ['delivery', 'preference', 'permission', 'token', 'register']);
+      expect(calls, [
+        'delivery',
+        'preference',
+        'permission',
+        'token',
+        'register',
+      ]);
     },
   );
 }
