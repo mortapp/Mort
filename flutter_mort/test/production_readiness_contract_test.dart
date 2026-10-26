@@ -55,6 +55,7 @@ void main() {
     expect(buildScript, isNot(contains('EXPO_PUBLIC_FIREBASE')));
     expect(buildScript, isNot(contains('EXPO_PUBLIC_SENTRY')));
     expect(buildScript, contains('if (\$RemotePushEnabled)'));
+    expect(buildScript, contains("MORT_BROWSERSTACK_QA_MODE = 'false'"));
     expect(buildScript, contains("\$defines['FIREBASE_ANDROID_API_KEY'] ="));
     expect(buildScript, contains("\$defines['FIREBASE_ANDROID_APP_ID'] ="));
     expect(buildScript, contains('if (\$CrashReportingEnabled)'));

@@ -193,6 +193,7 @@ $defines = [ordered]@{
   MORT_MINIMUM_SUPPORTED_APP_VERSION = [string]$profile.minimumSupportedAppVersion
   MORT_MAINTENANCE_MODE = ([bool]$profile.maintenanceMode).ToString().ToLowerInvariant()
   MORT_DEBUG_ENDPOINTS_ENABLED = ([bool]$profile.debugEndpointsEnabled).ToString().ToLowerInvariant()
+  MORT_BROWSERSTACK_QA_MODE = 'false'
   PLAY_REVIEW_MODE_ENABLED = $PlayReviewModeEnabled.ToString().ToLowerInvariant()
   GOOGLE_AUTH_ENABLED = $GoogleAuthEnabled.ToString().ToLowerInvariant()
   IAP_ENABLED = 'false'
