@@ -55,7 +55,7 @@ To verify the schedule without reading secret values or request headers:
 ```sql
 select jobname, schedule, active
 from cron.job
-where jobname = 'mort-send-push-every-minute';
+where jobname = 'mort-send-push';
 
 select created, status_code, error_msg
 from net._http_response
@@ -91,7 +91,7 @@ limit 20;
   inspected; secret values were not read.
 - Real FCM delivery: not verified.
 - `pg_cron` is enabled; `pg_net` is disabled.
-- No `mort-send-push-every-minute` schedule is configured.
+- No `mort-send-push` schedule is configured.
 - The repository contains a fail-closed scheduler migration, but it has not been
   applied to the hosted database. Hosted migration history must be reconciled
   through the approved owner process before any migration is applied.
