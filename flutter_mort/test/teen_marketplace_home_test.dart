@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_mort/core/theme/mort_theme.dart';
 import 'package:flutter_mort/core/atmosphere/mort_atmospheric_background.dart';
@@ -36,7 +37,14 @@ void main() {
       MortTheme.light().colorScheme.surface,
     );
     expect(
-      find.descendant(of: quickCard, matching: find.text('20 min · Flexible')),
+      find.descendant(of: quickCard, matching: find.text('20 min')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: quickCard,
+        matching: find.byKey(const ValueKey('quick-job-schedule-preview-job')),
+      ),
       findsOneWidget,
     );
     expect(
@@ -46,8 +54,77 @@ void main() {
       ),
       findsOneWidget,
     );
+    final lightColors = MortTheme.light().colorScheme;
+    final payChip = find.byKey(const ValueKey('quick-job-pay-preview-job'));
+    expect(
+      (tester.widget<Container>(payChip).decoration! as BoxDecoration).color,
+      lightColors.onSurface,
+    );
+    expect(
+      tester
+          .widget<Text>(
+            find.descendant(of: payChip, matching: find.text(r'$25.00')),
+          )
+          .style
+          ?.color,
+      lightColors.surface,
+    );
     expect(find.text('M'), findsNothing);
   });
+
+  testMortWidgets(
+    'Quick Jobs timing stays readable at large text on narrow phones',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            openJobsProvider.overrideWith2(_LargeTextJobsController.new),
+            savedJobIdsProvider.overrideWith((ref) async => <String>{}),
+            interestedJobIdsProvider.overrideWith((ref) async => <String>{}),
+          ],
+          child: MaterialApp(
+            theme: MortTheme.light(),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(2)),
+              child: child!,
+            ),
+            home: const TeenMarketplaceHomeScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      for (final (jobId, schedule) in [
+        ('preview-job', 'Flexible'),
+        ('scheduled-preview-job', 'Oct 28 · 4:00 PM'),
+      ]) {
+        final card = find.byKey(ValueKey('quick-job-$jobId'));
+        final scheduleText = find.byKey(ValueKey('quick-job-schedule-$jobId'));
+        expect(card, findsOneWidget);
+        expect(
+          find.descendant(of: card, matching: scheduleText),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: card, matching: find.text(schedule)),
+          findsOneWidget,
+        );
+        expect(
+          tester.renderObject<RenderParagraph>(scheduleText).didExceedMaxLines,
+          isFalse,
+        );
+      }
+
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testMortWidgets(
     'teen Home starts with local jobs and keeps search in Explore',
@@ -250,6 +327,21 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(MortAtmosphericBackground), findsNothing);
+    final darkColors = MortTheme.dark().colorScheme;
+    final payChip = find.byKey(const ValueKey('quick-job-pay-preview-job'));
+    expect(
+      (tester.widget<Container>(payChip).decoration! as BoxDecoration).color,
+      darkColors.onSurface,
+    );
+    expect(
+      tester
+          .widget<Text>(
+            find.descendant(of: payChip, matching: find.text(r'$25.00')),
+          )
+          .style
+          ?.color,
+      darkColors.surface,
+    );
     expect(tester.takeException(), isNull);
   });
 }
@@ -260,6 +352,14 @@ class _PreviewJobsController extends OpenJobsController {
   @override
   Future<JobFeedState> build() async =>
       const JobFeedState(items: [_previewJob, _longerJob], hasMore: false);
+}
+
+class _LargeTextJobsController extends OpenJobsController {
+  _LargeTextJobsController(super.filters);
+
+  @override
+  Future<JobFeedState> build() async =>
+      JobFeedState(items: [_previewJob, _scheduledJob], hasMore: false);
 }
 
 class _PreviewJobsRepository extends JobsRepository {
@@ -312,4 +412,24 @@ const _longerJob = Job(
   estimatedDurationMinutes: 45,
   payAmountCents: 3200,
   scheduleType: 'flexible',
+);
+
+final _scheduledJob = Job(
+  id: 'scheduled-preview-job',
+  posterId: 'scheduled-poster',
+  title: 'Walk the dog after school',
+  description: 'Walk one friendly dog around the block.',
+  category: 'Pet care',
+  locationText: 'General area',
+  city: 'Indianapolis',
+  state: 'IN',
+  neighborhood: 'Broad Ripple area',
+  status: 'open',
+  requiresGuardianApproval: false,
+  posterName: 'Sam',
+  estimatedDurationMinutes: 20,
+  payAmountCents: 1800,
+  startsAt: DateTime(2026, 10, 28, 16),
+  endsAt: DateTime(2026, 10, 28, 16, 30),
+  scheduleType: 'scheduled',
 );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_spacing.dart';
@@ -133,7 +134,7 @@ class _TeenMarketplaceHomeScreenState
                   ),
                   const SizedBox(height: MortSpacing.xs),
                   SizedBox(
-                    height: 184 * MediaQuery.textScalerOf(context).scale(1),
+                    height: 200 * MediaQuery.textScalerOf(context).scale(1),
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: quickJobs.length.clamp(0, 8),
@@ -284,7 +285,7 @@ class _QuickJobCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final area = job.publicAreaDisplay;
-    final schedule = job.isFlexible ? 'Flexible' : job.scheduleDisplay;
+    final schedule = _quickJobSchedule(job);
     return SizedBox(
       width: 244,
       child: Material(
@@ -376,34 +377,50 @@ class _QuickJobCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                Row(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(
-                      child: Text(
-                        '${job.estimatedDurationMinutes ?? '—'} min · $schedule',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelMedium
-                            ?.copyWith(color: colors.onSurfaceVariant),
-                      ),
-                    ),
-                    Container(
-                      key: ValueKey('quick-job-pay-${job.id}'),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: colors.onSurface,
-                        borderRadius: BorderRadius.circular(9),
-                      ),
-                      child: Text(
-                        job.payDisplay,
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: colors.surface,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.2,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${job.estimatedDurationMinutes ?? '—'} min',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.labelMedium
+                                ?.copyWith(color: colors.onSurfaceVariant),
+                          ),
                         ),
+                        Container(
+                          key: ValueKey('quick-job-pay-${job.id}'),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.onSurface,
+                            borderRadius: BorderRadius.circular(9),
+                          ),
+                          child: Text(
+                            job.payDisplay,
+                            style: Theme.of(context).textTheme.labelLarge
+                                ?.copyWith(
+                                  color: colors.surface,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.2,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: MortSpacing.xs),
+                    Text(
+                      schedule,
+                      key: ValueKey('quick-job-schedule-${job.id}'),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: colors.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -775,4 +792,11 @@ String _prettyCategory(String category) {
       .where((word) => word.isNotEmpty)
       .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
       .join(' ');
+}
+
+String _quickJobSchedule(Job job) {
+  if (job.isFlexible) return 'Flexible';
+  final startsAt = job.startsAt;
+  if (startsAt == null) return 'Time to be set';
+  return DateFormat('MMM d · h:mm a').format(startsAt.toLocal());
 }
