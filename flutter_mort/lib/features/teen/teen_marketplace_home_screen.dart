@@ -28,7 +28,7 @@ class TeenMarketplaceHomeScreen extends ConsumerWidget {
               'MORT',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w900,
-                letterSpacing: 2.2,
+                letterSpacing: 1.8,
               ),
             ),
             const Spacer(),
@@ -45,49 +45,38 @@ class TeenMarketplaceHomeScreen extends ConsumerWidget {
             ),
           ],
         ),
-        const SizedBox(height: MortSpacing.md),
+        const SizedBox(height: MortSpacing.lg),
         Text(
-          'LOCAL WORK,\nON YOUR TERMS',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: colors.onSurfaceVariant,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.8,
-          ),
-        ),
-        const SizedBox(height: MortSpacing.xs),
-        Text(
-          'Work that fits\nyour day.',
-          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+          'Jobs near you',
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
             fontWeight: FontWeight.w800,
-            letterSpacing: -1.4,
-            height: 1.0,
+            letterSpacing: -1.0,
           ),
         ),
-        const SizedBox(height: MortSpacing.sm),
+        const SizedBox(height: MortSpacing.xxs),
         Row(
           children: [
             Icon(
-              Icons.near_me_outlined,
-              size: 17,
+              Icons.shield_outlined,
+              size: 16,
               color: colors.onSurfaceVariant,
             ),
             const SizedBox(width: MortSpacing.xxs),
             Expanded(
               child: Text(
-                'Discover work in your area',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colors.onSurfaceVariant,
-                ),
+                'Local work. Exact addresses stay private.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
               ),
             ),
-            TextButton.icon(
+            TextButton(
               onPressed: () => context.go('/teen/explore'),
-              icon: const Icon(Icons.arrow_forward_rounded, size: 17),
-              label: const Text('Explore'),
               style: TextButton.styleFrom(
                 foregroundColor: colors.onSurface,
                 minimumSize: const Size(48, 44),
               ),
+              child: const Text('Explore'),
             ),
           ],
         ),
@@ -143,7 +132,7 @@ class TeenMarketplaceHomeScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: MortSpacing.xs),
                   SizedBox(
-                    height: 136 * MediaQuery.textScalerOf(context).scale(1),
+                    height: 168 * MediaQuery.textScalerOf(context).scale(1),
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: quickJobs.length.clamp(0, 8),
@@ -157,7 +146,7 @@ class TeenMarketplaceHomeScreen extends ConsumerWidget {
                 ],
                 if (openJobs.isNotEmpty) ...[
                   _SectionHeading(
-                    title: 'More nearby',
+                    title: 'All nearby jobs',
                     actionLabel: 'See all',
                     onAction: () => context.go('/teen/explore'),
                   ),
@@ -247,8 +236,11 @@ class _QuickJobCard extends StatelessWidget {
     return SizedBox(
       width: 248,
       child: Material(
-        color: colors.onSurface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        color: colors.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: colors.outlineVariant),
+        ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => context.push('/teen/jobs/${job.id}'),
@@ -271,7 +263,7 @@ class _QuickJobCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.labelMedium
                             ?.copyWith(
-                              color: colors.surface,
+                              color: colors.onSurfaceVariant,
                               fontWeight: FontWeight.w600,
                             ),
                       ),
@@ -279,7 +271,7 @@ class _QuickJobCard extends StatelessWidget {
                     Icon(
                       Icons.north_east_rounded,
                       size: 18,
-                      color: colors.surface,
+                      color: colors.onSurfaceVariant,
                     ),
                   ],
                 ),
@@ -289,7 +281,7 @@ class _QuickJobCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: colors.surface,
+                    color: colors.onSurface,
                     fontWeight: FontWeight.w700,
                     height: 1.05,
                   ),
@@ -298,9 +290,41 @@ class _QuickJobCard extends StatelessWidget {
                 Row(
                   children: [
                     Icon(
+                      Icons.person_outline_rounded,
+                      size: 14,
+                      color: colors.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: MortSpacing.xxs),
+                    Expanded(
+                      child: Text(
+                        job.posterName ?? 'Local poster',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    if (job.posterVerified) ...[
+                      Tooltip(
+                        message: 'Verified poster',
+                        child: Icon(
+                          Icons.verified_rounded,
+                          size: 16,
+                          semanticLabel: 'Verified poster',
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: MortSpacing.xxs),
+                Row(
+                  children: [
+                    Icon(
                       Icons.location_on_outlined,
                       size: 14,
-                      color: colors.surface.withValues(alpha: 0.75),
+                      color: colors.onSurfaceVariant,
                     ),
                     const SizedBox(width: MortSpacing.xxs),
                     Expanded(
@@ -309,7 +333,7 @@ class _QuickJobCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: colors.surface.withValues(alpha: 0.75),
+                          color: colors.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -330,7 +354,7 @@ class _QuickJobCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colors.surface.withValues(alpha: 0.78),
+                          color: colors.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -338,7 +362,7 @@ class _QuickJobCard extends StatelessWidget {
                     Text(
                       job.payDisplay,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: colors.surface,
+                        color: colors.onSurface,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -406,7 +430,10 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
 
     return Material(
       color: colors.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(20),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: colors.outlineVariant),
+      ),
       clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.all(MortSpacing.md),
@@ -480,16 +507,12 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
                 ),
                 if (job.posterVerified) ...[
                   const SizedBox(width: MortSpacing.xxs),
-                  Icon(
-                    Icons.verified_rounded,
-                    size: 15,
-                    semanticLabel: 'Verified poster',
-                    color: colors.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: MortSpacing.xxs),
-                  Text(
-                    'Verified',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  Tooltip(
+                    message: 'Verified poster',
+                    child: Icon(
+                      Icons.verified_rounded,
+                      size: 16,
+                      semanticLabel: 'Verified poster',
                       color: colors.onSurfaceVariant,
                     ),
                   ),
@@ -564,7 +587,7 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: const Text('Apply'),
+                    child: const Text('View job'),
                   ),
                 ),
               ],

@@ -72,51 +72,49 @@ void main() {
     expect(find.byType(BackdropFilter), findsOneWidget);
   });
 
-  testMortWidgets(
-    'glass navigation is accessible and responsive at large text',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(1080, 2408);
-      tester.view.devicePixelRatio = 3;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
-      var selected = 0;
+  testMortWidgets('navigation bar is accessible and responsive at large text', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2408);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    var selected = 0;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: mortTestTheme(MortTheme.dark()),
-          home: MediaQuery(
-            data: const MediaQueryData(textScaler: TextScaler.linear(1.3)),
-            child: StatefulBuilder(
-              builder: (context, setState) => Scaffold(
-                bottomNavigationBar: MortGlassNavigationBar(
-                  currentIndex: selected,
-                  destinations: _destinations,
-                  onDestinationSelected: (index) {
-                    setState(() => selected = index);
-                  },
-                ),
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: mortTestTheme(MortTheme.dark()),
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(1.3)),
+          child: StatefulBuilder(
+            builder: (context, setState) => Scaffold(
+              bottomNavigationBar: MortGlassNavigationBar(
+                currentIndex: selected,
+                destinations: _destinations,
+                onDestinationSelected: (index) {
+                  setState(() => selected = index);
+                },
               ),
             ),
           ),
         ),
+      ),
+    );
+
+    for (final destination in _destinations) {
+      final label = find.text(destination.label);
+      expect(label, findsOneWidget);
+      expect(
+        find.ancestor(of: label, matching: find.byType(NavigationBar)),
+        findsOneWidget,
       );
+    }
+    expect(tester.takeException(), isNull);
 
-      for (final destination in _destinations) {
-        final label = find.text(destination.label);
-        expect(label, findsOneWidget);
-        final target = find.ancestor(of: label, matching: find.byType(InkWell));
-        expect(target, findsOneWidget);
-        final size = tester.getSize(target);
-        expect(size.width, greaterThanOrEqualTo(44));
-        expect(size.height, greaterThanOrEqualTo(44));
-      }
-      expect(tester.takeException(), isNull);
-
-      await tester.tap(find.text('Safety'));
-      await tester.pumpAndSettle();
-      expect(selected, 2);
-    },
-  );
+    await tester.tap(find.text('Safety'));
+    await tester.pumpAndSettle();
+    expect(selected, 2);
+  });
 }

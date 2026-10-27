@@ -27,17 +27,19 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Work that fits\nyour day.'), findsOneWidget);
+      expect(find.text('Jobs near you'), findsOneWidget);
       expect(find.text('Quick picks'), findsOneWidget);
-      expect(find.text('More nearby'), findsOneWidget);
+      expect(find.text('All nearby jobs'), findsOneWidget);
       expect(find.text('Yard cleanup'), findsOneWidget);
       expect(find.textContaining(r'$25.00'), findsWidgets);
+      expect(find.text('Janet'), findsOneWidget);
+      expect(find.byTooltip('Verified poster'), findsOneWidget);
       expect(
         find.text('Browse local work. Exact addresses stay private.'),
         findsNothing,
       );
       expect(find.text('Broad Ripple area'), findsWidgets);
-      expect(find.text('Apply'), findsOneWidget);
+      expect(find.text('View job'), findsOneWidget);
       expect(find.byTooltip('Save job'), findsOneWidget);
       expect(find.byType(TextField), findsNothing);
       expect(find.text('123 Exact Street'), findsNothing);
@@ -72,7 +74,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Quick picks'), findsOneWidget);
-    expect(find.text('Apply'), findsWidgets);
+    expect(find.text('View job'), findsWidgets);
   });
 
   testMortWidgets('dark teen Home follows the monochrome product theme', (
