@@ -197,11 +197,15 @@ class MortNavigationDestination {
     required this.label,
     required this.icon,
     required this.selectedIcon,
+    this.accessibilityLabel,
+    this.prominentAction = false,
   });
 
   final String label;
   final IconData icon;
   final IconData selectedIcon;
+  final String? accessibilityLabel;
+  final bool prominentAction;
 }
 
 class MortGlassNavigationBar extends StatelessWidget {
@@ -220,6 +224,9 @@ class MortGlassNavigationBar extends StatelessWidget {
   Widget build(BuildContext context) {
     assert(currentIndex >= 0 && currentIndex < destinations.length);
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    final scheme = Theme.of(context).colorScheme;
+    final selectedColor = scheme.onSurface;
+    final unselectedColor = scheme.onSurfaceVariant;
     return SafeArea(
       top: false,
       minimum: const EdgeInsets.fromLTRB(
@@ -228,10 +235,12 @@ class MortGlassNavigationBar extends StatelessWidget {
         MortSpacing.md,
         MortSpacing.xs,
       ),
-      child: LiquidGlassContainer(
-        liveBlur: true,
-        allowAndroidBlur: true,
-        borderRadius: BorderRadius.circular(MortRadii.sheet),
+      child: Container(
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHigh.withValues(alpha: 0.97),
+          borderRadius: BorderRadius.circular(MortRadii.sheet),
+          border: Border.all(color: scheme.outlineVariant),
+        ),
         padding: const EdgeInsets.all(MortSpacing.xxs),
         child: Row(
           children: [
@@ -240,9 +249,13 @@ class MortGlassNavigationBar extends StatelessWidget {
                 child: Semantics(
                   selected: currentIndex == index,
                   button: true,
-                  label: destinations[index].label,
+                  label:
+                      destinations[index].accessibilityLabel ??
+                      destinations[index].label,
                   child: Tooltip(
-                    message: destinations[index].label,
+                    message:
+                        destinations[index].accessibilityLabel ??
+                        destinations[index].label,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(MortRadii.card),
                       onTap: () => onDestinationSelected(index),
@@ -259,30 +272,47 @@ class MortGlassNavigationBar extends StatelessWidget {
                           vertical: MortSpacing.xs,
                         ),
                         decoration: BoxDecoration(
-                          color: currentIndex == index
-                              ? MortColors.roseGold.withValues(alpha: 0.18)
+                          color:
+                              currentIndex == index &&
+                                  !destinations[index].prominentAction
+                              ? selectedColor.withValues(alpha: 0.10)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(MortRadii.card),
-                          border: currentIndex == index
+                          border:
+                              currentIndex == index &&
+                                  !destinations[index].prominentAction
                               ? Border.all(
-                                  color: MortColors.roseGold.withValues(
-                                    alpha: 0.36,
-                                  ),
+                                  color: selectedColor.withValues(alpha: 0.22),
                                 )
                               : null,
                         ),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              currentIndex == index
-                                  ? destinations[index].selectedIcon
-                                  : destinations[index].icon,
-                              size: 22,
-                              color: currentIndex == index
-                                  ? MortColors.roseGoldLight
-                                  : MortColors.silver,
-                            ),
+                            if (destinations[index].prominentAction)
+                              Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: selectedColor,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  destinations[index].icon,
+                                  size: 22,
+                                  color: scheme.surface,
+                                ),
+                              )
+                            else
+                              Icon(
+                                currentIndex == index
+                                    ? destinations[index].selectedIcon
+                                    : destinations[index].icon,
+                                size: 22,
+                                color: currentIndex == index
+                                    ? selectedColor
+                                    : unselectedColor,
+                              ),
                             const SizedBox(height: MortSpacing.xxs),
                             Text(
                               destinations[index].label,
@@ -292,8 +322,8 @@ class MortGlassNavigationBar extends StatelessWidget {
                               style: Theme.of(context).textTheme.labelMedium
                                   ?.copyWith(
                                     color: currentIndex == index
-                                        ? MortColors.roseGoldLight
-                                        : MortColors.textMuted,
+                                        ? selectedColor
+                                        : unselectedColor,
                                     fontSize: 10,
                                   ),
                             ),

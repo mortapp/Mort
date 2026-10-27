@@ -16,6 +16,23 @@ import 'package:flutter/material.dart';
 class MortColors {
   const MortColors._();
 
+  // Canonical light surfaces are additive so legacy dark-first screens can
+  // migrate gradually without changing their existing semantic colors.
+  static const lightBackground = Color(0xFFF7F7F5);
+  static const lightSurface = Color(0xFFFFFFFF);
+  static const lightSurfaceAlt = Color(0xFFF0F0EE);
+  static const lightSurfaceRaised = Color(0xFFE7E7E4);
+  static const lightText = Color(0xFF171717);
+  static const lightTextSoft = Color(0xFF454545);
+  static const lightTextMuted = Color(0xFF6B6B68);
+  static const lightLine = Color(0xFFD8D8D4);
+  static const darkBackground = Color(0xFF050607);
+  static const darkSurface = Color(0xFF0B0D11);
+  static const darkSurfaceAlt = Color(0xFF101218);
+  static const darkText = Color(0xFFF7F8FA);
+  static const darkTextSoft = Color(0xFFE1E4E8);
+  static const darkTextMuted = Color(0xFFADB2BA);
+
   // -- Primary black family (dominant surface) --
   static const void_ = Color(0xFF000000);
   static const godBlack = void_;

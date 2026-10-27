@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/theme/mort_colors.dart';
 import '../../core/widgets/mort_widgets.dart';
 
 class TeenShell extends StatefulWidget {
@@ -49,16 +48,14 @@ class _TeenShellState extends State<TeenShell> {
   @override
   Widget build(BuildContext context) {
     final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
-    return TeenNavigationScope(
+    return ShellBackNavigationScope(
       canGoBack: _canReturnToPreviousDestination,
       onBack: _returnToPreviousDestination,
-      child: PopScope(
-        canPop: !_canReturnToPreviousDestination,
-        onPopInvokedWithResult: (didPop, _) {
-          if (!didPop) _returnToPreviousDestination();
-        },
+      child: TeenNavigationScope(
+        canGoBack: _canReturnToPreviousDestination,
+        onBack: _returnToPreviousDestination,
         child: Scaffold(
-          backgroundColor: MortColors.bg,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: widget.navigationShell,
           bottomNavigationBar: keyboardVisible
               ? null
@@ -136,22 +133,17 @@ class MortTeenDestinationHeader extends StatelessWidget {
 
 const _teenDestinations = [
   MortNavigationDestination(
-    label: 'Dashboard',
-    icon: Icons.grid_view_outlined,
-    selectedIcon: Icons.grid_view_rounded,
+    label: 'Home',
+    icon: Icons.home_outlined,
+    selectedIcon: Icons.home_rounded,
   ),
   MortNavigationDestination(
-    label: 'Jobs',
-    icon: Icons.assignment_outlined,
-    selectedIcon: Icons.assignment_rounded,
+    label: 'Explore',
+    icon: Icons.search_rounded,
+    selectedIcon: Icons.search_rounded,
   ),
   MortNavigationDestination(
-    label: 'Safety',
-    icon: Icons.shield_outlined,
-    selectedIcon: Icons.shield_rounded,
-  ),
-  MortNavigationDestination(
-    label: 'Messages',
+    label: 'Inbox',
     icon: Icons.chat_bubble_outline_rounded,
     selectedIcon: Icons.chat_bubble_rounded,
   ),

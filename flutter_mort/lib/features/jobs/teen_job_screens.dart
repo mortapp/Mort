@@ -261,8 +261,8 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
     return MortScreen(
       children: [
         MortTeenDestinationHeader(
-          eyebrow: 'Teen-safe feed',
-          title: 'Jobs',
+          eyebrow: 'Teen-safe discovery',
+          title: 'Explore',
           subtitle:
               'Open jobs in your selected area. Exact addresses never appear in the feed.',
           trailing: Row(
@@ -542,9 +542,9 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
                   MortCard(
                     child: Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.location_disabled_rounded,
-                          color: MortColors.lightBlue,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: MortSpacing.sm),
                         const Expanded(
@@ -623,6 +623,7 @@ class _TeenJobCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return MortGlassCard(
       onTap: () => context.push('/teen/jobs/${job.id}'),
       semanticLabel:
@@ -655,7 +656,7 @@ class _TeenJobCard extends StatelessWidget {
                 job.payDisplay,
                 textAlign: TextAlign.end,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: MortColors.silverBright,
+                  color: colors.primary,
                   fontWeight: FontWeight.w700,
                 ),
               );
@@ -674,8 +675,8 @@ class _TeenJobCard extends StatelessWidget {
                               ? Icons.favorite_rounded
                               : Icons.favorite_border_rounded,
                           color: saved
-                              ? MortColors.silverBright
-                              : MortColors.silver,
+                              ? colors.primary
+                              : colors.onSurfaceVariant,
                         ),
                       ),
               );
@@ -764,20 +765,20 @@ class _TeenJobCard extends StatelessWidget {
                 icon: Icons.verified_user_outlined,
                 color: job.posterVerified
                     ? MortColors.success
-                    : MortColors.lightBlue,
+                    : colors.onSurfaceVariant,
               ),
               if (job.requiresGuardianApproval)
-                const MortStatusPill(
+                MortStatusPill(
                   label: 'Guardian approval requested',
                   icon: Icons.family_restroom_outlined,
-                  color: MortColors.lightBlue,
+                  color: colors.onSurfaceVariant,
                 ),
               MortStatusPill(
                 label: job.workEnvironment == 'unspecified'
                     ? 'Environment details in job'
                     : job.workEnvironment.replaceAll('_', ' '),
                 icon: Icons.health_and_safety_outlined,
-                color: MortColors.silver,
+                color: colors.onSurfaceVariant,
               ),
             ],
           ),
@@ -821,7 +822,8 @@ class _JobCardMetaChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = emphasize ? MortColors.silverBright : MortColors.lightBlue;
+    final scheme = Theme.of(context).colorScheme;
+    final color = emphasize ? scheme.onSurface : scheme.onSurfaceVariant;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -833,7 +835,7 @@ class _JobCardMetaChip extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: emphasize ? MortColors.silverBright : null,
+              color: emphasize ? scheme.onSurface : null,
               fontWeight: emphasize ? FontWeight.w600 : null,
             ),
           ),

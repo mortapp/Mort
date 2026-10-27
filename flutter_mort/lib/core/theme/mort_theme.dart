@@ -9,59 +9,82 @@ import '../routing/mort_page_transitions.dart';
 class MortTheme {
   const MortTheme._();
 
-  static ThemeData dark() {
-    final colorScheme =
-        const ColorScheme(
-          brightness: Brightness.dark,
-          primary: MortColors.accent,
-          onPrimary: MortColors.bg,
-          secondary: MortColors.lightBlue,
-          onSecondary: MortColors.bg,
-          error: MortColors.dangerDeep,
-          onError: MortColors.white,
-          surface: MortColors.card,
-          onSurface: MortColors.text,
-        ).copyWith(
-          primaryContainer: MortColors.lineStrong,
-          onPrimaryContainer: MortColors.text,
-          secondaryContainer: MortColors.lightBlueDeep,
-          onSecondaryContainer: MortColors.lightBlueSoft,
-          surfaceContainerLowest: MortColors.bg,
-          surfaceContainerLow: MortColors.black,
-          surfaceContainer: MortColors.card,
-          surfaceContainerHigh: MortColors.raisedBlack,
-          surfaceContainerHighest: MortColors.bgElevated,
-          outline: MortColors.lineStrong,
-          outlineVariant: MortColors.line,
-          shadow: Colors.black,
-          scrim: Colors.black,
-          inverseSurface: MortColors.text,
-          onInverseSurface: MortColors.bg,
-          inversePrimary: MortColors.silverDark,
-        );
+  static ThemeData light() => _build(Brightness.light);
+
+  static ThemeData dark() => _build(Brightness.dark);
+
+  static ThemeData _build(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    final background = isDark
+        ? MortColors.darkBackground
+        : MortColors.lightBackground;
+    final surface = isDark ? MortColors.darkSurface : MortColors.lightSurface;
+    final surfaceAlt = isDark
+        ? MortColors.darkSurfaceAlt
+        : MortColors.lightSurfaceAlt;
+    final raised = isDark
+        ? MortColors.bgElevated
+        : MortColors.lightSurfaceRaised;
+    final text = isDark ? MortColors.darkText : MortColors.lightText;
+    final textSoft = isDark
+        ? MortColors.darkTextSoft
+        : MortColors.lightTextSoft;
+    final muted = isDark ? MortColors.darkTextMuted : MortColors.lightTextMuted;
+    final line = isDark ? MortColors.line : MortColors.lightLine;
+    final primary = isDark ? MortColors.silverBright : MortColors.lightText;
+    final primaryOn = isDark ? MortColors.darkBackground : Colors.white;
+    final colorScheme = ColorScheme(
+      brightness: brightness,
+      primary: primary,
+      onPrimary: primaryOn,
+      secondary: isDark ? MortColors.silver : MortColors.silverDark,
+      onSecondary: isDark ? MortColors.darkBackground : Colors.white,
+      error: isDark ? MortColors.danger : const Color(0xFFB4232A),
+      onError: Colors.white,
+      surface: surface,
+      onSurface: text,
+      onSurfaceVariant: muted,
+      primaryContainer: isDark ? MortColors.lineStrong : raised,
+      onPrimaryContainer: text,
+      secondaryContainer: isDark
+          ? MortColors.lightBlueDeep
+          : MortColors.lightSurfaceAlt,
+      onSecondaryContainer: isDark ? MortColors.lightBlueSoft : textSoft,
+      surfaceContainerLowest: background,
+      surfaceContainerLow: isDark ? MortColors.black : surface,
+      surfaceContainer: surface,
+      surfaceContainerHigh: raised,
+      surfaceContainerHighest: isDark
+          ? MortColors.bgElevated
+          : const Color(0xFFDEDEDA),
+      outline: isDark ? MortColors.lineStrong : const Color(0xFF999995),
+      outlineVariant: line,
+      shadow: Colors.black,
+      scrim: Colors.black,
+      inverseSurface: text,
+      onInverseSurface: background,
+      inversePrimary: isDark ? MortColors.silverDark : MortColors.silverBright,
+    );
 
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
+      brightness: brightness,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: MortColors.bg,
-      textTheme: MortTypography.textTheme(),
+      scaffoldBackgroundColor: background,
+      textTheme: MortTypography.textTheme(brightness),
       fontFamily: 'Roboto',
-      focusColor: MortColors.lightBlue.withValues(alpha: 0.36),
-      hoverColor: MortColors.lightBlue.withValues(alpha: 0.08),
-      highlightColor: MortColors.accent.withValues(alpha: 0.08),
-      splashColor: MortColors.accent.withValues(alpha: 0.12),
+      focusColor: primary.withValues(alpha: 0.28),
+      hoverColor: primary.withValues(alpha: 0.07),
+      highlightColor: primary.withValues(alpha: 0.07),
+      splashColor: primary.withValues(alpha: 0.1),
       splashFactory: InkRipple.splashFactory,
       visualDensity: VisualDensity.standard,
       materialTapTargetSize: MaterialTapTargetSize.padded,
       pageTransitionsTheme: MortPageTransitions.theme,
-      iconTheme: const IconThemeData(
-        color: MortColors.textSoft,
-        size: MortIconSizes.standard,
-      ),
-      appBarTheme: const AppBarTheme(
+      iconTheme: IconThemeData(color: textSoft, size: MortIconSizes.standard),
+      appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
-        foregroundColor: MortColors.text,
+        foregroundColor: text,
         centerTitle: false,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
@@ -69,31 +92,31 @@ class MortTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: MortColors.glass,
+        fillColor: isDark ? MortColors.glass : surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: MortSpacing.md,
           vertical: MortSpacing.md,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(MortRadii.medium),
-          borderSide: const BorderSide(color: MortColors.line),
+          borderSide: BorderSide(color: line),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(MortRadii.medium),
-          borderSide: const BorderSide(color: MortColors.line),
+          borderSide: BorderSide(color: line),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(MortRadii.medium),
-          borderSide: const BorderSide(color: MortColors.accent, width: 1.4),
+          borderSide: BorderSide(color: primary, width: 1.4),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(MortRadii.medium),
           borderSide: const BorderSide(color: MortColors.danger),
         ),
-        labelStyle: const TextStyle(color: MortColors.textSoft),
-        hintStyle: const TextStyle(color: MortColors.textMuted),
-        prefixIconColor: MortColors.accent,
-        suffixIconColor: MortColors.textSoft,
+        labelStyle: TextStyle(color: textSoft),
+        hintStyle: TextStyle(color: muted),
+        prefixIconColor: textSoft,
+        suffixIconColor: textSoft,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -108,66 +131,62 @@ class MortTheme {
         ),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: MortColors.glass,
-        selectedColor: MortColors.silverDark,
-        disabledColor: MortColors.bgElevated,
-        side: const BorderSide(color: MortColors.line),
+        backgroundColor: isDark ? MortColors.glass : surfaceAlt,
+        selectedColor: isDark ? MortColors.silverDark : MortColors.silver,
+        disabledColor: raised,
+        side: BorderSide(color: line),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(MortRadii.pill),
         ),
-        labelStyle: const TextStyle(color: MortColors.textSoft),
-        secondaryLabelStyle: const TextStyle(color: MortColors.accent),
+        labelStyle: TextStyle(color: textSoft),
+        secondaryLabelStyle: TextStyle(color: text),
       ),
       navigationBarTheme: NavigationBarThemeData(
         height: MortSpacing.navigationHeight,
-        backgroundColor: MortColors.bgElevated.withValues(alpha: 0.94),
-        indicatorColor: MortColors.accent.withValues(alpha: 0.18),
+        backgroundColor: raised,
+        indicatorColor: primary.withValues(alpha: isDark ? 0.18 : 0.14),
         elevation: 0,
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => TextStyle(
-            color: states.contains(WidgetState.selected)
-                ? MortColors.accent
-                : MortColors.textMuted,
+            color: states.contains(WidgetState.selected) ? primary : muted,
             fontSize: 11,
             fontWeight: FontWeight.w600,
           ),
         ),
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
-            color: states.contains(WidgetState.selected)
-                ? MortColors.accent
-                : MortColors.textMuted,
+            color: states.contains(WidgetState.selected) ? primary : muted,
           ),
         ),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: MortColors.bgElevated,
+        backgroundColor: raised,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          side: const BorderSide(color: MortColors.lineStrong),
+          side: BorderSide(color: isDark ? MortColors.lineStrong : line),
           borderRadius: BorderRadius.circular(MortRadii.sheet),
         ),
       ),
-      dividerTheme: const DividerThemeData(color: MortColors.line, space: 1),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: MortColors.accent,
-        linearTrackColor: MortColors.line,
+      dividerTheme: DividerThemeData(color: line, space: 1),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: primary,
+        linearTrackColor: line,
       ),
       textSelectionTheme: TextSelectionThemeData(
-        cursorColor: MortColors.lightBlue,
-        selectionColor: MortColors.lightBlue.withValues(alpha: 0.32),
-        selectionHandleColor: MortColors.lightBlue,
+        cursorColor: primary,
+        selectionColor: primary.withValues(alpha: 0.24),
+        selectionHandleColor: primary,
       ),
-      snackBarTheme: const SnackBarThemeData(
-        backgroundColor: MortColors.cardAlt,
-        contentTextStyle: TextStyle(color: MortColors.text),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: isDark ? MortColors.cardAlt : surfaceAlt,
+        contentTextStyle: TextStyle(color: text),
         behavior: SnackBarBehavior.floating,
       ),
-      bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: MortColors.bgElevated,
-        modalBackgroundColor: MortColors.bgElevated,
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: raised,
+        modalBackgroundColor: raised,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
             top: Radius.circular(MortRadii.sheet),
           ),

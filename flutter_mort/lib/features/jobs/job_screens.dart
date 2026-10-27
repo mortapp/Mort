@@ -1539,7 +1539,9 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
 }
 
 class AdultJobsScreen extends ConsumerWidget {
-  const AdultJobsScreen({super.key});
+  const AdultJobsScreen({super.key, this.homeMode = false});
+
+  final bool homeMode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1548,9 +1550,10 @@ class AdultJobsScreen extends ConsumerWidget {
       children: [
         MortHeader(
           eyebrow: 'Adult jobs',
-          title: 'Manage jobs',
-          subtitle:
-              'Drafts, open jobs, assignments, proof, and completion use tracked workflow states.',
+          title: homeMode ? 'Your jobs' : 'Manage jobs',
+          subtitle: homeMode
+              ? 'Track posted work and open the next step.'
+              : 'Drafts, open jobs, assignments, proof, and completion use tracked workflow states.',
           trailing: MortIconButton(
             icon: Icons.refresh,
             tooltip: 'Refresh jobs',

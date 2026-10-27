@@ -8,7 +8,7 @@ void main() {
   test('theme does not synthesize off-palette container colors', () {
     final scheme = MortTheme.dark().colorScheme;
 
-    expect(scheme.primary, MortColors.accent);
+    expect(scheme.primary, MortColors.silverBright);
     expect(scheme.primaryContainer, MortColors.lineStrong);
     expect(scheme.onPrimaryContainer, MortColors.text);
     expect(scheme.surfaceContainer, MortColors.card);

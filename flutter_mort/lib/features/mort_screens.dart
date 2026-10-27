@@ -38,6 +38,7 @@ import 'mission/partner_staff_screens.dart';
 import 'onboarding/mort_rules_copy.dart';
 import 'profile/profile_avatar_widgets.dart';
 import 'teen/teen_shell.dart';
+import 'adult/adult_shell.dart';
 
 bool get _backendReady => SupabaseService.isInitialized;
 
@@ -4002,7 +4003,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   Widget _threadCard(
     BuildContext context,
     MessageThread thread, {
-    required bool inTeenShell,
+    required String threadPathPrefix,
   }) {
     final name = thread.counterpartyDisplayName?.trim();
     final displayName = name?.isNotEmpty == true ? name! : 'MORT participant';
@@ -4010,9 +4011,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     final jobTitle = thread.jobTitle?.trim();
     final preview = thread.lastMessagePreview?.trim();
     return MortCard(
-      onTap: () => context.push(
-        '${inTeenShell ? '/teen/messages' : '/messages'}/${thread.id}',
-      ),
+      onTap: () => context.push('$threadPathPrefix/${thread.id}'),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -4090,6 +4089,13 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
       return const SetupRequiredScreen();
     }
     final inTeenShell = TeenNavigationScope.maybeOf(context) != null;
+    final inAdultShell = AdultNavigationScope.isActive(context);
+    final inConsumerShell = inTeenShell || inAdultShell;
+    final threadPathPrefix = inTeenShell
+        ? '/teen/messages'
+        : inAdultShell
+        ? '/adult/inbox'
+        : '/messages';
     final header = inTeenShell
         ? MortTeenDestinationHeader(
             eyebrow: 'Protected chat',
@@ -4104,7 +4110,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
           )
         : MortHeader(
             eyebrow: 'Safety scanner',
-            title: 'Messages',
+            title: inAdultShell ? 'Inbox' : 'Messages',
             subtitle:
                 'No ads in chat. Messages pass through MORT safety checks.',
             trailing: MortIconButton(
@@ -4117,7 +4123,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
       atmosphereIntensity: MortAtmosphereIntensity.quiet,
       children: [
         header,
-        if (inTeenShell) const SizedBox(height: MortSpacing.md),
+        if (inConsumerShell) const SizedBox(height: MortSpacing.md),
         const MortSafetyBanner(
           message:
               'Protected chat blocks unsafe contact sharing and keeps report tools close by.',
@@ -4171,7 +4177,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
           )
         else ...[
           for (final thread in _threads) ...[
-            _threadCard(context, thread, inTeenShell: inTeenShell),
+            _threadCard(context, thread, threadPathPrefix: threadPathPrefix),
             const SizedBox(height: MortSpacing.sm),
           ],
           if (_nextCursor != null)

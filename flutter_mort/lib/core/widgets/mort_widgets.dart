@@ -32,6 +32,25 @@ export '../atmosphere/mort_atmosphere_tuning.dart' show MortAtmosphereIntensity;
 /// icon some OEMs add to it) even when the OS under-reports the inset.
 const double _minimumBottomSafeArea = 48;
 
+class ShellBackNavigationScope extends InheritedWidget {
+  const ShellBackNavigationScope({
+    super.key,
+    required this.canGoBack,
+    required this.onBack,
+    required super.child,
+  });
+
+  final bool canGoBack;
+  final VoidCallback onBack;
+
+  static ShellBackNavigationScope? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<ShellBackNavigationScope>();
+
+  @override
+  bool updateShouldNotify(ShellBackNavigationScope oldWidget) =>
+      canGoBack != oldWidget.canGoBack || onBack != oldWidget.onBack;
+}
+
 class MortScreen extends StatelessWidget {
   const MortScreen({
     super.key,
@@ -96,6 +115,11 @@ class MortScreen extends StatelessWidget {
     required bool didPop,
   }) async {
     if (didPop) return;
+    final shellNavigation = ShellBackNavigationScope.maybeOf(context);
+    if (shellNavigation?.canGoBack == true) {
+      shellNavigation!.onBack();
+      return;
+    }
     final shouldPop = await _handleWillPop(context);
     if (!context.mounted || !shouldPop) return;
 
@@ -113,6 +137,7 @@ class MortScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final location = GoRouter.maybeOf(context)?.state.uri.path ?? '/';
     final showFloatingBack =
         !_hasHeader && !MortBackNavigation.isRootLocation(location);
@@ -120,9 +145,12 @@ class MortScreen extends StatelessWidget {
     final canPop =
         GoRouter.maybeOf(context)?.canPop() ??
         (Navigator.maybeOf(context)?.canPop() ?? false);
+    final shellCanGoBack =
+        ShellBackNavigationScope.maybeOf(context)?.canGoBack == true;
     final allowImmediatePop =
         onWillPop == null &&
         !keyboardVisible &&
+        !shellCanGoBack &&
         (canPop || MortBackNavigation.isRootLocation(location));
     // A physically-confirmed bug: on at least one real Android 15 device,
     // MediaQuery's reported bottom viewPadding did not reliably reflect
@@ -166,49 +194,54 @@ class MortScreen extends StatelessWidget {
         : content;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: isDark
+          ? Colors.transparent
+          : Theme.of(context).scaffoldBackgroundColor,
       bottomNavigationBar: bottom,
-      body: DecoratedBox(
-        // Cheap flat base beneath the animated atmosphere: covers the
-        // frame before the atmosphere's own LayoutBuilder settles, and
-        // is what remains visible if the atmosphere ever fails to build.
-        decoration: const BoxDecoration(gradient: MortGradients.background),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (isDark) ...[
+            const Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(gradient: MortGradients.background),
+              ),
+            ),
             Positioned.fill(
               child: MortAtmosphericBackground(
                 intensity: atmosphereIntensity,
                 focalLayer: atmosphereFocalLayer,
               ),
             ),
-            PopScope<Object?>(
-              canPop: allowImmediatePop,
-              onPopInvokedWithResult: (didPop, _) =>
-                  _handlePopInvoked(context, didPop: didPop),
-              child: showFloatingBack
-                  ? Stack(
-                      children: [
-                        body,
-                        SafeArea(
-                          child: Align(
-                            alignment: Alignment.topLeft,
-                            child: Padding(
-                              padding: const EdgeInsets.all(MortSpacing.sm),
-                              child: MortBackButton(
-                                fallbackRoute: MortBackNavigation.fallbackRoute(
-                                  location,
-                                ),
+          ],
+          if (!isDark && atmosphereFocalLayer != null)
+            Positioned.fill(child: IgnorePointer(child: atmosphereFocalLayer!)),
+          PopScope<Object?>(
+            canPop: allowImmediatePop,
+            onPopInvokedWithResult: (didPop, _) =>
+                _handlePopInvoked(context, didPop: didPop),
+            child: showFloatingBack
+                ? Stack(
+                    children: [
+                      body,
+                      SafeArea(
+                        child: Align(
+                          alignment: Alignment.topLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.all(MortSpacing.sm),
+                            child: MortBackButton(
+                              fallbackRoute: MortBackNavigation.fallbackRoute(
+                                location,
                               ),
                             ),
                           ),
                         ),
-                      ],
-                    )
-                  : body,
-            ),
-          ],
-        ),
+                      ),
+                    ],
+                  )
+                : body,
+          ),
+        ],
       ),
     );
   }
@@ -265,7 +298,7 @@ class MortHeader extends StatelessWidget {
                   Text(
                     eyebrow!,
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: MortColors.primaryBright,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       letterSpacing: 1.4,
                     ),
                   ),
@@ -293,13 +326,13 @@ class MortCard extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(MortSpacing.md),
-    this.color = MortColors.card,
+    this.color,
     this.onTap,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
-  final Color color;
+  final Color? color;
   final VoidCallback? onTap;
 
   @override
@@ -318,7 +351,7 @@ class MortGlassCard extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(MortSpacing.md),
-    this.color = MortColors.card,
+    this.color,
     this.onTap,
     this.blur = false,
     this.infoAccent = false,
@@ -327,7 +360,7 @@ class MortGlassCard extends StatelessWidget {
 
   final Widget child;
   final EdgeInsetsGeometry padding;
-  final Color color;
+  final Color? color;
   final VoidCallback? onTap;
   final bool blur;
   final bool infoAccent;
@@ -335,9 +368,37 @@ class MortGlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    if (scheme.brightness == Brightness.light) {
+      final content = Padding(padding: padding, child: child);
+      final card = Material(
+        color: color ?? scheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(MortRadii.card),
+          side: BorderSide(color: scheme.outlineVariant),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: onTap == null
+            ? content
+            : InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(MortRadii.card),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minWidth: MortSpacing.minTouchTarget,
+                    minHeight: MortSpacing.minTouchTarget,
+                  ),
+                  child: content,
+                ),
+              ),
+      );
+      return semanticLabel == null
+          ? card
+          : Semantics(label: semanticLabel, child: card);
+    }
     return LiquidGlassContainer(
       padding: padding,
-      tint: infoAccent ? MortColors.lightBlue : color,
+      tint: infoAccent ? MortColors.lightBlue : color ?? MortColors.card,
       liveBlur: blur,
       // Callers that explicitly opt into blur (MortGlassSheet, and any
       // future caller passing blur: true) get real blur on Android too,
@@ -1007,7 +1068,11 @@ class MortEmptyState extends StatelessWidget {
           if (icon == null)
             const MortBrandMark(size: 64)
           else
-            Icon(icon, color: MortColors.lightBlue, size: 34),
+            Icon(
+              icon,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              size: 34,
+            ),
           const SizedBox(height: MortSpacing.sm),
           Text(title, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: MortSpacing.xs),
@@ -1360,11 +1425,14 @@ class MortJobStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
     final color = switch (status) {
-      'open' => MortColors.neon,
-      'closed' || 'removed' => MortColors.danger,
-      'paused' => MortColors.warning,
-      _ => MortColors.safetyBlue,
+      'open' => isLight ? MortColors.lightTextSoft : MortColors.neon,
+      'closed' || 'removed' => isLight
+          ? MortColors.dangerDeep
+          : MortColors.danger,
+      'paused' => isLight ? const Color(0xFF725019) : MortColors.warning,
+      _ => isLight ? MortColors.lightTextSoft : MortColors.safetyBlue,
     };
     return MortBadge(label: status.replaceAll('_', ' '), color: color);
   }
@@ -1400,16 +1468,27 @@ class MortCategoryPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final selectedColor = isLight
+        ? MortColors.lightSurfaceRaised
+        : MortColors.neonDeep;
+    final labelColor = isLight ? MortColors.lightText : MortColors.neon;
     return ChoiceChip(
       label: Text(label),
       selected: selected,
       onSelected: onTap == null ? null : (_) => onTap!(),
-      selectedColor: MortColors.neonDeep,
-      backgroundColor: MortColors.cardAlt,
+      selectedColor: selectedColor,
+      backgroundColor: isLight
+          ? MortColors.lightSurface
+          : MortColors.cardAlt,
       labelStyle: TextStyle(
-        color: selected ? MortColors.neon : MortColors.textSoft,
+        color: selected ? labelColor : MortColors.textSoft,
       ),
-      side: BorderSide(color: selected ? MortColors.neon : MortColors.line),
+      side: BorderSide(
+        color: isLight
+            ? (selected ? MortColors.lightTextSoft : MortColors.lightLine)
+            : (selected ? MortColors.neon : MortColors.line),
+      ),
     );
   }
 }
