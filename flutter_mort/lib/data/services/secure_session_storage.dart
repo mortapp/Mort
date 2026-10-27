@@ -6,8 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'secure_device_storage.dart';
 
-const mortSupabaseProjectRef = 'rakjydmgwwgtdislanbt';
-const mortSecureSessionKey = 'mort.rakjydmgwwgtdislanbt.auth.session.v1';
+const mortSupabaseProjectRef = 'jxbnrkasktbhtiujkhay';
+const mortSecureSessionKey = 'mort.jxbnrkasktbhtiujkhay.auth.session.v1';
 const mortLegacySecureSessionKey = 'mort.supabase.session';
 const mortLegacySupabaseSessionKey = 'sb-rakjydmgwwgtdislanbt-auth-token';
 
@@ -109,46 +109,7 @@ class MortSecureSessionStorage extends LocalStorage {
     final current = await _secureStore.read(mortSecureSessionKey);
     if (isStructurallyValidSession(current)) {
       _cachedSession = current;
-      return;
     }
-
-    final legacySecure = await _secureStore.read(mortLegacySecureSessionKey);
-    if (await _migrateCandidate(
-      legacySecure,
-      sourceStore: _secureStore,
-      sourceKey: mortLegacySecureSessionKey,
-    )) {
-      return;
-    }
-
-    final preferences = _legacyPreferences ??=
-        await SharedPreferencesSessionValueStore.create();
-    for (final key in legacyPreferenceKeys) {
-      final candidate = await preferences.read(key);
-      if (await _migrateCandidate(
-        candidate,
-        sourceStore: preferences,
-        sourceKey: key,
-      )) {
-        return;
-      }
-    }
-  }
-
-  Future<bool> _migrateCandidate(
-    String? candidate, {
-    required MortSessionValueStore sourceStore,
-    required String sourceKey,
-  }) async {
-    if (!isStructurallyValidSession(candidate)) return false;
-    await _secureStore.write(mortSecureSessionKey, candidate!);
-    final verified = await _secureStore.read(mortSecureSessionKey);
-    if (verified != candidate || !isStructurallyValidSession(verified)) {
-      return false;
-    }
-    await sourceStore.delete(sourceKey);
-    _cachedSession = verified;
-    return true;
   }
 
   @override

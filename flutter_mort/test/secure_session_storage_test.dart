@@ -7,14 +7,13 @@ class _MemoryStore implements MortSessionValueStore {
   _MemoryStore([Map<String, String>? values]) : values = {...?values};
 
   final Map<String, String> values;
-  bool corruptWrites = false;
 
   @override
   Future<String?> read(String key) async => values[key];
 
   @override
   Future<void> write(String key, String value) async {
-    values[key] = corruptWrites ? '$value-corrupt' : value;
+    values[key] = value;
   }
 
   @override
@@ -37,31 +36,33 @@ String _session({String userId = 'user-1'}) => jsonEncode({
 void main() {
   group('MortSecureSessionStorage', () {
     test('uses the stable project-scoped key', () {
-      expect(mortSecureSessionKey, 'mort.rakjydmgwwgtdislanbt.auth.session.v1');
-      expect(mortSupabaseProjectRef, 'rakjydmgwwgtdislanbt');
-    });
-
-    test('migrates the old Supabase preference only after read-back', () async {
-      final session = _session();
-      final secure = _MemoryStore();
-      final preferences = _MemoryStore({mortLegacySupabaseSessionKey: session});
-      final storage = MortSecureSessionStorage(
-        secureStore: secure,
-        legacyPreferences: preferences,
-      );
-
-      await storage.initialize();
-
-      expect(await storage.accessToken(), session);
-      expect(secure.values[mortSecureSessionKey], session);
-      expect(
-        preferences.values.containsKey(mortLegacySupabaseSessionKey),
-        isFalse,
-      );
+      expect(mortSecureSessionKey, 'mort.jxbnrkasktbhtiujkhay.auth.session.v1');
+      expect(mortSupabaseProjectRef, 'jxbnrkasktbhtiujkhay');
     });
 
     test(
-      'migrates the prior secure key without exposing the session',
+      'does not restore sessions issued by the deleted Supabase project',
+      () async {
+        final session = _session();
+        final secure = _MemoryStore();
+        final preferences = _MemoryStore({
+          mortLegacySupabaseSessionKey: session,
+        });
+        final storage = MortSecureSessionStorage(
+          secureStore: secure,
+          legacyPreferences: preferences,
+        );
+
+        await storage.initialize();
+
+        expect(await storage.hasAccessToken(), isFalse);
+        expect(secure.values.containsKey(mortSecureSessionKey), isFalse);
+        expect(preferences.values[mortLegacySupabaseSessionKey], session);
+      },
+    );
+
+    test(
+      'does not restore the prior project session from the legacy secure key',
       () async {
         final session = _session();
         final secure = _MemoryStore({mortLegacySecureSessionKey: session});
@@ -72,26 +73,11 @@ void main() {
 
         await storage.initialize();
 
-        expect(await storage.hasAccessToken(), isTrue);
-        expect(secure.values[mortSecureSessionKey], session);
-        expect(secure.values.containsKey(mortLegacySecureSessionKey), isFalse);
+        expect(await storage.hasAccessToken(), isFalse);
+        expect(secure.values.containsKey(mortSecureSessionKey), isFalse);
+        expect(secure.values[mortLegacySecureSessionKey], session);
       },
     );
-
-    test('does not delete a legacy value when verification fails', () async {
-      final session = _session();
-      final secure = _MemoryStore()..corruptWrites = true;
-      final preferences = _MemoryStore({mortLegacySupabaseSessionKey: session});
-      final storage = MortSecureSessionStorage(
-        secureStore: secure,
-        legacyPreferences: preferences,
-      );
-
-      await storage.initialize();
-
-      expect(await storage.hasAccessToken(), isFalse);
-      expect(preferences.values[mortLegacySupabaseSessionKey], session);
-    });
 
     test('rejects malformed legacy JSON without deleting it', () async {
       const malformed = '{"access_token":"only-one-field"}';
@@ -111,22 +97,27 @@ void main() {
       expect(secure.values.containsKey(mortSecureSessionKey), isFalse);
     });
 
-    test('migration is idempotent when the new key already exists', () async {
-      final current = _session(userId: 'current');
-      final legacy = _session(userId: 'legacy');
-      final secure = _MemoryStore({mortSecureSessionKey: current});
-      final preferences = _MemoryStore({mortLegacySupabaseSessionKey: legacy});
-      final storage = MortSecureSessionStorage(
-        secureStore: secure,
-        legacyPreferences: preferences,
-      );
+    test(
+      'restores an existing current-project session without legacy fallback',
+      () async {
+        final current = _session(userId: 'current');
+        final legacy = _session(userId: 'legacy');
+        final secure = _MemoryStore({mortSecureSessionKey: current});
+        final preferences = _MemoryStore({
+          mortLegacySupabaseSessionKey: legacy,
+        });
+        final storage = MortSecureSessionStorage(
+          secureStore: secure,
+          legacyPreferences: preferences,
+        );
 
-      await storage.initialize();
-      await storage.initialize();
+        await storage.initialize();
+        await storage.initialize();
 
-      expect(await storage.accessToken(), current);
-      expect(preferences.values[mortLegacySupabaseSessionKey], legacy);
-    });
+        expect(await storage.accessToken(), current);
+        expect(preferences.values[mortLegacySupabaseSessionKey], legacy);
+      },
+    );
 
     test('logout clears current and all known legacy session keys', () async {
       final session = _session();

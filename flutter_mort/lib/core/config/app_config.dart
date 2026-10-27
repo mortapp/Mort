@@ -5,7 +5,7 @@ import 'release_profile.dart';
 class AppConfig {
   const AppConfig._();
 
-  static const expectedSupabaseProjectRef = 'rakjydmgwwgtdislanbt';
+  static const expectedSupabaseProjectRef = 'jxbnrkasktbhtiujkhay';
 
   static const appName = 'MORT';
   static const slogan = 'Earn nearby. Move smart.';

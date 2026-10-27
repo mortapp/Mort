@@ -80,11 +80,11 @@ function Get-MortPublicConfigValue {
     [Parameter(Mandatory)][string]$Root
   )
 
+  # Prefer the mobile-specific names, including .env.local, over stale Expo
+  # aliases that may still point at a retired project.
   foreach ($scope in @('Process', 'User')) {
-    foreach ($name in @($PrimaryName, $ExpoName)) {
-      $value = [Environment]::GetEnvironmentVariable($name, $scope)
-      if (-not [string]::IsNullOrWhiteSpace($value)) { return $value.Trim() }
-    }
+    $value = [Environment]::GetEnvironmentVariable($PrimaryName, $scope)
+    if (-not [string]::IsNullOrWhiteSpace($value)) { return $value.Trim() }
   }
 
   $envPath = Join-Path $Root '.env.local'
@@ -93,7 +93,23 @@ function Get-MortPublicConfigValue {
       if ($line -match '^\s*([^#=]+)\s*=\s*(.*)\s*$') {
         $name = $Matches[1].Trim()
         $value = $Matches[2].Trim().Trim('"').Trim("'")
-        if ($name -in @($PrimaryName, $ExpoName) -and -not [string]::IsNullOrWhiteSpace($value)) {
+        if ($name -eq $PrimaryName -and -not [string]::IsNullOrWhiteSpace($value)) {
+          return $value
+        }
+      }
+    }
+  }
+
+  foreach ($scope in @('Process', 'User')) {
+    $value = [Environment]::GetEnvironmentVariable($ExpoName, $scope)
+    if (-not [string]::IsNullOrWhiteSpace($value)) { return $value.Trim() }
+  }
+  if (Test-Path -LiteralPath $envPath) {
+    foreach ($line in Get-Content -LiteralPath $envPath) {
+      if ($line -match '^\s*([^#=]+)\s*=\s*(.*)\s*$') {
+        $name = $Matches[1].Trim()
+        $value = $Matches[2].Trim().Trim('"').Trim("'")
+        if ($name -eq $ExpoName -and -not [string]::IsNullOrWhiteSpace($value)) {
           return $value
         }
       }

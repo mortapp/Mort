@@ -23,7 +23,7 @@ void main() {
     final config = _read('lib/core/config/app_config.dart');
     final main = _read('lib/main.dart');
 
-    expect(AppConfig.expectedSupabaseProjectRef, 'rakjydmgwwgtdislanbt');
+    expect(AppConfig.expectedSupabaseProjectRef, 'jxbnrkasktbhtiujkhay');
     expect(config, contains('assertValidReleaseConfiguration'));
     expect(
       config,
