@@ -65,15 +65,23 @@ $signing = Get-MortUploadSigning
 if (-not (Test-Path -LiteralPath $signing.StorePath -PathType Leaf)) {
   throw 'The protected MORT upload keystore does not exist.'
 }
-Set-MortUploadSigningEnvironment $signing
-
 $keytool = (Get-Command keytool -ErrorAction Stop).Source
 $previousPreference = $ErrorActionPreference
+$previousStorePassword = [Environment]::GetEnvironmentVariable('MORT_UPLOAD_STORE_PASSWORD', 'Process')
+$env:MORT_UPLOAD_STORE_PASSWORD = $signing.StorePassword
 $ErrorActionPreference = 'Continue'
-$certificateOutput = & $keytool -list -v -keystore $signing.StorePath `
-  -storepass $signing.StorePassword -alias $signing.Alias 2>&1
-$certificateExitCode = $LASTEXITCODE
-$ErrorActionPreference = $previousPreference
+try {
+  $certificateOutput = & $keytool -list -v -keystore $signing.StorePath `
+    -storepass:env MORT_UPLOAD_STORE_PASSWORD -alias $signing.Alias 2>&1
+  $certificateExitCode = $LASTEXITCODE
+} finally {
+  $ErrorActionPreference = $previousPreference
+  if ($null -eq $previousStorePassword) {
+    Remove-Item Env:MORT_UPLOAD_STORE_PASSWORD -ErrorAction SilentlyContinue
+  } else {
+    $env:MORT_UPLOAD_STORE_PASSWORD = $previousStorePassword
+  }
+}
 if ($certificateExitCode -ne 0) { throw 'The upload certificate could not be inspected.' }
 $certificateSha256 = (($certificateOutput | Select-String '^\s*SHA256:' | Select-Object -First 1).Line -replace '^\s*SHA256:\s*','').Trim()
 if ((ConvertTo-MortCertificateDigest $certificateSha256) -ne (ConvertTo-MortCertificateDigest $expectedCertificateSha256)) {
@@ -168,8 +176,19 @@ if ($defineJson -match '(?i)(service_role|client_secret|db_password|private_key|
 }
 [IO.File]::WriteAllText($defineFile, $defineJson, [Text.UTF8Encoding]::new($false))
 
+$signingEnvironmentNames = @(
+  'MORT_UPLOAD_KEYSTORE_PATH',
+  'MORT_UPLOAD_KEY_ALIAS',
+  'MORT_UPLOAD_STORE_PASSWORD',
+  'MORT_UPLOAD_KEY_PASSWORD'
+)
+$previousSigningEnvironment = @{}
+foreach ($name in $signingEnvironmentNames) {
+  $previousSigningEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+}
 Push-Location $flutterRoot
 try {
+  Set-MortUploadSigningEnvironment $signing
   if ($ArtifactKind -eq 'Aab') {
     & flutter build appbundle --release --obfuscate --split-debug-info=$symbolsDirectory "--dart-define-from-file=$defineFile"
   } else {
@@ -180,6 +199,14 @@ try {
   Pop-Location
   if ($defineFile -and (Test-Path -LiteralPath $defineFile)) {
     Remove-Item -LiteralPath $defineFile -Force
+  }
+  foreach ($name in $signingEnvironmentNames) {
+    $previousValue = $previousSigningEnvironment[$name]
+    if ($null -eq $previousValue) {
+      Remove-Item "Env:$name" -ErrorAction SilentlyContinue
+    } else {
+      [Environment]::SetEnvironmentVariable($name, $previousValue, 'Process')
+    }
   }
 }
 

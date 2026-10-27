@@ -34,11 +34,15 @@ if (Test-Path -LiteralPath $credentialPath -PathType Leaf) {
 
 $storePassword = New-StrongPassword
 $keyPassword = New-StrongPassword
+$previousStorePassword = [Environment]::GetEnvironmentVariable('MORT_UPLOAD_STORE_PASSWORD', 'Process')
+$previousKeyPassword = [Environment]::GetEnvironmentVariable('MORT_UPLOAD_KEY_PASSWORD', 'Process')
+$env:MORT_UPLOAD_STORE_PASSWORD = $storePassword
+$env:MORT_UPLOAD_KEY_PASSWORD = $keyPassword
 
 try {
   $ErrorActionPreference = 'Continue'
   $generationOutput = & $keytool -genkeypair -v -keystore $storePath -storetype JKS `
-    -storepass $storePassword -keypass $keyPassword -alias $Alias `
+    -storepass:env MORT_UPLOAD_STORE_PASSWORD -keypass:env MORT_UPLOAD_KEY_PASSWORD -alias $Alias `
     -keyalg RSA -keysize 4096 -validity 10000 `
     -dname 'CN=MORT Upload Key, OU=Mobile Release, O=MORT, L=Indianapolis, ST=Indiana, C=US' 2>&1
   $generationExitCode = $LASTEXITCODE
@@ -55,7 +59,8 @@ try {
   } | Export-Clixml -LiteralPath $credentialPath -Force
 
   $ErrorActionPreference = 'Continue'
-  $exportOutput = & $keytool -exportcert -rfc -keystore $storePath -storepass $storePassword `
+  $exportOutput = & $keytool -exportcert -rfc -keystore $storePath `
+    -storepass:env MORT_UPLOAD_STORE_PASSWORD `
     -alias $Alias -file $certificatePath 2>&1
   $exportExitCode = $LASTEXITCODE
   $ErrorActionPreference = 'Stop'
@@ -66,7 +71,8 @@ try {
   & icacls $SecretDirectory /inheritance:r /grant:r "${identity}:(OI)(CI)F" 'SYSTEM:(OI)(CI)F' | Out-Null
 
   $ErrorActionPreference = 'Continue'
-  $details = & $keytool -list -v -keystore $storePath -storepass $storePassword -alias $Alias 2>&1
+  $details = & $keytool -list -v -keystore $storePath `
+    -storepass:env MORT_UPLOAD_STORE_PASSWORD -alias $Alias 2>&1
   $detailsExitCode = $LASTEXITCODE
   $ErrorActionPreference = 'Stop'
   if ($detailsExitCode -ne 0) { throw 'keytool could not inspect the upload certificate.' }
@@ -97,6 +103,16 @@ try {
   $safeDetails
 } finally {
   $ErrorActionPreference = 'Stop'
+  if ($null -eq $previousStorePassword) {
+    Remove-Item Env:MORT_UPLOAD_STORE_PASSWORD -ErrorAction SilentlyContinue
+  } else {
+    $env:MORT_UPLOAD_STORE_PASSWORD = $previousStorePassword
+  }
+  if ($null -eq $previousKeyPassword) {
+    Remove-Item Env:MORT_UPLOAD_KEY_PASSWORD -ErrorAction SilentlyContinue
+  } else {
+    $env:MORT_UPLOAD_KEY_PASSWORD = $previousKeyPassword
+  }
   $storePassword = $null
   $keyPassword = $null
 }

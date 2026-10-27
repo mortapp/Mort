@@ -31,13 +31,24 @@ if ($LASTEXITCODE -ne 0 -or ($jarsignerOutput -join "`n") -notmatch 'jar verifie
   throw 'jarsigner rejected the AAB signature.'
 }
 
+$previousPreference = $ErrorActionPreference
+$previousStorePassword = [Environment]::GetEnvironmentVariable('MORT_UPLOAD_STORE_PASSWORD', 'Process')
+$env:MORT_UPLOAD_STORE_PASSWORD = $signing.StorePassword
 $ErrorActionPreference = 'Continue'
-$expected = & $keytool -list -v -keystore $signing.StorePath `
-  -storepass $signing.StorePassword -alias $signing.Alias 2>&1
-$expectedExitCode = $LASTEXITCODE
-$actual = & $keytool -printcert -jarfile $BundlePath 2>&1
-$actualExitCode = $LASTEXITCODE
-$ErrorActionPreference = 'Stop'
+try {
+  $expected = & $keytool -list -v -keystore $signing.StorePath `
+    -storepass:env MORT_UPLOAD_STORE_PASSWORD -alias $signing.Alias 2>&1
+  $expectedExitCode = $LASTEXITCODE
+  $actual = & $keytool -printcert -jarfile $BundlePath 2>&1
+  $actualExitCode = $LASTEXITCODE
+} finally {
+  $ErrorActionPreference = $previousPreference
+  if ($null -eq $previousStorePassword) {
+    Remove-Item Env:MORT_UPLOAD_STORE_PASSWORD -ErrorAction SilentlyContinue
+  } else {
+    $env:MORT_UPLOAD_STORE_PASSWORD = $previousStorePassword
+  }
+}
 if ($expectedExitCode -ne 0 -or $actualExitCode -ne 0) {
   throw 'keytool could not inspect the expected and actual signing certificates.'
 }
