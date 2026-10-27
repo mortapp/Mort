@@ -37,12 +37,18 @@ class DeviceAuthenticationResult {
   bool get succeeded => status == DeviceAuthenticationStatus.authenticated;
 }
 
-class DeviceAuthenticationService {
+abstract interface class AppLockAuthentication {
+  Future<DeviceAuthenticationCapability> capability();
+  Future<DeviceAuthenticationResult> authenticate(String reason);
+}
+
+class DeviceAuthenticationService implements AppLockAuthentication {
   DeviceAuthenticationService({LocalAuthentication? authentication})
     : _authentication = authentication ?? LocalAuthentication();
 
   final LocalAuthentication _authentication;
 
+  @override
   Future<DeviceAuthenticationCapability> capability() async {
     if (kIsWeb ||
         (defaultTargetPlatform != TargetPlatform.android &&
@@ -62,6 +68,7 @@ class DeviceAuthenticationService {
     }
   }
 
+  @override
   Future<DeviceAuthenticationResult> authenticate(String reason) async {
     final available = await capability();
     if (!available.supported) {

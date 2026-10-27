@@ -19,19 +19,42 @@ class AppLockPolicy {
   }
 }
 
+abstract interface class AppLockSettingsStore {
+  Future<Map<String, String>> readAll();
+  Future<void> write({required String key, required String value});
+}
+
+class _SecureStorageAppLockSettingsStore implements AppLockSettingsStore {
+  _SecureStorageAppLockSettingsStore(this._storage);
+
+  final FlutterSecureStorage _storage;
+
+  @override
+  Future<Map<String, String>> readAll() => _storage.readAll();
+
+  @override
+  Future<void> write({required String key, required String value}) =>
+      _storage.write(key: key, value: value);
+}
+
 class AppLockController extends ChangeNotifier {
   AppLockController({
     FlutterSecureStorage? storage,
-    DeviceAuthenticationService? authentication,
-  }) : _storage = storage ?? mortSecureDeviceStorage,
+    AppLockAuthentication? authentication,
+    AppLockSettingsStore? settingsStore,
+  }) : _storage =
+           settingsStore ??
+           _SecureStorageAppLockSettingsStore(
+             storage ?? mortSecureDeviceStorage,
+           ),
        _authentication = authentication ?? DeviceAuthenticationService();
 
   static final instance = AppLockController();
   static const _enabledKey = 'mort.app_lock.enabled';
   static const _minutesKey = 'mort.app_lock.minutes';
 
-  final FlutterSecureStorage _storage;
-  final DeviceAuthenticationService _authentication;
+  final AppLockSettingsStore _storage;
+  final AppLockAuthentication _authentication;
   DateTime? _backgroundedAt;
   bool _initialized = false;
   bool _authenticating = false;
@@ -46,18 +69,29 @@ class AppLockController extends ChangeNotifier {
 
   Future<void> initialize() async {
     if (_initialized) return;
-    _initialized = true;
     try {
       final settings = await _storage.readAll();
       enabled = settings[_enabledKey] == 'true';
       final storedMinutes = int.tryParse(settings[_minutesKey] ?? '');
       inactivityMinutes = (storedMinutes ?? 15).clamp(1, 240);
+      // A saved lock remains authoritative even when the device-auth plugin
+      // cannot currently report capability. Never expose private screens on
+      // the assumption that authentication is unavailable.
+      isLocked = enabled;
       capability = await _authentication.capability();
-      isLocked = enabled && capability.supported;
+      if (enabled && !capability.supported) {
+        failureMessage =
+            'Device authentication is unavailable. Restore a screen lock or passcode in device settings, then retry.';
+      }
     } catch (_) {
+      // If secure settings cannot be read, the saved preference is unknown.
+      // Fail closed; the user can retry device authentication to unlock.
+      enabled = true;
+      isLocked = true;
       failureMessage =
           'Local app-lock settings could not be restored on this device.';
     }
+    _initialized = true;
     notifyListeners();
   }
 
