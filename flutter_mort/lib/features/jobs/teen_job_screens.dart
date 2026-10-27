@@ -634,25 +634,94 @@ class _TeenJobCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Icon(
+                Icons.place_outlined,
+                size: 16,
+                color: colors.onSurfaceVariant,
+              ),
+              const SizedBox(width: MortSpacing.xxs),
+              Expanded(
+                child: Text(
+                  job.locationText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              if (distanceMiles != null) ...[
+                const SizedBox(width: MortSpacing.xs),
+                Icon(
+                  Icons.near_me_rounded,
+                  size: 15,
+                  color: colors.onSurfaceVariant,
+                ),
+                const SizedBox(width: MortSpacing.xxs),
+                Text(
+                  '${distanceMiles! < 0.1 ? '<0.1' : distanceMiles!.toStringAsFixed(1)} mi',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: MortSpacing.xs),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 12,
+                backgroundColor: colors.surfaceContainerHigh,
+                child: Icon(
+                  Icons.person_outline_rounded,
+                  size: 16,
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: MortSpacing.xs),
+              Flexible(
+                child: Text(
+                  job.posterName ?? 'Local poster',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ),
+              if (job.posterVerified) ...[
+                const SizedBox(width: MortSpacing.xxs),
+                Icon(
+                  Icons.verified_rounded,
+                  size: 15,
+                  semanticLabel: 'Verified poster',
+                  color: colors.onSurfaceVariant,
+                ),
+                const SizedBox(width: MortSpacing.xxs),
+                Text(
+                  'Verified',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          Text(
+            job.category,
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant),
+          ),
           LayoutBuilder(
             builder: (context, constraints) {
               final stacked =
                   constraints.maxWidth < 300 ||
                   MediaQuery.textScalerOf(context).scale(16) > 21;
-              final titleBlock = Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    job.title,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: MortSpacing.xxs),
-                  Text(
-                    job.category,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              );
               // Listed pay stays prominent, while its wording and semantics
               // avoid implying that MORT has processed or guaranteed payment.
               final pay = Text(
@@ -663,71 +732,39 @@ class _TeenJobCard extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               );
-              final save = SizedBox.square(
-                dimension: MortSpacing.minTouchTarget,
-                child: saving
-                    ? const Padding(
-                        padding: EdgeInsets.all(MortSpacing.sm),
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : IconButton(
-                        tooltip: saved ? 'Unsave job' : 'Save job',
-                        onPressed: onToggleSaved,
-                        icon: Icon(
-                          saved
-                              ? Icons.favorite_rounded
-                              : Icons.favorite_border_rounded,
-                          color: saved
-                              ? colors.primary
-                              : colors.onSurfaceVariant,
-                        ),
-                      ),
+              final title = Text(
+                job.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(height: 1.2),
               );
               if (stacked) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    titleBlock,
-                    const SizedBox(height: MortSpacing.sm),
-                    Row(
-                      children: [
-                        Expanded(child: pay),
-                        save,
-                      ],
-                    ),
+                    title,
+                    const SizedBox(height: MortSpacing.xs),
+                    Align(alignment: Alignment.centerRight, child: pay),
                   ],
                 );
               }
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: titleBlock),
+                  Expanded(child: title),
                   const SizedBox(width: MortSpacing.sm),
                   Flexible(child: pay),
-                  const SizedBox(width: MortSpacing.xs),
-                  save,
                 ],
               );
             },
           ),
-          const SizedBox(height: MortSpacing.sm),
-          // A compact wrapping meta-row scans far faster than a stack of
-          // full-width fact rows -- the same information, tightened.
+          const SizedBox(height: MortSpacing.xs),
           Wrap(
             spacing: MortSpacing.sm,
             runSpacing: MortSpacing.xxs,
             children: [
-              if (distanceMiles != null)
-                _JobCardMetaChip(
-                  icon: Icons.near_me_rounded,
-                  value:
-                      '${distanceMiles! < 0.1 ? 'Less than 0.1' : distanceMiles!.toStringAsFixed(1)} mi away',
-                  emphasize: true,
-                ),
-              _JobCardMetaChip(
-                icon: Icons.place_outlined,
-                value: job.locationText,
-              ),
               _JobCardMetaChip(
                 icon: Icons.schedule_outlined,
                 value: job.scheduleDisplay,
@@ -785,17 +822,58 @@ class _TeenJobCard extends StatelessWidget {
               ),
             ],
           ),
-          if (job.quickAcceptEligible) ...[
-            const SizedBox(height: MortSpacing.sm),
-            Align(
-              alignment: Alignment.centerRight,
-              child: QuickAcceptButton(
-                job: job,
-                onAccepted: (application) =>
-                    context.push('/teen/applications/${application.id}'),
+          const SizedBox(height: MortSpacing.sm),
+          Row(
+            children: [
+              SizedBox.square(
+                dimension: MortSpacing.minTouchTarget,
+                child: saving
+                    ? const Padding(
+                        padding: EdgeInsets.all(MortSpacing.sm),
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : IconButton(
+                        tooltip: saved ? 'Remove saved job' : 'Save job',
+                        onPressed: onToggleSaved,
+                        icon: Icon(
+                          saved
+                              ? Icons.bookmark_rounded
+                              : Icons.bookmark_border_rounded,
+                          color: saved
+                              ? colors.onSurface
+                              : colors.onSurfaceVariant,
+                        ),
+                      ),
               ),
-            ),
-          ],
+              const SizedBox(width: MortSpacing.xs),
+              if (job.quickAcceptEligible) ...[
+                Expanded(
+                  child: QuickAcceptButton(
+                    job: job,
+                    onAccepted: (application) =>
+                        context.push('/teen/applications/${application.id}'),
+                  ),
+                ),
+                const SizedBox(width: MortSpacing.xs),
+                TextButton(
+                  onPressed: () => context.push('/teen/jobs/${job.id}'),
+                  child: const Text('Apply'),
+                ),
+              ] else
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => context.push('/teen/jobs/${job.id}'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(48, 48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Text('Apply'),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -809,24 +887,17 @@ class _TeenJobCard extends StatelessWidget {
   }
 }
 
-/// Compact icon+text chip for a job card's meta-row (distance, location,
-/// schedule, duration, transportation) -- laid out in a [Wrap] instead of
-/// each fact claiming its own full-width row.
+/// Compact icon+text chip for schedule, duration, and transportation details.
 class _JobCardMetaChip extends StatelessWidget {
-  const _JobCardMetaChip({
-    required this.icon,
-    required this.value,
-    this.emphasize = false,
-  });
+  const _JobCardMetaChip({required this.icon, required this.value});
 
   final IconData icon;
   final String value;
-  final bool emphasize;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final color = emphasize ? scheme.onSurface : scheme.onSurfaceVariant;
+    final color = scheme.onSurfaceVariant;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -837,10 +908,9 @@ class _JobCardMetaChip extends StatelessWidget {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: emphasize ? scheme.onSurface : null,
-              fontWeight: emphasize ? FontWeight.w600 : null,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: color),
           ),
         ),
       ],

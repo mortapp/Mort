@@ -235,11 +235,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Yard cleanup'), findsOneWidget);
+    expect(find.text('Apply'), findsOneWidget);
     await tester.tap(find.byTooltip('Save job'));
     await tester.pumpAndSettle();
 
     expect(repository.savedJobId, 'job-1');
-    expect(find.byTooltip('Unsave job'), findsOneWidget);
+    expect(find.byTooltip('Remove saved job'), findsOneWidget);
   });
 
   testMortWidgets(
