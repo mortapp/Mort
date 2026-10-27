@@ -26,7 +26,7 @@ class TeenMarketplaceHomeScreen extends ConsumerWidget {
             Expanded(
               child: Text(
                 'Jobs near you',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.7,
                 ),
@@ -88,7 +88,7 @@ class TeenMarketplaceHomeScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: MortSpacing.xs),
                   SizedBox(
-                    height: 132,
+                    height: 116,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: quickJobs.length.clamp(0, 8),
@@ -196,19 +196,35 @@ class _QuickJobCard extends StatelessWidget {
         child: InkWell(
           onTap: () => context.push('/teen/jobs/${job.id}'),
           child: Padding(
-            padding: const EdgeInsets.all(MortSpacing.md),
+            padding: const EdgeInsets.fromLTRB(
+              MortSpacing.md,
+              MortSpacing.sm,
+              MortSpacing.md,
+              MortSpacing.sm,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  job.category,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: colors.onSurfaceVariant,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        job.category,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(color: colors.onSurfaceVariant),
+                      ),
+                    ),
+                    Text(
+                      job.payDisplay,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
-                const Spacer(),
+                const SizedBox(height: MortSpacing.xs),
                 Text(
                   job.title,
                   maxLines: 1,
@@ -219,7 +235,13 @@ class _QuickJobCard extends StatelessWidget {
                 ),
                 const SizedBox(height: MortSpacing.xxs),
                 Text(
-                  '${job.payDisplay}  ·  ${job.estimatedDurationMinutes} min',
+                  [
+                    if (job.estimatedDurationMinutes != null)
+                      '${job.estimatedDurationMinutes} min',
+                    if (job.scheduleDisplay.isNotEmpty) job.scheduleDisplay,
+                  ].join('  ·  '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(
                     context,
                   ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
@@ -303,9 +325,9 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
                 MortSpacing.md,
-                MortSpacing.sm,
-                MortSpacing.md,
                 MortSpacing.xs,
+                MortSpacing.md,
+                MortSpacing.xxs,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -329,7 +351,7 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: MortSpacing.xs),
+                  const SizedBox(height: MortSpacing.xxs),
                   Row(
                     children: [
                       CircleAvatar(
@@ -397,10 +419,10 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
                     ),
                   ),
                   if (job.summary?.isNotEmpty == true) ...[
-                    const SizedBox(height: MortSpacing.xs),
+                    const SizedBox(height: MortSpacing.xxs),
                     Text(
                       job.summary!,
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),

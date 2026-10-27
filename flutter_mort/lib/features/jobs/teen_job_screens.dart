@@ -264,7 +264,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
             Expanded(
               child: Text(
                 'Explore',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.7,
                 ),
@@ -638,7 +638,7 @@ class _TeenJobCard extends StatelessWidget {
             children: [
               Icon(
                 Icons.place_outlined,
-                size: 16,
+                size: 15,
                 color: colors.onSurfaceVariant,
               ),
               const SizedBox(width: MortSpacing.xxs),
@@ -652,32 +652,24 @@ class _TeenJobCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (distanceMiles != null) ...[
-                const SizedBox(width: MortSpacing.xs),
-                Icon(
-                  Icons.near_me_rounded,
-                  size: 15,
-                  color: colors.onSurfaceVariant,
-                ),
-                const SizedBox(width: MortSpacing.xxs),
+              if (distanceMiles != null)
                 Text(
-                  '${distanceMiles! < 0.1 ? '<0.1' : distanceMiles!.toStringAsFixed(1)} mi',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                  '${distanceMiles! < 0.1 ? '<0.1' : distanceMiles!.toStringAsFixed(1)} mi away',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ],
             ],
           ),
-          const SizedBox(height: MortSpacing.xs),
+          const SizedBox(height: MortSpacing.xxs),
           Row(
             children: [
               CircleAvatar(
-                radius: 12,
+                radius: 10,
                 backgroundColor: colors.surfaceContainerHigh,
                 child: Icon(
                   Icons.person_outline_rounded,
-                  size: 16,
+                  size: 14,
                   color: colors.onSurfaceVariant,
                 ),
               ),
@@ -696,7 +688,7 @@ class _TeenJobCard extends StatelessWidget {
                 const SizedBox(width: MortSpacing.xxs),
                 Icon(
                   Icons.verified_rounded,
-                  size: 15,
+                  size: 14,
                   semanticLabel: 'Verified poster',
                   color: colors.onSurfaceVariant,
                 ),
@@ -710,119 +702,77 @@ class _TeenJobCard extends StatelessWidget {
               ],
             ],
           ),
-          const SizedBox(height: MortSpacing.sm),
-          Text(
-            job.category,
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant),
-          ),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final stacked =
-                  constraints.maxWidth < 300 ||
-                  MediaQuery.textScalerOf(context).scale(16) > 21;
-              // Listed pay stays prominent, while its wording and semantics
-              // avoid implying that MORT has processed or guaranteed payment.
-              final pay = Text(
+          const SizedBox(height: MortSpacing.xs),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      job.category,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: MortSpacing.xxs),
+                    Text(
+                      job.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        height: 1.15,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: MortSpacing.sm),
+              Text(
                 job.payDisplay,
                 textAlign: TextAlign.end,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: colors.primary,
-                  fontWeight: FontWeight.w700,
-                ),
-              );
-              final title = Text(
-                job.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
                 style: Theme.of(
                   context,
-                ).textTheme.titleLarge?.copyWith(height: 1.2),
-              );
-              if (stacked) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    title,
-                    const SizedBox(height: MortSpacing.xs),
-                    Align(alignment: Alignment.centerRight, child: pay),
-                  ],
-                );
-              }
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: title),
-                  const SizedBox(width: MortSpacing.sm),
-                  Flexible(child: pay),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: MortSpacing.xs),
-          Wrap(
-            spacing: MortSpacing.sm,
-            runSpacing: MortSpacing.xxs,
-            children: [
-              _JobCardMetaChip(
-                icon: Icons.schedule_outlined,
-                value: job.scheduleDisplay,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
-              if (job.estimatedDurationMinutes != null)
-                _JobCardMetaChip(
-                  icon: Icons.hourglass_bottom_rounded,
-                  value: _durationDisplay(job.estimatedDurationMinutes!),
-                ),
-              if (job.acceptableTransportationMethods.isNotEmpty)
-                _JobCardMetaChip(
-                  icon: Icons.route_outlined,
-                  value: job.acceptableTransportationMethods
-                      .map((method) => method.replaceAll('_', ' '))
-                      .join(', '),
-                ),
             ],
           ),
-          if (distanceMiles == null &&
-              job.matchExplanation?.isNotEmpty == true) ...[
-            const SizedBox(height: MortSpacing.xs),
+          const SizedBox(height: MortSpacing.xxs),
+          Text(
+            [
+              if (job.estimatedDurationMinutes != null)
+                _durationDisplay(job.estimatedDurationMinutes!),
+              job.scheduleDisplay,
+            ].join('  ·  '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+          ),
+          if (job.requiresGuardianApproval) ...[
+            const SizedBox(height: MortSpacing.xxs),
             Text(
-              job.matchExplanation!,
-              style: Theme.of(context).textTheme.bodySmall,
+              'Guardian approval requested',
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant),
             ),
           ],
           if (job.summary?.isNotEmpty == true) ...[
-            const SizedBox(height: MortSpacing.sm),
-            Text(job.summary!, maxLines: 2, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: MortSpacing.xxs),
+            Text(
+              job.summary!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ],
-          const SizedBox(height: MortSpacing.sm),
-          Wrap(
-            spacing: MortSpacing.xs,
-            runSpacing: MortSpacing.xs,
-            children: [
-              MortStatusPill(
-                label: job.verificationDisplay,
-                icon: Icons.verified_user_outlined,
-                color: job.posterVerified
-                    ? MortColors.success
-                    : colors.onSurfaceVariant,
-              ),
-              if (job.requiresGuardianApproval)
-                MortStatusPill(
-                  label: 'Guardian approval requested',
-                  icon: Icons.family_restroom_outlined,
-                  color: colors.onSurfaceVariant,
-                ),
-              MortStatusPill(
-                label: job.workEnvironment == 'unspecified'
-                    ? 'Environment details in job'
-                    : job.workEnvironment.replaceAll('_', ' '),
-                icon: Icons.health_and_safety_outlined,
-                color: colors.onSurfaceVariant,
-              ),
-            ],
-          ),
-          const SizedBox(height: MortSpacing.sm),
+          const SizedBox(height: MortSpacing.xs),
           Row(
             children: [
               SizedBox.square(
@@ -884,37 +834,6 @@ class _TeenJobCard extends StatelessWidget {
     final hours = minutes ~/ 60;
     final remainder = minutes % 60;
     return remainder == 0 ? '$hours hr' : '$hours hr $remainder min';
-  }
-}
-
-/// Compact icon+text chip for schedule, duration, and transportation details.
-class _JobCardMetaChip extends StatelessWidget {
-  const _JobCardMetaChip({required this.icon, required this.value});
-
-  final IconData icon;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final color = scheme.onSurfaceVariant;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 15, color: color),
-        const SizedBox(width: MortSpacing.xxs),
-        Flexible(
-          child: Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: color),
-          ),
-        ),
-      ],
-    );
   }
 }
 
