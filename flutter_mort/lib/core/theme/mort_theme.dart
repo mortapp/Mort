@@ -47,9 +47,9 @@ class MortTheme {
       primaryContainer: isDark ? MortColors.lineStrong : raised,
       onPrimaryContainer: text,
       secondaryContainer: isDark
-          ? MortColors.lightBlueDeep
+          ? MortColors.graphite4
           : MortColors.lightSurfaceAlt,
-      onSecondaryContainer: isDark ? MortColors.lightBlueSoft : textSoft,
+      onSecondaryContainer: textSoft,
       surfaceContainerLowest: background,
       surfaceContainerLow: isDark ? MortColors.black : surface,
       surfaceContainer: surface,

@@ -115,7 +115,9 @@ class _MortAppState extends ConsumerState<MortApp> with WidgetsBindingObserver {
       debugShowCheckedModeBanner: false,
       theme: MortTheme.light(),
       darkTheme: MortTheme.dark(),
-      themeMode: ThemeMode.system,
+      // The product spec makes the clean light palette the primary surface.
+      // The dark theme remains available for explicit dark-mode support.
+      themeMode: ThemeMode.light,
       localizationsDelegates: const [
         MortLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,

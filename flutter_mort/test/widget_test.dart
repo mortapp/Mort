@@ -15,6 +15,6 @@ void main() {
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.theme?.brightness, Brightness.light);
     expect(app.darkTheme?.brightness, Brightness.dark);
-    expect(app.themeMode, ThemeMode.system);
+    expect(app.themeMode, ThemeMode.light);
   });
 }
