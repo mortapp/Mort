@@ -2,15 +2,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/auth/oauth_flow.dart';
+import '../../core/config/app_config.dart';
 import '../models/profile.dart';
 import '../models/onboarding_progress.dart';
 import '../models/job.dart';
 import '../models/account_trust.dart';
+import '../models/financial_safety.dart';
 import '../services/supabase_service.dart';
 import '../services/secure_draft_storage.dart';
 import 'account_trust_repository.dart';
 import 'account_deletion_repository.dart';
 import 'admin_repository.dart';
+import 'financial_repository.dart';
 import 'applications_repository.dart';
 import 'auth_repository.dart';
 import 'avatar_repository.dart';
@@ -26,6 +29,7 @@ import 'monetization_repository.dart';
 import 'notifications_repository.dart';
 import 'observability_repository.dart';
 import 'profile_repository.dart';
+import 'progression_repository.dart';
 import 'reviews_repository.dart';
 import 'safety_repository.dart';
 import 'support_repository.dart';
@@ -194,6 +198,16 @@ final trustSafetyRepositoryProvider = Provider<TrustSafetyRepository>(
 final leaderboardRepositoryProvider = Provider<LeaderboardRepository>(
   (ref) => LeaderboardRepository(),
 );
+final progressionRepositoryProvider = Provider<ProgressionRepository>(
+  (ref) => ProgressionRepository(),
+);
+final myProgressionProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(progressionRepositoryProvider).getMyProgression(),
+);
+final progressionBoardProvider = FutureProvider.autoDispose.family(
+  (ref, String board) =>
+      ref.watch(progressionRepositoryProvider).getBoard(board),
+);
 final leaderboardProvider = FutureProvider.autoDispose(
   (ref) => ref.watch(leaderboardRepositoryProvider).getLeaderboard(limit: 5),
 );
@@ -249,6 +263,48 @@ final stripeMarketplaceRepositoryProvider =
     Provider<StripeMarketplaceRepository>(
       (ref) => StripeMarketplaceRepository(),
     );
+final financialRepositoryProvider = Provider<FinancialRepository>(
+  (ref) => FinancialRepository(),
+);
+
+/// Tracked compensation summary for one calendar year (server-authoritative).
+final financialSummaryProvider = FutureProvider.autoDispose
+    .family<FinancialSummary, int>((ref, year) {
+      ref.watch(authStateProvider);
+      return ref.watch(financialRepositoryProvider).getFinancialSummary(year);
+    });
+
+/// Financial Check evaluation for one calendar year. Informational only:
+/// the result never gates any marketplace capability.
+final financialAlertsProvider = FutureProvider.autoDispose
+    .family<FinancialEvaluation, int>((ref, year) {
+      ref.watch(authStateProvider);
+      return ref.watch(financialRepositoryProvider).evaluateAlerts(year);
+    });
+
+final financialPreferencesProvider = FutureProvider<FinancialPreferences>((
+  ref,
+) {
+  ref.watch(authStateProvider);
+  return ref.watch(financialRepositoryProvider).getPreferences();
+});
+
+final financialRulesProvider = FutureProvider<List<FinancialRule>>((ref) {
+  ref.watch(authStateProvider);
+  return ref.watch(financialRepositoryProvider).listRules();
+});
+
+final financialExpensesProvider = FutureProvider.autoDispose
+    .family<List<ExpenseRecord>, int>((ref, year) {
+      ref.watch(authStateProvider);
+      return ref.watch(financialRepositoryProvider).listExpenses(year);
+    });
+
+final financialYearReportProvider = FutureProvider.autoDispose
+    .family<FinancialYearReport, int>((ref, year) {
+      ref.watch(authStateProvider);
+      return ref.watch(financialRepositoryProvider).getYearReport(year);
+    });
 
 final authStateProvider = StreamProvider<AuthState>((ref) {
   return ref.watch(authRepositoryProvider).authStateChanges;
@@ -259,6 +315,15 @@ final oauthFlowStateProvider = StreamProvider<OAuthFlowSnapshot>((ref) async* {
   yield repository.oauthState;
   yield* repository.oauthStates;
 });
+
+/// Compile-time owner configuration (GOOGLE_AUTH_ENABLED) exposed as a
+/// provider so widgets read it uniformly and tests can override it.
+/// This is owner build configuration, not a debug/tester-only gate: normal
+/// public sign-in and sign-up show Google whenever the release build
+/// enables it.
+final googleAuthEnabledProvider = Provider<bool>(
+  (ref) => AppConfig.googleAuthEnabled,
+);
 
 final currentProfileProvider = FutureProvider<Profile?>((ref) async {
   ref.watch(authStateProvider);
@@ -308,4 +373,11 @@ void invalidateUserScopedProviders(WidgetRef ref) {
   ref.invalidate(accountTrustRepositoryProvider);
   ref.invalidate(accountDeletionRepositoryProvider);
   ref.invalidate(adminRepositoryProvider);
+  ref.invalidate(financialRepositoryProvider);
+  ref.invalidate(financialSummaryProvider);
+  ref.invalidate(financialAlertsProvider);
+  ref.invalidate(financialPreferencesProvider);
+  ref.invalidate(financialRulesProvider);
+  ref.invalidate(financialExpensesProvider);
+  ref.invalidate(financialYearReportProvider);
 }

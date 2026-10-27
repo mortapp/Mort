@@ -38,6 +38,7 @@ class _GuardianSafetyPingsScreenState
   @override
   Widget build(BuildContext context) {
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.midnight,
       children: [
         MortHeader(
           eyebrow: 'Guardian Mode',

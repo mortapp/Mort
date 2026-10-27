@@ -60,6 +60,10 @@ dependencies:
   sentry_flutter: 9.25.0
   connectivity_plus: ^7.3.1
   google_mobile_ads: ^5.3.1
+  pdf: ^3.13.0
+  printing: ^5.15.0
+  share_plus: ^13.3.0
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:
@@ -84,6 +88,9 @@ dev_dependencies:
 flutter:
   generate: true
 
+  shaders:
+    - shaders/mort_cloud_bank.frag
+
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
@@ -91,22 +98,25 @@ flutter:
 
   assets:
     - assets/branding/google_g.svg
-    - assets/branding/mort_arrow_rose_gold.png
+    - assets/gamification/ranks/
+    - assets/gamification/tokens/
+    - assets/gamification/badges/
+    - assets/gamification/icons/
 
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/branding/mort_arrow_rose_gold.png
-  adaptive_icon_background: "#050505"
-  adaptive_icon_foreground: assets/branding/mort_arrow_adaptive_foreground.png
-  adaptive_icon_monochrome: assets/branding/mort_arrow_adaptive_monochrome.png
+  image_path: assets/branding/mort_icon_midnight.png
+  adaptive_icon_background: "#000208"
+  adaptive_icon_foreground: assets/branding/mort_mark_adaptive_foreground.png
+  adaptive_icon_monochrome: assets/branding/mort_mark_adaptive_monochrome.png
   min_sdk_android: 26
   remove_alpha_ios: true
   web:
     generate: true
-    image_path: assets/branding/mort_arrow_rose_gold.png
-    background_color: "#050505"
-    theme_color: "#050505"
+    image_path: assets/branding/mort_icon_midnight.png
+    background_color: "#000208"
+    theme_color: "#000208"
 
   # To add assets to your application, add an assets section, like this:
   # assets:

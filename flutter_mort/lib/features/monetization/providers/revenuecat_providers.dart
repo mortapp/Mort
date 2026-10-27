@@ -48,6 +48,7 @@ final isGuardianPlusProvider = FutureProvider<bool>((ref) async {
 final backendEntitlementsProvider = FutureProvider<Map<String, dynamic>>((
   ref,
 ) async {
+  ref.watch(authStateProvider);
   ref.watch(authRepositoryProvider).currentUser?.id;
   return ref.read(monetizationRepositoryProvider).getMyEntitlements();
 });

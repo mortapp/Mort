@@ -440,13 +440,13 @@ void main() {
 
       await _tapText(tester, 'Create account');
       expect(router.state.uri.path, '/auth/sign-up');
-      expect(find.text('Age-gated'), findsOneWidget);
+      expect(find.text('NEW ACCOUNT'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
 
       expect(router.state.uri.path, '/welcome');
-      expect(find.text('Welcome to MORT'), findsOneWidget);
+      expect(find.text('Built for local work'), findsOneWidget);
     });
 
     testWidgets('real Sign in Forgot password back returns to Sign in', (
@@ -464,7 +464,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(router.state.uri.path, '/auth/sign-in');
-      expect(find.text('Welcome back'), findsOneWidget);
+      expect(find.text('WELCOME BACK'), findsOneWidget);
     });
 
     for (final legalRoute in const {
@@ -485,7 +485,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(router.state.uri.path, '/auth/sign-in');
-        expect(find.text('Welcome back'), findsOneWidget);
+        expect(find.text('WELCOME BACK'), findsOneWidget);
       });
     }
   });

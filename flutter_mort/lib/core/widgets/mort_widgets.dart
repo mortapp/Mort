@@ -9,6 +9,8 @@ export 'mort_brand.dart';
 export 'mort_design_components.dart';
 export 'mort_liquid_glass.dart';
 
+import '../atmosphere/mort_atmosphere_tuning.dart';
+import '../atmosphere/mort_atmospheric_background.dart';
 import '../config/app_config.dart';
 import '../constants/app_constants.dart';
 import '../preferences/mort_experience_preferences.dart';
@@ -18,6 +20,8 @@ import '../theme/mort_tokens.dart';
 import 'mort_back_navigation.dart';
 import 'mort_brand.dart';
 import 'mort_liquid_glass.dart';
+
+export '../atmosphere/mort_atmosphere_tuning.dart' show MortAtmosphereIntensity;
 
 /// Floor for bottom safe-area clearance -- see the comment at its use
 /// site in [MortScreen]. Sized to comfortably clear a real 3-button
@@ -34,6 +38,8 @@ class MortScreen extends StatelessWidget {
     this.scroll = true,
     this.onWillPop,
     this.scrollController,
+    this.atmosphereIntensity = MortAtmosphereIntensity.quiet,
+    this.atmosphereFocalLayer,
   });
 
   final List<Widget> children;
@@ -42,6 +48,14 @@ class MortScreen extends StatelessWidget {
   final bool scroll;
   final Future<bool> Function(BuildContext context)? onWillPop;
   final ScrollController? scrollController;
+
+  /// Which atmospheric preset this screen renders behind its content --
+  /// see [MortAtmosphereIntensity]. Defaults to `quiet`, the versatile
+  /// middle intensity; screens named in the visual spec as higher/lower
+  /// priority (auth/onboarding/safety = midnight, settings = settings,
+  /// celebration = starfall) pass it explicitly.
+  final MortAtmosphereIntensity atmosphereIntensity;
+  final Widget? atmosphereFocalLayer;
 
   bool get _hasHeader =>
       children.any((child) => child is MortHeader || child is MortGlassHeader);
@@ -128,7 +142,7 @@ class MortScreen extends StatelessWidget {
                     alignment: Alignment.centerRight,
                     child: MortBadge(
                       label: AppConfig.stageName,
-                      color: MortColors.warning,
+                      color: MortColors.textMuted,
                     ),
                   ),
                   const SizedBox(height: MortSpacing.sm),
@@ -149,31 +163,45 @@ class MortScreen extends StatelessWidget {
       backgroundColor: Colors.transparent,
       bottomNavigationBar: bottom,
       body: DecoratedBox(
+        // Cheap flat base beneath the animated atmosphere: covers the
+        // frame before the atmosphere's own LayoutBuilder settles, and
+        // is what remains visible if the atmosphere ever fails to build.
         decoration: const BoxDecoration(gradient: MortGradients.background),
-        child: PopScope<Object?>(
-          canPop: allowImmediatePop,
-          onPopInvokedWithResult: (didPop, _) =>
-              _handlePopInvoked(context, didPop: didPop),
-          child: showFloatingBack
-              ? Stack(
-                  children: [
-                    body,
-                    SafeArea(
-                      child: Align(
-                        alignment: Alignment.topLeft,
-                        child: Padding(
-                          padding: const EdgeInsets.all(MortSpacing.sm),
-                          child: MortBackButton(
-                            fallbackRoute: MortBackNavigation.fallbackRoute(
-                              location,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Positioned.fill(
+              child: MortAtmosphericBackground(
+                intensity: atmosphereIntensity,
+                focalLayer: atmosphereFocalLayer,
+              ),
+            ),
+            PopScope<Object?>(
+              canPop: allowImmediatePop,
+              onPopInvokedWithResult: (didPop, _) =>
+                  _handlePopInvoked(context, didPop: didPop),
+              child: showFloatingBack
+                  ? Stack(
+                      children: [
+                        body,
+                        SafeArea(
+                          child: Align(
+                            alignment: Alignment.topLeft,
+                            child: Padding(
+                              padding: const EdgeInsets.all(MortSpacing.sm),
+                              child: MortBackButton(
+                                fallbackRoute: MortBackNavigation.fallbackRoute(
+                                  location,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                  ],
-                )
-              : body,
+                      ],
+                    )
+                  : body,
+            ),
+          ],
         ),
       ),
     );
@@ -228,8 +256,14 @@ class MortHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (eyebrow != null)
-                  MortBadge(label: eyebrow!, color: MortColors.neon),
-                if (eyebrow != null) const SizedBox(height: MortSpacing.sm),
+                  Text(
+                    eyebrow!,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: MortColors.primaryBright,
+                      letterSpacing: 1.4,
+                    ),
+                  ),
+                if (eyebrow != null) const SizedBox(height: MortSpacing.xs),
                 Text(title, style: Theme.of(context).textTheme.displaySmall),
                 if (subtitle != null) ...[
                   const SizedBox(height: MortSpacing.sm),
@@ -1609,6 +1643,35 @@ class MortNotificationBell extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Canonical MORT settings control: an outlined silver gear on a transparent
+/// background with a full 48dp touch target. Root profile/account surfaces
+/// place this top-right; screens where Settings is not contextually
+/// appropriate must not expose it.
+class MortSettingsButton extends StatelessWidget {
+  const MortSettingsButton({super.key, this.onPressed});
+
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Settings',
+      child: IconButton(
+        tooltip: 'Settings',
+        icon: const Icon(Icons.settings_outlined, size: 24),
+        onPressed: onPressed,
+        style: IconButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          foregroundColor: MortColors.silverBright,
+          highlightColor: MortColors.glass,
+          minimumSize: const Size.square(MortSpacing.minTouchTarget),
+        ),
+      ),
     );
   }
 }
