@@ -28,6 +28,7 @@ class _FakeJobsRepository extends JobsRepository {
   final Job? jobDetail;
   String? unsavedJobId;
   String? savedJobId;
+  final Set<String> interestedJobIds = {};
 
   @override
   Future<List<Job>> listSavedJobs() async => savedJobs;
@@ -49,6 +50,18 @@ class _FakeJobsRepository extends JobsRepository {
   @override
   Future<void> saveJob(String jobId) async {
     savedJobId = jobId;
+  }
+
+  @override
+  Future<Set<String>> listInterestedJobIds() async => interestedJobIds;
+
+  @override
+  Future<void> setJobInterest(String jobId, {required bool interested}) async {
+    if (interested) {
+      interestedJobIds.add(jobId);
+    } else {
+      interestedJobIds.remove(jobId);
+    }
   }
 
   @override
@@ -242,6 +255,33 @@ void main() {
 
     expect(repository.savedJobId, 'job-1');
     expect(find.byTooltip('Remove saved job'), findsOneWidget);
+  });
+
+  testMortWidgets('TeenJobFeedScreen persists interest on the backend', (
+    tester,
+  ) async {
+    final job = _job(id: 'job-interest', title: 'Garden help');
+    final repository = _FakeJobsRepository(
+      openJobsPage: JobPage(items: [job], hasMore: false),
+    );
+    await tester.pumpWidget(
+      _app(
+        child: const TeenJobFeedScreen(),
+        overrides: [
+          jobsRepositoryProvider.overrideWithValue(repository),
+          currentProfileProvider.overrideWithValue(
+            AsyncValue.data(_teenProfile()),
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Show interest'));
+    await tester.pumpAndSettle();
+
+    expect(repository.interestedJobIds, contains(job.id));
+    expect(find.byTooltip('Remove interest'), findsOneWidget);
   });
 
   testMortWidgets(

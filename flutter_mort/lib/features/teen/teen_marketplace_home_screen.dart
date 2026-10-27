@@ -21,7 +21,45 @@ class TeenMarketplaceHomeScreen extends ConsumerStatefulWidget {
 class _TeenMarketplaceHomeScreenState
     extends ConsumerState<TeenMarketplaceHomeScreen> {
   static const _filters = JobSearchFilters(limit: 20);
-  final Set<String> _interestedJobIds = {};
+  final Set<String> _pendingInterestJobIds = {};
+  final Set<String> _notInterestedJobIds = {};
+
+  void _dismissJob(Job job) {
+    setState(() => _notInterestedJobIds.add(job.id));
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: const Text('Not interested'),
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () {
+            if (mounted) setState(() => _notInterestedJobIds.remove(job.id));
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _setInterest(String jobId, bool interested) async {
+    if (_pendingInterestJobIds.contains(jobId)) return;
+    setState(() => _pendingInterestJobIds.add(jobId));
+    try {
+      await ref
+          .read(jobsRepositoryProvider)
+          .setJobInterest(jobId, interested: interested);
+      if (!mounted) return;
+      ref.invalidate(interestedJobIdsProvider);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(userFacingError(error))));
+    } finally {
+      if (mounted) setState(() => _pendingInterestJobIds.remove(jobId));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +82,9 @@ class _TeenMarketplaceHomeScreenState
             ),
           ),
           data: (feed) {
+            final interestedJobIds =
+                ref.watch(interestedJobIdsProvider).asData?.value ??
+                const <String>{};
             if (feed.items.isEmpty) {
               return MortEmptyState(
                 title: 'No open jobs nearby yet',
@@ -68,13 +109,15 @@ class _TeenMarketplaceHomeScreenState
             final quickJobIds = quickJobs.map((job) => job.id).toSet();
             final openJobs =
                 feed.items
-                    .where((job) => !quickJobIds.contains(job.id))
+                    .where(
+                      (job) =>
+                          !quickJobIds.contains(job.id) &&
+                          !_notInterestedJobIds.contains(job.id),
+                    )
                     .toList(growable: true)
                   ..sort((left, right) {
-                    final leftInterested = _interestedJobIds.contains(left.id);
-                    final rightInterested = _interestedJobIds.contains(
-                      right.id,
-                    );
+                    final leftInterested = interestedJobIds.contains(left.id);
+                    final rightInterested = interestedJobIds.contains(right.id);
                     if (leftInterested == rightInterested) return 0;
                     return rightInterested ? 1 : -1;
                   });
@@ -109,17 +152,38 @@ class _TeenMarketplaceHomeScreenState
                   ),
                   const SizedBox(height: MortSpacing.xs),
                   for (final job in openJobs) ...[
-                    _MarketplaceJobCard(
-                      key: ValueKey(job.id),
-                      job: job,
-                      interested: _interestedJobIds.contains(job.id),
-                      onInterestChanged: (interested) => setState(() {
-                        if (interested) {
-                          _interestedJobIds.add(job.id);
-                        } else {
-                          _interestedJobIds.remove(job.id);
-                        }
-                      }),
+                    Dismissible(
+                      key: ValueKey('dismissible-${job.id}'),
+                      direction: DismissDirection.startToEnd,
+                      background: Container(
+                        alignment: Alignment.centerLeft,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: MortSpacing.lg,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHigh,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.remove_circle_outline_rounded),
+                            SizedBox(width: MortSpacing.xs),
+                            Text('Not interested'),
+                          ],
+                        ),
+                      ),
+                      onDismissed: (_) => _dismissJob(job),
+                      child: _MarketplaceJobCard(
+                        key: ValueKey(job.id),
+                        job: job,
+                        interested: interestedJobIds.contains(job.id),
+                        interestSaving: _pendingInterestJobIds.contains(job.id),
+                        onInterestChanged: (interested) =>
+                            _setInterest(job.id, interested),
+                      ),
                     ),
                     const SizedBox(height: MortSpacing.sm),
                   ],
@@ -337,11 +401,13 @@ class _MarketplaceJobCard extends ConsumerStatefulWidget {
     super.key,
     required this.job,
     required this.interested,
+    required this.interestSaving,
     required this.onInterestChanged,
   });
 
   final Job job;
   final bool interested;
+  final bool interestSaving;
   final ValueChanged<bool> onInterestChanged;
 
   @override
@@ -546,18 +612,25 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
                   tooltip: widget.interested
                       ? 'Remove interest'
                       : 'Show interest',
-                  onPressed: () => widget.onInterestChanged(!widget.interested),
+                  onPressed: widget.interestSaving
+                      ? null
+                      : () => widget.onInterestChanged(!widget.interested),
                   visualDensity: VisualDensity.compact,
                   constraints: const BoxConstraints.tightFor(
                     width: 44,
                     height: 44,
                   ),
-                  icon: Icon(
-                    widget.interested
-                        ? Icons.favorite_rounded
-                        : Icons.favorite_border_rounded,
-                    size: 20,
-                  ),
+                  icon: widget.interestSaving
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          widget.interested
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                          size: 20,
+                        ),
                   style: IconButton.styleFrom(
                     foregroundColor: colors.onSurface,
                   ),

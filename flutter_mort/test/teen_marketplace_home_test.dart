@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_mort/core/theme/mort_theme.dart';
 import 'package:flutter_mort/core/atmosphere/mort_atmospheric_background.dart';
 import 'package:flutter_mort/data/models/job.dart';
+import 'package:flutter_mort/data/repositories/jobs_repository.dart';
 import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/features/teen/teen_marketplace_home_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,6 +19,7 @@ void main() {
           overrides: [
             openJobsProvider.overrideWith2(_PreviewJobsController.new),
             savedJobIdsProvider.overrideWith((ref) async => <String>{}),
+            interestedJobIdsProvider.overrideWith((ref) async => <String>{}),
           ],
           child: MaterialApp(
             theme: MortTheme.light(),
@@ -74,6 +76,7 @@ void main() {
         overrides: [
           openJobsProvider.overrideWith2(_PreviewJobsController.new),
           savedJobIdsProvider.overrideWith((ref) async => <String>{}),
+          interestedJobIdsProvider.overrideWith((ref) async => <String>{}),
         ],
         child: MaterialApp(
           theme: MortTheme.light(),
@@ -94,6 +97,69 @@ void main() {
     expect(find.text('Apply'), findsWidgets);
   });
 
+  testMortWidgets('teen Home stores interest on the backend', (tester) async {
+    final repository = _PreviewJobsRepository();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          openJobsProvider.overrideWith2(_PreviewJobsController.new),
+          jobsRepositoryProvider.overrideWithValue(repository),
+          savedJobIdsProvider.overrideWith((ref) async => <String>{}),
+        ],
+        child: MaterialApp(
+          theme: MortTheme.light(),
+          home: const TeenMarketplaceHomeScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Show interest'));
+    await tester.pumpAndSettle();
+
+    expect(repository.interestedJobIds, contains(_longerJob.id));
+    expect(find.byTooltip('Remove interest'), findsOneWidget);
+  });
+
+  testMortWidgets('teen Home supports right-swipe dismissal with undo', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          openJobsProvider.overrideWith2(_PreviewJobsController.new),
+          savedJobIdsProvider.overrideWith((ref) async => <String>{}),
+          interestedJobIdsProvider.overrideWith((ref) async => <String>{}),
+        ],
+        child: MaterialApp(
+          theme: MortTheme.light(),
+          home: const TeenMarketplaceHomeScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final card = find.byKey(const ValueKey('nearby-job-longer-preview-job'));
+    await tester.ensureVisible(card);
+    await tester.drag(card, const Offset(-400, 0));
+    await tester.pumpAndSettle();
+    expect(card, findsOneWidget);
+
+    await tester.drag(card, const Offset(400, 0));
+    await tester.pumpAndSettle();
+    expect(card, findsNothing);
+    expect(find.text('Not interested'), findsOneWidget);
+    expect(find.text('Undo'), findsOneWidget);
+    expect(
+      tester.widget<SnackBar>(find.byType(SnackBar)).duration,
+      const Duration(seconds: 6),
+    );
+
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+    expect(card, findsOneWidget);
+  });
+
   testMortWidgets('dark teen Home follows the monochrome product theme', (
     tester,
   ) async {
@@ -102,6 +168,7 @@ void main() {
         overrides: [
           openJobsProvider.overrideWith2(_PreviewJobsController.new),
           savedJobIdsProvider.overrideWith((ref) async => <String>{}),
+          interestedJobIdsProvider.overrideWith((ref) async => <String>{}),
         ],
         child: MaterialApp(
           theme: MortTheme.dark(),
@@ -122,6 +189,22 @@ class _PreviewJobsController extends OpenJobsController {
   @override
   Future<JobFeedState> build() async =>
       const JobFeedState(items: [_previewJob, _longerJob], hasMore: false);
+}
+
+class _PreviewJobsRepository extends JobsRepository {
+  final Set<String> interestedJobIds = {};
+
+  @override
+  Future<Set<String>> listInterestedJobIds() async => interestedJobIds;
+
+  @override
+  Future<void> setJobInterest(String jobId, {required bool interested}) async {
+    if (interested) {
+      interestedJobIds.add(jobId);
+    } else {
+      interestedJobIds.remove(jobId);
+    }
+  }
 }
 
 const _previewJob = Job(

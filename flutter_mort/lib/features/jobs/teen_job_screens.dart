@@ -62,7 +62,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
   final _state = TextEditingController();
   final _filtersController = ExpansionTileController();
   final Set<String> _savedJobIds = {};
-  final Set<String> _interestedJobIds = {};
+  final Set<String> _pendingInterestJobIds = {};
   String _category = 'All';
   String _paymentType = 'any';
   String _scheduleType = 'any';
@@ -181,6 +181,22 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
     }
   }
 
+  Future<void> _setInterest(Job job, bool interested) async {
+    if (_pendingInterestJobIds.contains(job.id)) return;
+    setState(() => _pendingInterestJobIds.add(job.id));
+    try {
+      await ref
+          .read(jobsRepositoryProvider)
+          .setJobInterest(job.id, interested: interested);
+      if (!mounted) return;
+      ref.invalidate(interestedJobIdsProvider);
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _pendingInterestJobIds.remove(job.id));
+    }
+  }
+
   JobSearchFilters _filtersFor(Profile? profile) => JobSearchFilters(
     keyword: _keyword.text.trim(),
     category: _category == 'All' ? null : _category,
@@ -259,6 +275,8 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(currentProfileProvider).asData?.value;
+    final interestedJobIds =
+        ref.watch(interestedJobIdsProvider).asData?.value ?? const <String>{};
     final filters = _filtersFor(profile);
     final jobs = ref.watch(openJobsProvider(filters));
     ref.listen<AsyncValue<JobFeedState>>(openJobsProvider(filters), (
@@ -628,20 +646,16 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
                   ),
                   const SizedBox(height: MortSpacing.sm),
                 ],
-                for (final job in _prioritized(items)) ...[
+                for (final job in _prioritized(items, interestedJobIds)) ...[
                   _TeenJobCard(
                     job: job,
                     saved: _savedJobIds.contains(job.id),
                     saving: _savingJobId == job.id,
-                    interested: _interestedJobIds.contains(job.id),
+                    interested: interestedJobIds.contains(job.id),
+                    interestSaving: _pendingInterestJobIds.contains(job.id),
                     onToggleSaved: () => _toggleSaved(job),
-                    onInterestChanged: (interested) => setState(() {
-                      if (interested) {
-                        _interestedJobIds.add(job.id);
-                      } else {
-                        _interestedJobIds.remove(job.id);
-                      }
-                    }),
+                    onInterestChanged: (interested) =>
+                        _setInterest(job, interested),
                     distanceMiles: _distances[job.id],
                   ),
                   const SizedBox(height: MortSpacing.sm),
@@ -680,13 +694,13 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
     );
   }
 
-  List<Job> _prioritized(List<Job> jobs) => [...jobs]
-    ..sort((left, right) {
-      final leftInterested = _interestedJobIds.contains(left.id);
-      final rightInterested = _interestedJobIds.contains(right.id);
-      if (leftInterested == rightInterested) return 0;
-      return rightInterested ? 1 : -1;
-    });
+  List<Job> _prioritized(List<Job> jobs, Set<String> interestedJobIds) =>
+      [...jobs]..sort((left, right) {
+        final leftInterested = interestedJobIds.contains(left.id);
+        final rightInterested = interestedJobIds.contains(right.id);
+        if (leftInterested == rightInterested) return 0;
+        return rightInterested ? 1 : -1;
+      });
 }
 
 class _TeenJobCard extends StatelessWidget {
@@ -695,6 +709,7 @@ class _TeenJobCard extends StatelessWidget {
     required this.saved,
     required this.saving,
     required this.interested,
+    required this.interestSaving,
     required this.onToggleSaved,
     required this.onInterestChanged,
     this.distanceMiles,
@@ -704,6 +719,7 @@ class _TeenJobCard extends StatelessWidget {
   final bool saved;
   final bool saving;
   final bool interested;
+  final bool interestSaving;
   final VoidCallback onToggleSaved;
   final ValueChanged<bool> onInterestChanged;
   final double? distanceMiles;
@@ -837,18 +853,25 @@ class _TeenJobCard extends StatelessWidget {
             children: [
               IconButton(
                 tooltip: interested ? 'Remove interest' : 'Show interest',
-                onPressed: () => onInterestChanged(!interested),
+                onPressed: interestSaving
+                    ? null
+                    : () => onInterestChanged(!interested),
                 visualDensity: VisualDensity.compact,
                 constraints: const BoxConstraints.tightFor(
                   width: 44,
                   height: 44,
                 ),
-                icon: Icon(
-                  interested
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  color: colors.onSurface,
-                ),
+                icon: interestSaving
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        interested
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        color: colors.onSurface,
+                      ),
               ),
               SizedBox.square(
                 dimension: MortSpacing.minTouchTarget,

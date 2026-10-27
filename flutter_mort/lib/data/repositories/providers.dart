@@ -67,6 +67,9 @@ final savedJobIdsProvider = FutureProvider.autoDispose<Set<String>>((
   final jobs = await ref.watch(jobsRepositoryProvider).listSavedJobs();
   return jobs.map((job) => job.id).toSet();
 });
+final interestedJobIdsProvider = FutureProvider.autoDispose<Set<String>>(
+  (ref) => ref.watch(jobsRepositoryProvider).listInterestedJobIds(),
+);
 final openJobsProvider = AsyncNotifierProvider.autoDispose
     .family<OpenJobsController, JobFeedState, JobSearchFilters>(
       OpenJobsController.new,

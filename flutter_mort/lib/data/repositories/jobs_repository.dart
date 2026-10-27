@@ -170,6 +170,31 @@ class JobsRepository extends RepositoryBase {
         .eq('job_id', jobId);
   }
 
+  Future<Set<String>> listInterestedJobIds() async {
+    final id = requireUserId();
+    final rows = await client
+        .from('job_interests')
+        .select('job_id')
+        .eq('user_id', id);
+    return rows.map((row) => row['job_id'].toString()).toSet();
+  }
+
+  Future<void> setJobInterest(String jobId, {required bool interested}) async {
+    final id = requireUserId();
+    if (interested) {
+      await client.from('job_interests').upsert({
+        'user_id': id,
+        'job_id': jobId,
+      });
+      return;
+    }
+    await client
+        .from('job_interests')
+        .delete()
+        .eq('user_id', id)
+        .eq('job_id', jobId);
+  }
+
   Future<Job?> getJob(String id) async {
     final row = await client
         .from('jobs')
