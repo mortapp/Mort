@@ -157,6 +157,53 @@ Job _job({required String id, String title = 'Test Job'}) {
 }
 
 void main() {
+  testMortWidgets('teen Explore leads with search and opens focused filters', (
+    tester,
+  ) async {
+    final profile = Profile(
+      id: 'profile-1',
+      role: UserRole.teen,
+      displayName: 'Test Teen',
+      username: 'testteen',
+      dob: DateTime(2010, 1, 1),
+      city: 'TestCity',
+      state: 'TS',
+      onboardingCompleted: true,
+      accountStatus: 'active',
+      verificationStatus: 'approved',
+      paymentPreference: 'none',
+    );
+
+    await tester.pumpWidget(
+      _app(
+        child: const TeenJobFeedScreen(),
+        overrides: [
+          jobsRepositoryProvider.overrideWithValue(
+            _FakeJobsRepository(
+              openJobsPage: const JobPage(items: [], hasMore: false),
+            ),
+          ),
+          currentProfileProvider.overrideWithValue(AsyncValue.data(profile)),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Find work that fits your day'), findsOneWidget);
+    expect(find.text('SUGGESTED SEARCHES'), findsOneWidget);
+    expect(find.text('Under 30 min'), findsOneWidget);
+    await tester.tap(find.text('Under 30 min'));
+    await tester.pumpAndSettle();
+    expect(find.text('Clear'), findsOneWidget);
+
+    final filtersButton = find.text('All filters');
+    await tester.ensureVisible(filtersButton);
+    await tester.tap(filtersButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Filters'), findsOneWidget);
+    expect(find.text('Apply filters'), findsOneWidget);
+  });
+
   testMortWidgets(
     'TeenJobFeedScreen shows clear filters when empty results and filters are active',
     (tester) async {

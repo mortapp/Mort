@@ -60,7 +60,6 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
   final _minimumPay = TextEditingController();
   final _city = TextEditingController();
   final _state = TextEditingController();
-  final _filtersController = ExpansionTileController();
   final Set<String> _savedJobIds = {};
   final Set<String> _pendingInterestJobIds = {};
   String _category = 'All';
@@ -90,7 +89,6 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
     _minimumPay.dispose();
     _city.dispose();
     _state.dispose();
-    _filtersController.dispose();
     super.dispose();
   }
 
@@ -236,6 +234,10 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
       _guardian = 'any';
       _environment = 'any';
       _sort = JobSort.newest;
+      _quickJobsOnly = false;
+      _distanceEnabled = false;
+      _distanceStatus = null;
+      _distances.clear();
     });
   }
 
@@ -248,8 +250,236 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
         _guardian != 'any' ||
         _environment != 'any' ||
         _city.text.isNotEmpty ||
-        _state.text.isNotEmpty;
+        _state.text.isNotEmpty ||
+        _quickJobsOnly ||
+        _distanceEnabled;
   }
+
+  Future<void> _showFilters() => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    showDragHandle: true,
+    builder: (sheetContext) => StatefulBuilder(
+      builder: (context, setSheetState) {
+        void update(VoidCallback change) {
+          setState(change);
+          setSheetState(() {});
+        }
+
+        return FractionallySizedBox(
+          widthFactor: 1,
+          heightFactor: .88,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  MortSpacing.md,
+                  0,
+                  MortSpacing.md,
+                  MortSpacing.sm,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Filters',
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Close filters',
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: MortSpacing.md,
+                  ),
+                  children: [
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Quick Jobs'),
+                      subtitle: const Text('Under 30 minutes'),
+                      value: _quickJobsOnly,
+                      onChanged: (value) =>
+                          update(() => _quickJobsOnly = value),
+                    ),
+                    MortSelect<String>(
+                      label: 'Category',
+                      value: _category,
+                      items: {
+                        for (final value in _feedCategories) value: value,
+                      },
+                      onChanged: (value) =>
+                          update(() => _category = value ?? 'All'),
+                    ),
+                    const SizedBox(height: MortSpacing.sm),
+                    MortTextField(
+                      label: 'Minimum pay in dollars',
+                      controller: _minimumPay,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                    ),
+                    const SizedBox(height: MortSpacing.sm),
+                    MortSelect<String>(
+                      label: 'Payment type',
+                      value: _paymentType,
+                      items: const {
+                        'any': 'Any payment type',
+                        'fixed': 'Fixed amount',
+                        'hourly': 'Hourly',
+                      },
+                      onChanged: (value) =>
+                          update(() => _paymentType = value ?? 'any'),
+                    ),
+                    const SizedBox(height: MortSpacing.sm),
+                    MortSelect<String>(
+                      label: 'Schedule',
+                      value: _scheduleType,
+                      items: const {
+                        'any': 'Any schedule',
+                        'flexible': 'Flexible',
+                        'exact': 'Exact date and time',
+                      },
+                      onChanged: (value) =>
+                          update(() => _scheduleType = value ?? 'any'),
+                    ),
+                    const SizedBox(height: MortSpacing.sm),
+                    MortSelect<String>(
+                      label: 'Poster verification',
+                      value: _verification,
+                      items: const {
+                        'any': 'Any preference',
+                        'none': 'No additional preference',
+                        'preferred': 'Verified preferred',
+                        'required': 'Verified required',
+                      },
+                      onChanged: (value) =>
+                          update(() => _verification = value ?? 'any'),
+                    ),
+                    const SizedBox(height: MortSpacing.sm),
+                    MortSelect<String>(
+                      label: 'Guardian approval',
+                      value: _guardian,
+                      items: const {
+                        'any': 'Any',
+                        'not_required': 'Not requested',
+                        'required': 'Requested for this job',
+                      },
+                      onChanged: (value) =>
+                          update(() => _guardian = value ?? 'any'),
+                    ),
+                    const SizedBox(height: MortSpacing.sm),
+                    MortSelect<String>(
+                      label: 'Work environment',
+                      value: _environment,
+                      items: const {
+                        'any': 'Any environment',
+                        'indoor': 'Indoor',
+                        'outdoor': 'Outdoor',
+                        'both': 'Indoor and outdoor',
+                      },
+                      onChanged: (value) =>
+                          update(() => _environment = value ?? 'any'),
+                    ),
+                    const SizedBox(height: MortSpacing.md),
+                    MortCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'General search area',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: MortSpacing.xs),
+                          const Text(
+                            'Search by city or state. Precise location is only used on-device to calculate rounded distances when you choose.',
+                          ),
+                          const SizedBox(height: MortSpacing.sm),
+                          MortTextField(label: 'City', controller: _city),
+                          const SizedBox(height: MortSpacing.sm),
+                          MortTextField(
+                            label: 'State code',
+                            controller: _state,
+                            maxLength: 2,
+                            textCapitalization: TextCapitalization.characters,
+                          ),
+                          if (!kIsWeb) ...[
+                            const SizedBox(height: MortSpacing.sm),
+                            MortButton(
+                              label: 'Use current general area',
+                              icon: Icons.my_location,
+                              style: MortButtonStyle.secondary,
+                              busy: _locating,
+                              busyLabel: 'Finding general area...',
+                              onPressed: _useCurrentArea,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: MortSpacing.sm),
+                    MortSelect<JobSort>(
+                      label: 'Sort',
+                      value: _sort,
+                      items: const {
+                        JobSort.newest: 'Newest',
+                        JobSort.highestPay: 'Highest pay',
+                        JobSort.soonestStart: 'Soonest start',
+                      },
+                      onChanged: (value) =>
+                          update(() => _sort = value ?? JobSort.newest),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  MortSpacing.md,
+                  MortSpacing.sm,
+                  MortSpacing.md,
+                  MortSpacing.md,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: MortButton(
+                        label: 'Apply filters',
+                        icon: Icons.check_rounded,
+                        onPressed: () {
+                          setState(() {});
+                          Navigator.of(sheetContext).pop();
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: MortSpacing.sm),
+                    MortButton(
+                      label: 'Clear',
+                      icon: Icons.clear,
+                      style: MortButtonStyle.ghost,
+                      fullWidth: false,
+                      onPressed: () {
+                        _clearFilters();
+                        setSheetState(() {});
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
 
   Future<void> _useCurrentArea() async {
     if (_locating) return;
@@ -301,7 +531,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'DISCOVER LOCAL WORK',
+                    'LOCAL WORK, ON YOUR TERMS',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                       letterSpacing: 1.15,
@@ -310,7 +540,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    'Explore',
+                    'Find work that fits your day',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.9,
@@ -338,13 +568,13 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
           controller: _keyword,
           hint: 'Try tutoring, yard work, or technology help',
           onSubmitted: (_) => setState(() {}),
-          onFilter: _filtersController.expand,
+          onFilter: _showFilters,
         ),
         const SizedBox(height: MortSpacing.sm),
         Align(
           alignment: Alignment.centerLeft,
           child: Text(
-            'POPULAR CATEGORIES',
+            'SUGGESTED SEARCHES',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
               letterSpacing: 1.05,
@@ -357,6 +587,13 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
+              MortChip(
+                label: 'Under 30 min',
+                selected: _quickJobsOnly,
+                onSelected: (selected) =>
+                    setState(() => _quickJobsOnly = selected),
+              ),
+              const SizedBox(width: MortSpacing.xs),
               for (final category in _quickFeedCategories.entries) ...[
                 MortChip(
                   label: category.key,
@@ -383,7 +620,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
               MortChip(
                 label: 'Pay',
                 selected: _minimumPay.text.isNotEmpty,
-                onSelected: (_) => _filtersController.expand(),
+                onSelected: (_) => _showFilters(),
               ),
               const SizedBox(width: MortSpacing.xs),
               MortChip(
@@ -403,164 +640,16 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
               MortChip(
                 label: 'Category',
                 selected: _category != 'All',
-                onSelected: (_) => _filtersController.expand(),
+                onSelected: (_) => _showFilters(),
               ),
             ],
           ),
         ),
         const SizedBox(height: MortSpacing.sm),
-        ExpansionTile(
-          controller: _filtersController,
-          tilePadding: EdgeInsets.zero,
-          childrenPadding: const EdgeInsets.only(bottom: MortSpacing.sm),
-          title: const Text('All filters'),
-          leading: const Icon(Icons.tune),
-          children: [
-            MortSelect<String>(
-              label: 'Category',
-              value: _category,
-              items: {for (final value in _feedCategories) value: value},
-              onChanged: (value) => setState(() => _category = value ?? 'All'),
-            ),
-            const SizedBox(height: MortSpacing.sm),
-            MortTextField(
-              label: 'Minimum pay in dollars',
-              controller: _minimumPay,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-            ),
-            const SizedBox(height: MortSpacing.sm),
-            MortSelect<String>(
-              label: 'Payment type',
-              value: _paymentType,
-              items: const {
-                'any': 'Any payment type',
-                'fixed': 'Fixed amount',
-                'hourly': 'Hourly',
-              },
-              onChanged: (value) =>
-                  setState(() => _paymentType = value ?? 'any'),
-            ),
-            const SizedBox(height: MortSpacing.sm),
-            MortSelect<String>(
-              label: 'Schedule',
-              value: _scheduleType,
-              items: const {
-                'any': 'Any schedule',
-                'flexible': 'Flexible',
-                'exact': 'Exact date and time',
-              },
-              onChanged: (value) =>
-                  setState(() => _scheduleType = value ?? 'any'),
-            ),
-            const SizedBox(height: MortSpacing.sm),
-            MortSelect<String>(
-              label: 'Applicant verification preference',
-              value: _verification,
-              items: const {
-                'any': 'Any preference',
-                'none': 'No additional preference',
-                'preferred': 'Verified preferred',
-                'required': 'Verified required',
-              },
-              onChanged: (value) =>
-                  setState(() => _verification = value ?? 'any'),
-            ),
-            const SizedBox(height: MortSpacing.sm),
-            MortSelect<String>(
-              label: 'Guardian approval',
-              value: _guardian,
-              items: const {
-                'any': 'Any',
-                'not_required': 'Not requested',
-                'required': 'Requested for this job',
-              },
-              onChanged: (value) => setState(() => _guardian = value ?? 'any'),
-            ),
-            const SizedBox(height: MortSpacing.sm),
-            MortSelect<String>(
-              label: 'Work environment',
-              value: _environment,
-              items: const {
-                'any': 'Any environment',
-                'indoor': 'Indoor',
-                'outdoor': 'Outdoor',
-                'both': 'Indoor and outdoor',
-              },
-              onChanged: (value) =>
-                  setState(() => _environment = value ?? 'any'),
-            ),
-            const SizedBox(height: MortSpacing.sm),
-            MortCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'General search area',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: MortSpacing.xs),
-                  const Text(
-                    'City and state are optional. MORT does not calculate your distance to a job from public job data. With permission, MORT uses a fresh location on-device to calculate rounded job distances. If you tap Use current general area, MORT separately converts a fresh location to city and state. MORT does not retain raw coordinates from either request. Manual entry works even when location access is denied.',
-                  ),
-                  const SizedBox(height: MortSpacing.sm),
-                  MortTextField(label: 'City', controller: _city),
-                  const SizedBox(height: MortSpacing.sm),
-                  MortTextField(
-                    label: 'State code',
-                    controller: _state,
-                    maxLength: 2,
-                    textCapitalization: TextCapitalization.characters,
-                  ),
-                  if (!kIsWeb) ...[
-                    const SizedBox(height: MortSpacing.sm),
-                    MortButton(
-                      label: 'Use current general area',
-                      icon: Icons.my_location,
-                      style: MortButtonStyle.secondary,
-                      busy: _locating,
-                      busyLabel: 'Finding general area...',
-                      onPressed: _useCurrentArea,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: MortSpacing.sm),
-            MortSelect<JobSort>(
-              label: 'Sort',
-              value: _sort,
-              items: const {
-                JobSort.newest: 'Newest',
-                JobSort.highestPay: 'Highest pay',
-                JobSort.soonestStart: 'Soonest start',
-              },
-              onChanged: (value) =>
-                  setState(() => _sort = value ?? JobSort.newest),
-            ),
-            const SizedBox(height: MortSpacing.md),
-            Row(
-              children: [
-                Expanded(
-                  child: MortButton(
-                    label: 'Apply filters',
-                    icon: Icons.search,
-                    onPressed: () => setState(() {}),
-                  ),
-                ),
-                const SizedBox(width: MortSpacing.sm),
-                Expanded(
-                  child: MortButton(
-                    label: 'Clear',
-                    icon: Icons.clear,
-                    style: MortButtonStyle.ghost,
-                    onPressed: _clearFilters,
-                  ),
-                ),
-              ],
-            ),
-          ],
+        OutlinedButton.icon(
+          onPressed: _showFilters,
+          icon: const Icon(Icons.tune_rounded),
+          label: const Text('All filters'),
         ),
         const SizedBox(height: MortSpacing.sm),
         Row(
