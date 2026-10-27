@@ -62,6 +62,7 @@ class MortScreen extends StatelessWidget {
     this.scrollController,
     this.atmosphereIntensity = MortAtmosphereIntensity.quiet,
     this.atmosphereFocalLayer,
+    this.showAtmosphere = true,
   });
 
   final List<Widget> children;
@@ -78,6 +79,7 @@ class MortScreen extends StatelessWidget {
   /// celebration = starfall) pass it explicitly.
   final MortAtmosphereIntensity atmosphereIntensity;
   final Widget? atmosphereFocalLayer;
+  final bool showAtmosphere;
 
   bool get _hasHeader =>
       children.any((child) => child is MortHeader || child is MortGlassHeader);
@@ -194,14 +196,14 @@ class MortScreen extends StatelessWidget {
         : content;
 
     return Scaffold(
-      backgroundColor: isDark
+      backgroundColor: isDark && showAtmosphere
           ? Colors.transparent
           : Theme.of(context).scaffoldBackgroundColor,
       bottomNavigationBar: bottom,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          if (isDark) ...[
+          if (isDark && showAtmosphere) ...[
             const Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(gradient: MortGradients.background),
@@ -214,7 +216,7 @@ class MortScreen extends StatelessWidget {
               ),
             ),
           ],
-          if (!isDark && atmosphereFocalLayer != null)
+          if ((!isDark || !showAtmosphere) && atmosphereFocalLayer != null)
             Positioned.fill(child: IgnorePointer(child: atmosphereFocalLayer!)),
           PopScope<Object?>(
             canPop: allowImmediatePop,
@@ -1428,9 +1430,8 @@ class MortJobStatusBadge extends StatelessWidget {
     final isLight = Theme.of(context).brightness == Brightness.light;
     final color = switch (status) {
       'open' => isLight ? MortColors.lightTextSoft : MortColors.neon,
-      'closed' || 'removed' => isLight
-          ? MortColors.dangerDeep
-          : MortColors.danger,
+      'closed' ||
+      'removed' => isLight ? MortColors.dangerDeep : MortColors.danger,
       'paused' => isLight ? const Color(0xFF725019) : MortColors.warning,
       _ => isLight ? MortColors.lightTextSoft : MortColors.safetyBlue,
     };
@@ -1478,12 +1479,8 @@ class MortCategoryPill extends StatelessWidget {
       selected: selected,
       onSelected: onTap == null ? null : (_) => onTap!(),
       selectedColor: selectedColor,
-      backgroundColor: isLight
-          ? MortColors.lightSurface
-          : MortColors.cardAlt,
-      labelStyle: TextStyle(
-        color: selected ? labelColor : MortColors.textSoft,
-      ),
+      backgroundColor: isLight ? MortColors.lightSurface : MortColors.cardAlt,
+      labelStyle: TextStyle(color: selected ? labelColor : MortColors.textSoft),
       side: BorderSide(
         color: isLight
             ? (selected ? MortColors.lightTextSoft : MortColors.lightLine)

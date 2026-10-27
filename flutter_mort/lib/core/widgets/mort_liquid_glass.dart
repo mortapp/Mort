@@ -223,121 +223,44 @@ class MortGlassNavigationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     assert(currentIndex >= 0 && currentIndex < destinations.length);
-    final disableAnimations = MediaQuery.disableAnimationsOf(context);
     final scheme = Theme.of(context).colorScheme;
-    final selectedColor = scheme.onSurface;
-    final unselectedColor = scheme.onSurfaceVariant;
-    return SafeArea(
-      top: false,
-      minimum: const EdgeInsets.fromLTRB(
-        MortSpacing.md,
-        MortSpacing.xs,
-        MortSpacing.md,
-        MortSpacing.xs,
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHigh.withValues(alpha: 0.97),
-          borderRadius: BorderRadius.circular(MortRadii.sheet),
-          border: Border.all(color: scheme.outlineVariant),
-        ),
-        padding: const EdgeInsets.all(MortSpacing.xxs),
-        child: Row(
-          children: [
-            for (var index = 0; index < destinations.length; index++)
-              Expanded(
-                child: Semantics(
-                  selected: currentIndex == index,
-                  button: true,
-                  label:
-                      destinations[index].accessibilityLabel ??
-                      destinations[index].label,
-                  child: Tooltip(
-                    message:
-                        destinations[index].accessibilityLabel ??
-                        destinations[index].label,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(MortRadii.card),
-                      onTap: () => onDestinationSelected(index),
-                      child: AnimatedContainer(
-                        duration: disableAnimations
-                            ? Duration.zero
-                            : MortMotion.standard,
-                        curve: Curves.easeOutCubic,
-                        constraints: const BoxConstraints(
-                          minHeight: MortSpacing.minTouchTarget,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: MortSpacing.xxs,
-                          vertical: MortSpacing.xs,
-                        ),
-                        decoration: BoxDecoration(
-                          color:
-                              currentIndex == index &&
-                                  !destinations[index].prominentAction
-                              ? selectedColor.withValues(alpha: 0.10)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(MortRadii.card),
-                          border:
-                              currentIndex == index &&
-                                  !destinations[index].prominentAction
-                              ? Border.all(
-                                  color: selectedColor.withValues(alpha: 0.22),
-                                )
-                              : null,
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (destinations[index].prominentAction)
-                              Container(
-                                width: 34,
-                                height: 34,
-                                decoration: BoxDecoration(
-                                  color: selectedColor,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  destinations[index].icon,
-                                  size: 22,
-                                  color: scheme.surface,
-                                ),
-                              )
-                            else
-                              Icon(
-                                currentIndex == index
-                                    ? destinations[index].selectedIcon
-                                    : destinations[index].icon,
-                                size: 22,
-                                color: currentIndex == index
-                                    ? selectedColor
-                                    : unselectedColor,
-                              ),
-                            const SizedBox(height: MortSpacing.xxs),
-                            Text(
-                              destinations[index].label,
-                              maxLines: 1,
-                              overflow: TextOverflow.fade,
-                              softWrap: false,
-                              style: Theme.of(context).textTheme.labelMedium
-                                  ?.copyWith(
-                                    color: currentIndex == index
-                                        ? selectedColor
-                                        : unselectedColor,
-                                    fontSize: 10,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
+    return NavigationBar(
+      selectedIndex: currentIndex,
+      onDestinationSelected: onDestinationSelected,
+      height: 76,
+      elevation: 0,
+      backgroundColor: scheme.surface,
+      indicatorColor: scheme.onSurface.withValues(alpha: 0.10),
+      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+      destinations: [
+        for (final destination in destinations)
+          NavigationDestination(
+            tooltip: destination.accessibilityLabel ?? destination.label,
+            label: destination.label,
+            icon: _navigationIcon(destination, scheme),
+            selectedIcon: _navigationIcon(destination, scheme),
+          ),
+      ],
     );
+  }
+
+  Widget _navigationIcon(
+    MortNavigationDestination destination,
+    ColorScheme scheme,
+  ) {
+    if (destination.prominentAction) {
+      return Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: scheme.onSurface,
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: Icon(destination.icon, size: 22, color: scheme.surface),
+      );
+    }
+    return Icon(destination.icon, size: 22);
   }
 }
 

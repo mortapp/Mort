@@ -20,27 +20,78 @@ class TeenMarketplaceHomeScreen extends ConsumerWidget {
     final result = ref.watch(openJobsProvider(_filters));
     final colors = Theme.of(context).colorScheme;
     return MortScreen(
+      showAtmosphere: false,
       children: [
         Row(
           children: [
-            Expanded(
-              child: Text(
-                'Jobs near you',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.7,
-                ),
+            Text(
+              'MORT',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+                letterSpacing: 2.2,
               ),
             ),
+            const Spacer(),
             IconButton(
               tooltip: 'Notifications',
               constraints: const BoxConstraints.tightFor(width: 48, height: 48),
               onPressed: () => context.push('/notifications'),
+              style: IconButton.styleFrom(
+                foregroundColor: colors.onSurface,
+                side: BorderSide(color: colors.outlineVariant),
+                shape: const CircleBorder(),
+              ),
               icon: const Icon(Icons.notifications_none_rounded),
             ),
           ],
         ),
+        const SizedBox(height: MortSpacing.md),
+        Text(
+          'LOCAL WORK,\nON YOUR TERMS',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: colors.onSurfaceVariant,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.8,
+          ),
+        ),
         const SizedBox(height: MortSpacing.xs),
+        Text(
+          'Work that fits\nyour day.',
+          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+            letterSpacing: -1.4,
+            height: 1.0,
+          ),
+        ),
+        const SizedBox(height: MortSpacing.sm),
+        Row(
+          children: [
+            Icon(
+              Icons.near_me_outlined,
+              size: 17,
+              color: colors.onSurfaceVariant,
+            ),
+            const SizedBox(width: MortSpacing.xxs),
+            Expanded(
+              child: Text(
+                'Discover work in your area',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () => context.go('/teen/explore'),
+              icon: const Icon(Icons.arrow_forward_rounded, size: 17),
+              label: const Text('Explore'),
+              style: TextButton.styleFrom(
+                foregroundColor: colors.onSurface,
+                minimumSize: const Size(48, 44),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: MortSpacing.md),
         result.when(
           loading: () => const Padding(
             padding: EdgeInsets.symmetric(vertical: MortSpacing.xl),
@@ -77,18 +128,22 @@ class TeenMarketplaceHomeScreen extends ConsumerWidget {
                       job.estimatedDurationMinutes! < 30,
                 )
                 .toList(growable: false);
+            final quickJobIds = quickJobs.map((job) => job.id).toSet();
+            final openJobs = feed.items
+                .where((job) => !quickJobIds.contains(job.id))
+                .toList(growable: false);
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (quickJobs.isNotEmpty) ...[
                   _SectionHeading(
-                    title: 'Quick Jobs',
+                    title: 'Quick picks',
                     actionLabel: 'Explore all',
                     onAction: () => context.go('/teen/explore'),
                   ),
                   const SizedBox(height: MortSpacing.xs),
                   SizedBox(
-                    height: 116,
+                    height: 136 * MediaQuery.textScalerOf(context).scale(1),
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: quickJobs.length.clamp(0, 8),
@@ -100,15 +155,17 @@ class TeenMarketplaceHomeScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: MortSpacing.md),
                 ],
-                _SectionHeading(
-                  title: 'Open jobs',
-                  actionLabel: 'See all',
-                  onAction: () => context.go('/teen/explore'),
-                ),
-                const SizedBox(height: MortSpacing.xs),
-                for (final job in feed.items) ...[
-                  _MarketplaceJobCard(key: ValueKey(job.id), job: job),
-                  const SizedBox(height: MortSpacing.sm),
+                if (openJobs.isNotEmpty) ...[
+                  _SectionHeading(
+                    title: 'More nearby',
+                    actionLabel: 'See all',
+                    onAction: () => context.go('/teen/explore'),
+                  ),
+                  const SizedBox(height: MortSpacing.xs),
+                  for (final job in openJobs) ...[
+                    _MarketplaceJobCard(key: ValueKey(job.id), job: job),
+                    const SizedBox(height: MortSpacing.sm),
+                  ],
                 ],
                 if (feed.hasMore) ...[
                   const SizedBox(height: MortSpacing.xs),
@@ -153,27 +210,30 @@ class _SectionHeading extends StatelessWidget {
   final VoidCallback onAction;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Expanded(
-        child: Text(
-          title,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.3,
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.5,
+            ),
           ),
         ),
-      ),
-      TextButton(
-        onPressed: onAction,
-        style: TextButton.styleFrom(
-          minimumSize: const Size(48, 44),
-          foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+        TextButton(
+          onPressed: onAction,
+          style: TextButton.styleFrom(
+            minimumSize: const Size(48, 44),
+            foregroundColor: colors.onSurfaceVariant,
+          ),
+          child: Text(actionLabel),
         ),
-        child: Text(actionLabel),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 }
 
 class _QuickJobCard extends StatelessWidget {
@@ -185,13 +245,10 @@ class _QuickJobCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return SizedBox(
-      width: 228,
+      width: 248,
       child: Material(
-        color: colors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: colors.outlineVariant),
-        ),
+        color: colors.onSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => context.push('/teen/jobs/${job.id}'),
@@ -213,38 +270,79 @@ class _QuickJobCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.labelMedium
-                            ?.copyWith(color: colors.onSurfaceVariant),
+                            ?.copyWith(
+                              color: colors.surface,
+                              fontWeight: FontWeight.w600,
+                            ),
                       ),
                     ),
-                    Text(
-                      job.payDisplay,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Icon(
+                      Icons.north_east_rounded,
+                      size: 18,
+                      color: colors.surface,
                     ),
                   ],
                 ),
                 const SizedBox(height: MortSpacing.xs),
                 Text(
                   job.title,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: colors.surface,
                     fontWeight: FontWeight.w700,
+                    height: 1.05,
                   ),
                 ),
                 const SizedBox(height: MortSpacing.xxs),
-                Text(
-                  [
-                    if (job.estimatedDurationMinutes != null)
-                      '${job.estimatedDurationMinutes} min',
-                    if (job.scheduleDisplay.isNotEmpty) job.scheduleDisplay,
-                  ].join('  ·  '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.location_on_outlined,
+                      size: 14,
+                      color: colors.surface.withValues(alpha: 0.75),
+                    ),
+                    const SizedBox(width: MortSpacing.xxs),
+                    Expanded(
+                      child: Text(
+                        job.locationText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: colors.surface.withValues(alpha: 0.75),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: MortSpacing.xxs),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        [
+                          if (job.estimatedDurationMinutes != null)
+                            '${job.estimatedDurationMinutes} min',
+                          if (job.scheduleDisplay.isNotEmpty)
+                            job.scheduleDisplay,
+                        ].join('  ·  '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.surface.withValues(alpha: 0.78),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: MortSpacing.xs),
+                    Text(
+                      job.payDisplay,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: colors.surface,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -304,141 +402,137 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
     final duration = job.estimatedDurationMinutes == null
         ? null
         : '${job.estimatedDurationMinutes} min';
-    final metadata = [
-      job.payDisplay,
-      ?duration,
-      job.scheduleDisplay,
-    ].join('  ·  ');
+    final metadata = [?duration, job.scheduleDisplay].join('  ·  ');
 
     return Material(
-      color: colors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: colors.outlineVariant),
-      ),
+      color: colors.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(20),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          InkWell(
-            onTap: () => context.push('/teen/jobs/${job.id}'),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                MortSpacing.md,
-                MortSpacing.xs,
-                MortSpacing.md,
-                MortSpacing.xxs,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+      child: Padding(
+        padding: const EdgeInsets.all(MortSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.location_on_outlined,
-                        size: 16,
-                        color: colors.onSurfaceVariant,
+                      Text(
+                        job.category.toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.1,
+                        ),
                       ),
-                      const SizedBox(width: MortSpacing.xxs),
-                      Expanded(
-                        child: Text(
-                          job.locationText,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: colors.onSurfaceVariant),
+                      const SizedBox(height: MortSpacing.xxs),
+                      Text(
+                        job.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.5,
+                          height: 1.12,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: MortSpacing.xxs),
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 12,
-                        backgroundColor: colors.surfaceContainerHigh,
-                        child: Icon(
-                          Icons.person_outline_rounded,
-                          size: 16,
-                          color: colors.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(width: MortSpacing.xs),
-                      Flexible(
-                        child: Text(
-                          job.posterName ?? 'Local poster',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      if (job.posterVerified) ...[
-                        const SizedBox(width: MortSpacing.xxs),
-                        Icon(
-                          Icons.verified_rounded,
-                          size: 15,
-                          semanticLabel: 'Verified poster',
-                          color: colors.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: MortSpacing.xxs),
-                        Text(
-                          'Verified',
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(color: colors.onSurfaceVariant),
-                        ),
-                      ],
-                    ],
+                ),
+                const SizedBox(width: MortSpacing.sm),
+                Text(
+                  job.payDisplay,
+                  textAlign: TextAlign.end,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
                   ),
-                  const SizedBox(height: MortSpacing.sm),
-                  Text(
-                    job.category,
+                ),
+              ],
+            ),
+            const SizedBox(height: MortSpacing.sm),
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 14,
+                  backgroundColor: colors.surfaceContainerHigh,
+                  child: Icon(
+                    Icons.person_outline_rounded,
+                    size: 17,
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(width: MortSpacing.xs),
+                Flexible(
+                  child: Text(
+                    job.posterName ?? 'Local poster',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (job.posterVerified) ...[
+                  const SizedBox(width: MortSpacing.xxs),
+                  Icon(
+                    Icons.verified_rounded,
+                    size: 15,
+                    semanticLabel: 'Verified poster',
+                    color: colors.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: MortSpacing.xxs),
+                  Text(
+                    'Verified',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: colors.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: MortSpacing.xxs),
-                  Text(
-                    job.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      height: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: MortSpacing.xs),
-                  Text(
-                    metadata,
+                ],
+                const Spacer(),
+                Icon(
+                  Icons.location_on_outlined,
+                  size: 16,
+                  color: colors.onSurfaceVariant,
+                ),
+                const SizedBox(width: MortSpacing.xxs),
+                Flexible(
+                  child: Text(
+                    job.locationText,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: colors.onSurfaceVariant,
                     ),
                   ),
-                  if (job.summary?.isNotEmpty == true) ...[
-                    const SizedBox(height: MortSpacing.xxs),
-                    Text(
-                      job.summary!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ],
+                ),
+              ],
+            ),
+            const SizedBox(height: MortSpacing.xs),
+            Text(
+              metadata,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+            ),
+            if (job.summary?.isNotEmpty == true) ...[
+              const SizedBox(height: MortSpacing.xxs),
+              Text(
+                job.summary!,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
               ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              MortSpacing.sm,
-              0,
-              MortSpacing.sm,
-              MortSpacing.sm,
-            ),
-            child: Row(
+            ],
+            const SizedBox(height: MortSpacing.sm),
+            Row(
               children: [
                 IconButton(
                   tooltip: saved ? 'Remove saved job' : 'Save job',
@@ -475,8 +569,8 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
                 ),
               ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
