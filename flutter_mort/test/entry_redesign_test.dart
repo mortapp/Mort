@@ -15,6 +15,12 @@ void main() {
 
     expect(find.byType(MortMotionMark), findsOneWidget);
     expect(find.byType(MortWordmarkReveal), findsOneWidget);
+    expect(
+      tester
+          .widget<MortWordmarkReveal>(find.byType(MortWordmarkReveal))
+          .showTagline,
+      isFalse,
+    );
     expect(find.text('Earn nearby. Move smart.'), findsOneWidget);
     expect(find.text('Enter MORT'), findsOneWidget);
     expect(find.text('Sign in'), findsOneWidget);

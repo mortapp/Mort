@@ -74,7 +74,7 @@ class SplashScreen extends ConsumerWidget {
           children: const [
             MortMotionMark(size: 42),
             SizedBox(height: MortSpacing.sm),
-            MortWordmarkReveal(width: 244, height: 82),
+            MortWordmarkReveal(width: 244, height: 82, showTagline: false),
           ],
         ),
       ),
