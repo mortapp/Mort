@@ -16,6 +16,7 @@ void main() {
         ProviderScope(
           overrides: [
             openJobsProvider.overrideWith2(_PreviewJobsController.new),
+            savedJobIdsProvider.overrideWith((ref) async => <String>{}),
           ],
           child: MaterialApp(
             theme: MortTheme.light(),
@@ -29,7 +30,14 @@ void main() {
       expect(find.text('Quick Jobs'), findsOneWidget);
       expect(find.text('Open jobs'), findsOneWidget);
       expect(find.text('Yard cleanup'), findsWidgets);
-      expect(find.text(r'$25.00'), findsWidgets);
+      expect(find.textContaining(r'$25.00'), findsWidgets);
+      expect(
+        find.text('Browse local work. Exact addresses stay private.'),
+        findsNothing,
+      );
+      expect(find.text('Broad Ripple area'), findsWidgets);
+      expect(find.text('Apply'), findsOneWidget);
+      expect(find.byTooltip('Save job'), findsOneWidget);
       expect(find.byType(TextField), findsNothing);
       expect(find.text('123 Exact Street'), findsNothing);
     },
