@@ -62,6 +62,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
   final _state = TextEditingController();
   final _filtersController = ExpansionTileController();
   final Set<String> _savedJobIds = {};
+  final Set<String> _interestedJobIds = {};
   String _category = 'All';
   String _paymentType = 'any';
   String _scheduleType = 'any';
@@ -70,6 +71,8 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
   String _environment = 'any';
   JobSort _sort = JobSort.newest;
   bool _locating = false;
+  bool _distanceEnabled = false;
+  bool _quickJobsOnly = false;
   String? _savingJobId;
   final _distances = <String, double>{};
   bool _distancesLoading = false;
@@ -122,6 +125,19 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
       // Distance is an enhancement, not required to browse the feed.
       if (mounted) setState(() => _distancesLoading = false);
     }
+  }
+
+  void _toggleDistance(List<Job> jobs) {
+    if (_distanceEnabled) {
+      setState(() {
+        _distanceEnabled = false;
+        _distanceStatus = null;
+        _distances.clear();
+      });
+      return;
+    }
+    setState(() => _distanceEnabled = true);
+    unawaited(_refreshDistances(jobs));
   }
 
   Future<void> _loadSavedJobs() async {
@@ -253,7 +269,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
       final missing = items
           .where((job) => !_distances.containsKey(job.id))
           .toList();
-      if (missing.isNotEmpty) {
+      if (_distanceEnabled && missing.isNotEmpty) {
         unawaited(_refreshDistances(missing));
       }
     });
@@ -292,6 +308,46 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
           onFilter: _filtersController.expand,
         ),
         const SizedBox(height: MortSpacing.sm),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              MortChip(
+                label: 'Distance',
+                selected: _distanceEnabled,
+                onSelected: (_) =>
+                    _toggleDistance(jobs.asData?.value.items ?? const <Job>[]),
+              ),
+              const SizedBox(width: MortSpacing.xs),
+              MortChip(
+                label: 'Pay',
+                selected: _minimumPay.text.isNotEmpty,
+                onSelected: (_) => _filtersController.expand(),
+              ),
+              const SizedBox(width: MortSpacing.xs),
+              MortChip(
+                label: 'Duration',
+                selected: _quickJobsOnly,
+                onSelected: (selected) =>
+                    setState(() => _quickJobsOnly = selected),
+              ),
+              const SizedBox(width: MortSpacing.xs),
+              MortChip(
+                label: 'Date',
+                selected: _scheduleType == 'exact',
+                onSelected: (selected) =>
+                    setState(() => _scheduleType = selected ? 'exact' : 'any'),
+              ),
+              const SizedBox(width: MortSpacing.xs),
+              MortChip(
+                label: 'Category',
+                selected: _category != 'All',
+                onSelected: (_) => _filtersController.expand(),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: MortSpacing.xs),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -480,7 +536,15 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
             ),
           ),
           data: (feed) {
-            final items = feed.items;
+            final items = _quickJobsOnly
+                ? feed.items
+                      .where(
+                        (job) =>
+                            job.estimatedDurationMinutes != null &&
+                            job.estimatedDurationMinutes! < 30,
+                      )
+                      .toList(growable: false)
+                : feed.items;
             if (items.isEmpty) {
               return MortEmptyState(
                 title: 'No jobs in this area yet',
@@ -564,12 +628,20 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
                   ),
                   const SizedBox(height: MortSpacing.sm),
                 ],
-                for (final job in items) ...[
+                for (final job in _prioritized(items)) ...[
                   _TeenJobCard(
                     job: job,
                     saved: _savedJobIds.contains(job.id),
                     saving: _savingJobId == job.id,
+                    interested: _interestedJobIds.contains(job.id),
                     onToggleSaved: () => _toggleSaved(job),
+                    onInterestChanged: (interested) => setState(() {
+                      if (interested) {
+                        _interestedJobIds.add(job.id);
+                      } else {
+                        _interestedJobIds.remove(job.id);
+                      }
+                    }),
                     distanceMiles: _distances[job.id],
                   ),
                   const SizedBox(height: MortSpacing.sm),
@@ -607,6 +679,14 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
       ],
     );
   }
+
+  List<Job> _prioritized(List<Job> jobs) => [...jobs]
+    ..sort((left, right) {
+      final leftInterested = _interestedJobIds.contains(left.id);
+      final rightInterested = _interestedJobIds.contains(right.id);
+      if (leftInterested == rightInterested) return 0;
+      return rightInterested ? 1 : -1;
+    });
 }
 
 class _TeenJobCard extends StatelessWidget {
@@ -614,14 +694,18 @@ class _TeenJobCard extends StatelessWidget {
     required this.job,
     required this.saved,
     required this.saving,
+    required this.interested,
     required this.onToggleSaved,
+    required this.onInterestChanged,
     this.distanceMiles,
   });
 
   final Job job;
   final bool saved;
   final bool saving;
+  final bool interested;
   final VoidCallback onToggleSaved;
+  final ValueChanged<bool> onInterestChanged;
   final double? distanceMiles;
 
   @override
@@ -700,59 +784,44 @@ class _TeenJobCard extends StatelessWidget {
                   ),
                 ),
               ],
-            ],
-          ),
-          const SizedBox(height: MortSpacing.xs),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      job.category,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: colors.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: MortSpacing.xxs),
-                    Text(
-                      job.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        height: 1.15,
-                      ),
-                    ),
-                  ],
+              const SizedBox(width: MortSpacing.xs),
+              Flexible(
+                child: Text(
+                  job.category,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
                 ),
-              ),
-              const SizedBox(width: MortSpacing.sm),
-              Text(
-                job.payDisplay,
-                textAlign: TextAlign.end,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
             ],
           ),
           const SizedBox(height: MortSpacing.xxs),
           Text(
+            job.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              height: 1.15,
+            ),
+          ),
+          const SizedBox(height: MortSpacing.xxs),
+          Text(
             [
+              if (job.payDisplay.isNotEmpty) job.payDisplay,
               if (job.estimatedDurationMinutes != null)
                 _durationDisplay(job.estimatedDurationMinutes!),
               job.scheduleDisplay,
             ].join('  ·  '),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: colors.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           if (job.requiresGuardianApproval) ...[
             const SizedBox(height: MortSpacing.xxs),
@@ -763,18 +832,24 @@ class _TeenJobCard extends StatelessWidget {
               ).textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant),
             ),
           ],
-          if (job.summary?.isNotEmpty == true) ...[
-            const SizedBox(height: MortSpacing.xxs),
-            Text(
-              job.summary!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
           const SizedBox(height: MortSpacing.xs),
           Row(
             children: [
+              IconButton(
+                tooltip: interested ? 'Remove interest' : 'Show interest',
+                onPressed: () => onInterestChanged(!interested),
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints.tightFor(
+                  width: 44,
+                  height: 44,
+                ),
+                icon: Icon(
+                  interested
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  color: colors.onSurface,
+                ),
+              ),
               SizedBox.square(
                 dimension: MortSpacing.minTouchTarget,
                 child: saving
@@ -816,7 +891,7 @@ class _TeenJobCard extends StatelessWidget {
                     style: FilledButton.styleFrom(
                       minimumSize: const Size(48, 48),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     child: const Text('Apply'),

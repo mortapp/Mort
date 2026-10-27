@@ -236,6 +236,7 @@ void main() {
 
     expect(find.text('Yard cleanup'), findsOneWidget);
     expect(find.text('Apply'), findsOneWidget);
+    expect(find.byTooltip('Show interest'), findsOneWidget);
     await tester.tap(find.byTooltip('Save job'));
     await tester.pumpAndSettle();
 
