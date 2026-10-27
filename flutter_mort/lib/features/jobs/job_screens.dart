@@ -1546,6 +1546,127 @@ class AdultJobsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final jobs = ref.watch(myJobsProvider);
+    if (homeMode) {
+      final colors = Theme.of(context).colorScheme;
+      return MortScreen(
+        showAtmosphere: false,
+        children: [
+          Row(
+            children: [
+              Text(
+                'MORT',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 2.2,
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                tooltip: 'Notifications',
+                constraints: const BoxConstraints.tightFor(
+                  width: 48,
+                  height: 48,
+                ),
+                onPressed: () => context.push('/notifications'),
+                style: IconButton.styleFrom(
+                  foregroundColor: colors.onSurface,
+                  side: BorderSide(color: colors.outlineVariant),
+                  shape: const CircleBorder(),
+                ),
+                icon: const Icon(Icons.notifications_none_rounded),
+              ),
+            ],
+          ),
+          const SizedBox(height: MortSpacing.md),
+          Text(
+            'LOCAL HELP,\nWITHOUT THE RUNAROUND',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: colors.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.8,
+            ),
+          ),
+          const SizedBox(height: MortSpacing.xs),
+          Text(
+            'Good help starts here.',
+            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: -1.2,
+              height: 1.0,
+            ),
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          Text(
+            'Your nearby jobs, applicants, and next steps in one place.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
+          ),
+          const SizedBox(height: MortSpacing.lg),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Your posted jobs',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => context.go('/adult/explore'),
+                child: const Text('See all'),
+              ),
+            ],
+          ),
+          const SizedBox(height: MortSpacing.xs),
+          jobs.when(
+            loading: () => const MortSkeletonCard(),
+            error: (error, _) => MortErrorState(
+              title: 'Your jobs could not be loaded',
+              message: userFacingError(error),
+              action: MortButton(
+                label: 'Try again',
+                icon: Icons.refresh_rounded,
+                onPressed: () => ref.invalidate(myJobsProvider),
+              ),
+            ),
+            data: (items) {
+              if (items.isEmpty) {
+                return MortEmptyState(
+                  title: 'Your next job starts here',
+                  message:
+                      'Post nearby work and review each applicant in MORT.',
+                  icon: Icons.work_outline_rounded,
+                  action: MortButton(
+                    label: 'Post a job',
+                    icon: Icons.add_rounded,
+                    onPressed: () => context.go('/adult/post-job'),
+                  ),
+                );
+              }
+              return Column(
+                children: [
+                  for (final job in items.take(5)) ...[
+                    _AdultHomeJobCard(job: job),
+                    const SizedBox(height: MortSpacing.sm),
+                  ],
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: MortSpacing.md),
+          Text(
+            'Exact addresses stay private until they are needed for a job.',
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+          ),
+        ],
+      );
+    }
     return MortScreen(
       children: [
         MortHeader(
@@ -1615,6 +1736,117 @@ class AdultJobsScreen extends ConsumerWidget {
           },
         ),
       ],
+    );
+  }
+}
+
+class _AdultHomeJobCard extends StatelessWidget {
+  const _AdultHomeJobCard({required this.job});
+
+  final Job job;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: colors.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.go('/adult/jobs/${job.id}'),
+        child: Padding(
+          padding: const EdgeInsets.all(MortSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      job.category.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                  ),
+                  MortJobStatusBadge(status: job.status),
+                ],
+              ),
+              const SizedBox(height: MortSpacing.xs),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      job.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.5,
+                        height: 1.12,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: MortSpacing.sm),
+                  Text(
+                    job.payDisplay,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: MortSpacing.sm),
+              Row(
+                children: [
+                  Icon(
+                    Icons.location_on_outlined,
+                    size: 16,
+                    color: colors.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: MortSpacing.xxs),
+                  Expanded(
+                    child: Text(
+                      job.locationText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: MortSpacing.xs),
+                  Flexible(
+                    child: Text(
+                      job.scheduleDisplay,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: MortSpacing.xs),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 18,
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

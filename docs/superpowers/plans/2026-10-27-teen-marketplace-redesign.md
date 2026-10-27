@@ -38,3 +38,14 @@
 - [x] Implement the new responsive, monochrome Home layout while preserving the existing data and navigation contracts.
 - [x] Run focused Home and navigation widget tests, plus job safety widget tests, then analyze the changed Dart files.
 - [x] Capture a Flutter-rendered preview for visual review.
+
+### Task 2: Replace the adult dashboard Home with a jobs-first marketplace surface
+
+**Files:**
+- Modify: `flutter_mort/lib/features/jobs/job_screens.dart`
+- Test: `flutter_mort/test/adult_marketplace_home_test.dart`
+
+- [x] Add a widget assertion that rejects the old dashboard Home presentation.
+- [x] Confirm the assertion fails against the existing Home.
+- [x] Replace the adult Home mode with a jobs-first list, honest empty/error states, and the existing job detail and post-job routes.
+- [x] Run adult Home, adult navigation, and accessibility-size checks; analyze the changed Dart file.
