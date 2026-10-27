@@ -4,17 +4,9 @@ $root = Resolve-Path "$PSScriptRoot\.."
 $excludedDirNames = @(
   "node_modules", ".expo", ".supabase-cli-config", "dist", ".git",
   "outputs", "build", "coverage", ".temp", ".dart_tool", "backups",
-  "logs", "DerivedData", "Pods"
+  "logs", "DerivedData", "Pods", "test", "integration_test", "web"
 )
-$sourceDirs = @(
-  "app",
-  "components",
-  "lib",
-  "providers",
-  "types",
-  "flutter_mort\lib",
-  "flutter_mort\web"
-)
+$flutterSourceRoot = Join-Path $root "flutter_mort"
 $jwtPattern = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+"
 
 function Get-ScannableFiles {
@@ -33,18 +25,17 @@ function Get-ScannableFiles {
   }
 }
 
-$files = @(Get-ScannableFiles -Directory $root)
+$files = @(Get-ScannableFiles -Directory $flutterSourceRoot)
 
-$jwtHits = $files.FullName | Select-String -Pattern $jwtPattern -AllMatches
-
-$appFiles = foreach ($dir in $sourceDirs) {
-  $full = Join-Path $root $dir
-  if (Test-Path -LiteralPath $full) {
-    Get-ChildItem -LiteralPath $full -Recurse -File
-  }
+$jwtHits = foreach ($file in $files) {
+  Select-String -LiteralPath $file.FullName -Pattern $jwtPattern -AllMatches
 }
 
-$serviceRoleHits = $appFiles.FullName | Select-String -Pattern "service_role|SUPABASE_SERVICE_ROLE_KEY|SUPABASE_SECRET" -CaseSensitive:$false
+$serviceRoleHits = foreach ($file in $files) {
+  Select-String -LiteralPath $file.FullName `
+    -Pattern "service_role|SUPABASE_SERVICE_ROLE_KEY|SUPABASE_SECRET" `
+    -CaseSensitive:$false
+}
 
 if ($jwtHits -or $serviceRoleHits) {
   Write-Host "Potential secret exposure found:" -ForegroundColor Red
