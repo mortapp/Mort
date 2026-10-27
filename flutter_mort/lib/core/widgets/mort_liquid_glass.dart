@@ -237,8 +237,8 @@ class MortGlassNavigationBar extends StatelessWidget {
           NavigationDestination(
             tooltip: destination.accessibilityLabel ?? destination.label,
             label: destination.label,
-            icon: _navigationIcon(destination, scheme),
-            selectedIcon: _navigationIcon(destination, scheme),
+            icon: _navigationIcon(destination, scheme, selected: false),
+            selectedIcon: _navigationIcon(destination, scheme, selected: true),
           ),
       ],
     );
@@ -246,8 +246,9 @@ class MortGlassNavigationBar extends StatelessWidget {
 
   Widget _navigationIcon(
     MortNavigationDestination destination,
-    ColorScheme scheme,
-  ) {
+    ColorScheme scheme, {
+    required bool selected,
+  }) {
     if (destination.prominentAction) {
       return Container(
         width: 36,
@@ -260,7 +261,10 @@ class MortGlassNavigationBar extends StatelessWidget {
         child: Icon(destination.icon, size: 22, color: scheme.surface),
       );
     }
-    return Icon(destination.icon, size: 22);
+    return Icon(
+      selected ? destination.selectedIcon : destination.icon,
+      size: 22,
+    );
   }
 }
 

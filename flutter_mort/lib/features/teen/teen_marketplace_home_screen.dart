@@ -283,7 +283,7 @@ class _QuickJobCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final area = job.locationText.trim();
+    final area = job.publicAreaDisplay;
     return SizedBox(
       width: 244,
       child: Material(
@@ -513,11 +513,11 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
     final duration = job.estimatedDurationMinutes == null
         ? null
         : '${job.estimatedDurationMinutes} min';
-    final area = _safeAreaLabel(job);
+    final area = job.publicAreaDisplay;
     final details = [
       ?duration,
-      if (!job.isFlexible && job.startsAt != null) job.scheduleDisplay,
-    ].join('  ·  ');
+      job.isFlexible ? 'Flexible' : job.scheduleDisplay,
+    ].join(' · ');
 
     return Material(
       key: ValueKey('nearby-job-${job.id}'),
@@ -553,6 +553,31 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
                       ),
                     ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 13,
+                    backgroundColor: colors.surfaceContainerHigh,
+                    child: Icon(
+                      Icons.person_outline_rounded,
+                      size: 16,
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      job.posterName ?? 'Local poster',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                   if (job.posterVerified)
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -561,7 +586,7 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
                       ),
                       decoration: BoxDecoration(
                         color: colors.surfaceContainerHigh,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(9),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -578,46 +603,9 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
                     ),
                 ],
               ),
-              const SizedBox(height: 9),
+              const SizedBox(height: 8),
               Row(
-                children: [
-                  CircleAvatar(
-                    radius: 11,
-                    backgroundColor: colors.surfaceContainerHigh,
-                    child: Icon(
-                      Icons.person_outline_rounded,
-                      size: 14,
-                      color: colors.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(width: 7),
-                  Expanded(
-                    child: Text(
-                      job.posterName ?? 'Local poster',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  if (details.isNotEmpty)
-                    Flexible(
-                      child: Text(
-                        details,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.end,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: colors.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
                     child: Column(
@@ -630,33 +618,58 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
                           style: Theme.of(context).textTheme.labelSmall
                               ?.copyWith(
                                 color: colors.onSurfaceVariant,
-                                letterSpacing: 0.2,
-                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1.0,
+                                fontWeight: FontWeight.w700,
                               ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         Text(
                           job.title,
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(
                                 fontWeight: FontWeight.w700,
-                                letterSpacing: -0.4,
+                                letterSpacing: -0.45,
+                                height: 1.12,
                               ),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Text(
-                    job.payDisplay,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.8,
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: colors.onSurface,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 11,
+                        vertical: 8,
+                      ),
+                      child: Text(
+                        job.payDisplay,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: colors.surface,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.45,
+                            ),
+                      ),
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                details,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colors.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               const SizedBox(height: 8),
               Row(
@@ -740,15 +753,6 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
       ),
     );
   }
-}
-
-String _safeAreaLabel(Job job) {
-  final neighborhood = job.neighborhood?.trim();
-  if (neighborhood != null && neighborhood.isNotEmpty) return neighborhood;
-  final city = job.city.trim();
-  final state = job.state.trim();
-  if (city.isEmpty) return '';
-  return state.isEmpty ? city : '$city, $state';
 }
 
 String _prettyCategory(String category) {

@@ -25,6 +25,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byIcon(Icons.home_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.home_outlined), findsNothing);
     expect(
       find.descendant(of: navigation, matching: find.text('Explore')),
       findsOneWidget,

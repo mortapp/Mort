@@ -10,20 +10,52 @@ import 'package:flutter_mort/data/models/job.dart';
 import 'package:flutter_mort/data/repositories/applications_repository.dart';
 import 'package:flutter_mort/data/repositories/jobs_repository.dart';
 import 'package:flutter_mort/data/repositories/providers.dart';
+import 'package:flutter_mort/features/jobs/teen_job_screens.dart';
 import 'package:flutter_mort/features/teen/teen_marketplace_home_screen.dart';
+import 'package:flutter_mort/features/teen/teen_shell.dart';
 
 void main() => runApp(const _PreviewApp());
 
 final _router = GoRouter(
   initialLocation: '/teen/home',
   routes: [
-    GoRoute(
-      path: '/teen/home',
-      builder: (_, _) => const TeenMarketplaceHomeScreen(),
-    ),
-    GoRoute(
-      path: '/teen/explore',
-      builder: (_, _) => const _PreviewPlaceholder(title: 'Explore'),
+    StatefulShellRoute.indexedStack(
+      builder: (_, _, navigationShell) =>
+          TeenShell(navigationShell: navigationShell),
+      branches: [
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/teen/home',
+              builder: (_, _) => const TeenMarketplaceHomeScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/teen/explore',
+              builder: (_, _) => const TeenJobFeedScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/teen/messages',
+              builder: (_, _) => const _PreviewPlaceholder(title: 'Inbox'),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/teen/profile',
+              builder: (_, _) => const _PreviewPlaceholder(title: 'Profile'),
+            ),
+          ],
+        ),
+      ],
     ),
     GoRoute(
       path: '/teen/jobs/:id',
@@ -116,7 +148,8 @@ const _yardJob = Job(
   title: 'Tidy up the front garden',
   description: 'Collect leaves and sweep the front walk.',
   category: 'yard work',
-  locationText: 'Broad Ripple area',
+  locationText: '1247 North College Avenue',
+  neighborhood: 'Broad Ripple area',
   city: 'Indianapolis',
   state: 'IN',
   status: 'open',
@@ -133,7 +166,8 @@ const _organizingJob = Job(
   title: 'Help organize a garage',
   description: 'Sort boxes and sweep the floor.',
   category: 'organization',
-  locationText: 'Meridian-Kessler area',
+  locationText: '5021 North Pennsylvania Street',
+  neighborhood: 'Meridian-Kessler area',
   city: 'Indianapolis',
   state: 'IN',
   status: 'open',
@@ -150,6 +184,7 @@ const _tutoringJob = Job(
   description: 'Work through practice problems together.',
   category: 'tutoring',
   locationText: 'Near Broad Ripple',
+  neighborhood: 'Broad Ripple area',
   city: 'Indianapolis',
   state: 'IN',
   status: 'open',
@@ -165,7 +200,8 @@ const _petCareJob = Job(
   title: 'Walk a friendly dog',
   description: 'A short neighborhood walk with a calm dog.',
   category: 'pet care',
-  locationText: 'SoBro area',
+  locationText: '612 East 54th Street',
+  neighborhood: 'SoBro area',
   city: 'Indianapolis',
   state: 'IN',
   status: 'open',

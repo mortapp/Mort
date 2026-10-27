@@ -71,6 +71,7 @@ void main() {
       expect(find.text('Apply'), findsOneWidget);
       expect(find.byTooltip('Save job'), findsOneWidget);
       expect(find.byTooltip('Show interest'), findsOneWidget);
+      expect(find.text('45 min · Flexible'), findsOneWidget);
       final nearbyCard = find.byKey(
         const ValueKey('nearby-job-longer-preview-job'),
       );
@@ -240,9 +241,10 @@ const _previewJob = Job(
   title: 'Yard cleanup',
   description: 'Collect leaves and tidy the front garden.',
   category: 'Yard work',
-  locationText: 'Broad Ripple area',
+  locationText: '123 Exact Street',
   city: 'Indianapolis',
   state: 'IN',
+  neighborhood: 'Broad Ripple area',
   status: 'open',
   requiresGuardianApproval: false,
   posterName: 'Janet',

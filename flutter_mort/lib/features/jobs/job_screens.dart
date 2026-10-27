@@ -1552,71 +1552,45 @@ class AdultJobsScreen extends ConsumerWidget {
         showAtmosphere: false,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                'MORT',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 2.2,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'YOUR WORK',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Your posted jobs',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.6,
+                          ),
+                    ),
+                  ],
                 ),
               ),
-              const Spacer(),
               IconButton(
-                tooltip: 'Notifications',
+                tooltip: 'Refresh jobs',
                 constraints: const BoxConstraints.tightFor(
                   width: 48,
                   height: 48,
                 ),
-                onPressed: () => context.push('/notifications'),
+                onPressed: () => ref.invalidate(myJobsProvider),
                 style: IconButton.styleFrom(
                   foregroundColor: colors.onSurface,
                   side: BorderSide(color: colors.outlineVariant),
                   shape: const CircleBorder(),
                 ),
-                icon: const Icon(Icons.notifications_none_rounded),
-              ),
-            ],
-          ),
-          const SizedBox(height: MortSpacing.md),
-          Text(
-            'LOCAL HELP,\nWITHOUT THE RUNAROUND',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: colors.onSurfaceVariant,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.8,
-            ),
-          ),
-          const SizedBox(height: MortSpacing.xs),
-          Text(
-            'Good help starts here.',
-            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-              letterSpacing: -1.2,
-              height: 1.0,
-            ),
-          ),
-          const SizedBox(height: MortSpacing.sm),
-          Text(
-            'Your nearby jobs, applicants, and next steps in one place.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
-          ),
-          const SizedBox(height: MortSpacing.lg),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Your posted jobs',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: () => context.go('/adult/explore'),
-                child: const Text('See all'),
+                icon: const Icon(Icons.refresh_rounded),
               ),
             ],
           ),
@@ -1655,14 +1629,6 @@ class AdultJobsScreen extends ConsumerWidget {
                 ],
               );
             },
-          ),
-          const SizedBox(height: MortSpacing.md),
-          Text(
-            'Exact addresses stay private until they are needed for a job.',
-            textAlign: TextAlign.center,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
           ),
         ],
       );

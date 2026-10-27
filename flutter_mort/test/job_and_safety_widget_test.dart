@@ -346,9 +346,10 @@ void main() {
         title: 'Help organize a community library reading room',
         description: 'A job for testing.',
         category: 'Community and library help',
-        locationText: 'Broad Ripple public library area',
+        locationText: '123 Library Street',
         city: 'Indianapolis',
         state: 'IN',
+        neighborhood: 'Broad Ripple public library area',
         status: 'open',
         requiresGuardianApproval: true,
         payAmountCents: 12500,
@@ -394,6 +395,7 @@ void main() {
         card.semanticLabel,
         'Help organize a community library reading room. Listed pay \$125.00. Approximate area Broad Ripple public library area. Flexible schedule. Verified poster.',
       );
+      expect(find.text('123 Library Street'), findsNothing);
       await tester.ensureVisible(find.byTooltip('Save job'));
       await tester.pumpAndSettle();
       expect(find.byTooltip('Save job').hitTestable(), findsOneWidget);
@@ -416,9 +418,10 @@ void main() {
         title: 'Community garden support',
         description: 'Help prepare shared garden beds for spring.',
         category: 'Yard work',
-        locationText: 'Near the public library',
+        locationText: '456 Garden Lane',
         city: 'Indianapolis',
         state: 'IN',
+        neighborhood: 'Near the public library',
         status: 'open',
         requiresGuardianApproval: false,
         payAmountCents: 4800,
@@ -462,7 +465,7 @@ void main() {
         'Community garden support',
         'Offered compensation',
         'MORT does not process, hold, guarantee, or mark this amount paid.',
-        'Approximate area: Near the public library, Indianapolis, IN',
+        'Approximate area: Near the public library',
         'Safety expectations',
         'Work stays in the public garden area.',
         'Application eligibility',
@@ -474,6 +477,7 @@ void main() {
         expect(content.hitTestable(), findsOneWidget, reason: text);
         expect(tester.takeException(), isNull, reason: text);
       }
+      expect(find.text('456 Garden Lane'), findsNothing);
 
       final report = find.byTooltip('Report profile picture or poster');
       expect(report, findsOneWidget);

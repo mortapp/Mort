@@ -135,6 +135,19 @@ class Job {
   String get payDisplay => formatCents(payAmountCents, fallback: payLabel);
   String get adultAmountDisplay => formatCents(adultJobAmountCents);
   String get serviceFeeDisplay => formatCents(mortServiceFeeCents);
+  String get publicAreaDisplay {
+    final safeNeighborhood = neighborhood?.trim();
+    if (safeNeighborhood != null &&
+        safeNeighborhood.isNotEmpty &&
+        !_looksLikeStreetAddress(safeNeighborhood)) {
+      return safeNeighborhood;
+    }
+    final safeCity = city.trim();
+    final safeState = state.trim();
+    if (safeCity.isEmpty) return 'Nearby';
+    return safeState.isEmpty ? safeCity : '$safeCity, $safeState';
+  }
+
   bool get posterVerified => !isTest && posterVerificationStatus == 'approved';
   bool get isFlexible => scheduleType == 'flexible' || startsAt == null;
   bool get isOpen => status == 'open' && applicationsOpen;
@@ -149,6 +162,9 @@ class Job {
           'rejected' => 'Poster verification not approved',
           _ => 'Poster verification not started',
         };
+
+  static bool _looksLikeStreetAddress(String value) =>
+      RegExp(r'^\d+\s+\S+').hasMatch(value);
 
   factory Job.fromMap(Map<String, dynamic> json) {
     final poster = json['profiles'];

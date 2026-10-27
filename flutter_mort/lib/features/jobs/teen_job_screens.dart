@@ -93,6 +93,9 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
   }
 
   Future<void> _refreshDistances(List<Job> jobsNeedingDistance) async {
+    // MORT does not calculate your distance to a job from public job data.
+    // Precise coordinates are sent only for this opt-in calculation; the app
+    // keeps rounded distances. The mobile client does not retain raw coordinates from either request.
     if (jobsNeedingDistance.isEmpty || _distancesLoading) return;
     setState(() => _distancesLoading = true);
     final result = await const PreciseLocationService()
@@ -401,7 +404,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
                           ),
                           const SizedBox(height: MortSpacing.xs),
                           const Text(
-                            'Search by city or state. Precise location is only used on-device to calculate rounded distances when you choose.',
+                            'Search by city or state. Manual entry works even when location access is denied. Precise location is only used to calculate rounded distances when you choose.',
                           ),
                           const SizedBox(height: MortSpacing.sm),
                           MortTextField(label: 'City', controller: _city),
@@ -867,7 +870,7 @@ class _TeenJobCard extends StatelessWidget {
     return MortGlassCard(
       onTap: () => context.push('/teen/jobs/${job.id}'),
       semanticLabel:
-          '${job.title}. Listed pay ${job.payDisplay}. Approximate area ${job.locationText}. ${job.scheduleDisplay}. ${job.verificationDisplay}.',
+          '${job.title}. Listed pay ${job.payDisplay}. Approximate area ${job.publicAreaDisplay}. ${job.scheduleDisplay}. ${job.verificationDisplay}.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -881,7 +884,7 @@ class _TeenJobCard extends StatelessWidget {
               const SizedBox(width: MortSpacing.xxs),
               Expanded(
                 child: Text(
-                  job.locationText,
+                  job.publicAreaDisplay,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -1385,7 +1388,8 @@ class _TeenJobDetailScreenState extends ConsumerState<TeenJobDetailScreen> {
             MortGlassHeader(
               eyebrow: job.category,
               title: job.title,
-              subtitle: '${job.payDisplay} | General area: ${job.locationText}',
+              subtitle:
+                  '${job.payDisplay} | General area: ${job.publicAreaDisplay}',
               showBack: true,
               onBack: () =>
                   context.canPop() ? context.pop() : context.go('/teen/home'),
@@ -1476,8 +1480,7 @@ class _TeenJobDetailScreenState extends ConsumerState<TeenJobDetailScreen> {
                   _DetailLine(icon: Icons.schedule, label: job.scheduleDisplay),
                   _DetailLine(
                     icon: Icons.place_outlined,
-                    label:
-                        'Approximate area: ${job.locationText}, ${job.city}, ${job.state}',
+                    label: 'Approximate area: ${job.publicAreaDisplay}',
                   ),
                   if (job.estimatedDurationMinutes != null)
                     _DetailLine(

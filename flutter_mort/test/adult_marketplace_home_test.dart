@@ -25,7 +25,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Good help starts here.'), findsOneWidget);
+    expect(find.text('Good help starts here.'), findsNothing);
+    expect(find.textContaining('LOCAL HELP'), findsNothing);
+    expect(find.text('MORT'), findsNothing);
     expect(find.text('Your posted jobs'), findsOneWidget);
     expect(find.text('Yard cleanup'), findsOneWidget);
     expect(find.text('Adult dashboard'), findsNothing);
