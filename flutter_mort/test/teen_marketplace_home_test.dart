@@ -27,12 +27,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Local work · exact addresses stay private'),
-        findsOneWidget,
-      );
       expect(find.text('Quick Jobs'), findsOneWidget);
       expect(find.text('Nearby work'), findsOneWidget);
+      expect(find.text('MORT'), findsNothing);
       expect(find.text('Yard cleanup'), findsOneWidget);
       expect(find.textContaining(r'$25.00'), findsWidgets);
       expect(find.text('Janet'), findsOneWidget);
@@ -42,8 +39,9 @@ void main() {
         findsNothing,
       );
       expect(find.text('Broad Ripple area'), findsWidgets);
-      expect(find.text('View job'), findsOneWidget);
+      expect(find.text('Apply'), findsOneWidget);
       expect(find.byTooltip('Save job'), findsOneWidget);
+      expect(find.byTooltip('Show interest'), findsOneWidget);
       final nearbyCard = find.byKey(
         const ValueKey('nearby-job-longer-preview-job'),
       );
@@ -54,11 +52,11 @@ void main() {
       );
       final category = find.descendant(
         of: nearbyCard,
-        matching: find.text('ORGANIZATION'),
+        matching: find.text('Organization'),
       );
       expect(
         tester.getTopLeft(poster).dy,
-        lessThan(tester.getTopLeft(category).dy),
+        lessThanOrEqualTo(tester.getTopLeft(category).dy),
       );
       expect(find.byType(TextField), findsNothing);
       expect(find.text('123 Exact Street'), findsNothing);
@@ -93,7 +91,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Quick Jobs'), findsOneWidget);
-    expect(find.text('View job'), findsWidgets);
+    expect(find.text('Apply'), findsWidgets);
   });
 
   testMortWidgets('dark teen Home follows the monochrome product theme', (

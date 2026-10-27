@@ -10,61 +10,25 @@ import '../../data/repositories/providers.dart';
 
 /// Teen Home is the marketplace feed. Jobs lead; search and detailed filters
 /// live in Explore.
-class TeenMarketplaceHomeScreen extends ConsumerWidget {
+class TeenMarketplaceHomeScreen extends ConsumerStatefulWidget {
   const TeenMarketplaceHomeScreen({super.key});
 
+  @override
+  ConsumerState<TeenMarketplaceHomeScreen> createState() =>
+      _TeenMarketplaceHomeScreenState();
+}
+
+class _TeenMarketplaceHomeScreenState
+    extends ConsumerState<TeenMarketplaceHomeScreen> {
   static const _filters = JobSearchFilters(limit: 20);
+  final Set<String> _interestedJobIds = {};
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final result = ref.watch(openJobsProvider(_filters));
-    final colors = Theme.of(context).colorScheme;
     return MortScreen(
       showAtmosphere: false,
       children: [
-        Row(
-          children: [
-            Text(
-              'MORT',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.8,
-              ),
-            ),
-            const Spacer(),
-            IconButton(
-              tooltip: 'Notifications',
-              constraints: const BoxConstraints.tightFor(width: 48, height: 48),
-              onPressed: () => context.push('/notifications'),
-              style: IconButton.styleFrom(
-                foregroundColor: colors.onSurface,
-                side: BorderSide(color: colors.outlineVariant),
-                shape: const CircleBorder(),
-              ),
-              icon: const Icon(Icons.notifications_none_rounded),
-            ),
-          ],
-        ),
-        const SizedBox(height: MortSpacing.sm),
-        Row(
-          children: [
-            Icon(
-              Icons.shield_outlined,
-              size: 16,
-              color: colors.onSurfaceVariant,
-            ),
-            const SizedBox(width: MortSpacing.xxs),
-            Expanded(
-              child: Text(
-                'Local work · exact addresses stay private',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: MortSpacing.md),
         result.when(
           loading: () => const Padding(
             padding: EdgeInsets.symmetric(vertical: MortSpacing.xl),
@@ -102,9 +66,18 @@ class TeenMarketplaceHomeScreen extends ConsumerWidget {
                 )
                 .toList(growable: false);
             final quickJobIds = quickJobs.map((job) => job.id).toSet();
-            final openJobs = feed.items
-                .where((job) => !quickJobIds.contains(job.id))
-                .toList(growable: false);
+            final openJobs =
+                feed.items
+                    .where((job) => !quickJobIds.contains(job.id))
+                    .toList(growable: true)
+                  ..sort((left, right) {
+                    final leftInterested = _interestedJobIds.contains(left.id);
+                    final rightInterested = _interestedJobIds.contains(
+                      right.id,
+                    );
+                    if (leftInterested == rightInterested) return 0;
+                    return rightInterested ? 1 : -1;
+                  });
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -136,7 +109,18 @@ class TeenMarketplaceHomeScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: MortSpacing.xs),
                   for (final job in openJobs) ...[
-                    _MarketplaceJobCard(key: ValueKey(job.id), job: job),
+                    _MarketplaceJobCard(
+                      key: ValueKey(job.id),
+                      job: job,
+                      interested: _interestedJobIds.contains(job.id),
+                      onInterestChanged: (interested) => setState(() {
+                        if (interested) {
+                          _interestedJobIds.add(job.id);
+                        } else {
+                          _interestedJobIds.remove(job.id);
+                        }
+                      }),
+                    ),
                     const SizedBox(height: MortSpacing.sm),
                   ],
                 ],
@@ -349,9 +333,16 @@ class _QuickJobCard extends StatelessWidget {
 }
 
 class _MarketplaceJobCard extends ConsumerStatefulWidget {
-  const _MarketplaceJobCard({super.key, required this.job});
+  const _MarketplaceJobCard({
+    super.key,
+    required this.job,
+    required this.interested,
+    required this.onInterestChanged,
+  });
 
   final Job job;
+  final bool interested;
+  final ValueChanged<bool> onInterestChanged;
 
   @override
   ConsumerState<_MarketplaceJobCard> createState() =>
@@ -360,6 +351,57 @@ class _MarketplaceJobCard extends ConsumerStatefulWidget {
 
 class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
   bool _saving = false;
+  bool _applying = false;
+  String? _applicationId;
+
+  bool get _requiresApplicationConfirmation {
+    final job = widget.job;
+    return !job.isFlexible ||
+        job.requiresGuardianApproval ||
+        (job.specialInstructions?.trim().isNotEmpty ?? false) ||
+        (job.safetyNotes?.trim().isNotEmpty ?? false) ||
+        (job.equipmentWorkerBrings?.trim().isNotEmpty ?? false) ||
+        job.physicalRequirements.isNotEmpty;
+  }
+
+  Future<void> _apply() async {
+    if (_applying) return;
+    if (_applicationId != null) {
+      if (mounted) context.push('/teen/applications/$_applicationId');
+      return;
+    }
+    if (_requiresApplicationConfirmation) {
+      context.push('/teen/jobs/${widget.job.id}');
+      return;
+    }
+
+    setState(() => _applying = true);
+    try {
+      final repository = ref.read(applicationsRepositoryProvider);
+      final eligibility = await repository.checkEligibility(widget.job.id);
+      if (!mounted) return;
+      if (!eligibility.eligible) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(eligibility.message)));
+        return;
+      }
+      final application = await repository.applyToJob(widget.job.id);
+      if (!mounted) return;
+      setState(() => _applicationId = application.id);
+      ref.invalidate(myApplicationsProvider);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Application submitted.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(userFacingError(error))));
+    } finally {
+      if (mounted) setState(() => _applying = false);
+    }
+  }
 
   Future<void> _toggleSaved(bool wasSaved) async {
     if (_saving) return;
@@ -398,21 +440,24 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
         ? null
         : '${job.estimatedDurationMinutes} min';
     final metadata = [
-      job.payDisplay,
+      if (job.payDisplay.isNotEmpty) job.payDisplay,
       ?duration,
       job.scheduleDisplay,
     ].where((value) => value.isNotEmpty).join('  ·  ');
 
     return Material(
       key: ValueKey('nearby-job-${job.id}'),
-      color: colors.surfaceContainerLow,
+      color: colors.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: colors.outlineVariant),
       ),
       clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.all(MortSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: MortSpacing.sm,
+          vertical: MortSpacing.xs,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -420,7 +465,7 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
               children: [
                 Icon(
                   Icons.location_on_outlined,
-                  size: 16,
+                  size: 15,
                   color: colors.onSurfaceVariant,
                 ),
                 const SizedBox(width: MortSpacing.xxs),
@@ -429,60 +474,50 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
                     job.locationText,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: colors.onSurfaceVariant,
                     ),
                   ),
                 ),
+                if (job.posterVerified)
+                  const Tooltip(
+                    message: 'Verified poster',
+                    child: Icon(Icons.verified_rounded, size: 16),
+                  ),
               ],
             ),
-            const SizedBox(height: MortSpacing.xs),
+            const SizedBox(height: MortSpacing.xxs),
             Row(
               children: [
                 CircleAvatar(
-                  radius: 12,
+                  radius: 11,
                   backgroundColor: colors.surfaceContainerHigh,
                   child: Icon(
                     Icons.person_outline_rounded,
-                    size: 15,
+                    size: 14,
                     color: colors.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(width: MortSpacing.xs),
-                Flexible(
+                Expanded(
                   child: Text(
                     job.posterName ?? 'Local poster',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-                if (job.posterVerified) ...[
-                  const SizedBox(width: MortSpacing.xxs),
-                  Tooltip(
-                    message: 'Verified poster',
-                    child: Icon(
-                      Icons.verified_rounded,
-                      size: 16,
-                      semanticLabel: 'Verified poster',
-                      color: colors.onSurfaceVariant,
-                    ),
+                Text(
+                  job.category,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.onSurfaceVariant,
                   ),
-                ],
+                ),
               ],
-            ),
-            const SizedBox(height: MortSpacing.xxs),
-            Text(
-              job.category.toUpperCase(),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: colors.onSurfaceVariant,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.1,
-              ),
             ),
             const SizedBox(height: MortSpacing.xxs),
             Text(
@@ -492,7 +527,6 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.3,
-                height: 1.12,
               ),
             ),
             const SizedBox(height: MortSpacing.xxs),
@@ -501,18 +535,43 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colors.onSurface,
+                color: colors.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: MortSpacing.sm),
+            const SizedBox(height: MortSpacing.xxs),
             Row(
               children: [
+                IconButton(
+                  tooltip: widget.interested
+                      ? 'Remove interest'
+                      : 'Show interest',
+                  onPressed: () => widget.onInterestChanged(!widget.interested),
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 44,
+                    height: 44,
+                  ),
+                  icon: Icon(
+                    widget.interested
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    size: 20,
+                  ),
+                  style: IconButton.styleFrom(
+                    foregroundColor: colors.onSurface,
+                  ),
+                ),
                 IconButton(
                   tooltip: saved ? 'Remove saved job' : 'Save job',
                   onPressed: _saving || !savedJobs.hasValue
                       ? null
                       : () => _toggleSaved(saved),
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 44,
+                    height: 44,
+                  ),
                   icon: _saving
                       ? const SizedBox.square(
                           dimension: 18,
@@ -522,23 +581,29 @@ class _MarketplaceJobCardState extends ConsumerState<_MarketplaceJobCard> {
                           saved
                               ? Icons.bookmark_rounded
                               : Icons.bookmark_border_rounded,
+                          size: 20,
                         ),
                   style: IconButton.styleFrom(
-                    minimumSize: const Size(48, 48),
                     foregroundColor: colors.onSurface,
                   ),
                 ),
                 const SizedBox(width: MortSpacing.xs),
                 Expanded(
                   child: FilledButton(
-                    onPressed: () => context.push('/teen/jobs/${job.id}'),
+                    onPressed: _applying ? null : _apply,
                     style: FilledButton.styleFrom(
-                      minimumSize: const Size(48, 48),
+                      minimumSize: const Size(48, 44),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text('View job'),
+                    child: Text(
+                      _applying
+                          ? 'Applying…'
+                          : _applicationId != null
+                          ? 'View application'
+                          : 'Apply',
+                    ),
                   ),
                 ),
               ],
