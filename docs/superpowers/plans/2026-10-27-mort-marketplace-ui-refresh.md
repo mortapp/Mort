@@ -40,11 +40,11 @@
 - Consumes: existing `openJobsProvider`, saved/interested providers, jobs/applications repositories, and GoRouter routes.
 - Produces: revised Quick Jobs and nearby-job cards with unchanged backend and route contracts.
 
-- [ ] Add a focused widget assertion for the refreshed card hierarchy and exact available privacy-safe metadata.
-- [ ] Run the focused test and confirm the new assertion fails before implementation.
-- [ ] Refresh the Quick Jobs and compact feed surfaces using existing monochrome theme tokens; retain Apply, save, interest, and swipe/undo behavior.
-- [ ] Render the synthetic-data Flutter preview at phone and desktop widths and inspect the result.
-- [ ] Run the Teen marketplace tests and targeted Flutter analysis; fix all regressions in this slice.
+- [x] Add a focused widget assertion for the refreshed card hierarchy and exact available privacy-safe metadata.
+- [x] Run the focused test and confirm the new assertion fails before implementation.
+- [x] Refresh the Quick Jobs and compact feed surfaces using existing monochrome theme tokens; retain Apply, save, interest, and swipe/undo behavior.
+- [x] Render the synthetic-data Flutter preview at phone and desktop widths and inspect the result.
+- [x] Run the Teen marketplace tests and targeted Flutter analysis; fix all regressions in this slice.
 
 ### Task 2: Align shared navigation with the new marketplace treatment
 
@@ -56,10 +56,12 @@
 - Consumes: existing Teen and Adult destination definitions and theme.
 - Produces: consistent role-specific navigation presentation without changing tab order or routing.
 
-- [ ] Add a focused assertion for the shared bar’s new visual treatment while preserving exact Teen/Adult destinations.
-- [ ] Run the focused navigation test and confirm the assertion fails before implementation.
-- [ ] Update only the shared bar presentation and test both shells.
-- [ ] Run focused shell/navigation tests and targeted Flutter analysis.
+The shared monochrome NavigationBar treatment is already present in base commit 5bcb7e9; this plan run re-verifies it rather than duplicating the shell change.
+
+- [x] Add a focused assertion for the shared bar’s new visual treatment while preserving exact Teen/Adult destinations.
+- [x] Run focused navigation tests; verify the existing monochrome navigation theme contract.
+- [x] Verify the shared bar surface/indicator colors and role destinations; avoid duplicating the existing shell restyle.
+- [x] Run focused shell/navigation tests and targeted Flutter analysis.
 
 ### Task 3: Remove the adult Home promo hero
 
@@ -71,10 +73,10 @@
 - Consumes: existing `myJobsProvider`, role-specific AdultShell, and job routes.
 - Produces: an adult Home that leads with posted work and keeps the existing job cards and empty/error states.
 
-- [ ] Assert the promo headline, brand masthead, and pre-feed slogan are absent.
-- [ ] Run the focused adult Home test and confirm it fails before implementation.
-- [ ] Replace the promo hero with a compact posted-jobs heading and refresh control.
-- [ ] Run adult Home tests at normal and 200% text scale.
+- [x] Assert the promo headline, brand masthead, and pre-feed slogan are absent.
+- [x] Run focused Adult Home tests against the existing jobs-first implementation.
+- [x] Verify the promo hero is already replaced by a compact posted-jobs heading and refresh control.
+- [x] Run adult Home tests at normal and 200% text scale.
 
 ## Acceptance
 

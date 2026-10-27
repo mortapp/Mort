@@ -31,6 +31,13 @@ void main() {
       findsOneWidget,
     );
 
+    final bar = tester.widget<NavigationBar>(
+      find.descendant(of: navigation, matching: find.byType(NavigationBar)),
+    );
+    final colors = MortTheme.light().colorScheme;
+    expect(bar.backgroundColor, colors.surface);
+    expect(bar.indicatorColor, colors.onSurface.withValues(alpha: 0.10));
+
     await tester.tap(find.text('Explore').last);
     await tester.pumpAndSettle();
     expect(find.text('Explore content'), findsOneWidget);

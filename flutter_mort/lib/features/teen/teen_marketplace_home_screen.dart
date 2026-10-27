@@ -284,6 +284,7 @@ class _QuickJobCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final area = job.publicAreaDisplay;
+    final schedule = job.isFlexible ? 'Flexible' : job.scheduleDisplay;
     return SizedBox(
       width: 244,
       child: Material(
@@ -379,18 +380,30 @@ class _QuickJobCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        '${job.estimatedDurationMinutes ?? '—'} min',
+                        '${job.estimatedDurationMinutes ?? '—'} min · $schedule',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.labelMedium
                             ?.copyWith(color: colors.onSurfaceVariant),
                       ),
                     ),
-                    Text(
-                      job.payDisplay,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.4,
+                    Container(
+                      key: ValueKey('quick-job-pay-${job.id}'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colors.onSurface,
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      child: Text(
+                        job.payDisplay,
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: colors.surface,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.2,
+                        ),
                       ),
                     ),
                   ],

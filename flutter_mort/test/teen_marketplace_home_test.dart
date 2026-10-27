@@ -35,6 +35,17 @@ void main() {
       tester.widget<Material>(quickCard).color,
       MortTheme.light().colorScheme.surface,
     );
+    expect(
+      find.descendant(of: quickCard, matching: find.text('20 min · Flexible')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: quickCard,
+        matching: find.byKey(const ValueKey('quick-job-pay-preview-job')),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('M'), findsNothing);
   });
 
@@ -123,6 +134,38 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Quick Jobs'), findsOneWidget);
     expect(find.text('Apply'), findsWidgets);
+  });
+
+  testMortWidgets('nearby job cards stay within a narrow phone viewport', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          openJobsProvider.overrideWith2(_PreviewJobsController.new),
+          savedJobIdsProvider.overrideWith((ref) async => <String>{}),
+          interestedJobIdsProvider.overrideWith((ref) async => <String>{}),
+        ],
+        child: MaterialApp(
+          theme: MortTheme.light(),
+          home: const TeenMarketplaceHomeScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final nearbyCard = find.byKey(
+      const ValueKey('nearby-job-longer-preview-job'),
+    );
+    expect(nearbyCard, findsOneWidget);
+    expect(tester.getRect(nearbyCard).left, greaterThanOrEqualTo(0));
+    expect(tester.getRect(nearbyCard).right, lessThanOrEqualTo(360));
+    expect(tester.takeException(), isNull);
   });
 
   testMortWidgets('teen Home stores interest on the backend', (tester) async {
