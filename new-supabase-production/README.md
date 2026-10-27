@@ -20,3 +20,8 @@ signals to posters, other users, or anonymous clients.
 job reads and grants authenticated clients access only to the non-address job
 columns. Exact job addresses are not readable through the Data API; a future
 assignment workflow must add a narrowly authorized, time-bounded access path.
+
+`20261027082432_mort_enforce_job_age_eligibility.sql` derives applicant age
+from the account profile and enforces each job's configured age range both
+when applying and again when an adult accepts an application. The second check
+prevents stale or directly inserted applications from bypassing eligibility.
