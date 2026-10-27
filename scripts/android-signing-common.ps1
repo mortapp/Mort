@@ -130,21 +130,20 @@ function Get-MortPublicConfigValue {
     [Parameter(Mandatory)][string]$Root
   )
 
-  foreach ($scope in @('Process', 'User')) {
-    foreach ($name in @($PrimaryName, $ExpoName)) {
+  foreach ($name in @($PrimaryName, $ExpoName)) {
+    foreach ($scope in @('Process', 'User')) {
       $value = [Environment]::GetEnvironmentVariable($name, $scope)
       if (-not [string]::IsNullOrWhiteSpace($value)) { return $value.Trim() }
     }
-  }
-
-  $envPath = Join-Path $Root '.env.local'
-  if (Test-Path -LiteralPath $envPath) {
-    foreach ($line in Get-Content -LiteralPath $envPath) {
-      if ($line -match '^\s*([^#=]+)\s*=\s*(.*)\s*$') {
-        $name = $Matches[1].Trim()
-        $value = $Matches[2].Trim().Trim('"').Trim("'")
-        if ($name -in @($PrimaryName, $ExpoName) -and -not [string]::IsNullOrWhiteSpace($value)) {
-          return $value
+    $envPath = Join-Path $Root '.env.local'
+    if (Test-Path -LiteralPath $envPath) {
+      foreach ($line in Get-Content -LiteralPath $envPath) {
+        if ($line -match '^\s*([^#=]+)\s*=\s*(.*)\s*$') {
+          $fileName = $Matches[1].Trim()
+          $value = $Matches[2].Trim().Trim('"').Trim("'")
+          if ($fileName -eq $name -and -not [string]::IsNullOrWhiteSpace($value)) {
+            return $value
+          }
         }
       }
     }
