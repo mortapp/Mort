@@ -1,7 +1,8 @@
 # New Supabase production-readiness gap
 
-**Audit date:** 2026-10-27  
-**Flutter branch:** `codex/mort-flutter-uiux-foundation`  
+**Audit date:** 2026-10-27
+
+**Flutter branch:** `codex/mort-flutter-uiux-foundation`
 **Destination project:** `jxbnrkasktbhtiujkhay` (`mort p`, `us-east-2`)
 
 ## Current evidence
