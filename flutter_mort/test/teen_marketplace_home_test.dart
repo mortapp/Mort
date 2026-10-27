@@ -11,6 +11,33 @@ import 'package:flutter_test/flutter_test.dart';
 import 'helpers/mort_widget_harness.dart';
 
 void main() {
+  testMortWidgets('quick jobs use the light editorial surface treatment', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          openJobsProvider.overrideWith2(_PreviewJobsController.new),
+          savedJobIdsProvider.overrideWith((ref) async => <String>{}),
+          interestedJobIdsProvider.overrideWith((ref) async => <String>{}),
+        ],
+        child: MaterialApp(
+          theme: MortTheme.light(),
+          home: const TeenMarketplaceHomeScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final quickCard = find.byKey(const ValueKey('quick-job-preview-job'));
+    expect(quickCard, findsOneWidget);
+    expect(
+      tester.widget<Material>(quickCard).color,
+      MortTheme.light().colorScheme.surface,
+    );
+    expect(find.text('M'), findsNothing);
+  });
+
   testMortWidgets(
     'teen Home starts with local jobs and keeps search in Explore',
     (tester) async {

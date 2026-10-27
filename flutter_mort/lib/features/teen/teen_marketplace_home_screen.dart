@@ -124,7 +124,6 @@ class _TeenMarketplaceHomeScreenState
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const _MarketplaceMasthead(),
                 if (quickJobs.isNotEmpty) ...[
                   _SectionHeading(
                     title: 'Quick Jobs',
@@ -276,51 +275,6 @@ class _SectionHeading extends StatelessWidget {
   }
 }
 
-class _MarketplaceMasthead extends StatelessWidget {
-  const _MarketplaceMasthead();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: MortSpacing.sm),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: colors.onSurface,
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Text(
-              'M',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: colors.surface,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -1,
-              ),
-            ),
-          ),
-          const SizedBox(width: MortSpacing.xs),
-          const Spacer(),
-          IconButton(
-            tooltip: 'Explore work near you',
-            onPressed: () => context.go('/teen/explore'),
-            style: IconButton.styleFrom(
-              backgroundColor: colors.surfaceContainerHigh,
-              minimumSize: const Size(44, 44),
-              shape: const CircleBorder(),
-            ),
-            icon: const Icon(Icons.near_me_outlined),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _QuickJobCard extends StatelessWidget {
   const _QuickJobCard({required this.job});
 
@@ -329,13 +283,16 @@ class _QuickJobCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final area = job.locationText.trim();
     return SizedBox(
-      width: 226,
+      width: 244,
       child: Material(
-        color: isDark ? colors.surfaceContainerHigh : const Color(0xFF171717),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        key: ValueKey('quick-job-${job.id}'),
+        color: colors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: colors.outlineVariant),
+        ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => context.push('/teen/jobs/${job.id}'),
@@ -346,131 +303,97 @@ class _QuickJobCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
+                    Icon(
+                      Icons.near_me_outlined,
+                      size: 14,
+                      color: colors.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 5),
                     Expanded(
                       child: Text(
-                        _prettyCategory(job.category).toUpperCase(),
+                        area.isEmpty ? 'Nearby' : area,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: isDark
-                              ? colors.onSurfaceVariant
-                              : Colors.white70,
-                          letterSpacing: 1.1,
-                          fontWeight: FontWeight.w700,
+                          color: colors.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                    Icon(
-                      Icons.north_east_rounded,
-                      size: 17,
-                      color: isDark ? colors.onSurface : Colors.white70,
-                    ),
+                    const Icon(Icons.north_east_rounded, size: 17),
                   ],
                 ),
-                const Spacer(),
-                Text(
-                  job.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: isDark ? colors.onSurface : Colors.white,
-                    fontWeight: FontWeight.w700,
-                    height: 1.05,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 7),
+                const SizedBox(height: 14),
                 Row(
                   children: [
                     CircleAvatar(
-                      radius: 9,
-                      backgroundColor: isDark ? colors.surface : Colors.white24,
+                      radius: 11,
+                      backgroundColor: colors.surfaceContainerHigh,
                       child: Icon(
                         Icons.person_outline_rounded,
-                        size: 12,
-                        color: isDark ? colors.onSurface : Colors.white,
+                        size: 14,
+                        color: colors.onSurfaceVariant,
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 7),
                     Expanded(
                       child: Text(
                         job.posterName ?? 'Local poster',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: isDark ? colors.onSurface : Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                     ),
                     if (job.posterVerified)
-                      Tooltip(
+                      const Tooltip(
                         message: 'Verified poster',
-                        child: Icon(
-                          Icons.verified_rounded,
-                          size: 14,
-                          color: isDark ? colors.onSurface : Colors.white,
-                        ),
+                        child: Icon(Icons.verified_rounded, size: 15),
                       ),
                   ],
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.location_on_outlined,
-                      size: 13,
-                      color: isDark ? colors.onSurfaceVariant : Colors.white70,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        area,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: isDark
-                              ? colors.onSurfaceVariant
-                              : Colors.white70,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.schedule_rounded,
-                      size: 14,
-                      color: isDark ? colors.onSurfaceVariant : Colors.white70,
-                    ),
-                    const SizedBox(width: 5),
-                    Expanded(
-                      child: Text(
-                        [
-                          if (job.estimatedDurationMinutes != null)
-                            '${job.estimatedDurationMinutes} min',
-                        ].join('  ·  '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: isDark
-                              ? colors.onSurfaceVariant
-                              : Colors.white70,
-                        ),
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 11),
+                Text(
+                  _prettyCategory(job.category).toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                    letterSpacing: 1.1,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  job.payDisplay,
+                  job.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: isDark ? colors.onSurface : Colors.white,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
+                    fontWeight: FontWeight.w700,
+                    height: 1.08,
+                    letterSpacing: -0.35,
                   ),
+                ),
+                const Spacer(),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${job.estimatedDurationMinutes ?? '—'} min',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(color: colors.onSurfaceVariant),
+                      ),
+                    ),
+                    Text(
+                      job.payDisplay,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
