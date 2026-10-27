@@ -17,7 +17,6 @@ import '../../data/repositories/providers.dart';
 import '../../services/native_permissions_service.dart';
 import '../../services/precise_location_service.dart';
 import '../profile/profile_avatar_widgets.dart';
-import '../teen/teen_shell.dart';
 import 'quick_accept_button.dart';
 
 const _feedCategories = [
@@ -260,28 +259,32 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
     });
     return MortScreen(
       children: [
-        MortTeenDestinationHeader(
-          eyebrow: 'Teen-safe discovery',
-          title: 'Explore',
-          subtitle:
-              'Open jobs in your selected area. Exact addresses never appear in the feed.',
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              MortIconButton(
-                icon: Icons.bookmark_outline_rounded,
-                tooltip: 'Saved jobs',
-                onPressed: () => context.push('/teen/saved'),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Explore',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.7,
+                ),
               ),
-              MortIconButton(
-                icon: Icons.notifications_none_rounded,
-                tooltip: 'Notifications',
-                onPressed: () => context.push('/notifications'),
-              ),
-            ],
-          ),
+            ),
+            IconButton(
+              tooltip: 'Saved jobs',
+              constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+              onPressed: () => context.push('/teen/saved'),
+              icon: const Icon(Icons.bookmark_outline_rounded),
+            ),
+            IconButton(
+              tooltip: 'Notifications',
+              constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+              onPressed: () => context.push('/notifications'),
+              icon: const Icon(Icons.notifications_none_rounded),
+            ),
+          ],
         ),
-        const SizedBox(height: MortSpacing.md),
+        const SizedBox(height: MortSpacing.xs),
         MortSearchField(
           controller: _keyword,
           hint: 'Try tutoring, yard work, or technology help',
@@ -309,7 +312,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
           controller: _filtersController,
           tilePadding: EdgeInsets.zero,
           childrenPadding: const EdgeInsets.only(bottom: MortSpacing.sm),
-          title: const Text('Filters and sorting'),
+          title: const Text('All filters'),
           leading: const Icon(Icons.tune),
           children: [
             MortSelect<String>(

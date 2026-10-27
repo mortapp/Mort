@@ -176,6 +176,7 @@ void main() {
 
       await tester.pumpAndSettle();
 
+      expect(find.text('Teen-safe discovery'), findsNothing);
       expect(find.text('No jobs in this area yet'), findsOneWidget);
       expect(find.text('Refresh'), findsWidgets);
 
@@ -188,8 +189,8 @@ void main() {
       expect(searchField, findsOneWidget);
 
       await tester.enterText(searchField, 'tutoring');
-      await tester.ensureVisible(find.text('Filters and sorting'));
-      await tester.tap(find.text('Filters and sorting'));
+      await tester.ensureVisible(find.text('All filters'));
+      await tester.tap(find.text('All filters'));
       await tester.pumpAndSettle();
 
       final applyFiltersButton = find.text('Apply filters');
