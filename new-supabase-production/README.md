@@ -25,3 +25,12 @@ assignment workflow must add a narrowly authorized, time-bounded access path.
 from the account profile and enforces each job's configured age range both
 when applying and again when an adult accepts an application. The second check
 prevents stale or directly inserted applications from bypassing eligibility.
+
+`20261027084715_mort_release_mode_status.sql` adds a read-only, public release
+status RPC and initializes the backend to the public production track. The
+marketplace and real identity collection remain disabled until their backend
+contracts and provider integrations are verified.
+
+`20261027084830_mort_release_status_invoker_access.sql` changes that RPC to
+invoker privileges and exposes only the public status row through a read-only
+RLS policy. Anonymous clients cannot update release settings.

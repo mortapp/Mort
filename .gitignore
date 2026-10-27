@@ -2,6 +2,7 @@
 /.supabase-cli-config/
 /.turbo/
 /supabase/.temp/
+/new-supabase-production/supabase/.temp/
 /dist/
 /web-build/
 /build/
