@@ -20,6 +20,7 @@ assert(/-CrashReportingEnabled\s+\$true/.test(builder), 'Public production build
 
 const workflow = read('.github/workflows/mort-public-production-aab.yml');
 assert(workflow.includes('environment: Production'), 'Public build is not bound to the protected Production environment.');
+assert(workflow.includes('SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}'), 'Public build does not obtain the Supabase client key from the protected Production environment.');
 assert(workflow.includes('build-android-release.ps1') && workflow.includes('production_public'), 'Workflow does not use the public-production AAB builder.');
 assert(workflow.includes('actions/upload-artifact@'), 'Workflow does not preserve the verified AAB artifact.');
 assert(workflow.includes('*.aab') && !workflow.includes('*.apk'), 'Public workflow must package only the Play AAB.');
@@ -42,6 +43,7 @@ assert(!/build-closed-test|\.apk|closed.test/i.test(finalPlayEntry), 'Final Play
 const profile = JSON.parse(read('config/mort-release-profiles.json')).profiles.production;
 const commonBuild = read('scripts/android-release-profile-common.ps1');
 const aabVerifier = read('scripts/verify-play-aab.ps1');
+assert(commonBuild.includes("if ([string]::IsNullOrWhiteSpace($supabaseUrl)) { $supabaseUrl = $expectedUrl }"), 'Public build does not default to the approved Supabase URL when an optional environment value is missing.');
 assert(profile.releaseStage === 'production_public', 'Production profile has the wrong release stage.');
 assert(profile.publicMarketplaceEnabled === true, 'Production profile does not enable the public marketplace.');
 assert(profile.productionActivationApproved === true, 'Owner-approved public production activation is not recorded.');

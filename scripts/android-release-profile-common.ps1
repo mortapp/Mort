@@ -95,6 +95,7 @@ if ((ConvertTo-MortCertificateDigest $certificateSha256) -ne (ConvertTo-MortCert
 
 $supabaseUrl = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_URL' -ExpoName 'EXPO_PUBLIC_SUPABASE_URL' -Root $root
 $supabaseAnonKey = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_ANON_KEY' -ExpoName 'EXPO_PUBLIC_SUPABASE_ANON_KEY' -Root $root
+if ([string]::IsNullOrWhiteSpace($supabaseUrl)) { $supabaseUrl = $expectedUrl }
 if ($supabaseUrl -ne $expectedUrl) { throw 'Release build targets the wrong Supabase project.' }
 if ([string]::IsNullOrWhiteSpace($supabaseAnonKey)) { throw 'The public Supabase key is missing.' }
 
