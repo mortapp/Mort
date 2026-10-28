@@ -27,7 +27,7 @@ void main() {
     expect(config, contains('assertValidReleaseConfiguration'));
     expect(
       config,
-      contains('production pilot requires a configured remote push provider'),
+      contains('production pilot requires a configured crash provider'),
     );
     expect(
       config,
@@ -46,7 +46,7 @@ void main() {
 
       expect(router, contains('if (AppConfig.playReviewModeEnabled)'));
       expect(pilot, contains(r'-PlayReviewModeEnabled $false'));
-      expect(pilot, contains('BLOCKED-EXTERNAL'));
+      expect(pilot, contains(r'-RemotePushEnabled $false'));
     },
   );
 

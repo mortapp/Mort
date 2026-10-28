@@ -53,8 +53,6 @@ dependencies:
   flutter_svg: ^2.3.0
   image: 4.9.1
   crypto: ^3.0.7
-  firebase_core: ^4.12.1
-  firebase_messaging: ^16.4.3
   flutter_timezone: ^5.1.0
   # 9.7.0+ pins Sentry/HybridSDK 8.56+, whose Swift API bridge hides
   # configureScope and fails the native plugin build. 9.6.0 uses 8.52.1.

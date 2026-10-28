@@ -18,6 +18,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'android-signing-common.ps1')
+. (Join-Path $PSScriptRoot 'sentry-client-config.ps1')
 
 $root = Split-Path $PSScriptRoot -Parent
 $flutterRoot = Join-Path $root 'flutter_mort'
@@ -27,6 +28,8 @@ $expectedProjectRef = 'rakjydmgwwgtdislanbt'
 $expectedAuthRedirectUrl = 'com.mortapp.mobile://app/auth-callback'
 $expectedCertificateSha256 = Get-MortUploadCertificateSha256
 $defineFile = $null
+$sentryDsn = Get-MortSentryClientDsn -Required:$CrashReportingEnabled
+if ($RemotePushEnabled) { throw 'Remote push has no approved provider in this build.' }
 
 if ([string]::IsNullOrWhiteSpace($ReleaseProfile)) {
   $ReleaseProfile = switch ($ReleaseStage) {
@@ -38,6 +41,16 @@ if ([string]::IsNullOrWhiteSpace($ReleaseProfile)) {
 $profileJson = & node (Join-Path $PSScriptRoot 'validate-release-profile.mjs') --profile $ReleaseProfile
 if ($LASTEXITCODE -ne 0) { throw 'Release profile matrix validation failed.' }
 $profile = $profileJson | ConvertFrom-Json
+
+if ($ReleaseProfile -eq 'production') {
+  foreach ($legalField in @('termsVersion', 'privacyVersion', 'communityGuidelinesVersion', 'safetyRulesVersion')) {
+    $legalVersion = [string]$profile.$legalField
+    if ([string]::IsNullOrWhiteSpace($legalVersion) -or
+        $legalVersion -match '(?i)(^draft|approval|required|pending)') {
+      throw 'Public production requires approved legal document versions.'
+    }
+  }
+}
 
 foreach ($comparison in @(
   @('release stage', $ReleaseStage, [string]$profile.releaseStage),
@@ -84,6 +97,7 @@ $supabaseUrl = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_URL' -ExpoName '
 $supabaseAnonKey = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_ANON_KEY' -ExpoName 'EXPO_PUBLIC_SUPABASE_ANON_KEY' -Root $root
 if ($supabaseUrl -ne $expectedUrl) { throw 'Release build targets the wrong Supabase project.' }
 if ([string]::IsNullOrWhiteSpace($supabaseAnonKey)) { throw 'The public Supabase key is missing.' }
+
 $env:SUPABASE_URL = $supabaseUrl
 $env:SUPABASE_ANON_KEY = $supabaseAnonKey
 & node (Join-Path $PSScriptRoot 'validate-release-profile-server.mjs') $ReleaseProfile
@@ -106,8 +120,8 @@ if ($ReleaseStage -eq 'closed_test' -and $PublicMarketplaceEnabled) {
 if ($GoogleAuthEnabled -and $ReleaseStage -ne 'closed_test') {
   throw 'Google Auth activation is approved only for the closed-test profile.'
 }
-if ($ReleaseStage -like 'production_*' -and (-not $RemotePushEnabled -or -not $CrashReportingEnabled)) {
-  throw 'Production profiles require real remote-push and crash providers.'
+if ($ReleaseStage -like 'production_*' -and -not $CrashReportingEnabled) {
+  throw 'Production profiles require a real Sentry crash provider.'
 }
 if ($ReleaseStage -eq 'production_public' -and (-not $IdentityVerificationEnabled -or -not $PublicActivationApproved)) {
   throw 'Public production requires approved identity verification and public activation evidence.'
@@ -131,6 +145,7 @@ $defines = [ordered]@{
   MORT_MARKETPLACE_PAYMENTS_ENABLED = 'false'
   MORT_REMOTE_PUSH_ENABLED = $RemotePushEnabled.ToString().ToLowerInvariant()
   MORT_CRASH_REPORTING_ENABLED = $CrashReportingEnabled.ToString().ToLowerInvariant()
+  SENTRY_DSN = $sentryDsn
   MORT_PAYMENT_PROVIDER_MODE = [string]$profile.paymentProviderMode
   MORT_SUPPORT_AI_ENABLED = ([bool]$profile.chatbotAiEnabled).ToString().ToLowerInvariant()
   MORT_DETERMINISTIC_SUPPORT_ENABLED = ([bool]$profile.deterministicChatbotFallbackEnabled).ToString().ToLowerInvariant()
