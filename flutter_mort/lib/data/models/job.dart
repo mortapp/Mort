@@ -217,7 +217,12 @@ class Job {
       distanceStatus: (json['distance_status'] as String?) ?? 'unavailable',
       transportationMatch: json['transportation_match'] as bool?,
       matchExplanation: json['match_explanation'] as String?,
-      quickAcceptEligible: json['quick_accept_eligible'] as bool? ?? false,
+      // The production backend currently exposes the job flag without an
+      // atomic quick-accept endpoint. Require a server capability before the
+      // client advertises the action.
+      quickAcceptEligible:
+          json['quick_accept_eligible'] == true &&
+          json['quick_accept_available'] == true,
     );
   }
 

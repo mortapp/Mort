@@ -364,13 +364,19 @@ class _NotificationCenterScreenState
           const SizedBox(height: MortSpacing.xs),
           Text(
             providerAvailable
-                ? '${snapshot.status.activeDeviceCount} active device${snapshot.status.activeDeviceCount == 1 ? '' : 's'} using FCM.'
-                : 'Remote alerts are not configured in this build. In-app updates remain available.',
+                ? '${snapshot.status.activeDeviceCount} active device${snapshot.status.activeDeviceCount == 1 ? '' : 's'} receiving remote alerts.'
+                : 'Remote alerts are disabled in this app. In-app updates remain available.',
           ),
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Allow remote alerts'),
-            subtitle: Text(_permissionLabel(snapshot.permission)),
+            title: Text(
+              providerAvailable ? 'Allow remote alerts' : 'Remote alerts',
+            ),
+            subtitle: Text(
+              providerAvailable
+                  ? _permissionLabel(snapshot.permission)
+                  : 'Disabled for this app',
+            ),
             value: preferences.pushEnabled && providerAvailable,
             onChanged: _settingsBusy || !providerAvailable
                 ? null

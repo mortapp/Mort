@@ -85,8 +85,8 @@ void main() {
       expect(repository, isNot(contains(".from('jobs').select(_jobSelect)")));
       expect(repository, contains("'manage_job_v2'"));
       expect(repository, isNot(contains("'manage_job',")));
-      expect(applications, contains("'update_application_status_v3'"));
-      expect(applications, isNot(contains("'update_application_status_v2'")));
+      expect(applications, contains("'get_my_job_applications'"));
+      expect(applications, contains("'update_my_job_application_status'"));
     },
   );
 
