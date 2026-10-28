@@ -61,4 +61,42 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('capture is offered only when all production gates are true', (
+    tester,
+  ) async {
+    for (var mask = 0; mask < 8; mask++) {
+      final submissionsEnabled = mask & 1 != 0;
+      final providerAvailable = mask & 2 != 0;
+      final documentsCollected = mask & 4 != 0;
+      await tester.pumpWidget(
+        ProviderScope(
+          key: ValueKey(mask),
+          overrides: [
+            trustSafetyRepositoryProvider.overrideWithValue(
+              _RuntimeVerificationRepository(
+                _status(
+                  submissionsEnabled: submissionsEnabled,
+                  productionProviderAvailable: providerAvailable,
+                  documentsCollectedByMort: documentsCollected,
+                ),
+              ),
+            ),
+          ],
+          child: const MaterialApp(
+            home: TeenVerificationCapturePreparationScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final allGatesEnabled =
+          submissionsEnabled && providerAvailable && documentsCollected;
+      expect(
+        find.text('Use camera'),
+        allGatesEnabled ? findsOneWidget : findsNothing,
+        reason: 'backend gate combination $mask',
+      );
+    }
+  });
 }
