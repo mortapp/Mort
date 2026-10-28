@@ -157,8 +157,11 @@ class JobsRepository extends RepositoryBase {
   }
 
   Future<void> saveJob(String jobId) async {
-    final id = requireUserId();
-    await client.from('saved_jobs').upsert({'user_id': id, 'job_id': jobId});
+    requireUserId();
+    final result = _rpcMap(
+      await client.rpc('save_my_job_v1', params: {'p_job_id': jobId}),
+    );
+    _throwIfFailed(result);
   }
 
   Future<void> unsaveJob(String jobId) async {

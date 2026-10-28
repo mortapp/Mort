@@ -163,6 +163,7 @@ void main() {
     final repository = _read('lib/data/repositories/jobs_repository.dart');
 
     expect(repository, contains("rpc('list_my_saved_jobs')"));
+    expect(repository, contains("rpc('save_my_job_v1'"));
     expect(
       repository,
       isNot(contains(".select(\n          'created_at, jobs(*")),
