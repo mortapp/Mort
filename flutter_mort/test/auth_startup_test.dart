@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_mort/core/auth/auth_startup.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -92,6 +93,12 @@ MortSessionSnapshot _session({bool expired = false}) =>
     MortSessionSnapshot(userId: 'user-1', isExpired: expired);
 
 void main() {
+  test('auth startup does not call the retired onboarding progress RPC', () {
+    final source = File('lib/core/auth/auth_startup.dart').readAsStringSync();
+
+    expect(source, isNot(contains("'get_my_onboarding_progress'")));
+  });
+
   test('missing configuration fails closed', () async {
     final gateway = _FakeGateway(isConfigured: false);
     final startup = _startup(gateway);

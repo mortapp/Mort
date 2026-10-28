@@ -124,14 +124,6 @@ class SupabaseAuthStartupGateway implements MortAuthStartupGateway {
     } else {
       return const <String, dynamic>{};
     }
-    if (profile['onboarding_completed'] != true) {
-      final progress = await SupabaseService.client.rpc(
-        'get_my_onboarding_progress',
-      );
-      if (progress is Map && progress['ok'] == true) {
-        profile['onboarding_resume_path'] = progress['resume_path'];
-      }
-    }
     return profile;
   }
 
