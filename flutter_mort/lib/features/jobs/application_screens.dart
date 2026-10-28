@@ -14,6 +14,16 @@ import '../teen/teen_shell.dart';
 
 enum ApplicationView { teen, adult, guardian }
 
+class _ApplicationDetailContext {
+  const _ApplicationDetailContext({
+    required this.application,
+    required this.executionCompleted,
+  });
+
+  final MortApplication application;
+  final bool executionCompleted;
+}
+
 class ApplicationListScreen extends ConsumerStatefulWidget {
   const ApplicationListScreen({super.key, this.view = ApplicationView.teen});
 
@@ -41,7 +51,7 @@ class ApplicationDetailScreen extends ConsumerStatefulWidget {
 
 class _ApplicationDetailScreenState
     extends ConsumerState<ApplicationDetailScreen> {
-  late Future<MortApplication?> _future;
+  late Future<_ApplicationDetailContext?> _future;
   bool _busy = false;
 
   @override
@@ -50,15 +60,39 @@ class _ApplicationDetailScreenState
     _future = _load();
   }
 
-  Future<MortApplication?> _load() {
+  Future<_ApplicationDetailContext?> _load() async {
     final role = switch (widget.view) {
       ApplicationView.teen => UserRole.teen,
       ApplicationView.adult => UserRole.adult,
       ApplicationView.guardian => UserRole.guardian,
     };
-    return ref
+    final application = await ref
         .read(applicationsRepositoryProvider)
         .getApplication(widget.applicationId, role: role);
+    if (application == null) return null;
+
+    var executionCompleted = false;
+    if (widget.view != ApplicationView.guardian &&
+        const [
+          'accepted',
+          'in_progress',
+          'proof_submitted',
+        ].contains(application.status)) {
+      try {
+        final execution = await ref
+            .read(jobExecutionRepositoryProvider)
+            .getStatus(application.id);
+        executionCompleted = execution.state == 'completed';
+      } catch (_) {
+        // Keep application details available if the progress service is
+        // temporarily unavailable. The dedicated progress screen surfaces
+        // its own retryable error state.
+      }
+    }
+    return _ApplicationDetailContext(
+      application: application,
+      executionCompleted: executionCompleted,
+    );
   }
 
   void _reload() => setState(() => _future = _load());
@@ -128,7 +162,7 @@ class _ApplicationDetailScreenState
             onPressed: _reload,
           ),
         ),
-        FutureBuilder<MortApplication?>(
+        FutureBuilder<_ApplicationDetailContext?>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -145,7 +179,8 @@ class _ApplicationDetailScreenState
                 ),
               );
             }
-            final application = snapshot.data;
+            final detail = snapshot.data;
+            final application = detail?.application;
             if (application == null) {
               return const MortEmptyState(
                 title: 'Application not found',
@@ -159,6 +194,7 @@ class _ApplicationDetailScreenState
                   application: application,
                   view: widget.view,
                   busy: _busy,
+                  executionCompleted: detail?.executionCompleted ?? false,
                   onStatus: (action) => _changeStatus(application, action),
                 ),
               ],
@@ -340,6 +376,7 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
     required this.view,
     required this.busy,
     required this.onStatus,
+    this.executionCompleted = false,
     this.onTap,
   });
 
@@ -347,11 +384,13 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
   final ApplicationView view;
   final bool busy;
   final ValueChanged<String> onStatus;
+  final bool executionCompleted;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final job = application.job;
+    final statusLabel = executionCompleted ? 'completed' : application.status;
     return MortCard(
       onTap: onTap,
       child: Column(
@@ -387,8 +426,8 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
             runSpacing: MortSpacing.xs,
             children: [
               MortBadge(
-                label: application.status.replaceAll('_', ' '),
-                color: _statusColor(application.status),
+                label: statusLabel.replaceAll('_', ' '),
+                color: _statusColor(statusLabel),
               ),
               if (application.availabilityConfirmed)
                 const MortBadge(
@@ -496,14 +535,16 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
           ),
         ]);
       }
-      if (application.status == 'in_progress' &&
-          application.job?.proofExpected != true) {
+      if ([
+        'accepted',
+        'in_progress',
+        'proof_submitted',
+      ].contains(application.status)) {
         actions.add(
           MortAction(
-            label: 'Mark complete',
-            icon: Icons.task_alt,
-            busy: busy,
-            onPressed: () => onStatus('completed'),
+            label: 'Job progress',
+            icon: Icons.route_outlined,
+            onPressed: () => context.push('/jobs/progress/${application.id}'),
           ),
         );
       }
@@ -538,7 +579,7 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
           ),
         );
       }
-      if (application.status == 'completed') {
+      if (executionCompleted) {
         actions.add(
           MortAction(
             label: 'Leave review',
@@ -551,6 +592,19 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
     }
 
     final actions = <MortAction>[];
+    if ([
+      'accepted',
+      'in_progress',
+      'proof_submitted',
+    ].contains(application.status)) {
+      actions.add(
+        MortAction(
+          label: 'Job progress',
+          icon: Icons.route_outlined,
+          onPressed: () => context.push('/jobs/progress/${application.id}'),
+        ),
+      );
+    }
     if ([
       'submitted',
       'guardian_pending',
@@ -616,7 +670,7 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
         ),
       );
     }
-    if (application.status == 'completed') {
+    if (executionCompleted) {
       actions.add(
         MortAction(
           label: 'Leave review',

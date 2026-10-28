@@ -83,6 +83,34 @@ class GeneratedJobPin {
   final DateTime? expiresAt;
 }
 
+class CompletedJobSummary {
+  const CompletedJobSummary({
+    required this.applicationId,
+    required this.jobId,
+    required this.title,
+    this.closedAt,
+  });
+
+  final String applicationId;
+  final String jobId;
+  final String title;
+  final DateTime? closedAt;
+
+  factory CompletedJobSummary.fromMap(Map<String, dynamic> map) {
+    final job = map['jobs'] is Map
+        ? Map<String, dynamic>.from(map['jobs'] as Map)
+        : const <String, dynamic>{};
+    return CompletedJobSummary(
+      applicationId: map['application_id']?.toString() ?? '',
+      jobId: map['job_id']?.toString() ?? '',
+      title: job['title']?.toString().trim().isNotEmpty == true
+          ? job['title'].toString()
+          : 'Completed job',
+      closedAt: JobExecutionStatus._date(map['closed_at']),
+    );
+  }
+}
+
 class JobExecutionRepository extends RepositoryBase {
   static const _uuid = Uuid();
 
@@ -91,6 +119,20 @@ class JobExecutionRepository extends RepositoryBase {
       'p_application_id': applicationId,
     });
     return JobExecutionStatus.fromJson(result);
+  }
+
+  Future<List<CompletedJobSummary>> listMyCompletedJobs({int limit = 3}) async {
+    final userId = requireUserId();
+    final rows = await client
+        .from('job_assignments')
+        .select('application_id, job_id, closed_at, jobs(title)')
+        .eq('teen_user_id', userId)
+        .eq('status', 'completed')
+        .order('closed_at', ascending: false)
+        .limit(limit.clamp(1, 10));
+    return List<Map<String, dynamic>>.from(
+      rows as List,
+    ).map(CompletedJobSummary.fromMap).toList(growable: false);
   }
 
   Future<GeneratedJobPin> generateStartPin(String applicationId) async {

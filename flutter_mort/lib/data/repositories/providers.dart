@@ -168,6 +168,9 @@ class OpenJobsController extends AsyncNotifier<JobFeedState> {
 final jobExecutionRepositoryProvider = Provider<JobExecutionRepository>(
   (ref) => JobExecutionRepository(),
 );
+final myCompletedJobsProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(jobExecutionRepositoryProvider).listMyCompletedJobs(),
+);
 final legalContractRepositoryProvider = Provider<LegalContractRepository>(
   (ref) => LegalContractRepository(),
 );

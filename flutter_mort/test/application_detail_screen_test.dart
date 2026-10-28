@@ -5,6 +5,7 @@ import 'package:flutter_mort/data/models/application.dart';
 import 'package:flutter_mort/data/models/job.dart';
 import 'package:flutter_mort/data/models/profile.dart';
 import 'package:flutter_mort/data/repositories/applications_repository.dart';
+import 'package:flutter_mort/data/repositories/job_execution_repository.dart';
 import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/features/jobs/application_screens.dart';
 
@@ -59,12 +60,40 @@ class _FakeApplicationsRepository extends ApplicationsRepository {
   }
 }
 
+class _FakeJobExecutionRepository extends JobExecutionRepository {
+  _FakeJobExecutionRepository({this.state = 'awaiting_start'});
+
+  final String state;
+  final List<String> statusCalls = [];
+
+  @override
+  Future<JobExecutionStatus> getStatus(String applicationId) async {
+    statusCalls.add(applicationId);
+    return JobExecutionStatus(
+      applicationId: applicationId,
+      jobId: 'job-1',
+      contractId: 'contract-1',
+      role: 'adult',
+      state: state,
+      fundingStatus: 'missing',
+      startPinActive: false,
+      finishPinActive: false,
+      livePaymentEnabled: false,
+    );
+  }
+}
+
 Widget _app({
   required ApplicationView view,
   required ApplicationsRepository repository,
+  JobExecutionRepository? executionRepository,
 }) {
   return ProviderScope(
-    overrides: [applicationsRepositoryProvider.overrideWithValue(repository)],
+    overrides: [
+      applicationsRepositoryProvider.overrideWithValue(repository),
+      if (executionRepository != null)
+        jobExecutionRepositoryProvider.overrideWithValue(executionRepository),
+    ],
     child: MaterialApp(
       home: ApplicationDetailScreen(view: view, applicationId: 'app-1'),
     ),
@@ -131,6 +160,28 @@ void main() {
     expect(find.text('Approval request'), findsOneWidget);
     expect(find.text('Test job'), findsOneWidget);
   });
+
+  testWidgets(
+    'completed assignment exposes reviews even when application status is accepted',
+    (tester) async {
+      final applications = _FakeApplicationsRepository(status: 'accepted');
+      final execution = _FakeJobExecutionRepository(state: 'completed');
+      await tester.pumpWidget(
+        _app(
+          view: ApplicationView.adult,
+          repository: applications,
+          executionRepository: execution,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(execution.statusCalls, ['app-1']);
+      expect(find.text('completed'), findsOneWidget);
+      expect(find.text('Leave review'), findsOneWidget);
+      expect(find.text('Mark complete'), findsNothing);
+      expect(find.text('Job progress'), findsOneWidget);
+    },
+  );
 
   testWidgets('loads the status timeline only when it is first expanded', (
     tester,

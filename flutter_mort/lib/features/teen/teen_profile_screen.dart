@@ -187,7 +187,7 @@ class _TeenProfileBody extends ConsumerWidget {
         const MortSparkSection(),
         const MortSectionLabel(label: 'Recent work'),
         ref
-            .watch(myApplicationsProvider)
+            .watch(myCompletedJobsProvider)
             .when(
               loading: () => const MortSkeletonCard(),
               error: (error, _) => MortErrorState(
@@ -196,18 +196,10 @@ class _TeenProfileBody extends ConsumerWidget {
                 action: MortButton(
                   label: 'Retry',
                   icon: Icons.refresh,
-                  onPressed: () => ref.invalidate(myApplicationsProvider),
+                  onPressed: () => ref.invalidate(myCompletedJobsProvider),
                 ),
               ),
-              data: (applications) {
-                final recent = applications
-                    .where(
-                      (application) =>
-                          application.status == 'completed' ||
-                          application.status == 'paid',
-                    )
-                    .take(3)
-                    .toList(growable: false);
+              data: (recent) {
                 if (recent.isEmpty) {
                   return const MortGlassSoftSurface(
                     child: Text('Completed jobs will appear here.'),
@@ -223,14 +215,14 @@ class _TeenProfileBody extends ConsumerWidget {
                             Icons.check_circle_outline_rounded,
                             color: MortColors.success,
                           ),
-                          title: Text(
-                            recent[index].job?.title ?? 'Completed job',
-                          ),
+                          title: Text(recent[index].title),
                           subtitle: Text(
-                            recent[index].status.replaceAll('_', ' '),
+                            recent[index].closedAt == null
+                                ? 'Completed'
+                                : 'Completed ${recent[index].closedAt!.toLocal().month}/${recent[index].closedAt!.toLocal().day}/${recent[index].closedAt!.toLocal().year}',
                           ),
                           onTap: () => context.push(
-                            '/teen/applications/${recent[index].id}',
+                            '/jobs/progress/${recent[index].applicationId}',
                           ),
                         ),
                         if (index < recent.length - 1) const Divider(),
