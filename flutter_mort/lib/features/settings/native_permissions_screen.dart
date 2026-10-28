@@ -102,12 +102,12 @@ class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
                   title: 'Notifications',
                   status: _permissionLabel(status.notifications),
                   detail: _pushCoordinator.configured
-                      ? 'Permission enables remote alerts on this device. After approval, MORT securely registers this signed-in installation.'
+                      ? 'Permission enables remote alerts from the provider configured for this build.'
                       : 'Remote push is disabled in this build, so MORT will not request notification permission. The in-app notification inbox still works.',
                   onRequest: _busy || !_pushCoordinator.configured
                       ? null
                       : () => _run(() async {
-                          await _pushCoordinator.requestPermissionAndRegister();
+                          await _pushCoordinator.requestPermission();
                         }),
                 ),
                 const SizedBox(height: MortSpacing.sm),

@@ -142,58 +142,6 @@ class NotificationsRepository extends RepositoryBase {
     return PushRegistrationStatus.fromMap(response);
   }
 
-  Future<void> registerDevice({
-    required String deviceId,
-    required String provider,
-    required String registrationToken,
-    required String platform,
-    required String permissionStatus,
-    required String appVersion,
-    required String locale,
-    required String timezoneName,
-    required String environment,
-    required String clientRequestId,
-  }) async {
-    final response = Map<String, dynamic>.from(
-      await client.rpc(
-            'register_my_push_device_v2',
-            params: {
-              'p_device_id': deviceId,
-              'p_provider': provider,
-              'p_registration_token': registrationToken,
-              'p_platform': platform,
-              'p_permission_status': permissionStatus,
-              'p_app_version': appVersion,
-              'p_locale': locale,
-              'p_timezone_name': timezoneName,
-              'p_environment': environment,
-              'p_client_request_id': clientRequestId,
-            },
-          )
-          as Map,
-    );
-    _requireOk(response);
-  }
-
-  Future<void> unregisterDevices({
-    required String deviceId,
-    required bool allDevices,
-    required String clientRequestId,
-  }) async {
-    final response = Map<String, dynamic>.from(
-      await client.rpc(
-            'unregister_my_push_devices_v2',
-            params: {
-              'p_device_id': deviceId,
-              'p_all_devices': allDevices,
-              'p_client_request_id': clientRequestId,
-            },
-          )
-          as Map,
-    );
-    _requireOk(response);
-  }
-
   void _requireOk(Map<String, dynamic> response) {
     if (response['ok'] == true) return;
     throw StateError(

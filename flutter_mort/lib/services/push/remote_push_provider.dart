@@ -14,16 +14,13 @@ class RemotePushMessage {
 
 abstract interface class RemotePushProvider {
   bool get configured;
-  Stream<String> get tokenRefreshes;
   Stream<RemotePushMessage> get foregroundMessages;
   Stream<RemotePushMessage> get openedMessages;
 
   Future<void> initialize();
   Future<RemotePushPermission> permissionStatus();
   Future<RemotePushPermission> requestPermission();
-  Future<String?> registrationToken();
   Future<RemotePushMessage?> initialMessage();
-  Future<void> deleteToken();
 }
 
 class DisabledRemotePushProvider implements RemotePushProvider {
@@ -31,9 +28,6 @@ class DisabledRemotePushProvider implements RemotePushProvider {
 
   @override
   bool get configured => false;
-
-  @override
-  Stream<String> get tokenRefreshes => const Stream.empty();
 
   @override
   Stream<RemotePushMessage> get foregroundMessages => const Stream.empty();
@@ -53,13 +47,7 @@ class DisabledRemotePushProvider implements RemotePushProvider {
       RemotePushPermission.unavailable;
 
   @override
-  Future<String?> registrationToken() async => null;
-
-  @override
   Future<RemotePushMessage?> initialMessage() async => null;
-
-  @override
-  Future<void> deleteToken() async {}
 }
 
 // No remote delivery provider is approved for this app.

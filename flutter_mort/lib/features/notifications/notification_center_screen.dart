@@ -144,6 +144,7 @@ class _NotificationCenterScreenState
   Future<void> _setPushEnabled(bool enabled) async {
     if (_settingsBusy || !PushNotificationCoordinator.instance.configured)
       return;
+    if (!enabled) return;
     if (enabled) {
       final current = await PushNotificationCoordinator.instance
           .permissionStatus();
@@ -168,7 +169,7 @@ class _NotificationCenterScreenState
     try {
       if (enabled) {
         final permission = await PushNotificationCoordinator.instance
-            .requestPermissionAndRegister();
+            .requestPermission();
         if (permission != RemotePushPermission.authorized &&
             permission != RemotePushPermission.provisional) {
           throw StateError(
@@ -177,9 +178,6 @@ class _NotificationCenterScreenState
                 : 'Notification permission was not granted.',
           );
         }
-      } else {
-        await PushNotificationCoordinator.instance
-            .disableAllRemoteNotifications();
       }
       if (mounted) {
         MortToast.show(

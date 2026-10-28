@@ -10,9 +10,7 @@ void main() {
     await provider.initialize();
     expect(provider.configured, isFalse);
     expect(await provider.permissionStatus(), RemotePushPermission.unavailable);
-    expect(await provider.registrationToken(), isNull);
     expect(await provider.initialMessage(), isNull);
-    await provider.deleteToken();
   });
 
   test('notification preferences parse all server-controlled settings', () {
@@ -56,10 +54,11 @@ void main() {
     );
     expect(provider, isNot(contains('Firebase')));
     expect(createRemotePushProvider().configured, isFalse);
-    expect(coordinator, contains('registerDevice('));
-    expect(coordinator, contains('unregisterDevices('));
-    expect(repository, contains('register_my_push_device_v2'));
-    expect(repository, contains('unregister_my_push_devices_v2'));
+    expect(coordinator, isNot(contains('registerDevice(')));
+    expect(coordinator, isNot(contains('unregisterDevices(')));
+    expect(coordinator, isNot(contains('registrationToken')));
+    expect(repository, isNot(contains('register_my_push_device_v2')));
+    expect(repository, isNot(contains('unregister_my_push_devices_v2')));
 
     for (final source in [appConfig, coordinator, provider, repository]) {
       expect(source, isNot(contains('Firebase')));
@@ -69,7 +68,7 @@ void main() {
     }
   });
 
-  test('permissions screen couples notification approval to registration', () {
+  test('permissions screen does not request OS access without a provider', () {
     final screen = File(
       'lib/features/settings/native_permissions_screen.dart',
     ).readAsStringSync();
@@ -77,7 +76,7 @@ void main() {
       'lib/services/native_permissions_service.dart',
     ).readAsStringSync();
 
-    expect(screen, contains('requestPermissionAndRegister()'));
+    expect(screen, contains('requestPermission()'));
     expect(screen, contains('!_pushCoordinator.configured'));
     expect(screen, contains('Remote push is disabled in this build'));
     expect(service, isNot(contains('requestNotifications()')));

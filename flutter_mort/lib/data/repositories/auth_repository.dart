@@ -8,7 +8,6 @@ import '../../core/auth/oauth_flow.dart';
 import '../../core/config/app_config.dart';
 import '../../core/errors/mort_error.dart';
 import '../../core/observability/operational_telemetry.dart';
-import '../../services/push/push_notification_coordinator.dart';
 import '../services/secure_device_storage.dart';
 import '../services/supabase_service.dart';
 
@@ -434,24 +433,10 @@ class AuthRepository {
   Future<void> _signOut(SignOutScope scope) async {
     _finishOAuth();
     _passwordRecoveryAuthorizedUntil = null;
-    Object? pushFailure;
     try {
-      try {
-        await PushNotificationCoordinator.instance.prepareForSignOut(
-          allDevices: scope == SignOutScope.global,
-        );
-      } catch (error) {
-        pushFailure = error;
-      }
       await SupabaseService.client.auth.signOut(scope: scope);
     } finally {
       await SupabaseService.clearPersistedSession();
-    }
-    if (pushFailure != null) {
-      throw const MortCodedError(
-        'push_revocation_unconfirmed',
-        'This device signed out, but notification revocation could not be confirmed.',
-      );
     }
   }
 
