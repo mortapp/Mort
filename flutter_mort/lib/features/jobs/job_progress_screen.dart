@@ -568,6 +568,14 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
       'in_progress',
       'finish_pin_active',
     }.contains(status.state);
+    final startFundingReady =
+        status.livePaymentEnabled && status.fundingStatus == 'funded';
+    final cancellationAllowed = {
+      'awaiting_start',
+      'start_pin_active',
+      'in_progress',
+      'finish_pin_active',
+    }.contains(status.state);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -577,7 +585,10 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
             MortAction(
               label: 'Generate start PIN',
               icon: Icons.pin_outlined,
-              enabled: status.executionActionsEnabled && awaitingStart,
+              enabled:
+                  status.executionActionsEnabled &&
+                  awaitingStart &&
+                  startFundingReady,
               busy: _busy,
               onPressed: () => _generatePin(start: true),
             ),
@@ -592,9 +603,7 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
               label: 'Cancel job',
               icon: Icons.cancel_outlined,
               style: MortButtonStyle.danger,
-              enabled:
-                  status.executionActionsEnabled &&
-                  !{'completed', 'cancelled'}.contains(status.state),
+              enabled: status.executionActionsEnabled && cancellationAllowed,
               busy: _busy,
               onPressed: _cancelJob,
             ),

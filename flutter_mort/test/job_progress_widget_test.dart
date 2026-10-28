@@ -24,7 +24,7 @@ void main() {
   });
 
   testWidgets(
-    'adult job progress shows server state and gates unwired actions',
+    'adult job progress enables review actions but gates start on live funding',
     (tester) async {
       await tester.pumpWidget(
         ProviderScope(
@@ -41,6 +41,7 @@ void main() {
                 startPinActive: false,
                 finishPinActive: false,
                 livePaymentEnabled: false,
+                executionActionsEnabled: true,
               ),
             ),
           ),
@@ -52,11 +53,9 @@ void main() {
       expect(find.text('Funds collected'), findsOneWidget);
       expect(find.text('Adult actions'), findsOneWidget);
       expect(find.text('Generate start PIN - Unavailable'), findsOneWidget);
-      expect(
-        find.textContaining('execution actions are not ready'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('execution actions are not ready'), findsNothing);
       expect(find.text('Generate finish PIN - Unavailable'), findsOneWidget);
+      expect(find.text('Cancel job'), findsOneWidget);
       expect(
         find.textContaining('Live payments remain disabled'),
         findsOneWidget,
@@ -97,6 +96,35 @@ void main() {
       expect(find.text('Person mismatch - Unavailable'), findsOneWidget);
     },
   );
+
+  testWidgets('disputed adult job cannot submit a second cancellation', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: JobProgressScreen(
+            applicationId: 'synthetic-disputed-adult-qa',
+            syntheticStatusForTesting: JobExecutionStatus(
+              applicationId: 'synthetic-disputed-adult-qa',
+              jobId: 'job-disputed-qa',
+              contractId: 'contract-disputed-qa',
+              role: 'adult',
+              state: 'disputed',
+              fundingStatus: 'funded',
+              startPinActive: false,
+              finishPinActive: false,
+              livePaymentEnabled: true,
+              executionActionsEnabled: true,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cancel job - Unavailable'), findsOneWidget);
+  });
 
   testWidgets('completed job avoids an unconfirmed paid claim', (tester) async {
     await tester.pumpWidget(
