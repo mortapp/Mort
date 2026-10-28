@@ -34,6 +34,8 @@ const releaseEntry = read('scripts/build-android-release.ps1');
 const playAabEntry = read('scripts/build-play-aab.ps1');
 const finalPlayEntry = read('scripts/build-final-play-release.ps1');
 const apkBuilder = read('scripts/build-production-public-apk.ps1');
+assert(releaseEntry.includes('build-production-public-downloads.ps1'), 'There is no gated command to place both public artifacts in Downloads.');
+const downloadsBuilder = read('scripts/build-production-public-downloads.ps1');
 assert(/\$Profile\s*=\s*'production_public'/.test(releaseEntry), 'Generic Android release entry point does not default to public production.');
 assert(!/reviewer_demo|closed_test|production_candidate|production_pilot/.test(releaseEntry), 'Generic Android release entry point still routes to a non-public profile.');
 assert(releaseEntry.includes('build-production-public-apk.ps1'), 'The optional local production APK does not route through its own gated builder.');
@@ -41,6 +43,8 @@ assert(apkBuilder.includes('android-release-profile-common.ps1'), 'Local product
 assert(apkBuilder.includes('-ArtifactKind Apk'), 'Local production APK builder does not request an APK artifact.');
 assert(/-CrashReportingEnabled\s+\$true/.test(apkBuilder), 'Local production APK builder does not require Sentry configuration.');
 assert(/-RemotePushEnabled\s+\$false/.test(apkBuilder), 'Local production APK builder enables a push provider that MORT does not use.');
+assert(downloadsBuilder.includes('build-production-public-aab.ps1') && downloadsBuilder.includes('build-production-public-apk.ps1'), 'Downloads packager must build both gated public artifacts.');
+assert(downloadsBuilder.includes('-NoClobber'), 'Downloads packager must preserve existing files.');
 assert(playAabEntry.includes('build-production-public-aab.ps1'), 'Play AAB wrapper still builds a closed-test artifact.');
 assert(!playAabEntry.includes('build-closed-test-aab.ps1'), 'Play AAB wrapper retains a closed-test build route.');
 assert(finalPlayEntry.includes('build-production-public-aab.ps1'), 'Final Play release wrapper does not build the public production AAB.');
