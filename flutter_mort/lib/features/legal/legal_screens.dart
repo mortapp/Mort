@@ -21,7 +21,7 @@ class LegalCenterScreen extends ConsumerWidget {
           subtitle:
               'Browsing MORT never creates acceptance. Only a published, effective, exact-hash version can be accepted.',
         ),
-        const _LegalDraftWarning(),
+        const _LegalPublicationNotice(),
         const SizedBox(height: MortSpacing.md),
         FutureBuilder<Map<String, dynamic>>(
           future: ref.read(legalContractRepositoryProvider).legalRequirements(),
@@ -41,9 +41,9 @@ class LegalCenterScreen extends ConsumerWidget {
                     .toList(growable: false);
             if (requirements.isEmpty) {
               return const MortEmptyState(
-                title: 'No approved clickwrap is published',
+                title: 'No clickwrap version is currently published',
                 message:
-                    'These documents remain publication candidates and have not been approved by an attorney. MORT will not treat a draft as user consent.',
+                    'MORT has no current legal version available to review or accept. Drafts and browsing never count as legal consent.',
               );
             }
             return Column(
@@ -259,7 +259,7 @@ class _LegalClickwrapScreenState extends ConsumerState<LegalClickwrapScreen> {
           subtitle:
               'Acceptance is never inferred from opening, scrolling, or using MORT.',
         ),
-        const _LegalDraftWarning(),
+        const _LegalPublicationNotice(),
         const SizedBox(height: MortSpacing.md),
         const _SummaryCard(
           'Read the teen summary first',
@@ -335,8 +335,8 @@ class _LegalClickwrapScreenState extends ConsumerState<LegalClickwrapScreen> {
   }
 }
 
-class _LegalDraftWarning extends StatelessWidget {
-  const _LegalDraftWarning();
+class _LegalPublicationNotice extends StatelessWidget {
+  const _LegalPublicationNotice();
 
   @override
   Widget build(BuildContext context) {
@@ -349,7 +349,7 @@ class _LegalDraftWarning extends StatelessWidget {
           SizedBox(width: MortSpacing.sm),
           Expanded(
             child: Text(
-              'DRAFT — NOT ATTORNEY REVIEWED OR LEGALLY APPROVED. Public launch and enforceability require qualified legal, privacy, youth-labor, and teen-safety review.',
+              'Only a current, effective legal version published in MORT can be accepted. Drafts and browsing never count as consent; jurisdiction-specific review may still be required.',
             ),
           ),
         ],

@@ -2,20 +2,25 @@
 param(
   [string]$BundlePath = '',
   [ValidateSet('closed_test','production_pilot','production_public')]
-  [string]$ReleaseStage = 'closed_test',
+  [string]$ReleaseStage = 'production_public',
   [switch]$PlayReviewModeEnabled
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'android-signing-common.ps1')
+. (Join-Path $PSScriptRoot 'android-provider-policy.ps1')
 
 $root = Split-Path $PSScriptRoot -Parent
+$isPublicProduction = $ReleaseStage -eq 'production_public'
+if ($isPublicProduction -and $PlayReviewModeEnabled) {
+  throw 'Public production AAB verification cannot use Play review mode.'
+}
 $versionJson = & node (Join-Path $PSScriptRoot 'read-mobile-version.mjs') --json
 if ($LASTEXITCODE -ne 0) { throw 'Could not read the authoritative mobile version.' }
 $version = $versionJson | ConvertFrom-Json
 if ([string]::IsNullOrWhiteSpace($BundlePath)) {
-  $BundlePath = Join-Path $root "build\play\mort-closed-test-$($version.versionName)-$($version.versionCode).aab"
+  $BundlePath = Join-Path $root "build\play\mort-production-public-$($version.versionName)-$($version.versionCode).aab"
 }
 
 if (-not (Test-Path -LiteralPath $BundlePath -PathType Leaf)) {
@@ -112,20 +117,39 @@ try {
   $entries | Set-Content -LiteralPath (Join-Path $reportDirectory 'bundle-contents.txt') -Encoding utf8
   $entries | Where-Object { $_ -match '^base/lib/.+\.so$' } |
     Set-Content -LiteralPath (Join-Path $reportDirectory 'native-libraries.txt') -Encoding utf8
-  if ($ReleaseStage -ne 'closed_test' -or -not $PlayReviewModeEnabled) {
-    foreach ($entry in $archive.Entries | Where-Object { $_.FullName -match '^base/dex/.+\.dex$' }) {
-      $stream = $entry.Open()
-      $memory = [IO.MemoryStream]::new()
-      try {
-        $stream.CopyTo($memory)
-        $ascii = [Text.Encoding]::ASCII.GetString($memory.ToArray())
-        if ($ascii.Contains('play-review@mortapp.test')) {
-          throw 'Production AAB contains the isolated Play reviewer identifier.'
-        }
-      } finally {
-        $memory.Dispose()
-        $stream.Dispose()
+  $manifestModules = @(
+    foreach ($manifestEntry in $archive.Entries | Where-Object {
+      $_.FullName -match '^[^/]+/manifest/AndroidManifest\.xml$'
+    }) {
+      [void]($manifestEntry.FullName -match '^([^/]+)/manifest/')
+      $Matches[1]
+    }
+  ) | Sort-Object -Unique
+  foreach ($module in $manifestModules) {
+    if ($module -eq 'base') {
+      $moduleManifestText = $manifestText
+    } else {
+      $moduleManifest = & java -jar $bundletool dump manifest --bundle=$BundlePath --module=$module
+      if ($LASTEXITCODE -ne 0) { throw "bundletool could not inspect the $module module manifest." }
+      $moduleManifestText = $moduleManifest -join "`n"
+    }
+    Assert-MortAndroidProviderPolicy -ManifestText $moduleManifestText
+  }
+  foreach ($entry in $archive.Entries | Where-Object { $_.FullName -match '^[^/]+/dex/.+\.dex$' }) {
+    $stream = $entry.Open()
+    $memory = [IO.MemoryStream]::new()
+    try {
+      $stream.CopyTo($memory)
+      $dexBytes = $memory.ToArray()
+      Assert-MortAndroidProviderPolicy -DexBytes $dexBytes
+      $ascii = [Text.Encoding]::ASCII.GetString($dexBytes)
+      if (($ReleaseStage -ne 'closed_test' -or -not $PlayReviewModeEnabled) -and
+          $ascii.Contains('play-review@mortapp.test')) {
+        throw 'Production AAB contains the isolated Play reviewer identifier.'
       }
+    } finally {
+      $memory.Dispose()
+      $stream.Dispose()
     }
   }
 } finally {
@@ -146,6 +170,7 @@ $size = (Get-Item -LiteralPath $BundlePath).Length
   "PLAY_REVIEW_MODE_ENABLED=$($PlayReviewModeEnabled.IsPresent.ToString().ToLowerInvariant())",
   'FORBIDDEN_PERMISSIONS=ABSENT',
   'UNEXPECTED_EXPORTED_COMPONENTS=ABSENT',
+  'FIREBASE_MANIFEST_AND_DEFINED_DEX_CLASSES=ABSENT',
   "SIZE_BYTES=$size",
   "SHA256=$hash",
   "CERTIFICATE_$actualSha256"

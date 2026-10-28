@@ -20,6 +20,14 @@ import '../../services/native_permissions_service.dart';
 import '../profile/profile_avatar_widgets.dart';
 import 'mort_rules_copy.dart';
 
+String legalOnboardingBlockMessage(String code) => switch (code) {
+  'published_legal_acceptance_required' =>
+    'MORT has no current legal version published for this account. Setup can finish after a version is published and accepted.',
+  'onboarding_acknowledgement_required' =>
+    'Check every safety acknowledgement above, then try Finish setup again.',
+  _ => 'MORT could not verify the required legal acknowledgements.',
+};
+
 /// MORT's production onboarding path. Four primary screens render the v2
 /// server projection; `complete` is a terminal server state, never a fifth UI.
 class CompactOnboardingScreen extends ConsumerStatefulWidget {
@@ -70,6 +78,8 @@ class _CompactOnboardingScreenState
   bool _busy = false;
   bool _restoring = true;
   bool _legalAcceptanceRequired = false;
+  bool _legalPublicationMissing = false;
+  String _legalAcceptanceMessage = '';
   final _dirtySteps = <int>{};
   String? _locationHint;
   String? _stepError;
@@ -394,6 +404,8 @@ class _CompactOnboardingScreenState
     setState(() {
       _busy = true;
       _legalAcceptanceRequired = false;
+      _legalPublicationMissing = false;
+      _legalAcceptanceMessage = '';
       _stepError = null;
     });
     try {
@@ -524,15 +536,20 @@ class _CompactOnboardingScreenState
     } catch (error) {
       final message = error is Exception ? error.toString() : error.toString();
       if (mounted) {
-        if (message.contains('published_legal_acceptance_required') ||
-            message.contains('onboarding_acknowledgement_required')) {
+        final legalCode =
+            message.contains('published_legal_acceptance_required')
+            ? 'published_legal_acceptance_required'
+            : message.contains('onboarding_acknowledgement_required')
+            ? 'onboarding_acknowledgement_required'
+            : null;
+        if (legalCode != null) {
           setState(() {
             _legalAcceptanceRequired = true;
+            _legalPublicationMissing =
+                legalCode == 'published_legal_acceptance_required';
+            _legalAcceptanceMessage = legalOnboardingBlockMessage(legalCode);
           });
-          MortToast.show(
-            context,
-            'Accept every rule above, then try Finish setup again.',
-          );
+          MortToast.show(context, _legalAcceptanceMessage);
         } else {
           _showStepError(_saveFailureMessage(error));
         }
@@ -1403,11 +1420,13 @@ class _CompactOnboardingScreenState
         ],
         if (_legalAcceptanceRequired) ...[
           const SizedBox(height: MortSpacing.md),
-          const _OnboardingNotice(
+          _OnboardingNotice(
             icon: Icons.gavel_outlined,
             color: MortColors.warning,
-            title: 'Legal acknowledgement required',
-            message: 'Check every rule above, then try Finish setup again.',
+            title: _legalPublicationMissing
+                ? 'Legal version unavailable'
+                : 'Safety acknowledgement required',
+            message: _legalAcceptanceMessage,
             liveRegion: true,
           ),
         ],

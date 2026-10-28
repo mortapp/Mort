@@ -204,6 +204,20 @@ String _teenDob() {
 }
 
 void main() {
+  test(
+    'legal onboarding blocker distinguishes unpublished terms from unchecked rules',
+    () {
+      expect(
+        legalOnboardingBlockMessage('published_legal_acceptance_required'),
+        'MORT has no current legal version published for this account. Setup can finish after a version is published and accepted.',
+      );
+      expect(
+        legalOnboardingBlockMessage('onboarding_acknowledgement_required'),
+        'Check every safety acknowledgement above, then try Finish setup again.',
+      );
+    },
+  );
+
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     PackageInfo.setMockInitialValues(

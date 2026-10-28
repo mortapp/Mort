@@ -3,10 +3,46 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_mort/core/widgets/mort_widgets.dart';
+import 'package:flutter_mort/data/repositories/legal_contract_repository.dart';
+import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/features/legal/legal_screens.dart';
 import 'package:flutter_mort/features/legal/trust_foundation_screens.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+class _NoPublishedLegalVersions extends LegalContractRepository {
+  @override
+  Future<Map<String, dynamic>> legalRequirements() async => const {
+    'ok': true,
+    'requirements': <Map<String, dynamic>>[],
+  };
+}
 
 void main() {
+  testWidgets('legal center describes the actual unpublished state', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          legalContractRepositoryProvider.overrideWithValue(
+            _NoPublishedLegalVersions(),
+          ),
+        ],
+        child: const MaterialApp(home: LegalCenterScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('No clickwrap version is currently published'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('have not been approved by an attorney'),
+      findsNothing,
+    );
+  });
+
   testWidgets('teen summary states payment and identity limits', (
     tester,
   ) async {

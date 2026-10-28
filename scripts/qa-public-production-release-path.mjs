@@ -37,6 +37,8 @@ assert(profile.publicMarketplaceEnabled === true, 'Production profile does not e
 assert(profile.productionActivationApproved === true, 'Owner-approved public production activation is not recorded.');
 assert(profile.remotePushEnabled === false, 'Production profile still requires the Firebase-only push path.');
 assert(!aabVerifier.includes('FlutterFirebaseMessagingReceiver'), 'AAB verifier still allows Firebase messaging components.');
+assert(aabVerifier.includes("[string]$ReleaseStage = 'production_public'"), 'AAB verifier defaults to a non-public release stage.');
+assert(aabVerifier.includes('mort-production-public-'), 'AAB verifier defaults to a non-public artifact path.');
 assert(commonBuild.includes('Public production requires approved legal document versions.'), 'Production builder does not reject legal placeholders.');
 assert(!/FIREBASE_[A-Z0-9_]+:/.test(workflow), 'Production workflow still supplies Firebase configuration.');
 for (const field of ['SENTRY_DSN']) {
