@@ -172,12 +172,25 @@ class MortMessage {
   bool get flagged => scannerStatus == 'flagged';
 
   factory MortMessage.fromMap(Map<String, dynamic> json) {
+    final backendStatus = (json['scanner_status'] ?? json['moderation_status'])
+        ?.toString();
     return MortMessage(
       id: json['id'].toString(),
-      threadId: json['thread_id'].toString(),
+      threadId: (json['thread_id'] ?? json['conversation_id']).toString(),
       senderId: json['sender_id'].toString(),
       body: (json['body'] as String?) ?? '',
-      scannerStatus: (json['scanner_status'] as String?) ?? 'clean',
+      scannerStatus: switch (backendStatus) {
+        'approved' => 'clean',
+        'removed' => 'blocked',
+        'clean' => 'clean',
+        'blocked' => 'blocked',
+        'flagged' ||
+        'pending' ||
+        'pending_review' ||
+        'held_for_safety' => 'flagged',
+        // Unknown or missing backend moderation states fail closed in the UI.
+        _ => 'flagged',
+      },
       scannerReason: json['scanner_reason'] as String?,
       createdAt: DateTime.tryParse((json['created_at'] ?? '').toString()),
     );

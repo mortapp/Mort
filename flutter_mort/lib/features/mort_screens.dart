@@ -4386,7 +4386,9 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
       _body.clear();
       _pendingBody = null;
       _pendingSendId = null;
-      if (mounted) MortToast.show(context, 'Message sent through scanner.');
+      if (mounted) {
+        MortToast.show(context, 'Message sent. Some messages may need review.');
+      }
     } catch (error) {
       if (mounted) {
         setState(() => _sendError = userFacingError(error));
@@ -4567,7 +4569,11 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
                         const SizedBox(height: MortSpacing.xs),
                       ],
                       Text(
-                        message.blocked ? 'Blocked by scanner' : message.body,
+                        message.blocked
+                            ? 'Message blocked for safety'
+                            : message.flagged
+                            ? 'Message hidden while it is reviewed.'
+                            : message.body,
                       ),
                       if (!message.blocked && !message.flagged) ...[
                         const SizedBox(height: MortSpacing.xxs),

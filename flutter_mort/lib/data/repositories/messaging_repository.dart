@@ -25,7 +25,9 @@ class MessagingRepository extends RepositoryBase {
         'p_limit': limit.clamp(1, 50),
       },
     );
-    return MessageThreadPage.fromMap(Map<String, dynamic>.from(value as Map));
+    return MessageThreadPage.fromMap(
+      _successfulMap(value, 'Conversations could not be loaded.'),
+    );
   }
 
   Future<MessagePage> listMessagesPage(
@@ -43,7 +45,9 @@ class MessagingRepository extends RepositoryBase {
         'p_limit': limit,
       },
     );
-    return MessagePage.fromMap(Map<String, dynamic>.from(value as Map));
+    return MessagePage.fromMap(
+      _successfulMap(value, 'Messages could not be loaded.'),
+    );
   }
 
   Future<MortMessage> sendSafeMessage(
@@ -60,7 +64,9 @@ class MessagingRepository extends RepositoryBase {
           'p_client_request_id': clientRequestId ?? const Uuid().v4(),
         },
       );
-      return MortMessage.fromMap(Map<String, dynamic>.from(row as Map));
+      return MortMessage.fromMap(
+        _successfulMap(row, 'The message could not be sent.'),
+      );
     } catch (_) {
       await recordOperationalFailure(
         eventType: 'message_delivery_failure',
@@ -85,7 +91,7 @@ class MessagingRepository extends RepositoryBase {
           table: 'messages',
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
-            column: 'thread_id',
+            column: 'conversation_id',
             value: threadId,
           ),
           callback: (payload) {
@@ -116,6 +122,20 @@ class MessagingRepository extends RepositoryBase {
         'The conversation read state could not be updated.',
       );
     }
+  }
+
+  Map<String, dynamic> _successfulMap(Object? raw, String message) {
+    if (raw is! Map) {
+      throw MortCodedError('invalid_response', message);
+    }
+    final result = Map<String, dynamic>.from(raw);
+    if (result['ok'] == false) {
+      throw MortCodedError(
+        result['code'] as String? ?? 'unknown_permission_failure',
+        message,
+      );
+    }
+    return result;
   }
 }
 
