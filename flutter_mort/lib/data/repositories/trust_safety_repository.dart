@@ -182,6 +182,7 @@ class TrustSafetyRepository extends RepositoryBase {
   }
 
   Future<JobSafetyAgreement?> getSafetyAgreement(String applicationId) async {
+    requireUserId();
     final rows = await client
         .from('job_safety_agreements')
         .select()
@@ -189,6 +190,20 @@ class TrustSafetyRepository extends RepositoryBase {
         .limit(1);
     final list = List<Map<String, dynamic>>.from(rows as List);
     return list.isEmpty ? null : JobSafetyAgreement.fromMap(list.first);
+  }
+
+  Future<JobSafetyPlan?> getSafetyPlan(String applicationId) async {
+    requireUserId();
+    final row = await client
+        .from('job_safety_plans')
+        .select(
+          'expected_people, public_or_visible_meeting, daylight_preferred, '
+          'transportation_plan, checkin_cadence_minutes',
+        )
+        .eq('application_id', applicationId)
+        .maybeSingle();
+    if (row == null) return null;
+    return JobSafetyPlan.fromMap(Map<String, dynamic>.from(row));
   }
 
   Future<void> saveSafetyPlan({

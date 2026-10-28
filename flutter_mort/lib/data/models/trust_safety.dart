@@ -193,6 +193,32 @@ class JobSafetyAgreement {
   final Map<String, dynamic> terms;
 }
 
+class JobSafetyPlan {
+  const JobSafetyPlan({
+    required this.expectedPeople,
+    required this.publicOrVisibleMeeting,
+    required this.daylightPreferred,
+    required this.transportationPlan,
+    required this.checkinCadenceMinutes,
+  });
+
+  factory JobSafetyPlan.fromMap(Map<String, dynamic> map) {
+    return JobSafetyPlan(
+      expectedPeople: map['expected_people'] as String?,
+      publicOrVisibleMeeting: map['public_or_visible_meeting'] as bool,
+      daylightPreferred: map['daylight_preferred'] as bool,
+      transportationPlan: map['transportation_plan'] as String?,
+      checkinCadenceMinutes: (map['checkin_cadence_minutes'] as num).toInt(),
+    );
+  }
+
+  final String? expectedPeople;
+  final bool publicOrVisibleMeeting;
+  final bool daylightPreferred;
+  final String? transportationPlan;
+  final int checkinCadenceMinutes;
+}
+
 class AuthorizedLocationShare {
   const AuthorizedLocationShare({
     required this.id,

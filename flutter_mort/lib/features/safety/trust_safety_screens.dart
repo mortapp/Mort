@@ -722,6 +722,7 @@ class _JobSafetyWorkspaceScreenState
   List<AuthorizedLocationShare> _shares = const [];
   bool _publicMeeting = true;
   bool _daylight = true;
+  int _checkinMinutes = 30;
   bool _personMatches = true;
   bool _busy = false;
   String? _releasedAddress;
@@ -835,6 +836,7 @@ class _JobSafetyWorkspaceScreenState
   }
 
   Widget _safeFirstMeeting() {
+    final checkinOptions = {15, 30, 60, 120, _checkinMinutes}.toList()..sort();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -861,6 +863,25 @@ class _JobSafetyWorkspaceScreenState
           value: _daylight,
           title: const Text('Daylight preferred'),
           onChanged: (value) => setState(() => _daylight = value),
+        ),
+        DropdownButtonFormField<int>(
+          initialValue: _checkinMinutes,
+          decoration: const InputDecoration(
+            labelText: 'Safety check-in cadence',
+          ),
+          items: checkinOptions
+              .map(
+                (minutes) => DropdownMenuItem(
+                  value: minutes,
+                  child: Text('Every $minutes minutes'),
+                ),
+              )
+              .toList(),
+          onChanged: _busy
+              ? null
+              : (value) {
+                  if (value != null) setState(() => _checkinMinutes = value);
+                },
         ),
         MortButton(
           label: 'Save plan and require reconfirmation',
@@ -1063,12 +1084,22 @@ class _JobSafetyWorkspaceScreenState
     try {
       final repo = ref.read(trustSafetyRepositoryProvider);
       final agreement = await repo.getSafetyAgreement(widget.applicationId);
+      final plan = agreement == null
+          ? null
+          : await repo.getSafetyPlan(widget.applicationId);
       final shares = (await repo.listLocationShares())
           .where((share) => share.applicationId == widget.applicationId)
           .toList();
       if (mounted) {
         setState(() {
           _agreement = agreement;
+          if (plan != null) {
+            _peopleController.text = plan.expectedPeople ?? '';
+            _transportController.text = plan.transportationPlan ?? '';
+            _publicMeeting = plan.publicOrVisibleMeeting;
+            _daylight = plan.daylightPreferred;
+            _checkinMinutes = plan.checkinCadenceMinutes;
+          }
           _shares = shares;
         });
       }
@@ -1113,7 +1144,7 @@ class _JobSafetyWorkspaceScreenState
             publicMeeting: _publicMeeting,
             daylight: _daylight,
             transportationPlan: _transportController.text,
-            checkinMinutes: 30,
+            checkinMinutes: _checkinMinutes,
           ),
       'Safety Plan saved. Both people must reconfirm.',
     );
