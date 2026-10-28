@@ -33,8 +33,14 @@ assert(!/r0adkll\/upload-google-play|publish.*play|upload.*play/i.test(workflow)
 const releaseEntry = read('scripts/build-android-release.ps1');
 const playAabEntry = read('scripts/build-play-aab.ps1');
 const finalPlayEntry = read('scripts/build-final-play-release.ps1');
+const apkBuilder = read('scripts/build-production-public-apk.ps1');
 assert(/\$Profile\s*=\s*'production_public'/.test(releaseEntry), 'Generic Android release entry point does not default to public production.');
 assert(!/reviewer_demo|closed_test|production_candidate|production_pilot/.test(releaseEntry), 'Generic Android release entry point still routes to a non-public profile.');
+assert(releaseEntry.includes('build-production-public-apk.ps1'), 'The optional local production APK does not route through its own gated builder.');
+assert(apkBuilder.includes('android-release-profile-common.ps1'), 'Local production APK does not use the shared release validation and signing path.');
+assert(apkBuilder.includes('-ArtifactKind Apk'), 'Local production APK builder does not request an APK artifact.');
+assert(/-CrashReportingEnabled\s+\$true/.test(apkBuilder), 'Local production APK builder does not require Sentry configuration.');
+assert(/-RemotePushEnabled\s+\$false/.test(apkBuilder), 'Local production APK builder enables a push provider that MORT does not use.');
 assert(playAabEntry.includes('build-production-public-aab.ps1'), 'Play AAB wrapper still builds a closed-test artifact.');
 assert(!playAabEntry.includes('build-closed-test-aab.ps1'), 'Play AAB wrapper retains a closed-test build route.');
 assert(finalPlayEntry.includes('build-production-public-aab.ps1'), 'Final Play release wrapper does not build the public production AAB.');
@@ -43,7 +49,10 @@ assert(!/build-closed-test|\.apk|closed.test/i.test(finalPlayEntry), 'Final Play
 const profile = JSON.parse(read('config/mort-release-profiles.json')).profiles.production;
 const commonBuild = read('scripts/android-release-profile-common.ps1');
 const aabVerifier = read('scripts/verify-play-aab.ps1');
+const apkVerifier = read('scripts/qa-android-apk.ps1');
 assert(commonBuild.includes("if ([string]::IsNullOrWhiteSpace($supabaseUrl)) { $supabaseUrl = $expectedUrl }"), 'Public build does not default to the approved Supabase URL when an optional environment value is missing.');
+assert(commonBuild.includes("qa-android-apk.ps1') -ApkPath $destination -RequireSigned"), 'Local APK path does not enforce signed-artifact verification.');
+assert(apkVerifier.includes("'com.mortapp.mobile'") && apkVerifier.includes('version-code') && apkVerifier.includes('version-name'), 'Local APK verifier does not check package and version identity.');
 assert(profile.releaseStage === 'production_public', 'Production profile has the wrong release stage.');
 assert(profile.publicMarketplaceEnabled === true, 'Production profile does not enable the public marketplace.');
 assert(profile.productionActivationApproved === true, 'Owner-approved public production activation is not recorded.');
@@ -57,4 +66,4 @@ for (const field of ['SENTRY_DSN']) {
   assert(commonBuild.includes(`${field} =`), `Public build does not pass ${field} to Flutter.`);
   assert(workflow.includes(`${field}:`), `Production environment does not supply ${field}.`);
 }
-pass(scope, 'public-only signed AAB build path uses fail-closed release validation and never publishes');
+pass(scope, 'public AAB remains Play-only, while a local signed APK uses the same fail-closed release validation');
