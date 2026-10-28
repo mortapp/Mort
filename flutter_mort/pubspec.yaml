@@ -84,6 +84,7 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
+  http: ^1.6.0
   geolocator_platform_interface: ^4.2.8
   plugin_platform_interface: ^2.1.8
 

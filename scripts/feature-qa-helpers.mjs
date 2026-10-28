@@ -978,14 +978,12 @@ export async function updateApplicationStatus(
   {
     applicationId,
     action,
-    clientRequestId = randomUUID(),
     expectedUpdatedAt = null,
   },
 ) {
-  return client.rpc("update_application_status_v3", {
+  return client.rpc("update_my_job_application_status", {
     p_application_id: applicationId,
     p_action: action,
-    p_client_request_id: clientRequestId,
     p_expected_updated_at: expectedUpdatedAt,
   });
 }

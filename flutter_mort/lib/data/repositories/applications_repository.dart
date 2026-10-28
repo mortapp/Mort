@@ -7,58 +7,79 @@ import '../models/proof.dart';
 import 'repository_base.dart';
 
 class ApplicationsRepository extends RepositoryBase {
+  Future<List<MortApplication>> _loadVisibleApplications({
+    String? applicationId,
+  }) async {
+    final result = _rpcMap(
+      await client.rpc(
+        'get_my_job_applications',
+        params: {'p_application_id': applicationId},
+      ),
+    );
+    _throwIfFailed(result);
+    final items = result['items'];
+    if (items is! List) {
+      throw const MortCodedError(
+        'unknown_permission_failure',
+        'The backend returned an unexpected application response.',
+      );
+    }
+    return _applications(items);
+  }
+
   Future<MortApplication?> getApplication(
     String applicationId, {
     UserRole? role,
   }) async {
-    final query = client
-        .from('applications')
-        .select(
-          role == UserRole.adult
-              ? '*, jobs!inner(*), teen:profiles!applications_teen_id_fkey(display_name,avatar_path)'
-              : '*, jobs(*), teen:profiles!applications_teen_id_fkey(display_name,avatar_path)',
-        )
-        .eq('id', applicationId);
-
+    final applications = await _loadVisibleApplications(
+      applicationId: applicationId,
+    );
+    if (applications.isEmpty) return null;
+    final application = applications.first;
     if (role != null) {
       final id = requireUserId();
-      if (role == UserRole.teen) {
-        query.eq('teen_id', id);
-      } else if (role == UserRole.adult) {
-        query.eq('jobs.poster_id', id);
-      } else if (role == UserRole.guardian) {
-        query.eq('guardian_id', id);
-      }
+      final isRoleOwner = switch (role) {
+        UserRole.teen => application.teenId == id,
+        UserRole.adult => application.job?.posterId == id,
+        UserRole.guardian => application.guardianId == id,
+        UserRole.admin => false,
+      };
+      if (!isRoleOwner) return null;
     }
-
-    final row = await query.maybeSingle();
-    return row == null
-        ? null
-        : MortApplication.fromMap(Map<String, dynamic>.from(row));
+    return application;
   }
 
   Future<List<MortApplication>> listMyApplications() async {
     final id = requireUserId();
-    final rows = await client
-        .from('applications')
-        .select(
-          '*, jobs(*), teen:profiles!applications_teen_id_fkey(display_name,avatar_path)',
-        )
-        .or('teen_id.eq.$id,guardian_id.eq.$id')
-        .order('created_at', ascending: false);
-    return _applications(rows);
+    final applications = await _loadVisibleApplications();
+    final own =
+        applications
+            .where(
+              (application) =>
+                  application.teenId == id || application.guardianId == id,
+            )
+            .toList(growable: false)
+          ..sort(
+            (a, b) => (b.createdAt ?? DateTime(0)).compareTo(
+              a.createdAt ?? DateTime(0),
+            ),
+          );
+    return own;
   }
 
   Future<List<MortApplication>> listApplicationsForMyJobs() async {
     final id = requireUserId();
-    final rows = await client
-        .from('applications')
-        .select(
-          '*, jobs!inner(*), teen:profiles!applications_teen_id_fkey(display_name,avatar_path)',
-        )
-        .eq('jobs.poster_id', id)
-        .order('created_at', ascending: false);
-    return _applications(rows);
+    final applications = await _loadVisibleApplications();
+    final forMyJobs =
+        applications
+            .where((application) => application.job?.posterId == id)
+            .toList(growable: false)
+          ..sort(
+            (a, b) => (b.createdAt ?? DateTime(0)).compareTo(
+              a.createdAt ?? DateTime(0),
+            ),
+          );
+    return forMyJobs;
   }
 
   Future<ApplicationEligibility> checkEligibility(String jobId) async {
@@ -117,11 +138,10 @@ class ApplicationsRepository extends RepositoryBase {
     DateTime? expectedUpdatedAt,
   }) async {
     final result = await client.rpc(
-      'update_application_status_v3',
+      'update_my_job_application_status',
       params: {
         'p_application_id': applicationId,
         'p_action': action,
-        'p_client_request_id': clientRequestId ?? const Uuid().v4(),
         'p_expected_updated_at': expectedUpdatedAt?.toUtc().toIso8601String(),
       },
     );
