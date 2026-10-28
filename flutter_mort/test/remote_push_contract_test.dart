@@ -31,7 +31,9 @@ void main() {
     expect(preferences.copyWith(pushEnabled: false).pushEnabled, isFalse);
   });
 
-  test('mobile push source keeps provider secrets server-side', () {
+  test('no Firebase push worker is present in the production backend', () {
+    final pushWorker = File('../supabase/functions/send-push/index.ts');
+    final supabaseConfig = File('../supabase/config.toml').readAsStringSync();
     final appConfig = File(
       'lib/core/config/app_config.dart',
     ).readAsStringSync();
@@ -44,10 +46,8 @@ void main() {
     final repository = File(
       'lib/data/repositories/notifications_repository.dart',
     ).readAsStringSync();
-    final edge = File(
-      '../supabase/functions/send-push/index.ts',
-    ).readAsStringSync();
-
+    expect(pushWorker.existsSync(), isFalse);
+    expect(supabaseConfig, isNot(contains('[functions.send-push]')));
     expect(appConfig, contains("defaultValue: false"));
     expect(appConfig, isNot(contains('FIREBASE_')));
     expect(
@@ -61,10 +61,9 @@ void main() {
     expect(repository, contains('register_my_push_device_v2'));
     expect(repository, contains('unregister_my_push_devices_v2'));
 
-    expect(edge, contains('FCM_SERVICE_ACCOUNT_PRIVATE_KEY'));
-    expect(edge, contains('service_claim_push_events'));
-    expect(edge, contains('genericCopy'));
-    for (final source in [appConfig, coordinator, provider]) {
+    for (final source in [appConfig, coordinator, provider, repository]) {
+      expect(source, isNot(contains('Firebase')));
+      expect(source, isNot(contains('FCM')));
       expect(source, isNot(contains('FCM_SERVICE_ACCOUNT_PRIVATE_KEY')));
       expect(source, isNot(contains('SUPABASE_SERVICE_ROLE_KEY')));
     }

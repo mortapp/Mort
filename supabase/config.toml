@@ -36,9 +36,6 @@ file_size_limit = "10MiB"
 enabled = true
 policy = "per_worker"
 
-[functions.send-push]
-verify_jwt = true
-
 [functions.identity-verification-webhook]
 verify_jwt = false
 
