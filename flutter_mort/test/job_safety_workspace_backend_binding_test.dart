@@ -7,6 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _SafetyWorkspaceRepository extends TrustSafetyRepository {
+  int cancellationCalls = 0;
+  String? cancellationDetails;
+
   @override
   Future<JobSafetyAgreement?> getSafetyAgreement(String applicationId) async =>
       const JobSafetyAgreement(
@@ -32,6 +35,16 @@ class _SafetyWorkspaceRepository extends TrustSafetyRepository {
 
   @override
   Future<List<AuthorizedLocationShare>> listLocationShares() async => const [];
+
+  @override
+  Future<void> submitSafetyCancellation({
+    required String applicationId,
+    required String reason,
+    String? details,
+  }) async {
+    cancellationCalls++;
+    cancellationDetails = details;
+  }
 }
 
 void main() {
@@ -59,4 +72,105 @@ void main() {
     expect(find.byType(SwitchListTile), findsNWidgets(2));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'safety cancellation rejects details shorter than 10 characters',
+    (tester) async {
+      final repository = _SafetyWorkspaceRepository();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustSafetyRepositoryProvider.overrideWithValue(repository),
+            currentProfileProvider.overrideWithValue(
+              const AsyncValue.data(null),
+            ),
+          ],
+          child: const MaterialApp(
+            home: JobSafetyWorkspaceScreen(applicationId: 'application-1'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final detailsField = find.widgetWithText(TextFormField, 'What changed?');
+      await tester.enterText(detailsField, '  too short  ');
+      await tester.ensureVisible(find.text('Cancel for this reason'));
+      await tester.tap(find.text('Cancel for this reason'));
+      await tester.pump();
+
+      expect(
+        find.text(
+          'Enter between 10 and 3,000 characters describing what changed.',
+        ),
+        findsOneWidget,
+      );
+      expect(repository.cancellationCalls, 0);
+    },
+  );
+
+  testWidgets('safety cancellation accepts exactly 10 trimmed characters', (
+    tester,
+  ) async {
+    final repository = _SafetyWorkspaceRepository();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trustSafetyRepositoryProvider.overrideWithValue(repository),
+          currentProfileProvider.overrideWithValue(const AsyncValue.data(null)),
+        ],
+        child: const MaterialApp(
+          home: JobSafetyWorkspaceScreen(applicationId: 'application-1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final detailsField = find.widgetWithText(TextFormField, 'What changed?');
+    await tester.enterText(detailsField, '  ten chars!  ');
+    await tester.ensureVisible(find.text('Cancel for this reason'));
+    await tester.tap(find.text('Cancel for this reason'));
+    await tester.pumpAndSettle();
+
+    expect(repository.cancellationCalls, 1);
+    expect(repository.cancellationDetails, 'ten chars!');
+    expect(
+      find.text('Cancellation recorded with no automatic reputation penalty.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+    'safety cancellation rejects details longer than 3,000 characters',
+    (tester) async {
+      final repository = _SafetyWorkspaceRepository();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustSafetyRepositoryProvider.overrideWithValue(repository),
+            currentProfileProvider.overrideWithValue(
+              const AsyncValue.data(null),
+            ),
+          ],
+          child: const MaterialApp(
+            home: JobSafetyWorkspaceScreen(applicationId: 'application-1'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final detailsField = find.widgetWithText(TextFormField, 'What changed?');
+      await tester.enterText(detailsField, 'x' * 3001);
+      await tester.ensureVisible(find.text('Cancel for this reason'));
+      await tester.tap(find.text('Cancel for this reason'));
+      await tester.pump();
+
+      expect(
+        find.text(
+          'Enter between 10 and 3,000 characters describing what changed.',
+        ),
+        findsOneWidget,
+      );
+      expect(repository.cancellationCalls, 0);
+    },
+  );
 }

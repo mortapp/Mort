@@ -1226,13 +1226,21 @@ class _JobSafetyWorkspaceScreenState
   }
 
   Future<void> _cancel() async {
+    final details = _cancelDetailsController.text.trim();
+    if (details.length < 10 || details.length > 3000) {
+      MortToast.show(
+        context,
+        'Enter between 10 and 3,000 characters describing what changed.',
+      );
+      return;
+    }
     await _work(
       () => ref
           .read(trustSafetyRepositoryProvider)
           .submitSafetyCancellation(
             applicationId: widget.applicationId,
             reason: _cancelReason,
-            details: _cancelDetailsController.text,
+            details: details,
           ),
       'Cancellation recorded with no automatic reputation penalty.',
     );
