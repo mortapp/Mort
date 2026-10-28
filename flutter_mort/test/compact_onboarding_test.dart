@@ -169,6 +169,7 @@ class _FakeLegalContractRepository extends LegalContractRepository {
 class _FakeGuardianRepository extends GuardianRepository {
   String? acceptedCode;
   String? inviteCodeToReturn;
+  String deliveryToReturn = 'copy_code';
 
   @override
   Future<Map<String, dynamic>> acceptInvite(String code) async {
@@ -180,6 +181,7 @@ class _FakeGuardianRepository extends GuardianRepository {
   Future<Map<String, dynamic>> createInvite({String? email}) async => {
     'ok': true,
     'invite_code': inviteCodeToReturn,
+    'delivery': deliveryToReturn,
   };
 }
 
@@ -316,7 +318,7 @@ void main() {
       of: find.byKey(const ValueKey('guardian-invite-code')),
       matching: find.byType(TextFormField),
     );
-    final guardianInviteToken = List.filled(64, 'a').join();
+    final guardianInviteToken = 'A1B2C3D4';
     await tester.enterText(guardianCodeField, guardianInviteToken);
     await tester.pump();
     expect(
@@ -332,7 +334,7 @@ void main() {
             ),
           )
           .maxLength,
-      64,
+      8,
     );
     final linkButton = find.ancestor(
       of: find.text('Link teen account'),
@@ -351,9 +353,10 @@ void main() {
   testWidgets('teen can copy the backend-issued guardian invite token', (
     tester,
   ) async {
-    final inviteToken = List.filled(64, 'B').join();
+    const inviteToken = 'B1C2D3E4';
     final guardianRepository = _FakeGuardianRepository()
-      ..inviteCodeToReturn = inviteToken;
+      ..inviteCodeToReturn = inviteToken
+      ..deliveryToReturn = 'email_delivery_external_setup_required';
     await _pumpOnboarding(
       tester,
       repository: _SafetyStepProfileRepository(),
@@ -367,6 +370,7 @@ void main() {
 
     expect(find.textContaining(inviteToken), findsOneWidget);
     expect(find.byTooltip('Copy guardian invite code'), findsOneWidget);
+    expect(find.textContaining('has not emailed'), findsWidgets);
   });
 
   testWidgets(

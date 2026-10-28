@@ -91,6 +91,7 @@ class _CompactOnboardingScreenState
   final _guardianEmail = TextEditingController();
   final _guardianCode = TextEditingController();
   String? _guardianInviteCode;
+  String? _guardianInviteDelivery;
   bool _guardianDeclined = false;
   bool _guardianBusy = false;
   bool _guardianLinked = false;
@@ -288,9 +289,15 @@ class _CompactOnboardingScreenState
       if (!mounted) return;
       setState(() {
         _guardianInviteCode = result['invite_code'] as String?;
+        _guardianInviteDelivery = result['delivery'] as String?;
         _guardianDeclined = false;
       });
-      MortToast.show(context, 'Guardian invite created.');
+      MortToast.show(
+        context,
+        _guardianInviteDelivery == 'email_delivery_external_setup_required'
+            ? 'Code created. MORT has not emailed this guardian; share the code yourself.'
+            : 'Guardian code created. Share it yourself.',
+      );
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
     } finally {
@@ -318,7 +325,7 @@ class _CompactOnboardingScreenState
       _guardianCode.text.replaceAll(RegExp(r'\s+'), '');
 
   bool get _hasValidGuardianCode =>
-      RegExp(r'^[a-fA-F0-9]{64}$').hasMatch(_normalizedGuardianCode);
+      RegExp(r'^[a-fA-F0-9]{8}$').hasMatch(_normalizedGuardianCode);
 
   Future<void> _linkTeenAccount() async {
     final code = _normalizedGuardianCode;
@@ -1074,7 +1081,10 @@ class _CompactOnboardingScreenState
                 children: [
                   Expanded(
                     child: SelectableText(
-                      'Guardian invite created:\n$_guardianInviteCode',
+                      _guardianInviteDelivery ==
+                              'email_delivery_external_setup_required'
+                          ? 'MORT has not emailed this guardian. Copy and share this code yourself:\n$_guardianInviteCode'
+                          : 'Guardian invite code. Copy and share it yourself:\n$_guardianInviteCode',
                     ),
                   ),
                   IconButton(
@@ -1129,10 +1139,10 @@ class _CompactOnboardingScreenState
             MortTextField(
               key: const ValueKey('guardian-invite-code'),
               label: 'Guardian invite code',
-              hint: 'Paste the 64-character code',
+              hint: 'Paste the 8-character code',
               controller: _guardianCode,
               enabled: !_guardianBusy,
-              maxLength: 64,
+              maxLength: 8,
               textCapitalization: TextCapitalization.characters,
               autocorrect: false,
               enableSuggestions: false,

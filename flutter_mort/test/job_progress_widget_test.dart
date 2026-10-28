@@ -53,7 +53,10 @@ void main() {
       expect(find.text('Funds collected'), findsOneWidget);
       expect(find.text('Adult actions'), findsOneWidget);
       expect(find.text('Generate start PIN - Unavailable'), findsOneWidget);
-      expect(find.textContaining('execution actions are not ready'), findsNothing);
+      expect(
+        find.textContaining('execution actions are not ready'),
+        findsNothing,
+      );
       expect(find.text('Generate finish PIN - Unavailable'), findsOneWidget);
       expect(find.text('Cancel job'), findsOneWidget);
       expect(
@@ -155,4 +158,35 @@ void main() {
     expect(find.text('Leave a rating'), findsOneWidget);
     expect(find.textContaining('You were paid'), findsNothing);
   });
+
+  testWidgets(
+    'completion pending release does not offer a rating before completion',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: JobProgressScreen(
+              applicationId: 'synthetic-pending-widget-qa',
+              syntheticStatusForTesting: JobExecutionStatus(
+                applicationId: 'synthetic-pending-widget-qa',
+                jobId: 'job-pending-widget-qa',
+                contractId: 'contract-pending-widget-qa',
+                role: 'teen',
+                state: 'completion_pending_release',
+                fundingStatus: 'funded',
+                startPinActive: false,
+                finishPinActive: false,
+                livePaymentEnabled: false,
+                completionPendingAt: DateTime.utc(2026, 7, 28, 18),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Completion recorded'), findsOneWidget);
+      expect(find.text('Leave a rating'), findsNothing);
+    },
+  );
 }

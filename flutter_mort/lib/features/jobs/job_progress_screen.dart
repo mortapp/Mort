@@ -748,11 +748,12 @@ class _CompletionCard extends StatelessWidget {
         const SizedBox(height: MortSpacing.md),
         MortActionRow(
           actions: [
-            MortAction(
-              label: 'Leave a rating',
-              icon: Icons.star_outline_rounded,
-              route: '/reviews/${status.applicationId}',
-            ),
+            if (status.state == 'completed')
+              MortAction(
+                label: 'Leave a rating',
+                icon: Icons.star_outline_rounded,
+                route: '/reviews/${status.applicationId}',
+              ),
             MortAction(
               label: 'Report issue',
               icon: Icons.report_outlined,
