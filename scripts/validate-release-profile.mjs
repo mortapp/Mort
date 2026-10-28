@@ -26,6 +26,7 @@ const requiredKeys = [
   "chatbotAiEnabled",
   "deterministicChatbotFallbackEnabled",
   "adsEnabled",
+  "useTestAds",
   "iapEnabled",
   "reviewerModeEnabled",
   "productionActivationApproved",
@@ -84,6 +85,9 @@ for (const [name, profile] of Object.entries(matrix.profiles)) {
   }
   if (["reviewer_demo", "closed_test"].includes(name) && profile.adsEnabled) {
     fail(`${name} cannot enable ads -- real ad traffic is reserved for production_candidate/production`);
+  }
+  if (profile.adsEnabled && profile.useTestAds) {
+    fail(`${name} cannot enable ads while configured for Google test ad units`);
   }
   if (["reviewer_demo", "closed_test", "production_candidate", "production"].includes(name) && profile.iapEnabled) {
     fail(`${name} cannot enable unapproved IAP`);
