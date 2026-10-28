@@ -180,6 +180,16 @@ class _JobContractScreenState extends ConsumerState<JobContractScreen> {
               );
             }
             final version = versions.first;
+            final versionId = version['id']?.toString();
+            final contentHash = version['content_hash']?.toString();
+            final versionAcceptances = acceptances
+                .where(
+                  (acceptance) =>
+                      acceptance['contract_version_id']?.toString() ==
+                          versionId &&
+                      acceptance['content_hash']?.toString() == contentHash,
+                )
+                .toList(growable: false);
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -251,9 +261,9 @@ class _JobContractScreenState extends ConsumerState<JobContractScreen> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: MortSpacing.sm),
-                if (acceptances.isEmpty)
+                if (versionAcceptances.isEmpty)
                   const Text('No party has confirmed this exact version yet.'),
-                for (final item in acceptances)
+                for (final item in versionAcceptances)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(
