@@ -80,8 +80,11 @@ function Get-MortPublicConfigValue {
     [Parameter(Mandatory)][string]$Root
   )
 
-  $credentialPath = Join-Path $env:USERPROFILE 'OneDrive\Documents\mort credientals\supabase-public.env'
-  if (Test-Path -LiteralPath $credentialPath -PathType Leaf) {
+  $credentialPath = $null
+  if (-not [string]::IsNullOrWhiteSpace($env:USERPROFILE)) {
+    $credentialPath = Join-Path $env:USERPROFILE 'OneDrive\Documents\mort credientals\supabase-public.env'
+  }
+  if ($credentialPath -and (Test-Path -LiteralPath $credentialPath -PathType Leaf)) {
     foreach ($line in Get-Content -LiteralPath $credentialPath) {
       if ($line -match '^\s*([^#=]+)\s*=\s*(.*)\s*$') {
         $name = $Matches[1].Trim()

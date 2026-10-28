@@ -3,8 +3,11 @@ function Get-MortSentryClientDsn {
   param([bool]$Required = $false)
   $value = [Environment]::GetEnvironmentVariable('SENTRY_DSN', 'Process')
   if ([string]::IsNullOrWhiteSpace($value)) {
-    $configPath = Join-Path $env:USERPROFILE 'OneDrive\Documents\mort credientals\sentry.env'
-    if (Test-Path -LiteralPath $configPath -PathType Leaf) {
+    $configPath = $null
+    if (-not [string]::IsNullOrWhiteSpace($env:USERPROFILE)) {
+      $configPath = Join-Path $env:USERPROFILE 'OneDrive\Documents\mort credientals\sentry.env'
+    }
+    if ($configPath -and (Test-Path -LiteralPath $configPath -PathType Leaf)) {
       foreach ($line in Get-Content -LiteralPath $configPath) {
         if ($line -match '^\s*SENTRY_DSN\s*=\s*(.*?)\s*$') {
           $value = $Matches[1].Trim().Trim('"').Trim("'")
