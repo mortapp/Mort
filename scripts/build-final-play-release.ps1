@@ -1,27 +1,27 @@
+[CmdletBinding()]
+param()
+
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $root = Split-Path $PSScriptRoot -Parent
-$play = Join-Path $root 'build\play'
 $versionJson = & node (Join-Path $PSScriptRoot 'read-mobile-version.mjs') --json
 if ($LASTEXITCODE -ne 0) { throw 'Could not read the authoritative mobile version.' }
 $version = $versionJson | ConvertFrom-Json
-$artifactVersion = "$($version.versionName)-$($version.versionCode)"
-$builtApk = Join-Path $play "mort-closed-test-$artifactVersion.apk"
-$builtAab = Join-Path $play "mort-closed-test-$artifactVersion.aab"
+$artifact = Join-Path $root (
+  "build\play\mort-production-public-$($version.versionName)-$($version.versionCode).aab"
+)
 
-& (Join-Path $PSScriptRoot 'build-closed-test-apk.ps1')
-if ($LASTEXITCODE -ne 0) { throw 'Signed QA APK build failed.' }
-& (Join-Path $PSScriptRoot 'qa-android-apk.ps1') -ApkPath $builtApk -RequireSigned
-if ($LASTEXITCODE -ne 0) { throw 'Signed QA APK verification failed.' }
+& (Join-Path $PSScriptRoot 'build-production-public-aab.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'Public production AAB build failed.' }
+if (-not (Test-Path -LiteralPath $artifact -PathType Leaf)) {
+  throw 'Public production AAB was not created at the expected path.'
+}
 
-& (Join-Path $PSScriptRoot 'build-play-aab.ps1')
-if ($LASTEXITCODE -ne 0) { throw 'Signed Play AAB build failed.' }
 & (Join-Path $PSScriptRoot 'verify-play-aab.ps1') `
-  -BundlePath $builtAab `
-  -ReleaseStage closed_test `
-  -PlayReviewModeEnabled
-if ($LASTEXITCODE -ne 0) { throw 'Signed Play AAB verification failed.' }
+  -BundlePath $artifact `
+  -ReleaseStage production_public `
+  -PlayReviewModeEnabled:$false
+if ($LASTEXITCODE -ne 0) { throw 'Public production AAB verification failed.' }
 
-Write-Output "Created final closed-test APK: $builtApk"
-Write-Output "Created final closed-test AAB: $builtAab"
+Write-Output "Created verified public production AAB: $artifact"

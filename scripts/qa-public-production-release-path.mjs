@@ -29,6 +29,16 @@ assert(!/closed[-_ ]test|reviewer_demo|PLAY_REVIEW_MODE_ENABLED=true/i.test(work
 assert(!/SUPABASE_SERVICE_ROLE_KEY|SUPABASE_ACCESS_TOKEN|SUPABASE_DB_PASSWORD/i.test(workflow), 'Public workflow injects privileged Supabase credentials.');
 assert(!/r0adkll\/upload-google-play|publish.*play|upload.*play/i.test(workflow), 'Public workflow must not publish to Google Play.');
 
+const releaseEntry = read('scripts/build-android-release.ps1');
+const playAabEntry = read('scripts/build-play-aab.ps1');
+const finalPlayEntry = read('scripts/build-final-play-release.ps1');
+assert(/\$Profile\s*=\s*'production_public'/.test(releaseEntry), 'Generic Android release entry point does not default to public production.');
+assert(!/reviewer_demo|closed_test|production_candidate|production_pilot/.test(releaseEntry), 'Generic Android release entry point still routes to a non-public profile.');
+assert(playAabEntry.includes('build-production-public-aab.ps1'), 'Play AAB wrapper still builds a closed-test artifact.');
+assert(!playAabEntry.includes('build-closed-test-aab.ps1'), 'Play AAB wrapper retains a closed-test build route.');
+assert(finalPlayEntry.includes('build-production-public-aab.ps1'), 'Final Play release wrapper does not build the public production AAB.');
+assert(!/build-closed-test|\.apk|closed.test/i.test(finalPlayEntry), 'Final Play release wrapper still creates or labels a closed-test artifact.');
+
 const profile = JSON.parse(read('config/mort-release-profiles.json')).profiles.production;
 const commonBuild = read('scripts/android-release-profile-common.ps1');
 const aabVerifier = read('scripts/verify-play-aab.ps1');
