@@ -6,6 +6,7 @@ import 'package:flutter_mort/core/utils/date_of_birth.dart';
 import 'package:flutter_mort/data/models/onboarding_progress.dart';
 import 'package:flutter_mort/data/models/profile.dart';
 import 'package:flutter_mort/data/repositories/legal_contract_repository.dart';
+import 'package:flutter_mort/data/repositories/guardian_repository.dart';
 import 'package:flutter_mort/data/repositories/profile_repository.dart';
 import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/features/auth/unified_auth_screen.dart';
@@ -165,9 +166,20 @@ class _FakeLegalContractRepository extends LegalContractRepository {
   };
 }
 
+class _FakeGuardianRepository extends GuardianRepository {
+  String? acceptedCode;
+
+  @override
+  Future<Map<String, dynamic>> acceptInvite(String code) async {
+    acceptedCode = code;
+    return const {'ok': true, 'status': 'linked'};
+  }
+}
+
 Future<void> _pumpOnboarding(
   WidgetTester tester, {
   _FakeProfileRepository? repository,
+  _FakeGuardianRepository? guardianRepository,
   TextScaler textScaler = TextScaler.noScaling,
   bool disableAnimations = false,
 }) async {
@@ -180,6 +192,8 @@ Future<void> _pumpOnboarding(
         legalContractRepositoryProvider.overrideWithValue(
           _FakeLegalContractRepository(),
         ),
+        if (guardianRepository != null)
+          guardianRepositoryProvider.overrideWithValue(guardianRepository),
       ],
       child: MaterialApp(
         theme: MortTheme.dark(),
@@ -239,6 +253,74 @@ void main() {
     expect(source, isNot(contains('position.latitude')));
     expect(source, isNot(contains('position.longitude')));
     expect(source, isNot(contains('toStringAsFixed')));
+  });
+
+  testWidgets('guardian can redeem a teen invite in onboarding', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2408);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final profileRepository = _FakeProfileRepository();
+    final guardianRepository = _FakeGuardianRepository();
+    await _pumpOnboarding(
+      tester,
+      repository: profileRepository,
+      guardianRepository: guardianRepository,
+    );
+
+    final today = DateTime.now();
+    final adultDob = DateOfBirthParser.display(
+      DateTime(today.year - 35, today.month, today.day),
+    );
+    await tester.enterText(find.byType(TextFormField).at(0), adultDob);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.widgetWithText(ChoiceChip, 'Supervise as guardian'),
+    );
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Supervise as guardian'));
+    await tester.enterText(find.byType(TextFormField).at(1), 'Morgan');
+    await tester.enterText(find.byType(TextFormField).at(2), 'morgan_guardian');
+    await tester.enterText(find.byType(TextFormField).at(3), 'Indianapolis');
+    await tester.enterText(find.byType(TextFormField).at(4), 'IN');
+    await tester.ensureVisible(find.text('Save account'));
+    await tester.tap(find.text('Save account'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save account').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Step 2 of 4'), findsOneWidget);
+    await tester.ensureVisible(find.text('Save work preferences'));
+    await tester.tap(find.text('Save work preferences'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Step 3 of 4'), findsOneWidget);
+    expect(find.textContaining('Link a teen account'), findsOneWidget);
+    expect(find.text('Link teen account'), findsOneWidget);
+    final guardianCodeField = find.descendant(
+      of: find.byKey(const ValueKey('guardian-invite-code')),
+      matching: find.byType(TextFormField),
+    );
+    await tester.enterText(guardianCodeField, 'ab12cd34');
+    await tester.pump();
+    expect(
+      tester.widget<TextFormField>(guardianCodeField).controller!.text,
+      'ab12cd34',
+    );
+    final linkButton = find.ancestor(
+      of: find.text('Link teen account'),
+      matching: find.byType(ElevatedButton),
+    );
+    expect(tester.widget<ElevatedButton>(linkButton).onPressed, isNotNull);
+    await tester.ensureVisible(find.text('Link teen account'));
+    await tester.tap(find.text('Link teen account'));
+    await tester.pumpAndSettle();
+
+    expect(guardianRepository.acceptedCode, 'ab12cd34');
+    expect(find.text('Teen account linked.'), findsWidgets);
+    expect(profileRepository.safetySaves, 0);
   });
 
   testWidgets(

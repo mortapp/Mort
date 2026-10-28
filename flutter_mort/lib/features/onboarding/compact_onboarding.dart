@@ -88,9 +88,11 @@ class _CompactOnboardingScreenState
 
   // Step 3: guardian and notification intent. Native permission remains OS truth.
   final _guardianEmail = TextEditingController();
+  final _guardianCode = TextEditingController();
   String? _guardianInviteCode;
   bool _guardianDeclined = false;
   bool _guardianBusy = false;
+  bool _guardianLinked = false;
   String _notificationChoice = 'ask_later';
 
   // Step 4: rules acceptance (mirrors SafetyRulesScreen, same shared copy).
@@ -236,6 +238,7 @@ class _CompactOnboardingScreenState
     _zip.dispose();
     _availability.dispose();
     _guardianEmail.dispose();
+    _guardianCode.dispose();
     _signature.dispose();
     super.dispose();
   }
@@ -287,6 +290,27 @@ class _CompactOnboardingScreenState
         _guardianDeclined = false;
       });
       MortToast.show(context, 'Guardian invite created.');
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _guardianBusy = false);
+    }
+  }
+
+  Future<void> _linkTeenAccount() async {
+    final code = _guardianCode.text.trim();
+    if (_guardianBusy || code.isEmpty) return;
+    setState(() => _guardianBusy = true);
+    try {
+      await ref.read(guardianRepositoryProvider).acceptInvite(code);
+      if (!mounted) return;
+      setState(() {
+        _guardianLinked = true;
+        _guardianCode.clear();
+      });
+      ref.invalidate(guardianConnectionsProvider);
+      ref.invalidate(currentProfileProvider);
+      MortToast.show(context, 'Teen account linked.');
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
     } finally {
@@ -1049,6 +1073,43 @@ class _CompactOnboardingScreenState
                       setState(() => _guardianDeclined = selected),
                 ),
               ],
+            ),
+          ],
+        ] else if (_resolvedRole() == UserRole.guardian) ...[
+          const SizedBox(height: MortSpacing.lg),
+          const _OnboardingSectionLabel(label: 'Guardian Mode'),
+          Text(
+            'Link a teen account with the invitation code they shared. You can also finish setup and link later.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          if (_guardianLinked)
+            const MortGlassCard(
+              infoAccent: true,
+              child: Text('Teen account linked.'),
+            )
+          else ...[
+            MortTextField(
+              key: const ValueKey('guardian-invite-code'),
+              label: 'Guardian invite code',
+              hint: 'Enter the 8-character code',
+              controller: _guardianCode,
+              enabled: !_guardianBusy,
+              maxLength: 8,
+              textCapitalization: TextCapitalization.characters,
+              autocorrect: false,
+              enableSuggestions: false,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: MortSpacing.sm),
+            MortButton(
+              label: 'Link teen account',
+              icon: Icons.link_rounded,
+              style: MortButtonStyle.secondary,
+              busy: _guardianBusy,
+              onPressed: _guardianCode.text.trim().length == 8
+                  ? _linkTeenAccount
+                  : null,
             ),
           ],
         ],

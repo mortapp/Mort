@@ -2,6 +2,11 @@ import '../../core/errors/mort_error.dart';
 import 'repository_base.dart';
 
 class GuardianRepository extends RepositoryBase {
+  static final _uuidPattern = RegExp(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+    caseSensitive: false,
+  );
+
   Future<Map<String, dynamic>> createInvite({String? email}) async {
     final result = await client.rpc(
       'create_guardian_invite_v2',
@@ -15,7 +20,14 @@ class GuardianRepository extends RepositoryBase {
       'accept_guardian_invite',
       params: {'p_invite_code': code.trim().toUpperCase()},
     );
-    return _requireSuccess(result);
+    return normalizeAcceptInviteResult(result);
+  }
+
+  static Map<String, dynamic> normalizeAcceptInviteResult(Object? value) {
+    if (value is String && _uuidPattern.hasMatch(value)) {
+      return {'ok': true, 'status': 'linked', 'link_id': value};
+    }
+    return _requireSuccess(value);
   }
 
   Future<void> skipSetup() async {
