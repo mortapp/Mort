@@ -23,41 +23,46 @@ void main() {
     expect(source, contains('if (_remaining > Duration.zero)'));
   });
 
-  testWidgets('adult job progress shows server state and role actions', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          home: JobProgressScreen(
-            applicationId: 'synthetic-widget-qa',
-            syntheticStatusForTesting: JobExecutionStatus(
+  testWidgets(
+    'adult job progress shows server state and gates unwired actions',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: JobProgressScreen(
               applicationId: 'synthetic-widget-qa',
-              jobId: 'job-widget-qa',
-              contractId: 'contract-widget-qa',
-              role: 'adult',
-              state: 'awaiting_start',
-              fundingStatus: 'funded',
-              startPinActive: false,
-              finishPinActive: false,
-              livePaymentEnabled: false,
+              syntheticStatusForTesting: JobExecutionStatus(
+                applicationId: 'synthetic-widget-qa',
+                jobId: 'job-widget-qa',
+                contractId: 'contract-widget-qa',
+                role: 'adult',
+                state: 'awaiting_start',
+                fundingStatus: 'funded',
+                startPinActive: false,
+                finishPinActive: false,
+                livePaymentEnabled: false,
+              ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Job progress'), findsOneWidget);
-    expect(find.text('Funds collected'), findsOneWidget);
-    expect(find.text('Adult actions'), findsOneWidget);
-    expect(find.text('Generate start PIN'), findsOneWidget);
-    expect(find.text('Generate finish PIN - Unavailable'), findsOneWidget);
-    expect(
-      find.textContaining('Live payments remain disabled'),
-      findsOneWidget,
-    );
-  });
+      expect(find.text('Job progress'), findsOneWidget);
+      expect(find.text('Funds collected'), findsOneWidget);
+      expect(find.text('Adult actions'), findsOneWidget);
+      expect(find.text('Generate start PIN - Unavailable'), findsOneWidget);
+      expect(
+        find.textContaining('execution actions are not ready'),
+        findsOneWidget,
+      );
+      expect(find.text('Generate finish PIN - Unavailable'), findsOneWidget);
+      expect(
+        find.textContaining('Live payments remain disabled'),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets(
     'teen finish state exposes safe refusal and mismatch boundaries',
@@ -86,13 +91,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Teen actions'), findsOneWidget);
-      expect(find.text('End job'), findsOneWidget);
-      expect(
-        find.textContaining('separate six-digit finish PIN'),
-        findsOneWidget,
-      );
-      expect(find.text('Confirm job finish'), findsOneWidget);
-      expect(find.text('Finish PIN refused'), findsOneWidget);
+      expect(find.text('End job'), findsNothing);
+      expect(find.text('Confirm job finish'), findsNothing);
+      expect(find.text('Finish PIN refused - Unavailable'), findsOneWidget);
       expect(find.text('Person mismatch - Unavailable'), findsOneWidget);
     },
   );

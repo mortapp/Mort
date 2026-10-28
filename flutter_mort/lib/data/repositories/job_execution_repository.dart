@@ -14,6 +14,8 @@ class JobExecutionStatus {
     required this.startPinActive,
     required this.finishPinActive,
     required this.livePaymentEnabled,
+    this.executionActionsEnabled = false,
+    this.executionActionsReason = 'execution_backend_incomplete',
     this.startPinExpiresAt,
     this.finishPinExpiresAt,
     this.startedAt,
@@ -30,6 +32,8 @@ class JobExecutionStatus {
   final bool startPinActive;
   final bool finishPinActive;
   final bool livePaymentEnabled;
+  final bool executionActionsEnabled;
+  final String executionActionsReason;
   final DateTime? startPinExpiresAt;
   final DateTime? finishPinExpiresAt;
   final DateTime? startedAt;
@@ -50,6 +54,10 @@ class JobExecutionStatus {
         startPinActive: json['start_pin_active'] == true,
         finishPinActive: json['finish_pin_active'] == true,
         livePaymentEnabled: json['live_payment_enabled'] == true,
+        executionActionsEnabled: json['execution_actions_enabled'] == true,
+        executionActionsReason:
+            json['execution_actions_reason']?.toString() ??
+            'execution_backend_incomplete',
         startPinExpiresAt: _date(json['start_pin_expires_at']),
         finishPinExpiresAt: _date(json['finish_pin_expires_at']),
         startedAt: _date(json['started_at']),

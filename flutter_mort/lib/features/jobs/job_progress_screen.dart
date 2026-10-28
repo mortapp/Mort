@@ -481,6 +481,13 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
             message:
                 'Exchange job PINs in person, never in public chat. A PIN records a participant action; it does not prove identity, work quality, or payment eligibility.',
           ),
+          if (!status.executionActionsEnabled) ...[
+            const SizedBox(height: MortSpacing.sm),
+            const MortSafetyBanner(
+              message:
+                  'Job execution actions are not ready yet. Status is read from the server; PIN, cancellation, and report actions stay unavailable until their secure backend endpoints are deployed.',
+            ),
+          ],
           const SizedBox(height: MortSpacing.md),
           _FundingCard(status: status),
           const SizedBox(height: MortSpacing.md),
@@ -570,14 +577,14 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
             MortAction(
               label: 'Generate start PIN',
               icon: Icons.pin_outlined,
-              enabled: awaitingStart,
+              enabled: status.executionActionsEnabled && awaitingStart,
               busy: _busy,
               onPressed: () => _generatePin(start: true),
             ),
             MortAction(
               label: 'Generate finish PIN',
               icon: Icons.task_alt,
-              enabled: inProgress,
+              enabled: status.executionActionsEnabled && inProgress,
               busy: _busy,
               onPressed: () => _generatePin(start: false),
             ),
@@ -585,14 +592,16 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
               label: 'Cancel job',
               icon: Icons.cancel_outlined,
               style: MortButtonStyle.danger,
-              enabled: !{'completed', 'cancelled'}.contains(status.state),
+              enabled:
+                  status.executionActionsEnabled &&
+                  !{'completed', 'cancelled'}.contains(status.state),
               busy: _busy,
               onPressed: _cancelJob,
             ),
             MortAction(
               label: 'Report possible abandonment',
               icon: Icons.report_outlined,
-              enabled: inProgress,
+              enabled: status.executionActionsEnabled && inProgress,
               busy: _busy,
               onPressed: _reportAbandonment,
             ),
@@ -603,8 +612,10 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
   }
 
   Widget _teenActions(JobExecutionStatus status) {
-    final start = status.state == 'start_pin_active';
-    final finish = status.state == 'finish_pin_active';
+    final start =
+        status.executionActionsEnabled && status.state == 'start_pin_active';
+    final finish =
+        status.executionActionsEnabled && status.state == 'finish_pin_active';
     final canEnter = start || finish;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -656,24 +667,24 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
               label: 'Person mismatch',
               icon: Icons.person_off_outlined,
               style: MortButtonStyle.danger,
-              enabled: start,
+              enabled: status.executionActionsEnabled && start,
               busy: _busy,
               onPressed: _reportMismatch,
             ),
             MortAction(
               label: 'Finish PIN refused',
               icon: Icons.lock_clock_outlined,
-              enabled: {
-                'in_progress',
-                'finish_pin_active',
-              }.contains(status.state),
+              enabled:
+                  status.executionActionsEnabled &&
+                  {'in_progress', 'finish_pin_active'}.contains(status.state),
               busy: _busy,
               onPressed: () => _finishPinUnavailable(status),
             ),
             MortAction(
               label: 'Respond to abandonment report',
               icon: Icons.reply_outlined,
-              enabled: status.state == 'disputed',
+              enabled:
+                  status.executionActionsEnabled && status.state == 'disputed',
               busy: _busy,
               onPressed: _respondToAbandonment,
             ),
