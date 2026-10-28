@@ -854,11 +854,28 @@ class _TeenJobDetailScreenState extends ConsumerState<TeenJobDetailScreen> {
       ref.read(applicationsRepositoryProvider).checkEligibility(widget.jobId),
       jobs.isSaved(widget.jobId),
     ]);
+    final eligibility = results[0] as ApplicationEligibility;
+    bool? ageVerificationAvailable;
+    if (eligibility.code == 'age_verification_required') {
+      try {
+        final verification = await ref
+            .read(trustSafetyRepositoryProvider)
+            .getIdentityStatus();
+        ageVerificationAvailable =
+            verification.submissionsEnabled &&
+            verification.productionProviderAvailable &&
+            verification.documentsCollectedByMort;
+      } catch (_) {
+        // Keep the server-authoritative application block and show that the
+        // verification service could not be confirmed.
+      }
+    }
     _saved = results[1] == true;
     return _JobDetailData(
       job: job,
-      eligibility: results[0] as ApplicationEligibility,
+      eligibility: eligibility,
       saved: _saved,
+      ageVerificationAvailable: ageVerificationAvailable,
     );
   }
 
@@ -1011,9 +1028,10 @@ class _TeenJobDetailScreenState extends ConsumerState<TeenJobDetailScreen> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: MortSpacing.xs),
                       child: Text(
-                        eligibility.message,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                        eligibility.userFacingMessage(
+                          ageVerificationAvailable:
+                              data.ageVerificationAvailable,
+                        ),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ),
@@ -1286,9 +1304,15 @@ class _DetailLine extends StatelessWidget {
 }
 
 class _JobDetailData {
-  const _JobDetailData({this.job, this.eligibility, this.saved = false});
+  const _JobDetailData({
+    this.job,
+    this.eligibility,
+    this.saved = false,
+    this.ageVerificationAvailable,
+  });
 
   final Job? job;
   final ApplicationEligibility? eligibility;
   final bool saved;
+  final bool? ageVerificationAvailable;
 }

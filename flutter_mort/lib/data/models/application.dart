@@ -75,6 +75,19 @@ class ApplicationEligibility {
   final String verificationRequirement;
   final String scheduleType;
 
+  String userFacingMessage({required bool? ageVerificationAvailable}) {
+    if (code != 'age_verification_required') return message;
+    if (ageVerificationAvailable == false) {
+      return 'Age verification is required to apply. MORT is not accepting '
+          'verification submissions right now, so you cannot apply yet.';
+    }
+    if (ageVerificationAvailable == null) {
+      return 'Age verification is required to apply. MORT could not confirm '
+          'verification availability, so applications are paused for your account.';
+    }
+    return message;
+  }
+
   factory ApplicationEligibility.fromMap(Map<String, dynamic> map) {
     return ApplicationEligibility(
       eligible: map['eligible'] == true,
