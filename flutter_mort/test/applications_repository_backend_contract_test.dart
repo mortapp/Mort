@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_mort/data/models/profile.dart';
 import 'package:flutter_mort/data/repositories/applications_repository.dart';
 
 class _TestApplicationsRepository extends ApplicationsRepository {
@@ -13,6 +14,9 @@ class _TestApplicationsRepository extends ApplicationsRepository {
 
   @override
   SupabaseClient get client => _client;
+
+  @override
+  String requireUserId() => 'guardian-1';
 }
 
 void main() {
@@ -93,6 +97,31 @@ void main() {
       'p_application_id': 'application-1',
     });
   });
+
+  test(
+    'keeps guardian-visible applications when legacy guardian_id is null',
+    () async {
+      final result = await repository.getApplication(
+        'application-1',
+        role: UserRole.guardian,
+      );
+
+      expect(result?.id, 'application-1');
+      expect(requests.single.url.path, '/rest/v1/rpc/get_my_job_applications');
+    },
+  );
+
+  test(
+    'lists guardian-visible applications through server authorization',
+    () async {
+      final result = await repository.listMyApplications(
+        role: UserRole.guardian,
+      );
+
+      expect(result.map((item) => item.id), ['application-1']);
+      expect(requests.single.url.path, '/rest/v1/rpc/get_my_job_applications');
+    },
+  );
 
   test(
     'updates status through the authorized production RPC contract',

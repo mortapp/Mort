@@ -41,7 +41,9 @@ class ApplicationsRepository extends RepositoryBase {
       final isRoleOwner = switch (role) {
         UserRole.teen => application.teenId == id,
         UserRole.adult => application.job?.posterId == id,
-        UserRole.guardian => application.guardianId == id,
+        // The production RPC authorizes guardians through guardian_links;
+        // job_applications.guardian_id is not populated for linked guardians.
+        UserRole.guardian => true,
         UserRole.admin => false,
       };
       if (!isRoleOwner) return null;
@@ -49,15 +51,22 @@ class ApplicationsRepository extends RepositoryBase {
     return application;
   }
 
-  Future<List<MortApplication>> listMyApplications() async {
+  Future<List<MortApplication>> listMyApplications({UserRole? role}) async {
     final id = requireUserId();
     final applications = await _loadVisibleApplications();
     final own =
         applications
-            .where(
-              (application) =>
+            .where((application) {
+              return switch (role) {
+                UserRole.teen => application.teenId == id,
+                UserRole.guardian =>
+                  application.teenId != id && application.job?.posterId != id,
+                UserRole.adult => application.guardianId == id,
+                UserRole.admin => false,
+                null =>
                   application.teenId == id || application.guardianId == id,
-            )
+              };
+            })
             .toList(growable: false)
           ..sort(
             (a, b) => (b.createdAt ?? DateTime(0)).compareTo(

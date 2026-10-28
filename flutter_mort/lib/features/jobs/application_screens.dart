@@ -179,7 +179,11 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
     final repository = ref.read(applicationsRepositoryProvider);
     return widget.view == ApplicationView.adult
         ? repository.listApplicationsForMyJobs()
-        : repository.listMyApplications();
+        : repository.listMyApplications(
+            role: widget.view == ApplicationView.guardian
+                ? UserRole.guardian
+                : UserRole.teen,
+          );
   }
 
   void _reload() => setState(() => _future = _load());
