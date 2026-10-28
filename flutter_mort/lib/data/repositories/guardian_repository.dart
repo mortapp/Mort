@@ -40,20 +40,10 @@ class GuardianRepository extends RepositoryBase {
     );
   }
 
-  Future<Map<String, dynamic>> resendInvite(String linkId) async {
-    return _requireSuccess(
-      await client.rpc('resend_guardian_invite', params: {'p_link_id': linkId}),
-    );
-  }
-
   Future<void> unlink(String linkId) async {
     _requireSuccess(
       await client.rpc('unlink_guardian', params: {'p_link_id': linkId}),
     );
-  }
-
-  Future<Map<String, dynamic>> getPolicy() async {
-    return _requireSuccess(await client.rpc('get_guardian_policy_for_user'));
   }
 
   Future<void> updatePreferences(
@@ -65,45 +55,27 @@ class GuardianRepository extends RepositoryBase {
     required bool weeklyDigest,
     required bool optionalJobApprovalEnabled,
   }) async {
-    final updated = await client
-        .from('guardian_preferences')
-        .update({
-          'safety_ping_alerts': safetyPingAlerts,
-          'job_checkin_alerts': jobCheckinAlerts,
-          'accepted_job_summary': acceptedJobSummary,
-          'safety_warning_alerts': safetyWarningAlerts,
-          'weekly_digest': weeklyDigest,
-          'optional_job_approval_enabled': optionalJobApprovalEnabled,
-        })
-        .eq('link_id', linkId)
-        .select('link_id')
-        .maybeSingle();
-    if (updated == null) {
-      throw const MortCodedError(
-        'unknown_permission_failure',
-        'These Guardian Mode preferences could not be updated.',
-      );
-    }
-  }
-
-  Future<void> setTeenPause(
-    String teenId,
-    bool paused, {
-    String? reason,
-  }) async {
-    await client.rpc(
-      'set_teen_pause',
-      params: {'p_teen_id': teenId, 'p_paused': paused, 'p_reason': reason},
+    _requireSuccess(
+      await client.rpc(
+        'set_guardian_alert_preferences',
+        params: {
+          'p_link_id': linkId,
+          'p_safety_ping_alerts': safetyPingAlerts,
+          'p_job_checkin_alerts': jobCheckinAlerts,
+          'p_accepted_job_summary': acceptedJobSummary,
+          'p_safety_warning_alerts': safetyWarningAlerts,
+          'p_weekly_digest': weeklyDigest,
+          'p_optional_job_approval_enabled': optionalJobApprovalEnabled,
+        },
+      ),
     );
   }
 
   Future<List<Map<String, dynamic>>> listConnections() async {
     requireUserId();
     final rows = await client
-        .from('guardian_connections')
-        .select(
-          '*, guardian_preferences(*), teen:profiles!guardian_connections_teen_id_fkey(id,display_name,avatar_path), guardian:profiles!guardian_connections_guardian_id_fkey(id,display_name,avatar_path)',
-        )
+        .from('guardian_links')
+        .select('*, guardian_preferences(*)')
         .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(rows as List);
   }

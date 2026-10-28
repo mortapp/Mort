@@ -7,7 +7,6 @@ import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/repositories/providers.dart';
-import '../profile/profile_avatar_widgets.dart';
 
 class GuardianOptionalOnboardingScreen extends ConsumerStatefulWidget {
   const GuardianOptionalOnboardingScreen({super.key});
@@ -303,7 +302,7 @@ class _GuardianModeScreenState extends ConsumerState<GuardianModeScreen> {
           ),
           const SizedBox(height: MortSpacing.sm),
           MortButton(
-            label: 'Create guardian invite',
+            label: 'Create or replace guardian invite',
             icon: Icons.person_add_alt_1,
             busy: _busy,
             onPressed: () => _run(() async {
@@ -314,6 +313,11 @@ class _GuardianModeScreenState extends ConsumerState<GuardianModeScreen> {
                 await _showCode(result['invite_code'] as String?);
               }
             }, 'Guardian invite created.'),
+          ),
+          const SizedBox(height: MortSpacing.xs),
+          Text(
+            'Creating a replacement invalidates any earlier pending invite.',
+            style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
         if (profile?.isGuardian == true) ...[
@@ -372,14 +376,6 @@ class _GuardianModeScreenState extends ConsumerState<GuardianModeScreen> {
                           .cancelInvite(row['id'].toString()),
                       'Invitation canceled.',
                     ),
-                    onResend: () => _run(() async {
-                      final result = await ref
-                          .read(guardianRepositoryProvider)
-                          .resendInvite(row['id'].toString());
-                      if (mounted) {
-                        await _showCode(result['invite_code'] as String?);
-                      }
-                    }, 'Invitation renewed.'),
                   ),
                   const SizedBox(height: MortSpacing.sm),
                 ],
@@ -463,7 +459,6 @@ class _GuardianConnectionCard extends StatelessWidget {
     required this.busy,
     required this.onUnlink,
     required this.onCancel,
-    required this.onResend,
   });
 
   final Map<String, dynamic> row;
@@ -471,38 +466,31 @@ class _GuardianConnectionCard extends StatelessWidget {
   final bool busy;
   final VoidCallback onUnlink;
   final VoidCallback onCancel;
-  final VoidCallback onResend;
 
   @override
   Widget build(BuildContext context) {
     final status = row['status']?.toString() ?? 'unknown';
-    final guardian = row['guardian'];
-    final teen = row['teen'];
-    final person = isTeen ? guardian : teen;
-    final name = person is Map ? person['display_name']?.toString() : null;
-    final personId = person is Map ? person['id']?.toString() : null;
-    final avatarPath = person is Map ? person['avatar_path']?.toString() : null;
-    final accepted = DateTime.tryParse((row['accepted_at'] ?? '').toString());
+    final linkedAt = status == 'active'
+        ? DateTime.tryParse(
+            (row['guardian_consent_at'] ?? row['teen_consent_at'] ?? '')
+                .toString(),
+          )
+        : null;
+    final title = switch (status) {
+      'pending' => 'Invite pending',
+      'active' => isTeen ? 'Guardian linked' : 'Teen linked',
+      'revoked' => 'Link ended',
+      _ => 'Guardian link',
+    };
     return MortCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              if (personId != null)
-                ProfileAvatarView(
-                  profileId: personId,
-                  avatarPath: avatarPath,
-                  fallbackLabel: name ?? 'Guardian link',
-                  radius: 24,
-                ),
-              if (personId != null) const SizedBox(width: MortSpacing.sm),
               Expanded(
                 child: Text(
-                  name ??
-                      (status == 'invited'
-                          ? 'Invite pending'
-                          : 'Guardian link'),
+                  title,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
@@ -510,18 +498,11 @@ class _GuardianConnectionCard extends StatelessWidget {
           ),
           const SizedBox(height: MortSpacing.xs),
           MortBadge(label: status.replaceAll('_', ' ')),
-          if (row['relationship'] != null) Text(row['relationship'].toString()),
-          if (accepted != null) Text('Linked ${accepted.toLocal()}'),
+          if (linkedAt != null) Text('Consent recorded ${linkedAt.toLocal()}'),
           const SizedBox(height: MortSpacing.sm),
           MortActionRow(
-            actions: status == 'invited' && isTeen
+            actions: status == 'pending' && isTeen
                 ? [
-                    MortAction(
-                      label: 'Resend invitation',
-                      icon: Icons.refresh,
-                      busy: busy,
-                      onPressed: onResend,
-                    ),
                     MortAction(
                       label: 'Cancel invitation',
                       icon: Icons.cancel_outlined,
