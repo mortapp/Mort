@@ -578,10 +578,9 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
       );
       actions.add(
         MortAction(
-          label: 'Start job',
-          icon: Icons.play_arrow,
-          busy: busy,
-          onPressed: () => onStatus('in_progress'),
+          label: 'Review job agreement',
+          icon: Icons.description_outlined,
+          onPressed: () => context.push('/contracts'),
         ),
       );
     }

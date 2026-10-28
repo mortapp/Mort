@@ -9,6 +9,9 @@ import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/features/jobs/application_screens.dart';
 
 class _FakeApplicationsRepository extends ApplicationsRepository {
+  _FakeApplicationsRepository({this.status = 'submitted'});
+
+  final String status;
   final List<Map<String, Object?>> recordedCalls = [];
   final List<String> statusEventCalls = [];
 
@@ -22,7 +25,7 @@ class _FakeApplicationsRepository extends ApplicationsRepository {
       id: applicationId,
       jobId: 'job-1',
       teenId: 'teen-1',
-      status: 'submitted',
+      status: status,
       note: 'Test note',
       guardianId: 'guardian-1',
       job: const Job(
@@ -82,6 +85,20 @@ void main() {
     expect(find.text('Application details'), findsOneWidget);
     expect(find.text('Test job'), findsOneWidget);
   });
+
+  testWidgets(
+    'accepted teen reviews the backend agreement before job execution',
+    (tester) async {
+      final repository = _FakeApplicationsRepository(status: 'accepted');
+      await tester.pumpWidget(
+        _app(view: ApplicationView.teen, repository: repository),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Review job agreement'), findsOneWidget);
+      expect(find.text('Start job'), findsNothing);
+    },
+  );
 
   testWidgets('loads adult application details with adult role', (
     tester,
