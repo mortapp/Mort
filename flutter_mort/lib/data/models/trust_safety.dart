@@ -87,6 +87,14 @@ class IdentityVerificationStatus {
   final String? failureCode;
   final String? privacyNoticeVersion;
   final List<Map<String, dynamic>> evidenceTypes;
+
+  /// A production handoff is available only when every live backend gate
+  /// agrees and the app itself is not configured to collect identity images.
+  bool get canStartProductionSession =>
+      verificationMode == 'production' &&
+      submissionsEnabled &&
+      productionProviderAvailable &&
+      !documentsCollectedByMort;
 }
 
 class SafetyIncidentSummary {

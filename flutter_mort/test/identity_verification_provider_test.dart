@@ -46,6 +46,20 @@ void main() {
     expect(sandbox, isA<SandboxVerificationProvider>());
   });
 
+  test('production provider stays disabled when submissions are off', () {
+    final provider = providerForStatus(
+      status(
+        mode: 'production',
+        submissionsEnabled: false,
+        productionProviderAvailable: true,
+      ),
+      createSandboxSession: () async => <String, dynamic>{},
+      createProductionSession: () async => <String, dynamic>{},
+    );
+
+    expect(provider, isA<DisabledVerificationProvider>());
+  });
+
   test('production provider accepts only an expiring HTTPS handoff', () async {
     final provider = HostedProductionVerificationProvider(
       () async => {
@@ -89,6 +103,8 @@ void main() {
 IdentityVerificationStatus status({
   required String mode,
   bool sandboxEligible = false,
+  bool? submissionsEnabled,
+  bool productionProviderAvailable = false,
 }) {
   return IdentityVerificationStatus.fromMap({
     'status': 'unverified',
@@ -99,7 +115,7 @@ IdentityVerificationStatus status({
     'production_verified': false,
     'sandbox_eligible': sandboxEligible,
     'test_mode': mode == 'sandbox',
-    'submissions_enabled': sandboxEligible,
-    'production_provider_available': false,
+    'submissions_enabled': submissionsEnabled ?? sandboxEligible,
+    'production_provider_available': productionProviderAvailable,
   });
 }

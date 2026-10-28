@@ -171,8 +171,7 @@ IdentityVerificationProvider providerForStatus(
   if (status.verificationMode == 'sandbox' && status.sandboxEligible) {
     return SandboxVerificationProvider(createSandboxSession);
   }
-  if (status.verificationMode == 'production' &&
-      status.productionProviderAvailable) {
+  if (status.canStartProductionSession) {
     return HostedProductionVerificationProvider(createProductionSession);
   }
   return const DisabledVerificationProvider();

@@ -181,7 +181,7 @@ class _IdentityVerificationScreenState
         ],
       );
     }
-    if (!status.productionProviderAvailable) {
+    if (!status.canStartProductionSession) {
       return const _SafetyNotice(
         title: 'Production provider unavailable',
         message:
