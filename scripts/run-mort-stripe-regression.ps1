@@ -116,8 +116,8 @@ try {
     & node (Join-Path $PSScriptRoot 'qa-stripe-pre-provider-gate.mjs')
   }
 
-  Invoke-Step 'Stripe Edge Function Deno tests' 'deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests' {
-    & deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests
+  Invoke-Step 'Stripe Edge Function Deno tests' 'deno test --node-modules-dir=auto --allow-read --allow-env --allow-run=docker supabase/functions/_tests' {
+    & deno test --node-modules-dir=auto --allow-read --allow-env --allow-run=docker supabase/functions/_tests
   }
 
   if (-not [string]::IsNullOrWhiteSpace($env:SUPABASE_ACCESS_TOKEN)) {
