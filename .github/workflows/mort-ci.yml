@@ -276,6 +276,9 @@ jobs:
           flutter-version: 3.47.2
           cache: true
       - shell: pwsh
+        env:
+          SUPABASE_URL: https://jxbnrkasktbhtiujkhay.supabase.co
+          SUPABASE_ANON_KEY: ${{ vars.MORT_SUPABASE_ANON_KEY }}
         run: ./scripts/build-android-device-test-apk.ps1
       - uses: actions/upload-artifact@v4
         with:
