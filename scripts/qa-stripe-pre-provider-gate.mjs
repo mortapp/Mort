@@ -6,7 +6,7 @@ import {
   extractAllowlistedSecretNames,
 } from "./stripe-pre-provider-gate-core.mjs";
 
-const projectRef = "rakjydmgwwgtdislanbt";
+const projectRef = "jxbnrkasktbhtiujkhay";
 const webhookUrl = `https://${projectRef}.supabase.co/functions/v1/stripe-webhook`;
 const fixedNow = new Date("2026-09-18T12:00:00.000Z");
 

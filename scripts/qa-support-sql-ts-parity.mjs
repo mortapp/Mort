@@ -10,7 +10,7 @@ import {
 } from "../supabase/functions/_shared/support_eval_cases.ts";
 import { localClassification } from "../supabase/functions/_shared/support_runtime.ts";
 
-const projectRef = "rakjydmgwwgtdislanbt";
+const projectRef = "jxbnrkasktbhtiujkhay";
 const dbPassword = Deno.env.get("SUPABASE_DB_PASSWORD");
 const remoteOnly = Deno.args.includes("--remote");
 const migrationPaths = Deno.args

@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 
-const projectRef = "rakjydmgwwgtdislanbt";
+const projectRef = "jxbnrkasktbhtiujkhay";
 const providerFoundationMigration = "20260718051719";
 const password = process.env.SUPABASE_DB_PASSWORD;
 

@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 
 export const root = resolve(import.meta.dirname, '..');
-export const projectUrl = 'https://rakjydmgwwgtdislanbt.supabase.co';
+export const projectUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co';
 
 export function read(relative) {
   return readFileSync(resolve(root, relative), 'utf8');
