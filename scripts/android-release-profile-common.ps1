@@ -83,8 +83,10 @@ Set-MortUploadSigningEnvironment $signing
 $keytool = (Get-Command keytool -ErrorAction Stop).Source
 $previousPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
-$certificateOutput = & $keytool -list -v -keystore $signing.StorePath `
-  -storepass $signing.StorePassword -alias $signing.Alias 2>&1
+$certificateOutput = Get-MortUploadCertificateOutput `
+  -KeytoolPath $keytool `
+  -StorePath $signing.StorePath `
+  -Alias $signing.Alias 2>&1
 $certificateExitCode = $LASTEXITCODE
 $ErrorActionPreference = $previousPreference
 if ($certificateExitCode -ne 0) { throw 'The upload certificate could not be inspected.' }

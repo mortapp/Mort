@@ -73,6 +73,21 @@ function Set-MortUploadSigningEnvironment {
   $env:MORT_UPLOAD_KEY_PASSWORD = $Signing.KeyPassword
 }
 
+function Get-MortUploadCertificateOutput {
+  param(
+    [Parameter(Mandatory)][string]$KeytoolPath,
+    [Parameter(Mandatory)][string]$StorePath,
+    [Parameter(Mandatory)][string]$Alias
+  )
+
+  if ([string]::IsNullOrWhiteSpace($env:MORT_UPLOAD_STORE_PASSWORD)) {
+    throw 'The protected upload-store password is unavailable to keytool.'
+  }
+
+  & $KeytoolPath -list -v -keystore $StorePath `
+    -storepass:env MORT_UPLOAD_STORE_PASSWORD -alias $Alias
+}
+
 function Get-MortPublicConfigValue {
   param(
     [Parameter(Mandatory)][string]$PrimaryName,
