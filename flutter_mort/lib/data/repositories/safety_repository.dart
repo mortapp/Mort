@@ -4,6 +4,38 @@ import 'repository_base.dart';
 
 class SafetyRepository extends RepositoryBase {
   static const _uuid = Uuid();
+  static const _highSeverityReasons = {
+    'grooming_exploitation',
+    'sexual_content',
+    'private_images',
+    'stalking',
+    'threats',
+    'weapons_substances',
+  };
+
+  static String reportCategoryForReason(String reason) => switch (reason) {
+    'harassment' => 'harassment',
+    'scam' => 'scam',
+    'grooming_exploitation' => 'underage_concern',
+    'privacy' => 'privacy',
+    'unsafe_job' => 'unsafe_meeting',
+    'threats' ||
+    'stalking' ||
+    'contact_sharing' ||
+    'sexual_content' ||
+    'private_images' ||
+    'weapons_substances' => 'inappropriate_content',
+    _ => 'other',
+  };
+
+  static String reportSeverityForReason(
+    String reason, {
+    required bool immediateDanger,
+  }) => immediateDanger
+      ? 'critical'
+      : _highSeverityReasons.contains(reason)
+      ? 'high'
+      : 'normal';
 
   Map<String, dynamic> _requireSuccess(dynamic value, String fallback) {
     if (value is Map && value['ok'] == true) {
@@ -27,29 +59,7 @@ class SafetyRepository extends RepositoryBase {
     String? clientRequestId,
   }) async {
     requireUserId();
-    final category = switch (reason) {
-      'harassment' => 'harassment',
-      'threats' => 'threats',
-      'stalking' => 'stalking',
-      'scam' => 'scam',
-      'grooming_exploitation' => 'child_safety_concern',
-      'privacy' => 'personal_information_request',
-      'discrimination' => 'discrimination',
-      'unsafe_job' => 'unsafe_job_conditions',
-      'contact_sharing' => 'off_platform_pressure',
-      'sexual_content' => 'sexual_conduct',
-      'private_images' => 'inappropriate_images',
-      'weapons_substances' => 'weapons',
-      _ => 'other_urgent_concern',
-    };
-    final highSeverity = {
-      'child_safety_concern',
-      'sexual_conduct',
-      'inappropriate_images',
-      'stalking',
-      'threats',
-      'weapons',
-    }.contains(category);
+    final category = reportCategoryForReason(reason);
     final value = await client.rpc(
       'submit_safety_report_v2',
       params: {
@@ -59,11 +69,10 @@ class SafetyRepository extends RepositoryBase {
         'p_target_review_id': targetReviewId,
         'p_application_id': null,
         'p_category': category,
-        'p_severity': immediateDanger
-            ? 'critical'
-            : highSeverity
-            ? 'high'
-            : 'moderate',
+        'p_severity': reportSeverityForReason(
+          reason,
+          immediateDanger: immediateDanger,
+        ),
         'p_immediate_danger': immediateDanger,
         'p_details': details.trim(),
         'p_occurred_at': null,
@@ -80,28 +89,26 @@ class SafetyRepository extends RepositoryBase {
     return _requireSuccess(value, 'Report failed');
   }
 
-  Future<Map<String, dynamic>> blockUser(
-    String blockedId, {
-    String? clientRequestId,
-  }) async {
-    requireUserId();
-    final value = await client.rpc(
-      'block_user_v2',
-      params: {
-        'p_blocked_id': blockedId,
-        'p_client_request_id': clientRequestId ?? _uuid.v4(),
-      },
-    );
-    return _requireSuccess(value, 'Block failed');
+  Future<Map<String, dynamic>> blockUser(String blockedId) async {
+    final userId = requireUserId();
+    await client
+        .from('user_blocks')
+        .upsert(
+          {'blocker_id': userId, 'blocked_id': blockedId},
+          onConflict: 'blocker_id,blocked_id',
+          ignoreDuplicates: true,
+        );
+    return {'ok': true, 'blocked_id': blockedId};
   }
 
   Future<bool> unblockUser(String blockedId) async {
-    requireUserId();
-    final value = await client.rpc(
-      'unblock_user',
-      params: {'p_blocked_id': blockedId},
-    );
-    return _requireSuccess(value, 'Unblock failed')['removed'] == true;
+    final userId = requireUserId();
+    await client
+        .from('user_blocks')
+        .delete()
+        .eq('blocker_id', userId)
+        .eq('blocked_id', blockedId);
+    return true;
   }
 
   Future<Map<String, dynamic>> createSafetyPing({
@@ -171,7 +178,7 @@ class SafetyRepository extends RepositoryBase {
 
   Future<List<Map<String, dynamic>>> listBlockedUsers() async {
     final rows = await client
-        .from('blocks')
+        .from('user_blocks')
         .select()
         .eq('blocker_id', requireUserId())
         .order('created_at', ascending: false);
@@ -180,8 +187,8 @@ class SafetyRepository extends RepositoryBase {
 
   Future<List<Map<String, dynamic>>> listMyReports() async {
     final rows = await client
-        .from('reports')
-        .select('id,reason,status,created_at')
+        .from('safety_reports')
+        .select('id,reason:category,status,created_at')
         .eq('reporter_id', requireUserId())
         .order('created_at', ascending: false)
         .limit(50);
