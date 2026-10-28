@@ -149,7 +149,7 @@
       "productionActivationApproved": true,
       "supportRoute": "/support",
       "adminRoute": "/admin/home",
-      "termsVersion": "owner-approval-required",
+      "termsVersion": "MORT-LEGAL-2026-V1",
       "privacyVersion": "owner-approval-required",
       "communityGuidelinesVersion": "owner-approval-required",
       "safetyRulesVersion": "owner-approval-required",

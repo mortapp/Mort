@@ -23,8 +23,8 @@ Set-StrictMode -Version Latest
 $root = Split-Path $PSScriptRoot -Parent
 $flutterRoot = Join-Path $root 'flutter_mort'
 $outputDirectory = Join-Path $root 'build\play'
-$expectedUrl = 'https://rakjydmgwwgtdislanbt.supabase.co'
-$expectedProjectRef = 'rakjydmgwwgtdislanbt'
+$expectedUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co'
+$expectedProjectRef = 'jxbnrkasktbhtiujkhay'
 $expectedAuthRedirectUrl = 'com.mortapp.mobile://app/auth-callback'
 $expectedCertificateSha256 = Get-MortUploadCertificateSha256
 $defineFile = $null

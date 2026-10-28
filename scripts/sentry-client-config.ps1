@@ -3,6 +3,17 @@ function Get-MortSentryClientDsn {
   param([bool]$Required = $false)
   $value = [Environment]::GetEnvironmentVariable('SENTRY_DSN', 'Process')
   if ([string]::IsNullOrWhiteSpace($value)) {
+    $configPath = Join-Path $env:USERPROFILE 'OneDrive\Documents\mort credientals\sentry.env'
+    if (Test-Path -LiteralPath $configPath -PathType Leaf) {
+      foreach ($line in Get-Content -LiteralPath $configPath) {
+        if ($line -match '^\s*SENTRY_DSN\s*=\s*(.*?)\s*$') {
+          $value = $Matches[1].Trim().Trim('"').Trim("'")
+          break
+        }
+      }
+    }
+  }
+  if ([string]::IsNullOrWhiteSpace($value)) {
     if ($Required) { throw 'SENTRY_DSN is required when crash reporting is enabled.' }
     return ''
   }

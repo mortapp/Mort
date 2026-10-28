@@ -23,7 +23,7 @@ void main() {
     final config = _read('lib/core/config/app_config.dart');
     final main = _read('lib/main.dart');
 
-    expect(AppConfig.expectedSupabaseProjectRef, 'rakjydmgwwgtdislanbt');
+    expect(AppConfig.expectedSupabaseProjectRef, 'jxbnrkasktbhtiujkhay');
     expect(config, contains('assertValidReleaseConfiguration'));
     expect(
       config,
@@ -37,6 +37,39 @@ void main() {
     expect(main, contains('return reporter.providerConfigured'));
     expect(main, contains('FlutterError.presentError'));
   });
+
+  test(
+    'Android production build scripts target the approved Supabase project',
+    () {
+      final profileBuild = _read(
+        '../scripts/android-release-profile-common.ps1',
+      );
+      final playBuild = _read('../scripts/build-play-console-aab.ps1');
+      final deviceBuild = _read('../scripts/build-android-device-test-apk.ps1');
+      final publicConfigLoader = _read('../scripts/android-signing-common.ps1');
+      final sentryConfigLoader = _read('../scripts/sentry-client-config.ps1');
+
+      expect(
+        profileBuild,
+        contains('https://jxbnrkasktbhtiujkhay.supabase.co'),
+      );
+      expect(
+        profileBuild,
+        contains(r"$expectedProjectRef = 'jxbnrkasktbhtiujkhay'"),
+      );
+      expect(playBuild, contains('https://jxbnrkasktbhtiujkhay.supabase.co'));
+      expect(deviceBuild, contains('https://jxbnrkasktbhtiujkhay.supabase.co'));
+      expect(
+        deviceBuild,
+        contains('MORT_SUPABASE_PROJECT_REF=jxbnrkasktbhtiujkhay'),
+      );
+      expect(
+        publicConfigLoader,
+        contains(r'mort credientals\supabase-public.env'),
+      );
+      expect(sentryConfigLoader, contains(r'mort credientals\sentry.env'));
+    },
+  );
 
   test(
     'reviewer routes are compile-gated and production scripts exclude them',

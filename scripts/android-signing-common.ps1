@@ -80,15 +80,26 @@ function Get-MortPublicConfigValue {
     [Parameter(Mandatory)][string]$Root
   )
 
-  foreach ($scope in @('Process', 'User')) {
-    foreach ($name in @($PrimaryName, $ExpoName)) {
-      $value = [Environment]::GetEnvironmentVariable($name, $scope)
-      if (-not [string]::IsNullOrWhiteSpace($value)) { return $value.Trim() }
+  $credentialPath = Join-Path $env:USERPROFILE 'OneDrive\Documents\mort credientals\supabase-public.env'
+  if (Test-Path -LiteralPath $credentialPath -PathType Leaf) {
+    foreach ($line in Get-Content -LiteralPath $credentialPath) {
+      if ($line -match '^\s*([^#=]+)\s*=\s*(.*)\s*$') {
+        $name = $Matches[1].Trim()
+        $value = $Matches[2].Trim().Trim('"').Trim("'")
+        if ($name -in @($PrimaryName, $ExpoName) -and -not [string]::IsNullOrWhiteSpace($value)) {
+          return $value
+        }
+      }
     }
   }
 
+  foreach ($name in @($PrimaryName, $ExpoName)) {
+    $value = [Environment]::GetEnvironmentVariable($name, 'Process')
+    if (-not [string]::IsNullOrWhiteSpace($value)) { return $value.Trim() }
+  }
+
   $envPath = Join-Path $Root '.env.local'
-  if (Test-Path -LiteralPath $envPath) {
+  if (Test-Path -LiteralPath $envPath -PathType Leaf) {
     foreach ($line in Get-Content -LiteralPath $envPath) {
       if ($line -match '^\s*([^#=]+)\s*=\s*(.*)\s*$') {
         $name = $Matches[1].Trim()
@@ -98,6 +109,11 @@ function Get-MortPublicConfigValue {
         }
       }
     }
+  }
+
+  foreach ($name in @($PrimaryName, $ExpoName)) {
+    $value = [Environment]::GetEnvironmentVariable($name, 'User')
+    if (-not [string]::IsNullOrWhiteSpace($value)) { return $value.Trim() }
   }
   return $null
 }
