@@ -17,6 +17,19 @@ class _NoPublishedLegalVersions extends LegalContractRepository {
   };
 }
 
+class _ProductionTrustStatus extends LegalContractRepository {
+  @override
+  Future<Map<String, dynamic>> firstPartyTrustStatus() async => const {
+    'ok': true,
+    'real_document_collection_enabled': false,
+    'external_web_reuse_enabled': false,
+    'real_live_presence_enabled': false,
+    'real_appearance_review_enabled': false,
+    'public_marketplace_open': true,
+    'guardian_mode_optional': true,
+  };
+}
+
 void main() {
   testWidgets('legal center describes the actual unpublished state', (
     tester,
@@ -71,6 +84,27 @@ void main() {
     );
     expect(finder, findsOneWidget);
     expect(tester.widget<MortButton>(finder).onPressed, isNull);
+  });
+
+  testWidgets('trust screen shows backend marketplace and provider states', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          legalContractRepositoryProvider.overrideWithValue(
+            _ProductionTrustStatus(),
+          ),
+        ],
+        child: const MaterialApp(home: TrustFoundationsScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Public marketplace'), findsOneWidget);
+    expect(find.text('Real document collection'), findsOneWidget);
+    expect(find.text('Enabled'), findsOneWidget);
+    expect(find.text('Disabled'), findsNWidgets(4));
   });
 
   test(
