@@ -1,5 +1,54 @@
 import '../../core/utils/formatters.dart';
 
+/// Stable contract between Flutter's display labels and the live job enum.
+class JobCategoryContract {
+  static const Map<String, String> _toBackend = {
+    'cleaning': 'household_help',
+    'lawn care': 'yard_work',
+    'dog walking': 'pet_care',
+    'pet care': 'pet_care',
+    'snow removal': 'yard_work',
+    'trash and recycling': 'household_help',
+    'moving/light lifting': 'moving_help',
+    'tutoring': 'tutoring',
+    'technology help': 'tech_help',
+    'organization': 'household_help',
+    'errands': 'other',
+    'event setup': 'other',
+    'car washing': 'other',
+    'painting/light maintenance': 'household_help',
+    'delivery where legally appropriate': 'other',
+    'other safe local work': 'other',
+  };
+
+  static const Map<String, String> _toDisplay = {
+    'yard_work': 'lawn care',
+    'pet_care': 'pet care',
+    'tutoring': 'tutoring',
+    'household_help': 'cleaning',
+    'moving_help': 'moving/light lifting',
+    'tech_help': 'technology help',
+    'other': 'other safe local work',
+  };
+
+  static String toBackend(String value) {
+    final normalized = value.trim().toLowerCase();
+    final result = _toBackend[normalized];
+    if (result == null) {
+      throw FormatException('Unsupported job category: $value');
+    }
+    return result;
+  }
+
+  static String? toBackendFilter(String? value) {
+    if (value == null || value.trim().isEmpty || value == 'All') return null;
+    return toBackend(value);
+  }
+
+  static String toDisplay(String value) =>
+      _toDisplay[value] ?? value.replaceAll('_', ' ');
+}
+
 class Job {
   const Job({
     required this.id,
@@ -159,7 +208,9 @@ class Job {
       title: (json['title'] as String?) ?? 'Untitled job',
       summary: json['summary'] as String?,
       description: (json['description'] as String?) ?? '',
-      category: (json['category'] as String?) ?? 'other safe local work',
+      category: JobCategoryContract.toDisplay(
+        (json['category'] as String?) ?? 'other',
+      ),
       locationText: (json['location_text'] as String?) ?? 'General area',
       city: (json['city'] as String?) ?? '',
       state: (json['state'] as String?) ?? '',

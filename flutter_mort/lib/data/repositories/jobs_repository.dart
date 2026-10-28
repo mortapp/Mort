@@ -92,7 +92,7 @@ class JobsRepository extends RepositoryBase {
         'list_open_jobs_page',
         params: {
           'p_keyword': filters.keyword.trim(),
-          'p_category': filters.category,
+          'p_category': JobCategoryContract.toBackendFilter(filters.category),
           'p_minimum_pay_cents': filters.minimumPayCents,
           'p_payment_type': filters.paymentType,
           'p_schedule_type': filters.scheduleType,
@@ -229,7 +229,10 @@ class JobsRepository extends RepositoryBase {
       params: {
         'p_job_id': draft.id,
         'p_client_request_id': draft.clientRequestId,
-        'p_payload': draft.toMap(),
+        'p_payload': {
+          ...draft.toMap(),
+          'category': JobCategoryContract.toBackend(draft.category),
+        },
         'p_publish': publish,
       },
     );
