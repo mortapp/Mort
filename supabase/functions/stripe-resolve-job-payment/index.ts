@@ -1,4 +1,14 @@
-import { assertUuid, authenticate, json, options, readJson, requireRateLimit, runtime, safeError } from "../_shared/stripe.ts";
+import {
+  assertUuid,
+  authenticate,
+  json,
+  options,
+  readJson,
+  requireRateLimit,
+  runtime,
+  safeError,
+} from "../_shared/stripe.ts";
+import { executeResolutionOperations } from "./resolution_operations.ts";
 
 type ResolutionRequest = {
   action?: unknown;
@@ -8,10 +18,28 @@ type ResolutionRequest = {
   request_id?: unknown;
 };
 
+function providerOperationStatus(
+  value: unknown,
+  amountCents: number,
+): "not_required" | "pending" | "succeeded" | "failed" | "unknown" {
+  if (amountCents <= 0) return "not_required";
+  switch (value) {
+    case "pending":
+    case "succeeded":
+    case "failed":
+    case "unknown":
+      return value;
+    default:
+      return "unknown";
+  }
+}
+
 Deno.serve(async (request: Request) => {
   const preflight = options(request);
   if (preflight) return preflight;
-  if (request.method !== "POST") return json({ ok: false, code: "post_required" }, 405);
+  if (request.method !== "POST") {
+    return json({ ok: false, code: "post_required" }, 405);
+  }
   try {
     const context = await authenticate(request);
     await requireRateLimit(context, "stripe_job_resolution");
@@ -58,67 +86,106 @@ Deno.serve(async (request: Request) => {
     }
 
     const resolutionId = assertUuid(payload.resolution_id, "resolution_id");
-    const { data: prepared, error: prepareError } = await context.serviceClient.rpc(
-      "stripe_server_load_resolution_for_execution",
-      {
-        p_actor_id: context.user.id,
-        p_resolution_id: resolutionId,
-        p_environment: stripeRuntime.environment,
-        p_request_id: requestId,
-      },
-    );
+    const { data: prepared, error: prepareError } = await context.serviceClient
+      .rpc(
+        "stripe_server_load_resolution_for_execution",
+        {
+          p_actor_id: context.user.id,
+          p_resolution_id: resolutionId,
+          p_environment: stripeRuntime.environment,
+          p_request_id: requestId,
+        },
+      );
     if (prepareError) throw prepareError;
     if (prepared.replayed === true) return json({ ok: true, ...prepared });
 
-    let transferId: string | null = null;
-    let refundId: string | null = null;
-    if (Number(prepared.transfer_amount_cents) > 0) {
-      const transfer = await stripeRuntime.stripe.transfers.create(
-        {
-          amount: Number(prepared.transfer_amount_cents),
-          currency: String(prepared.currency_code).toLowerCase(),
-          destination: String(prepared.provider_connected_account_id),
-          source_transaction: String(prepared.provider_source_charge_id),
-          metadata: {
-            mort_resolution_ref: resolutionId,
-            mort_environment: stripeRuntime.environment,
+    const result = await executeResolutionOperations({
+      transferAmountCents: Number(prepared.transfer_amount_cents),
+      refundAmountCents: Number(prepared.refund_amount_cents),
+      priorTransferStatus: providerOperationStatus(
+        prepared.transfer_status,
+        Number(prepared.transfer_amount_cents),
+      ),
+      priorRefundStatus: providerOperationStatus(
+        prepared.refund_status,
+        Number(prepared.refund_amount_cents),
+      ),
+      priorTransferId: typeof prepared.provider_transfer_id === "string"
+        ? prepared.provider_transfer_id
+        : null,
+      priorRefundId: typeof prepared.provider_refund_id === "string"
+        ? prepared.provider_refund_id
+        : null,
+      createTransfer: () =>
+        stripeRuntime.stripe.transfers.create(
+          {
+            amount: Number(prepared.transfer_amount_cents),
+            currency: String(prepared.currency_code).toLowerCase(),
+            destination: String(prepared.provider_connected_account_id),
+            source_transaction: String(prepared.provider_source_charge_id),
+            metadata: {
+              mort_resolution_ref: resolutionId,
+              mort_environment: stripeRuntime.environment,
+            },
           },
-        },
-        { idempotencyKey: String(prepared.transfer_idempotency_key) },
-      );
-      transferId = transfer.id;
-    }
-    if (Number(prepared.refund_amount_cents) > 0) {
-      const refund = await stripeRuntime.stripe.refunds.create(
-        {
-          payment_intent: String(prepared.provider_payment_intent_id),
-          amount: Number(prepared.refund_amount_cents),
-          metadata: {
-            mort_resolution_ref: resolutionId,
-            mort_environment: stripeRuntime.environment,
+          { idempotencyKey: String(prepared.transfer_idempotency_key) },
+        ),
+      createRefund: () =>
+        stripeRuntime.stripe.refunds.create(
+          {
+            payment_intent: String(prepared.provider_payment_intent_id),
+            amount: Number(prepared.refund_amount_cents),
+            metadata: {
+              mort_resolution_ref: resolutionId,
+              mort_environment: stripeRuntime.environment,
+            },
           },
-        },
-        { idempotencyKey: String(prepared.refund_idempotency_key) },
-      );
-      refundId = refund.id;
-    }
-    const { data: recorded, error: recordError } = await context.serviceClient.rpc(
-      "stripe_server_record_resolution_result",
-      {
-        p_resolution_id: resolutionId,
-        p_environment: stripeRuntime.environment,
-        p_provider_transfer_id: transferId,
-        p_provider_refund_id: refundId,
-        p_provider_status: "succeeded",
-        p_safe_failure_code: null,
+          { idempotencyKey: String(prepared.refund_idempotency_key) },
+        ),
+      recordOperation: async (
+        operation,
+        status,
+        providerObjectId,
+        safeFailureCode,
+      ) => {
+        const { error } = await context.serviceClient.rpc(
+          "stripe_server_record_resolution_operation_result",
+          {
+            p_resolution_id: resolutionId,
+            p_environment: stripeRuntime.environment,
+            p_operation: operation,
+            p_operation_status: status,
+            p_provider_object_id: providerObjectId,
+            p_safe_failure_code: safeFailureCode,
+          },
+        );
+        if (error) throw error;
       },
-    );
-    if (recordError) throw recordError;
+      finalize: async (
+        { transferId, refundId, providerStatus, safeFailureCode },
+      ) => {
+        const { data, error } = await context.serviceClient.rpc(
+          "stripe_server_record_resolution_result",
+          {
+            p_resolution_id: resolutionId,
+            p_environment: stripeRuntime.environment,
+            p_provider_transfer_id: transferId,
+            p_provider_refund_id: refundId,
+            p_provider_status: providerStatus,
+            p_safe_failure_code: safeFailureCode,
+          },
+        );
+        if (error) throw error;
+        return { status: String(data.status) };
+      },
+    });
     return json({
       ok: true,
       resolution_id: resolutionId,
-      status: recorded.status,
-      provider_operation_performed: true,
+      status: result.resolutionStatus,
+      transfer_status: result.transferStatus,
+      refund_status: result.refundStatus,
+      provider_operation_performed: result.providerOperationPerformed,
     });
   } catch (error) {
     return safeError(error);
