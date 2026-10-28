@@ -39,6 +39,15 @@ class _FakeNotificationsRepository extends NotificationsRepository {
 }
 
 void main() {
+  test('unknown push provider defaults to disabled, never FCM', () {
+    final status = PushRegistrationStatus.fromMap(const {
+      'remote_push_enabled': false,
+      'active_device_count': 0,
+    });
+
+    expect(status.provider, 'disabled');
+  });
+
   testWidgets('explains remote alerts are disabled and inbox updates remain', (
     tester,
   ) async {
