@@ -68,10 +68,30 @@ class _NotificationCenterScreenState
 
   Future<_NotificationSettingsSnapshot> _loadSettings() async {
     final repository = ref.read(notificationsRepositoryProvider);
+    final coordinator = PushNotificationCoordinator.instance;
+    if (!coordinator.configured) {
+      return const _NotificationSettingsSnapshot(
+        preferences: NotificationPreferences(
+          pushEnabled: false,
+          categories: {},
+          quietHoursEnabled: false,
+          quietStart: '21:00:00',
+          quietEnd: '07:00:00',
+          timezoneName: 'UTC',
+        ),
+        status: PushRegistrationStatus(
+          remotePushEnabled: false,
+          activeDeviceCount: 0,
+          provider: 'disabled',
+          providerDeliveryVerified: false,
+        ),
+        permission: RemotePushPermission.unavailable,
+      );
+    }
     return _NotificationSettingsSnapshot(
       preferences: await repository.getPreferences(),
       status: await repository.getPushStatus(),
-      permission: await PushNotificationCoordinator.instance.permissionStatus(),
+      permission: await coordinator.permissionStatus(),
     );
   }
 
@@ -122,7 +142,8 @@ class _NotificationCenterScreenState
   }
 
   Future<void> _setPushEnabled(bool enabled) async {
-    if (_settingsBusy) return;
+    if (_settingsBusy || !PushNotificationCoordinator.instance.configured)
+      return;
     if (enabled) {
       final current = await PushNotificationCoordinator.instance
           .permissionStatus();
@@ -175,7 +196,8 @@ class _NotificationCenterScreenState
   }
 
   Future<void> _savePreferences(NotificationPreferences preferences) async {
-    if (_settingsBusy) return;
+    if (_settingsBusy || !PushNotificationCoordinator.instance.configured)
+      return;
     setState(() => _settingsBusy = true);
     try {
       final timezone = await PushNotificationCoordinator.instance
@@ -356,6 +378,30 @@ class _NotificationCenterScreenState
     final preferences = snapshot.preferences;
     final coordinator = PushNotificationCoordinator.instance;
     final providerAvailable = coordinator.configured;
+    if (!providerAvailable) {
+      return MortCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Device alerts',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: MortSpacing.xs),
+            const Text(
+              'Remote alerts are disabled in this app. In-app updates remain available.',
+            ),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Remote alerts'),
+              subtitle: const Text('Disabled for this app'),
+              value: false,
+              onChanged: null,
+            ),
+          ],
+        ),
+      );
+    }
     return MortCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

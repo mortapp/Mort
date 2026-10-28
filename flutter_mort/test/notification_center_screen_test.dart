@@ -7,40 +7,46 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _FakeNotificationsRepository extends NotificationsRepository {
+  int getPreferencesCalls = 0;
+  int getPushStatusCalls = 0;
+
   @override
   Future<List<MortNotificationItem>> listMine() async => const [];
 
   @override
-  Future<NotificationPreferences> getPreferences() async =>
-      const NotificationPreferences(
-        pushEnabled: true,
-        categories: {},
-        quietHoursEnabled: false,
-        quietStart: '21:00:00',
-        quietEnd: '07:00:00',
-        timezoneName: 'UTC',
-      );
+  Future<NotificationPreferences> getPreferences() async {
+    getPreferencesCalls += 1;
+    return const NotificationPreferences(
+      pushEnabled: true,
+      categories: {},
+      quietHoursEnabled: false,
+      quietStart: '21:00:00',
+      quietEnd: '07:00:00',
+      timezoneName: 'UTC',
+    );
+  }
 
   @override
-  Future<PushRegistrationStatus> getPushStatus() async =>
-      const PushRegistrationStatus(
-        remotePushEnabled: false,
-        activeDeviceCount: 0,
-        provider: 'disabled',
-        providerDeliveryVerified: false,
-      );
+  Future<PushRegistrationStatus> getPushStatus() async {
+    getPushStatusCalls += 1;
+    return const PushRegistrationStatus(
+      remotePushEnabled: false,
+      activeDeviceCount: 0,
+      provider: 'disabled',
+      providerDeliveryVerified: false,
+    );
+  }
 }
 
 void main() {
   testWidgets('explains remote alerts are disabled and inbox updates remain', (
     tester,
   ) async {
+    final repository = _FakeNotificationsRepository();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          notificationsRepositoryProvider.overrideWith(
-            (ref) => _FakeNotificationsRepository(),
-          ),
+          notificationsRepositoryProvider.overrideWith((ref) => repository),
         ],
         child: const MaterialApp(home: NotificationCenterScreen()),
       ),
@@ -54,6 +60,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Disabled for this app'), findsOneWidget);
+    expect(repository.getPreferencesCalls, 0);
+    expect(repository.getPushStatusCalls, 0);
 
     final remoteAlertsSwitch = tester.widget<SwitchListTile>(
       find.byWidgetPredicate(

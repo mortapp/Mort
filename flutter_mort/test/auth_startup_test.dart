@@ -215,6 +215,14 @@ void main() {
         'account_status': 'active',
       };
       await startupFuture;
+      for (
+        var attempt = 0;
+        startup.snapshot.stage != MortAuthStartupStage.authenticated &&
+            attempt < 100;
+        attempt++
+      ) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
 
       expect(startup.snapshot.stage, MortAuthStartupStage.authenticated);
       expect(startup.snapshot.destination, '/adult/home');

@@ -68,7 +68,7 @@ class PushRegistrationStatus {
       PushRegistrationStatus(
         remotePushEnabled: map['remote_push_enabled'] == true,
         activeDeviceCount: (map['active_device_count'] as num?)?.toInt() ?? 0,
-        provider: map['provider']?.toString() ?? 'fcm',
+        provider: map['provider']?.toString() ?? 'disabled',
         providerDeliveryVerified: map['provider_delivery_verified'] == true,
       );
 }
