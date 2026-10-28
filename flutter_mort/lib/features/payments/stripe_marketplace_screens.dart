@@ -35,10 +35,16 @@ class _StripePayoutSetupScreenState
   }
 
   void _reload() {
-    _load = Future.wait([
-      ref.read(stripeMarketplaceRepositoryProvider).runtimeStatus(),
-      ref.read(stripeMarketplaceRepositoryProvider).payoutStatus(),
-    ]).then((values) => {'runtime': values[0], 'payout': values[1]});
+    _load = _loadPayoutStatus();
+  }
+
+  Future<Map<String, dynamic>> _loadPayoutStatus() async {
+    final repository = ref.read(stripeMarketplaceRepositoryProvider);
+    final runtime = await repository.runtimeStatus();
+    if (runtime['connected_onboarding_enabled'] != true) {
+      return {'runtime': runtime};
+    }
+    return {'runtime': runtime, 'payout': await repository.payoutStatus()};
   }
 
   Future<void> _startOnboarding() async {
@@ -114,8 +120,45 @@ class _StripePayoutSetupScreenState
               );
             }
             final runtime = snapshot.data?['runtime'] as Map<String, dynamic>;
-            final payout = snapshot.data?['payout'] as Map<String, dynamic>;
             final enabled = runtime['connected_onboarding_enabled'] == true;
+            if (!enabled) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const MortCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Payout setup is not available yet'),
+                        SizedBox(height: MortSpacing.sm),
+                        Text(
+                          'MORT has not enabled the Stripe payout provider. No payout account was created, and this app will not collect bank details.',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: MortSpacing.sm),
+                  MortButton(
+                    label: 'Open Stripe-hosted onboarding',
+                    icon: Icons.open_in_new,
+                    onPressed: null,
+                  ),
+                  const SizedBox(height: MortSpacing.sm),
+                  MortButton(
+                    label: 'Refresh payout status',
+                    icon: Icons.refresh,
+                    style: MortButtonStyle.secondary,
+                    onPressed: null,
+                  ),
+                  const SizedBox(height: MortSpacing.sm),
+                  const MortSafetyBanner(
+                    message:
+                        'Guardian Mode in MORT is optional and separate from any guardian or age requirement a payment provider may apply to a payout account.',
+                  ),
+                ],
+              );
+            }
+            final payout = snapshot.data?['payout'] as Map<String, dynamic>;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -135,7 +178,7 @@ class _StripePayoutSetupScreenState
                             ? 'Stripe reports this payout account can receive payouts.'
                             : enabled
                             ? 'Finish the Stripe-hosted requirements before a transfer can be requested.'
-                            : 'Sandbox onboarding is currently off. No payout account can be created.',
+                            : 'Stripe onboarding is disabled for production. No payout account can be created.',
                       ),
                       if (payout['guardian_requirement_status'] != null)
                         Text(
@@ -199,14 +242,19 @@ class _StripeJobFundingScreenState
   }
 
   void _reload() {
-    _load = Future.wait([
-      ref
-          .read(stripeMarketplaceRepositoryProvider)
-          .fundingPreview(widget.contractId),
-      ref
-          .read(stripeMarketplaceRepositoryProvider)
-          .paymentSummary(widget.contractId),
-    ]).then((values) => {'preview': values[0], 'summary': values[1]});
+    _load = _loadFundingStatus();
+  }
+
+  Future<Map<String, dynamic>> _loadFundingStatus() async {
+    final repository = ref.read(stripeMarketplaceRepositoryProvider);
+    final runtime = await repository.runtimeStatus();
+    final fundingEnabled =
+        runtime['payments_enabled'] == true &&
+        runtime['job_funding_enabled'] == true;
+    if (!fundingEnabled) return {'runtime': runtime};
+    final preview = await repository.fundingPreview(widget.contractId);
+    final summary = await repository.paymentSummary(widget.contractId);
+    return {'runtime': runtime, 'preview': preview, 'summary': summary};
   }
 
   Future<void> _fund() async {
@@ -265,9 +313,43 @@ class _StripeJobFundingScreenState
                 message: userFacingError(snapshot.error),
               );
             }
+            final runtime = snapshot.data?['runtime'] as Map<String, dynamic>;
+            final fundingEnabled =
+                runtime['payments_enabled'] == true &&
+                runtime['job_funding_enabled'] == true;
+            if (!fundingEnabled) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const MortCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Job funding is currently disabled'),
+                        SizedBox(height: MortSpacing.sm),
+                        Text(
+                          'MORT has not enabled its Stripe payment path. No charge can start from this screen.',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: MortSpacing.sm),
+                  MortButton(
+                    label: 'Open Stripe Payment Sheet',
+                    icon: Icons.lock_outline,
+                    onPressed: null,
+                  ),
+                  const SizedBox(height: MortSpacing.sm),
+                  const MortSafetyBanner(
+                    message:
+                        'MORT is not a bank or licensed escrow provider. Transfers, refunds, disputes, and payout timing depend on provider configuration, the accepted agreement, and authorized review.',
+                  ),
+                ],
+              );
+            }
             final preview = snapshot.data?['preview'] as Map<String, dynamic>;
             final summary = snapshot.data?['summary'] as Map<String, dynamic>;
-            final fundingEnabled = preview['funding_enabled'] == true;
+            final canFund = preview['funding_enabled'] == true;
             final nativeSupported =
                 AppConfig.supportsStripePaymentSheet && !kIsWeb;
             return Column(
@@ -313,7 +395,7 @@ class _StripeJobFundingScreenState
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
                   value: _savePaymentMethod,
-                  onChanged: fundingEnabled && nativeSupported && !_busy
+                  onChanged: canFund && nativeSupported && !_busy
                       ? (value) => setState(() => _savePaymentMethod = value)
                       : null,
                   title: const Text('Save payment method'),
@@ -324,7 +406,7 @@ class _StripeJobFundingScreenState
                 MortButton(
                   label: 'Open Stripe Payment Sheet',
                   icon: Icons.lock_outline,
-                  onPressed: fundingEnabled && nativeSupported && !_busy
+                  onPressed: canFund && nativeSupported && !_busy
                       ? _fund
                       : null,
                 ),
@@ -335,11 +417,11 @@ class _StripeJobFundingScreenState
                       'This build does not include Stripe Payment Sheet. No job funding can start from this app.',
                     ),
                   ),
-                if (!fundingEnabled)
+                if (!canFund)
                   const Padding(
                     padding: EdgeInsets.only(top: MortSpacing.sm),
                     child: Text(
-                      'Stripe job funding is off at the server. No live or sandbox charge can start.',
+                      'Stripe job funding is off at the server. No charge can start.',
                     ),
                   ),
                 if (_notice != null) ...[

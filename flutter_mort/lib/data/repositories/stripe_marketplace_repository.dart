@@ -202,7 +202,7 @@ class StripeMarketplaceRepository extends RepositoryBase {
     'stripe_server_not_configured' ||
     'stripe_job_funding_disabled' ||
     'stripe_connected_onboarding_disabled' =>
-      'Stripe sandbox setup is not enabled yet. No payment or payout account was created.',
+      'Stripe is not enabled for MORT production. No payment or payout account was created.',
     'sandbox_test_account_required' || 'sandbox_test_contract_required' =>
       'This sandbox action is limited to isolated MORT test accounts.',
     'rate_limit_exceeded' =>
