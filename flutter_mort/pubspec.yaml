@@ -54,8 +54,6 @@ dependencies:
   flutter_svg: ^2.3.0
   image: 4.9.1
   crypto: ^3.0.7
-  firebase_core: ^4.12.1
-  firebase_messaging: ^16.4.3
   flutter_timezone: ^5.1.0
   sentry_flutter: 9.25.0
   connectivity_plus: ^7.3.1

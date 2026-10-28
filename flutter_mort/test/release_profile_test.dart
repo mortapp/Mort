@@ -61,6 +61,16 @@ MortReleaseConfiguration configuration({
 }
 
 void main() {
+  test('remote push cannot be enabled without an approved provider', () {
+    expect(
+      configuration(
+        profile: MortReleaseProfile.development,
+        remotePushEnabled: true,
+      ).validationErrors,
+      contains('remote push has no approved provider in this build'),
+    );
+  });
+
   test('defines the six authoritative release profiles', () {
     expect(MortReleaseProfile.values.map((profile) => profile.value), [
       'development',
@@ -130,21 +140,24 @@ void main() {
     );
   });
 
-  test('production candidate requires push and crash while staying closed', () {
-    final invalid = configuration(
-      profile: MortReleaseProfile.productionCandidate,
-      releaseStage: 'production_pilot',
-    );
-    expect(invalid.validationErrors, isNotEmpty);
+  test(
+    'production candidate requires crash reporting while staying closed',
+    () {
+      final invalid = configuration(
+        profile: MortReleaseProfile.productionCandidate,
+        releaseStage: 'production_pilot',
+      );
+      expect(invalid.validationErrors, isNotEmpty);
 
-    final valid = configuration(
-      profile: MortReleaseProfile.productionCandidate,
-      releaseStage: 'production_pilot',
-      remotePushEnabled: true,
-      crashReportingEnabled: true,
-    );
-    expect(valid.validationErrors, isEmpty);
-  });
+      final valid = configuration(
+        profile: MortReleaseProfile.productionCandidate,
+        releaseStage: 'production_pilot',
+        remotePushEnabled: false,
+        crashReportingEnabled: true,
+      );
+      expect(valid.validationErrors, isEmpty);
+    },
+  );
 
   test(
     'production requires provider, server activation, and approved legal versions',
@@ -154,7 +167,7 @@ void main() {
         releaseStage: 'production_public',
         publicMarketplaceEnabled: true,
         identityVerificationEnabled: true,
-        remotePushEnabled: true,
+        remotePushEnabled: false,
         crashReportingEnabled: true,
         productionActivationApproved: true,
         termsVersion: 'terms-2026-08-approved',
@@ -169,7 +182,7 @@ void main() {
         releaseStage: 'production_public',
         publicMarketplaceEnabled: true,
         identityVerificationEnabled: true,
-        remotePushEnabled: true,
+        remotePushEnabled: false,
         crashReportingEnabled: true,
       );
       expect(invalid.validationErrors, isNotEmpty);
@@ -199,7 +212,7 @@ void main() {
         releaseStage: 'production_public',
         publicMarketplaceEnabled: true,
         identityVerificationEnabled: true,
-        remotePushEnabled: true,
+        remotePushEnabled: false,
         crashReportingEnabled: true,
         productionActivationApproved: true,
         adsEnabled: true,
@@ -213,7 +226,7 @@ void main() {
       final candidateWithAds = configuration(
         profile: MortReleaseProfile.productionCandidate,
         releaseStage: 'production_pilot',
-        remotePushEnabled: true,
+        remotePushEnabled: false,
         crashReportingEnabled: true,
         adsEnabled: true,
       );
@@ -245,7 +258,7 @@ void main() {
         releaseStage: 'production_public',
         publicMarketplaceEnabled: true,
         identityVerificationEnabled: true,
-        remotePushEnabled: true,
+        remotePushEnabled: false,
         crashReportingEnabled: true,
         productionActivationApproved: true,
         iapEnabled: true,

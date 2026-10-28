@@ -80,7 +80,7 @@ void main() {
     );
   });
 
-  test('Firebase notification requirements are enabled for release builds', () {
+  test('Android desugaring remains available for native plugins', () {
     expect(gradle, contains('isCoreLibraryDesugaringEnabled = true'));
     expect(
       gradle,
