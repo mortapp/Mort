@@ -334,7 +334,7 @@ void main() {
             ),
           )
           .maxLength,
-      8,
+      64,
     );
     final linkButton = find.ancestor(
       of: find.text('Link teen account'),
@@ -356,7 +356,7 @@ void main() {
     const inviteToken = 'B1C2D3E4';
     final guardianRepository = _FakeGuardianRepository()
       ..inviteCodeToReturn = inviteToken
-      ..deliveryToReturn = 'email_delivery_external_setup_required';
+      ..deliveryToReturn = 'share_code_with_guardian';
     await _pumpOnboarding(
       tester,
       repository: _SafetyStepProfileRepository(),
@@ -372,6 +372,90 @@ void main() {
     expect(find.byTooltip('Copy guardian invite code'), findsOneWidget);
     expect(find.textContaining('has not emailed'), findsWidgets);
   });
+
+  testWidgets('guardian onboarding accepts the full server invite code', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2408);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final guardianRepository = _FakeGuardianRepository();
+    await _pumpOnboarding(tester, guardianRepository: guardianRepository);
+
+    final today = DateTime.now();
+    final adultDob = DateOfBirthParser.display(
+      DateTime(today.year - 35, today.month, today.day),
+    );
+    await tester.enterText(find.byType(TextFormField).at(0), adultDob);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.widgetWithText(ChoiceChip, 'Supervise as guardian'),
+    );
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Supervise as guardian'));
+    await tester.enterText(find.byType(TextFormField).at(1), 'Morgan');
+    await tester.enterText(find.byType(TextFormField).at(2), 'morgan_guardian');
+    await tester.enterText(find.byType(TextFormField).at(3), 'Indianapolis');
+    await tester.enterText(find.byType(TextFormField).at(4), 'IN');
+    await tester.ensureVisible(find.text('Save account'));
+    await tester.tap(find.text('Save account'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save account').last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Save work preferences'));
+    await tester.tap(find.text('Save work preferences'));
+    await tester.pumpAndSettle();
+
+    const inviteCode =
+        'A1B2C3D4E5F60718293A4B5C6D7E8F90123456789ABCDEF00112233445566778';
+    final codeField = find.descendant(
+      of: find.byKey(const ValueKey('guardian-invite-code')),
+      matching: find.byType(TextFormField),
+    );
+    await tester.enterText(codeField, inviteCode);
+    await tester.pump();
+
+    expect(
+      tester.widget<TextFormField>(codeField).controller!.text,
+      inviteCode,
+    );
+    final linkButton = find.ancestor(
+      of: find.text('Link teen account'),
+      matching: find.byType(ElevatedButton),
+    );
+    expect(tester.widget<ElevatedButton>(linkButton).onPressed, isNotNull);
+    await tester.ensureVisible(find.text('Link teen account'));
+    await tester.tap(find.text('Link teen account'));
+    await tester.pumpAndSettle();
+
+    expect(guardianRepository.acceptedCode, inviteCode);
+  });
+
+  testWidgets(
+    'guardian invite claims email delivery only when server confirms it',
+    (tester) async {
+      final guardianRepository = _FakeGuardianRepository()
+        ..inviteCodeToReturn = 'A1B2C3D4'
+        ..deliveryToReturn = 'email_delivered';
+      await _pumpOnboarding(
+        tester,
+        repository: _SafetyStepProfileRepository(),
+        guardianRepository: guardianRepository,
+      );
+
+      await tester.enterText(
+        find.byType(TextFormField).first,
+        'guardian@example.com',
+      );
+      await tester.ensureVisible(find.text('Invite a guardian'));
+      await tester.tap(find.text('Invite a guardian'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('delivered an invite email'), findsOneWidget);
+      expect(find.textContaining('has not emailed'), findsNothing);
+    },
+  );
 
   testWidgets(
     'compact onboarding exposes exactly four primary production steps',

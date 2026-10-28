@@ -6,6 +6,7 @@ import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/widgets/mort_widgets.dart';
+import '../../data/repositories/guardian_repository.dart';
 import '../../data/repositories/providers.dart';
 
 class GuardianOptionalOnboardingScreen extends ConsumerStatefulWidget {
@@ -21,6 +22,7 @@ class _GuardianOptionalOnboardingScreenState
   final _email = TextEditingController();
   bool _busy = false;
   String? _inviteCode;
+  String? _inviteDelivery;
 
   @override
   void dispose() {
@@ -42,7 +44,10 @@ class _GuardianOptionalOnboardingScreenState
             preferences: const {'safety_setup_choice': 'configured'},
           );
       if (!mounted) return;
-      setState(() => _inviteCode = result['invite_code'] as String?);
+      setState(() {
+        _inviteCode = result['invite_code'] as String?;
+        _inviteDelivery = result['delivery'] as String?;
+      });
       ref.invalidate(currentProfileProvider);
       ref.invalidate(onboardingProgressProvider);
     } catch (error) {
@@ -149,8 +154,10 @@ class _GuardianOptionalOnboardingScreenState
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: MortSpacing.xs),
-                const Text(
-                  'Share this code directly with the guardian you trust. MORT stores only a secure hash of the code.',
+                Text(
+                  GuardianRepository.inviteEmailWasDelivered(_inviteDelivery)
+                      ? 'MORT delivered an invite email. You can also share this code directly. MORT stores only a secure hash of the code.'
+                      : 'Invite code created. MORT has not emailed this guardian. Share the code directly. MORT stores only a secure hash of the code.',
                 ),
               ],
             ),
@@ -172,7 +179,7 @@ class _GuardianOptionalOnboardingScreenState
                 onPressed: () => _invite(),
               ),
               MortAction(
-                label: 'Send an invite',
+                label: 'Create invite',
                 icon: Icons.mail_outline,
                 busy: _busy,
                 onPressed: () => _invite(includeEmail: true),
@@ -310,7 +317,12 @@ class _GuardianModeScreenState extends ConsumerState<GuardianModeScreen> {
                   .read(guardianRepositoryProvider)
                   .createInvite(email: _email.text.trim());
               if (mounted) {
-                await _showCode(result['invite_code'] as String?);
+                await _showCode(
+                  result['invite_code'] as String?,
+                  emailDelivered: GuardianRepository.inviteEmailWasDelivered(
+                    result['delivery'],
+                  ),
+                );
               }
             }, 'Guardian invite created.'),
           ),
@@ -407,12 +419,24 @@ class _GuardianModeScreenState extends ConsumerState<GuardianModeScreen> {
     );
   }
 
-  Future<void> _showCode(String? code) {
+  Future<void> _showCode(String? code, {required bool emailDelivered}) {
     return showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Guardian invite code'),
-        content: SelectableText(code ?? 'Invite created'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SelectableText(code ?? 'Invite created'),
+            const SizedBox(height: MortSpacing.sm),
+            Text(
+              emailDelivered
+                  ? 'MORT delivered an invite email.'
+                  : 'MORT has not emailed this guardian. Share the code directly.',
+            ),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

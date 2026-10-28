@@ -2,6 +2,9 @@ import '../../core/errors/mort_error.dart';
 import 'repository_base.dart';
 
 class GuardianRepository extends RepositoryBase {
+  static bool inviteEmailWasDelivered(Object? delivery) =>
+      delivery == 'email_delivered';
+
   static final _uuidPattern = RegExp(
     r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
     caseSensitive: false,

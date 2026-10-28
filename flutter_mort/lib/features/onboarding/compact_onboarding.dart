@@ -16,6 +16,7 @@ import '../../core/widgets/date_of_birth_field.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/onboarding_progress.dart';
 import '../../data/models/profile.dart';
+import '../../data/repositories/guardian_repository.dart';
 import '../../data/repositories/providers.dart';
 import '../../services/native_permissions_service.dart';
 import '../profile/profile_avatar_widgets.dart';
@@ -286,6 +287,9 @@ class _CompactOnboardingScreenState
       final result = await ref
           .read(guardianRepositoryProvider)
           .createInvite(email: email.isEmpty ? null : email);
+      final emailDelivered = GuardianRepository.inviteEmailWasDelivered(
+        result['delivery'],
+      );
       if (!mounted) return;
       setState(() {
         _guardianInviteCode = result['invite_code'] as String?;
@@ -294,9 +298,9 @@ class _CompactOnboardingScreenState
       });
       MortToast.show(
         context,
-        _guardianInviteDelivery == 'email_delivery_external_setup_required'
-            ? 'Code created. MORT has not emailed this guardian; share the code yourself.'
-            : 'Guardian code created. Share it yourself.',
+        emailDelivered
+            ? 'Guardian invitation email delivered.'
+            : 'Invite code created. MORT has not emailed this guardian; share the code directly.',
       );
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
@@ -324,8 +328,9 @@ class _CompactOnboardingScreenState
   String get _normalizedGuardianCode =>
       _guardianCode.text.replaceAll(RegExp(r'\s+'), '');
 
-  bool get _hasValidGuardianCode =>
-      RegExp(r'^[a-fA-F0-9]{8}$').hasMatch(_normalizedGuardianCode);
+  bool get _hasValidGuardianCode => RegExp(
+    r'^(?:[a-fA-F0-9]{8}|[a-fA-F0-9]{64})$',
+  ).hasMatch(_normalizedGuardianCode);
 
   Future<void> _linkTeenAccount() async {
     final code = _normalizedGuardianCode;
@@ -1081,10 +1086,11 @@ class _CompactOnboardingScreenState
                 children: [
                   Expanded(
                     child: SelectableText(
-                      _guardianInviteDelivery ==
-                              'email_delivery_external_setup_required'
-                          ? 'MORT has not emailed this guardian. Copy and share this code yourself:\n$_guardianInviteCode'
-                          : 'Guardian invite code. Copy and share it yourself:\n$_guardianInviteCode',
+                      GuardianRepository.inviteEmailWasDelivered(
+                            _guardianInviteDelivery,
+                          )
+                          ? 'MORT delivered an invite email. You can also share this code directly:\n$_guardianInviteCode'
+                          : 'Invite code created. MORT has not emailed this guardian. Copy and share this code directly:\n$_guardianInviteCode',
                     ),
                   ),
                   IconButton(
@@ -1139,10 +1145,10 @@ class _CompactOnboardingScreenState
             MortTextField(
               key: const ValueKey('guardian-invite-code'),
               label: 'Guardian invite code',
-              hint: 'Paste the 8-character code',
+              hint: 'Paste the 8- or 64-character invite code',
               controller: _guardianCode,
               enabled: !_guardianBusy,
-              maxLength: 8,
+              maxLength: 64,
               textCapitalization: TextCapitalization.characters,
               autocorrect: false,
               enableSuggestions: false,
