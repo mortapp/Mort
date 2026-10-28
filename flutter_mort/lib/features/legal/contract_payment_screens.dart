@@ -511,11 +511,25 @@ class PaymentStatusScreen extends ConsumerWidget {
 
   Future<Map<String, dynamic>> _load(WidgetRef ref) async {
     final repository = ref.read(legalContractRepositoryProvider);
+    final runtime = await ref
+        .read(stripeMarketplaceRepositoryProvider)
+        .runtimeStatus();
+    if (runtime['payments_enabled'] != true) {
+      return const {
+        'payments_enabled': false,
+        'obligations': <Map<String, dynamic>>[],
+        'disputes': <Map<String, dynamic>>[],
+      };
+    }
     final values = await Future.wait([
       repository.paymentObligations(contractId),
       repository.paymentDisputes(contractId),
     ]);
-    return {'obligations': values[0], 'disputes': values[1]};
+    return {
+      'payments_enabled': true,
+      'obligations': values[0],
+      'disputes': values[1],
+    };
   }
 
   @override
@@ -547,6 +561,13 @@ class PaymentStatusScreen extends ConsumerWidget {
             final disputes =
                 snapshot.data?['disputes'] as List<Map<String, dynamic>>? ??
                 const [];
+            if (snapshot.data?['payments_enabled'] != true) {
+              return const MortEmptyState(
+                title: 'Payment tracking is disabled',
+                message:
+                    'MORT has not enabled payment records or payment processing yet.',
+              );
+            }
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
