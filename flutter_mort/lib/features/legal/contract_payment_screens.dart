@@ -406,6 +406,7 @@ class _ContractChangeScreenState extends ConsumerState<ContractChangeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = ref.watch(currentProfileProvider).asData?.value?.id;
     final canSend =
         _understood &&
         _reason.text.trim().length >= 8 &&
@@ -472,7 +473,18 @@ class _ContractChangeScreenState extends ConsumerState<ContractChangeScreen> {
                           'Integrity protected until both parties respond.',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
-                        if (change['status'] == 'pending_both_parties') ...[
+                        if (change['status'] == 'pending_both_parties' &&
+                            (currentUserId == null ||
+                                change['requested_by'] == currentUserId))
+                          const Padding(
+                            padding: EdgeInsets.only(top: MortSpacing.sm),
+                            child: Text(
+                              'Waiting for the other party to respond.',
+                            ),
+                          ),
+                        if (change['status'] == 'pending_both_parties' &&
+                            currentUserId != null &&
+                            change['requested_by'] != currentUserId) ...[
                           const SizedBox(height: MortSpacing.sm),
                           MortButton(
                             label: 'Accept exact proposal',
