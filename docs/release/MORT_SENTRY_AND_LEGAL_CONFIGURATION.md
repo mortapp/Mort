@@ -6,7 +6,7 @@ Checked 2026-10-27. Applies only to the Flutter MORT app and Supabase project `j
 
 The existing Sentry Flutter provider receives `SENTRY_DSN` from the production build process environment through the temporary Dart define file. The shared builder requires a valid HTTPS client ingestion DSN when crash reporting is enabled. Never use a Sentry auth token as a client define. DSN values are not included in the build manifest or diagnostics. Sentry still strips message contents, requests, identities, and unsafe breadcrumbs through the existing event sanitizer.
 
-GitHub metadata inspection (names only): repository secrets are `BROWSERSTACK_ACCESS_KEY` and `BROWSERSTACK_USERNAME`; repository variables and Production environment secrets/variables are empty. `SENTRY_DSN` is missing from Production. No secret values were read, printed, or copied. A real project DSN and a device delivery check remain required.
+GitHub metadata inspection (names only): repository secrets are `BROWSERSTACK_ACCESS_KEY` and `BROWSERSTACK_USERNAME`. The Production environment has the non-secret `SUPABASE_URL` variable; its secrets and other variables are empty. `SENTRY_DSN` and the protected signing/Supabase client secrets are missing from Production. No secret values were read, printed, or copied. A real project DSN and a device delivery check remain required.
 
 Firebase dependencies, config fields, and the Flutter runtime path were removed at the owner's direction. No alternate push service exists in this Flutter app. Production profiles keep remote push disabled; requesting it fails configuration validation. Sentry supplies crash reporting only. In-app notifications remain independent of remote delivery.
 
