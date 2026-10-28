@@ -1,8 +1,11 @@
 # MORT Production Data Flow Map
 
-Audit date: 2026-08-29. Every entry is evidence-grounded (file paths cited); anything not directly verifiable from code is marked UNVERIFIED. "Dependency present" and "actively wired into the shipping build" are tracked separately — several integrations here are backend/SDK foundations that are **not yet reachable** in the current shipping build.
+Original audit date: 2026-08-29. The remote-push section was refreshed on
+2026-10-28; other integration and shipping-build claims remain historical and
+were not revalidated in that update. Entries distinguish dependencies from
+integrations that are actively wired into a build.
 
-## Ground truth: the current shipping release profile
+## Shipping profile snapshot from 2026-08-29
 
 The single most load-bearing fact for this whole document is `scripts/build-standard-closed-test-apk.ps1`, which is what `.github/workflows/mort-signed-closed-test.yml` actually builds today:
 
@@ -18,9 +21,15 @@ The single most load-bearing fact for this whole document is `scripts/build-stan
 -AdsEnabled $false
 ```
 
-`scripts/build-production-pilot-aab.ps1` (the next stage up) additionally hard-fails today because `flutter_mort/lib/core/observability/production_crash_provider.dart` and `flutter_mort/lib/features/notifications/remote_push_service.dart` do not exist in the repo — so even the pilot profile that would turn on push/crash/ads cannot currently build. `scripts/build-production-public-aab.ps1` unconditionally throws `BLOCKED-EXTERNAL: public production requires approved identity provider, legal terms, moderation operations, native QA, push/crash providers, and audited server activation.`
+The build-blocker statements below this snapshot are historical and should not
+be used as current release status. The current public-production build path is
+controlled by `scripts/build-production-public-aab.ps1` and its shared release
+gates; see `docs/MORT_RELEASE_PROFILE_MATRIX.md` for the current profile and
+remaining release blockers.
 
-That means, as of today, only Google Sign-In is actually active among the optional integrations below; everything else optional is off.
+As recorded in this 2026-08-29 snapshot, only Google Sign-In was active among
+the optional integrations described below; later profile states were not
+revalidated except where explicitly noted.
 
 ## Integrations
 
@@ -94,18 +103,18 @@ DELETION_BEHAVIOR=auth.identities has ON DELETE CASCADE from auth.users (verifie
 EVIDENCE=scripts/android-release-profile-common.ps1 GoogleAuthEnabled forbidden-secret guard, flutter_mort/lib/core/config/app_config.dart:187-188 (googleAuthEnabled = bool.fromEnvironment('GOOGLE_AUTH_ENABLED')), scripts/build-standard-closed-test-apk.ps1 (-GoogleAuthEnabled $true); NOT in flutter_mort/pubspec.yaml as a native SDK (no google_sign_in package) -- confirms it's the Supabase-brokered browser OAuth flow, not a native Google SDK integration
 ```
 
-### Firebase / FCM (push notifications)
+### Remote push notifications (disabled; Firebase is not used)
 ```
 ACTIVE_IN_PRODUCTION=NO
-DATA_SENT=none currently -- no push is sent
-PURPOSE=would be remote push notification delivery
-REQUIRED_OR_OPTIONAL=N/A (disabled)
-PROVIDER=Firebase / Google
-DISCLOSURE=not disclosed; would need disclosure once activated
-DATA_SAFETY_CATEGORY=Device or other IDs (push token) -- once active
+DATA_SENT=none by remote push; no remote notifications are sent
+PURPOSE=optional remote notification delivery, pending a provider decision
+REQUIRED_OR_OPTIONAL=optional; disabled
+PROVIDER=none selected; Firebase/FCM is not used by the Flutter app
+DISCLOSURE=remote delivery is unavailable; in-app notifications remain available
+DATA_SAFETY_CATEGORY=none for remote push while disabled
 RETENTION=N/A while inactive
-DELETION_BEHAVIOR=push_tokens table has ON DELETE CASCADE from profiles (verified), so tokens are removed on deletion whenever they exist
-EVIDENCE=firebase_core/firebase_messaging ARE in flutter_mort/pubspec.yaml, and supabase/migrations/20260730090000_fcm_remote_push_foundation.sql + 20260730091000_fcm_device_limit_hardening.sql build the full backend (push_tokens table, device-limit hardening) -- but: (1) no flutter_mort/android/app/google-services.json exists in the repo or is injected by any CI workflow or build script (grep across .github/workflows/*.yml and scripts/*.ps1 found zero references), so the Firebase SDK cannot initialize; (2) scripts/build-standard-closed-test-apk.ps1 passes -RemotePushEnabled $false for the actual current shipping build; (3) scripts/build-production-pilot-aab.ps1, which would set RemotePushEnabled=$true, hard-fails at the top because flutter_mort/lib/features/notifications/remote_push_service.dart does not exist. Net: this is a real, substantial backend foundation with no live client wiring yet.
+DELETION_BEHAVIOR=no Flutter remote-push token registration path is active
+EVIDENCE=Flutter has no Firebase SDK, native Firebase configuration, or runtime path. The production profile sets remote push false; Flutter release validation rejects enabling it without an approved provider. Remote push remains disabled until a non-Firebase provider is selected, implemented, and verified.
 ```
 
 ### RevenueCat
