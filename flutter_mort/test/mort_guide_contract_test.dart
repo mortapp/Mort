@@ -56,4 +56,21 @@ void main() {
       expect(router, contains("'/guide/history'"));
     },
   );
+
+  test('MORT Guide fails closed when its backend contract is unavailable', () {
+    final screen = _read('lib/features/guide/mort_guide_screens.dart');
+
+    expect(
+      screen,
+      contains("config['ok'] != true || config['mode'] == 'disabled'"),
+    );
+    expect(
+      screen,
+      contains(
+        'if (text.length < 3 || _sending || _loading || _error != null)',
+      ),
+    );
+    expect(screen, contains("if (_error == null) ...["));
+    expect(screen, contains('Your questions are not sent or stored.'));
+  });
 }

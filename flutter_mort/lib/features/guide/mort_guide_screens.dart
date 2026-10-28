@@ -86,6 +86,9 @@ class _MortGuideViewState extends ConsumerState<MortGuideView> {
     try {
       final repository = ref.read(mortGuideRepositoryProvider);
       final config = await repository.getConfig();
+      if (config['ok'] != true || config['mode'] == 'disabled') {
+        throw StateError('MORT Guide is unavailable.');
+      }
       final messages = _conversationId == null
           ? const <MortGuideMessage>[]
           : await repository.getMessages(_conversationId!);
@@ -108,7 +111,7 @@ class _MortGuideViewState extends ConsumerState<MortGuideView> {
 
   Future<void> _ask([String? suggested]) async {
     final text = (suggested ?? _question.text).trim();
-    if (text.length < 3 || _sending) return;
+    if (text.length < 3 || _sending || _loading || _error != null) return;
     final userMessage = MortGuideMessage(
       id: const Uuid().v4(),
       role: 'user',
@@ -179,7 +182,9 @@ class _MortGuideViewState extends ConsumerState<MortGuideView> {
           trailing: MortIconButton(
             icon: Icons.history,
             tooltip: 'MORT Guide history',
-            onPressed: () => context.go('/guide/history'),
+            onPressed: _error == null
+                ? () => context.go('/guide/history')
+                : null,
           ),
         ),
         const MortSafetyBanner(
@@ -187,7 +192,18 @@ class _MortGuideViewState extends ConsumerState<MortGuideView> {
               'AI may make mistakes. Do not share IDs, passwords, exact addresses, or emergency evidence. MORT Guide is not emergency, legal, or medical assistance.',
         ),
         const SizedBox(height: MortSpacing.md),
-        if (_messages.isEmpty) ...[
+        if (_error != null) ...[
+          MortErrorState(
+            title: 'MORT Guide is unavailable',
+            message:
+                'The help service is not connected right now. Your questions are not sent or stored. Please try again later or use human support.',
+            action: MortButton(
+              label: 'Open human support',
+              icon: Icons.support_agent,
+              onPressed: () => context.go('/support'),
+            ),
+          ),
+        ] else if (_messages.isEmpty) ...[
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -223,48 +239,43 @@ class _MortGuideViewState extends ConsumerState<MortGuideView> {
           const MortGuideSafetyEscalation(),
           const SizedBox(height: MortSpacing.md),
         ],
-        if (_error != null) ...[
-          MortErrorState(
-            title: 'MORT Guide could not answer',
-            message: _error!,
+        if (_error == null) ...[
+          MortTextArea(
+            label: 'Ask a MORT question',
+            controller: _question,
+            hint: 'How do completion checks work?',
+            maxLines: 3,
+            maxLength: 500,
           ),
-          const SizedBox(height: MortSpacing.md),
+          const SizedBox(height: MortSpacing.sm),
+          MortButton(
+            label: 'Send',
+            icon: Icons.send_outlined,
+            busy: _sending,
+            busyLabel: 'Checking MORT help...',
+            onPressed: _sending ? null : _ask,
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          MortActionRow(
+            actions: [
+              MortAction(
+                label: 'Privacy',
+                icon: Icons.privacy_tip_outlined,
+                onPressed: () => MortGuidePrivacySheet.show(context),
+              ),
+              MortAction(
+                label: 'Choose your Guide UI',
+                icon: Icons.face_outlined,
+                onPressed: () => context.go('/guide/mascot'),
+              ),
+              const MortAction(
+                label: 'Human support',
+                icon: Icons.support_agent,
+                route: '/support',
+              ),
+            ],
+          ),
         ],
-        MortTextArea(
-          label: 'Ask a MORT question',
-          controller: _question,
-          hint: 'How do completion checks work?',
-          maxLines: 3,
-          maxLength: 500,
-        ),
-        const SizedBox(height: MortSpacing.sm),
-        MortButton(
-          label: 'Send',
-          icon: Icons.send_outlined,
-          busy: _sending,
-          busyLabel: 'Checking MORT help...',
-          onPressed: _sending ? null : _ask,
-        ),
-        const SizedBox(height: MortSpacing.sm),
-        MortActionRow(
-          actions: [
-            MortAction(
-              label: 'Privacy',
-              icon: Icons.privacy_tip_outlined,
-              onPressed: () => MortGuidePrivacySheet.show(context),
-            ),
-            MortAction(
-              label: 'Choose your Guide UI',
-              icon: Icons.face_outlined,
-              onPressed: () => context.go('/guide/mascot'),
-            ),
-            const MortAction(
-              label: 'Human support',
-              icon: Icons.support_agent,
-              route: '/support',
-            ),
-          ],
-        ),
       ],
     );
   }
