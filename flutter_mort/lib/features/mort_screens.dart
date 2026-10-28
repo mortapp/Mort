@@ -5161,7 +5161,7 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
       context,
       title: 'Send Safety Ping?',
       message:
-          'This alerts enabled Guardian or Safety Circle contacts and authorized safety staff where configured. MORT does not dispatch physical help.',
+          'MORT will send an in-app notice to linked guardians who have Safety Ping alerts enabled. It will not send SMS, push alerts, or dispatch help. Contact local emergency services for immediate danger.',
       confirmLabel: 'Send Safety Ping',
     );
     if (!confirmed || !mounted) return;
@@ -5176,11 +5176,16 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
             clientRequestId: _stablePingRequestId(),
           );
       if (mounted) {
+        final guardianNotified = result['guardian_notified'] == true;
         MortToast.show(
           context,
           result['immediate_danger'] == true
-              ? 'Urgent review case created. MORT did not dispatch physical help.'
-              : 'Safety Ping created.',
+              ? guardianNotified
+                    ? 'Urgent Safety Ping recorded. A linked guardian was notified in MORT.'
+                    : 'Urgent Safety Ping recorded. No linked guardian received an in-app notice.'
+              : guardianNotified
+              ? 'Safety Ping recorded. A linked guardian was notified in MORT.'
+              : 'Safety Ping recorded. No linked guardian received an in-app notice.',
         );
         setState(() => _pingRequestId = null);
       }
@@ -5295,11 +5300,17 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
               ? 'Emergency, report, and support tools are available'
               : currentCheckin == null
               ? 'No active job check-in'
+              : currentCheckin['checkin_id'] == null
+              ? 'No check-in scheduled for this active job'
               : 'Due ${formatDateTime(currentCheckin['expected_at'])}',
           icon: !isTeen || currentCheckin == null
               ? Icons.shield_rounded
               : Icons.touch_app_rounded,
-          onPressed: !isTeen || currentCheckin == null || _busy
+          onPressed:
+              !isTeen ||
+                  currentCheckin == null ||
+                  currentCheckin['checkin_id'] == null ||
+                  _busy
               ? null
               : () => _completeCheckin(currentCheckin['checkin_id'].toString()),
         ),
@@ -5354,7 +5365,9 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
                     ),
                     const SizedBox(height: MortSpacing.xs),
                     Text(
-                      '${titleCase(checkin['status']?.toString() ?? 'pending')} - due ${formatDateTime(checkin['expected_at'])}',
+                      checkin['checkin_id'] == null
+                          ? 'No check-in scheduled'
+                          : '${titleCase(checkin['status']?.toString() ?? 'pending')} - due ${formatDateTime(checkin['expected_at'])}',
                     ),
                     const SizedBox(height: MortSpacing.sm),
                     MortActionRow(
@@ -5362,14 +5375,16 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
                         MortAction(
                           label: 'I am okay',
                           icon: Icons.check_circle_outline,
-                          onPressed: _busy
+                          onPressed: _busy || checkin['checkin_id'] == null
                               ? null
                               : () => _completeCheckin(
                                   checkin['checkin_id'].toString(),
                                 ),
                         ),
                         MortAction(
-                          label: 'Add 60-minute check-in',
+                          label: checkin['checkin_id'] == null
+                              ? 'Schedule 60-minute check-in'
+                              : 'Add 60-minute check-in',
                           icon: Icons.add_alarm,
                           onPressed: _busy
                               ? null

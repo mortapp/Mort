@@ -134,8 +134,11 @@ class SafetyRepository extends RepositoryBase {
 
   Future<Map<String, dynamic>> getSafetyCenterConfig() async {
     requireUserId();
-    final value = await client.rpc('get_safety_center_config');
-    return _requireSuccess(value, 'Safety Center configuration unavailable');
+    return const {
+      'emergency_guidance':
+          'Safety Ping sends an in-app notice to linked guardians who have this alert enabled. It does not send SMS, push alerts, or dispatch emergency help. Call local emergency services for immediate danger.',
+      'emergency_phone_uri': 'tel:911',
+    };
   }
 
   Future<List<Map<String, dynamic>>> listActiveJobCheckins() async {
@@ -199,9 +202,7 @@ class SafetyRepository extends RepositoryBase {
     requireUserId();
     final rows = await client
         .from('safety_pings')
-        .select(
-          'id,teen_id,status,note,job_id,immediate_danger,created_at,teen:profiles!safety_pings_teen_id_fkey(id,display_name,avatar_path)',
-        )
+        .select('id,teen_id,status,note,job_id,immediate_danger,created_at')
         .order('created_at', ascending: false)
         .limit(100);
     return List<Map<String, dynamic>>.from(rows as List);

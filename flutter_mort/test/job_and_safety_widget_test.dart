@@ -56,6 +56,7 @@ class _FakeSafetyRepository extends SafetyRepository {
   int configFailuresRemaining;
   int configLoadCount = 0;
   String? completedCheckinId;
+  String? scheduledApplicationId;
 
   @override
   Future<Map<String, dynamic>> getSafetyCenterConfig() async {
@@ -77,6 +78,16 @@ class _FakeSafetyRepository extends SafetyRepository {
   }) async {
     completedCheckinId = checkinId;
     return {'ok': true, 'checkin_id': checkinId};
+  }
+
+  @override
+  Future<Map<String, dynamic>> scheduleActiveJobCheckin({
+    required String applicationId,
+    required int minutesFromNow,
+    String? clientRequestId,
+  }) async {
+    scheduledApplicationId = applicationId;
+    return {'ok': true, 'application_id': applicationId};
   }
 }
 
@@ -334,6 +345,45 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.completedCheckinId, 'checkin-1');
+  });
+
+  testWidgets('active job without a check-in can schedule its first check-in', (
+    tester,
+  ) async {
+    final repository = _FakeSafetyRepository(
+      checkins: [
+        {
+          'checkin_id': null,
+          'application_id': 'application-unscheduled',
+          'job_id': 'job-unscheduled',
+          'job_title': 'Dog walking',
+          'status': 'not_scheduled',
+          'expected_at': null,
+        },
+      ],
+    );
+
+    await tester.pumpWidget(
+      _app(
+        child: const SafetyCenterScreen(),
+        overrides: [
+          safetyRepositoryProvider.overrideWithValue(repository),
+          currentProfileProvider.overrideWithValue(
+            AsyncValue.data(_teenProfile()),
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('No check-in scheduled'), findsOneWidget);
+    final scheduleButton = find.text('Schedule 60-minute check-in');
+    expect(scheduleButton, findsOneWidget);
+    await tester.ensureVisible(scheduleButton);
+    await tester.pumpAndSettle();
+    await tester.tap(scheduleButton);
+    await tester.pumpAndSettle();
+    expect(repository.scheduledApplicationId, 'application-unscheduled');
   });
 
   testWidgets(

@@ -6,7 +6,6 @@ import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/repositories/providers.dart';
-import '../profile/profile_avatar_widgets.dart';
 
 class GuardianSafetyPingsScreen extends ConsumerStatefulWidget {
   const GuardianSafetyPingsScreen({super.key});
@@ -103,12 +102,6 @@ class _SafetyPingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rawTeen = row['teen'];
-    final teen = rawTeen is Map
-        ? Map<String, dynamic>.from(rawTeen)
-        : const <String, dynamic>{};
-    final teenId = teen['id']?.toString() ?? row['teen_id'].toString();
-    final name = teen['display_name']?.toString() ?? 'Linked teen';
     final status = (row['status'] ?? 'needs_help').toString().replaceAll(
       '_',
       ' ',
@@ -120,18 +113,16 @@ class _SafetyPingCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              ProfileAvatarView(
-                profileId: teenId,
-                avatarPath: teen['avatar_path']?.toString(),
-                fallbackLabel: name,
-                radius: 24,
-              ),
+              const Icon(Icons.health_and_safety_outlined, size: 24),
               const SizedBox(width: MortSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name, style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      'Linked teen',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     if (createdAt != null)
                       Text(
                         _formatTimestamp(createdAt),
