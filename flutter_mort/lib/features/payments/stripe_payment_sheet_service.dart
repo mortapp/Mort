@@ -10,14 +10,18 @@ class StripePaymentSheetService {
     final clientSecret = initialization['payment_intent_client_secret'];
     final customerId = initialization['customer_id'];
     final ephemeralKey = initialization['customer_ephemeral_key_secret'];
+    final environment = initialization['environment'];
+    final expectedPrefix = environment == 'live' ? 'pk_live_' : 'pk_test_';
     if (publishableKey is! String ||
-        !publishableKey.startsWith('pk_test_') ||
+        (environment != 'live' && environment != 'test') ||
+        !publishableKey.startsWith(expectedPrefix) ||
         clientSecret is! String ||
-        customerId is! String ||
-        ephemeralKey is! String) {
+        (customerId != null && customerId is! String) ||
+        (ephemeralKey != null && ephemeralKey is! String) ||
+        ((customerId == null) != (ephemeralKey == null))) {
       throw const MortCodedError(
-        'stripe_sandbox_configuration_invalid',
-        'Secure sandbox payment setup is unavailable. No payment was confirmed.',
+        'stripe_configuration_invalid',
+        'Secure payment setup is unavailable. No payment was confirmed.',
       );
     }
 

@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/errors/user_facing_error.dart';
@@ -86,9 +88,11 @@ class _CompactOnboardingScreenState
 
   // Step 3: guardian and notification intent. Native permission remains OS truth.
   final _guardianEmail = TextEditingController();
+  final _guardianInviteToAccept = TextEditingController();
   String? _guardianInviteCode;
   bool _guardianDeclined = false;
   bool _guardianBusy = false;
+  bool _guardianInviteAccepted = false;
   String _notificationChoice = 'ask_later';
 
   // Step 4: rules acceptance (mirrors SafetyRulesScreen, same shared copy).
@@ -234,6 +238,7 @@ class _CompactOnboardingScreenState
     _zip.dispose();
     _availability.dispose();
     _guardianEmail.dispose();
+    _guardianInviteToAccept.dispose();
     _signature.dispose();
     super.dispose();
   }
@@ -289,6 +294,42 @@ class _CompactOnboardingScreenState
     } finally {
       if (mounted) setState(() => _guardianBusy = false);
     }
+  }
+
+  Future<void> _acceptGuardianInvite() async {
+    if (_guardianBusy || _guardianInviteAccepted) return;
+    final code = _guardianInviteToAccept.text.trim();
+    if (code.isEmpty) {
+      MortToast.show(context, 'Enter the teen’s invite code to continue.');
+      return;
+    }
+    setState(() => _guardianBusy = true);
+    try {
+      await ref.read(guardianRepositoryProvider).acceptInvite(code);
+      if (!mounted) return;
+      setState(() => _guardianInviteAccepted = true);
+      ref.invalidate(currentProfileProvider);
+      MortToast.show(context, 'Guardian Mode linked.');
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) setState(() => _guardianBusy = false);
+    }
+  }
+
+  Future<void> _shareGuardianInvite() async {
+    final code = _guardianInviteCode;
+    if (code == null) return;
+    await SharePlus.instance.share(
+      ShareParams(text: 'Use this MORT guardian invite code: $code'),
+    );
+  }
+
+  Future<void> _copyGuardianInvite() async {
+    final code = _guardianInviteCode;
+    if (code == null) return;
+    await Clipboard.setData(ClipboardData(text: code));
+    if (mounted) MortToast.show(context, 'Guardian invite code copied.');
   }
 
   String? _validationMessage(DateTime now) {
@@ -666,6 +707,14 @@ class _CompactOnboardingScreenState
             onSubmitted: (_) => _next(),
           ),
         ),
+        const SizedBox(height: MortSpacing.md),
+        const _OnboardingNotice(
+          icon: Icons.info_outline_rounded,
+          color: MortColors.safetyBlue,
+          title: 'Birthday is self-reported',
+          message:
+              'MORT does not verify identity from this form. Your account stays pending until an approved age-verification process is configured. We do not collect identity documents here.',
+        ),
         if (age != null && age < 13) ...[
           const SizedBox(height: MortSpacing.md),
           const _OnboardingNotice(
@@ -1029,7 +1078,38 @@ class _CompactOnboardingScreenState
           if (_guardianInviteCode != null)
             MortGlassCard(
               infoAccent: true,
-              child: Text('Guardian invite created: $_guardianInviteCode'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Share this one-time code with your guardian:'),
+                  const SizedBox(height: MortSpacing.xs),
+                  SelectableText(
+                    _guardianInviteCode!,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: MortSpacing.xs),
+                  Text(
+                    'MORT does not email the code. It expires after seven days.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: MortSpacing.sm),
+                  Wrap(
+                    spacing: MortSpacing.sm,
+                    children: [
+                      MortButton(
+                        label: 'Share code',
+                        style: MortButtonStyle.secondary,
+                        onPressed: _shareGuardianInvite,
+                      ),
+                      MortButton(
+                        label: 'Copy code',
+                        style: MortButtonStyle.secondary,
+                        onPressed: _copyGuardianInvite,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             )
           else ...[
             MortTextField(
@@ -1056,6 +1136,40 @@ class _CompactOnboardingScreenState
                       setState(() => _guardianDeclined = selected),
                 ),
               ],
+            ),
+          ],
+        ] else if (_resolvedRole() == UserRole.guardian) ...[
+          const SizedBox(height: MortSpacing.lg),
+          const _OnboardingSectionLabel(label: 'Link a teen (optional)'),
+          Text(
+            'Enter the one-time invite code shared by the teen. You can also finish setup and link later from Guardian Mode.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: MortSpacing.sm),
+          if (_guardianInviteAccepted)
+            const _OnboardingNotice(
+              icon: Icons.verified_user_outlined,
+              color: MortColors.success,
+              title: 'Guardian Mode linked',
+              message:
+                  'The teen’s link is active. Their privacy settings still control what Guardian Mode shares.',
+            )
+          else ...[
+            MortTextField(
+              label: 'Teen invite code',
+              controller: _guardianInviteToAccept,
+              enabled: !_guardianBusy,
+              textCapitalization: TextCapitalization.characters,
+              autocorrect: false,
+              enableSuggestions: false,
+            ),
+            const SizedBox(height: MortSpacing.sm),
+            MortButton(
+              label: 'Link teen with code',
+              icon: Icons.link_rounded,
+              style: MortButtonStyle.secondary,
+              busy: _guardianBusy,
+              onPressed: _acceptGuardianInvite,
             ),
           ],
         ],

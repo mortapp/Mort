@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 String _read(String path) => File(path).readAsStringSync();
 
 void main() {
-  test('Stripe SDK is sandbox-gated and payment sheet fails closed', () {
+  test('Stripe SDK accepts only the publishable key for its environment', () {
     expect(AppConfig.nativeStripePaymentSheetCompiledIn, isTrue);
     expect(AppConfig.marketplacePaymentsEnabled, isFalse);
     expect(AppConfig.supportsStripePaymentSheet, isTrue);
@@ -14,7 +14,12 @@ void main() {
     final service = _read(
       'lib/features/payments/stripe_payment_sheet_service.dart',
     );
-    expect(service, contains("'stripe_sandbox_configuration_invalid'"));
+    expect(service, contains("'stripe_configuration_invalid'"));
+    expect(
+      service,
+      contains("environment == 'live' ? 'pk_live_' : 'pk_test_'"),
+    );
+    expect(service, contains("environment != 'live' && environment != 'test'"));
     expect(service, contains('package:flutter_stripe'));
     expect(service, isNot(matches(RegExp(r'pk_(test|live)_[A-Za-z0-9]'))));
     expect(service, isNot(matches(RegExp(r'sk_(test|live)_[A-Za-z0-9]'))));

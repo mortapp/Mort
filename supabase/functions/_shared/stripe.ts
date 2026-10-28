@@ -106,20 +106,23 @@ export async function runtime(context: StripeContext, needsWebhookSecret = false
   if (!publishableKey.startsWith(environment === "test" ? "pk_test_" : "pk_live_")) throw new PublicError("stripe_key_mode_mismatch", 503);
   if (needsWebhookSecret && !webhookSecret?.startsWith("whsec_")) throw new PublicError("stripe_webhook_not_configured", 503);
 
-  const { data: featureStatus, error: featureError } = await context.serviceClient
-    .rpc("get_runtime_feature_status");
-  if (featureError || featureStatus?.ok !== true) {
+  const { data: releaseStatus, error: releaseError } = await context.userClient
+    .rpc("get_release_mode_status");
+  if (releaseError || !releaseStatus || typeof releaseStatus !== "object") {
     throw new PublicError("runtime_controls_unavailable", 503);
   }
-  if (featureStatus.maintenance_mode === true) {
+  if (releaseStatus.maintenance_mode === true) {
     throw new PublicError("maintenance_mode_active", 503);
   }
-  if (featureStatus.payments_disabled === true) {
+  if (releaseStatus.public_marketplace_enabled !== true) {
     throw new PublicError("payments_disabled", 503);
   }
 
   const { data, error } = await context.userClient.rpc("get_stripe_runtime_status");
   if (error || data?.environment !== environment || data?.mode !== mode) throw new PublicError("stripe_runtime_mode_mismatch", 503);
+  if (data?.payments_enabled !== true || data?.job_funding_enabled !== true) {
+    throw new PublicError("stripe_job_funding_disabled", 503);
+  }
   if (mode === "live" && data?.live_mode_enabled !== true) throw new PublicError("stripe_live_disabled", 503);
 
   return {

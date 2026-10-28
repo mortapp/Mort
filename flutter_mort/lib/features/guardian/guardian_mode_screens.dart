@@ -267,8 +267,7 @@ class _GuardianModeScreenState extends ConsumerState<GuardianModeScreen> {
         const MortHeader(
           eyebrow: 'Settings',
           title: 'Guardian Mode',
-          subtitle:
-              'Optional linking, selected safety alerts, and clear privacy controls.',
+          subtitle: 'Optional linking with clear privacy boundaries.',
         ),
         const MortSafetyBanner(
           message:
@@ -334,10 +333,7 @@ class _GuardianModeScreenState extends ConsumerState<GuardianModeScreen> {
             ),
           ),
         ],
-        const MortSectionTitle(
-          title: 'Connections',
-          subtitle: 'Only people in this list can receive selected updates.',
-        ),
+        const MortSectionTitle(title: 'Connections'),
         FutureBuilder<List<Map<String, dynamic>>>(
           future: connections,
           builder: (context, snapshot) {
@@ -372,14 +368,6 @@ class _GuardianModeScreenState extends ConsumerState<GuardianModeScreen> {
                           .cancelInvite(row['id'].toString()),
                       'Invitation canceled.',
                     ),
-                    onResend: () => _run(() async {
-                      final result = await ref
-                          .read(guardianRepositoryProvider)
-                          .resendInvite(row['id'].toString());
-                      if (mounted) {
-                        await _showCode(result['invite_code'] as String?);
-                      }
-                    }, 'Invitation renewed.'),
                   ),
                   const SizedBox(height: MortSpacing.sm),
                 ],
@@ -463,7 +451,6 @@ class _GuardianConnectionCard extends StatelessWidget {
     required this.busy,
     required this.onUnlink,
     required this.onCancel,
-    required this.onResend,
   });
 
   final Map<String, dynamic> row;
@@ -471,7 +458,6 @@ class _GuardianConnectionCard extends StatelessWidget {
   final bool busy;
   final VoidCallback onUnlink;
   final VoidCallback onCancel;
-  final VoidCallback onResend;
 
   @override
   Widget build(BuildContext context) {
@@ -482,7 +468,10 @@ class _GuardianConnectionCard extends StatelessWidget {
     final name = person is Map ? person['display_name']?.toString() : null;
     final personId = person is Map ? person['id']?.toString() : null;
     final avatarPath = person is Map ? person['avatar_path']?.toString() : null;
-    final accepted = DateTime.tryParse((row['accepted_at'] ?? '').toString());
+    final accepted = DateTime.tryParse(
+      (row['guardian_consent_at'] ?? '').toString(),
+    );
+    final isPending = status == 'pending';
     return MortCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -499,10 +488,7 @@ class _GuardianConnectionCard extends StatelessWidget {
               if (personId != null) const SizedBox(width: MortSpacing.sm),
               Expanded(
                 child: Text(
-                  name ??
-                      (status == 'invited'
-                          ? 'Invite pending'
-                          : 'Guardian link'),
+                  name ?? (isPending ? 'Invite pending' : 'Guardian link'),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
@@ -510,18 +496,11 @@ class _GuardianConnectionCard extends StatelessWidget {
           ),
           const SizedBox(height: MortSpacing.xs),
           MortBadge(label: status.replaceAll('_', ' ')),
-          if (row['relationship'] != null) Text(row['relationship'].toString()),
           if (accepted != null) Text('Linked ${accepted.toLocal()}'),
           const SizedBox(height: MortSpacing.sm),
           MortActionRow(
-            actions: status == 'invited' && isTeen
+            actions: isPending && isTeen
                 ? [
-                    MortAction(
-                      label: 'Resend invitation',
-                      icon: Icons.refresh,
-                      busy: busy,
-                      onPressed: onResend,
-                    ),
                     MortAction(
                       label: 'Cancel invitation',
                       icon: Icons.cancel_outlined,
@@ -542,143 +521,8 @@ class _GuardianConnectionCard extends StatelessWidget {
                   ]
                 : const [],
           ),
-          if (status == 'active' && isTeen) ...[
-            const SizedBox(height: MortSpacing.md),
-            _GuardianPreferenceEditor(
-              linkId: row['id'].toString(),
-              rawPreferences: row['guardian_preferences'],
-            ),
-          ],
         ],
       ),
-    );
-  }
-}
-
-class _GuardianPreferenceEditor extends ConsumerStatefulWidget {
-  const _GuardianPreferenceEditor({
-    required this.linkId,
-    required this.rawPreferences,
-  });
-
-  final String linkId;
-  final Object? rawPreferences;
-
-  @override
-  ConsumerState<_GuardianPreferenceEditor> createState() =>
-      _GuardianPreferenceEditorState();
-}
-
-class _GuardianPreferenceEditorState
-    extends ConsumerState<_GuardianPreferenceEditor> {
-  late bool _safetyPing;
-  late bool _checkin;
-  late bool _acceptedSummary;
-  late bool _safetyWarnings;
-  late bool _weeklyDigest;
-  late bool _jobApprovals;
-  bool _saving = false;
-
-  Map<String, dynamic> get _preferences {
-    final raw = widget.rawPreferences;
-    if (raw is Map) return Map<String, dynamic>.from(raw);
-    if (raw is List && raw.isNotEmpty && raw.first is Map) {
-      return Map<String, dynamic>.from(raw.first as Map);
-    }
-    return const {};
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    final values = _preferences;
-    _safetyPing = values['safety_ping_alerts'] != false;
-    _checkin = values['job_checkin_alerts'] != false;
-    _acceptedSummary = values['accepted_job_summary'] != false;
-    _safetyWarnings = values['safety_warning_alerts'] != false;
-    _weeklyDigest = values['weekly_digest'] == true;
-    _jobApprovals = values['optional_job_approval_enabled'] == true;
-  }
-
-  Future<void> _save() async {
-    if (_saving) return;
-    setState(() => _saving = true);
-    try {
-      await ref
-          .read(guardianRepositoryProvider)
-          .updatePreferences(
-            widget.linkId,
-            safetyPingAlerts: _safetyPing,
-            jobCheckinAlerts: _checkin,
-            acceptedJobSummary: _acceptedSummary,
-            safetyWarningAlerts: _safetyWarnings,
-            weeklyDigest: _weeklyDigest,
-            optionalJobApprovalEnabled: _jobApprovals,
-          );
-      if (mounted) MortToast.show(context, 'Shared-alert settings saved.');
-    } catch (error) {
-      if (mounted) MortToast.show(context, userFacingError(error));
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ExpansionTile(
-      tilePadding: EdgeInsets.zero,
-      childrenPadding: EdgeInsets.zero,
-      title: const Text('Manage shared alerts'),
-      subtitle: const Text('The teen controls these categories.'),
-      children: [
-        _toggle(
-          'Safety Ping alerts',
-          _safetyPing,
-          (value) => _safetyPing = value,
-        ),
-        _toggle('Job check-in status', _checkin, (value) => _checkin = value),
-        _toggle(
-          'Accepted job summary',
-          _acceptedSummary,
-          (value) => _acceptedSummary = value,
-        ),
-        _toggle(
-          'Account safety warnings',
-          _safetyWarnings,
-          (value) => _safetyWarnings = value,
-        ),
-        _toggle(
-          'Weekly activity summary',
-          _weeklyDigest,
-          (value) => _weeklyDigest = value,
-        ),
-        _toggle(
-          'Optional job approval requests',
-          _jobApprovals,
-          (value) => _jobApprovals = value,
-        ),
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: MortSpacing.sm),
-          child: Text(
-            'Private message contents are not shared by default. Turning off an alert does not remove report, block, or Safety Ping from the teen account.',
-          ),
-        ),
-        MortButton(
-          label: 'Save shared-alert settings',
-          icon: Icons.save_outlined,
-          busy: _saving,
-          onPressed: _save,
-        ),
-      ],
-    );
-  }
-
-  Widget _toggle(String label, bool value, ValueChanged<bool> update) {
-    return SwitchListTile.adaptive(
-      contentPadding: EdgeInsets.zero,
-      value: value,
-      title: Text(label),
-      onChanged: (next) => setState(() => update(next)),
     );
   }
 }

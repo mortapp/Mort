@@ -9,8 +9,9 @@ import 'repository_base.dart';
 const _directoryProfileSelect =
     'id,role,display_name,verification_status,created_at,updated_at,'
     'username,avatar_path,avatar_moderation_status,avatar_updated_at,bio,'
-    'availability,preferred_job_categories,approximate_area,goals,'
-    'location_setup_mode';
+    'city,region,availability,preferred_job_categories,transportation_methods,'
+    'max_travel_distance_miles,max_travel_minutes,walking_distance_only,'
+    'guardian_transportation_possible,approximate_area,location_setup_mode';
 
 class ProfileRepository extends RepositoryBase {
   static const _uuid = Uuid();

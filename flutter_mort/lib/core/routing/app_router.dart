@@ -53,6 +53,7 @@ import '../../features/trust/account_trust_screens.dart';
 import '../../features/trust/teen_verification_screens.dart';
 import '../../features/teen/teen_profile_screen.dart';
 import '../../features/teen/teen_shell.dart';
+import '../../features/teen/teen_marketplace_home.dart';
 import '../../services/screen_security_service.dart';
 import '../widgets/mort_widgets.dart';
 import '../reviewer/reviewer_session.dart';
@@ -144,7 +145,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/teen/home',
-                builder: (_, _) => const RoleHomeScreen(role: UserRole.teen),
+                builder: (_, _) => const TeenMarketplaceHomeScreen(),
               ),
             ],
           ),
@@ -153,25 +154,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/teen/jobs',
                 builder: (_, _) => const TeenJobFeedScreen(),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/teen/safety',
-                builder: (_, _) => const SafetyCenterScreen(),
-                routes: [
-                  GoRoute(
-                    path: 'applications/:applicationId',
-                    builder: (_, state) => SensitiveScreenProtection(
-                      child: JobSafetyWorkspaceScreen(
-                        applicationId:
-                            state.pathParameters['applicationId'] ?? '',
-                      ),
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
@@ -201,6 +183,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 builder: (_, _) => const TeenProfileDestinationScreen(),
               ),
             ],
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/teen/safety',
+        builder: (_, _) => GuardedRoute(
+          requiredRole: UserRole.teen,
+          child: const SafetyCenterScreen(),
+        ),
+        routes: [
+          GoRoute(
+            path: 'applications/:applicationId',
+            builder: (_, state) => GuardedRoute(
+              requiredRole: UserRole.teen,
+              child: SensitiveScreenProtection(
+                child: JobSafetyWorkspaceScreen(
+                  applicationId: state.pathParameters['applicationId'] ?? '',
+                ),
+              ),
+            ),
           ),
         ],
       ),

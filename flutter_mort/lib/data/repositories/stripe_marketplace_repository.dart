@@ -12,8 +12,7 @@ class StripeMarketplaceRepository extends RepositoryBase {
       'Save this payment method for faster funding of future MORT jobs that I choose to confirm. MORT will not create a new job charge only because a reviewer approved evidence.';
 
   Future<Map<String, dynamic>> runtimeStatus() async {
-    requireUserId();
-    return _map(await client.rpc('get_stripe_runtime_status'));
+    return _invoke('stripe-runtime-status');
   }
 
   Future<Map<String, dynamic>> payoutStatus() async {
@@ -139,6 +138,15 @@ class StripeMarketplaceRepository extends RepositoryBase {
     );
   }
 
+  Future<Map<String, dynamic>> createAssignmentPaymentSheet({
+    required String assignmentId,
+  }) {
+    return _invoke(
+      'stripe-create-assignment-payment-intent',
+      body: {'assignment_id': assignmentId},
+    );
+  }
+
   Future<MortFinancialHistoryPage> financialHistory({
     String? cursor,
     int? year,
@@ -173,8 +181,8 @@ class StripeMarketplaceRepository extends RepositoryBase {
     requireUserId();
     return _map(
       await client.rpc(
-        'get_my_payment_attempt_state_v1',
-        params: {'p_payment_intent_id': providerPaymentIntentId},
+        'get_my_assignment_payment_status',
+        params: {'p_provider_payment_intent_id': providerPaymentIntentId},
       ),
     );
   }

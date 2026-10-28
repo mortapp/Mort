@@ -175,6 +175,7 @@ class _FakeLegalContractRepository extends LegalContractRepository {
 Future<void> _pumpOnboarding(
   WidgetTester tester, {
   _FakeProfileRepository? repository,
+  Profile? profile,
   TextScaler textScaler = TextScaler.noScaling,
   bool disableAnimations = false,
   double keyboardInset = 0,
@@ -185,7 +186,7 @@ Future<void> _pumpOnboarding(
     ProviderScope(
       overrides: [
         profileRepositoryProvider.overrideWithValue(fakeRepository),
-        currentProfileProvider.overrideWith((ref) async => null),
+        currentProfileProvider.overrideWith((ref) async => profile),
         legalContractRepositoryProvider.overrideWithValue(
           _FakeLegalContractRepository(),
         ),
@@ -365,6 +366,40 @@ void main() {
       );
     }
     semantics.dispose();
+  });
+
+  testWidgets('guardian onboarding exposes a teen invite-code link step', (
+    tester,
+  ) async {
+    final guardianProfile = Profile(
+      id: 'guardian-onboarding',
+      role: UserRole.guardian,
+      displayName: 'Jordan',
+      username: 'jordan_guardian',
+      dob: DateTime(1988, 2, 3),
+      city: null,
+      state: null,
+      onboardingCompleted: false,
+      accountStatus: 'active',
+      verificationStatus: 'not_started',
+      paymentPreference: 'none',
+    );
+    await _pumpOnboarding(
+      tester,
+      profile: guardianProfile,
+      repository: _FakeProfileRepository(
+        initialStep: OnboardingStepV2.safetySupport,
+      ),
+      disableAnimations: true,
+    );
+
+    expect(find.text('Link a teen (optional)'), findsOneWidget);
+    expect(find.bySemanticsLabel('Teen invite code'), findsOneWidget);
+    expect(
+      find.widgetWithText(MortButton, 'Link teen with code'),
+      findsOneWidget,
+    );
+    expect(find.text('Guardian Mode (optional)'), findsNothing);
   });
 
   testWidgets(

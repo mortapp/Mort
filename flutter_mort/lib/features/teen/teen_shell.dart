@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/theme/mort_colors.dart';
 import '../../core/widgets/mort_liquid_glass.dart';
 
 class TeenShell extends StatefulWidget {
@@ -58,14 +57,26 @@ class _TeenShellState extends State<TeenShell> {
           if (!didPop) _returnToPreviousDestination();
         },
         child: Scaffold(
-          backgroundColor: MortColors.bg,
+          backgroundColor: const Color(0xFFF6F6F3),
           body: widget.navigationShell,
           bottomNavigationBar: keyboardVisible
               ? null
-              : MortGlassNavigationBar(
-                  currentIndex: widget.navigationShell.currentIndex,
-                  destinations: _teenDestinations,
+              : NavigationBar(
+                  selectedIndex: widget.navigationShell.currentIndex,
+                  destinations: [
+                    for (final destination in teenPrimaryDestinations)
+                      NavigationDestination(
+                        icon: Icon(destination.icon),
+                        selectedIcon: Icon(destination.selectedIcon),
+                        label: destination.label,
+                      ),
+                  ],
                   onDestinationSelected: _selectDestination,
+                  backgroundColor: Colors.white,
+                  surfaceTintColor: Colors.transparent,
+                  indicatorColor: const Color(0xFFE8E9E6),
+                  elevation: 0,
+                  labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
                 ),
         ),
       ),
@@ -120,28 +131,35 @@ class MortTeenDestinationHeader extends StatelessWidget {
   }
 }
 
-const _teenDestinations = [
-  MortNavigationDestination(
-    label: 'Dashboard',
-    icon: Icons.grid_view_outlined,
-    selectedIcon: Icons.grid_view_rounded,
+class TeenPrimaryDestination {
+  const TeenPrimaryDestination({
+    required this.label,
+    required this.icon,
+    required this.selectedIcon,
+  });
+
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
+}
+
+const teenPrimaryDestinations = [
+  TeenPrimaryDestination(
+    label: 'Home',
+    icon: Icons.home_outlined,
+    selectedIcon: Icons.home_rounded,
   ),
-  MortNavigationDestination(
-    label: 'Jobs',
-    icon: Icons.assignment_outlined,
-    selectedIcon: Icons.assignment_rounded,
+  TeenPrimaryDestination(
+    label: 'Explore',
+    icon: Icons.search_rounded,
+    selectedIcon: Icons.search_rounded,
   ),
-  MortNavigationDestination(
-    label: 'Safety',
-    icon: Icons.shield_outlined,
-    selectedIcon: Icons.shield_rounded,
-  ),
-  MortNavigationDestination(
-    label: 'Messages',
+  TeenPrimaryDestination(
+    label: 'Inbox',
     icon: Icons.chat_bubble_outline_rounded,
     selectedIcon: Icons.chat_bubble_rounded,
   ),
-  MortNavigationDestination(
+  TeenPrimaryDestination(
     label: 'Profile',
     icon: Icons.person_outline_rounded,
     selectedIcon: Icons.person_rounded,

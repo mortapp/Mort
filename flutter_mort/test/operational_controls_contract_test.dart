@@ -17,7 +17,7 @@ void main() {
     expect(migration, contains('jobs_runtime_publish_control'));
     expect(migration, contains('private.operational_alerts'));
     expect(migration, contains('operational_review_role_required'));
-    expect(stripe, contains('get_runtime_feature_status'));
+    expect(stripe, contains('get_release_mode_status'));
     expect(stripe, contains('payments_disabled'));
     expect(stripe, contains('maintenance_mode_active'));
   });

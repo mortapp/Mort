@@ -166,7 +166,7 @@ class FinancialExportService {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Text(
-                'MORT Earnings Summary — ${report.year}',
+                'MORT Earnings Summary - ${report.year}',
                 style: pw.TextStyle(
                   fontSize: 20,
                   fontWeight: pw.FontWeight.bold,

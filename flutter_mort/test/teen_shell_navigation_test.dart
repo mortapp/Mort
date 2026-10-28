@@ -34,26 +34,27 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Dashboard content'), findsOneWidget);
-      await tester.enterText(find.byKey(const Key('dashboard-search')), 'Yard');
+      expect(find.text('Home content'), findsOneWidget);
+      await tester.enterText(find.byKey(const Key('home-search')), 'Yard');
 
-      await tester.tap(find.text('Jobs').last);
+      await tester.tap(find.text('Explore').last);
       await tester.pumpAndSettle();
-      expect(find.text('Applications content'), findsOneWidget);
+      expect(find.text('Explore content'), findsOneWidget);
       expect(find.byTooltip('Back'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
-      expect(find.text('Dashboard content'), findsOneWidget);
+      expect(find.text('Home content'), findsOneWidget);
       expect(find.text('Yard'), findsOneWidget);
 
-      await tester.tap(find.text('Safety').last);
+      final safetyRoute = router.push<void>('/teen/safety');
       await tester.pumpAndSettle();
       expect(find.text('Safety content'), findsOneWidget);
 
-      await tester.binding.handlePopRoute();
+      router.pop();
       await tester.pumpAndSettle();
-      expect(find.text('Dashboard content'), findsOneWidget);
+      await safetyRoute;
+      expect(find.text('Home content'), findsOneWidget);
       expect(find.text('Yard'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
@@ -80,15 +81,15 @@ void main() {
       await tester.pumpAndSettle();
 
       for (var cycle = 0; cycle < 20; cycle++) {
-        await tester.tap(find.text('Profile').last);
-        await tester.pumpAndSettle();
-        expect(find.text('Profile content'), findsOneWidget);
-        await tester.tap(find.text('Dashboard').last);
-        await tester.pumpAndSettle();
-        expect(find.text('Dashboard content'), findsOneWidget);
+        for (final destination in ['Explore', 'Inbox', 'Profile', 'Home']) {
+          await tester.tap(find.text(destination).last);
+          await tester.pumpAndSettle();
+          expect(find.text('$destination content'), findsOneWidget);
+        }
       }
 
-      expect(find.byType(MortGlassNavigationBar), findsOneWidget);
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.text('Safety'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
@@ -101,12 +102,15 @@ GoRouter _teenRouter() => GoRouter(
       builder: (_, _, navigationShell) =>
           TeenShell(navigationShell: navigationShell),
       branches: [
-        _branch('/teen/home', 'Dashboard', includeSearch: true),
-        _branch('/teen/applications', 'Applications'),
-        _branch('/teen/safety', 'Safety'),
-        _branch('/teen/messages', 'Messages'),
+        _branch('/teen/home', 'Home', includeSearch: true),
+        _branch('/teen/jobs', 'Explore'),
+        _branch('/teen/messages', 'Inbox'),
         _branch('/teen/profile', 'Profile'),
       ],
+    ),
+    GoRoute(
+      path: '/teen/safety',
+      builder: (_, _) => const MortScreen(children: [Text('Safety content')]),
     ),
   ],
 );
@@ -125,7 +129,7 @@ StatefulShellBranch _branch(
           Text('$title content'),
           if (includeSearch)
             const TextField(
-              key: Key('dashboard-search'),
+              key: Key('home-search'),
               decoration: InputDecoration(labelText: 'Search'),
             ),
         ],

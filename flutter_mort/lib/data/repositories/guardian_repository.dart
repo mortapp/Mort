@@ -106,9 +106,9 @@ class GuardianRepository extends RepositoryBase {
   Future<List<Map<String, dynamic>>> listConnections() async {
     requireUserId();
     final rows = await client
-        .from('guardian_connections')
+        .from('guardian_links')
         .select(
-          '*, guardian_preferences(*), teen:profiles!guardian_connections_teen_id_fkey(id,display_name,avatar_path), guardian:profiles!guardian_connections_guardian_id_fkey(id,display_name,avatar_path)',
+          '*, teen:profiles!guardian_links_teen_user_id_fkey(id,display_name,avatar_path), guardian:profiles!guardian_links_guardian_user_id_fkey(id,display_name,avatar_path)',
         )
         .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(rows as List);
