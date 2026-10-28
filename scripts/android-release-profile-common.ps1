@@ -117,8 +117,11 @@ if ($ReleaseStage -ne 'closed_test' -and $PlayReviewModeEnabled) {
 if ($ReleaseStage -eq 'closed_test' -and $PublicMarketplaceEnabled) {
   throw 'Closed test cannot enable the public marketplace.'
 }
-if ($GoogleAuthEnabled -and $ReleaseStage -ne 'closed_test') {
-  throw 'Google Auth activation is approved only for the closed-test profile.'
+if ($GoogleAuthEnabled) {
+  & node (Join-Path $PSScriptRoot 'verify-google-oauth-production.mjs')
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Google Auth is enabled but the production Supabase provider check failed.'
+  }
 }
 if ($ReleaseStage -like 'production_*' -and -not $CrashReportingEnabled) {
   throw 'Production profiles require a real Sentry crash provider.'
@@ -163,14 +166,7 @@ $defines = [ordered]@{
   GOOGLE_AUTH_ENABLED = $GoogleAuthEnabled.ToString().ToLowerInvariant()
   IAP_ENABLED = 'false'
   ADS_ENABLED = $AdsEnabled.ToString().ToLowerInvariant()
-  # USE_TEST_ADS is intentionally not yet wired to its own parameter --
-  # this keeps every build serving Google's official test ads even once
-  # ADS_ENABLED=true is buildable for production/production_candidate.
-  # AppConfig's own release validation fails closed if ads are ever
-  # enabled with USE_TEST_ADS still true, so a real (non-test) ads
-  # rollout requires a deliberate follow-up change here, not an
-  # accidental one.
-  USE_TEST_ADS = 'true'
+  USE_TEST_ADS = if ($AdsEnabled) { 'false' } else { 'true' }
 }
 foreach ($name in $defines.Keys) {
   if ($name -match '(?i)(SERVICE.?ROLE|ACCESS.?TOKEN|REFRESH.?TOKEN|PASSWORD|CLIENT.?SECRET|PRIVATE.?KEY|WEBHOOK.?SECRET)') {

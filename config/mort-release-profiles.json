@@ -134,7 +134,7 @@
     "production": {
       "releaseStage": "production_public",
       "operationalMode": "production",
-      "googleAuthEnabled": false,
+      "googleAuthEnabled": true,
       "publicMarketplaceEnabled": true,
       "marketplacePaymentsEnabled": false,
       "paymentProviderMode": "disabled",

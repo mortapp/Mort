@@ -51,7 +51,11 @@ void main() {
       ]) {
         expect(screen, contains('class $widget'));
       }
-      expect(screen, contains('AI may make mistakes'));
+      expect(screen, contains('Do not share IDs, passwords, exact addresses'));
+      expect(
+        screen,
+        contains('MORT Guide is not emergency, legal, or medical assistance'),
+      );
       expect(screen, contains("route: '/support'"));
       expect(router, contains("'/guide/history'"));
     },

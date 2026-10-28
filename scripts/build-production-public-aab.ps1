@@ -7,7 +7,7 @@ param()
   -OperationalMode production `
   -ArtifactKind Aab `
   -PlayReviewModeEnabled $false `
-  -GoogleAuthEnabled $false `
+  -GoogleAuthEnabled $true `
   -PublicMarketplaceEnabled $true `
   -IdentityVerificationEnabled $true `
   -RemotePushEnabled $false `
