@@ -168,12 +168,25 @@ class _FakeLegalContractRepository extends LegalContractRepository {
 
 class _FakeGuardianRepository extends GuardianRepository {
   String? acceptedCode;
+  String? inviteCodeToReturn;
 
   @override
   Future<Map<String, dynamic>> acceptInvite(String code) async {
     acceptedCode = code;
     return const {'ok': true, 'status': 'linked'};
   }
+
+  @override
+  Future<Map<String, dynamic>> createInvite({String? email}) async => {
+    'ok': true,
+    'invite_code': inviteCodeToReturn,
+  };
+}
+
+class _SafetyStepProfileRepository extends _FakeProfileRepository {
+  @override
+  Future<OnboardingProgressV2> getOnboardingProgressV2() async =>
+      _v2Progress(OnboardingStepV2.safetySupport);
 }
 
 Future<void> _pumpOnboarding(
@@ -303,11 +316,23 @@ void main() {
       of: find.byKey(const ValueKey('guardian-invite-code')),
       matching: find.byType(TextFormField),
     );
-    await tester.enterText(guardianCodeField, 'ab12cd34');
+    final guardianInviteToken = List.filled(64, 'a').join();
+    await tester.enterText(guardianCodeField, guardianInviteToken);
     await tester.pump();
     expect(
       tester.widget<TextFormField>(guardianCodeField).controller!.text,
-      'ab12cd34',
+      guardianInviteToken,
+    );
+    expect(
+      tester
+          .widget<TextField>(
+            find.descendant(
+              of: guardianCodeField,
+              matching: find.byType(TextField),
+            ),
+          )
+          .maxLength,
+      64,
     );
     final linkButton = find.ancestor(
       of: find.text('Link teen account'),
@@ -318,9 +343,30 @@ void main() {
     await tester.tap(find.text('Link teen account'));
     await tester.pumpAndSettle();
 
-    expect(guardianRepository.acceptedCode, 'ab12cd34');
+    expect(guardianRepository.acceptedCode, guardianInviteToken);
     expect(find.text('Teen account linked.'), findsWidgets);
     expect(profileRepository.safetySaves, 0);
+  });
+
+  testWidgets('teen can copy the backend-issued guardian invite token', (
+    tester,
+  ) async {
+    final inviteToken = List.filled(64, 'B').join();
+    final guardianRepository = _FakeGuardianRepository()
+      ..inviteCodeToReturn = inviteToken;
+    await _pumpOnboarding(
+      tester,
+      repository: _SafetyStepProfileRepository(),
+      guardianRepository: guardianRepository,
+    );
+
+    expect(find.text('Step 3 of 4'), findsOneWidget);
+    await tester.ensureVisible(find.text('Invite a guardian'));
+    await tester.tap(find.text('Invite a guardian'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining(inviteToken), findsOneWidget);
+    expect(find.byTooltip('Copy guardian invite code'), findsOneWidget);
   });
 
   testWidgets(

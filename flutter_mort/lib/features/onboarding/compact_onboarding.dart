@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
@@ -297,9 +298,31 @@ class _CompactOnboardingScreenState
     }
   }
 
+  Future<void> _copyGuardianInviteCode() async {
+    final code = _guardianInviteCode;
+    if (code == null) return;
+    try {
+      await Clipboard.setData(ClipboardData(text: code));
+      if (mounted) MortToast.show(context, 'Guardian invite code copied.');
+    } catch (_) {
+      if (mounted) {
+        MortToast.show(
+          context,
+          'Select the invitation code above and copy it to share.',
+        );
+      }
+    }
+  }
+
+  String get _normalizedGuardianCode =>
+      _guardianCode.text.replaceAll(RegExp(r'\s+'), '');
+
+  bool get _hasValidGuardianCode =>
+      RegExp(r'^[a-fA-F0-9]{64}$').hasMatch(_normalizedGuardianCode);
+
   Future<void> _linkTeenAccount() async {
-    final code = _guardianCode.text.trim();
-    if (_guardianBusy || code.isEmpty) return;
+    final code = _normalizedGuardianCode;
+    if (_guardianBusy || !_hasValidGuardianCode) return;
     setState(() => _guardianBusy = true);
     try {
       await ref.read(guardianRepositoryProvider).acceptInvite(code);
@@ -1046,7 +1069,21 @@ class _CompactOnboardingScreenState
           if (_guardianInviteCode != null)
             MortGlassCard(
               infoAccent: true,
-              child: Text('Guardian invite created: $_guardianInviteCode'),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: SelectableText(
+                      'Guardian invite created:\n$_guardianInviteCode',
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Copy guardian invite code',
+                    onPressed: _copyGuardianInviteCode,
+                    icon: const Icon(Icons.copy_all_outlined),
+                  ),
+                ],
+              ),
             )
           else ...[
             MortTextField(
@@ -1092,10 +1129,10 @@ class _CompactOnboardingScreenState
             MortTextField(
               key: const ValueKey('guardian-invite-code'),
               label: 'Guardian invite code',
-              hint: 'Enter the 8-character code',
+              hint: 'Paste the 64-character code',
               controller: _guardianCode,
               enabled: !_guardianBusy,
-              maxLength: 8,
+              maxLength: 64,
               textCapitalization: TextCapitalization.characters,
               autocorrect: false,
               enableSuggestions: false,
@@ -1107,9 +1144,7 @@ class _CompactOnboardingScreenState
               icon: Icons.link_rounded,
               style: MortButtonStyle.secondary,
               busy: _guardianBusy,
-              onPressed: _guardianCode.text.trim().length == 8
-                  ? _linkTeenAccount
-                  : null,
+              onPressed: _hasValidGuardianCode ? _linkTeenAccount : null,
             ),
           ],
         ],
