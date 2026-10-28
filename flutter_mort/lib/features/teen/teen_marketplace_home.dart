@@ -131,6 +131,8 @@ class _MarketplaceSections extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final quickJobs = selectQuickJobs(jobs);
+    final textScale = MediaQuery.textScalerOf(context).scale(18) / 18;
+    final quickJobsRailHeight = 180 + (textScale - 1).clamp(0.0, 3.0) * 140;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -148,7 +150,7 @@ class _MarketplaceSections extends StatelessWidget {
           )
         else
           SizedBox(
-            height: 180,
+            height: quickJobsRailHeight,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: quickJobs.length,
