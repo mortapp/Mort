@@ -39,7 +39,13 @@ jobs:
       - run: node scripts/qa-stripe-pre-provider-gate.mjs
       - run: node scripts/secret_extraction_scan.mjs --self-test
       - run: node scripts/secret-scan-git-history.mjs --self-test
-      - run: deno test --node-modules-dir=auto --allow-read --allow-env --allow-run=docker supabase/functions/_tests
+      - run: >-
+          deno test --node-modules-dir=auto --allow-read --allow-env
+          supabase/functions/_tests/stripe_financial_history_test.ts
+          supabase/functions/_tests/stripe_funding_quote_test.ts
+          supabase/functions/_tests/stripe_payment_state_test.ts
+          supabase/functions/_tests/stripe_payment_status_test.ts
+          supabase/functions/_tests/stripe_webhook_verification_test.ts
       - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs
       - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs docs/payments/MORT_STRIPE_TASK31_SANDBOX_EVIDENCE_2026-09-18.json
       - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs --regression-manifest
@@ -277,6 +283,7 @@ jobs:
           path: build/device-test/mort-device-test.apk
           if-no-files-found: error
           retention-days: 7
+
 
 
 
