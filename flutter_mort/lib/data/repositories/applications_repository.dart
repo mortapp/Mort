@@ -112,6 +112,8 @@ class ApplicationsRepository extends RepositoryBase {
         .from('proof_uploads')
         .select()
         .eq('application_id', applicationId)
+        .neq('status', 'uploading')
+        .neq('status', 'abandoned')
         .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(
       rows as List,
@@ -134,6 +136,18 @@ class ApplicationsRepository extends RepositoryBase {
     final map = _rpcMap(result);
     _throwIfFailed(map);
     return ProofUpload.fromMap(Map<String, dynamic>.from(map['proof'] as Map));
+  }
+
+  Future<void> completeJobAfterProof(
+    String applicationId, {
+    required String proofId,
+  }) async {
+    final result = await client.rpc(
+      'complete_job_after_proof',
+      params: {'p_application_id': applicationId, 'p_proof_id': proofId},
+    );
+    final map = _rpcMap(result);
+    _throwIfFailed(map);
   }
 
   static List<MortApplication> _applications(Object? rows) {

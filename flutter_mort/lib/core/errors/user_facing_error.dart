@@ -116,6 +116,25 @@ String applicationErrorMessage(String code, {String? fallback}) {
       'Add at least 10 characters explaining what needs to change.',
     'proof_not_found' || 'stale_proof_submission' =>
       'That proof is no longer the current submission. Refresh and review the latest proof.',
+    'proof_already_pending' =>
+      'A proof is already waiting for review. Refresh the application before submitting another.',
+    'proof_already_approved' =>
+      'Proof has already been approved for this job. Refresh the application.',
+    'proof_upload_not_found' || 'proof_not_awaiting_review' =>
+      'That proof is no longer available for review. Refresh the job and try again.',
+    'proof_note_too_long' => 'Keep the proof note under 500 characters.',
+    'proof_review_note_too_long' =>
+      'Keep the review note under 500 characters.',
+    'proof_file_missing' =>
+      'The proof photo did not finish uploading. Select it again and retry.',
+    'proof_upload_not_pending' || 'proof_submission_conflict' =>
+      'That upload has expired or changed. Select the photo again and retry.',
+    'job_not_ready_for_proof' || 'job_not_awaiting_confirmation' =>
+      'This job changed before the proof action completed. Refresh the job and try again.',
+    'job_execution_review_required' =>
+      'This job does not have an active completion review. Refresh the job and contact support if it still looks wrong.',
+    'completion_review_window_open' =>
+      'Proof is approved. The job can be closed after the 24-hour review window ends.',
     'invalid_proof_review_action' || 'invalid_proof_review_state' =>
       'That proof action is no longer available. Refresh and try again.',
     'invalid_job_transition' =>

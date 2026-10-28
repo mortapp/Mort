@@ -61,8 +61,27 @@ class UploadsRepository extends RepositoryBase {
       );
     }
     final path = '$userId/$submissionId.jpg';
+    var manifestCreated = false;
     var uploadedOrAlreadyPresent = false;
     try {
+      final beginValue = await client.rpc(
+        'begin_application_proof_upload',
+        params: {
+          'p_proof_id': submissionId,
+          'p_application_id': applicationId,
+          'p_storage_path': path,
+          'p_note': note,
+        },
+      );
+      final beginResult = _proofRpcMap(beginValue);
+      if (beginResult['ok'] != true) {
+        throw _proofRpcError(
+          beginResult,
+          'We could not start this proof upload.',
+        );
+      }
+      manifestCreated = true;
+
       try {
         await client.storage
             .from(proofBucket)
@@ -90,18 +109,9 @@ class UploadsRepository extends RepositoryBase {
           'p_note': note,
         },
       );
-      if (value is! Map) {
-        throw const MortCodedError(
-          'unknown_permission_failure',
-          'The backend returned an unexpected proof response.',
-        );
-      }
-      final result = Map<String, dynamic>.from(value);
+      final result = _proofRpcMap(value);
       if (result['ok'] != true) {
-        throw MortCodedError(
-          (result['code'] as String?) ?? 'unknown_permission_failure',
-          (result['message'] as String?) ?? 'We could not submit this proof.',
-        );
+        throw _proofRpcError(result, 'We could not submit this proof.');
       }
       return path;
     } catch (_) {
@@ -118,9 +128,40 @@ class UploadsRepository extends RepositoryBase {
           // Attached proof cannot be removed; orphan cleanup is best effort.
         }
       }
+      if (manifestCreated) {
+        try {
+          await client.rpc(
+            'abort_application_proof_upload',
+            params: {
+              'p_proof_id': submissionId,
+              'p_application_id': applicationId,
+            },
+          );
+        } catch (_) {
+          // The pending row remains private and can be retried or cleaned up.
+        }
+      }
       rethrow;
     }
   }
+
+  static Map<String, dynamic> _proofRpcMap(Object? value) {
+    if (value is! Map) {
+      throw const MortCodedError(
+        'unknown_permission_failure',
+        'The backend returned an unexpected proof response.',
+      );
+    }
+    return Map<String, dynamic>.from(value);
+  }
+
+  static MortCodedError _proofRpcError(
+    Map<String, dynamic> result,
+    String fallback,
+  ) => MortCodedError(
+    (result['code'] as String?) ?? 'unknown_permission_failure',
+    (result['message'] as String?) ?? fallback,
+  );
 
   Future<String> uploadVerificationDocument({
     required String submissionId,

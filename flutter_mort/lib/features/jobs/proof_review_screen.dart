@@ -87,7 +87,7 @@ class _ProofReviewScreenState extends ConsumerState<ProofReviewScreen> {
       title: label,
       message: action == 'approved'
           ? 'The job can be completed after approval.'
-          : 'The application will return to in progress so the teen can submit replacement proof.',
+          : 'The job stays in review while the teen prepares replacement proof.',
     );
     if (!confirmed || !mounted) return;
 
@@ -112,20 +112,20 @@ class _ProofReviewScreenState extends ConsumerState<ProofReviewScreen> {
     }
   }
 
-  Future<void> _complete() async {
+  Future<void> _complete(ProofUpload proof) async {
     if (_busy) return;
     final confirmed = await MortConfirmSheet.show(
       context,
       title: 'Mark this job complete?',
       message:
-          'This protected action keeps approved proof in the private job record.',
+          'This is available after the 24-hour review window. Payment release remains a separate protected process.',
     );
     if (!confirmed || !mounted) return;
     setState(() => _busy = true);
     try {
       await ref
           .read(applicationsRepositoryProvider)
-          .updateStatus(widget.applicationId, 'completed');
+          .completeJobAfterProof(widget.applicationId, proofId: proof.id);
       if (mounted) context.go('/adult/applicants');
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
@@ -311,12 +311,12 @@ class _ProofReviewScreenState extends ConsumerState<ProofReviewScreen> {
             busyLabel: 'Completing...',
             busy: _busy,
             icon: Icons.task_alt,
-            onPressed: _complete,
+            onPressed: () => _complete(proof),
           ),
         ] else
           const MortCard(
             child: Text(
-              'The application is back in progress while the teen prepares replacement proof.',
+              'The job remains in review while the teen prepares replacement proof.',
             ),
           ),
       ],

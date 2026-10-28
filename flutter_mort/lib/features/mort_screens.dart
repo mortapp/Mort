@@ -3760,7 +3760,7 @@ class _ProofUploadScreenState extends ConsumerState<ProofUploadScreen> {
               ),
               const SizedBox(height: MortSpacing.sm),
               const Text(
-                'The adult who posted the job and safety admins can review submitted proof. Attached proof cannot be deleted by the uploader.',
+                'Only the adult who posted this job can review the submitted proof. Attached proof stays private to the job participants.',
               ),
             ],
           ),
