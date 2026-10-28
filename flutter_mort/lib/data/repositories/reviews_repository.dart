@@ -3,31 +3,33 @@ import 'repository_base.dart';
 
 class ReviewsRepository extends RepositoryBase {
   Future<MortReview> createReview({
+    required String applicationId,
     required String jobId,
     required String subjectId,
     required int rating,
-    String? body,
   }) async {
     final reviewerId = requireUserId();
     final row = await client
         .from('reviews')
         .insert({
+          'application_id': applicationId,
           'job_id': jobId,
           'reviewer_id': reviewerId,
           'subject_id': subjectId,
           'rating': rating,
-          'body': body?.trim().isEmpty == true ? null : body?.trim(),
         })
         .select()
         .single();
     return MortReview.fromMap(Map<String, dynamic>.from(row));
   }
 
-  Future<MortReview?> reviewForJobByCurrentUser(String jobId) async {
+  Future<MortReview?> reviewForApplicationByCurrentUser(
+    String applicationId,
+  ) async {
     final row = await client
         .from('reviews')
         .select()
-        .eq('job_id', jobId)
+        .eq('application_id', applicationId)
         .eq('reviewer_id', requireUserId())
         .maybeSingle();
     return row == null

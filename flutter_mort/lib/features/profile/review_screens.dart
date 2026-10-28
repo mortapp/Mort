@@ -19,7 +19,6 @@ class LeaveReviewScreen extends ConsumerStatefulWidget {
 }
 
 class _LeaveReviewScreenState extends ConsumerState<LeaveReviewScreen> {
-  final _body = TextEditingController();
   late Future<_ReviewContext> _future;
   int _rating = 5;
   bool _busy = false;
@@ -30,25 +29,28 @@ class _LeaveReviewScreenState extends ConsumerState<LeaveReviewScreen> {
     _future = _load();
   }
 
-  @override
-  void dispose() {
-    _body.dispose();
-    super.dispose();
-  }
-
   Future<_ReviewContext> _load() async {
     final application = await ref
         .read(applicationsRepositoryProvider)
         .getApplication(widget.applicationId);
     if (application == null) return const _ReviewContext();
-    final existing = await ref
-        .read(reviewsRepositoryProvider)
-        .reviewForJobByCurrentUser(application.jobId);
-    return _ReviewContext(application: application, existing: existing);
+    final repository = ref.read(reviewsRepositoryProvider);
+    final existing = await repository.reviewForApplicationByCurrentUser(
+      application.id,
+    );
+    final execution = await ref
+        .read(jobExecutionRepositoryProvider)
+        .getStatus(application.id);
+    return _ReviewContext(
+      application: application,
+      existing: existing,
+      completed: execution.state == 'completed',
+    );
   }
 
-  Future<void> _submit(MortApplication application) async {
-    if (_busy || application.status != 'completed') return;
+  Future<void> _submit(_ReviewContext data) async {
+    final application = data.application;
+    if (_busy || application == null || !data.completed) return;
     final currentUserId = ref.read(authRepositoryProvider).currentUser?.id;
     final job = application.job;
     if (currentUserId == null || job == null) return;
@@ -60,10 +62,10 @@ class _LeaveReviewScreenState extends ConsumerState<LeaveReviewScreen> {
       await ref
           .read(reviewsRepositoryProvider)
           .createReview(
+            applicationId: application.id,
             jobId: application.jobId,
             subjectId: subjectId,
             rating: _rating,
-            body: _body.text,
           );
       if (!mounted) return;
       MortToast.show(context, 'Review submitted.');
@@ -117,13 +119,13 @@ class _LeaveReviewScreenState extends ConsumerState<LeaveReviewScreen> {
             ],
           );
         }
-        if (application.status != 'completed') {
+        if (!data.completed) {
           return const MortScreen(
             children: [
               MortErrorState(
                 title: 'Review not available yet',
                 message:
-                    'Reviews unlock only after the job and application are completed.',
+                    'Reviews unlock after both people confirm the job is complete.',
               ),
             ],
           );
@@ -134,7 +136,7 @@ class _LeaveReviewScreenState extends ConsumerState<LeaveReviewScreen> {
               eyebrow: 'Completed job',
               title: 'Leave a review',
               subtitle:
-                  'Rate your experience for ${application.job?.title ?? 'this job'}. Keep the review factual and do not include private contact details.',
+                  'Rate your experience for ${application.job?.title ?? 'this job'}. Ratings stay private until both people submit or 14 days pass. Written reviews are not available yet.',
             ),
             MortCard(
               child: Column(
@@ -166,18 +168,11 @@ class _LeaveReviewScreenState extends ConsumerState<LeaveReviewScreen> {
               ),
             ),
             const SizedBox(height: MortSpacing.md),
-            MortTextArea(
-              label: 'Short review (optional)',
-              controller: _body,
-              maxLength: 500,
-              maxLines: 5,
-            ),
-            const SizedBox(height: MortSpacing.md),
             MortButton(
               label: 'Submit review',
               icon: Icons.rate_review_outlined,
               busy: _busy,
-              onPressed: () => _submit(application),
+              onPressed: () => _submit(data),
             ),
           ],
         );
@@ -300,8 +295,13 @@ class _ReviewCard extends StatelessWidget {
 }
 
 class _ReviewContext {
-  const _ReviewContext({this.application, this.existing});
+  const _ReviewContext({
+    this.application,
+    this.existing,
+    this.completed = false,
+  });
 
   final MortApplication? application;
   final MortReview? existing;
+  final bool completed;
 }
