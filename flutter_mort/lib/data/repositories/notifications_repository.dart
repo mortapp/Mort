@@ -78,7 +78,7 @@ class NotificationsRepository extends RepositoryBase {
     final rows = await client
         .from('notifications')
         .select()
-        .eq('recipient_id', requireUserId())
+        .eq('user_id', requireUserId())
         .order('created_at', ascending: false)
         .limit(60);
     return List<Map<String, dynamic>>.from(
@@ -97,7 +97,7 @@ class NotificationsRepository extends RepositoryBase {
     await client
         .from('notifications')
         .update({'read_at': DateTime.now().toUtc().toIso8601String()})
-        .eq('recipient_id', requireUserId())
+        .eq('user_id', requireUserId())
         .filter('read_at', 'is', null);
   }
 
