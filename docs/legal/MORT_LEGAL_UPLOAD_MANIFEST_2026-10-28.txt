@@ -1,0 +1,30 @@
+MORT legal upload artifact manifest
+Recorded: 2026-10-28
+Scope: user-supplied legal document PDFs and Typst sources only.
+No credentials, keystores, OAuth secrets, API keys, or environment files are included.
+
+SHA-256  MORT_Master_Terms_V3.typ
+648ebf688f8c2aa38dd614e72b725b0906036169384a863a06f650bb78837fba
+
+SHA-256  MORT_Master_Terms_V3.pdf
+1106789d12a660cae57c76edc928f27a3b27ec57cbbb6f41ce0ae3079a450248
+
+SHA-256  MORT_Privacy_Policy.typ
+72a3b805ec5ea39d6d4d50af993627fd09b7b0585809a00decd27e5298827fa5
+
+SHA-256  MORT_Privacy_Policy.pdf
+dae133cda0036ed976d9bd2f17021968f72935830ce55f6513242ad9d990f122
+
+SHA-256  MORT_Safety_Rules.typ
+3e1c42d60a5e7489f503f9bb745f2b71aa682a2f022f5f12822f281825b68d93
+
+SHA-256  MORT_Safety_Rules.pdf
+7a40e76434569136751d375536a735b7ea6b57f0da5409bb80d8de7d14aebc7d
+
+SHA-256  MORT_Community_Guidelines.typ
+479407e467ac5d6f050ac30022ca38f0c25cd6c2f768be0258e4e74e541c0632
+
+SHA-256  MORT_Community_Guidelines.pdf
+a4f64709ad59c542b94cb3b7c738b0d862fc136f7b187fcf32e8d79f72e94406
+
+The Supabase database already contains corresponding Markdown legal document versions. Its stored content_hash values were verified to equal SHA-256 of the stored Markdown text. That verifies database content integrity, but not byte-for-byte equivalence between the supplied PDF/Typst sources and database Markdown. The legal versions remain draft_attorney_review and are not published.
