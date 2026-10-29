@@ -301,7 +301,11 @@ async function validateRegressionManifest() {
   for (const token of [
     "stripe-contracts:",
     "qa-stripe-pre-provider-gate.mjs",
-    "deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests",
+    "stripe_financial_history_test.ts",
+    "stripe_funding_quote_test.ts",
+    "stripe_payment_state_test.ts",
+    "stripe_payment_status_test.ts",
+    "stripe_webhook_verification_test.ts",
     "flutter test --no-pub test/features/payment_os_integration_test.dart",
     "stripe-local-regression:",
     "stripe-hosted-regression:",
