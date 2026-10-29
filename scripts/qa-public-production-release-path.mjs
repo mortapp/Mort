@@ -31,6 +31,8 @@ assert(!/r0adkll\/upload-google-play|publish.*play|upload.*play/i.test(workflow)
 
 const profile = JSON.parse(read('config/mort-release-profiles.json')).profiles.production;
 const commonBuild = read('scripts/android-release-profile-common.ps1');
+const serverGate = read('scripts/validate-release-profile-server.mjs');
+const legalGateMigration = read('supabase/migrations/20261029120000_mort_public_release_legal_gate.sql');
 const aabVerifier = read('scripts/verify-play-aab.ps1');
 assert(profile.releaseStage === 'production_public', 'Production profile has the wrong release stage.');
 assert(profile.publicMarketplaceEnabled === true, 'Production profile does not enable the public marketplace.');
@@ -38,6 +40,8 @@ assert(profile.productionActivationApproved === true, 'Owner-approved public pro
 assert(profile.remotePushEnabled === false, 'Production profile still requires the Firebase-only push path.');
 assert(!aabVerifier.includes('FlutterFirebaseMessagingReceiver'), 'AAB verifier still allows Firebase messaging components.');
 assert(commonBuild.includes('Public production requires approved legal document versions.'), 'Production builder does not reject legal placeholders.');
+assert(serverGate.includes('status.legal_release_ready !== true'), 'Production server gate does not require published, counsel-reviewed legal documents.');
+assert(legalGateMigration.includes('approved_by_counsel_reference') && legalGateMigration.includes('legal_release_ready'), 'Legal readiness migration does not validate counsel approval and the release readiness flag.');
 assert(!/FIREBASE_[A-Z0-9_]+:/.test(workflow), 'Production workflow still supplies Firebase configuration.');
 for (const field of ['SENTRY_DSN']) {
   assert(commonBuild.includes(`${field} =`), `Public build does not pass ${field} to Flutter.`);

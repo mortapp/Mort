@@ -63,6 +63,9 @@ async function validate() {
     if (status.public_marketplace_enabled !== true) {
       fail("server has not approved public marketplace activation");
     }
+    if (status.legal_release_ready !== true) {
+      fail("server has not approved the required published, counsel-reviewed legal document set");
+    }
     if (status.real_document_collection !== true) {
       fail("server has not approved production identity verification");
     }
