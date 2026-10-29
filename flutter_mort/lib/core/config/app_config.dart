@@ -5,7 +5,7 @@ import 'release_profile.dart';
 class AppConfig {
   const AppConfig._();
 
-  static const expectedSupabaseProjectRef = 'rakjydmgwwgtdislanbt';
+  static const expectedSupabaseProjectRef = 'jxbnrkasktbhtiujkhay';
 
   static const appName = 'MORT';
   static const slogan = 'Earn nearby. Move smart.';
@@ -36,25 +36,6 @@ class AppConfig {
   static const remotePushEnabled = bool.fromEnvironment(
     'MORT_REMOTE_PUSH_ENABLED',
     defaultValue: false,
-  );
-  static const firebaseProjectId = String.fromEnvironment(
-    'FIREBASE_PROJECT_ID',
-  );
-  static const firebaseMessagingSenderId = String.fromEnvironment(
-    'FIREBASE_MESSAGING_SENDER_ID',
-  );
-  static const firebaseAndroidApiKey = String.fromEnvironment(
-    'FIREBASE_ANDROID_API_KEY',
-  );
-  static const firebaseAndroidAppId = String.fromEnvironment(
-    'FIREBASE_ANDROID_APP_ID',
-  );
-  static const firebaseIosApiKey = String.fromEnvironment(
-    'FIREBASE_IOS_API_KEY',
-  );
-  static const firebaseIosAppId = String.fromEnvironment('FIREBASE_IOS_APP_ID');
-  static const firebaseStorageBucket = String.fromEnvironment(
-    'FIREBASE_STORAGE_BUCKET',
   );
   static const crashReportingEnabled = bool.fromEnvironment(
     'MORT_CRASH_REPORTING_ENABLED',
@@ -307,27 +288,19 @@ class AppConfig {
   static bool get isSupabaseConfigured =>
       supabaseUrl.startsWith('https://') && supabaseAnonKey.trim().isNotEmpty;
 
-  static String get firebaseApiKey =>
-      defaultTargetPlatform == TargetPlatform.iOS
-      ? firebaseIosApiKey
-      : firebaseAndroidApiKey;
+  static bool isValidSentryDsn(String value) {
+    final uri = Uri.tryParse(value);
+    return uri != null &&
+        uri.scheme == 'https' &&
+        uri.host.isNotEmpty &&
+        uri.userInfo.isNotEmpty &&
+        !uri.userInfo.contains(':') &&
+        RegExp(r'^/[1-9][0-9]*$').hasMatch(uri.path) &&
+        !uri.hasQuery &&
+        !uri.hasFragment;
+  }
 
-  static String get firebaseAppId => defaultTargetPlatform == TargetPlatform.iOS
-      ? firebaseIosAppId
-      : firebaseAndroidAppId;
-
-  static bool get isFirebaseClientConfigured =>
-      !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.android ||
-          defaultTargetPlatform == TargetPlatform.iOS) &&
-      firebaseProjectId.trim().isNotEmpty &&
-      firebaseMessagingSenderId.trim().isNotEmpty &&
-      firebaseApiKey.trim().isNotEmpty &&
-      firebaseAppId.trim().isNotEmpty;
-
-  static bool get isSentryConfigured =>
-      Uri.tryParse(sentryDsn)?.isScheme('https') == true &&
-      Uri.parse(sentryDsn).host.isNotEmpty;
+  static bool get isSentryConfigured => isValidSentryDsn(sentryDsn);
 
   static MortReleaseConfiguration get releaseConfiguration =>
       MortReleaseConfiguration(
@@ -369,9 +342,6 @@ class AppConfig {
 
   static Map<String, String> get safeReleaseDiagnostics => {
     ...releaseConfiguration.safeDiagnostics,
-    'Firebase client config': isFirebaseClientConfigured
-        ? 'configured'
-        : 'not configured',
     'Crash provider': crashReportingEnabled && isSentryConfigured
         ? 'configured'
         : 'disabled',
@@ -442,10 +412,8 @@ class AppConfig {
     if (releaseStage == 'closed_test' && publicMarketplaceEnabled) {
       errors.add('closed test cannot open the public marketplace');
     }
-    if (remotePushEnabled && !isFirebaseClientConfigured) {
-      errors.add(
-        'remote push is enabled without complete Firebase client configuration',
-      );
+    if (remotePushEnabled) {
+      errors.add('remote push has no approved provider in this build');
     }
     if (crashReportingEnabled && !isSentryConfigured) {
       errors.add('crash reporting is enabled without a valid Sentry DSN');
@@ -459,11 +427,6 @@ class AppConfig {
       if (publicMarketplaceEnabled || publicActivationApproved) {
         errors.add('production pilot must keep public activation closed');
       }
-      if (!remotePushEnabled) {
-        errors.add(
-          'production pilot requires a configured remote push provider',
-        );
-      }
       if (!crashReportingEnabled) {
         errors.add('production pilot requires a configured crash provider');
       }
@@ -475,8 +438,8 @@ class AppConfig {
       if (!identityVerificationEnabled) {
         errors.add('public mode requires production identity verification');
       }
-      if (!remotePushEnabled || !crashReportingEnabled) {
-        errors.add('public mode requires push and crash providers');
+      if (!crashReportingEnabled) {
+        errors.add('public mode requires a crash provider');
       }
     }
     return List.unmodifiable(errors);

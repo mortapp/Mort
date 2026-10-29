@@ -229,7 +229,7 @@ foreach ($archive in $artifacts.Values) { Assert-ArchiveEntries -ArchivePath $ar
 $artifactReport = [ordered]@{
   generatedAt = [DateTimeOffset]::Now.ToString('o')
   highestTruthfulStatus = 'TECHNICALLY READY FOR PLAY CONSOLE CLOSED-TEST SETUP'
-  projectRef = 'rakjydmgwwgtdislanbt'
+  projectRef = 'jxbnrkasktbhtiujkhay'
   artifacts = @(
     Get-ArtifactReport -Path $artifacts.source -Use 'Clean source and documentation handoff' -SignatureStatus 'NOT_APPLICABLE'
     Get-ArtifactReport -Path $aab -Use 'Google Play closed-test upload candidate' -SignatureStatus 'PASS_MORT_UPLOAD_CERTIFICATE_DEBUG_REJECTED'

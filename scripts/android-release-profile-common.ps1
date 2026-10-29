@@ -18,15 +18,18 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'android-signing-common.ps1')
+. (Join-Path $PSScriptRoot 'sentry-client-config.ps1')
 
 $root = Split-Path $PSScriptRoot -Parent
 $flutterRoot = Join-Path $root 'flutter_mort'
 $outputDirectory = Join-Path $root 'build\play'
-$expectedUrl = 'https://rakjydmgwwgtdislanbt.supabase.co'
-$expectedProjectRef = 'rakjydmgwwgtdislanbt'
+$expectedUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co'
+$expectedProjectRef = 'jxbnrkasktbhtiujkhay'
 $expectedAuthRedirectUrl = 'com.mortapp.mobile://app/auth-callback'
 $expectedCertificateSha256 = Get-MortUploadCertificateSha256
 $defineFile = $null
+$sentryDsn = Get-MortSentryClientDsn -Required:$CrashReportingEnabled
+if ($RemotePushEnabled) { throw 'Remote push has no approved provider in this build.' }
 
 if ([string]::IsNullOrWhiteSpace($ReleaseProfile)) {
   $ReleaseProfile = switch ($ReleaseStage) {
@@ -38,6 +41,16 @@ if ([string]::IsNullOrWhiteSpace($ReleaseProfile)) {
 $profileJson = & node (Join-Path $PSScriptRoot 'validate-release-profile.mjs') --profile $ReleaseProfile
 if ($LASTEXITCODE -ne 0) { throw 'Release profile matrix validation failed.' }
 $profile = $profileJson | ConvertFrom-Json
+
+if ($ReleaseProfile -eq 'production') {
+  foreach ($legalField in @('termsVersion', 'privacyVersion', 'communityGuidelinesVersion', 'safetyRulesVersion')) {
+    $legalVersion = [string]$profile.$legalField
+    if ([string]::IsNullOrWhiteSpace($legalVersion) -or
+        $legalVersion -match '(?i)(^draft|approval|required|pending)') {
+      throw 'Public production requires approved legal document versions.'
+    }
+  }
+}
 
 foreach ($comparison in @(
   @('release stage', $ReleaseStage, [string]$profile.releaseStage),
@@ -84,6 +97,7 @@ $supabaseUrl = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_URL' -ExpoName '
 $supabaseAnonKey = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_ANON_KEY' -ExpoName 'EXPO_PUBLIC_SUPABASE_ANON_KEY' -Root $root
 if ($supabaseUrl -ne $expectedUrl) { throw 'Release build targets the wrong Supabase project.' }
 if ([string]::IsNullOrWhiteSpace($supabaseAnonKey)) { throw 'The public Supabase key is missing.' }
+
 $env:SUPABASE_URL = $supabaseUrl
 $env:SUPABASE_ANON_KEY = $supabaseAnonKey
 & node (Join-Path $PSScriptRoot 'validate-release-profile-server.mjs') $ReleaseProfile
@@ -103,11 +117,14 @@ if ($ReleaseStage -ne 'closed_test' -and $PlayReviewModeEnabled) {
 if ($ReleaseStage -eq 'closed_test' -and $PublicMarketplaceEnabled) {
   throw 'Closed test cannot enable the public marketplace.'
 }
-if ($GoogleAuthEnabled -and $ReleaseStage -ne 'closed_test') {
-  throw 'Google Auth activation is approved only for the closed-test profile.'
+if ($GoogleAuthEnabled) {
+  & node (Join-Path $PSScriptRoot 'verify-google-oauth-production.mjs')
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Google Auth is enabled but the production Supabase provider check failed.'
+  }
 }
-if ($ReleaseStage -like 'production_*' -and (-not $RemotePushEnabled -or -not $CrashReportingEnabled)) {
-  throw 'Production profiles require real remote-push and crash providers.'
+if ($ReleaseStage -like 'production_*' -and -not $CrashReportingEnabled) {
+  throw 'Production profiles require a real Sentry crash provider.'
 }
 if ($ReleaseStage -eq 'production_public' -and (-not $IdentityVerificationEnabled -or -not $PublicActivationApproved)) {
   throw 'Public production requires approved identity verification and public activation evidence.'
@@ -131,6 +148,7 @@ $defines = [ordered]@{
   MORT_MARKETPLACE_PAYMENTS_ENABLED = 'false'
   MORT_REMOTE_PUSH_ENABLED = $RemotePushEnabled.ToString().ToLowerInvariant()
   MORT_CRASH_REPORTING_ENABLED = $CrashReportingEnabled.ToString().ToLowerInvariant()
+  SENTRY_DSN = $sentryDsn
   MORT_PAYMENT_PROVIDER_MODE = [string]$profile.paymentProviderMode
   MORT_SUPPORT_AI_ENABLED = ([bool]$profile.chatbotAiEnabled).ToString().ToLowerInvariant()
   MORT_DETERMINISTIC_SUPPORT_ENABLED = ([bool]$profile.deterministicChatbotFallbackEnabled).ToString().ToLowerInvariant()
@@ -148,14 +166,7 @@ $defines = [ordered]@{
   GOOGLE_AUTH_ENABLED = $GoogleAuthEnabled.ToString().ToLowerInvariant()
   IAP_ENABLED = 'false'
   ADS_ENABLED = $AdsEnabled.ToString().ToLowerInvariant()
-  # USE_TEST_ADS is intentionally not yet wired to its own parameter --
-  # this keeps every build serving Google's official test ads even once
-  # ADS_ENABLED=true is buildable for production/production_candidate.
-  # AppConfig's own release validation fails closed if ads are ever
-  # enabled with USE_TEST_ADS still true, so a real (non-test) ads
-  # rollout requires a deliberate follow-up change here, not an
-  # accidental one.
-  USE_TEST_ADS = 'true'
+  USE_TEST_ADS = if ($AdsEnabled) { 'false' } else { 'true' }
 }
 foreach ($name in $defines.Keys) {
   if ($name -match '(?i)(SERVICE.?ROLE|ACCESS.?TOKEN|REFRESH.?TOKEN|PASSWORD|CLIENT.?SECRET|PRIVATE.?KEY|WEBHOOK.?SECRET)') {

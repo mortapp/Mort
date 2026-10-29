@@ -1,4 +1,17 @@
 [CmdletBinding()]
 param()
 
-throw 'BLOCKED-EXTERNAL: public production requires approved identity provider, legal terms, moderation operations, native QA, push/crash providers, and audited server activation. The public marketplace remains closed.'
+& (Join-Path $PSScriptRoot 'android-release-profile-common.ps1') `
+  -ReleaseProfile production `
+  -ReleaseStage production_public `
+  -OperationalMode production `
+  -ArtifactKind Aab `
+  -PlayReviewModeEnabled $false `
+  -GoogleAuthEnabled $true `
+  -PublicMarketplaceEnabled $true `
+  -IdentityVerificationEnabled $true `
+  -RemotePushEnabled $false `
+  -CrashReportingEnabled $true `
+  -PublicActivationApproved $true `
+  -AdsEnabled $true
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

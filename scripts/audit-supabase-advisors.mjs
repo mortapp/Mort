@@ -1,4 +1,4 @@
-const projectRef = "rakjydmgwwgtdislanbt";
+const projectRef = "jxbnrkasktbhtiujkhay";
 const accessToken = process.env.SUPABASE_ACCESS_TOKEN;
 
 if (!accessToken) {

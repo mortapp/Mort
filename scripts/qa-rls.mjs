@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-const currentMismatchedLiveRef = "rakjydmgwwgtdislanbt";
+const currentMismatchedLiveRef = "jxbnrkasktbhtiujkhay";
 const password = process.env.MORT_LOCAL_TEST_PASSWORD;
 
 const users = {

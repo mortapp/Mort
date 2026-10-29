@@ -3,15 +3,16 @@ import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
 
 export const supabaseUrl = required("EXPO_PUBLIC_SUPABASE_URL");
+const localQa = process.env.MORT_QA_LOCAL_SUPABASE === "true";
 export const projectRef =
   process.env.MORT_SUPABASE_PROJECT_REF ||
-  new URL(supabaseUrl).hostname.split(".")[0] ||
-  "local";
+  (localQa
+    ? new URL(supabaseUrl).hostname.split(".")[0] || "local"
+    : "jxbnrkasktbhtiujkhay");
 export const anonKey = required("EXPO_PUBLIC_SUPABASE_ANON_KEY");
 const serviceRoleKey = required("SUPABASE_SERVICE_ROLE_KEY");
 const dbUrl = process.env.SUPABASE_DB_URL || "";
 const dbPassword = process.env.SUPABASE_DB_PASSWORD || "";
-const localQa = process.env.MORT_QA_LOCAL_SUPABASE === "true";
 
 if (!localQa && supabaseUrl !== `https://${projectRef}.supabase.co`) {
   throw new Error(`EXPO_PUBLIC_SUPABASE_URL must target ${projectRef}.`);
@@ -977,14 +978,12 @@ export async function updateApplicationStatus(
   {
     applicationId,
     action,
-    clientRequestId = randomUUID(),
     expectedUpdatedAt = null,
   },
 ) {
-  return client.rpc("update_application_status_v3", {
+  return client.rpc("update_my_job_application_status", {
     p_application_id: applicationId,
     p_action: action,
-    p_client_request_id: clientRequestId,
     p_expected_updated_at: expectedUpdatedAt,
   });
 }

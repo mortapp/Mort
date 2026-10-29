@@ -27,10 +27,10 @@
 //
 // Runs against local (set SUPABASE_DB_URL, e.g.
 // postgresql://postgres:postgres@127.0.0.1:54322/postgres) or hosted (set
-// SUPABASE_DB_PASSWORD; connects to db.rakjydmgwwgtdislanbt.supabase.co).
+// SUPABASE_DB_PASSWORD; connects to db.jxbnrkasktbhtiujkhay.supabase.co).
 import pg from "pg";
 
-const projectRef = "rakjydmgwwgtdislanbt";
+const projectRef = "jxbnrkasktbhtiujkhay";
 
 function fail(message) {
   console.error(`FK contract failed: ${message}`);

@@ -1,3 +1,4 @@
+import 'package:flutter_mort/core/config/app_config.dart';
 import 'package:flutter_mort/core/observability/product_analytics.dart';
 import 'package:flutter_mort/core/observability/sentry_crash_provider.dart';
 import 'package:flutter_mort/core/observability/structured_log.dart';
@@ -6,6 +7,28 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 void main() {
   tearDown(() => MortStructuredLog.instance.clear());
+
+  test('Sentry accepts only HTTPS client ingestion DSNs', () {
+    expect(
+      AppConfig.isValidSentryDsn('https://public-key@o1.ingest.sentry.io/123'),
+      isTrue,
+    );
+    for (final value in [
+      '',
+      'https://example.com',
+      'http://key@example.com/123',
+      'https://key:secret@example.com/123',
+      'https://key@example.com/no-project',
+      'https://key@example.com/123?token=secret',
+      'https://key@example.com/123#fragment',
+    ]) {
+      expect(
+        AppConfig.isValidSentryDsn(value),
+        isFalse,
+        reason: 'invalid DSN shape',
+      );
+    }
+  });
 
   test('structured logs drop sensitive keys and redact unsafe values', () {
     MortStructuredLog.instance.record(

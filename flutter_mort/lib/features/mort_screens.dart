@@ -3348,9 +3348,22 @@ class _ApplicationCard extends ConsumerWidget {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
+          if (guardianReview) ...[
+            const SizedBox(height: MortSpacing.xs),
+            Text(
+              'Guardian view is read-only. Application decisions are made by the teen and job poster.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
           const SizedBox(height: MortSpacing.md),
           MortActionRow(
-            actions: adultReview
+            actions:
+                adultReview &&
+                    [
+                      'submitted',
+                      'shortlisted',
+                      'viewed',
+                    ].contains(application.status)
                 ? [
                     MortAction(
                       label: 'Accept',
@@ -3365,29 +3378,7 @@ class _ApplicationCard extends ConsumerWidget {
                     ),
                   ]
                 : guardianReview
-                ? application.status == 'guardian_pending'
-                      ? [
-                          MortAction(
-                            label: 'Approve',
-                            icon: Icons.check,
-                            onPressed: () =>
-                                _status(context, ref, 'adult_review'),
-                          ),
-                          MortAction(
-                            label: 'Reject',
-                            icon: Icons.close,
-                            onPressed: () =>
-                                _status(context, ref, 'guardian_rejected'),
-                            style: MortButtonStyle.danger,
-                          ),
-                        ]
-                      : const [
-                          MortAction(
-                            label: 'Decision recorded',
-                            icon: Icons.verified,
-                            enabled: false,
-                          ),
-                        ]
+                ? const []
                 : [
                     MortAction(
                       label: 'Upload proof',

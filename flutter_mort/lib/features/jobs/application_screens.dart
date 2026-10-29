@@ -85,15 +85,10 @@ class _ApplicationDetailScreenState
   }
 
   String _successMessage(String action) => switch (action) {
-    'adult_review' => 'Application approved for poster review.',
-    'guardian_rejected' => 'Application declined by guardian.',
     'viewed' => 'Application marked viewed.',
     'accepted' => 'Applicant accepted and job assigned.',
     'rejected' => 'Application declined.',
     'withdrawn' => 'Application withdrawn.',
-    'in_progress' => 'Job marked in progress.',
-    'proof_submitted' => 'Proof marked submitted.',
-    'completed' => 'Job and application marked completed.',
     _ => 'Application updated.',
   };
 
@@ -106,9 +101,9 @@ class _ApplicationDetailScreenState
         subtitle: 'Review and manage the selected application.',
       ),
       ApplicationView.guardian => (
-        eyebrow: 'Guardian Mode',
-        title: 'Approval request',
-        subtitle: 'Review the selected teen application.',
+        eyebrow: 'Guardian activity',
+        title: 'Application details',
+        subtitle: 'View an application submitted by a linked teen.',
       ),
       ApplicationView.teen => (
         eyebrow: 'Teen tracker',
@@ -184,7 +179,11 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
     final repository = ref.read(applicationsRepositoryProvider);
     return widget.view == ApplicationView.adult
         ? repository.listApplicationsForMyJobs()
-        : repository.listMyApplications();
+        : repository.listMyApplications(
+            role: widget.view == ApplicationView.guardian
+                ? UserRole.guardian
+                : UserRole.teen,
+          );
   }
 
   void _reload() => setState(() => _future = _load());
@@ -211,15 +210,10 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
   }
 
   String _successMessage(String action) => switch (action) {
-    'adult_review' => 'Application approved for poster review.',
-    'guardian_rejected' => 'Application declined by guardian.',
     'viewed' => 'Application marked viewed.',
     'accepted' => 'Applicant accepted and job assigned.',
     'rejected' => 'Application declined.',
     'withdrawn' => 'Application withdrawn.',
-    'in_progress' => 'Job marked in progress.',
-    'proof_submitted' => 'Proof marked submitted.',
-    'completed' => 'Job and application marked completed.',
     _ => 'Application updated.',
   };
 
@@ -233,10 +227,10 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
             'View, accept, decline, and complete applications through protected job actions.',
       ),
       ApplicationView.guardian => (
-        eyebrow: 'Guardian Mode',
-        title: 'Approval requests',
+        eyebrow: 'Guardian activity',
+        title: 'Linked teen applications',
         subtitle:
-            'Only linked-teen applications for jobs that requested approval appear here.',
+            'View applications submitted by linked teens. Application decisions are handled by the teen and job poster.',
       ),
       ApplicationView.teen => (
         eyebrow: 'Teen tracker',
@@ -274,7 +268,7 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
         if (widget.view == ApplicationView.guardian) ...[
           const MortSafetyBanner(
             message:
-                'Guardian Mode is optional. Basic approvals are free, and private message contents are not shared by default.',
+                'This view is read-only. Guardian consent is managed through the linked account, while each teen and job poster handles the application decision.',
           ),
           const SizedBox(height: MortSpacing.md),
         ],
@@ -405,6 +399,13 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
             const SizedBox(height: MortSpacing.sm),
             Text(application.note!),
           ],
+          if (view == ApplicationView.guardian) ...[
+            const SizedBox(height: MortSpacing.sm),
+            Text(
+              'Guardian view is read-only. Application decisions are made by the teen and job poster.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
           if (application.status == 'canceled' && job != null) ...[
             const SizedBox(height: MortSpacing.sm),
             FutureBuilder<List<Map<String, dynamic>>>(
@@ -445,27 +446,10 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
   }
 
   List<MortAction> _actions(BuildContext context) {
-    if (view == ApplicationView.guardian) {
-      if (application.status != 'guardian_pending') return const [];
-      return [
-        MortAction(
-          label: 'Approve for poster review',
-          icon: Icons.check,
-          busy: busy,
-          onPressed: () => onStatus('adult_review'),
-        ),
-        MortAction(
-          label: 'Decline',
-          icon: Icons.close,
-          busy: busy,
-          style: MortButtonStyle.danger,
-          onPressed: () => onStatus('guardian_rejected'),
-        ),
-      ];
-    }
+    if (view == ApplicationView.guardian) return const [];
     if (view == ApplicationView.adult) {
       final actions = <MortAction>[];
-      if (['submitted', 'adult_review'].contains(application.status)) {
+      if (['submitted', 'shortlisted'].contains(application.status)) {
         actions.add(
           MortAction(
             label: 'Mark viewed',
@@ -475,11 +459,7 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
           ),
         );
       }
-      if ([
-        'submitted',
-        'adult_review',
-        'viewed',
-      ].contains(application.status)) {
+      if (['submitted', 'shortlisted', 'viewed'].contains(application.status)) {
         actions.addAll([
           MortAction(
             label: 'Accept applicant',
@@ -553,12 +533,7 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
     }
 
     final actions = <MortAction>[];
-    if ([
-      'submitted',
-      'guardian_pending',
-      'adult_review',
-      'viewed',
-    ].contains(application.status)) {
+    if (['submitted', 'shortlisted', 'viewed'].contains(application.status)) {
       actions.add(
         MortAction(
           label: 'Withdraw application',
