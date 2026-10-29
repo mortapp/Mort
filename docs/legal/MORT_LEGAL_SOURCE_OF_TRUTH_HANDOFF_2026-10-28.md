@@ -74,3 +74,13 @@ The repository currently has `.github/workflows/mort-signed-closed-test.yml`, wh
 ## Verification boundary
 
 No database rows were modified in this audit. No legal version was published. No release control was changed. No AAB was built. These are deliberate safeguards, not completed release work.
+
+
+## Additional production security audit notes
+
+Supabase Security Advisor was run against `jxbnrkasktbhtiujkhay` on 2026-10-28. It reported:
+- 17 informational `rls_enabled_no_policy` findings. Most are in the non-exposed `private` schema; the two legal-related public tables are `legal_role_requirements` and `legal_acceptance_audit_events`, both intentionally lacking direct client policies in the inspected schema. Verify intended RPC-only access in RLS QA rather than adding broad table policies.
+- 1 warning that `public.get_runtime_feature_status()` is a publicly executable SECURITY DEFINER function. It returns runtime-control booleans and reads the private Stripe control row. Review whether anonymous status access is intentional; do not blindly revoke it because app startup may depend on it.
+- 44 warnings for authenticated-executable SECURITY DEFINER RPCs. These include server-authoritative onboarding, legal acceptance, guardian, job, and safety flows. Audit each function's caller binding, ownership checks, search path, and grants; do not blanket-revoke the RPCs without checking client dependencies.
+
+These findings were not changed during this audit. The performance advisor also reports unused indexes; that is not sufficient evidence to remove indexes from an almost-empty/new project.
