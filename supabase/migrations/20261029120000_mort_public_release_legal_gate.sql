@@ -2,8 +2,6 @@
 -- published, effective, attorney-reviewed, counsel-referenced, and hash-consistent.
 -- The release RPC returns a boolean summary only; draft legal content remains private.
 
-begin;
-
 alter table public.legal_documents enable row level security;
 alter table public.legal_document_versions enable row level security;
 alter table public.legal_role_requirements enable row level security;
@@ -212,4 +210,3 @@ as $function$
   );
 $function$;
 
-commit;

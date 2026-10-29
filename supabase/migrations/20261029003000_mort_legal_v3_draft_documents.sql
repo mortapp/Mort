@@ -1,8 +1,6 @@
 -- Seed the exact V3 legal text as draft versions so clean environments reproduce
 -- the production records. This migration deliberately does not publish or approve
 -- any document; attorney review and the production release gate remain mandatory.
-begin;
-
 insert into public.legal_documents
   (document_key, title, document_category, guardian_mode_independent, publication_status)
 values
@@ -459,9 +457,9 @@ begin
       'safety_rules',
       'community_guidelines'
     )
-    on conflict (document_id, role, age_band) do nothing
+    on conflict (document_id, role, age_band) do update
+set required = excluded.required, priority = excluded.priority
   $insert_roles$, role_type_name);
 end
 $seed_legal_roles$;
 
-commit;
