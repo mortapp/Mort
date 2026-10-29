@@ -12,7 +12,14 @@ function ConvertTo-MortCertificateDigest {
 }
 
 function Get-MortSigningCredentialPath {
-  Join-Path $env:USERPROFILE 'MortSecrets\android\mort-upload-key.credentials.xml'
+  $candidates = @(
+    (Join-Path $env:USERPROFILE 'MortSecrets\android\mort-upload-key.credentials.xml'),
+    (Join-Path $env:USERPROFILE 'OneDrive\Documents\mort credientals\mort-upload-key.credentials.xml')
+  )
+  foreach ($candidate in $candidates) {
+    if (Test-Path -LiteralPath $candidate -PathType Leaf) { return $candidate }
+  }
+  return $candidates[0]
 }
 
 function ConvertFrom-MortSecureString {
