@@ -215,8 +215,8 @@ function page({ route, title, description, body, scripts = '', status = 'draft',
     : status === 'mixed'
       ? 'Four core documents published · supplementary materials may remain under review'
       : 'Draft — pending qualified legal review';
-  const statusClass = status === 'published' ? 'status' : 'draft';
-  const effectiveFooter = status === 'published' ? documentEffectiveDate : effectiveDate;
+  const statusClass = status === 'draft' ? 'draft' : 'status';
+  const effectiveFooter = status === 'published' ? documentEffectiveDate : status === 'mixed' ? 'Core documents: October 2026' : effectiveDate;
   const footerNote = status === 'published'
     ? `Published counsel-approved version ${version}. This approval applies to this document version only; it does not mean every MORT feature is available or release-ready.`
     : status === 'mixed'
