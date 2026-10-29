@@ -423,18 +423,45 @@ Remember. Be honest. Keep Tasks age-appropriate. Respect Guardian involvement. U
 join public.legal_documents document on document.document_key = source.document_key
 on conflict (document_id, version_label) do nothing;
 
-insert into public.legal_role_requirements
-  (document_id, role, age_band, required, priority)
-select document.id, roles.role, 'all', true, 10
-from public.legal_documents document
-cross join (values
-('teen'::public.mort_role),
-('adult'::public.mort_role),
-('guardian'::public.mort_role),
-('admin'::public.mort_role),
-('moderator'::public.mort_role)
-) as roles(role)
-where document.document_key in ('master_terms_of_service','privacy_policy','safety_rules','community_guidelines')
-on conflict (document_id, role, age_band) do nothing;
+do $seed_legal_roles$
+declare
+  role_type_name text;
+begin
+  select format('%I.%I', namespace.nspname, role_type.typname)
+    into role_type_name
+  from pg_attribute attribute
+  join pg_type role_type on role_type.oid = attribute.atttypid
+  join pg_namespace namespace on namespace.oid = role_type.typnamespace
+  where attribute.attrelid = 'public.legal_role_requirements'::regclass
+    and attribute.attname = 'role'
+    and not attribute.attisdropped;
+
+  if role_type_name is null then
+    raise exception 'Could not resolve legal_role_requirements.role type';
+  end if;
+
+  execute format($insert_roles$
+    insert into public.legal_role_requirements
+      (document_id, role, age_band, required, priority)
+    select document.id, roles.role::%s, 'all', true,
+      case document.document_key
+        when 'master_terms_of_service' then 10
+        when 'privacy_policy' then 20
+        when 'safety_rules' then 30
+        when 'community_guidelines' then 40
+        else 50
+      end
+    from public.legal_documents document
+    cross join (values ('teen'), ('adult'), ('guardian'), ('admin')) as roles(role)
+    where document.document_key in (
+      'master_terms_of_service',
+      'privacy_policy',
+      'safety_rules',
+      'community_guidelines'
+    )
+    on conflict (document_id, role, age_band) do nothing
+  $insert_roles$, role_type_name);
+end
+$seed_legal_roles$;
 
 commit;
