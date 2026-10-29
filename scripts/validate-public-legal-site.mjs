@@ -43,11 +43,42 @@ for (const route of expectedRoutes) {
   checked.push(route);
 }
 
+const approvedDocumentChecks = [
+  ['/terms/', 'MORT-LEGAL-2026-V3'],
+  ['/terms-of-use/', 'MORT-LEGAL-2026-V3'],
+  ['/privacy/', 'MORT-PRIVACY-2026-10'],
+  ['/safety/', 'MORT-SAFETY-2026-10'],
+  ['/community-guidelines/', 'MORT-COMMUNITY-2026-10'],
+];
+for (const [route, version] of approvedDocumentChecks) {
+  const file = routeFile(route);
+  if (!existsSync(file)) continue;
+  const html = readFileSync(file, 'utf8');
+  if (!html.includes(version)) failures.push(`${route}: missing published version ${version}`);
+  if (!html.includes('Counsel-approved')) failures.push(`${route}: missing counsel-approved publication label`);
+  if (/Draft — pending qualified legal review/.test(html)) failures.push(`${route}: approved document still shows a draft status`);
+}
+
 const statusPath = resolve(output, 'release-status.json');
 if (!existsSync(statusPath)) failures.push('release-status.json is missing');
 const status = existsSync(statusPath)
   ? JSON.parse(readFileSync(statusPath, 'utf8'))
   : { deploymentReady: false, missingConfiguration: ['unknown'] };
+const expectedApprovedVersions = [
+  ['master_terms_of_service', 'MORT-LEGAL-2026-V3'],
+  ['privacy_policy', 'MORT-PRIVACY-2026-10'],
+  ['safety_rules', 'MORT-SAFETY-2026-10'],
+  ['community_guidelines', 'MORT-COMMUNITY-2026-10'],
+];
+for (const [key, version] of expectedApprovedVersions) {
+  if (!status.approvedDocuments?.some((item) => item.key === key && item.version === version)) {
+    failures.push(`release-status.json: missing approved document version ${key}/${version}`);
+  }
+}
+if (!String(status.legalApprovalScope || '').includes('Four core documents approved')) {
+  failures.push('release-status.json does not scope the approval to the four core documents');
+}
+
 const publicConfigPath = resolve(output, 'assets', 'public-config.js');
 if (!existsSync(publicConfigPath)) failures.push('public-config.js is missing');
 if (existsSync(publicConfigPath)) {
@@ -126,6 +157,7 @@ const report = {
   httpsValidation,
   failures,
   legalApprovalClaimed: false,
+  approvedDocumentVersions: expectedApprovedVersions.map(([key, version]) => ({ key, version })),
 };
 const reportPath = resolve(root, 'build', 'play', 'reports', 'legal-site-validation.json');
 mkdirSync(dirname(reportPath), { recursive: true });
