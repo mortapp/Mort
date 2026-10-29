@@ -1,14 +1,16 @@
--- Seed the exact V3 legal text as draft versions so clean environments reproduce
--- the production records. This migration deliberately does not publish or approve
--- any document; attorney review and the production release gate remain mandatory.
+-- Seed the exact counsel-approved V3 legal text and metadata so clean environments
+-- reproduce the current mobile production legal records. Counsel approval evidence
+-- is documented in docs/legal/MORT_LEGAL_SOURCE_OF_TRUTH_V3.md.
 insert into public.legal_documents
   (document_key, title, document_category, guardian_mode_independent, publication_status)
 values
-('master_terms_of_service','MORT Master Terms of Service','terms_of_service',true,'draft_attorney_review'),
-('privacy_policy','MORT Privacy Policy','privacy_policy',true,'draft_attorney_review'),
-('safety_rules','MORT Safety Rules','safety_rules',true,'draft_attorney_review'),
-('community_guidelines','MORT Community Guidelines','community_guidelines',true,'draft_attorney_review')
-on conflict (document_key) do nothing;
+('master_terms_of_service','MORT Master Terms of Service','terms_of_service',true,'published'),
+('privacy_policy','MORT Privacy Policy','privacy_policy',true,'published'),
+('safety_rules','MORT Safety Rules','safety_rules',true,'published'),
+('community_guidelines','MORT Community Guidelines','community_guidelines',true,'published')
+on conflict (document_key) do update
+set publication_status = excluded.publication_status,
+    updated_at = now();
 
 insert into public.legal_document_versions
   (document_id, version_label, content_hash, content_path, content_markdown,
@@ -22,8 +24,12 @@ select
   encode(extensions.digest(convert_to(source.content_markdown, 'UTF8'), 'sha256'), 'hex'),
   source.content_path,
   source.content_markdown,
-  null, null, null, true, false, 'draft_attorney_review', 'en-US',
-  'requires_jurisdiction_specific_attorney_review', 'legal-clickwrap-v1', null, null
+  '2026-10-29 01:18:15.85991+00'::timestamptz,
+  '2026-10-29 01:18:15.85991+00'::timestamptz,
+  null, true, false, 'published', 'en-US',
+  'us_indiana_counsel_approved', 'legal-clickwrap-v1',
+  '2026-10-28 18:12:00+00'::timestamptz,
+  'Email approval evidence: subject "Review"; sender Nikki Kurta, signed "Ken Nunn Law Office, Legal Counsel"; email timestamp shown as 2026-10-28 2:12 PM America/Indiana/Indianapolis; screenshot SHA-256 8e20e10e02c22f778a39319f59225b47ecfbf97c4abe23b30a09d39e968e03db. Email explicitly approves MORT-LEGAL-2026-V3, Privacy Policy, Safety Rules, and Community Guidelines for operational implementation and deployment.'
 from (values
 ('master_terms_of_service','MORT-LEGAL-2026-V3','docs/legal/source-of-truth/MORT_Master_Terms_V3.md','# MORT Master Terms of Service
 Marketplace, Safety & Guardian Framework
@@ -419,7 +425,21 @@ Remember. Be honest. Keep Tasks age-appropriate. Respect Guardian involvement. U
 ')
 ) as source(document_key, version_label, content_path, content_markdown)
 join public.legal_documents document on document.document_key = source.document_key
-on conflict (document_id, version_label) do nothing;
+on conflict (document_id, version_label) do update
+set content_hash = excluded.content_hash,
+    content_path = excluded.content_path,
+    content_markdown = excluded.content_markdown,
+    effective_at = excluded.effective_at,
+    published_at = excluded.published_at,
+    retired_at = null,
+    material_revision = excluded.material_revision,
+    requires_electronic_signature = excluded.requires_electronic_signature,
+    publication_status = excluded.publication_status,
+    language_code = excluded.language_code,
+    jurisdiction_policy = excluded.jurisdiction_policy,
+    acceptance_ui_version = excluded.acceptance_ui_version,
+    attorney_reviewed_at = excluded.attorney_reviewed_at,
+    approved_by_counsel_reference = excluded.approved_by_counsel_reference;
 
 do $seed_legal_roles$
 declare
