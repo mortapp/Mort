@@ -1,6 +1,9 @@
 # Stripe Supabase Secrets
 
-Server-only secret names:
+**Production Supabase project:** `jxbnrkasktbhtiujkhay`  
+**Deleted project:** `rakjydmgwwgtdislanbt` — never use.
+
+Server-only secret names (names only; never commit or print values):
 
 - `MORT_STRIPE_MODE`
 - `STRIPE_TEST_SECRET_KEY`
@@ -14,24 +17,23 @@ Server-only secret names:
 - `MORT_STRIPE_OPERATIONS_SECRET`
 - `MORT_STRIPE_ALLOWED_REDIRECT_ORIGINS`
 
-Set with `npx supabase secrets set --project-ref rakjydmgwwgtdislanbt NAME` from a protected interactive shell or secret manager. Publishable keys are delivered to authenticated clients by `stripe-config`; secret and webhook keys never leave Edge Functions. Do not use `.env.local`, Flutter source, dart-defines, committed files, CI logs, or release archives for these values.
+Do not set or rotate secrets until the correct handlers are deployed and an approved secure secrets workflow is available. Never put secret values in `.env.local`, Flutter source, dart-defines, committed files, CI logs, release archives, screenshots, or chat.
 
-After rotation, redeploy affected functions, run unauthorized/config probes, send a signed sandbox event, confirm old credentials fail, and document the rotation without recording values.
+## Secret separation
 
+- Platform PaymentIntent webhook and Connect webhook use separate endpoint-specific signing secrets.
+- Sandbox credentials must be test-mode credentials only.
+- Live credentials must not be present in a sandbox configuration.
+- Publishable keys are not secret, but must still match the selected environment.
+- Never expose secret keys or webhook signing secrets to clients.
+- Never assume an old Stripe endpoint signing secret can be recovered from endpoint metadata.
 
-## Pre-provider gate handling
+## Read-only preflight
 
-The pre-provider gate discovers remote **names only** with `supabase secrets list`; it never prints raw command output and aborts if output resembles a Stripe credential or JWT. The gate also confirms the deployed `stripe-webhook` function before accepting the platform webhook signing path as configured. Task 31 additionally requires the TEST Connect webhook signing-secret name before account or payout scenarios can run.
+The preflight may inspect remote secret names only. It must not print raw CLI output or secret values. The expected project ref is `jxbnrkasktbhtiujkhay`. A missing secret name is a blocker, not a reason to enable a payment feature.
 
-Non-secret operator metadata:
+Local operator credentials such as `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` must remain in a protected shell or secret manager and must never be recorded in evidence.
 
-- `MORT_SUPABASE_PROJECT_REF=rakjydmgwwgtdislanbt`
-- `MORT_STRIPE_MODE=sandbox`
-- `MORT_STRIPE_TEST_WEBHOOK_URL=https://rakjydmgwwgtdislanbt.supabase.co/functions/v1/stripe-webhook`
+## Operational rule
 
-Local operator credentials used for read-only gate checks, not Edge Function secrets:
-
-- `SUPABASE_ACCESS_TOKEN`
-- `SUPABASE_DB_PASSWORD`
-
-Keep those credentials only in a protected shell/secret manager. The gate evidence records no credential values, digests, database password, access token, client secret, PaymentIntent secret, card data, or provider payload.
+Do not redirect Stripe endpoints or enable payment controls until the corresponding handler, database contract, endpoint-specific secret, and integration tests have been verified. No production payment activation is authorized by this document.
