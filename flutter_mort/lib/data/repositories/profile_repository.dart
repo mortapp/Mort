@@ -420,6 +420,10 @@ class ProfileRepository extends RepositoryBase {
       'dob_invalid' ||
       'future_dob_rejected' ||
       'dob_out_of_range' => 'Enter a valid date of birth.',
+      'school_email_verification_required' =>
+        'Verify your school email address before continuing with a teen account.',
+      'school_email_required' =>
+        'Teen accounts must use an approved school email address. Personal email addresses such as Gmail are not accepted.',
       'teen_role_age_mismatch' =>
         'Teen accounts must be for someone age 13 through 17.',
       'adult_role_age_mismatch' =>
