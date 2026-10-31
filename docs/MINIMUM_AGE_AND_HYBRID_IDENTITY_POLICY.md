@@ -55,7 +55,7 @@
 
 - Collect DOB at the beginning of signup, before role selection or account use.
 - Validate DOB locally for clear feedback, but treat server RPC/database enforcement as authoritative.
-- Pass `date_of_birth` metadata on email signup so the Auth profile bootstrap can reject under-13 DOBs in the same transaction.
+- Pass `date_of_birth` metadata on email signup so the Auth profile bootstrap can reject under-13 DOBs in the same transaction. Ordinary email signup without DOB metadata is rejected with `MORT_DOB_REQUIRED` (except invited users).
 - For OAuth signup, carry the DOB through the authenticated callback and call `save_my_initial_dob_v1` before navigating to onboarding. If it fails, sign out and do not enter the app.
 - Do not trust a client-provided role. Display teen role for ages 13–17; only offer adult/guardian for ages 18+.
 - Call `get_my_verification_requirements_v1()` and render the correct teen/adult evidence instructions.
