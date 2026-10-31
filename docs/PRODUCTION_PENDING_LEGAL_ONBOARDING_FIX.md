@@ -62,10 +62,11 @@ Do not broaden the exception to suspended, deleted, banned, or otherwise restric
 Do not change `public.complete_my_onboarding_v2` to activate accounts. It should continue to:
 
 1. Require the four server-defined onboarding steps.
-2. call `public.submit_legal_acceptance` for the exact version IDs supplied by the server-authoritative legal requirements.
-3. verify current required acceptances through `private.mort_user_has_current_legal_acceptances`.
-4. set only the onboarding completion field (`onboarding_completed_at`) through its existing server-side transaction.
-5. leave `profiles.account_status` unchanged.
+2. Require current legal acceptance rows through `private.mort_user_has_current_legal_acceptances`.
+3. Set only the onboarding completion field (`onboarding_completed_at`) through its existing server-side transaction.
+4. Leave `profiles.account_status` unchanged.
+
+The website must call `public.submit_legal_acceptance` separately for each required current version before calling `complete_my_onboarding_v2`; the live completion RPC checks those records but does not create them itself.
 
 A completed account can therefore remain pending. Marketplace, publishing, verification, and payment access must continue to be controlled by their separate production gates.
 
@@ -108,4 +109,4 @@ Also verify that successful legal acceptance leaves `account_status = 'pending'`
 - No client-side account activation.
 - No automatic Guardian connection or default Guardian access.
 - No marketplace, job publishing, payments, Stripe, identity, or release-control activation.
-- No application of this specification to production until the exact migration is reviewed and validated.
+- No activation of marketplace, publishing, payments, or verification as part of this migration.
