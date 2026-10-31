@@ -1,6 +1,9 @@
 # Codex Execution Brief — MORT Production Readiness
 
-Read `docs/architecture/MORT-PRODUCTION-REFERENCE-ARCHITECTURE.md` completely before changing code.
+Read these documents completely before changing code:
+
+- `docs/architecture/MORT-PRODUCTION-REFERENCE-ARCHITECTURE.md`
+- `docs/architecture/GUARDIAN-LOCATION-DISTANCE-BACKEND-CONTRACTS.md`
 
 ## Mission
 
@@ -20,7 +23,7 @@ Bring MORT toward a safe production release by implementing and verifying the ar
 1. Start with read-only inventory. Confirm repository, branch, commit, Supabase project ref, deployed functions, tables, policies, grants, triggers, secrets *names only*, Vercel environment variable names only, and Stripe sandbox endpoint configuration.
 2. Identify stale documentation and correct references to the deleted Supabase project. Do not change runtime configuration as part of documentation cleanup.
 3. Build a code-to-contract matrix for every active client call, RPC, Edge Function, table, storage bucket, and policy.
-4. Prioritize the three known critical contracts: Guardian application approval; private job-location lifecycle; server-side job-distance calculation.
+4. Implement the Guardian, private job-location, and server-side distance contracts exactly against the current hosted schema. Read `docs/architecture/GUARDIAN-LOCATION-DISTANCE-BACKEND-CONTRACTS.md`; do not reuse the stale location migration without correcting its table/column assumptions.
 5. For each contract, write tests first, implement in a feature branch, and prepare a minimal additive migration. Never run an unreviewed migration on production.
 6. Run unit, integration, RLS, concurrency, idempotency, and cross-role tests in an isolated disposable environment. If no isolated environment is available, stop before schema mutation and report the exact blocker.
 7. Review all safety, moderation, reporting, blocking, messaging, verification, privacy, and account lifecycle flows.
@@ -57,4 +60,4 @@ Include:
 - remaining blockers and risk owner;
 - release gate decision: GO / NO-GO.
 
-Do not claim 100% unless every required release gate in the architecture has evidence and explicit sign-off.
+Do not claim 100% unless every required release gate has evidence and explicit sign-off.
