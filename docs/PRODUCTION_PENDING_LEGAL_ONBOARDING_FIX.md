@@ -1,6 +1,6 @@
 # Production onboarding: confirmed pending accounts and legal acceptance
 
-Status: implementation specification only. This file does not apply a database change.
+Status: the narrow migration is now applied to the production Supabase project `jxbnrkasktbhtiujkhay` and recorded in migration history as `20261031220518_allow_confirmed_pending_legal_acceptance`. The migration source is `supabase/migrations/20261031080000_allow_confirmed_pending_legal_acceptance.sql`.
 
 ## Production issue verified against Supabase project `jxbnrkasktbhtiujkhay`
 
@@ -85,14 +85,14 @@ The production website must:
 
 Role-protected website dashboards must also reject non-admin accounts unless `account_status = 'active'`. Completing onboarding is not an account activation event.
 
-## Required validation before production application
+## Validation after production application
 
-Run these cases against an isolated database built from the exact current production schema and migration state:
+Before relying on this change for live onboarding, complete these checks against a confirmed pending account with an eligible role and DOB. The production project currently has two confirmed pending profiles whose role is still `pending`, so neither can yet be used to test legal acceptance. A rollback-only SQL test that temporarily set a profile role/DOB was blocked by safety controls; no user profile was modified. The live function-definition checks passed, confirming both RPCs require a confirmed Auth email and permit `pending` status. The migration's transactional syntax check also passed before application.
 
 | Account state | Legal requirements | Acceptance RPC |
 | --- | --- | --- |
 | Pending, email unconfirmed | Denied | Denied |
-| Pending, email confirmed, eligible role/age | Allowed | Allowed |
+| Pending, email confirmed, eligible role/age | Allowed by the new gate (full user-flow test still required) | Allowed by the new gate (full user-flow test still required) |
 | Active, eligible role/age | Allowed | Allowed |
 | Suspended, even if email confirmed | Denied | Denied |
 | Pending with role `pending` | Denied | Denied |
