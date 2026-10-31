@@ -1,6 +1,6 @@
 # Production onboarding: confirmed pending accounts and legal acceptance
 
-Status: the narrow migration is now applied to the production Supabase project `jxbnrkasktbhtiujkhay` and recorded in migration history as `20261031220518_allow_confirmed_pending_legal_acceptance`. The migration source is `supabase/migrations/20261031080000_allow_confirmed_pending_legal_acceptance.sql`.
+Status: the narrow migration is now applied to the production Supabase project `jxbnrkasktbhtiujkhay` and recorded in migration history as `20261031220518_allow_confirmed_pending_legal_acceptance`. The migration source is `supabase/migrations/20261031220518_allow_confirmed_pending_legal_acceptance.sql`.
 
 ## Production issue verified against Supabase project `jxbnrkasktbhtiujkhay`
 
