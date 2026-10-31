@@ -1,20 +1,29 @@
 import 'package:flutter/material.dart';
 
-/// MORT canonical palette — BLACK + SILVER.
+/// MORT's canonical visual identity: light monochrome by default, with a
+/// black and silver dark theme available as an equal appearance option.
 ///
-/// Visual balance target:
-/// 70-80% black / near-black, 10-15% graphite, 7-12% silver/white,
-/// 2-6% midnight blue atmospheric depth, <1% icy-blue highlight.
-///
-/// Midnight blue is atmosphere only: buried depth, subtle reflections,
-/// meteor trail depth, cloud shadows, rare focus illumination. It is never
-/// the main UI paint. Legacy semantic names (roseGold*, neon*, cobalt,
-/// premium, godPink*, babyBlue*) are kept as compatibility aliases pointing
-/// at the new silver identity so every screen/widget inherits the new
-/// palette without a call-site rewrite — only the meaning of "the brand
-/// light" changed, not the names.
+/// Light colors define the consumer surface. The older black palette remains
+/// available to the dark theme and to atmospheric artwork. Semantic aliases
+/// are retained for compatibility with existing feature code.
 class MortColors {
   const MortColors._();
+
+  // Canonical light surfaces used by the primary product theme.
+  static const lightBackground = Color(0xFFF7F7F5);
+  static const lightSurface = Color(0xFFFFFFFF);
+  static const lightSurfaceAlt = Color(0xFFF0F0EE);
+  static const lightSurfaceRaised = Color(0xFFE7E7E4);
+  static const lightText = Color(0xFF171717);
+  static const lightTextSoft = Color(0xFF454545);
+  static const lightTextMuted = Color(0xFF6B6B68);
+  static const lightLine = Color(0xFFD8D8D4);
+  static const darkBackground = Color(0xFF050607);
+  static const darkSurface = Color(0xFF0B0D11);
+  static const darkSurfaceAlt = Color(0xFF101218);
+  static const darkText = Color(0xFFF7F8FA);
+  static const darkTextSoft = Color(0xFFE1E4E8);
+  static const darkTextMuted = Color(0xFFADB2BA);
 
   // -- Primary black family (dominant surface) --
   static const void_ = Color(0xFF000000);
@@ -101,12 +110,6 @@ class MortColors {
   static const blueLight2 = Color(0xFF183865);
   static const blueLight3 = Color(0xFF204B7F);
 
-  // -- Star light (atmosphere) --
-  static const star = Color(0xFFCDD5DE);
-  static const starCold = Color(0xFFAEB8C4);
-  static const starIce = Color(0xFFE5EBF1);
-  static const starBlue = Color(0xFF9FC0E8);
-
   // -- Premium accent (compat name only; icy-bright silver) --
   static const godPink = ice;
   static const godPinkSoft = ice;
@@ -149,6 +152,29 @@ class MortColors {
   static const warning = Color(0xFFD59A42);
   static const danger = Color(0xFFE5484D);
   static const dangerDeep = Color(0xFF7F2B2E);
+
+  // Semantic aliases retained for payment, receipt, and marketplace routes.
+  static const accent = Color(0xFFDCE7F2);
+  static const paymentSuccess = Color(0xFF46C483);
+  static const paymentSuccessDeep = Color(0xFF2E8F62);
+  static const paymentWarning = Color(0xFFD9A94F);
+  static const paymentDanger = Color(0xFFE5605E);
+  static const paymentDangerDeep = Color(0xFFB64645);
+  static const paymentInfo = Color(0xFF8FB4D9);
+  static const paymentInfoSoft = Color(0xFFC5D9ED);
+  static const paymentInfoDeep = Color(0xFF5E7EAB);
+  static const receiptPaper = Color(0xFFF3F0E7);
+  static const receiptInk = Color(0xFF191D22);
+  static const receiptMutedInk = Color(0xFF4E5560);
+  static const receiptRule = Color(0xFFC9C3B2);
+  static const receiptEdge = Color(0xFFDDD8C9);
+  static const paymentSilverHigh = Color(0xFFE9EEF4);
+  static const paymentSilverMid = Color(0xFFC4CDD7);
+  static const paymentSilverLow = Color(0xFF9BA6B2);
+  static const paymentOnSilver = Color(0xFF0B0E13);
+  static const paymentSilverCta = paymentSilverHigh;
+  static const paymentSilverCtaBright = paymentSilverHigh;
+  static const paymentSilverCtaDeep = paymentSilverLow;
 
   // -- Canonical gradients --
   // Dark edge -> deep -> core -> narrow bright highlight -> core.

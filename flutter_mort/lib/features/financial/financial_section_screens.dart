@@ -49,7 +49,7 @@ class _FinancialExpensesScreenState
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: MortColors.cardAlt,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
       builder: (_) => _ExpenseFormSheet(year: _year, existing: existing),
     );
     if (saved == true) {
@@ -62,7 +62,7 @@ class _FinancialExpensesScreenState
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: MortColors.cardAlt,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
       builder: (_) => _ExpenseDetailSheet(expense: expense, year: _year),
     );
     _invalidateFinancialData(ref, _year);
@@ -156,7 +156,7 @@ class _FinancialExpensesScreenState
                               : 'No receipt',
                           color: expense.hasReceipt
                               ? MortColors.success
-                              : MortColors.textMuted,
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                           icon: Icons.receipt_long_outlined,
                         ),
                       ],
@@ -700,7 +700,7 @@ class _AlertCard extends StatelessWidget {
     return MortCard(
       color: alert.isStale
           ? MortColors.warning.withValues(alpha: 0.10)
-          : MortColors.card,
+          : Theme.of(context).colorScheme.surface,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -781,10 +781,10 @@ class MortSourceLink extends StatelessWidget {
       },
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.menu_book_outlined,
             size: 18,
-            color: MortColors.safetyBlue,
+            color: Theme.of(context).colorScheme.secondary,
           ),
           const SizedBox(width: MortSpacing.xs),
           Expanded(child: Text(label)),
@@ -1059,7 +1059,7 @@ class _RuleCard extends StatelessWidget {
     return MortCard(
       color: rule.isStale
           ? MortColors.warning.withValues(alpha: 0.10)
-          : MortColors.card,
+          : Theme.of(context).colorScheme.surface,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

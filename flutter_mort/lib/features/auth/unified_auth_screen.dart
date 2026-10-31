@@ -338,10 +338,10 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.info_outline_rounded,
                           size: 18,
-                          color: MortColors.textMuted,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: MortSpacing.xs),
                         Expanded(

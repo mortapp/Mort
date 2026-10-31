@@ -204,9 +204,9 @@ class PartnerInvitationScreen extends StatelessWidget {
               for (final entry in sources.entries)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(
+                  leading: Icon(
                     Icons.verified_user_outlined,
-                    color: MortColors.neon,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                   title: Text(entry.key),
                   subtitle: Text(entry.value),
@@ -278,11 +278,19 @@ class PartnerAffiliationScreen extends ConsumerWidget {
                         const SizedBox(height: MortSpacing.xs),
                         Text(
                           'Does not establish: ${item.whatWasNotEstablished}',
-                          style: const TextStyle(color: MortColors.textMuted),
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                         Text(
                           'Version ${item.version} | ${_readable(item.status)}',
-                          style: const TextStyle(color: MortColors.textMuted),
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ],
                     ),
@@ -1018,7 +1026,7 @@ class PilotJobSafetyScreen extends StatelessWidget {
           title: 'Initially allowed settings',
           items: allowed,
           icon: Icons.check_circle_outline,
-          color: MortColors.neon,
+          color: Theme.of(context).colorScheme.primary,
         ),
         const SizedBox(height: MortSpacing.md),
         _BulletCard(
@@ -1197,7 +1205,12 @@ class _TruthRow extends StatelessWidget {
       child: Row(
         children: [
           Expanded(child: Text(label)),
-          Text(value, style: const TextStyle(color: MortColors.textMuted)),
+          Text(
+            value,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     );
@@ -1216,7 +1229,12 @@ class _Metric extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(value, style: Theme.of(context).textTheme.titleLarge),
-        Text(label, style: const TextStyle(color: MortColors.textMuted)),
+        Text(
+          label,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       ],
     );
   }

@@ -84,7 +84,7 @@ class LegalCenterScreen extends ConsumerWidget {
                               : 'Accepted',
                           color: item['acceptance_id'] == null
                               ? MortColors.warning
-                              : MortColors.neon,
+                              : Theme.of(context).colorScheme.primary,
                         ),
                       ],
                     ),
@@ -340,8 +340,8 @@ class _LegalPublicationNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MortCard(
-      color: MortColors.cardAlt,
+    return MortCard(
+      color: Theme.of(context).colorScheme.surfaceContainerHigh,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -394,9 +394,9 @@ class _BoundaryLine extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
+          Icon(
             Icons.check_circle_outline,
-            color: MortColors.neon,
+            color: Theme.of(context).colorScheme.primary,
             size: 18,
           ),
           const SizedBox(width: MortSpacing.xs),

@@ -110,7 +110,7 @@ class _PartnerOrganizationCard extends StatelessWidget {
               for (final permission in permissions)
                 MortBadge(
                   label: _humanize(permission),
-                  color: MortColors.safetyBlue,
+                  color: Theme.of(context).colorScheme.secondary,
                 ),
             ],
           ),
@@ -405,8 +405,10 @@ class _PartnerParticipantsScreenState
                           MortBadge(
                             label: _humanize(attestation['status']),
                             color: attestation['status'] == 'active'
-                                ? MortColors.neon
-                                : MortColors.textMuted,
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                           ),
                           if (attestation['status'] == 'active') ...[
                             const SizedBox(height: MortSpacing.md),
@@ -640,8 +642,8 @@ class _PartnerInvitesScreenState extends ConsumerState<PartnerInvitesScreen> {
                               ? 'Active'
                               : 'Revoked',
                           color: invite['revoked_at'] == null
-                              ? MortColors.neon
-                              : MortColors.textMuted,
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         if (invite['revoked_at'] == null) ...[
                           const SizedBox(height: MortSpacing.md),

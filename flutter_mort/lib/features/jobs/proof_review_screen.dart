@@ -246,7 +246,7 @@ class _ProofReviewScreenState extends ConsumerState<ProofReviewScreen> {
             children: [
               MortBadge(
                 label: proof.statusLabel,
-                color: _statusColor(proof.status),
+                color: _statusColor(context, proof.status),
               ),
               if (proof.note?.trim().isNotEmpty == true) ...[
                 const SizedBox(height: MortSpacing.sm),
@@ -323,9 +323,15 @@ class _ProofReviewScreenState extends ConsumerState<ProofReviewScreen> {
     );
   }
 
-  static Color _statusColor(String status) => switch (status) {
-    'approved' => MortColors.neon,
-    'submitted' => MortColors.safetyBlue,
-    _ => MortColors.warning,
-  };
+  static Color _statusColor(BuildContext context, String status) {
+    final scheme = Theme.of(context).colorScheme;
+    return switch (status) {
+      'approved' => scheme.primary,
+      'submitted' => scheme.secondary,
+      _ =>
+        scheme.brightness == Brightness.light
+            ? const Color(0xFF725019)
+            : MortColors.warning,
+    };
+  }
 }

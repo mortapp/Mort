@@ -97,7 +97,7 @@ class _VerificationOption extends StatelessWidget {
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: MortColors.neon),
+        Icon(icon, color: Theme.of(context).colorScheme.primary),
         const SizedBox(width: MortSpacing.sm),
         Expanded(
           child: Column(
@@ -169,7 +169,9 @@ class _TeenVerificationCapturePreparationScreenState
   }
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<IdentityVerificationStatus>(
+  Widget build(
+    BuildContext context,
+  ) => FutureBuilder<IdentityVerificationStatus>(
     future: _identityStatus,
     builder: (context, snapshot) {
       final status = snapshot.data;
@@ -220,9 +222,7 @@ class _TeenVerificationCapturePreparationScreenState
           if (status != null && !_canCapture(status)) ...[
             const SizedBox(height: MortSpacing.sm),
             const MortCard(
-              child: Text(
-                'Production verification is not available yet.',
-              ),
+              child: Text('Production verification is not available yet.'),
             ),
           ],
         ],

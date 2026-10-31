@@ -61,6 +61,12 @@ final secureDraftStorageProvider = Provider<MortSecureDraftStorage>(
 final jobsRepositoryProvider = Provider<JobsRepository>(
   (ref) => JobsRepository(),
 );
+final savedJobIdsProvider = FutureProvider.autoDispose<Set<String>>((
+  ref,
+) async {
+  final jobs = await ref.watch(jobsRepositoryProvider).listSavedJobs();
+  return jobs.map((job) => job.id).toSet();
+});
 final openJobsProvider = AsyncNotifierProvider.autoDispose
     .family<OpenJobsController, JobFeedState, JobSearchFilters>(
       OpenJobsController.new,

@@ -97,7 +97,9 @@ class _MascotPreviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return MortCard(
-      color: selected ? MortColors.surfaceRaised : MortColors.card,
+      color: selected
+          ? MortColors.surfaceRaised
+          : Theme.of(context).colorScheme.surface,
       onTap: busy ? null : onSelect,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,

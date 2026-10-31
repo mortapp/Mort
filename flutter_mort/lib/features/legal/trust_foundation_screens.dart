@@ -93,8 +93,8 @@ class TrustFoundationsScreen extends ConsumerWidget {
           onPressed: () => context.push('/trust/device-auth'),
         ),
         const SizedBox(height: MortSpacing.md),
-        const MortCard(
-          color: MortColors.cardAlt,
+        MortCard(
+          color: Theme.of(context).colorScheme.surfaceContainerHigh,
           child: Text(
             'Document quality, OCR, barcode or MRZ parsing, a web-image no-match, visual review, a visible face, camera gestures, school email, phone OTP, and Apple Face ID do not independently establish authoritative legal identity.',
           ),
@@ -118,7 +118,7 @@ class BrowserSafeCapturePreparationScreen extends StatelessWidget {
               'This screen explains future quality checks without opening the browser camera or file picker for identity documents.',
         ),
         MortCard(
-          color: MortColors.cardAlt,
+          color: Theme.of(context).colorScheme.surfaceContainerHigh,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -159,7 +159,7 @@ class LivenessExplanationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MortScreen(
+    return MortScreen(
       children: [
         MortHeader(
           eyebrow: 'Live presence',
@@ -177,7 +177,7 @@ class LivenessExplanationScreen extends StatelessWidget {
         ),
         SizedBox(height: MortSpacing.md),
         MortCard(
-          color: MortColors.cardAlt,
+          color: Theme.of(context).colorScheme.surfaceContainerHigh,
           child: Text(
             'Accessibility alternative: offer trained human review or another approved evidence route for movement, vision, speech, lighting, device, disability, culture, or trauma constraints, without penalizing the user.',
           ),
@@ -232,8 +232,8 @@ class DeviceAuthExplanationScreen extends StatelessWidget {
           },
         ),
         const SizedBox(height: MortSpacing.md),
-        const MortCard(
-          color: MortColors.cardAlt,
+        MortCard(
+          color: Theme.of(context).colorScheme.surfaceContainerHigh,
           child: Text(
             'A passkey proves control of an account credential. Apple Face ID or Touch ID can unlock a local credential or native app action. Neither proves legal identity, age, address, school, document ownership, or personal safety. MORT receives no raw biometric data or template.',
           ),
@@ -264,7 +264,9 @@ class _StatusLine extends StatelessWidget {
           Expanded(child: Text(label)),
           MortBadge(
             label: enabled ? 'Enabled' : 'Disabled',
-            color: enabled ? MortColors.neon : MortColors.warning,
+            color: enabled
+                ? Theme.of(context).colorScheme.primary
+                : MortColors.warning,
           ),
         ],
       ),
@@ -289,9 +291,9 @@ class _Checklist extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.check_circle_outline,
-                    color: MortColors.neon,
+                    color: Theme.of(context).colorScheme.primary,
                     size: 18,
                   ),
                   const SizedBox(width: MortSpacing.xs),

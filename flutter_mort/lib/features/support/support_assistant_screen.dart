@@ -6,7 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/errors/user_facing_error.dart';
-import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/utils/safe_uri.dart';
 import '../../core/widgets/mort_widgets.dart';
@@ -357,7 +356,9 @@ class SupportAssistantMessageBubble extends StatelessWidget {
     child: ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 560),
       child: MortCard(
-        color: message.isUser ? MortColors.roseGoldDeep : MortColors.card,
+        color: message.isUser
+            ? Theme.of(context).colorScheme.primaryContainer
+            : Theme.of(context).colorScheme.surface,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -372,8 +373,8 @@ class SupportAssistantMessageBubble extends StatelessWidget {
                     message.isUser ? 'You' : 'MORT - automated support',
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
                       color: message.isUser
-                          ? MortColors.text
-                          : MortColors.roseGoldLight,
+                          ? Theme.of(context).colorScheme.onSurface
+                          : Theme.of(context).colorScheme.primary,
                     ),
                   ),
                 ),
@@ -382,7 +383,7 @@ class SupportAssistantMessageBubble extends StatelessWidget {
                     label: message.responseMode == 'anthropic'
                         ? 'AI assisted'
                         : 'Guided',
-                    color: MortColors.lightBlue,
+                    color: Theme.of(context).colorScheme.secondary,
                   ),
               ],
             ),
@@ -555,7 +556,10 @@ class SupportAssistantStatusCard extends StatelessWidget {
     infoAccent: true,
     child: Row(
       children: [
-        const Icon(Icons.support_agent, color: MortColors.lightBlue),
+        Icon(
+          Icons.support_agent,
+          color: Theme.of(context).colorScheme.secondary,
+        ),
         const SizedBox(width: MortSpacing.sm),
         Expanded(
           child: Column(
@@ -600,9 +604,9 @@ class SupportAssistantSourceCard extends StatelessWidget {
     },
     child: Row(
       children: [
-        const Icon(
+        Icon(
           Icons.menu_book_outlined,
-          color: MortColors.lightBlue,
+          color: Theme.of(context).colorScheme.secondary,
           size: 18,
         ),
         const SizedBox(width: MortSpacing.xs),

@@ -32,7 +32,10 @@ class ReviewerRoleSelectorScreen extends ConsumerWidget {
               onTap: () => _openRole(context, ref, role),
               child: Row(
                 children: [
-                  Icon(_roleIcon(role), color: MortColors.neon),
+                  Icon(
+                    _roleIcon(role),
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                   const SizedBox(width: MortSpacing.md),
                   Expanded(
                     child: Column(
@@ -129,7 +132,11 @@ class ReviewerRoleExperience extends ConsumerWidget {
           eyebrow: '${role.label} demo',
           title: '${role.label} review experience',
           subtitle: _roleSummary(role),
-          trailing: Icon(_roleIcon(role), color: MortColors.neon, size: 30),
+          trailing: Icon(
+            _roleIcon(role),
+            color: Theme.of(context).colorScheme.primary,
+            size: 30,
+          ),
         ),
         MortDropdown<ReviewerRole>(
           label: 'Review Role',
@@ -212,8 +219,8 @@ class _ReviewerBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MortCard(
-      color: MortColors.cardAlt,
+    return MortCard(
+      color: Theme.of(context).colorScheme.surfaceContainerHigh,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -409,7 +416,7 @@ class _SyntheticPaymentPanel extends ConsumerWidget {
           const SizedBox(height: MortSpacing.sm),
           MortBadge(
             label: session.paymentState,
-            color: MortColors.safetyBlue,
+            color: Theme.of(context).colorScheme.secondary,
             icon: Icons.receipt_long,
           ),
           const SizedBox(height: MortSpacing.md),
@@ -455,14 +462,20 @@ class _SyntheticProofPanel extends ConsumerWidget {
           ),
           if (session.syntheticProofAttached) ...[
             const SizedBox(height: MortSpacing.md),
-            const ListTile(
+            ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.image, color: MortColors.neon),
+              leading: Icon(
+                Icons.image,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               title: Text('synthetic-yard-proof.jpg'),
               subtitle: Text(
                 'Generated demonstration file - local session only',
               ),
-              trailing: Icon(Icons.check_circle, color: MortColors.neon),
+              trailing: Icon(
+                Icons.check_circle,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
           ],
           const SizedBox(height: MortSpacing.md),
@@ -488,8 +501,8 @@ class _AdminBoundaryPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MortCard(
-      color: MortColors.cardAlt,
+    return MortCard(
+      color: Theme.of(context).colorScheme.surfaceContainerHigh,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

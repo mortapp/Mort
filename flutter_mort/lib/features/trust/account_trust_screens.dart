@@ -187,7 +187,7 @@ class TrustLevelCard extends StatelessWidget {
               ),
               MortBadge(
                 label: 'Level ${profile.currentLevel} of 5',
-                color: MortColors.safetyBlue,
+                color: Theme.of(context).colorScheme.secondary,
                 icon: Icons.shield_outlined,
               ),
             ],
@@ -196,7 +196,7 @@ class TrustLevelCard extends StatelessWidget {
           LinearProgressIndicator(
             value: progress,
             backgroundColor: MortColors.line,
-            color: MortColors.safetyBlue,
+            color: Theme.of(context).colorScheme.secondary,
           ),
           const SizedBox(height: MortSpacing.sm),
           Text(
@@ -215,7 +215,7 @@ class TrustExplanationSheet extends StatelessWidget {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: MortColors.card,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (_) => const TrustExplanationSheet(),
     );
   }
@@ -1154,7 +1154,7 @@ class _TrustIndicatorCard extends StatelessWidget {
                 color:
                     indicator.status == 'verified' ||
                         indicator.status == 'configured'
-                    ? MortColors.neon
+                    ? Theme.of(context).colorScheme.primary
                     : MortColors.warning,
               ),
             ],

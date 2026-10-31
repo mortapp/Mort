@@ -73,7 +73,7 @@ class JobContractsScreen extends ConsumerWidget {
                         MortBadge(
                           label: _label(contract['status']),
                           color: contract['status'] == 'active'
-                              ? MortColors.neon
+                              ? Theme.of(context).colorScheme.primary
                               : MortColors.warning,
                         ),
                       ],
@@ -194,7 +194,7 @@ class _JobContractScreenState extends ConsumerState<JobContractScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 MortCard(
-                  color: MortColors.cardAlt,
+                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -266,9 +266,9 @@ class _JobContractScreenState extends ConsumerState<JobContractScreen> {
                 for (final item in versionAcceptances)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(
+                    leading: Icon(
                       Icons.verified_outlined,
-                      color: MortColors.neon,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                     title: Text('${_label(item['party_role'])} confirmed'),
                     subtitle: Text(
@@ -616,7 +616,7 @@ class PaymentStatusScreen extends ConsumerWidget {
                           color:
                               obligation['status'] ==
                                   'worker_confirmed_received'
-                              ? MortColors.neon
+                              ? Theme.of(context).colorScheme.primary
                               : MortColors.warning,
                         ),
                         Text('Due: ${_label(obligation['due_rule'])}'),
@@ -691,8 +691,8 @@ class PaymentStatusScreen extends ConsumerWidget {
                     const SizedBox(height: MortSpacing.sm),
                   ],
                 ],
-                const MortCard(
-                  color: MortColors.cardAlt,
+                MortCard(
+                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
                   child: Text(
                     'MORT does not automatically sue, select legal claims, promise recovery, decide guilt, or provide legal representation. Official options depend on facts and local law.',
                   ),
@@ -784,7 +784,7 @@ class _NonpaymentReportScreenState
               : null,
         ),
         const SizedBox(height: MortSpacing.md),
-        const MortCard(
+        MortCard(
           child: Text(
             'Next steps may include the adult’s response, evidence preservation, retaliation controls, trained review, a bounded private account restriction after review, appeal, and an authorized evidence export.',
           ),
@@ -959,7 +959,7 @@ class _PaymentDisputeScreenState extends ConsumerState<PaymentDisputeScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 MortCard(
-                  color: MortColors.cardAlt,
+                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1100,8 +1100,8 @@ class _EvidenceExportScreenState extends ConsumerState<EvidenceExportScreen> {
           subtitle:
               'Only authenticated dispute parties can request the server-generated manifest.',
         ),
-        const MortCard(
-          color: MortColors.cardAlt,
+        MortCard(
+          color: Theme.of(context).colorScheme.surfaceContainerHigh,
           child: Text(
             'Excluded: raw identity documents, document numbers, face data, residential addresses, precise coordinates, unrelated incidents, other users’ private data, and secrets.',
           ),

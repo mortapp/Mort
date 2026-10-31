@@ -193,7 +193,7 @@ class _DiagnosticRow extends StatelessWidget {
               value,
               textAlign: TextAlign.end,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: enabled ? MortColors.safetyBlue : null,
+                color: enabled ? Theme.of(context).colorScheme.secondary : null,
                 fontWeight: FontWeight.w600,
               ),
             ),

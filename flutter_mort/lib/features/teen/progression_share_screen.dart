@@ -124,7 +124,7 @@ class _MilestoneCard extends StatelessWidget {
     final iceTrace = snapshot.cosmetics.any(
       (cosmetic) => cosmetic.key == 'ice_trace' && cosmetic.equipped,
     );
-    final accent = iceTrace ? MortColors.starBlue : MortColors.silverBright;
+    final accent = iceTrace ? MortColors.white : MortColors.silverBright;
     return Container(
       constraints: const BoxConstraints(minHeight: 420),
       padding: const EdgeInsets.all(32),
@@ -143,7 +143,7 @@ class _MilestoneCard extends StatelessWidget {
             : null,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: iceTrace ? MortColors.starBlue : MortColors.silverDark,
+          color: iceTrace ? MortColors.lightText : MortColors.silverDark,
         ),
       ),
       child: Column(

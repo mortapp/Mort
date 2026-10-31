@@ -299,14 +299,18 @@ class MortGuideMessageBubble extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
         child: MortCard(
-          color: assistant ? MortColors.card : MortColors.neonDeep,
+          color: assistant
+              ? Theme.of(context).colorScheme.surface
+              : Theme.of(context).colorScheme.surfaceContainerHigh,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 assistant ? 'MORT Guide' : 'You',
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: assistant ? MortColors.neon : MortColors.text,
+                  color: assistant
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: MortSpacing.xs),
@@ -385,10 +389,10 @@ class MortGuideSourceCard extends StatelessWidget {
     },
     child: Row(
       children: [
-        const Icon(
+        Icon(
           Icons.menu_book_outlined,
           size: 18,
-          color: MortColors.safetyBlue,
+          color: Theme.of(context).colorScheme.secondary,
         ),
         const SizedBox(width: MortSpacing.xs),
         Expanded(child: Text('Source: ${source.title}')),

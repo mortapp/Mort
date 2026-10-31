@@ -15,6 +15,9 @@ class MortSearchField extends StatelessWidget {
     this.onChanged,
     this.onSubmitted,
     this.onFilter,
+    this.focusNode,
+    this.enabled = true,
+    this.errorText,
   });
 
   final TextEditingController? controller;
@@ -22,21 +25,27 @@ class MortSearchField extends StatelessWidget {
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
   final VoidCallback? onFilter;
+  final FocusNode? focusNode;
+  final bool enabled;
+  final String? errorText;
 
   @override
   Widget build(BuildContext context) => TextField(
     controller: controller,
+    focusNode: focusNode,
+    enabled: enabled,
     onChanged: onChanged,
     onSubmitted: onSubmitted,
     textInputAction: TextInputAction.search,
     decoration: InputDecoration(
       hintText: hint,
+      errorText: errorText,
       prefixIcon: const Icon(Icons.search_rounded),
       suffixIcon: onFilter == null
           ? null
           : IconButton(
               tooltip: 'Filters',
-              onPressed: onFilter,
+              onPressed: enabled ? onFilter : null,
               icon: const Icon(Icons.tune_rounded),
             ),
     ),
@@ -64,7 +73,7 @@ class MortFilterChip extends StatelessWidget {
         : Icon(
             icon,
             size: MortIconSizes.small,
-            color: selected ? MortColors.roseGoldLight : MortColors.textMuted,
+            color: selected ? MortColors.silverBright : MortColors.textMuted,
           ),
     label: Text(label),
     selected: selected,
@@ -180,7 +189,7 @@ class MortPriceDisplay extends StatelessWidget {
                   ? Theme.of(context).textTheme.headlineSmall
                   : Theme.of(context).textTheme.titleMedium)
               ?.copyWith(
-                color: emphasized ? MortColors.roseGoldLight : MortColors.text,
+                color: emphasized ? MortColors.silverBright : MortColors.text,
               ),
     );
 
@@ -261,7 +270,7 @@ class MortJobCard extends StatelessWidget {
               payout,
               textAlign: TextAlign.end,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: MortColors.roseGoldLight,
+                color: MortColors.silverBright,
               ),
             );
             final saveWidget = onSaved == null
@@ -273,7 +282,9 @@ class MortJobCard extends StatelessWidget {
                       saved
                           ? Icons.favorite_rounded
                           : Icons.favorite_border_rounded,
-                      color: saved ? MortColors.roseGold : MortColors.textMuted,
+                      color: saved
+                          ? MortColors.silverBright
+                          : MortColors.textMuted,
                     ),
                   );
             if (stacked) {
@@ -391,7 +402,7 @@ class MortPinPad extends StatelessWidget {
                           borderRadius: BorderRadius.circular(MortRadii.small),
                           border: Border.all(
                             color: index < value.length
-                                ? MortColors.roseGold
+                                ? MortColors.silver
                                 : MortColors.line,
                           ),
                         ),

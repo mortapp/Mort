@@ -124,17 +124,44 @@ class ExperienceSettingsScreen extends ConsumerWidget {
                       ),
                     ),
                     const Divider(),
-                    const ListTile(
+                    ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: Icon(
                         Icons.dark_mode_outlined,
-                        color: MortColors.lightBlue,
+                        color: Theme.of(context).colorScheme.secondary,
                       ),
-                      title: Text('Dark appearance'),
-                      subtitle: Text(
-                        'MORT currently supports its high-contrast dark identity only. Device text size remains the source of truth.',
+                      title: const Text('Appearance'),
+                      subtitle: const Text(
+                        'Light is the default. Choose dark or follow your device setting.',
                       ),
-                      trailing: MortBadge(label: 'Active'),
+                      trailing: DropdownButton<ThemeMode>(
+                        value: value.themeMode,
+                        onChanged: (mode) {
+                          if (mode == null) return;
+                          _change(
+                            context,
+                            () => ref
+                                .read(
+                                  mortExperiencePreferencesProvider.notifier,
+                                )
+                                .setThemeMode(mode),
+                          );
+                        },
+                        items: const [
+                          DropdownMenuItem(
+                            value: ThemeMode.light,
+                            child: Text('Light'),
+                          ),
+                          DropdownMenuItem(
+                            value: ThemeMode.dark,
+                            child: Text('Dark'),
+                          ),
+                          DropdownMenuItem(
+                            value: ThemeMode.system,
+                            child: Text('System'),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),

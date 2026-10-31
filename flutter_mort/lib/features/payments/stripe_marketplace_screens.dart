@@ -169,7 +169,7 @@ class _StripePayoutSetupScreenState
                       MortBadge(
                         label: _label(payout['status'] ?? 'not_started'),
                         color: payout['payouts_enabled'] == true
-                            ? MortColors.neon
+                            ? Theme.of(context).colorScheme.primary
                             : MortColors.warning,
                       ),
                       const SizedBox(height: MortSpacing.sm),
@@ -202,7 +202,10 @@ class _StripePayoutSetupScreenState
                 ),
                 if (_notice != null) ...[
                   const SizedBox(height: MortSpacing.sm),
-                  MortCard(color: MortColors.cardAlt, child: Text(_notice!)),
+                  MortCard(
+                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                    child: Text(_notice!),
+                  ),
                 ],
                 const SizedBox(height: MortSpacing.sm),
                 const MortSafetyBanner(
@@ -386,7 +389,7 @@ class _StripeJobFundingScreenState
                         label:
                             'Funding: ${_label(summary['funding_status'] ?? 'unfunded')}',
                         color: summary['funding_status'] == 'funded'
-                            ? MortColors.neon
+                            ? Theme.of(context).colorScheme.primary
                             : MortColors.warning,
                       ),
                     ],
@@ -426,7 +429,10 @@ class _StripeJobFundingScreenState
                   ),
                 if (_notice != null) ...[
                   const SizedBox(height: MortSpacing.sm),
-                  MortCard(color: MortColors.cardAlt, child: Text(_notice!)),
+                  MortCard(
+                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                    child: Text(_notice!),
+                  ),
                 ],
                 const SizedBox(height: MortSpacing.sm),
                 const MortSafetyBanner(

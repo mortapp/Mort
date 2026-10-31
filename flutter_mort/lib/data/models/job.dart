@@ -1,6 +1,6 @@
 import '../../core/utils/formatters.dart';
 
-/// Stable contract between Flutter's display labels and the live job enum.
+/// Maps marketplace labels to the stable job category values used by the API.
 class JobCategoryContract {
   static const Map<String, String> _toBackend = {
     'cleaning': 'household_help',
@@ -184,6 +184,19 @@ class Job {
   String get payDisplay => formatCents(payAmountCents, fallback: payLabel);
   String get adultAmountDisplay => formatCents(adultJobAmountCents);
   String get serviceFeeDisplay => formatCents(mortServiceFeeCents);
+  String get publicAreaDisplay {
+    final safeNeighborhood = neighborhood?.trim();
+    if (safeNeighborhood != null &&
+        safeNeighborhood.isNotEmpty &&
+        !_looksLikeStreetAddress(safeNeighborhood)) {
+      return safeNeighborhood;
+    }
+    final safeCity = city.trim();
+    final safeState = state.trim();
+    if (safeCity.isEmpty) return 'Nearby';
+    return safeState.isEmpty ? safeCity : '$safeCity, $safeState';
+  }
+
   bool get posterVerified => !isTest && posterVerificationStatus == 'approved';
   bool get isFlexible => scheduleType == 'flexible' || startsAt == null;
   bool get isOpen => status == 'open' && applicationsOpen;
@@ -199,6 +212,9 @@ class Job {
           _ => 'Poster verification not started',
         };
 
+  static bool _looksLikeStreetAddress(String value) =>
+      RegExp(r'^\d+\s+\S+').hasMatch(value);
+
   factory Job.fromMap(Map<String, dynamic> json) {
     final poster = json['profiles'];
     final posterMap = poster is Map<String, dynamic> ? poster : null;
@@ -208,9 +224,7 @@ class Job {
       title: (json['title'] as String?) ?? 'Untitled job',
       summary: json['summary'] as String?,
       description: (json['description'] as String?) ?? '',
-      category: JobCategoryContract.toDisplay(
-        (json['category'] as String?) ?? 'other',
-      ),
+      category: (json['category'] as String?) ?? 'other safe local work',
       locationText: (json['location_text'] as String?) ?? 'General area',
       city: (json['city'] as String?) ?? '',
       state: (json['state'] as String?) ?? '',
@@ -268,9 +282,8 @@ class Job {
       distanceStatus: (json['distance_status'] as String?) ?? 'unavailable',
       transportationMatch: json['transportation_match'] as bool?,
       matchExplanation: json['match_explanation'] as String?,
-      // The production backend currently exposes the job flag without an
-      // atomic quick-accept endpoint. Require a server capability before the
-      // client advertises the action.
+      // A display flag alone must not activate Quick Accept. The API must
+      // also confirm that the atomic acceptance operation is available.
       quickAcceptEligible:
           json['quick_accept_eligible'] == true &&
           json['quick_accept_available'] == true,

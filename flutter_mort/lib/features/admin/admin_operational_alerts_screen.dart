@@ -214,7 +214,7 @@ class _AlertCard extends StatelessWidget {
                     ? MortColors.danger
                     : severity == 'high'
                     ? MortColors.warning
-                    : MortColors.safetyBlue,
+                    : Theme.of(context).colorScheme.secondary,
               ),
               MortBadge(label: _label(alert['category'])),
               MortBadge(label: _label(alert['status'])),

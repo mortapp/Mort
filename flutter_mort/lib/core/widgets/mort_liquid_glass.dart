@@ -1,10 +1,6 @@
-import 'dart:ui';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../preferences/mort_experience_preferences.dart';
 import '../theme/mort_colors.dart';
 import '../theme/mort_spacing.dart';
 import '../theme/mort_tokens.dart';
@@ -36,138 +32,51 @@ class LiquidGlassContainer extends StatelessWidget {
   final VoidCallback? onTap;
   final String? semanticLabel;
 
-  bool _useLiveBlur(BuildContext context) {
-    final preferences = MortExperiencePreferencesScope.of(context);
-    if (!liveBlur ||
-        kIsWeb ||
-        MediaQuery.highContrastOf(context) ||
-        preferences.reducedTransparency) {
-      return false;
-    }
-    if (defaultTargetPlatform == TargetPlatform.android && !allowAndroidBlur) {
-      return false;
-    }
-    return true;
-  }
-
   @override
   Widget build(BuildContext context) {
     final radius = borderRadius ?? BorderRadius.circular(MortRadii.card);
+    final scheme = Theme.of(context).colorScheme;
     final highContrast = MediaQuery.highContrastOf(context);
-    final blur = _useLiveBlur(context);
-    final base = switch (variant) {
-      MortGlassVariant.regular => MortColors.bgElevated,
-      MortGlassVariant.clear => Colors.white,
-      MortGlassVariant.soft => MortColors.cardAlt,
-    };
-    final baseAlpha = highContrast
-        ? 1.0
-        : blur
-        ? switch (variant) {
-            MortGlassVariant.regular => 0.2,
-            MortGlassVariant.clear => 0.08,
-            MortGlassVariant.soft => 0.16,
-          }
-        : switch (variant) {
-            MortGlassVariant.regular => 0.92,
-            MortGlassVariant.clear => 0.82,
-            MortGlassVariant.soft => 0.84,
-          };
-    final effectiveTint = tint ?? base;
-    final borderColor = highContrast
-        ? MortColors.silver
-        : Color.lerp(
-            Colors.white.withValues(alpha: 0.14),
-            effectiveTint.withValues(alpha: 0.44),
-            tint == null ? 0.0 : 0.58,
-          )!;
+    final surface = colorForSurface(scheme);
+    final border = highContrast ? scheme.outline : scheme.outlineVariant;
 
-    Widget surface = Stack(
-      fit: StackFit.passthrough,
-      children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color.lerp(
-                  base,
-                  effectiveTint,
-                  tint == null ? 0 : 0.34,
-                )!.withValues(alpha: baseAlpha),
-                base.withValues(alpha: (baseAlpha - 0.08).clamp(0.0, 1.0)),
-              ],
-            ),
-          ),
-          child: Padding(padding: padding, child: child),
-        ),
-        Positioned.fill(
-          child: IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: radius,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: const Alignment(0.25, 0.25),
-                  colors: [
-                    Colors.white.withValues(alpha: highContrast ? 0.02 : 0.04),
-                    Colors.transparent,
-                  ],
+    final card = Material(
+      color: surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: radius,
+        side: BorderSide(color: border, width: highContrast ? 1.5 : 1),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: onTap == null
+          ? Padding(padding: padding, child: child)
+          : InkWell(
+              borderRadius: radius,
+              onTap: onTap,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minWidth: MortSpacing.minTouchTarget,
+                  minHeight: MortSpacing.minTouchTarget,
                 ),
+                child: Padding(padding: padding, child: child),
               ),
             ),
-          ),
-        ),
-      ],
     );
 
-    if (blur) {
-      surface = BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: MortGlassTokens.blurSigma,
-          sigmaY: MortGlassTokens.blurSigma,
-        ),
-        child: surface,
-      );
-    }
-
-    surface = ClipRRect(borderRadius: radius, child: surface);
-    surface = DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: radius,
-        border: Border.all(
-          color: borderColor,
-          width: highContrast ? 1.5 : MortGlassTokens.borderWidth,
-        ),
-        boxShadow: MortShadows.card,
-      ),
-      child: surface,
+    return Semantics(
+      label: semanticLabel,
+      button: onTap != null,
+      container: true,
+      child: card,
     );
+  }
 
-    if (onTap != null) {
-      surface = Material(
-        color: Colors.transparent,
-        borderRadius: radius,
-        child: InkWell(
-          borderRadius: radius,
-          onTap: onTap,
-          splashColor: MortColors.roseGold.withValues(alpha: 0.12),
-          highlightColor: MortColors.roseGoldLight.withValues(alpha: 0.06),
-          child: surface,
-        ),
-      );
-    }
-
-    return RepaintBoundary(
-      child: Semantics(
-        label: semanticLabel,
-        button: onTap != null,
-        container: true,
-        child: surface,
-      ),
-    );
+  Color colorForSurface(ColorScheme scheme) {
+    if (tint != null) return tint!;
+    return switch (variant) {
+      MortGlassVariant.regular => scheme.surface,
+      MortGlassVariant.clear => scheme.surfaceContainerLowest,
+      MortGlassVariant.soft => scheme.surfaceContainerHigh,
+    };
   }
 }
 
@@ -197,11 +106,15 @@ class MortNavigationDestination {
     required this.label,
     required this.icon,
     required this.selectedIcon,
+    this.accessibilityLabel,
+    this.prominentAction = false,
   });
 
   final String label;
   final IconData icon;
   final IconData selectedIcon;
+  final String? accessibilityLabel;
+  final bool prominentAction;
 }
 
 class MortGlassNavigationBar extends StatelessWidget {
@@ -219,94 +132,47 @@ class MortGlassNavigationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     assert(currentIndex >= 0 && currentIndex < destinations.length);
-    final disableAnimations = MediaQuery.disableAnimationsOf(context);
-    return SafeArea(
-      top: false,
-      minimum: const EdgeInsets.fromLTRB(
-        MortSpacing.md,
-        MortSpacing.xs,
-        MortSpacing.md,
-        MortSpacing.xs,
-      ),
-      child: LiquidGlassContainer(
-        liveBlur: true,
-        allowAndroidBlur: true,
-        borderRadius: BorderRadius.circular(MortRadii.sheet),
-        padding: const EdgeInsets.all(MortSpacing.xxs),
-        child: Row(
-          children: [
-            for (var index = 0; index < destinations.length; index++)
-              Expanded(
-                child: Semantics(
-                  selected: currentIndex == index,
-                  button: true,
-                  label: destinations[index].label,
-                  child: Tooltip(
-                    message: destinations[index].label,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(MortRadii.card),
-                      onTap: () => onDestinationSelected(index),
-                      child: AnimatedContainer(
-                        duration: disableAnimations
-                            ? Duration.zero
-                            : MortMotion.standard,
-                        curve: Curves.easeOutCubic,
-                        constraints: const BoxConstraints(
-                          minHeight: MortSpacing.minTouchTarget,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: MortSpacing.xxs,
-                          vertical: MortSpacing.xs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: currentIndex == index
-                              ? MortColors.roseGold.withValues(alpha: 0.18)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(MortRadii.card),
-                          border: currentIndex == index
-                              ? Border.all(
-                                  color: MortColors.roseGold.withValues(
-                                    alpha: 0.36,
-                                  ),
-                                )
-                              : null,
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              currentIndex == index
-                                  ? destinations[index].selectedIcon
-                                  : destinations[index].icon,
-                              size: 22,
-                              color: currentIndex == index
-                                  ? MortColors.roseGoldLight
-                                  : MortColors.silver,
-                            ),
-                            const SizedBox(height: MortSpacing.xxs),
-                            Text(
-                              destinations[index].label,
-                              maxLines: 1,
-                              overflow: TextOverflow.fade,
-                              softWrap: false,
-                              style: Theme.of(context).textTheme.labelMedium
-                                  ?.copyWith(
-                                    color: currentIndex == index
-                                        ? MortColors.roseGoldLight
-                                        : MortColors.textMuted,
-                                    fontSize: 10,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
+    final scheme = Theme.of(context).colorScheme;
+    return NavigationBar(
+      selectedIndex: currentIndex,
+      onDestinationSelected: onDestinationSelected,
+      height: 76,
+      elevation: 0,
+      backgroundColor: scheme.surface,
+      indicatorColor: scheme.onSurface.withValues(alpha: 0.10),
+      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+      destinations: [
+        for (final destination in destinations)
+          NavigationDestination(
+            tooltip: destination.accessibilityLabel ?? destination.label,
+            label: destination.label,
+            icon: _navigationIcon(destination, scheme, selected: false),
+            selectedIcon: _navigationIcon(destination, scheme, selected: true),
+          ),
+      ],
+    );
+  }
+
+  Widget _navigationIcon(
+    MortNavigationDestination destination,
+    ColorScheme scheme, {
+    required bool selected,
+  }) {
+    if (destination.prominentAction) {
+      return Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: scheme.onSurface,
+          shape: BoxShape.circle,
         ),
-      ),
+        alignment: Alignment.center,
+        child: Icon(destination.icon, size: 22, color: scheme.surface),
+      );
+    }
+    return Icon(
+      selected ? destination.selectedIcon : destination.icon,
+      size: 22,
     );
   }
 }
@@ -376,7 +242,7 @@ class MortGlassHeader extends StatelessWidget {
                   Text(
                     eyebrow!,
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: MortColors.lightBlue,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       letterSpacing: 0.8,
                     ),
                   ),
@@ -422,17 +288,23 @@ class MortGlassButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enabled = onPressed != null;
-    final tint = danger
-        ? MortColors.danger
+    final scheme = Theme.of(context).colorScheme;
+    final background = danger
+        ? scheme.error
         : primary
-        ? MortColors.roseGold
-        : null;
+        ? scheme.primary
+        : scheme.surfaceContainerHigh;
+    final foreground = danger
+        ? scheme.onError
+        : primary
+        ? scheme.onPrimary
+        : scheme.onSurface;
     return Opacity(
       opacity: enabled ? 1 : 0.52,
       child: LiquidGlassContainer(
-        tint: tint,
+        tint: background,
         padding: EdgeInsets.zero,
-        borderRadius: BorderRadius.circular(MortRadii.pill),
+        borderRadius: BorderRadius.circular(MortRadii.medium),
         onTap: onPressed,
         semanticLabel: label,
         child: ConstrainedBox(
@@ -446,13 +318,15 @@ class MortGlassButton extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 20, color: MortColors.text),
+                Icon(icon, size: 20, color: foreground),
                 const SizedBox(width: MortSpacing.xs),
                 Flexible(
                   child: Text(
                     label,
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.labelLarge,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelLarge?.copyWith(color: foreground),
                   ),
                 ),
               ],
@@ -733,16 +607,16 @@ class MortSafetyPulse extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
     child: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 224),
-      child: AspectRatio(
-        aspectRatio: 1,
-        child: LiquidGlassContainer(
-          tint: color,
-          borderRadius: BorderRadius.circular(MortRadii.pill),
-          onTap: onPressed,
-          semanticLabel: '$title. $status',
+      constraints: const BoxConstraints(maxWidth: 224, minWidth: 220),
+      child: LiquidGlassContainer(
+        tint: color,
+        borderRadius: BorderRadius.circular(MortRadii.pill),
+        onTap: onPressed,
+        semanticLabel: '$title. $status',
+        child: Padding(
+          padding: const EdgeInsets.all(MortSpacing.md),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: 52, color: color),
               const SizedBox(height: MortSpacing.sm),
@@ -754,8 +628,6 @@ class MortSafetyPulse extends StatelessWidget {
               const SizedBox(height: MortSpacing.xs),
               Text(
                 status,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),

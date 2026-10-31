@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../atmosphere/mort_wordmark_reveal.dart';
+import '../theme/mort_colors.dart';
 import '../theme/mort_tokens.dart';
 import 'mort_motion_mark.dart';
 
@@ -33,6 +34,54 @@ class MortBrandMark extends StatelessWidget {
   }
 }
 
+/// Backwards-compatible static logo retained for legacy screens and review.
+class MortLogo extends StatelessWidget {
+  const MortLogo({super.key, this.size = 72, this.showWordmark = false});
+
+  static const assetPath = 'assets/branding/mort_mark_adaptive_monochrome.png';
+
+  final double size;
+  final bool showWordmark;
+
+  @override
+  Widget build(BuildContext context) {
+    final safeSize = _finiteDimension(size, fallback: 72, min: 24, max: 320);
+    final mark = Semantics(
+      image: true,
+      label: 'MORT arrow logo',
+      child: SizedBox.square(
+        dimension: safeSize,
+        child: Image.asset(
+          assetPath,
+          fit: BoxFit.cover,
+          filterQuality: FilterQuality.high,
+          errorBuilder: (_, _, _) => Icon(
+            Icons.north_east_rounded,
+            size: safeSize * 0.58,
+            color: MortColors.silver,
+          ),
+        ),
+      ),
+    );
+    if (!showWordmark) return mark;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        mark,
+        const SizedBox(height: 4),
+        Text(
+          'M O R T',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            color: MortColors.godWhite,
+            letterSpacing: 7,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class MortAnimatedBrandMark extends StatefulWidget {
   const MortAnimatedBrandMark({
     super.key,
@@ -52,6 +101,7 @@ class _MortAnimatedBrandMarkState extends State<MortAnimatedBrandMark>
   late final AnimationController _controller;
   late final Animation<double> _fade;
   late final Animation<double> _rise;
+  bool _motionPreferenceInitialized = false;
 
   @override
   void initState() {
@@ -62,7 +112,19 @@ class _MortAnimatedBrandMarkState extends State<MortAnimatedBrandMark>
     );
     _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
     _rise = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
-    _controller.forward();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (disableAnimations) {
+      _controller.value = 1;
+      _motionPreferenceInitialized = true;
+    } else if (!_motionPreferenceInitialized) {
+      _controller.forward();
+      _motionPreferenceInitialized = true;
+    }
   }
 
   @override

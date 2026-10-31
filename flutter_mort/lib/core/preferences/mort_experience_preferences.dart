@@ -9,23 +9,27 @@ class MortExperiencePreferences {
     this.reducedTransparency = false,
     this.highContrast = false,
     this.hapticsEnabled = true,
+    this.themeMode = ThemeMode.light,
   });
 
   final bool reducedMotion;
   final bool reducedTransparency;
   final bool highContrast;
   final bool hapticsEnabled;
+  final ThemeMode themeMode;
 
   MortExperiencePreferences copyWith({
     bool? reducedMotion,
     bool? reducedTransparency,
     bool? highContrast,
     bool? hapticsEnabled,
+    ThemeMode? themeMode,
   }) => MortExperiencePreferences(
     reducedMotion: reducedMotion ?? this.reducedMotion,
     reducedTransparency: reducedTransparency ?? this.reducedTransparency,
     highContrast: highContrast ?? this.highContrast,
     hapticsEnabled: hapticsEnabled ?? this.hapticsEnabled,
+    themeMode: themeMode ?? this.themeMode,
   );
 }
 
@@ -35,6 +39,7 @@ class MortExperiencePreferencesController
   static const _reducedTransparencyKey = 'mort.preference.reduced_transparency';
   static const _highContrastKey = 'mort.preference.high_contrast';
   static const _hapticsEnabledKey = 'mort.preference.haptics_enabled';
+  static const _themeModeKey = 'mort.preference.theme_mode';
 
   @override
   Future<MortExperiencePreferences> build() async {
@@ -45,6 +50,11 @@ class MortExperiencePreferencesController
           preferences.getBool(_reducedTransparencyKey) ?? false,
       highContrast: preferences.getBool(_highContrastKey) ?? false,
       hapticsEnabled: preferences.getBool(_hapticsEnabledKey) ?? true,
+      themeMode: switch (preferences.getString(_themeModeKey)) {
+        'dark' => ThemeMode.dark,
+        'system' => ThemeMode.system,
+        _ => ThemeMode.light,
+      },
     );
   }
 
@@ -72,6 +82,16 @@ class MortExperiencePreferencesController
     update: (current) => current.copyWith(hapticsEnabled: value),
   );
 
+  Future<void> setThemeMode(ThemeMode value) => _saveString(
+    key: _themeModeKey,
+    value: switch (value) {
+      ThemeMode.dark => 'dark',
+      ThemeMode.system => 'system',
+      ThemeMode.light => 'light',
+    },
+    update: (current) => current.copyWith(themeMode: value),
+  );
+
   Future<void> applyOnboardingPreferences({
     required bool reducedMotion,
     required bool highContrast,
@@ -94,6 +114,27 @@ class MortExperiencePreferencesController
     try {
       final preferences = await SharedPreferences.getInstance();
       final saved = await preferences.setBool(key, value);
+      if (!saved) throw StateError('Preference was not saved.');
+    } catch (_) {
+      state = AsyncData(current);
+      rethrow;
+    }
+  }
+
+  Future<void> _saveString({
+    required String key,
+    required String value,
+    required MortExperiencePreferences Function(
+      MortExperiencePreferences current,
+    )
+    update,
+  }) async {
+    final current = state.value ?? const MortExperiencePreferences();
+    final next = update(current);
+    state = AsyncData(next);
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final saved = await preferences.setString(key, value);
       if (!saved) throw StateError('Preference was not saved.');
     } catch (_) {
       state = AsyncData(current);

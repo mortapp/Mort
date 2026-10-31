@@ -131,7 +131,10 @@ class _AdminPaymentOperationsScreenState
       ),
       if (_notice != null) ...[
         const SizedBox(height: MortSpacing.sm),
-        MortCard(color: MortColors.cardAlt, child: Text(_notice!)),
+        MortCard(
+          color: Theme.of(context).colorScheme.surfaceContainerHigh,
+          child: Text(_notice!),
+        ),
       ],
       const SizedBox(height: MortSpacing.md),
       FutureBuilder<Map<String, dynamic>>(

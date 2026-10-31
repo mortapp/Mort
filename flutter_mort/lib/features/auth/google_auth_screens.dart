@@ -127,10 +127,14 @@ class _GoogleAuthSectionState extends ConsumerState<GoogleAuthSection> {
             child: OutlinedButton(
               onPressed: enabled ? _launch : null,
               style: OutlinedButton.styleFrom(
-                backgroundColor: MortColors.cardAlt,
-                foregroundColor: MortColors.text,
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHigh,
+                foregroundColor: Theme.of(context).colorScheme.onSurface,
                 disabledBackgroundColor: MortColors.line,
-                disabledForegroundColor: MortColors.textMuted,
+                disabledForegroundColor: Theme.of(
+                  context,
+                ).colorScheme.onSurfaceVariant,
                 side: const BorderSide(color: MortColors.borderSilver),
                 overlayColor: MortColors.roseGold.withValues(alpha: 0.08),
                 shape: RoundedRectangleBorder(
@@ -178,7 +182,7 @@ class _GoogleAuthSectionState extends ConsumerState<GoogleAuthSection> {
                 style: TextStyle(
                   color: state.isError
                       ? MortColors.warning
-                      : MortColors.textMuted,
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -836,21 +840,25 @@ class _ConnectedAccountsScreenState
                         : null,
                   ),
                 if (!AppConfig.googleAuthEnabled && google == null)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: MortSpacing.xs),
                     child: Text(
                       'Google linking is awaiting owner configuration.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: MortColors.textMuted),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 if (google != null && identities.length < 2)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: MortSpacing.xs),
                     child: Text(
                       'Add another sign-in method before disconnecting your only identity.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: MortColors.textMuted),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 const SizedBox(height: MortSpacing.md),
@@ -886,21 +894,25 @@ class _ConnectedAccountsScreenState
                         : null,
                   ),
                 if (!AppConfig.appleAuthEnabled && apple == null)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: MortSpacing.xs),
                     child: Text(
                       'Apple linking is awaiting owner configuration.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: MortColors.textMuted),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 if (apple != null && identities.length < 2)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: MortSpacing.xs),
                     child: Text(
                       'Add another sign-in method before disconnecting your only identity.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: MortColors.textMuted),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
               ],
@@ -935,13 +947,17 @@ class _IdentityCard extends StatelessWidget {
         contentPadding: EdgeInsets.zero,
         leading: Icon(
           connected ? Icons.verified_user : Icons.link_off,
-          color: connected ? MortColors.neon : MortColors.textMuted,
+          color: connected
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.onSurfaceVariant,
         ),
         title: Text(title),
         subtitle: Text(subtitle),
         trailing: MortBadge(
           label: connected ? 'Connected' : 'Not connected',
-          color: connected ? MortColors.neon : MortColors.textMuted,
+          color: connected
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );

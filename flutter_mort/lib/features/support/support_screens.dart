@@ -223,7 +223,7 @@ class _SupportHomeScreenState extends ConsumerState<SupportHomeScreen> {
                   topic.icon,
                   color: topic.safety
                       ? MortColors.danger
-                      : MortColors.lightBlue,
+                      : Theme.of(context).colorScheme.secondary,
                 ),
                 const SizedBox(width: MortSpacing.sm),
                 Expanded(child: Text(topic.label)),
@@ -236,9 +236,12 @@ class _SupportHomeScreenState extends ConsumerState<SupportHomeScreen> {
         if (recentJobRoute != null)
           MortCard(
             onTap: () => context.go(recentJobRoute),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.history_outlined, color: MortColors.lightBlue),
+                Icon(
+                  Icons.history_outlined,
+                  color: Theme.of(context).colorScheme.secondary,
+                ),
                 SizedBox(width: MortSpacing.sm),
                 Expanded(child: Text('Recent job activity')),
                 Icon(Icons.chevron_right),
@@ -726,7 +729,9 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
           ),
           MortCard(
             color: ticket.humanReviewed
-                ? MortColors.safetyBlue.withValues(alpha: 0.12)
+                ? Theme.of(
+                    context,
+                  ).colorScheme.secondary.withValues(alpha: 0.12)
                 : MortColors.warning.withValues(alpha: 0.12),
             child: Text(
               ticket.humanReviewed
@@ -865,14 +870,18 @@ class _SupportBubble extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
         child: MortCard(
-          color: user ? MortColors.neonDeep : MortColors.card,
+          color: user
+              ? Theme.of(context).colorScheme.surfaceContainerHigh
+              : Theme.of(context).colorScheme.surface,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: user ? MortColors.text : MortColors.neon,
+                  color: user
+                      ? Theme.of(context).colorScheme.onSurface
+                      : Theme.of(context).colorScheme.primary,
                 ),
               ),
               const SizedBox(height: MortSpacing.xs),

@@ -140,7 +140,9 @@ class _GuardianOptionalOnboardingScreenState
         const SizedBox(height: MortSpacing.md),
         if (_inviteCode != null)
           MortCard(
-            color: MortColors.neon.withValues(alpha: 0.08),
+            color: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.08),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -294,8 +296,8 @@ class _GuardianModeScreenState extends ConsumerState<GuardianModeScreen> {
                 label: (profile?.guardianSetupStatus ?? 'not_started')
                     .replaceAll('_', ' '),
                 color: profile?.guardianSetupStatus == 'linked'
-                    ? MortColors.neon
-                    : MortColors.safetyBlue,
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.secondary,
               ),
             ],
           ),

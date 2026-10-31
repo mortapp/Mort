@@ -113,7 +113,9 @@ class _WelcomeMascotTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return MortCard(
-      color: selected ? MortColors.surfaceRaised : MortColors.card,
+      color: selected
+          ? MortColors.surfaceRaised
+          : Theme.of(context).colorScheme.surface,
       onTap: onSelect,
       child: Row(
         children: [

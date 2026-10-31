@@ -640,7 +640,7 @@ class _JobProgressScreenState extends ConsumerState<JobProgressScreen>
                       ? Icons.lock_open_outlined
                       : Icons.verified_user_outlined,
                   size: 42,
-                  color: MortColors.lightBlue,
+                  color: Theme.of(context).colorScheme.secondary,
                 ),
                 const SizedBox(height: MortSpacing.xs),
                 Text(
@@ -718,12 +718,12 @@ class _CompletionCard extends StatelessWidget {
           height: 84,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: MortColors.roseGoldLight),
+            border: Border.all(color: Theme.of(context).colorScheme.primary),
             boxShadow: MortShadows.glow,
           ),
-          child: const Icon(
+          child: Icon(
             Icons.check_rounded,
-            color: MortColors.roseGoldLight,
+            color: Theme.of(context).colorScheme.primary,
             size: 48,
           ),
         ),
@@ -740,10 +740,10 @@ class _CompletionCard extends StatelessWidget {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: MortSpacing.sm),
-        const MortStatusChip(
+        MortStatusChip(
           label: 'Payment under review',
           icon: Icons.schedule_rounded,
-          color: MortColors.lightBlue,
+          color: Theme.of(context).colorScheme.secondary,
         ),
         const SizedBox(height: MortSpacing.md),
         MortActionRow(
@@ -780,7 +780,7 @@ class _FundingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MortCard(
     color: status.fundingStatus == 'funded'
-        ? MortColors.neonDeep
+        ? Theme.of(context).colorScheme.surfaceContainerHigh
         : MortColors.warning.withValues(alpha: 0.12),
     child: Row(
       children: [
@@ -920,7 +920,7 @@ class _GeneratedPinCardState extends State<_GeneratedPinCard> {
     return MortCard(
       color: expired
           ? MortColors.warning.withValues(alpha: 0.12)
-          : MortColors.neonDeep,
+          : Theme.of(context).colorScheme.surfaceContainerHigh,
       child: Semantics(
         label: 'Generated six digit in-person job PIN',
         liveRegion: expired || _remaining.inSeconds == 30,

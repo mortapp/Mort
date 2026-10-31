@@ -50,12 +50,10 @@ class _ProgressionBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final accent =
-        snapshot.cosmetics.any(
-          (cosmetic) => cosmetic.key == 'ice_trace' && cosmetic.equipped,
-        )
-        ? MortColors.starBlue
-        : MortColors.silverBright;
+    final hasIceTrace = snapshot.cosmetics.any(
+      (cosmetic) => cosmetic.key == 'ice_trace' && cosmetic.equipped,
+    );
+    final accent = hasIceTrace ? MortColors.white : MortColors.silverBright;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

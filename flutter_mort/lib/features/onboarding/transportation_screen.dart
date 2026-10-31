@@ -242,8 +242,8 @@ class _TransportationScreenState extends ConsumerState<TransportationScreen> {
                             Icon(
                               entry.value.icon,
                               color: selected
-                                  ? MortColors.lightBlue
-                                  : MortColors.roseGoldLight,
+                                  ? Theme.of(context).colorScheme.secondary
+                                  : Theme.of(context).colorScheme.primary,
                               size: 30,
                             ),
                             const SizedBox(height: MortSpacing.xs),
@@ -259,8 +259,10 @@ class _TransportationScreenState extends ConsumerState<TransportationScreen> {
                                   : Icons.circle_outlined,
                               size: 18,
                               color: selected
-                                  ? MortColors.lightBlue
-                                  : MortColors.textMuted,
+                                  ? Theme.of(context).colorScheme.secondary
+                                  : Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                             ),
                           ],
                         ),

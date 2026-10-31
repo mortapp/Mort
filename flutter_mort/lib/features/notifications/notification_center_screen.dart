@@ -329,8 +329,10 @@ class _NotificationCenterScreenState
                 for (final item in items) ...[
                   MortCard(
                     color: item.isUnread
-                        ? MortColors.safetyBlue.withValues(alpha: 0.1)
-                        : MortColors.card,
+                        ? Theme.of(
+                            context,
+                          ).colorScheme.secondary.withValues(alpha: 0.1)
+                        : Theme.of(context).colorScheme.surface,
                     onTap: () => _open(item),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -340,8 +342,8 @@ class _NotificationCenterScreenState
                               ? Icons.notifications_active_outlined
                               : Icons.notifications_none,
                           color: item.isUnread
-                              ? MortColors.safetyBlue
-                              : MortColors.textMuted,
+                              ? Theme.of(context).colorScheme.secondary
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: MortSpacing.sm),
                         Expanded(
@@ -357,8 +359,7 @@ class _NotificationCenterScreenState
                             ],
                           ),
                         ),
-                        if (item.isUnread)
-                          const MortBadge(label: 'new', color: MortColors.neon),
+                        if (item.isUnread) const MortBadge(label: 'new'),
                       ],
                     ),
                   ),

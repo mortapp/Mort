@@ -79,7 +79,7 @@ class _TeenProfileBody extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         LiquidGlassContainer(
-          tint: MortColors.roseGold,
+          tint: MortColors.silver,
           child: Column(
             children: [
               Container(
@@ -122,7 +122,7 @@ class _TeenProfileBody extends ConsumerWidget {
                     icon: Icons.verified_user_outlined,
                     color: profile.verificationStatus == 'approved'
                         ? MortColors.success
-                        : MortColors.lightBlue,
+                        : Theme.of(context).colorScheme.secondary,
                   ),
                   MortStatusPill(
                     label: joined,
@@ -176,10 +176,7 @@ class _TeenProfileBody extends ConsumerWidget {
             runSpacing: MortSpacing.xs,
             children: [
               for (final category in profile.preferredJobCategories)
-                MortStatusPill(
-                  label: category,
-                  color: MortColors.roseGoldLight,
-                ),
+                MortStatusPill(label: category, color: MortColors.accent),
             ],
           ),
         ],
@@ -187,7 +184,7 @@ class _TeenProfileBody extends ConsumerWidget {
         const MortSparkSection(),
         const MortSectionLabel(label: 'Recent work'),
         ref
-            .watch(myCompletedJobsProvider)
+            .watch(myApplicationsProvider)
             .when(
               loading: () => const MortSkeletonCard(),
               error: (error, _) => MortErrorState(
@@ -196,10 +193,18 @@ class _TeenProfileBody extends ConsumerWidget {
                 action: MortButton(
                   label: 'Retry',
                   icon: Icons.refresh,
-                  onPressed: () => ref.invalidate(myCompletedJobsProvider),
+                  onPressed: () => ref.invalidate(myApplicationsProvider),
                 ),
               ),
-              data: (recent) {
+              data: (applications) {
+                final recent = applications
+                    .where(
+                      (application) =>
+                          application.status == 'completed' ||
+                          application.status == 'paid',
+                    )
+                    .take(3)
+                    .toList(growable: false);
                 if (recent.isEmpty) {
                   return const MortGlassSoftSurface(
                     child: Text('Completed jobs will appear here.'),
@@ -215,14 +220,14 @@ class _TeenProfileBody extends ConsumerWidget {
                             Icons.check_circle_outline_rounded,
                             color: MortColors.success,
                           ),
-                          title: Text(recent[index].title),
+                          title: Text(
+                            recent[index].job?.title ?? 'Completed job',
+                          ),
                           subtitle: Text(
-                            recent[index].closedAt == null
-                                ? 'Completed'
-                                : 'Completed ${recent[index].closedAt!.toLocal().month}/${recent[index].closedAt!.toLocal().day}/${recent[index].closedAt!.toLocal().year}',
+                            recent[index].status.replaceAll('_', ' '),
                           ),
                           onTap: () => context.push(
-                            '/jobs/progress/${recent[index].applicationId}',
+                            '/teen/applications/${recent[index].id}',
                           ),
                         ),
                         if (index < recent.length - 1) const Divider(),
@@ -303,7 +308,7 @@ class _ProfileFact extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Icon(icon, color: MortColors.lightBlue),
+      Icon(icon, color: Theme.of(context).colorScheme.secondary),
       const SizedBox(width: MortSpacing.sm),
       Expanded(
         child: Column(

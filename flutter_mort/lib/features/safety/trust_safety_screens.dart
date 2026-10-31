@@ -107,7 +107,7 @@ class _IdentityVerificationScreenState
                     ? 'TEST MODE'
                     : status.status.replaceAll('_', ' '),
                 color: status.productionVerified
-                    ? MortColors.neon
+                    ? Theme.of(context).colorScheme.primary
                     : MortColors.warning,
               ),
             ],
@@ -805,7 +805,7 @@ class _JobSafetyWorkspaceScreenState
               MortBadge(
                 label: agreement.status.replaceAll('_', ' '),
                 color: agreement.status == 'confirmed'
-                    ? MortColors.neon
+                    ? Theme.of(context).colorScheme.primary
                     : MortColors.warning,
               ),
             ],
@@ -1284,8 +1284,7 @@ class _AccountSessionsScreenState extends ConsumerState<AccountSessionsScreen> {
                 Row(
                   children: [
                     Expanded(child: Text(session.userAgent)),
-                    if (session.isCurrent)
-                      const MortBadge(label: 'Current', color: MortColors.neon),
+                    if (session.isCurrent) const MortBadge(label: 'Current'),
                   ],
                 ),
                 Text('Session ${session.reference}'),
@@ -1347,12 +1346,18 @@ class _SafetyNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final noticeColor = color == MortColors.safetyBlue
+        ? scheme.secondary
+        : color == MortColors.neon
+        ? scheme.primary
+        : color;
     return MortCard(
-      color: color.withValues(alpha: 0.08),
+      color: noticeColor.withValues(alpha: 0.08),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.shield_outlined, color: color),
+          Icon(Icons.shield_outlined, color: noticeColor),
           const SizedBox(width: MortSpacing.sm),
           Expanded(
             child: Column(

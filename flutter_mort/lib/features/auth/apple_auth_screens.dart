@@ -123,7 +123,7 @@ class _AppleAuthSectionState extends ConsumerState<AppleAuthSection> {
                 style: TextStyle(
                   color: state.isError
                       ? MortColors.warning
-                      : MortColors.textMuted,
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),

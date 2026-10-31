@@ -109,9 +109,9 @@ class _QuickAcceptButtonState extends ConsumerState<QuickAcceptButton> {
       _QuickAcceptState.offerTaken => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.block_flipped,
-            color: MortColors.textMuted,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
             size: 20,
           ),
           const SizedBox(width: MortSpacing.xs),
@@ -121,9 +121,9 @@ class _QuickAcceptButtonState extends ConsumerState<QuickAcceptButton> {
       _QuickAcceptState.expired => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.timer_off_outlined,
-            color: MortColors.textMuted,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
             size: 20,
           ),
           const SizedBox(width: MortSpacing.xs),

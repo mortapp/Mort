@@ -721,9 +721,9 @@ class _CompactOnboardingScreenState
       key: const ValueKey('onboarding-age'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _OnboardingNotice(
+        _OnboardingNotice(
           icon: Icons.lock_outline_rounded,
-          color: MortColors.lightBlue,
+          color: Theme.of(context).colorScheme.secondary,
           title: 'Private by design',
           message:
               'MORT uses your birthday for the 13+ age gate and account rules. Other marketplace users never see it.',
@@ -793,9 +793,9 @@ class _CompactOnboardingScreenState
       key: const ValueKey('onboarding-profile'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _OnboardingNotice(
+        _OnboardingNotice(
           icon: Icons.visibility_outlined,
-          color: MortColors.lightBlue,
+          color: Theme.of(context).colorScheme.secondary,
           title: 'This is what people see',
           message:
               'Use a display name you are comfortable sharing. Your username must be unique.',
@@ -842,9 +842,9 @@ class _CompactOnboardingScreenState
             children: [
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.shield_outlined,
-                    color: MortColors.lightBlueSoft,
+                    color: Theme.of(context).colorScheme.secondary,
                   ),
                   const SizedBox(width: MortSpacing.sm),
                   Expanded(
@@ -879,7 +879,7 @@ class _CompactOnboardingScreenState
       children: [
         _OnboardingNotice(
           icon: Icons.location_on_outlined,
-          color: MortColors.lightBlue,
+          color: Theme.of(context).colorScheme.secondary,
           title: isTeen ? 'Exact location stays private' : 'General area only',
           message: isTeen
               ? 'MORT stores a general area for matching. Your home address and raw coordinates are not put on your marketplace profile.'
@@ -902,7 +902,7 @@ class _CompactOnboardingScreenState
               child: Text(
                 _locationHint!,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: MortColors.lightBlueSoft,
+                  color: Theme.of(context).colorScheme.secondary,
                 ),
               ),
             ),
@@ -1305,12 +1305,14 @@ class _CompactOnboardingScreenState
         const SizedBox(height: MortSpacing.lg),
         Center(
           child: liveProfile == null
-              ? const CircleAvatar(
+              ? CircleAvatar(
                   radius: 44,
-                  backgroundColor: MortColors.roseGoldDeep,
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer,
                   child: Icon(
                     Icons.check_rounded,
-                    color: MortColors.roseGoldLight,
+                    color: Theme.of(context).colorScheme.primary,
                     size: 42,
                   ),
                 )
@@ -1378,9 +1380,9 @@ class _CompactOnboardingScreenState
               'Finishing setup does not verify identity or guarantee job payment. Safety controls remain available to every plan.',
         ),
         const SizedBox(height: MortSpacing.sm),
-        const _OnboardingNotice(
+        _OnboardingNotice(
           icon: Icons.payments_outlined,
-          color: MortColors.lightBlue,
+          color: Theme.of(context).colorScheme.secondary,
           title: 'Job payment and digital purchases are different',
           message:
               'MORT does not process or escrow payment for local jobs. Optional MORT subscriptions and digital upgrades may be billed through Google Play.',
@@ -1411,8 +1413,10 @@ class _CompactOnboardingScreenState
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: MortColors.bgSecondary.withValues(alpha: 0.97),
-        border: const Border(top: BorderSide(color: MortColors.lineStrong)),
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.97),
+        border: Border(
+          top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+        ),
       ),
       child: SafeArea(
         top: false,
@@ -1636,9 +1640,9 @@ class _OnboardingSectionLabel extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: MortSpacing.sm),
     child: Text(
       label,
-      style: Theme.of(
-        context,
-      ).textTheme.titleMedium?.copyWith(color: MortColors.roseGoldLight),
+      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+        color: Theme.of(context).colorScheme.primary,
+      ),
     ),
   );
 }

@@ -147,7 +147,7 @@ class _AvatarRetry extends StatelessWidget {
     child: SizedBox.square(
       dimension: radius * 2,
       child: Material(
-        color: MortColors.cardAlt,
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
         shape: const CircleBorder(),
         child: IconButton(
           tooltip: 'Retry profile picture',

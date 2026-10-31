@@ -427,12 +427,12 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
             children: [
               MortBadge(
                 label: statusLabel.replaceAll('_', ' '),
-                color: _statusColor(statusLabel),
+                color: _statusColor(context, statusLabel),
               ),
               if (application.availabilityConfirmed)
-                const MortBadge(
+                MortBadge(
                   label: 'Availability confirmed',
-                  color: MortColors.neon,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
             ],
           ),
@@ -682,15 +682,21 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
     return actions;
   }
 
-  static Color _statusColor(String status) => switch (status) {
-    'accepted' || 'completed' => MortColors.neon,
-    'rejected' ||
-    'guardian_rejected' ||
-    'withdrawn' ||
-    'canceled' => MortColors.danger,
-    'in_progress' || 'proof_submitted' => MortColors.warning,
-    _ => MortColors.safetyBlue,
-  };
+  static Color _statusColor(BuildContext context, String status) {
+    final scheme = Theme.of(context).colorScheme;
+    return switch (status) {
+      'accepted' || 'completed' => scheme.primary,
+      'rejected' ||
+      'guardian_rejected' ||
+      'withdrawn' ||
+      'canceled' => scheme.error,
+      'in_progress' || 'proof_submitted' =>
+        scheme.brightness == Brightness.light
+            ? const Color(0xFF725019)
+            : MortColors.warning,
+      _ => scheme.secondary,
+    };
+  }
 
   static String _formatTimestamp(String? value) {
     final timestamp = DateTime.tryParse(value ?? '');

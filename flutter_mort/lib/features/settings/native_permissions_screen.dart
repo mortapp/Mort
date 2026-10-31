@@ -156,7 +156,9 @@ class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
         if (_areaMessage != null) ...[
           const SizedBox(height: MortSpacing.md),
           MortCard(
-            color: MortColors.neon.withValues(alpha: 0.08),
+            color: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.08),
             child: Text(_areaMessage!),
           ),
         ],
@@ -200,7 +202,7 @@ class _PermissionCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, color: MortColors.safetyBlue),
+              Icon(icon, color: Theme.of(context).colorScheme.secondary),
               const SizedBox(width: MortSpacing.sm),
               Expanded(
                 child: Text(
@@ -211,7 +213,10 @@ class _PermissionCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: MortSpacing.sm),
-          MortBadge(label: status, color: MortColors.safetyBlue),
+          MortBadge(
+            label: status,
+            color: Theme.of(context).colorScheme.secondary,
+          ),
           const SizedBox(height: MortSpacing.sm),
           Text(detail),
           if (onRequest != null) ...[

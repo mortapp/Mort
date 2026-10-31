@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
-import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../services/precise_location_service.dart';
@@ -148,9 +147,9 @@ class PreciseLocationRequiredCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
+          Icon(
             Icons.location_disabled_rounded,
-            color: MortColors.lightBlue,
+            color: Theme.of(context).colorScheme.secondary,
             size: 32,
           ),
           const SizedBox(height: MortSpacing.sm),

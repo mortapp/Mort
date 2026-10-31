@@ -770,7 +770,11 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
           MortSpacing.md,
         ),
         child: DecoratedBox(
-          decoration: const BoxDecoration(color: MortColors.bg),
+          decoration: BoxDecoration(
+            color: Theme.of(
+              context,
+            ).colorScheme.surface.withValues(alpha: 0.97),
+          ),
           child: Row(
             children: [
               if (_step > 0)
@@ -1386,11 +1390,11 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
                     : formatDateTime(_draft.startsAt),
               ),
               if (_draft.requiresGuardianApproval)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(top: MortSpacing.xs),
                   child: MortBadge(
                     label: 'Poster requested guardian approval',
-                    color: MortColors.safetyBlue,
+                    color: Theme.of(context).colorScheme.secondary,
                   ),
                 ),
             ],
