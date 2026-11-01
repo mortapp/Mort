@@ -32,10 +32,23 @@ relations (`profiles`, `guardian_links`, `jobs`, `job_applications`, and
 `notifications`); it no longer queries legacy `teen_profiles`,
 `guardian_connections`, or `applications`. The backup guard regression suite
 passed 4/4 tests. This is code-safety evidence only: the metadata workflow has
-not been run against production and is not a user-data backup. Its current
-AES-256-CBC encryption step is not authenticated encryption and must be replaced
-and tested before any artifact can be treated as tamper-resistant recovery
-material.
+not been run against production and is not a user-data backup. A local code
+patch adds a versioned AES-256-GCM envelope, scrypt-derived key, random salt
+and nonce, plus authentication-tag verification. Its focused test passed 1/1
+and the local backup utility test set passed 5/5, including wrong-key and
+ciphertext tampering rejection. GitHub rejected the workflow-file push because
+the connected OAuth app lacks `workflow` scope; therefore the remote scheduled
+workflow still uses unauthenticated AES-256-CBC, and the AES-GCM workflow edit
+remains local and uncommitted. No backup workflow ran with protected secrets;
+this change does not make the artifact a complete recovery backup.
+
+The Supabase organization currently reports the Free plan and the production
+project is healthy on Postgres 17.11. Supabase's current docs say Free projects
+do not receive automatic daily backups or branching; manual CLI exports and an
+off-site copy are recommended. Supabase database backups also omit Storage
+object bytes, so any complete recovery plan must export and verify those bytes
+separately. See [Supabase backup documentation](https://supabase.com/docs/guides/platform/backups)
+and [Free plan backup guidance](https://supabase.com/kb/faqs/platform/free-plan-backups).
 
 ## Required secure workflow
 
