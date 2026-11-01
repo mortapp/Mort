@@ -517,6 +517,8 @@ begin
 
   if v_job.id is null or v_location.job_id is null or v_assignment.id is null
     or v_application.id is null or v_agreement.id is null
+    or v_assignment.job_id <> v_job.id
+    or v_application.job_id <> v_job.id
     or v_job.poster_id <> v_assignment.adult_user_id
     or v_application.applicant_id <> v_assignment.teen_user_id
     or v_teen_profile.role is distinct from 'teen'::public.mort_role

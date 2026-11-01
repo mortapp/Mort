@@ -2,7 +2,7 @@
 -- Authorization behavior needs seeded QA users/jobs and is specified in
 -- MORT-FLUTTER-BACKEND-CONTRACT-DIFF.md; no production execution.
 begin;
-select plan(13);
+select plan(15);
 
 select has_table('private', 'job_private_locations');
 select has_table('private', 'job_private_location_requests');
@@ -23,6 +23,13 @@ select ok(not has_column_privilege('authenticated', 'public.jobs', 'exact_addres
 select ok(not has_function_privilege('authenticated',
   'public.record_job_location_geocode_v1(uuid,integer,double precision,double precision,text)', 'EXECUTE'),
   'clients cannot submit geocoded coordinates');
+
+select ok(position('v_assignment.job_id <> v_job.id' in lower(pg_get_functiondef(
+  'public.get_released_job_location_v1(uuid)'::regprocedure
+))) > 0, 'released location is bound to the locked assignment job');
+select ok(position('v_application.job_id <> v_job.id' in lower(pg_get_functiondef(
+  'public.get_released_job_location_v1(uuid)'::regprocedure
+))) > 0, 'released location is bound to the assigned application job');
 
 select * from finish();
 rollback;
