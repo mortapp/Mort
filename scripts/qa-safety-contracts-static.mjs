@@ -37,8 +37,13 @@ includes(locationMigration, "v_agreement.location_version = v_location.location_
 includes(locationMigration, "private.refresh_job_safety_agreement(v_application_id)", "live reconfirmation helper");
 excludes(locationMigration, "status = 'pending'", "invalid safety-agreement status");
 
-// Client writes must not reach jobs.exact_address or the private table.
+// Client writes must not reach jobs.exact_address or the private table, and
+// the migration must not widen jobs reads to every RLS-visible column.
 includes(locationMigration, "revoke insert, update on public.jobs from authenticated", "direct jobs write revoke");
+includes(locationMigration, "from information_schema.column_privileges", "legacy column-level write grant cleanup");
+includes(locationMigration, "privilege_type in ('INSERT', 'UPDATE')", "column write privilege filter");
+includes(locationMigration, "revoke %s (%I) on table public.jobs from authenticated", "per-column write revoke");
+excludes(locationMigration, "grant select on public.jobs to authenticated", "broad jobs table SELECT grant");
 includes(locationMigration, "revoke all on public.job_private_locations from public, anon, authenticated", "private-table privilege revoke");
 
 // Block, unblock, message, and conversation closure must share deterministic

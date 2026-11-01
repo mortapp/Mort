@@ -53,14 +53,16 @@ The same migration adds pair-locked `block_user_v2` and `unblock_user_v2` RPCs, 
 - Focused structural assertions passed for the job lock, duplicate guard, link-scoped resend, private location gates, pair locks, and restricted grants.
 - New `qa:safety-contracts:static` automated test passed for NULL-safe authorization, location-version binding, valid reconfirmation handling, direct job-write revocation, and deterministic locking.
 - Hosted project inspection was read-only.
+- Follow-up review found the live job ACL uses column-level INSERT/UPDATE grants, so a table-level REVOKE alone was insufficient; the migration now removes residual column grants and does not add broad table SELECT. `node scripts/qa-safety-contracts-acl.mjs` and the static regression pass; this checks the ACL block only.
 
 ## Validation not possible yet
 
-- The repository's Supabase CLI could not connect to the Docker daemon in this execution environment, so no local replay ran here. If Docker is available in the user's local environment, the migrations should be replayed there as a syntax/regression check only.
+- Docker is available on the current workstation and local Supabase containers are running, but their migration heads are `20261025080236`, `20261015005047`, and `20260824034646`, behind hosted production's `20261101002805`. They are not production-equivalent, so the full migrations were not replayed against them.
 - The billable isolated Supabase branch was not created.
 - The repository's historical migration-parity check still fails on a pre-existing hash mismatch in `20260918032930_guardian_teen_summary_v1.sql`; that historical file was not rewritten.
-- The new SQL has not been applied or syntax-replayed against a database.
+- The new SQL has not been applied or syntax-replayed as a complete migration against a database.
 - Independent two-session tests for application submission and block/send ordering remain outstanding.
+- The production ACL correction removes authenticated direct job INSERT/UPDATE column grants. Website source still has a direct job insert path, so the migration must not be applied until website create/edit flows cut over to and pass QA through `save_job_draft_or_publish(uuid,uuid,jsonb,boolean)`.
 
 ## Hosted findings
 

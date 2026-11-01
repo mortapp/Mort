@@ -26,6 +26,7 @@
     "qa:onboarding-v2:legacy-compat:transaction": "node scripts/qa-onboarding-v2-legacy-compatibility-transaction.mjs",
     "qa:production-client": "node scripts/qa-production-client-contract.mjs",
     "qa:safety-contracts:static": "node scripts/qa-safety-contracts-static.mjs",
+    "qa:safety-contracts:acl": "node scripts/qa-safety-contracts-acl.mjs",
     "qa:production-identity-copy": "node scripts/qa-production-identity-copy.mjs",
     "qa:old-project-smoke": "node scripts/qa-old-project-smoke.mjs",
     "qa:old-project-rls": "node scripts/qa-old-project-rls.mjs",

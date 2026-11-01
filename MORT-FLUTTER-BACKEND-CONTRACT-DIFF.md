@@ -325,3 +325,9 @@ Latest Flutter verification after that UI change: `flutter test --no-pub` **618 
 
 This module inventory is not a statement that each missing function should be created. See the route classifications above; remaining modules are admin-only, support operations, optional finance/monetization/pilot/leaderboard features, or disabled marketplace/payment/location flows. Resolve only after a route-level need and the production schema contract are established.
 
+### Safety-contract follow-up from remote commit `d6cb61e` — 2026-11-01
+
+Production ACLs use explicit column-level grants for `public.jobs`: authenticated has INSERT grants across job columns and UPDATE on `exact_address` among other fields, while table-level INSERT/UPDATE privileges are false. A table-only `REVOKE` would not remove these column grants. A table-level `GRANT SELECT` would broaden current access and make `exact_address` selectable through the existing visible-job RLS policy. The feature-branch correction removes that broad SELECT and dynamically revokes remaining authenticated INSERT/UPDATE column grants, preserving existing column-limited SELECT access. `node scripts/qa-safety-contracts-acl.mjs` exercises that ACL block in disposable PostgreSQL 17; it does not validate the full production migration.
+
+The migration's write revocation is gated on website create/edit cutover to `save_job_draft_or_publish(uuid,uuid,jsonb,boolean)`: production website source still has a direct `jobs` insert path according to this branch's source review, so applying the migration before website integration would break posting. The new migrations have not been replayed against a production-equivalent database; the location agreement update, full RLS/address confidentiality, and two-session application/block-message races still require isolated integration tests.
+

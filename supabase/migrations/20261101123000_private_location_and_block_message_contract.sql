@@ -323,7 +323,29 @@ grant select on public.user_blocks to authenticated;
 -- Exact addresses must never enter through the client-facing table policies.
 -- The security-definer job RPC remains the only authenticated write path.
 revoke insert, update on public.jobs from authenticated;
-grant select on public.jobs to authenticated;
+-- Production grants job writes at column scope, so a table-level REVOKE alone
+-- leaves those grants intact. Remove each remaining authenticated column
+-- grant while preserving the existing restricted SELECT column grants.
+do $$
+declare
+  v_column_grant record;
+begin
+  for v_column_grant in
+    select distinct column_name, privilege_type
+    from information_schema.column_privileges
+    where table_schema = 'public'
+      and table_name = 'jobs'
+      and grantee = 'authenticated'
+      and privilege_type in ('INSERT', 'UPDATE')
+  loop
+    execute format(
+      'revoke %s (%I) on table public.jobs from authenticated',
+      v_column_grant.privilege_type,
+      v_column_grant.column_name
+    );
+  end loop;
+end;
+$$;
 
 -- Use the same deterministic pair lock as block_user_v2. Every participant
 -- pair in a conversation is locked before the block check, so a concurrent
