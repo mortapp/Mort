@@ -1,5 +1,13 @@
 Set-StrictMode -Version Latest
 
+# Supabase publishable key: safe for client apps; database and service-role secrets
+# must never be added here.
+$script:MortSupabasePublishableKey = 'sb_publishable_DTbjUiD8WnIABRWxVn9sHw_t1XMzJjM'
+
+function Get-MortSupabasePublishableKey {
+  $script:MortSupabasePublishableKey
+}
+
 $script:MortUploadCertificateSha256 = '04:42:C2:21:38:B0:D6:23:F9:A6:F4:78:1A:44:2B:F4:A9:33:27:8F:AB:8E:85:76:74:4D:C1:FD:7C:33:4D:EF'
 
 function Get-MortUploadCertificateSha256 {

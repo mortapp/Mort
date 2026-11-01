@@ -109,10 +109,7 @@ void main() {
     final permissions = File(
       'lib/services/native_permissions_service.dart',
     ).readAsStringSync();
-    expect(
-      feed,
-      contains('Manual entry works even when location access is denied'),
-    );
+    expect(feed, contains('Manual entry works without location access'));
     expect(feed, contains("city: _city.text.trim().isEmpty"));
     expect(
       permissions,

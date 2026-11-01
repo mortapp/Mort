@@ -2357,13 +2357,8 @@ class RoleHomeScreen extends ConsumerWidget {
 class _TeenActiveJobSection extends ConsumerWidget {
   const _TeenActiveJobSection();
 
-  static const _activeStatuses = ['in_progress', 'proof_submitted', 'accepted'];
-  static const _pendingStatuses = [
-    'submitted',
-    'adult_review',
-    'viewed',
-    'guardian_pending',
-  ];
+  static const _activeStatuses = ['accepted'];
+  static const _pendingStatuses = ['submitted', 'shortlisted'];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -2408,13 +2403,9 @@ class _TeenActiveJobSection extends ConsumerWidget {
   }
 
   String _statusLabel(String status) => switch (status) {
-    'in_progress' => 'In progress',
-    'proof_submitted' => 'Proof submitted',
     'accepted' => 'Accepted — not started yet',
     'submitted' => 'Application submitted',
-    'adult_review' => 'Waiting on poster review',
-    'viewed' => 'Viewed by poster',
-    'guardian_pending' => 'Waiting on guardian approval',
+    'shortlisted' => 'Shortlisted by poster',
     _ => status,
   };
 }
@@ -3365,29 +3356,7 @@ class _ApplicationCard extends ConsumerWidget {
                     ),
                   ]
                 : guardianReview
-                ? application.status == 'guardian_pending'
-                      ? [
-                          MortAction(
-                            label: 'Approve',
-                            icon: Icons.check,
-                            onPressed: () =>
-                                _status(context, ref, 'adult_review'),
-                          ),
-                          MortAction(
-                            label: 'Reject',
-                            icon: Icons.close,
-                            onPressed: () =>
-                                _status(context, ref, 'guardian_rejected'),
-                            style: MortButtonStyle.danger,
-                          ),
-                        ]
-                      : const [
-                          MortAction(
-                            label: 'Decision recorded',
-                            icon: Icons.verified,
-                            enabled: false,
-                          ),
-                        ]
+                ? const []
                 : [
                     MortAction(
                       label: 'Upload proof',

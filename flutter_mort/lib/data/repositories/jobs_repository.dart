@@ -276,52 +276,11 @@ class JobsRepository extends RepositoryBase {
     return job is Map ? Job.fromMap(Map<String, dynamic>.from(job)) : null;
   }
 
-  /// Server-computed, rounded distance (miles) from the Teen's fresh
-  /// on-demand coordinates to each open job's private location. Never
-  /// returns raw job coordinates -- see get_nearby_job_distances_v1.
-  Future<Map<String, double>> getNearbyJobDistances(
-    List<String> jobIds, {
-    required double latitude,
-    required double longitude,
-  }) async {
-    if (jobIds.isEmpty) return const {};
-    final result = await client.rpc(
-      'get_nearby_job_distances_v1',
-      params: {
-        'p_job_ids': jobIds,
-        'p_latitude': latitude,
-        'p_longitude': longitude,
-      },
-    );
-    final map = _rpcMap(result);
-    _throwIfFailed(map);
-    final distances = <String, double>{};
-    for (final entry in (map['distances'] as List? ?? const [])) {
-      if (entry is Map &&
-          entry['job_id'] is String &&
-          entry['distance_miles'] is num) {
-        distances[entry['job_id'] as String] = (entry['distance_miles'] as num)
-            .toDouble();
-      }
-    }
-    return distances;
-  }
-
   Future<List<Map<String, dynamic>>> listStatusEvents(String jobId) async {
     final rows = await client
         .from('job_status_events')
         .select()
         .eq('job_id', jobId)
-        .order('created_at');
-    return List<Map<String, dynamic>>.from(rows as List);
-  }
-
-  Future<List<Map<String, dynamic>>> listManagementEvents(String jobId) async {
-    final rows = await client
-        .from('job_management_requests')
-        .select('action,reason,from_status,to_status,succeeded,created_at')
-        .eq('job_id', jobId)
-        .not('completed_at', 'is', null)
         .order('created_at');
     return List<Map<String, dynamic>>.from(rows as List);
   }

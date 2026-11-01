@@ -166,15 +166,20 @@ class _FakeProfileRepository extends ProfileRepository {
 }
 
 class _FakeLegalContractRepository extends LegalContractRepository {
+  _FakeLegalContractRepository({this.requirements = const []});
+
+  final List<Map<String, dynamic>> requirements;
+
   @override
-  Future<Map<String, dynamic>> legalRequirements() async => const {
-    'requirements': <Map<String, dynamic>>[],
+  Future<Map<String, dynamic>> legalRequirements() async => {
+    'requirements': requirements,
   };
 }
 
 Future<void> _pumpOnboarding(
   WidgetTester tester, {
   _FakeProfileRepository? repository,
+  _FakeLegalContractRepository? legalRepository,
   TextScaler textScaler = TextScaler.noScaling,
   bool disableAnimations = false,
   double keyboardInset = 0,
@@ -187,7 +192,7 @@ Future<void> _pumpOnboarding(
         profileRepositoryProvider.overrideWithValue(fakeRepository),
         currentProfileProvider.overrideWith((ref) async => null),
         legalContractRepositoryProvider.overrideWithValue(
-          _FakeLegalContractRepository(),
+          legalRepository ?? _FakeLegalContractRepository(),
         ),
       ],
       child: MaterialApp(
@@ -424,8 +429,13 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      final repository = _FakeProfileRepository();
-      await _pumpOnboarding(tester, repository: repository);
+      final legalRepository = _FakeLegalContractRepository();
+      final repositoryWithOrder = _FakeProfileRepository();
+      await _pumpOnboarding(
+        tester,
+        repository: repositoryWithOrder,
+        legalRepository: legalRepository,
+      );
 
       expect(find.text('Step 1 of 4'), findsOneWidget);
       expect(find.text('Your account'), findsOneWidget);
@@ -444,7 +454,7 @@ void main() {
       await tester.tap(find.text('Save account').last);
       await tester.pumpAndSettle();
 
-      expect(repository.accountSaves, 1);
+      expect(repositoryWithOrder.accountSaves, 1);
       expect(find.text('Step 2 of 4'), findsOneWidget);
       expect(find.text('Work preferences'), findsOneWidget);
       await tester.ensureVisible(find.widgetWithText(FilterChip, 'Yard work'));
@@ -456,7 +466,7 @@ void main() {
       await tester.tap(find.text('Save work preferences'));
       await tester.pumpAndSettle();
 
-      expect(repository.workSaves, 1);
+      expect(repositoryWithOrder.workSaves, 1);
       expect(find.text('Step 3 of 4'), findsOneWidget);
       expect(find.text('Safety & support'), findsOneWidget);
       await tester.ensureVisible(
@@ -467,7 +477,7 @@ void main() {
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
 
-      expect(repository.safetySaves, 1);
+      expect(repositoryWithOrder.safetySaves, 1);
       expect(find.text('Step 4 of 4'), findsOneWidget);
       expect(find.text('Review & finish'), findsOneWidget);
       expect(find.text('Device notification permission'), findsOneWidget);
@@ -507,7 +517,47 @@ void main() {
       await tester.tap(find.text('Finish setup'));
       await tester.pumpAndSettle();
 
-      expect(repository.completions, 1);
+      expect(repositoryWithOrder.completions, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testMortWidgets(
+    'onboarding does not complete until every current legal version is accepted',
+    (WidgetTester tester) async {
+      final profileRepository = _FakeProfileRepository(
+        initialStep: OnboardingStepV2.review,
+      );
+      final legalRepository = _FakeLegalContractRepository(
+        requirements: [
+          {
+            'title': 'Terms',
+            'version_id': 'legal-version-1',
+            'acceptance_id': null,
+            'requires_electronic_signature': false,
+          },
+        ],
+      );
+      await _pumpOnboarding(
+        tester,
+        repository: profileRepository,
+        legalRepository: legalRepository,
+      );
+
+      final checkboxes = find.byType(CheckboxListTile);
+      for (var i = 0; i < 6; i++) {
+        final checkbox = checkboxes.at(i);
+        await tester.ensureVisible(checkbox);
+        await tester.tap(checkbox);
+        await tester.pumpAndSettle();
+      }
+      await tester.ensureVisible(find.text('Finish setup'));
+      await tester.tap(find.text('Finish setup'));
+      await tester.pumpAndSettle();
+
+      expect(profileRepository.completions, 0);
+      expect(find.text('Legal acknowledgement required'), findsOneWidget);
+      expect(find.text('Review current legal documents'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

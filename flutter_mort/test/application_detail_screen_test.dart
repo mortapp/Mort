@@ -61,7 +61,6 @@ class _FakeApplicationsRepository extends ApplicationsRepository {
   Future<MortApplication> updateStatus(
     String applicationId,
     String action, {
-    String? clientRequestId,
     DateTime? expectedUpdatedAt,
   }) async {
     statusUpdates.add(action);
@@ -143,9 +142,50 @@ void main() {
     expect(repository.recordedCalls, hasLength(1));
     expect(repository.recordedCalls.single['applicationId'], 'app-1');
     expect(repository.recordedCalls.single['role'], UserRole.guardian);
-    expect(find.text('Approval request'), findsOneWidget);
+    expect(find.text('Linked application'), findsOneWidget);
     expect(find.text('Test job'), findsOneWidget);
+    expect(find.text('Approve for poster review'), findsNothing);
+    expect(find.text('Decline'), findsNothing);
+    expect(
+      find.textContaining('production authorization contract'),
+      findsOneWidget,
+    );
   });
+
+  testWidgets(
+    'canceled application uses a generic message without requesting an absent job history table',
+    (tester) async {
+      final applications = _FakeApplicationsRepository(status: 'canceled');
+      await tester.pumpWidget(
+        _app(view: ApplicationView.teen, repository: applications),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'This job was canceled. Contact support if you need help with an assigned job.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testMortWidgets(
+    'adult application actions match deployed state RPC actions',
+    (tester) async {
+      final repository = _FakeApplicationsRepository(status: 'submitted');
+      await tester.pumpWidget(
+        _app(view: ApplicationView.adult, repository: repository),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mark viewed'), findsOneWidget);
+      expect(find.text('Shortlist applicant'), findsOneWidget);
+      expect(find.text('Accept applicant'), findsOneWidget);
+      expect(find.text('Decline applicant'), findsOneWidget);
+      expect(find.text('Approve for poster review'), findsNothing);
+    },
+  );
 
   testMortWidgets('loads the status timeline only when it is first expanded', (
     tester,
@@ -176,9 +216,7 @@ void main() {
     testMortWidgets(
       '${view.name} execution state routes through canonical job progress',
       (tester) async {
-        final repository = _FakeApplicationsRepository(
-          status: view == ApplicationView.teen ? 'accepted' : 'in_progress',
-        );
+        final repository = _FakeApplicationsRepository(status: 'accepted');
         final router = GoRouter(
           initialLocation: '/application',
           routes: [

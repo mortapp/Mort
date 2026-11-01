@@ -17,13 +17,15 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'mort-release-observability.ps1')
+. (Join-Path $PSScriptRoot 'mort-release-push.ps1')
 . (Join-Path $PSScriptRoot 'android-signing-common.ps1')
 
 $root = Split-Path $PSScriptRoot -Parent
 $flutterRoot = Join-Path $root 'flutter_mort'
 $outputDirectory = Join-Path $root 'build\play'
-$expectedUrl = 'https://rakjydmgwwgtdislanbt.supabase.co'
-$expectedProjectRef = 'rakjydmgwwgtdislanbt'
+$expectedUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co'
+$expectedProjectRef = 'jxbnrkasktbhtiujkhay'
 $expectedAuthRedirectUrl = 'com.mortapp.mobile://app/auth-callback'
 $expectedCertificateSha256 = Get-MortUploadCertificateSha256
 $defineFile = $null
@@ -80,8 +82,8 @@ if ((ConvertTo-MortCertificateDigest $certificateSha256) -ne (ConvertTo-MortCert
   throw 'The configured upload certificate does not match MORT release identity.'
 }
 
-$supabaseUrl = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_URL' -ExpoName 'EXPO_PUBLIC_SUPABASE_URL' -Root $root
-$supabaseAnonKey = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_ANON_KEY' -ExpoName 'EXPO_PUBLIC_SUPABASE_ANON_KEY' -Root $root
+$supabaseUrl = $expectedUrl
+$supabaseAnonKey = Get-MortSupabasePublishableKey
 if ($supabaseUrl -ne $expectedUrl) { throw 'Release build targets the wrong Supabase project.' }
 if ([string]::IsNullOrWhiteSpace($supabaseAnonKey)) { throw 'The public Supabase key is missing.' }
 $env:SUPABASE_URL = $supabaseUrl
@@ -129,8 +131,8 @@ $defines = [ordered]@{
   MORT_PUBLIC_MARKETPLACE_ENABLED = $PublicMarketplaceEnabled.ToString().ToLowerInvariant()
   MORT_IDENTITY_VERIFICATION_ENABLED = $IdentityVerificationEnabled.ToString().ToLowerInvariant()
   MORT_MARKETPLACE_PAYMENTS_ENABLED = 'false'
-  MORT_REMOTE_PUSH_ENABLED = $RemotePushEnabled.ToString().ToLowerInvariant()
-  MORT_CRASH_REPORTING_ENABLED = $CrashReportingEnabled.ToString().ToLowerInvariant()
+  MORT_REMOTE_PUSH_ENABLED = 'false'
+  MORT_CRASH_REPORTING_ENABLED = 'false'
   MORT_PAYMENT_PROVIDER_MODE = [string]$profile.paymentProviderMode
   MORT_SUPPORT_AI_ENABLED = ([bool]$profile.chatbotAiEnabled).ToString().ToLowerInvariant()
   MORT_DETERMINISTIC_SUPPORT_ENABLED = ([bool]$profile.deterministicChatbotFallbackEnabled).ToString().ToLowerInvariant()
@@ -157,6 +159,12 @@ $defines = [ordered]@{
   # accidental one.
   USE_TEST_ADS = 'true'
 }
+Set-MortCrashReportingDefines -Defines $defines -Enabled:$CrashReportingEnabled -SentryDsn $env:SENTRY_DSN
+Set-MortRemotePushDefines -Defines $defines -Enabled:$RemotePushEnabled `
+  -FirebaseProjectId $env:FIREBASE_PROJECT_ID `
+  -FirebaseMessagingSenderId $env:FIREBASE_MESSAGING_SENDER_ID `
+  -FirebaseAndroidApiKey $env:FIREBASE_ANDROID_API_KEY `
+  -FirebaseAndroidAppId $env:FIREBASE_ANDROID_APP_ID
 foreach ($name in $defines.Keys) {
   if ($name -match '(?i)(SERVICE.?ROLE|ACCESS.?TOKEN|REFRESH.?TOKEN|PASSWORD|CLIENT.?SECRET|PRIVATE.?KEY|WEBHOOK.?SECRET)') {
     throw "Forbidden secret-like dart-define key: $name"

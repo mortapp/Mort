@@ -89,6 +89,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm qa:production-identity-copy
+      - run: pnpm qa:reference-website-job-write-contract
+      - run: pnpm qa:safety-contracts:unit
+      - run: pnpm qa:safety-contracts:static
       - run: pnpm check
       - run: pnpm lint
       - run: pnpm build
@@ -270,5 +273,3 @@ jobs:
           path: build/device-test/mort-device-test.apk
           if-no-files-found: error
           retention-days: 7
-
-

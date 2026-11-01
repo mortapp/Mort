@@ -2,8 +2,9 @@ import pg from "pg";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveBackupTarget } from "./backup-target-guard.mjs";
 
-const projectRef = "rakjydmgwwgtdislanbt";
+const projectRef = resolveBackupTarget(process.env.MORT_BACKUP_PROJECT_REF);
 const password = process.env.SUPABASE_DB_PASSWORD;
 
 if (!password) {
@@ -137,10 +138,9 @@ const queries = {
   featureRowCounts: `
     select jsonb_build_object(
       'profiles', (select count(*)::int from public.profiles),
-      'teen_profiles', (select count(*)::int from public.teen_profiles),
-      'guardian_connections', (select count(*)::int from public.guardian_connections),
+      'guardian_links', (select count(*)::int from public.guardian_links),
       'jobs', (select count(*)::int from public.jobs),
-      'applications', (select count(*)::int from public.applications),
+      'job_applications', (select count(*)::int from public.job_applications),
       'notifications', (select count(*)::int from public.notifications)
     ) as counts
   `,

@@ -37,8 +37,8 @@ String _session({String userId = 'user-1'}) => jsonEncode({
 void main() {
   group('MortSecureSessionStorage', () {
     test('uses the stable project-scoped key', () {
-      expect(mortSecureSessionKey, 'mort.rakjydmgwwgtdislanbt.auth.session.v1');
-      expect(mortSupabaseProjectRef, 'rakjydmgwwgtdislanbt');
+      expect(mortSecureSessionKey, 'mort.jxbnrkasktbhtiujkhay.auth.session.v1');
+      expect(mortSupabaseProjectRef, 'jxbnrkasktbhtiujkhay');
     });
 
     test('migrates the old Supabase preference only after read-back', () async {

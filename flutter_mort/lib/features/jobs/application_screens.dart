@@ -85,15 +85,11 @@ class _ApplicationDetailScreenState
   }
 
   String _successMessage(String action) => switch (action) {
-    'adult_review' => 'Application approved for poster review.',
-    'guardian_rejected' => 'Application declined by guardian.',
     'viewed' => 'Application marked viewed.',
+    'shortlisted' => 'Application shortlisted.',
     'accepted' => 'Applicant accepted and job assigned.',
     'rejected' => 'Application declined.',
     'withdrawn' => 'Application withdrawn.',
-    'in_progress' => 'Job marked in progress.',
-    'proof_submitted' => 'Proof marked submitted.',
-    'completed' => 'Job and application marked completed.',
     _ => 'Application updated.',
   };
 
@@ -107,8 +103,8 @@ class _ApplicationDetailScreenState
       ),
       ApplicationView.guardian => (
         eyebrow: 'Guardian Mode',
-        title: 'Approval request',
-        subtitle: 'Review the selected teen application.',
+        title: 'Linked application',
+        subtitle: 'Review an application from a teen linked to your account.',
       ),
       ApplicationView.teen => (
         eyebrow: 'Teen tracker',
@@ -128,6 +124,13 @@ class _ApplicationDetailScreenState
             onPressed: _reload,
           ),
         ),
+        if (widget.view == ApplicationView.guardian) ...[
+          const MortSafetyBanner(
+            message:
+                'Guardian application decisions are not available until the production authorization contract is verified. This view is read-only.',
+          ),
+          const SizedBox(height: MortSpacing.md),
+        ],
         FutureBuilder<MortApplication?>(
           future: _future,
           builder: (context, snapshot) {
@@ -184,7 +187,11 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
     final repository = ref.read(applicationsRepositoryProvider);
     return widget.view == ApplicationView.adult
         ? repository.listApplicationsForMyJobs()
-        : repository.listMyApplications();
+        : repository.listMyApplications(
+            role: widget.view == ApplicationView.guardian
+                ? UserRole.guardian
+                : UserRole.teen,
+          );
   }
 
   void _reload() => setState(() => _future = _load());
@@ -211,15 +218,11 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
   }
 
   String _successMessage(String action) => switch (action) {
-    'adult_review' => 'Application approved for poster review.',
-    'guardian_rejected' => 'Application declined by guardian.',
     'viewed' => 'Application marked viewed.',
+    'shortlisted' => 'Application shortlisted.',
     'accepted' => 'Applicant accepted and job assigned.',
     'rejected' => 'Application declined.',
     'withdrawn' => 'Application withdrawn.',
-    'in_progress' => 'Job marked in progress.',
-    'proof_submitted' => 'Proof marked submitted.',
-    'completed' => 'Job and application marked completed.',
     _ => 'Application updated.',
   };
 
@@ -234,9 +237,9 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
       ),
       ApplicationView.guardian => (
         eyebrow: 'Guardian Mode',
-        title: 'Approval requests',
+        title: 'Linked applications',
         subtitle:
-            'Only linked-teen applications for jobs that requested approval appear here.',
+            'Applications from active linked teens are read-only until Guardian decision controls are verified.',
       ),
       ApplicationView.teen => (
         eyebrow: 'Teen tracker',
@@ -274,7 +277,7 @@ class _ApplicationListScreenState extends ConsumerState<ApplicationListScreen> {
         if (widget.view == ApplicationView.guardian) ...[
           const MortSafetyBanner(
             message:
-                'Guardian Mode is optional. Basic approvals are free, and private message contents are not shared by default.',
+                'Guardian application decisions are not available until the production authorization contract is verified. This view is read-only.',
           ),
           const SizedBox(height: MortSpacing.md),
         ],
@@ -407,29 +410,9 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
           ],
           if (application.status == 'canceled' && job != null) ...[
             const SizedBox(height: MortSpacing.sm),
-            FutureBuilder<List<Map<String, dynamic>>>(
-              future: ref
-                  .watch(jobsRepositoryProvider)
-                  .listManagementEvents(job.id),
-              builder: (context, snapshot) {
-                final events = snapshot.data ?? const [];
-                final cancellations = events.where(
-                  (event) =>
-                      event['action'] == 'cancel' && event['succeeded'] == true,
-                );
-                final reason = cancellations.isEmpty
-                    ? null
-                    : cancellations.last['reason']?.toString();
-                if (reason == null || reason.isEmpty) {
-                  return const MortSafetyBanner(
-                    message:
-                        'This job was canceled. Contact support if you need help with an assigned job.',
-                  );
-                }
-                return MortSafetyBanner(
-                  message: 'Cancellation reason: $reason',
-                );
-              },
+            const MortSafetyBanner(
+              message:
+                  'This job was canceled. Contact support if you need help with an assigned job.',
             ),
           ],
           const SizedBox(height: MortSpacing.md),
@@ -446,26 +429,11 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
 
   List<MortAction> _actions(BuildContext context) {
     if (view == ApplicationView.guardian) {
-      if (application.status != 'guardian_pending') return const [];
-      return [
-        MortAction(
-          label: 'Approve for poster review',
-          icon: Icons.check,
-          busy: busy,
-          onPressed: () => onStatus('adult_review'),
-        ),
-        MortAction(
-          label: 'Decline',
-          icon: Icons.close,
-          busy: busy,
-          style: MortButtonStyle.danger,
-          onPressed: () => onStatus('guardian_rejected'),
-        ),
-      ];
+      return const [];
     }
     if (view == ApplicationView.adult) {
       final actions = <MortAction>[];
-      if (['submitted', 'adult_review'].contains(application.status)) {
+      if (['submitted', 'shortlisted'].contains(application.status)) {
         actions.add(
           MortAction(
             label: 'Mark viewed',
@@ -475,11 +443,17 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
           ),
         );
       }
-      if ([
-        'submitted',
-        'adult_review',
-        'viewed',
-      ].contains(application.status)) {
+      if (application.status == 'submitted') {
+        actions.add(
+          MortAction(
+            label: 'Shortlist applicant',
+            icon: Icons.star_outline,
+            busy: busy,
+            onPressed: () => onStatus('shortlisted'),
+          ),
+        );
+      }
+      if (['submitted', 'shortlisted'].contains(application.status)) {
         actions.addAll([
           MortAction(
             label: 'Accept applicant',
@@ -496,11 +470,7 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
           ),
         ]);
       }
-      if ([
-        'accepted',
-        'in_progress',
-        'proof_submitted',
-      ].contains(application.status)) {
+      if (application.status == 'accepted') {
         actions.add(
           MortAction(
             label: 'Open job progress',
@@ -509,21 +479,7 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
           ),
         );
       }
-      if (application.status == 'proof_submitted') {
-        actions.add(
-          MortAction(
-            label: 'Review proof',
-            icon: Icons.fact_check_outlined,
-            onPressed: () =>
-                context.push('/adult/proof-review/${application.id}'),
-          ),
-        );
-      }
-      if ([
-        'accepted',
-        'in_progress',
-        'proof_submitted',
-      ].contains(application.status)) {
+      if (application.status == 'accepted') {
         actions.add(
           MortAction(
             label: 'Job safety',
@@ -540,25 +496,11 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
           ),
         );
       }
-      if (application.status == 'completed') {
-        actions.add(
-          MortAction(
-            label: 'Leave review',
-            icon: Icons.rate_review_outlined,
-            onPressed: () => context.push('/reviews/${application.id}'),
-          ),
-        );
-      }
       return actions;
     }
 
     final actions = <MortAction>[];
-    if ([
-      'submitted',
-      'guardian_pending',
-      'adult_review',
-      'viewed',
-    ].contains(application.status)) {
+    if (['submitted', 'shortlisted'].contains(application.status)) {
       actions.add(
         MortAction(
           label: 'Withdraw application',
@@ -586,30 +528,15 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
         ),
       );
     }
-    if (application.status == 'in_progress') {
+    if (application.status == 'accepted') {
       actions.add(
         MortAction(
-          label: 'Upload proof',
-          icon: Icons.upload,
-          onPressed: () => context.push('/teen/proof/${application.id}'),
+          label: 'Job safety',
+          icon: Icons.health_and_safety_outlined,
+          onPressed: () =>
+              context.push('/teen/safety/applications/${application.id}'),
         ),
       );
-    }
-    if ([
-      'accepted',
-      'in_progress',
-      'proof_submitted',
-    ].contains(application.status)) {
-      if (application.status != 'accepted') {
-        actions.add(
-          MortAction(
-            label: 'Job safety',
-            icon: Icons.health_and_safety_outlined,
-            onPressed: () =>
-                context.push('/teen/safety/applications/${application.id}'),
-          ),
-        );
-      }
       actions.add(
         MortAction(
           label: 'Message',
@@ -618,25 +545,13 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
         ),
       );
     }
-    if (application.status == 'completed') {
-      actions.add(
-        MortAction(
-          label: 'Leave review',
-          icon: Icons.rate_review_outlined,
-          onPressed: () => context.push('/reviews/${application.id}'),
-        ),
-      );
-    }
     return actions;
   }
 
   static Color _statusColor(String status) => switch (status) {
-    'accepted' || 'completed' => MortColors.accent,
-    'rejected' ||
-    'guardian_rejected' ||
-    'withdrawn' ||
-    'canceled' => MortColors.danger,
-    'in_progress' || 'proof_submitted' => MortColors.warning,
+    'accepted' => MortColors.accent,
+    'rejected' || 'cancelled' || 'withdrawn' => MortColors.danger,
+    'shortlisted' => MortColors.warning,
     _ => MortColors.safetyBlue,
   };
 

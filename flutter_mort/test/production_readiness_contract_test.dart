@@ -23,7 +23,11 @@ void main() {
     final config = _read('lib/core/config/app_config.dart');
     final main = _read('lib/main.dart');
 
-    expect(AppConfig.expectedSupabaseProjectRef, 'rakjydmgwwgtdislanbt');
+    expect(AppConfig.expectedSupabaseProjectRef, 'jxbnrkasktbhtiujkhay');
+    expect(
+      config,
+      contains("expectedSupabaseProjectRef = 'jxbnrkasktbhtiujkhay'"),
+    );
     expect(config, contains('assertValidReleaseConfiguration'));
     expect(
       config,
@@ -37,6 +41,44 @@ void main() {
     expect(main, contains('return reporter.providerConfigured'));
     expect(main, contains('FlutterError.presentError'));
   });
+
+  test(
+    'Android release and QA builds target the authoritative Supabase project',
+    () {
+      final releaseProfile = _read(
+        '../scripts/android-release-profile-common.ps1',
+      );
+      final deviceBuild = _read('../scripts/build-android-device-test-apk.ps1');
+      final playBuild = _read('../scripts/build-play-console-aab.ps1');
+      final authVerifier = _read('../scripts/verify-google-auth-release.ps1');
+      final publicClientConfig = _read('../scripts/android-signing-common.ps1');
+
+      expect(
+        releaseProfile,
+        contains(r"$expectedUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co'"),
+      );
+      expect(releaseProfile, contains('Get-MortSupabasePublishableKey'));
+      expect(
+        deviceBuild,
+        contains(r"$expectedUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co'"),
+      );
+      expect(
+        deviceBuild,
+        contains(r"$expectedProjectRef = 'jxbnrkasktbhtiujkhay'"),
+      );
+      expect(deviceBuild, contains('Get-MortSupabasePublishableKey'));
+      expect(
+        playBuild,
+        contains(r"$expectedUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co'"),
+      );
+      expect(playBuild, contains('Get-MortSupabasePublishableKey'));
+      expect(publicClientConfig, contains('Get-MortSupabasePublishableKey'));
+      expect(
+        authVerifier,
+        contains(r"$manifest.supabaseProjectRef -ne 'jxbnrkasktbhtiujkhay'"),
+      );
+    },
+  );
 
   test(
     'reviewer routes are compile-gated and production scripts exclude them',
@@ -68,17 +110,15 @@ void main() {
       );
       expect(screen, contains('ref.watch(openJobsProvider(filters))'));
       expect(screen, isNot(contains('FutureBuilder<List<Job>>')));
-      expect(
-        screen,
-        contains('MORT does not calculate your distance to a job'),
-      );
+      expect(screen, contains('Job-distance lookup is unavailable until'));
       expect(repository, isNot(contains('travel_radius_miles.lte')));
       expect(repository, contains("'list_open_jobs_page'"));
       expect(repository, isNot(contains(".from('jobs').select(_jobSelect)")));
       expect(repository, contains("'manage_job_v2'"));
       expect(repository, isNot(contains("'manage_job',")));
-      expect(applications, contains("'update_application_status_v3'"));
-      expect(applications, isNot(contains("'update_application_status_v2'")));
+      expect(applications, contains("'update_my_job_application_status'"));
+      expect(applications, isNot(contains("'update_application_status_v3'")));
+      expect(applications, isNot(contains("'quick_accept_job_v1'")));
     },
   );
 
