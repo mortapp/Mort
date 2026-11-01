@@ -103,6 +103,7 @@ declare
   v_address text := nullif(btrim(coalesce(p_exact_address, '')), '');
   v_source text;
   v_location public.job_private_locations%rowtype;
+  v_application_id uuid;
 begin
   if v_user_id is null then
     return jsonb_build_object('ok', false, 'code', 'authentication_required');
@@ -129,7 +130,7 @@ begin
   insert into public.job_private_locations(
     job_id, poster_id, exact_address, arrival_instructions, access_notes,
     latitude, longitude, location_source, location_accuracy_meters,
-    location_version, captured_at, updated_at
+  location_version, captured_at, updated_at
   ) values (
     p_job_id, v_user_id, v_address,
     nullif(left(btrim(coalesce(p_arrival_instructions, '')), 2000), ''),
@@ -151,14 +152,15 @@ begin
     updated_at = now()
   returning * into v_location;
   update public.job_safety_agreements agreement
-  set location_version = v_location.location_version,
-      status = 'pending',
-      teen_confirmed_at = null,
-      adult_confirmed_at = null,
-      teen_confirmed_version = null,
-      adult_confirmed_version = null,
-      updated_at = now()
+  set location_version = v_location.location_version
   where agreement.job_id = p_job_id;
+  for v_application_id in
+    select agreement.application_id
+    from public.job_safety_agreements agreement
+    where agreement.job_id = p_job_id
+  loop
+    perform private.refresh_job_safety_agreement(v_application_id);
+  end loop;
   insert into public.private_data_access_events(actor_id, resource_type, resource_id, action, reason)
   values (v_user_id, 'job_private_location', p_job_id, 'write', 'Job poster saved the restricted job location.');
   return jsonb_build_object(
@@ -318,6 +320,10 @@ revoke all on function public.unblock_user_v2(uuid) from public, anon;
 grant execute on function public.unblock_user_v2(uuid) to authenticated, service_role;
 revoke insert, update, delete on public.user_blocks from authenticated;
 grant select on public.user_blocks to authenticated;
+-- Exact addresses must never enter through the client-facing table policies.
+-- The security-definer job RPC remains the only authenticated write path.
+revoke insert, update on public.jobs from authenticated;
+grant select on public.jobs to authenticated;
 
 -- Use the same deterministic pair lock as block_user_v2. Every participant
 -- pair in a conversation is locked before the block check, so a concurrent

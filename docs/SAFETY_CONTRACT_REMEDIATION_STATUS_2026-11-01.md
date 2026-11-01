@@ -38,7 +38,9 @@ The same migration adds `resend_guardian_invite(uuid)`:
 - unrelated users and blocked pairs receive only a denial/coarse location response; and
 - private reads/writes are recorded in a restricted access-events table.
 
-Saving a changed location now increments `location_version`, resets prior safety confirmations to pending, and binds the agreement to the new location version. The read RPC requires equality between the confirmed agreement version and the stored location version.
+Saving a changed location now increments `location_version`, updates the agreement binding, and calls the live `private.refresh_job_safety_agreement(application_id)` helper. That helper bumps the agreement version, refreshes terms, and sets the valid `reconfirmation_required` status. The read RPC requires equality between the confirmed agreement version and the stored location version.
+
+The migration also revokes authenticated direct `INSERT` and `UPDATE` privileges on `public.jobs`; exact addresses therefore cannot be written through the client-facing table path and must use the server-side RPC.
 
 ### Block/message concurrency
 
@@ -49,6 +51,7 @@ The same migration adds pair-locked `block_user_v2` and `unblock_user_v2` RPCs, 
 - Migration file encoding check passed.
 - TypeScript check passed.
 - Focused structural assertions passed for the job lock, duplicate guard, link-scoped resend, private location gates, pair locks, and restricted grants.
+- New `qa:safety-contracts:static` automated test passed for NULL-safe authorization, location-version binding, valid reconfirmation handling, direct job-write revocation, and deterministic locking.
 - Hosted project inspection was read-only.
 
 ## Validation not possible yet
