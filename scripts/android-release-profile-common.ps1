@@ -18,6 +18,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'mort-release-observability.ps1')
+. (Join-Path $PSScriptRoot 'mort-release-push.ps1')
 . (Join-Path $PSScriptRoot 'android-signing-common.ps1')
 
 $root = Split-Path $PSScriptRoot -Parent
@@ -130,7 +131,7 @@ $defines = [ordered]@{
   MORT_PUBLIC_MARKETPLACE_ENABLED = $PublicMarketplaceEnabled.ToString().ToLowerInvariant()
   MORT_IDENTITY_VERIFICATION_ENABLED = $IdentityVerificationEnabled.ToString().ToLowerInvariant()
   MORT_MARKETPLACE_PAYMENTS_ENABLED = 'false'
-  MORT_REMOTE_PUSH_ENABLED = $RemotePushEnabled.ToString().ToLowerInvariant()
+  MORT_REMOTE_PUSH_ENABLED = 'false'
   MORT_CRASH_REPORTING_ENABLED = 'false'
   MORT_PAYMENT_PROVIDER_MODE = [string]$profile.paymentProviderMode
   MORT_SUPPORT_AI_ENABLED = ([bool]$profile.chatbotAiEnabled).ToString().ToLowerInvariant()
@@ -159,6 +160,11 @@ $defines = [ordered]@{
   USE_TEST_ADS = 'true'
 }
 Set-MortCrashReportingDefines -Defines $defines -Enabled:$CrashReportingEnabled -SentryDsn $env:SENTRY_DSN
+Set-MortRemotePushDefines -Defines $defines -Enabled:$RemotePushEnabled `
+  -FirebaseProjectId $env:FIREBASE_PROJECT_ID `
+  -FirebaseMessagingSenderId $env:FIREBASE_MESSAGING_SENDER_ID `
+  -FirebaseAndroidApiKey $env:FIREBASE_ANDROID_API_KEY `
+  -FirebaseAndroidAppId $env:FIREBASE_ANDROID_APP_ID
 foreach ($name in $defines.Keys) {
   if ($name -match '(?i)(SERVICE.?ROLE|ACCESS.?TOKEN|REFRESH.?TOKEN|PASSWORD|CLIENT.?SECRET|PRIVATE.?KEY|WEBHOOK.?SECRET)') {
     throw "Forbidden secret-like dart-define key: $name"
