@@ -203,8 +203,7 @@ begin
     'next_cursor', case when v_has_more then v_cursor else null end
   );
 end;
-$function$
-
+$function$;
 
 CREATE OR REPLACE FUNCTION public.get_job_application_eligibility(p_job_id uuid)
  RETURNS jsonb
@@ -282,8 +281,7 @@ begin
     'schedule_type', coalesce(v_job.schedule_type, 'flexible')
   );
 end;
-$function$
-
+$function$;
 
 DROP POLICY IF EXISTS jobs_select_visible ON public.jobs;
 CREATE POLICY jobs_select_visible ON public.jobs
