@@ -244,7 +244,8 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
         if (!_backendReady) ...[
           const SizedBox(height: MortSpacing.md),
           const MortSafetyBanner(
-            message: 'Secure sign-in is unavailable until MORT reconnects to its hosted backend.',
+            message:
+                'Secure sign-in is unavailable until MORT reconnects to its hosted backend.',
           ),
         ],
         const SizedBox(height: MortSpacing.md),

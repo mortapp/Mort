@@ -6,13 +6,21 @@
 **Isolated branch:** `codex/flutter-backend-integration` (new local worktree).  
 **Production target:** Supabase `jxbnrkasktbhtiujkhay`.
 
+## Authentication and school-affiliation follow-up
+
+- The live Auth trigger requires a DOB in signup metadata. Email signup now collects DOB and sends `date_of_birth`; server-side trigger validation remains authoritative. This does not constitute identity/age-provider verification.
+- Teen onboarding requires active email confirmation and an allowlisted school email domain. The current allowlist has `herronclassical.org` and `herronriverside.org`; domain allowlisting is not proof of enrollment, age, or identity.
+- Production lacks `get_my_account_trust_profile`, `get_marketplace_trust_eligibility`, and `request_school_email_affiliation`; the corresponding settings routes cannot complete those requests. No compatibility RPCs were invented. These screens need an approved server contract or explicit fail-closed UI before release.
+- `get_my_identity_verification_v2()` reports no provider, no production verification, and disabled submissions. Keep document collection disabled and do not mark users verified.
+
 ## Nov 1, 2026 local draft verification update
 
 - Application wrapper now treats absent/NULL `eligible` as false. The eligibility RPC uses a fresh wall clock after locking profile/job/release/Guardian/verification evidence and serializes with the canonical poster/teen block-pair lock. The lower-level submission function rechecks eligibility before insert.
 - The private-location draft now uses private-schema storage and an address-only authenticated save contract. Release binds the application, assignment, job owner, active assignment state, mutual current safety confirmations, location version, and participant block state. Owner and teen releases are denied after job/assignment cancellation or completion.
 - The previous proposal at `supabase/proposals/private_job_location_lifecycle.sql` is marked superseded. Do not apply it or mix it with the current migration.
 - Flutter's active private-location repository now calls `save_job_private_location_v1(uuid,text,text,text,uuid)` with address, private arrival/access notes, and a request UUID. It no longer sends client latitude/longitude. The draft stores these private notes and archives the old values when terms change.
-- Local structural Node tests: **13 passed, 0 failed**. Static and UTF-8 migration checks passed; ACL contract passed on disposable PostgreSQL 17. A data-free schema clone from the existing local Supabase database was created, but its schema is not production-equivalent: application migration replay stopped at missing `public.mort_release_control`. No further SQL was run against that clone and no production SQL was applied.
+- Local structural Node tests: **14 passed, 0 failed**. Static and UTF-8 migration checks passed; ACL contract passed on disposable PostgreSQL 17. A data-free schema clone from the existing local Supabase database was created, but its schema is not production-equivalent: application migration replay stopped at missing `public.mort_release_control`. No further SQL was run against that clone and no production SQL was applied.
+- Removed client-side precise-location capture from active job posting; the app no longer claims a distance estimate without a trusted server calculation.
 - Production read-only catalog evidence remains the source for live signatures. Full hosted-schema migration replay, pgTAP data behavior, RLS negative/positive cases, and real two-session application/block-message races remain blocked until a production-equivalent schema is available locally without a paid resource.
 - The latest production read-only catalog check found no job assignments, so there is no live assignment record against which to validate release behavior. Production was only queried read-only.
 
@@ -342,4 +350,10 @@ Production ACLs use explicit column-level grants for `public.jobs`: authenticate
 The website source cutover to `save_job_draft_or_publish(uuid,uuid,jsonb,boolean)` is complete, and `qa:reference-website-job-write-contract` passes. Production still has the old grants until a reviewed migration is applied. The new migrations have not been replayed against a production-equivalent database; location-agreement updates, full RLS/address confidentiality, and two-session application/block-message races still require isolated integration tests.
 
 The read-only `supabase/tests/safety_contract_schema_preflight.sql` now expects the hosted `guardian_links.teen_user_id` column. Its runner requires an explicit staging project ref matching `db.<ref>.supabase.co` and refuses the production and deleted project refs. Static assertions cover these guardrails; the SQL preflight remains unexecuted against an isolated database.
+
+### Nov 5 release sprint final local run — 2026-11-01
+
+The current isolated branch `codex/mort-nov5-backend-safety` includes follow-up fixes for fail-closed eligibility parsing, the address-only private-location RPC client contract, removal of client GPS coordinates from job posting, required DOB metadata during signup, and the AAB helper's declared Supabase URL. After these changes, `flutter test --no-pub --reporter expanded` completed with **620 passed, 2 skipped, 0 failed**; `flutter analyze --no-pub` completed with **No issues found** (170.4 seconds); and `dart format --output=none --set-exit-if-changed lib test` reported **310 files, 0 changed**. Final focused checks passed: private-location contract 10/10; safety static; 241 migration encodings; website job-write guard; AAB helper 1/1; diff check clean.
+
+These results do not validate proposed migrations against production. The disposable ACL fixture is generic; the available local Supabase schema is behind/divergent and migration replay stops at missing `public.mort_release_control`. No production SQL was executed, and independent two-session, pgTAP/RLS, or exact-address integration tests have not passed. Production stays untouched and publishing/payment/document controls remain fail-closed. The AAB script stops before Gradle on the `production_public` release-mode gate; no gate was bypassed and no AAB was produced. See `MORT-PRODUCTION-READINESS.md` for unresolved operations and provider blockers.
 

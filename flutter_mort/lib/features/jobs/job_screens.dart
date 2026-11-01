@@ -16,8 +16,6 @@ import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/job.dart';
 import '../../data/repositories/providers.dart';
 import '../../data/services/supabase_service.dart';
-import '../../services/precise_location_service.dart';
-import '../location/precise_location_gate.dart';
 import '../payments/models/fair_pay.dart';
 import '../payments/widgets/fair_pay_panel.dart';
 import 'job_creation_flow.dart';
@@ -131,12 +129,6 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
   DateTime? _startsAt;
   DateTime? _endsAt;
   DateTime? _deadlineAt;
-  double? _jobSiteLatitude;
-  double? _jobSiteLongitude;
-  double? _jobSiteAccuracyMeters;
-  bool _capturingJobSite = false;
-  PreciseLocationStatus? _jobSiteCaptureStatus;
-  final _preciseLocationService = const PreciseLocationService();
 
   @override
   void initState() {
@@ -618,46 +610,6 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
     return null;
   }
 
-  Future<void> _captureJobSite() async {
-    setState(() {
-      _capturingJobSite = true;
-      _jobSiteCaptureStatus = null;
-    });
-    final result = await _preciseLocationService.requestFreshPreciseLocation();
-    if (!mounted) return;
-    setState(() {
-      _capturingJobSite = false;
-      _jobSiteCaptureStatus = result.status;
-      if (result.isUsable) {
-        _jobSiteLatitude = result.position!.latitude;
-        _jobSiteLongitude = result.position!.longitude;
-        _jobSiteAccuracyMeters = result.position!.accuracy;
-      }
-    });
-  }
-
-  Future<void> _saveJobSiteLocation(String jobId) async {
-    if (_jobSiteLatitude == null || _jobSiteLongitude == null) return;
-    try {
-      await ref
-          .read(trustSafetyRepositoryProvider)
-          .savePrivateJobLocation(
-            jobId: jobId,
-            latitude: _jobSiteLatitude,
-            longitude: _jobSiteLongitude,
-            locationAccuracyMeters: _jobSiteAccuracyMeters,
-          );
-    } catch (error) {
-      if (mounted) {
-        MortToast.show(
-          context,
-          'Job saved, but the precise job site could not be recorded: '
-          '${userFacingError(error)}',
-        );
-      }
-    }
-  }
-
   Future<void> _save({required bool publish}) async {
     if (_busy) return;
     _fieldErrors.clear();
@@ -696,8 +648,6 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
       final result = publish
           ? await ref.read(jobsRepositoryProvider).publishWithState(_draft)
           : await ref.read(jobsRepositoryProvider).saveDraftWithState(_draft);
-      if (!mounted) return;
-      await _saveJobSiteLocation(result.job.id);
       if (!mounted) return;
       final message = switch (result.publicationState) {
         'open' => 'Job opened for applications.',
@@ -1114,68 +1064,16 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
     ],
   );
 
-  Widget _jobSiteCapture() {
-    final captured = _jobSiteLatitude != null && _jobSiteLongitude != null;
-    return MortCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Job site', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: MortSpacing.xs),
-          Text(
-            'MORT records the exact job site privately from your device\'s '
-            'precise location. It is never shown publicly -- workers see '
-            'only distance and general area until an accepted worker '
-            'confirms the safety agreement.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: MortSpacing.sm),
-          if (_capturingJobSite)
-            const MortLoading(label: 'Finding your location', fullScreen: false)
-          else if (captured)
-            Row(
-              children: [
-                const Icon(
-                  Icons.check_circle_rounded,
-                  color: MortColors.success,
-                ),
-                const SizedBox(width: MortSpacing.xs),
-                Expanded(
-                  child: Text(
-                    'Job site set from your precise location'
-                    '${_jobSiteAccuracyMeters != null ? ' (±${_jobSiteAccuracyMeters!.round()}m)' : ''}.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ),
-                MortSecondaryButton(
-                  label: 'Update',
-                  onPressed: _captureJobSite,
-                ),
-              ],
-            )
-          else if (_jobSiteCaptureStatus != null &&
-              _jobSiteCaptureStatus != PreciseLocationStatus.granted)
-            PreciseLocationRequiredCard(
-              status: _jobSiteCaptureStatus!,
-              onRetry: _captureJobSite,
-              onOpenSettings: () => _preciseLocationService.openSettings(),
-              onOpenLocationSettings: () =>
-                  _preciseLocationService.openLocationSettings(),
-            )
-          else
-            MortPrimaryButton(
-              label: 'Use current precise location',
-              icon: Icons.my_location_rounded,
-              onPressed: _captureJobSite,
-            ),
-        ],
-      ),
-    );
-  }
-
   Widget _location() => Column(
     children: [
-      _jobSiteCapture(),
+      MortCard(
+        child: Text(
+          'Use an approximate area here. Exact job-site details are collected '
+          'privately in the Safety Agreement after an applicant is selected. '
+          'Travel-distance estimates are not available yet.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ),
       const SizedBox(height: MortSpacing.md),
       MortTextField(
         label: 'Approximate area',

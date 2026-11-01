@@ -1,7 +1,7 @@
 # MORT Production Readiness — Flutter Backend Integration
 
 **Updated:** 2026-11-01 (workspace local date)
-**Branch:** `codex/flutter-backend-integration`
+**Branch:** `codex/mort-nov5-backend-safety`
 **Production backend:** Supabase project `jxbnrkasktbhtiujkhay`  
 **Status:** In progress. No production writes, migration application, deployment, marketplace activation, or payment activation occurred.
 
@@ -11,10 +11,18 @@
 - Application submission draft now captures `clock_timestamp()` only after eligibility evidence and shared block-pair locks; the lower-level insert helper rechecks the full eligibility RPC. The wrapper now rejects NULL/missing eligibility results.
 - Private-location draft stores exact address, arrival instructions, and access notes in the non-exposed `private` schema; changes version the terms and invalidate old consent. The active Flutter repository now calls the draft RPC with an idempotency key and supplies no coordinates. Release binds the application, assignment, job owner, current consent, location version, terminal state, and either-direction participant blocks.
 - Retired `supabase/proposals/private_job_location_lifecycle.sql` is explicitly marked superseded to prevent applying conflicting SQL. The migration remains an unverified local draft.
-- Local Node contract tests: **13 passed, 0 failed**. Static contract check passed. Migration encoding passed (241 files); ACL contract passed on disposable PostgreSQL 17.
+- Local Node contract tests: **14 passed, 0 failed**. Static contract check passed. Migration encoding passed (241 files); ACL contract passed on disposable PostgreSQL 17.
 - I made a schema-only clone of the existing local Supabase schema (verified `public.jobs` count = 0). It is not production-equivalent: replay stopped because that local schema lacks production `public.mort_release_control`. Per the no-substitution rule, I stopped database migration execution; no migration was applied to production.
 - Full Flutter suite: **619 passed, 2 skipped, 0 failed** before the final repository RPC alignment. Analyzer exceeded five minutes without diagnostics and was interrupted. Rerun the suite after the final code edits remains required.
 - Signed Android AAB attempt passed credential/certificate preflight but the release gate stopped it because server mode is `production_public` and the script expects `closed_test`. No AAB was created and the control was not bypassed. iOS validation is blocked by missing Xcode/CocoaPods.
+- Email signup now collects DOB and sends the `date_of_birth` metadata required by the live Auth trigger. This is self-reported DOB, not age/identity verification. Production identity-provider submissions remain disabled.
+- Removed the misleading job-posting precise-location capture that sent device coordinates to an unavailable RPC and promised unsupported distance results. The UI now uses only approximate public area and explains that exact details must be collected through the private Safety Agreement flow; distance estimates are disclosed as unavailable.
+- The live account-trust/school-affiliation screens still reference three RPCs absent from production: `get_my_account_trust_profile`, `get_marketplace_trust_eligibility`, and `request_school_email_affiliation`. Those screens cannot complete those requests; do not represent school domain allowlisting as school enrollment or identity proof.
+- Operations lane evidence (separate branch, not merged): complete database/Auth/Storage-byte backup and restore proof, RPO/RTO, paging/on-call, real OAuth on `jxb...`, push delivery, identity provider, and iOS validation remain outstanding. Active marketplace, job publishing, payments, and real document collection remain disabled.
+- Operations branch `b52c52bad953e1cd6078263babd52d07c1ee972e` updates deleted-project references, but its CI site job still conflicts with the separate website builder/validator, which hardcodes the deleted ref. Do not merge until the website lane reconciles it.
+- Read-only RLS follow-up found 18 RLS-enabled tables with no policies. All 18 deny `SELECT` to both `anon` and `authenticated`; the three public relations (`job_safety_cancellations`, `legal_acceptance_audit_events`, `legal_role_requirements`) grant access only to `service_role`. These are currently closed by grants and should stay that way unless a reviewed RPC is required.
+- The only anon-executable `SECURITY DEFINER` public function in the live catalog is `get_runtime_feature_status()`. It has an empty search path and returns only fail-closed release flags/status timestamps; no user records or secrets. It is the public client release gate. The remaining authenticated-executable definer functions still need an active-call authorization review; the advisor count alone does not establish a vulnerability.
+- Leaked-password protection remains disabled because Supabase documents it as Pro-or-higher. The organization is on Free and the owner explicitly declined a paid upgrade; no replacement password-screening code is being presented as equivalent.
 - No production schema/data/configuration, release control, deployment, marketplace, or payment state was changed.
 
 ## Work completed in this branch
@@ -212,3 +220,15 @@ At remote tip `32c8d58cc8373c6ef1e5cc78cc9791f95cdfd390`, frozen dependencies in
 - `flutter analyze --no-pub`: **No issues found** (188.0 seconds).
 - `dart format --output=none --set-exit-if-changed lib test`: **310 files, 0 changed**.
 - `flutter pub get --offline` resolved the existing lockfile from the local cache; `pubspec.lock` did not change. No Dart source changed after the backend UI verification; this full rerun is recorded at the latest feature commit.
+
+## Nov 5 release sprint — consolidated verification (2026-11-01)
+
+- Current isolated work is on `codex/mort-nov5-backend-safety`, based on `fa2daa789068e610048c1375956a00b1790ab34e`. Changes include application/private-location safety proposals, signup DOB metadata, and removal of the unsupported client-GPS job-location flow.
+- After those edits, the full Flutter suite completed: **620 passed, 2 skipped, 0 failed** (`flutter test --no-pub --reporter expanded`). `flutter analyze --no-pub` completed with **No issues found** (170.4 seconds). Formatter: **310 files, 0 changed**.
+- Final focused checks: private-location source contract **10/10**; safety static check passed; migration encoding passed (**241 files**); website job-write guard passed; AAB helper regression **1/1**; `git diff --check` passed.
+- Candidate SQL is unapplied. A disposable generic PostgreSQL ACL/behavior fixture passed previously described checks, but available local Supabase schemas lag production; replay stopped at missing `public.mort_release_control`. There is no exact isolated production-equivalent database or independent two-session race proof on the current no-cost setup. No production SQL was run.
+- Runtime release flags were checked read-only and remain fail-closed: marketplace closed, job publishing disabled, payments disabled, and real document collection disabled. No production release control changed.
+- Signed Android AAB was not produced: preflight stopped at the server release-mode gate (`production_public` versus the script's required `closed_test`) before Gradle. The gate was not bypassed. iOS build/test is unavailable on this Windows host because Xcode/CocoaPods are absent.
+- Auth lane found three absent production RPCs still called by the trust/school screens: `get_my_account_trust_profile`, `get_marketplace_trust_eligibility`, and `request_school_email_affiliation`. Signup DOB is self-reported; real age/identity/school-provider verification remains unimplemented.
+- Operations lane found no complete database/Auth/Storage-byte backup and restore proof, real OAuth or push-delivery proof, paging/on-call or incident exercise, or identity provider. Leaked-password protection is unavailable on the current Free plan; the owner declined a paid upgrade. Ops changes remain on a separate branch because its CI builder/validator conflicts with the website lane's deleted-project reference cleanup.
+- This is verified implementation progress, not a release-ready or launch-complete claim. Marketplace, publishing, payments, and real document collection remain disabled.

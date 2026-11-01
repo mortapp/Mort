@@ -96,6 +96,19 @@ test('Flutter location repository sends only the supported private-location cont
     'Flutter must not supply coordinates to the private-location contract');
 });
 
+test('job posting UI does not capture client coordinates or promise distance estimates', async () => {
+  const jobScreen = await readFile(
+    new URL('../../flutter_mort/lib/features/jobs/job_screens.dart', import.meta.url),
+    'utf8',
+  );
+  assert.doesNotMatch(jobScreen, /requestFreshPreciseLocation|p_latitude|_jobSiteLatitude/,
+    'job posting cannot send client-captured coordinates as trusted private location data');
+  assert.match(jobScreen, /Travel-distance estimates are not available yet/i,
+    'the UI must not promise a distance result without server-side geocoding');
+  assert.match(jobScreen, /Exact job-site details are collected[\s\S]{0,100}privately in the Safety Agreement/i,
+    'the UI must explain the actual private location lifecycle');
+});
+
 test('safety agreement snapshot binds location availability and version without embedding the address', () => {
   const start = migration.indexOf('create or replace function private.job_safety_terms(');
   const end = migration.indexOf('$$;', start);

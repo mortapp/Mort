@@ -374,7 +374,8 @@ class TrustSafetyRepository extends RepositoryBase {
         params: {
           'p_event_type': 'unrecognized_session',
           'p_session_reference': session.reference,
-          'p_details': 'User reported this session as unfamiliar from Flutter account security.',
+          'p_details':
+              'User reported this session as unfamiliar from Flutter account security.',
         },
       ),
       'The account security concern could not be recorded.',
