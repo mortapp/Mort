@@ -135,3 +135,11 @@ Read-only validation ran in `repos/mort-web` while preserving that checkout's pr
 ### 3. Identity and trust
 
 The production Edge Function inventory still contains only `stripe-create-assignment-payment-intent`, `stripe-assignment-webhook`, and `stripe-runtime-status`; neither identity-provider handler is deployed. The production feature status continues to report `real_document_collection=false`. No person was verified, no documents were collected, and no provider credential or staff authorization was added. Identity-provider approval, provider credentials, real-user verification flow tests, and secure first-reviewer provisioning remain external/isolated-QA gates.
+
+An aggregate-only, read-only production snapshot (no IDs, emails, or document data returned) found 2 Auth users and 2 profiles, one pending age-verification case, no Guardian-link rows, and no Storage objects. This establishes that there is currently no active Guardian relationship or uploaded identity evidence to exercise; it does not justify creating QA accounts against production.
+
+### 4. Production operations and security
+
+- A fresh Supabase security-advisor read at 2026-11-01 13:28 UTC reported 18 RLS-enabled/no-policy informational findings, 1 public `get_runtime_feature_status()` SECURITY DEFINER warning, 46 authenticated SECURITY DEFINER warnings, and leaked-password protection disabled. The no-policy tables were previously confirmed to have no client grants; no broad policies or privilege changes were made.
+- The website lint gate `npm run lint` exited 0. Website build/typecheck/lint were run against its existing worktree; the worktree's pre-existing edits remain untouched.
+- Leaked-password protection is not enabled yet. The action-time confirmation required for changing this production Auth setting is pending; the security setting remains unchanged. A complete database/Auth plus Storage-byte backup, isolated restore destination, encrypted artifact destination, and proven restore are still unavailable. No backup was claimed or created.
