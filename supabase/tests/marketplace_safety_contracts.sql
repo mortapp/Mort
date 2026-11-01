@@ -30,9 +30,9 @@ begin
     or has_function_privilege('anon',
       'private.set_job_geocode_result(uuid,double precision,double precision,text)','EXECUTE')
     or has_function_privilege('authenticated',
-      'private.set_user_location_origin(uuid,double precision,double precision,text)','EXECUTE')
+      'private.set_user_location_origin(uuid,double precision,double precision,text,timestamp with time zone,text)','EXECUTE')
     or has_function_privilege('anon',
-      'private.set_user_location_origin(uuid,double precision,double precision,text)','EXECUTE') then
+      'private.set_user_location_origin(uuid,double precision,double precision,text,timestamp with time zone,text)','EXECUTE') then
     raise exception 'untrusted role can write geocoded coordinates';
   end if;
   if not has_function_privilege('authenticated','public.get_job_private_location(uuid)','EXECUTE')
