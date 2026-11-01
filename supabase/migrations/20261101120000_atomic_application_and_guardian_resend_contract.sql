@@ -225,6 +225,7 @@ declare
   v_expires_at timestamptz := now() + interval '7 days';
   v_email text;
   v_invite_count integer;
+  v_rate_key bigint;
 begin
   if v_user_id is null then
     return jsonb_build_object('ok', false, 'code', 'authentication_required');
@@ -236,13 +237,8 @@ begin
   if p_link_id is null then
     return jsonb_build_object('ok', false, 'code', 'guardian_link_id_required');
   end if;
-  select count(*) into v_invite_count
-  from private.guardian_invite_codes code
-  where code.teen_user_id = v_user_id
-    and code.created_at > now() - interval '24 hours';
-  if v_invite_count >= 3 then
-    return jsonb_build_object('ok', false, 'code', 'guardian_invite_limit_reached');
-  end if;
+  v_rate_key := pg_catalog.hashtextextended(v_user_id::text, 0);
+  perform pg_catalog.pg_advisory_xact_lock(v_rate_key);
   select * into v_link
   from public.guardian_links link
   where link.id = p_link_id
@@ -252,12 +248,22 @@ begin
   if not found then
     return jsonb_build_object('ok', false, 'code', 'pending_guardian_invite_not_found');
   end if;
+  select count(*) into v_invite_count
+  from private.guardian_invite_codes code
+  where code.teen_user_id = v_user_id
+    and code.created_at > now() - interval '24 hours';
+  if v_invite_count >= 3 then
+    return jsonb_build_object('ok', false, 'code', 'guardian_invite_limit_reached');
+  end if;
   select code.invited_email into v_email
   from private.guardian_invite_codes code
   where code.guardian_link_id = p_link_id
     and code.consumed_at is null
   order by code.created_at desc
   limit 1;
+  if v_email is null then
+    return jsonb_build_object('ok', false, 'code', 'guardian_invite_code_missing');
+  end if;
   update private.guardian_invite_codes
   set consumed_at = coalesce(consumed_at, now())
   where guardian_link_id = p_link_id and consumed_at is null;

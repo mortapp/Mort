@@ -26,6 +26,9 @@ includes(applicationMigration, "create or replace function public.mort_submit_jo
 // Guardian resend must be link-scoped and must not call the broad revoke path.
 includes(applicationMigration, "where link.id = p_link_id", "link-scoped Guardian lookup");
 includes(applicationMigration, "where guardian_link_id = p_link_id and consumed_at is null", "link-scoped code consumption");
+includes(applicationMigration, "v_rate_key := pg_catalog.hashtextextended(v_user_id::text, 0)", "per-teen Guardian resend rate lock");
+includes(applicationMigration, "perform pg_catalog.pg_advisory_xact_lock(v_rate_key)", "serialized Guardian resend rate check");
+includes(applicationMigration, "guardian_invite_code_missing", "missing Guardian code denial");
 excludes(applicationMigration, "update public.guardian_links set status = 'revoked'", "bulk Guardian revocation");
 
 // Location reads must fail closed for absent rows and bind confirmation to the
