@@ -95,3 +95,21 @@ $env:SUPABASE_SERVICE_ROLE_KEY (server-side only placeholder)"<local-service-rol
 
 Do not commit `.env.local`, local keys, service-role keys, Supabase status output, logs, or Docker data.
 
+## Safety-contract schema preflight
+
+Before replaying the append-only safety migrations, run the read-only hosted-schema
+preflight against an explicitly isolated local or staging database. It refuses the
+authoritative production and deleted project refs and requires an explicit target
+confirmation:
+
+```bash
+MORT_QA_TARGET=staging \
+MORT_QA_SCHEMA_PREFLIGHT_CONFIRM=ISOLATED_SCHEMA_ONLY \
+SUPABASE_DB_URL='postgresql://user:password@qa-staging.example.test:5432/mort' \
+node scripts/qa-safety-contract-schema-preflight.mjs
+```
+
+The preflight checks the relations, columns, function signatures, message/conversation
+shape, and valid safety-agreement reconfirmation status required by the drafts. It is
+read-only and is not evidence of a successful migration replay or two-session race
+test. Never point it at production as a substitute for an isolated environment.
