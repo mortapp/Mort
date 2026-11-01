@@ -31,6 +31,6 @@ Application submission/state, private job location, server-computed distance ban
 - Keep public_marketplace_closed=true, new_job_publishing_disabled=true, and payment controls disabled until all tests and call-site audits pass.
 
 ## Known blockers
-- No trusted geocoder or consented approximate teen-origin source is currently present. The service-role ingestion functions define the trust boundary; they are not a geocoding provider. Distance bands cannot be enabled until a vetted geocoder and origin-consent flow are connected.
-- Existing job create/edit RPCs must be audited and updated to store exact addresses in the private table. The NULL constraint intentionally fails closed until that integration is complete.
+- No trusted geocoder or consented approximate teen-origin source is currently present. The candidate private origin table requires consent_at and consent_version, and its ingestion RPC rejects non-teen/inactive users. The service-role ingestion functions define the trust boundary; they are not a geocoding provider. Distance bands cannot be enabled until a vetted geocoder and origin-consent flow are connected.
+- Existing job create/edit RPCs must be audited and updated to store exact addresses through the service-role-only private.set_job_private_address path. The NULL constraint intentionally fails closed until that integration is complete.
 - The catalog test is not a substitute for fixture-driven authorization and concurrency tests. Those tests have not been run here: no paid Supabase branch was created, and this session has no local Docker/Postgres runtime.
