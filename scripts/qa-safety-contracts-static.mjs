@@ -55,7 +55,8 @@ includes(locationMigration, "from information_schema.column_privileges", "legacy
 includes(locationMigration, "privilege_type in ('INSERT', 'UPDATE')", "column write privilege filter");
 includes(locationMigration, "revoke %s (%I) on table public.jobs from authenticated", "per-column write revoke");
 excludes(locationMigration, "grant select on public.jobs to authenticated", "broad jobs table SELECT grant");
-includes(locationMigration, "revoke all on public.job_private_locations from public, anon, authenticated", "private-table privilege revoke");
+includes(locationMigration, "create table private.job_private_locations", "location table stays outside exposed schemas");
+includes(locationMigration, "revoke all on private.job_private_locations from public, anon, authenticated", "private-table privilege revoke");
 
 // Block, unblock, message, and conversation closure must share deterministic
 // serialization primitives.

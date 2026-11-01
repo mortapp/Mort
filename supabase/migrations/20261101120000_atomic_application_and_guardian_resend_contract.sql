@@ -18,8 +18,9 @@ declare
   v_job public.jobs%rowtype;
   v_release public.mort_release_control%rowtype;
   v_age integer;
-  v_now timestamptz := clock_timestamp();
+  v_now timestamptz;
   v_guardian_linked boolean;
+  v_poster_active boolean := false;
   v_profile_found boolean := false;
   v_job_found boolean := false;
   v_release_found boolean := false;
@@ -33,9 +34,26 @@ begin
   v_profile_found := found;
   select * into v_job from public.jobs job where job.id = p_job_id for share;
   v_job_found := found;
+  if v_job_found then
+    -- Serialize application eligibility with a concurrent block of the same
+    -- teen/poster pair, using the lock key shared by block and message RPCs.
+    perform pg_catalog.pg_advisory_xact_lock(
+      pg_catalog.hashtextextended(
+        least(auth.uid(), v_job.poster_id)::text || ':' || greatest(auth.uid(), v_job.poster_id)::text,
+        0
+      )
+    );
+    select (poster.account_status = 'active') into v_poster_active
+    from public.profiles poster
+    where poster.id = v_job.poster_id
+    for share;
+    v_poster_active := coalesce(v_poster_active, false);
+  end if;
   select * into v_release from public.mort_release_control release where release.is_primary for share;
   v_release_found := found;
-  select true into v_guardian_linked
+  -- Lock active, dual-consented Guardian records and their identity rows
+  -- before evaluating age against the fresh clock captured below.
+  perform gl.id
   from public.guardian_links gl
   join public.profiles guardian_profile on guardian_profile.id = gl.guardian_user_id
   join auth.users guardian_auth on guardian_auth.id = gl.guardian_user_id
@@ -46,11 +64,32 @@ begin
     and guardian_profile.role = 'guardian'::public.mort_role
     and guardian_profile.account_status = 'active'
     and guardian_profile.date_of_birth is not null
-    and extract(year from age(v_now::date, guardian_profile.date_of_birth)) >= 18
     and guardian_auth.email_confirmed_at is not null
-  order by gl.id
-  limit 1
   for share of gl, guardian_profile, guardian_auth;
+  -- Lock every age-verification row in the eligible state, including expired
+  -- rows, then evaluate expiry against the post-lock wall clock.
+  perform verification.id
+  from public.verification_cases verification
+  where verification.user_id = auth.uid()
+    and verification.verification_type = 'age'
+    and verification.status = 'verified'::public.mort_verification_status
+  for share;
+  v_now := clock_timestamp();
+  select exists (
+    select 1
+    from public.guardian_links gl
+    join public.profiles guardian_profile on guardian_profile.id = gl.guardian_user_id
+    join auth.users guardian_auth on guardian_auth.id = gl.guardian_user_id
+    where gl.teen_user_id = auth.uid()
+      and gl.status = 'active'
+      and gl.teen_consent_at is not null
+      and gl.guardian_consent_at is not null
+      and guardian_profile.role = 'guardian'::public.mort_role
+      and guardian_profile.account_status = 'active'
+      and guardian_profile.date_of_birth is not null
+      and extract(year from age(v_now::date, guardian_profile.date_of_birth)) >= 18
+      and guardian_auth.email_confirmed_at is not null
+  ) into v_guardian_linked;
   v_guardian_linked := coalesce(v_guardian_linked, false);
   if not v_profile_found or v_profile.role <> 'teen'::public.mort_role or v_profile.account_status <> 'active' then
     v_code := 'active_teen_account_required'; v_message := 'An active teen account is required.';
@@ -60,7 +99,7 @@ begin
     v_code := 'public_marketplace_disabled'; v_message := 'The marketplace is not accepting public applications yet.';
   elsif not v_job_found or v_job.status <> 'open'::public.mort_job_status or v_job.safety_review_status <> 'approved' or not v_job.applications_open or (v_job.expires_at is not null and v_job.expires_at <= v_now) then
     v_code := 'job_not_available'; v_message := 'This job is not accepting applications.';
-  elsif not exists (select 1 from public.profiles poster where poster.id = v_job.poster_id and poster.account_status = 'active') then
+  elsif not v_poster_active then
     v_code := 'job_not_available'; v_message := 'This job is not accepting applications.';
   elsif exists (
     select 1 from public.job_applications application
@@ -80,7 +119,6 @@ begin
       where vc.user_id = auth.uid() and vc.verification_type = 'age'
         and vc.status = 'verified'::public.mort_verification_status
         and (vc.expires_at is null or vc.expires_at > v_now)
-      for share
     ) then
       v_code := 'age_verification_required'; v_message := 'Complete age verification before applying.';
     elsif v_job.requires_guardian_approval and not v_guardian_linked then
@@ -143,7 +181,7 @@ begin
     return jsonb_build_object('ok', false, 'code', 'availability_confirmation_required');
   end if;
   v_eligibility := public.get_job_application_eligibility(p_job_id);
-  if v_eligibility->>'eligible' <> 'true' then
+  if coalesce(v_eligibility->>'eligible', 'false') <> 'true' then
     return jsonb_build_object('ok', false, 'code', v_eligibility->>'code', 'message', v_eligibility->>'message');
   end if;
   v_application_id := public.mort_submit_job_application(p_job_id, p_note);
@@ -188,7 +226,7 @@ declare
 begin
   if v_user_id is null then raise exception 'Authentication required'; end if;
   if not private.is_active_user()
-     or private.current_role() <> 'teen'::public.mort_role then
+     or private.current_role() is distinct from 'teen'::public.mort_role then
     raise exception 'An active teen account is required';
   end if;
   if p_cover_note is not null and char_length(p_cover_note) > 1000 then
@@ -230,7 +268,7 @@ begin
   if v_user_id is null then
     return jsonb_build_object('ok', false, 'code', 'authentication_required');
   end if;
-  if private.current_role() <> 'teen'::public.mort_role
+  if private.current_role() is distinct from 'teen'::public.mort_role
      or not private.is_active_user() then
     return jsonb_build_object('ok', false, 'code', 'user_role_not_allowed');
   end if;

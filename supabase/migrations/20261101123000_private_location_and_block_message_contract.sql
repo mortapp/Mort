@@ -4,10 +4,25 @@
 
 begin;
 
-create table if not exists public.job_private_locations (
+-- Fail closed if legacy public rows contain exact addresses. This migration
+-- never copies, clears, or overwrites legacy address data; that would require
+-- a separately reviewed preservation plan.
+do $$
+begin
+  if exists (
+    select 1 from public.jobs job
+    where job.exact_address is not null
+  ) then
+    raise exception 'private_job_location_requires_legacy_address_review';
+  end if;
+end;
+$$;
+
+create table private.job_private_locations (
   job_id uuid primary key references public.jobs(id) on delete cascade,
   poster_id uuid not null references public.profiles(id) on delete cascade,
-  exact_address text,
+  exact_address text not null,
+  address_fingerprint text not null check (address_fingerprint ~ '^[0-9a-f]{64}$'),
   arrival_instructions text,
   access_notes text,
   latitude double precision,
@@ -20,23 +35,54 @@ create table if not exists public.job_private_locations (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint job_private_locations_address_length
-    check (exact_address is null or char_length(exact_address) between 5 and 500),
+    check (char_length(btrim(exact_address)) between 5 and 500),
   constraint job_private_locations_coordinates_valid
-    check ((latitude is null and longitude is null)
-      or (latitude between -90 and 90 and longitude between -180 and 180)),
+    check ((latitude is null) = (longitude is null)
+      and (latitude is null or (latitude between -90 and 90 and longitude between -180 and 180))),
+  constraint job_private_locations_accuracy_valid
+    check (location_accuracy_meters is null or location_accuracy_meters between 0 and 50000),
   constraint job_private_locations_source_check
     check (location_source in ('address_text', 'precise_gps'))
 );
 
 create index if not exists job_private_locations_poster_idx
-  on public.job_private_locations(poster_id);
+  on private.job_private_locations(poster_id);
 
-alter table public.job_private_locations enable row level security;
-alter table public.job_private_locations force row level security;
-revoke all on public.job_private_locations from public, anon, authenticated;
-grant all on public.job_private_locations to service_role;
+alter table private.job_private_locations enable row level security;
+alter table private.job_private_locations force row level security;
+revoke all on private.job_private_locations from public, anon, authenticated;
+grant all on private.job_private_locations to service_role;
 
-create table if not exists public.private_data_access_events (
+create table private.job_private_location_requests (
+  actor_id uuid not null,
+  client_request_id uuid not null,
+  job_id uuid not null,
+  payload_sha256 text not null check (payload_sha256 ~ '^[0-9a-f]{64}$'),
+  response jsonb not null,
+  created_at timestamptz not null default now(),
+  primary key (actor_id, client_request_id)
+);
+alter table private.job_private_location_requests enable row level security;
+alter table private.job_private_location_requests force row level security;
+revoke all on private.job_private_location_requests from public, anon, authenticated, service_role;
+
+create table private.job_private_location_history (
+  history_id bigint generated always as identity primary key,
+  job_id uuid not null,
+  poster_id uuid not null,
+  exact_address text not null,
+  address_fingerprint text not null,
+  arrival_instructions text,
+  access_notes text,
+  location_version integer not null,
+  original_updated_at timestamptz not null,
+  archived_at timestamptz not null default now()
+);
+alter table private.job_private_location_history enable row level security;
+alter table private.job_private_location_history force row level security;
+revoke all on private.job_private_location_history from public, anon, authenticated, service_role;
+
+create table private.job_private_location_access_events (
   id uuid primary key default gen_random_uuid(),
   actor_id uuid references public.profiles(id) on delete set null,
   resource_type text not null,
@@ -45,13 +91,174 @@ create table if not exists public.private_data_access_events (
   reason text not null,
   created_at timestamptz not null default now()
 );
-alter table public.private_data_access_events enable row level security;
-alter table public.private_data_access_events force row level security;
-revoke all on public.private_data_access_events from public, anon, authenticated;
-grant all on public.private_data_access_events to service_role;
+alter table private.job_private_location_access_events enable row level security;
+alter table private.job_private_location_access_events force row level security;
+revoke all on private.job_private_location_access_events from public, anon, authenticated;
+grant all on private.job_private_location_access_events to service_role;
 
 alter table public.job_safety_agreements
   add column if not exists location_version integer not null default 0;
+
+-- Make the consent snapshot explicitly say when a private job location exists
+-- and bind consent to its version without embedding an address or coordinates.
+create or replace function private.job_safety_terms(p_application_id uuid)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select jsonb_build_object(
+    'job_id', job.id,
+    'job_title', job.title,
+    'scope', coalesce(nullif(job.summary, ''), job.description),
+    'approximate_area', jsonb_build_object(
+      'city', job.city,
+      'region', job.region,
+      'remote', job.remote_allowed
+    ),
+    'private_location_version', coalesce(location.location_version, 0),
+    'private_location_available', location.job_id is not null,
+    'who_will_be_present', coalesce(
+      nullif(plan.expected_people, ''),
+      case when job.adult_supervision_present
+        then 'The job poster reports adult supervision will be present.'
+        else 'Presence details must be agreed before the job starts.'
+      end
+    ),
+    'physical_requirements', to_jsonb(job.physical_requirements),
+    'hazards', job.safety_notes,
+    'equipment', jsonb_build_object(
+      'provided', job.equipment_provided,
+      'worker_brings', job.equipment_worker_brings
+    ),
+    'payment', jsonb_build_object(
+      'amount_cents', job.pay_amount_cents,
+      'type', job.payment_type,
+      'method_preference', job.payment_method,
+      'timing', job.payment_timing
+    ),
+    'proof_expected', job.proof_expected,
+    'safety_plan', jsonb_build_object(
+      'public_or_visible_meeting', plan.public_or_visible_meeting,
+      'daylight_preferred', plan.daylight_preferred,
+      'transportation_plan', plan.transportation_plan,
+      'checkin_cadence_minutes', plan.checkin_cadence_minutes
+    ),
+    'contract', (
+      select jsonb_build_object(
+        'contract_id', contract.id,
+        'version_id', coalesce(contract.active_version_id, latest.id),
+        'content_hash', latest.content_hash,
+        'status', contract.status
+      )
+      from public.job_contracts contract
+      left join lateral (
+        select version.id, version.content_hash
+        from public.job_contract_versions version
+        where version.contract_id = contract.id
+        order by version.version_number desc
+        limit 1
+      ) latest on true
+      where contract.application_id = application.id
+    ),
+    'exact_location_policy',
+      'The exact address stays private until the authorized job stage.',
+    'communication_boundaries', jsonb_build_array(
+      'Keep job communication in MORT.',
+      'No harassment, sexual behavior, threats, weapons, alcohol, or drugs.',
+      'No forced off-platform contact or unapproved work changes.'
+    ),
+    'right_to_leave', true,
+    'verification_not_safety_guarantee', true
+  )
+  from public.job_applications application
+  join public.jobs job on job.id = application.job_id
+  left join public.job_safety_plans plan on plan.application_id = application.id
+  left join private.job_private_locations location on location.job_id = job.id
+  where application.id = p_application_id;
+$$;
+revoke all on function private.job_safety_terms(uuid) from public, anon, authenticated;
+
+-- Keep prior consent snapshots and confirmations append-only before any
+-- location refresh invalidates the current agreement version.
+create table private.job_safety_agreement_history (
+  history_id bigint generated always as identity primary key,
+  agreement_id uuid not null,
+  application_id uuid not null,
+  job_id uuid not null,
+  teen_id uuid not null,
+  adult_id uuid not null,
+  agreement_version integer not null,
+  terms_snapshot jsonb not null,
+  material_terms_hash text not null,
+  status text not null,
+  teen_confirmed_at timestamptz,
+  adult_confirmed_at timestamptz,
+  teen_confirmed_version integer,
+  adult_confirmed_version integer,
+  location_version integer not null,
+  original_created_at timestamptz not null,
+  original_updated_at timestamptz not null,
+  archived_at timestamptz not null default now()
+);
+alter table private.job_safety_agreement_history enable row level security;
+alter table private.job_safety_agreement_history force row level security;
+revoke all on private.job_safety_agreement_history from public, anon, authenticated, service_role;
+
+create or replace function private.archive_job_safety_agreement_before_update()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into private.job_safety_agreement_history (
+    agreement_id, application_id, job_id, teen_id, adult_id,
+    agreement_version, terms_snapshot, material_terms_hash, status,
+    teen_confirmed_at, adult_confirmed_at,
+    teen_confirmed_version, adult_confirmed_version,
+    location_version, original_created_at, original_updated_at
+  ) values (
+    old.id, old.application_id, old.job_id, old.teen_id, old.adult_id,
+    old.agreement_version, old.terms_snapshot, old.material_terms_hash, old.status,
+    old.teen_confirmed_at, old.adult_confirmed_at,
+    old.teen_confirmed_version, old.adult_confirmed_version,
+    old.location_version, old.created_at, old.updated_at
+  );
+  return new;
+end;
+$$;
+revoke all on function private.archive_job_safety_agreement_before_update() from public, anon, authenticated;
+
+create trigger job_safety_agreements_archive_before_update
+  before update on public.job_safety_agreements
+  for each row execute function private.archive_job_safety_agreement_before_update();
+
+create or replace function private.archive_job_private_location_before_update()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into private.job_private_location_history (
+    job_id, poster_id, exact_address, address_fingerprint,
+    arrival_instructions, access_notes,
+    location_version, original_updated_at
+  ) values (
+    old.job_id, old.poster_id, old.exact_address, old.address_fingerprint,
+    old.arrival_instructions, old.access_notes,
+    old.location_version, old.updated_at
+  );
+  return new;
+end;
+$$;
+revoke all on function private.archive_job_private_location_before_update() from public, anon, authenticated;
+
+create trigger job_private_locations_archive_before_update
+  before update on private.job_private_locations
+  for each row execute function private.archive_job_private_location_before_update();
 
 create or replace function public.sync_safety_agreement_location_version()
 returns trigger
@@ -62,12 +269,14 @@ as $$
 begin
   select location.location_version
     into new.location_version
-  from public.job_private_locations location
+  from private.job_private_locations location
   where location.job_id = new.job_id;
   new.location_version := coalesce(new.location_version, 0);
   return new;
 end;
 $$;
+
+revoke all on function public.sync_safety_agreement_location_version() from public, anon, authenticated;
 
 do $$
 begin
@@ -83,14 +292,12 @@ begin
 end;
 $$;
 
-create or replace function public.save_job_private_location(
+create or replace function public.save_job_private_location_v1(
   p_job_id uuid,
-  p_exact_address text default null,
-  p_arrival_instructions text default null,
-  p_access_notes text default null,
-  p_latitude double precision default null,
-  p_longitude double precision default null,
-  p_location_accuracy_meters double precision default null
+  p_exact_address text,
+  p_arrival_instructions text,
+  p_access_notes text,
+  p_client_request_id uuid
 )
 returns jsonb
 language plpgsql
@@ -100,78 +307,144 @@ as $$
 declare
   v_user_id uuid := auth.uid();
   v_job public.jobs%rowtype;
-  v_address text := nullif(btrim(coalesce(p_exact_address, '')), '');
-  v_source text;
-  v_location public.job_private_locations%rowtype;
+  v_location private.job_private_locations%rowtype;
   v_application_id uuid;
+  v_payload_sha256 text;
+  v_prior_sha256 text;
+  v_prior_job_id uuid;
+  v_prior_response jsonb;
+  v_response jsonb;
+  v_next_version integer;
+  v_location_changed boolean := false;
 begin
   if v_user_id is null then
     return jsonb_build_object('ok', false, 'code', 'authentication_required');
   end if;
-  if not private.is_active_user() then
+  if not private.is_active_user()
+     or private.current_role() is distinct from 'adult'::public.mort_role then
     return jsonb_build_object('ok', false, 'code', 'active_account_required');
   end if;
-  select * into v_job from public.jobs job where job.id = p_job_id;
-  if not found or v_job.poster_id <> v_user_id then
-    return jsonb_build_object('ok', false, 'code', 'job_not_found');
+  if p_job_id is null or p_client_request_id is null
+     or p_exact_address is null
+     or char_length(btrim(p_exact_address)) not between 5 and 500 then
+    return jsonb_build_object('ok', false, 'code', 'job_location_request_invalid');
   end if;
-  if p_latitude is not null or p_longitude is not null then
-    if p_latitude is null or p_longitude is null
-       or p_latitude not between -90 and 90
-       or p_longitude not between -180 and 180 then
-      return jsonb_build_object('ok', false, 'code', 'invalid_job_site_coordinates');
+  if char_length(coalesce(p_arrival_instructions, '')) > 1000
+     or char_length(coalesce(p_access_notes, '')) > 1000 then
+    return jsonb_build_object('ok', false, 'code', 'job_location_notes_too_long');
+  end if;
+  v_payload_sha256 := encode(extensions.digest(convert_to(
+    jsonb_build_object(
+      'job_id', p_job_id,
+      'exact_address', btrim(p_exact_address),
+      'arrival_instructions', nullif(btrim(coalesce(p_arrival_instructions, '')), ''),
+      'access_notes', nullif(btrim(coalesce(p_access_notes, '')), '')
+    )::text, 'UTF8'), 'sha256'), 'hex');
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('job_location:' || v_user_id::text || ':' || p_client_request_id::text, 0)
+  );
+  select request.payload_sha256, request.job_id, request.response
+  into v_prior_sha256, v_prior_job_id, v_prior_response
+  from private.job_private_location_requests request
+  where request.actor_id = v_user_id
+    and request.client_request_id = p_client_request_id
+  for update;
+  if found then
+    if v_prior_sha256 <> v_payload_sha256 or v_prior_job_id <> p_job_id then
+      return jsonb_build_object('ok', false, 'code', 'idempotency_key_reused');
     end if;
-    v_source := 'precise_gps';
-  elsif v_address is not null and char_length(v_address) between 5 and 500 then
-    v_source := 'address_text';
-  else
-    return jsonb_build_object('ok', false, 'code', 'job_site_location_required');
+    return v_prior_response || jsonb_build_object('replayed', true);
   end if;
-  insert into public.job_private_locations(
-    job_id, poster_id, exact_address, arrival_instructions, access_notes,
-    latitude, longitude, location_source, location_accuracy_meters,
-  location_version, captured_at, updated_at
-  ) values (
-    p_job_id, v_user_id, v_address,
-    nullif(left(btrim(coalesce(p_arrival_instructions, '')), 2000), ''),
-    nullif(left(btrim(coalesce(p_access_notes, '')), 1000), ''),
-    p_latitude, p_longitude, v_source, p_location_accuracy_meters,
-    1, now(), now()
-  )
-  on conflict (job_id) do update set
-    exact_address = excluded.exact_address,
-    arrival_instructions = excluded.arrival_instructions,
-    access_notes = excluded.access_notes,
-    latitude = excluded.latitude,
-    longitude = excluded.longitude,
-    location_source = excluded.location_source,
-    location_accuracy_meters = excluded.location_accuracy_meters,
-    location_version = public.job_private_locations.location_version + 1,
-    verified_for_job = false,
-    captured_at = excluded.captured_at,
-    updated_at = now()
-  returning * into v_location;
-  update public.job_safety_agreements agreement
-  set location_version = v_location.location_version
-  where agreement.job_id = p_job_id;
-  for v_application_id in
-    select agreement.application_id
-    from public.job_safety_agreements agreement
-    where agreement.job_id = p_job_id
-  loop
-    perform private.refresh_job_safety_agreement(v_application_id);
-  end loop;
-  insert into public.private_data_access_events(actor_id, resource_type, resource_id, action, reason)
+  -- A location change before work starts invalidates consent and refreshes the
+  -- legal safety snapshot. Moving a job already in progress uses cancellation.
+  select * into v_job
+  from public.jobs job
+  where job.id = p_job_id
+  for update;
+  if not found or v_job.poster_id <> v_user_id
+     or v_job.status::text not in ('draft', 'under_review', 'open', 'paused', 'filled') then
+    return jsonb_build_object('ok', false, 'code', 'job_location_write_not_allowed');
+  end if;
+  perform agreement.id
+  from public.job_safety_agreements agreement
+  where agreement.job_id = p_job_id
+  order by agreement.application_id
+  for update;
+  select * into v_location
+  from private.job_private_locations location
+  where location.job_id = p_job_id
+  for update;
+  if not found then
+    v_next_version := 1;
+    insert into private.job_private_locations(
+      job_id, poster_id, exact_address, address_fingerprint,
+      arrival_instructions, access_notes, location_version,
+      location_source, verified_for_job, captured_at, updated_at
+    ) values (
+      p_job_id, v_user_id, btrim(p_exact_address),
+      encode(extensions.digest(convert_to(btrim(p_exact_address), 'UTF8'), 'sha256'), 'hex'),
+      nullif(btrim(coalesce(p_arrival_instructions, '')), ''),
+      nullif(btrim(coalesce(p_access_notes, '')), ''), v_next_version,
+      'address_text', false, now(), now()
+    ) returning * into v_location;
+    v_location_changed := true;
+  elsif v_location.address_fingerprint <> encode(
+      extensions.digest(convert_to(btrim(p_exact_address), 'UTF8'), 'sha256'), 'hex'
+    )
+    or v_location.arrival_instructions is distinct from nullif(btrim(coalesce(p_arrival_instructions, '')), '')
+    or v_location.access_notes is distinct from nullif(btrim(coalesce(p_access_notes, '')), '') then
+    v_next_version := v_location.location_version + 1;
+    update private.job_private_locations
+    set exact_address = btrim(p_exact_address),
+        address_fingerprint = encode(extensions.digest(convert_to(btrim(p_exact_address), 'UTF8'), 'sha256'), 'hex'),
+        arrival_instructions = nullif(btrim(coalesce(p_arrival_instructions, '')), ''),
+        access_notes = nullif(btrim(coalesce(p_access_notes, '')), ''),
+        latitude = null,
+        longitude = null,
+        location_source = 'address_text',
+        location_accuracy_meters = null,
+        location_version = v_next_version,
+        verified_for_job = false,
+        captured_at = now(),
+        updated_at = now()
+    where job_id = p_job_id
+    returning * into v_location;
+    v_location_changed := true;
+  else
+    v_next_version := v_location.location_version;
+  end if;
+  if v_location_changed then
+    update public.job_safety_agreements agreement
+    set location_version = v_next_version
+    where agreement.job_id = p_job_id;
+    for v_application_id in
+      select agreement.application_id
+      from public.job_safety_agreements agreement
+      where agreement.job_id = p_job_id
+      order by agreement.application_id
+    loop
+      perform private.refresh_job_safety_agreement(v_application_id);
+    end loop;
+  end if;
+  insert into private.job_private_location_access_events(actor_id, resource_type, resource_id, action, reason)
   values (v_user_id, 'job_private_location', p_job_id, 'write', 'Job poster saved the restricted job location.');
-  return jsonb_build_object(
+  v_response := jsonb_build_object(
     'ok', true,
     'job_id', p_job_id,
-    'location_version', v_location.location_version,
+    'location_version', v_next_version,
     'public_feed_contains_exact_address', false,
-    'public_feed_contains_coordinates', false
+    'public_feed_contains_coordinates', false,
+    'replayed', false
   );
+  insert into private.job_private_location_requests(
+    actor_id, client_request_id, job_id, payload_sha256, response
+  ) values (v_user_id, p_client_request_id, p_job_id, v_payload_sha256, v_response);
+  return v_response;
 end;
 $$;
+
+revoke all on function public.save_job_private_location_v1(uuid, text, text, text, uuid) from public, anon;
+grant execute on function public.save_job_private_location_v1(uuid, text, text, text, uuid) to authenticated, service_role;
 
 create or replace function public.get_released_job_location(p_application_id uuid)
 returns jsonb
@@ -185,45 +458,70 @@ declare
   v_job public.jobs%rowtype;
   v_assignment public.job_assignments%rowtype;
   v_agreement public.job_safety_agreements%rowtype;
-  v_location public.job_private_locations%rowtype;
+  v_location private.job_private_locations%rowtype;
   v_allowed boolean := false;
+  v_pair_key bigint;
+  v_pair_other uuid;
 begin
   if v_user_id is null then
     return jsonb_build_object('ok', false, 'code', 'authentication_required');
   end if;
-  select * into v_application from public.job_applications application where application.id = p_application_id;
-  if not found then
-    return jsonb_build_object('ok', false, 'code', 'application_not_found');
+  if not private.is_active_user() then
+    return jsonb_build_object('ok', false, 'code', 'active_account_required');
   end if;
-  select * into v_job from public.jobs job where job.id = v_application.job_id;
-  select * into v_location from public.job_private_locations location where location.job_id = v_job.id;
-  if exists (
-    select 1 from public.user_blocks block
-    where (block.blocker_id = v_user_id and block.blocked_id = v_job.poster_id)
-       or (block.blocker_id = v_job.poster_id and block.blocked_id = v_user_id)
-  ) then
+  -- Match the live lifecycle lock order: application, assignment, job,
+  -- agreement, location. This avoids assignment/job lock inversion with
+  -- start, cancellation, and completion operations.
+  select * into v_application
+  from public.job_applications application
+  where application.id = p_application_id
+  for share;
+  if not found then
     return jsonb_build_object('ok', false, 'code', 'exact_location_not_released');
   end if;
-  if v_job.id is null or v_location.job_id is null then
+  if v_job.status::text in ('cancelled', 'completed')
+     or (v_assignment.id is not null and v_assignment.status in ('cancelled', 'completed')) then
+    return jsonb_build_object('ok', false, 'code', 'exact_location_not_released');
+  end if;
+  select * into v_assignment
+  from public.job_assignments assignment
+  where assignment.application_id = p_application_id
+  for share;
+  select * into v_job
+  from public.jobs job
+  where job.id = v_application.job_id
+  for share;
+  if not found then
+    return jsonb_build_object('ok', false, 'code', 'exact_location_not_released');
+  end if;
+  select * into v_location
+  from private.job_private_locations location
+  where location.job_id = v_job.id
+  for share;
+  if not found then
     return jsonb_build_object('ok', false, 'code', 'exact_location_not_configured');
-  elsif v_job.poster_id = v_user_id then
+  end if;
+  if v_job.poster_id = v_user_id then
     v_allowed := true;
+    v_pair_other := v_assignment.teen_user_id;
   else
-    select * into v_assignment
-    from public.job_assignments assignment
-    where assignment.application_id = p_application_id;
+    v_pair_other := v_job.poster_id;
     select * into v_agreement
     from public.job_safety_agreements agreement
-    where agreement.application_id = p_application_id;
+    where agreement.application_id = p_application_id
+    for share;
     v_allowed := coalesce(
       v_application.applicant_id = v_user_id
+      and v_application.status = 'accepted'::public.mort_application_status
       and v_assignment.id is not null
       and v_assignment.job_id = v_job.id
       and v_assignment.teen_user_id = v_user_id
+      and v_assignment.adult_user_id = v_job.poster_id
       and v_assignment.status = 'in_progress'
       and v_job.status = 'in_progress'
       and v_agreement.id is not null
       and v_agreement.status = 'confirmed'
+      and v_agreement.location_version > 0
       and v_agreement.location_version = v_location.location_version
       and v_agreement.teen_confirmed_version = v_agreement.agreement_version
       and v_agreement.adult_confirmed_version = v_agreement.agreement_version,
@@ -231,16 +529,25 @@ begin
     );
   end if;
   if coalesce(v_allowed, false) is not true then
-    return jsonb_build_object(
-      'ok', false,
-      'code', 'exact_location_not_released',
-      'public_location', jsonb_build_object(
-        'area', v_job.location_text, 'city', v_job.city,
-        'region', v_job.region, 'location_type', v_job.location_type
-      )
-    );
+    return jsonb_build_object('ok', false, 'code', 'exact_location_not_released');
   end if;
-  insert into public.private_data_access_events(actor_id, resource_type, resource_id, action, reason)
+  -- Serialize a release check with concurrent block/unblock. If a block wins
+  -- the pair lock, this function observes it before returning exact data.
+  if v_pair_other is not null then
+    v_pair_key := pg_catalog.hashtextextended(
+      least(v_user_id, v_pair_other)::text || ':' || greatest(v_user_id, v_pair_other)::text,
+      0
+    );
+    perform pg_catalog.pg_advisory_xact_lock(v_pair_key);
+  end if;
+  if v_pair_other is not null and exists (
+    select 1 from public.user_blocks block
+    where (block.blocker_id = v_user_id and block.blocked_id = v_pair_other)
+       or (block.blocker_id = v_pair_other and block.blocked_id = v_user_id)
+  ) then
+    return jsonb_build_object('ok', false, 'code', 'exact_location_not_released');
+  end if;
+  insert into private.job_private_location_access_events(actor_id, resource_type, resource_id, action, reason)
   values (v_user_id, 'job_private_location', v_job.id, 'read', 'Authorized participant accessed a restricted job location.');
   return jsonb_build_object(
     'ok', true,
@@ -311,8 +618,6 @@ begin
 end;
 $$;
 
-revoke all on function public.save_job_private_location(uuid,text,text,text,double precision,double precision,double precision) from public, anon;
-grant execute on function public.save_job_private_location(uuid,text,text,text,double precision,double precision,double precision) to authenticated, service_role;
 revoke all on function public.get_released_job_location(uuid) from public, anon;
 grant execute on function public.get_released_job_location(uuid) to authenticated, service_role;
 revoke all on function public.block_user_v2(uuid,text,uuid) from public, anon;

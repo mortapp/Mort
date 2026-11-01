@@ -231,30 +231,23 @@ class TrustSafetyRepository extends RepositoryBase {
     );
   }
 
-  /// Saves the job site's private location. Coordinates (the primary
-  /// path -- captured from the Adult's own precise device location) and
-  /// free-form address text are both optional but at least one is
-  /// required server-side; coordinates never reach the public job feed.
+  /// Saves exact address and private arrival details through an idempotent
+  /// server contract. Coordinates are deliberately not accepted from clients.
   Future<void> savePrivateJobLocation({
     required String jobId,
     String? exactAddress,
     String? arrivalInstructions,
     String? accessNotes,
-    double? latitude,
-    double? longitude,
-    double? locationAccuracyMeters,
   }) async {
     _success(
       await client.rpc(
-        'save_job_private_location',
+        'save_job_private_location_v1',
         params: {
           'p_job_id': jobId,
           'p_exact_address': _blankToNull(exactAddress),
           'p_arrival_instructions': _blankToNull(arrivalInstructions),
           'p_access_notes': _blankToNull(accessNotes),
-          'p_latitude': latitude,
-          'p_longitude': longitude,
-          'p_location_accuracy_meters': locationAccuracyMeters,
+          'p_client_request_id': _uuid.v4(),
         },
       ),
       'The restricted job location could not be saved.',
@@ -381,8 +374,7 @@ class TrustSafetyRepository extends RepositoryBase {
         params: {
           'p_event_type': 'unrecognized_session',
           'p_session_reference': session.reference,
-          'p_details':
-              'User reported this session as unfamiliar from Flutter account security.',
+          'p_details': 'User reported this session as unfamiliar from Flutter account security.',
         },
       ),
       'The account security concern could not be recorded.',

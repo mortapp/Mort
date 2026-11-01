@@ -5,6 +5,18 @@
 **Production backend:** Supabase project `jxbnrkasktbhtiujkhay`  
 **Status:** In progress. No production writes, migration application, deployment, marketplace activation, or payment activation occurred.
 
+## Nov 1 backend hardening continuation
+
+- Working branch: `codex/mort-nov5-backend-safety`, based on `fa2daa789068e610048c1375956a00b1790ab34e`.
+- Application submission draft now captures `clock_timestamp()` only after eligibility evidence and shared block-pair locks; the lower-level insert helper rechecks the full eligibility RPC. The wrapper now rejects NULL/missing eligibility results.
+- Private-location draft stores exact address, arrival instructions, and access notes in the non-exposed `private` schema; changes version the terms and invalidate old consent. The active Flutter repository now calls the draft RPC with an idempotency key and supplies no coordinates. Release binds the application, assignment, job owner, current consent, location version, terminal state, and either-direction participant blocks.
+- Retired `supabase/proposals/private_job_location_lifecycle.sql` is explicitly marked superseded to prevent applying conflicting SQL. The migration remains an unverified local draft.
+- Local Node contract tests: **13 passed, 0 failed**. Static contract check passed. Migration encoding passed (241 files); ACL contract passed on disposable PostgreSQL 17.
+- I made a schema-only clone of the existing local Supabase schema (verified `public.jobs` count = 0). It is not production-equivalent: replay stopped because that local schema lacks production `public.mort_release_control`. Per the no-substitution rule, I stopped database migration execution; no migration was applied to production.
+- Full Flutter suite: **619 passed, 2 skipped, 0 failed** before the final repository RPC alignment. Analyzer exceeded five minutes without diagnostics and was interrupted. Rerun the suite after the final code edits remains required.
+- Signed Android AAB attempt passed credential/certificate preflight but the release gate stopped it because server mode is `production_public` and the script expects `closed_test`. No AAB was created and the control was not bypassed. iOS validation is blocked by missing Xcode/CocoaPods.
+- No production schema/data/configuration, release control, deployment, marketplace, or payment state was changed.
+
 ## Work completed in this branch
 
 - Aligned Flutter Guardian-link reads with production `guardian_links` and its live foreign-key names; map `pending` to the existing UI `invited` state.

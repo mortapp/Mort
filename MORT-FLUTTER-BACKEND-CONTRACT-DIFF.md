@@ -6,6 +6,16 @@
 **Isolated branch:** `codex/flutter-backend-integration` (new local worktree).  
 **Production target:** Supabase `jxbnrkasktbhtiujkhay`.
 
+## Nov 1, 2026 local draft verification update
+
+- Application wrapper now treats absent/NULL `eligible` as false. The eligibility RPC uses a fresh wall clock after locking profile/job/release/Guardian/verification evidence and serializes with the canonical poster/teen block-pair lock. The lower-level submission function rechecks eligibility before insert.
+- The private-location draft now uses private-schema storage and an address-only authenticated save contract. Release binds the application, assignment, job owner, active assignment state, mutual current safety confirmations, location version, and participant block state. Owner and teen releases are denied after job/assignment cancellation or completion.
+- The previous proposal at `supabase/proposals/private_job_location_lifecycle.sql` is marked superseded. Do not apply it or mix it with the current migration.
+- Flutter's active private-location repository now calls `save_job_private_location_v1(uuid,text,text,text,uuid)` with address, private arrival/access notes, and a request UUID. It no longer sends client latitude/longitude. The draft stores these private notes and archives the old values when terms change.
+- Local structural Node tests: **13 passed, 0 failed**. Static and UTF-8 migration checks passed; ACL contract passed on disposable PostgreSQL 17. A data-free schema clone from the existing local Supabase database was created, but its schema is not production-equivalent: application migration replay stopped at missing `public.mort_release_control`. No further SQL was run against that clone and no production SQL was applied.
+- Production read-only catalog evidence remains the source for live signatures. Full hosted-schema migration replay, pgTAP data behavior, RLS negative/positive cases, and real two-session application/block-message races remain blocked until a production-equivalent schema is available locally without a paid resource.
+- The latest production read-only catalog check found no job assignments, so there is no live assignment record against which to validate release behavior. Production was only queried read-only.
+
 ## 2026-11-01 marketplace safety follow-up
 
 ### Application contract actually used by Flutter

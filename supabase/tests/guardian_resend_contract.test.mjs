@@ -19,6 +19,8 @@ test('Guardian resend serializes the teen rate check before rotating one pending
   assert.ok(lock < lookup && lookup < count, 'rate and selected-link locks must precede the rate count');
   assert.ok(consume > count, 'only the selected link code may be consumed after the rate check');
   assert.match(resend, /guardian_invite_code_missing/, 'missing selected code must fail closed');
+  assert.match(resend, /current_role\(\)\s+is distinct from\s+'teen'::public\.mort_role/i,
+    'missing/null role state must not pass the teen role gate');
   assert.doesNotMatch(resend, /update public\.guardian_links\s+set status\s*=\s*['"]revoked['"]/i,
     'resend must not revoke unrelated pending links');
 });
