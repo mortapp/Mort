@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_colors.dart';
@@ -11,158 +12,30 @@ import '../../data/repositories/providers.dart';
 import '../../services/passkey_capability.dart';
 import '../../services/app_lock_controller.dart';
 
-class AccountTrustScreen extends ConsumerWidget {
+class AccountTrustScreen extends StatelessWidget {
   const AccountTrustScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(accountTrustProfileProvider);
-    return profile.when(
-      loading: () => const MortLoading(label: 'Loading account trust'),
-      error: (error, _) => MortScreen(
-        children: [
-          MortHeader(
-            eyebrow: 'Account trust',
-            title: 'Trust profile unavailable',
-            subtitle: userFacingError(error),
-          ),
-          MortButton(
-            label: 'Try again',
-            icon: Icons.refresh,
-            onPressed: () => ref.invalidate(accountTrustProfileProvider),
-          ),
-        ],
+  Widget build(BuildContext context) => MortScreen(
+    children: [
+      const MortHeader(
+        eyebrow: 'Account trust',
+        title: 'Trust status unavailable',
+        subtitle:
+            'The production account-trust service is not available to this screen.',
       ),
-      data: (trust) => MortScreen(
-        children: [
-          MortHeader(
-            eyebrow: trust.signalEnvironment == 'sandbox'
-                ? 'TEST MODE'
-                : 'Account trust',
-            title: 'Your trust profile',
-            subtitle:
-                'Signals are precise and server-derived. No badge guarantees identity, behavior, or safety.',
-            trailing: MortIconButton(
-              icon: Icons.refresh,
-              tooltip: 'Refresh trust profile',
-              onPressed: () => ref.invalidate(accountTrustProfileProvider),
-            ),
-          ),
-          TrustLevelCard(profile: trust),
-          const SizedBox(height: MortSpacing.md),
-          _MarketplaceEligibilityCard(
-            eligibility: trust.marketplaceEligibility,
-          ),
-          const SizedBox(height: MortSpacing.md),
-          MortCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'What this means',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: MortSpacing.sm),
-                Text(
-                  'Email and phone checks confirm control of contact methods. Device biometrics and passkeys protect account access. School and partner checks confirm affiliation. Business registry checks confirm a public record. These are different signals, not interchangeable identity proof.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: MortSpacing.sm),
-                MortButton(
-                  label: 'Read trust-level details',
-                  icon: Icons.info_outline,
-                  style: MortButtonStyle.ghost,
-                  onPressed: () => TrustExplanationSheet.show(context),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: MortSpacing.md),
-          Text(
-            'Current indicators',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: MortSpacing.sm),
-          if (trust.indicators.isEmpty)
-            const MortCard(
-              child: Text(
-                'No verified indicators are available yet. A basic account is not identity verified.',
-              ),
-            )
-          else
-            ...trust.indicators.map(
-              (indicator) => Padding(
-                padding: const EdgeInsets.only(bottom: MortSpacing.sm),
-                child: _TrustIndicatorCard(indicator: indicator),
-              ),
-            ),
-          const SizedBox(height: MortSpacing.sm),
-          MortCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Privacy boundaries',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: MortSpacing.sm),
-                const Text('School names are private by default.'),
-                const Text(
-                  'Residential addresses are never public trust fields.',
-                ),
-                const Text(
-                  'Email and phone values are not exposed in trust badges.',
-                ),
-                const Text(
-                  'MORT does not use people-search or data-broker lookups.',
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: MortSpacing.md),
-          MortActionRow(
-            actions: [
-              const MortAction(
-                label: 'Device security',
-                icon: Icons.phonelink_lock,
-                route: '/settings/device-security',
-              ),
-              const MortAction(
-                label: 'Passkeys',
-                icon: Icons.key,
-                route: '/settings/passkeys',
-              ),
-              const MortAction(
-                label: 'School affiliation',
-                icon: Icons.school_outlined,
-                route: '/settings/school-affiliation',
-              ),
-              const MortAction(
-                label: 'Partner code',
-                icon: Icons.groups_outlined,
-                route: '/settings/partner-code',
-              ),
-              const MortAction(
-                label: 'Business registry',
-                icon: Icons.business_outlined,
-                route: '/settings/business-registry',
-              ),
-              const MortAction(
-                label: 'Digital ID availability',
-                icon: Icons.wallet_outlined,
-                route: '/settings/digital-id',
-              ),
-              const MortAction(
-                label: 'Appeal a trust decision',
-                icon: Icons.support_agent,
-                route: '/settings/trust-appeal',
-              ),
-            ],
-          ),
-        ],
+      const MortSafetyBanner(
+        message:
+            'No account-trust status was loaded or verified. This screen cannot establish identity, school affiliation, or marketplace eligibility.',
       ),
-    );
-  }
+      MortButton(
+        label: 'Contact Support',
+        icon: Icons.support_agent,
+        style: MortButtonStyle.secondary,
+        onPressed: () => context.push('/support'),
+      ),
+    ],
+  );
 }
 
 class TrustLevelCard extends StatelessWidget {
@@ -486,85 +359,31 @@ class PasskeySettingsScreen extends ConsumerWidget {
   }
 }
 
-class SchoolEmailVerificationScreen extends ConsumerStatefulWidget {
+class SchoolEmailVerificationScreen extends StatelessWidget {
   const SchoolEmailVerificationScreen({super.key});
 
   @override
-  ConsumerState<SchoolEmailVerificationScreen> createState() =>
-      _SchoolEmailVerificationScreenState();
-}
-
-class _SchoolEmailVerificationScreenState
-    extends ConsumerState<SchoolEmailVerificationScreen> {
-  final _email = TextEditingController();
-  bool _busy = false;
-  String? _result;
-
-  @override
-  void dispose() {
-    _email.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    if (!_email.text.contains('@')) {
-      MortToast.show(
-        context,
-        'Enter the confirmed email used by this account.',
-      );
-      return;
-    }
-    setState(() => _busy = true);
-    try {
-      final value = await ref
-          .read(accountTrustRepositoryProvider)
-          .requestSchoolAffiliation(_email.text);
-      if (!mounted) return;
-      setState(
-        () => _result = value['message'] as String? ?? 'Request recorded.',
-      );
-      ref.invalidate(accountTrustProfileProvider);
-    } catch (error) {
-      if (mounted) MortToast.show(context, userFacingError(error));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MortScreen(
-      children: [
-        const MortHeader(
-          eyebrow: 'Affiliation',
-          title: 'School email',
-          subtitle:
-              'An approved school domain can confirm affiliation. It does not verify government identity, age, enrollment status, or safety.',
-        ),
-        MortTextField(
-          label: 'Confirmed account email',
-          controller: _email,
-          keyboardType: TextInputType.emailAddress,
-          autofillHints: const [AutofillHints.email],
-        ),
-        const SizedBox(height: MortSpacing.md),
-        MortButton(
-          label: 'Check approved domain',
-          icon: Icons.school_outlined,
-          busy: _busy,
-          onPressed: _submit,
-        ),
-        if (_result != null) ...[
-          const SizedBox(height: MortSpacing.md),
-          MortCard(child: Text(_result!)),
-        ],
-        const SizedBox(height: MortSpacing.md),
-        const Text(
-          'The address must already be the confirmed email for this account. MORT does not collect school documents or expose school names publicly by default.',
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => MortScreen(
+    children: [
+      const MortHeader(
+        eyebrow: 'Affiliation',
+        title: 'School affiliation unavailable',
+        subtitle:
+            'MORT cannot submit school-affiliation requests from this screen in the current production release.',
+      ),
+      const MortSafetyBanner(
+        message:
+            'No request was submitted and no school affiliation was confirmed. A school email or approved domain alone does not prove age, enrollment, legal identity, or safety.',
+      ),
+      const SizedBox(height: MortSpacing.md),
+      MortButton(
+        label: 'Contact Support',
+        icon: Icons.support_agent,
+        style: MortButtonStyle.secondary,
+        onPressed: () => context.push('/support'),
+      ),
+    ],
+  );
 }
 
 class PartnerCodeVerificationScreen extends ConsumerStatefulWidget {
