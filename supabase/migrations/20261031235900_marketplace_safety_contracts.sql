@@ -19,6 +19,8 @@ create table if not exists private.user_location_origins (
   longitude double precision not null check (longitude between -180 and 180),
   geocode_source text not null,
   geocoded_at timestamptz not null,
+  consent_at timestamptz not null,
+  consent_version text not null,
   updated_at timestamptz not null default now()
 );
 alter table private.job_locations enable row level security;
@@ -186,6 +188,21 @@ end $$;
 revoke all on function public.get_job_private_location(uuid) from public, anon;
 grant execute on function public.get_job_private_location(uuid) to authenticated;
 
+
+create or replace function private.set_job_private_address(p_job_id uuid, p_exact_address text)
+returns void language plpgsql security definer set search_path = ''
+as $
+begin
+  if p_job_id is null or p_exact_address is null or length(btrim(p_exact_address)) not between 5 and 500 then
+    raise exception using errcode = '22023', message = 'Invalid private job address';
+  end if;
+  insert into private.job_locations(job_id, exact_address, updated_at)
+  values (p_job_id, btrim(p_exact_address), now())
+  on conflict (job_id) do update set exact_address = excluded.exact_address, updated_at = now();
+end $;
+revoke all on function private.set_job_private_address(uuid, text) from public, anon, authenticated;
+grant execute on function private.set_job_private_address(uuid, text) to service_role;
+
 create or replace function private.set_job_geocode_result(
   p_job_id uuid, p_latitude double precision, p_longitude double precision, p_source text
 ) returns void language plpgsql security definer set search_path = ''
@@ -206,22 +223,32 @@ grant execute on function private.set_job_geocode_result(uuid, double precision,
   to service_role;
 
 create or replace function private.set_user_location_origin(
-  p_user_id uuid, p_latitude double precision, p_longitude double precision, p_source text
+  p_user_id uuid, p_latitude double precision, p_longitude double precision, p_source text,
+  p_consent_at timestamptz, p_consent_version text
 ) returns void language plpgsql security definer set search_path = ''
-as $$
+as $
 begin
-  if p_latitude is null or p_longitude is null or p_latitude < -90 or p_latitude > 90
-     or p_longitude < -180 or p_longitude > 180 or p_source is null or length(btrim(p_source)) = 0 then
-    raise exception using errcode = '22023', message = 'Invalid geocoded origin';
+  if p_user_id is null or p_latitude is null or p_longitude is null
+     or p_latitude < -90 or p_latitude > 90 or p_longitude < -180 or p_longitude > 180
+     or p_source is null or length(btrim(p_source)) = 0
+     or p_consent_at is null or p_consent_at > now()
+     or p_consent_version is null or length(btrim(p_consent_version)) = 0 then
+    raise exception using errcode = '22023', message = 'Invalid geocoded origin or missing location consent';
   end if;
-  insert into private.user_location_origins(user_id, latitude, longitude, geocode_source, geocoded_at)
-  values (p_user_id, p_latitude, p_longitude, p_source, now())
+  if not exists (select 1 from public.profiles p
+    where p.id = p_user_id and p.role = 'teen'::public.mort_role and p.account_status = 'active') then
+    raise exception using errcode = '42501', message = 'An active teen account is required';
+  end if;
+  insert into private.user_location_origins(
+    user_id, latitude, longitude, geocode_source, geocoded_at, consent_at, consent_version
+  ) values (p_user_id, p_latitude, p_longitude, p_source, now(), p_consent_at, p_consent_version)
   on conflict (user_id) do update set latitude = excluded.latitude, longitude = excluded.longitude,
-    geocode_source = excluded.geocode_source, geocoded_at = excluded.geocoded_at, updated_at = now();
-end $$;
-revoke all on function private.set_user_location_origin(uuid, double precision, double precision, text)
+    geocode_source = excluded.geocode_source, geocoded_at = excluded.geocoded_at,
+    consent_at = excluded.consent_at, consent_version = excluded.consent_version, updated_at = now();
+end $;
+revoke all on function private.set_user_location_origin(uuid, double precision, double precision, text, timestamptz, text)
   from public, anon, authenticated;
-grant execute on function private.set_user_location_origin(uuid, double precision, double precision, text)
+grant execute on function private.set_user_location_origin(uuid, double precision, double precision, text, timestamptz, text)
   to service_role;
 
 create or replace function public.get_job_distance_bands(p_job_ids uuid[])
