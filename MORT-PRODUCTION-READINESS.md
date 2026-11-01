@@ -184,6 +184,8 @@ Docker is available in the current workstation, but the running local Supabase d
 
 The new read-only schema preflight was compared against live catalog metadata. Its Guardian column expectation was corrected from legacy `guardian_links.teen_id` to hosted `guardian_links.teen_user_id`. Its runner now allows a staging Supabase database only when the host exactly matches the explicitly supplied isolated project ref, refuses the production/deleted refs, and resolves the SQL path portably on Windows. Static checks pass; the SQL preflight itself has not run against production or an isolated staging database.
 
+The preflight now also requires `get_my_account_trust_profile()`, `get_marketplace_trust_eligibility(text, uuid)`, and `request_school_email_affiliation(text)`. It refuses to run without an explicitly isolated target, and the updated read-only/static checks pass. Production still lacks verified runtime support for these calls until the trust migration is replayed and behavior-tested in isolated staging.
+
 ### Reference website job-write cutover — 2026-11-01
 
 The reference Expo website is now cut over in commit `763fc1efdf8c323670c8e88b94448b268e26836d` on `codex/flutter-backend-integration`. Its adult posting flow calls `save_job_draft_or_publish` with a server-derived owner, an idempotency key, and the canonical payload; it no longer sends `poster_id`, `status`, or directly inserts into `public.jobs`. Its admin removal flow calls the reasoned `admin_moderate_job` RPC rather than directly updating job status. The new `qa:reference-website-job-write-contract` test and the existing safety/encoding checks pass.

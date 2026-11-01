@@ -90,6 +90,15 @@ BEGIN
   IF to_regprocedure('public.mort_send_message(uuid,text)') IS NULL THEN
     RAISE EXCEPTION 'safety-contract preflight missing public.mort_send_message(uuid,text)';
   END IF;
+  IF to_regprocedure('public.get_my_account_trust_profile()') IS NULL THEN
+    RAISE EXCEPTION 'safety-contract preflight missing public.get_my_account_trust_profile()';
+  END IF;
+  IF to_regprocedure('public.get_marketplace_trust_eligibility(text,uuid)') IS NULL THEN
+    RAISE EXCEPTION 'safety-contract preflight missing public.get_marketplace_trust_eligibility(text,uuid)';
+  END IF;
+  IF to_regprocedure('public.request_school_email_affiliation(text)') IS NULL THEN
+    RAISE EXCEPTION 'safety-contract preflight missing public.request_school_email_affiliation(text)';
+  END IF;
 
   IF NOT EXISTS (
     SELECT 1
