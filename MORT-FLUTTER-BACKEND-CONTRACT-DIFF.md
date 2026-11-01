@@ -87,7 +87,7 @@ Before any SQL test environment is available, the required positive/negative sui
 ### Local proposed artifacts added this turn
 
 - `supabase/proposals/marketplace_application_submission_race.sql`: same production signature, adds under-lock eligibility recheck and share-locks the relevant authorization rows; proposal only.
-- `supabase/migrations/20261101022649_production_safety_missing_contracts.sql`: strengthened local block/message proposal with a shared pair-lock helper, write trigger on `user_blocks`, active conversation check/row lock, sender/member checks and deterministic multi-member lock order.
+- `supabase/proposals/production_safety_missing_contracts.sql`: strengthened local block/message proposal with a shared pair-lock helper, write trigger on `user_blocks`, active conversation check/row lock, sender/member checks, deterministic multi-member lock order, and durable request idempotency.
 - `supabase/tests/production_safety_missing_contracts.sql`: pgTAP plan expanded to 25 assertions, including opposite-direction block enforcement, immutable block pair identity, closed-conversation rejection, and internal lock-helper permissions.
 - `supabase/tests/production_safety_pair_lock_concurrency.ps1`: true two-process/two-connection QA harness. It requires explicit QA credentials/fixture IDs and refuses production or deleted project refs. It was not run because no isolated database is available.
 
@@ -148,7 +148,7 @@ The corresponding live schema uses different names for three previously failing 
 
 ## Required isolated migration proposal
 
-Local file: `supabase/migrations/20261101022649_production_safety_missing_contracts.sql`
+Local file: `supabase/proposals/production_safety_missing_contracts.sql`
 
 - Adds `block_user_v2(uuid,uuid)`, idempotent via the existing `user_blocks(blocker_id,blocked_id)` primary key; authenticated execute only.
 - Adds `unblock_user(uuid)`, scoped to the caller’s blocker row; authenticated execute only.
@@ -156,7 +156,7 @@ Local file: `supabase/migrations/20261101022649_production_safety_missing_contra
 - Adds a private SECURITY DEFINER insert trigger on `messages` that verifies sender membership and rejects a message if either participant has blocked the other. Search path is empty and API execute is revoked.
 - No new tables or columns; no updates/deletes in the migration. The existing invite creator revokes an old pending link when rotating a code, preserving that row as an audit record.
 
-Local SQL integration plan: `supabase/tests/production_safety_missing_contracts.sql` (18 pgTAP assertions for grants, signatures, idempotency, self-block rejection, blocked-message rejection, unblock behavior, Guardian invite rotation and cross-user denial).
+Local SQL integration plan: `supabase/tests/production_safety_missing_contracts.sql` (pgTAP assertions for grants, signatures, request replay, self-block rejection, blocked-message rejection, unblock behavior, Guardian invite rotation and cross-user denial).
 
 **Validation limits:** The migration syntax and core behavior passed a local, disposable PostgreSQL 17 catalog-derived fixture smoke test. This is not a production-schema clone. Supabase branch creation was refused because the connected project is not on the Pro plan; no Pro upgrade was made. Therefore the pgTAP/isolated integration suite has not run and these contracts are not complete or production-ready.
 
@@ -257,6 +257,53 @@ Local SQL integration plan: `supabase/tests/production_safety_missing_contracts.
 ### `data/repositories/guardian_repository.dart` (1 unresolved)
 
 `resend_guardian_invite`
+
+## Backend review update — 2026-11-01 (supersedes earlier proposal status above)
+
+All SQL below is a **local proposal**, not production behavior. Active production remains `jxbnrkasktbhtiujkhay`; production SQL/migrations, user data, release controls and deployed functions were not changed.
+
+### Application submission race
+
+Production signature: `submit_job_application(p_job_id uuid, p_note text DEFAULT NULL, p_availability_confirmed boolean DEFAULT false, p_portfolio_ids uuid[] DEFAULT '{}') RETURNS jsonb`. It calls the service-role-only `mort_submit_job_application(uuid,text)`. Production eligibility checks active teen role, an open/approved/unexpired job, active poster, DOB and age verification, optional job Guardian requirement, and blocks. The draft replacement in `supabase/proposals/marketplace_application_submission_race.sql` keeps that signature; requires an active teen; locks the job, pair, applicable Guardian links, profiles, age-verification rows and primary release-control row; reruns the live eligibility RPC under those locks; and relies on the live unique `(job_id, applicant_id)` key. It returns same-user successful existing states as a replay and leaves terminal existing rows unchanged. A matching isolated DB must still verify function dependencies and lock order against accept/status/unlink/block writers. No race test has passed.
+
+### Pair-lock concurrency
+
+`supabase/proposals/production_safety_missing_contracts.sql` has one order-independent advisory lock key for a user pair. The block RPC obtains it before insert; a `user_blocks` trigger obtains it for direct insert/update/delete; message insertion verifies the active conversation and membership, then takes all sender/recipient pair locks in sorted-key order before checking both block directions. Durable block request IDs replay the original result and reject reuse with a different target. The pgTAP suite now includes same-request replay and no block recreation after unblock. This has not passed an independent two-session test. The proposal's behavior against other production writers, transaction snapshots, and deadlocks remains unverified.
+
+### Exact-address privilege and private location
+
+Read-only ACL evidence: authenticated can INSERT into `public.jobs` and UPDATE its `exact_address` column; authenticated cannot SELECT `exact_address`. Production's existing `save_job_draft_or_publish(uuid,uuid,jsonb,boolean)` SECURITY DEFINER RPC is executable by authenticated users, checks the active adult and publishing controls, and does not accept an exact-address payload. The website's current job-posting source still performs direct `jobs` inserts. Therefore `jobs_exact_address_privilege_reconciliation.sql` is staged only after website create/edit flows cut over and pass QA through the server-side contract. The relevant Flutter/web cutover is a release dependency; applying the privilege revocation now would break the existing website path.
+
+`supabase/proposals/private_job_location_lifecycle.sql` proposes:
+
+1. `private.job_private_locations` for exact address, server-geocoded coordinates and monotonic location version, with no API role table grants and forced RLS. A separate no-grant location history preserves prior address/geocode versions before any change.
+2. A legacy address copy that inserts without overwriting an existing private row, verifies owner/address/fingerprint equality, and only then nulls the matching old `jobs.exact_address` value. Any mismatch raises and rolls back. A private no-grant history table archives each prior safety-agreement snapshot/state before an update.
+3. `save_job_private_location_v1(uuid,text,uuid)` for active adult job owners, with request idempotency including job and address fingerprint checks; changing an address clears stale geocode and increments the version.
+4. `record_job_location_geocode_v1(uuid,integer,double precision,double precision,text)`, service-role only; it accepts only the current version and returns no coordinate values.
+5. `get_released_job_location_v1(uuid)` for an active assigned adult or teen only. It locks and checks both active participant profiles/roles, accepted/in-progress/awaiting-confirmation assignment state, job not cancelled/completed, current mutual agreement and current location version, relevant two-way blocks, and active dual-consented Guardian link when `requires_guardian_approval` is true. It returns exact address only in that authorized call and records access/denial.
+6. `get_my_eligible_job_distance_bands_v1(uuid[])`, active teen only, accepts bounded job IDs but no coordinates; it internally calculates using job geocode plus city/region centroid and returns only coarse bands (`under_3`, `3_to_10`, `10_plus` miles). The centroid source/quality still needs product/privacy review; no teen coordinate is stored.
+
+The SQL draft fixed the broken agreement-update loop and cross-job idempotency replay found in review. It still needs compilation against the exact production migration set. Before application: wire the existing agreement confirmation flow to current location-version terms, preserve prior legal acceptance evidence/version history, enqueue reconfirmation notifications, verify cancellation and moderation transitions, confirm the geocoding provider/source, and test direct/RPC exact-address denials. Existing Guardian application screens remain read-only; no Guardian decisions were added.
+
+### Verification and role elevation
+
+Production `verification_cases` has distinct `verification_type` values for `age`, `identity`, `school_email`, `school_id` and `guardian_consent`; status enum includes not-started/pending/verified/rejected/expired/needs-review. The existing `mort_review_role_request(uuid,boolean,text)` requires teen evidence and adult identity evidence but does not check the adult target's server-held DOB. `verification_role_age_gate.sql` adds an >=18 DOB check and locks verification evidence while reviewing; `verification_role_age_gate.sql` (pgTAP) covers minor rejection/no role mutation and verified-adult approval. Neither has run. Provider identity Edge Functions and their required session/webhook RPCs are absent from production; don't enable real document collection or mark users verified. `private.user_roles` is RLS-protected with no authenticated grants/policies. First reviewer access must be a named project-owner/DBA provisioned account with MFA and a recorded approval; no production staff access was granted.
+
+Adult DOB enforcement throughout account creation, adult job posting and assignment acceptance requires a single approved product policy. Current live acceptance verifies adult identity but this audit has not yet established an adult DOB gate on every route. Guardian consent is currently per job via `requires_guardian_approval`, not universal. Live Guardian unlink revokes future consent but does not pause/cancel an already-active assignment. Product/legal must decide how to notify and protect an ongoing assignment after revocation; proposed exact-location reads deny access immediately when that job requires Guardian consent.
+
+### Stripe, public status and remaining findings
+
+Production contains five private Stripe tables (`stripe_runtime_controls`, `stripe_customers`, `stripe_connected_accounts`, `stripe_payment_intents`, `stripe_webhook_events`) and three deployed Edge Functions for assignment payment-intent creation, webhook processing, and runtime status. No production transfer/payout/refund/dispute lifecycle table or Edge Function exists. All payment, onboarding, funding, transfer, refund, live mode, connected-account and payout-approval controls inspected are false. Local Connect handlers are not deployed and some use legacy v1 account patterns; do not activate them. No teen payee model should be coded until Stripe confirms the supported account type/country path and product/legal approve who owns funds, tax reporting and beneficial interest. Stripe's terms require an adult representative for minors and details differ by account type/country: [Services Agreement](https://stripe.com/legal/ssa), [account age requirements](https://support.stripe.com/questions/age-requirement-to-create-a-stripe-account). No live Stripe change occurred.
+
+`get_runtime_feature_status()` is public and SECURITY DEFINER but returns only fail-closed booleans/message/timestamp; no PII or secrets were found in the reviewed contract. No-policy private tables and the three public no-policy relations have no authenticated table grants, which is default-deny; no broad policy was added. Static SECDEF inspection found no externally callable sensitive routine lacking a visible auth/role check other than that intentionally public status function (static heuristic only). Supabase security advisor reports leaked-password protection disabled; project-owner action is required to enable and verify it. Performance advisor reports 19 unindexed FKs and 59 unused indexes (informational); no indexes were changed without workload evidence.
+
+### Validation boundary and blockers
+
+- Production migration history: 69, latest `20261101002805_safety_reports_server_only_idempotent`. Local checkout: 240 migrations, zero matching version IDs. Migration reconciliation is unresolved; never replay the local chain.
+- Supabase connection lists only production `main`; no isolated clone/branch is available without a paid plan. No upgrade was approved or attempted. All SQL test execution is stopped; no production-as-test substitution.
+- Local pgTAP files: 26 assertions for block/message, 5 for adult role age gate, 5 for exact-address ACL, and 13 for private-location grants/contracts. All plans match assertion counts; database execution is not available. Add QA-fixture positive/negative tests for owner/non-owner save, assigned/unassigned read, one-sided/stale safety consent, Guardian revoked, block in both directions, canceled/completed/disputed assignments, changed address version, and no exact fields in job/application reads before approving the location contract.
+- Required before the draft PR can leave draft: exact migration compilation/apply in a matching isolated DB; pgTAP behavior and exact-address positive/negative cases; two independent sessions for block/message and application races; confirmation/revocation lifecycle. Final Flutter checks passed: `flutter analyze --no-pub` (no issues), `dart format --output=none --set-exit-if-changed lib test` (310 files, 0 changes), and `flutter test --no-pub` (617 passed, 2 skipped, 0 failed).
+- `jobs_exact_address_privilege_reconciliation.sql` is gated by website cutover; SQL proposal is not an implementation and the active production schema still has the unsafe grants. Marketplace publishing, payments and document collection remain disabled; PR #45 remains draft.
 
 This module inventory is not a statement that each missing function should be created. See the route classifications above; remaining modules are admin-only, support operations, optional finance/monetization/pilot/leaderboard features, or disabled marketplace/payment/location flows. Resolve only after a route-level need and the production schema contract are established.
 

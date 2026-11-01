@@ -26,9 +26,14 @@ declare
   v_eligibility jsonb;
   v_application_id uuid;
   v_application public.job_applications%rowtype;
+  v_existing_application public.job_applications%rowtype;
 begin
   if v_user is null then
     return jsonb_build_object('ok', false, 'code', 'authentication_required');
+  end if;
+  if not private.is_active_user()
+    or private.current_role() <> 'teen'::public.mort_role then
+    return jsonb_build_object('ok', false, 'code', 'active_teen_account_required');
   end if;
   if p_note is not null and char_length(btrim(p_note)) > 1000 then
     return jsonb_build_object('ok', false, 'code', 'application_note_too_long');
@@ -47,6 +52,45 @@ begin
   if not found then
     return jsonb_build_object('ok', false, 'code', 'job_not_available');
   end if;
+
+  -- There is no request ID in the production signature. The unique
+  -- (job_id, applicant_id) key is therefore the durable idempotency boundary:
+  -- a retry after a committed submit returns the existing application instead
+  -- of raising unique_violation or creating another record. The locked job
+  -- serializes concurrent calls that use this RPC.
+  select * into v_existing_application
+  from public.job_applications
+  where job_id = p_job_id and applicant_id = v_user
+  for update;
+  if found then
+    if v_existing_application.status in (
+      'submitted'::public.mort_application_status,
+      'shortlisted'::public.mort_application_status,
+      'accepted'::public.mort_application_status
+    ) then
+      return jsonb_build_object(
+        'ok', true,
+        'replayed', true,
+        'application', jsonb_build_object(
+          'id', v_existing_application.id,
+          'job_id', v_existing_application.job_id,
+          'teen_id', v_existing_application.applicant_id,
+          'status', v_existing_application.status::text,
+          'note', v_existing_application.cover_note,
+          'guardian_id', v_existing_application.guardian_id,
+          'availability_confirmed', v_existing_application.availability_confirmed,
+          'created_at', v_existing_application.created_at,
+          'updated_at', v_existing_application.updated_at
+        )
+      );
+    end if;
+    return jsonb_build_object(
+      'ok', false,
+      'code', 'application_already_exists',
+      'status', v_existing_application.status::text
+    );
+  end if;
+
   if v_job.starts_at is not null and not coalesce(p_availability_confirmed, false) then
     return jsonb_build_object('ok', false, 'code', 'availability_confirmation_required');
   end if;
@@ -125,6 +169,7 @@ begin
 
   return jsonb_build_object(
     'ok', true,
+    'replayed', false,
     'application', jsonb_build_object(
       'id', v_application.id,
       'job_id', v_application.job_id,
@@ -139,3 +184,10 @@ begin
   );
 end;
 $function$;
+
+-- Preserve the live API surface while ensuring this privileged implementation
+-- is callable only from authenticated clients and the trusted server role.
+revoke all on function public.submit_job_application(uuid, text, boolean, uuid[])
+  from public, anon;
+grant execute on function public.submit_job_application(uuid, text, boolean, uuid[])
+  to authenticated, service_role;

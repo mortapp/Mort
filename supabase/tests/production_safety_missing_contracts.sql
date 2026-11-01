@@ -1,5 +1,5 @@
 begin;
-select plan(25);
+select plan(26);
 
 select has_function('public', 'block_user_v2', array['uuid', 'uuid']);
 select has_function('public', 'unblock_user', array['uuid']);
@@ -41,9 +41,15 @@ select ok(
   (public.block_user_v2('10000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001'::uuid)->>'created')::boolean,
   'first block creates one user_blocks row'
 );
+with replay as (
+  select public.block_user_v2(
+    '10000000-0000-4000-8000-000000000002',
+    '20000000-0000-4000-8000-000000000001'::uuid
+  ) as response
+)
 select ok(
-  not (public.block_user_v2('10000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002'::uuid)->>'created')::boolean,
-  'repeated block is idempotent'
+  (select (response->>'replayed')::boolean and (response->>'created')::boolean from replay),
+  'reusing the same request ID replays the original block result'
 );
 select is(
   public.block_user_v2('10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000003'::uuid)->>'code',
@@ -118,6 +124,15 @@ select is(
   (public.unblock_user('10000000-0000-4000-8000-000000000002')->>'removed')::boolean,
   true,
   'unblock removes only the caller-to-target block'
+);
+select ok(
+  (public.block_user_v2('10000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001'::uuid)->>'replayed')::boolean
+  and not exists (
+    select 1 from public.user_blocks
+    where blocker_id = '10000000-0000-4000-8000-000000000001'
+      and blocked_id = '10000000-0000-4000-8000-000000000002'
+  ),
+  'a delayed retry cannot recreate a block after the user has unblocked'
 );
 select lives_ok(
   $$insert into public.messages(conversation_id, sender_id, body)

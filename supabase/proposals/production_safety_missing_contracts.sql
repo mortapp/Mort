@@ -1,7 +1,20 @@
--- Additive parity for the existing production user_blocks and guardian_links
--- contracts. This migration creates no new user-data tables and does not alter
--- or remove existing rows. It is a proposal only; do not apply to production
--- before isolated integration tests and review.
+-- Proposal only: additive parity for existing user_blocks and guardian_links
+-- contracts. Do not apply to production. Idempotency records contain actor,
+-- opaque request IDs, target, and safe response only; no message or address data.
+
+create table private.safety_action_idempotency (
+  actor_id uuid not null references auth.users(id),
+  action text not null check (action in ('block_user_v2')),
+  request_id uuid not null,
+  target_user_id uuid not null references auth.users(id),
+  response jsonb not null,
+  created_at timestamptz not null default now(),
+  primary key (actor_id, action, request_id)
+);
+
+alter table private.safety_action_idempotency enable row level security;
+alter table private.safety_action_idempotency force row level security;
+revoke all on private.safety_action_idempotency from public, anon, authenticated, service_role;
 
 create or replace function public.block_user_v2(
   p_blocked_id uuid,
@@ -15,6 +28,8 @@ as $function$
 declare
   v_actor uuid := auth.uid();
   v_rows integer := 0;
+  v_existing_target uuid;
+  v_response jsonb;
 begin
   if v_actor is null then
     return jsonb_build_object('ok', false, 'code', 'authentication_required');
@@ -22,22 +37,49 @@ begin
   if p_blocked_id is null or p_blocked_id = v_actor or p_client_request_id is null then
     return jsonb_build_object('ok', false, 'code', 'invalid_block_target');
   end if;
+
+  -- Serialize retries of the same actor/request, including key reuse with a
+  -- different target. The pair lock below then orders block and message work.
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(
+    'block_user_v2:' || v_actor::text || ':' || p_client_request_id::text,
+    0
+  ));
+  select request.target_user_id, request.response
+    into v_existing_target, v_response
+  from private.safety_action_idempotency request
+  where request.actor_id = v_actor
+    and request.action = 'block_user_v2'
+    and request.request_id = p_client_request_id
+  for update;
+  if found then
+    if v_existing_target <> p_blocked_id then
+      return jsonb_build_object('ok', false, 'code', 'idempotency_key_reused');
+    end if;
+    return v_response || jsonb_build_object('replayed', true);
+  end if;
+
   if not exists (select 1 from public.profiles p where p.id = p_blocked_id) then
     return jsonb_build_object('ok', false, 'code', 'block_target_not_found');
   end if;
 
-  -- The composite primary key makes retries idempotent even though the live
-  -- user_blocks table does not store client_request_id.
+  perform private.lock_user_pair(v_actor, p_blocked_id);
   insert into public.user_blocks (blocker_id, blocked_id)
   values (v_actor, p_blocked_id)
   on conflict (blocker_id, blocked_id) do nothing;
   get diagnostics v_rows = row_count;
 
-  return jsonb_build_object(
+  v_response := jsonb_build_object(
     'ok', true,
     'blocked_id', p_blocked_id,
-    'created', v_rows = 1
+    'created', v_rows = 1,
+    'replayed', false
   );
+  insert into private.safety_action_idempotency (
+    actor_id, action, request_id, target_user_id, response
+  ) values (
+    v_actor, 'block_user_v2', p_client_request_id, p_blocked_id, v_response
+  );
+  return v_response;
 end;
 $function$;
 
