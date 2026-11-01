@@ -98,7 +98,6 @@ class _CompactOnboardingScreenState
   bool _prohibitedWork = false;
   bool _safetyRulesAck = false;
   bool _antiGroomingAcknowledged = false;
-  final _signature = TextEditingController();
 
   bool get _allRulesAcknowledged =>
       _pilotTermsNotice &&
@@ -234,7 +233,6 @@ class _CompactOnboardingScreenState
     _zip.dispose();
     _availability.dispose();
     _guardianEmail.dispose();
-    _signature.dispose();
     super.dispose();
   }
 
@@ -483,16 +481,16 @@ class _CompactOnboardingScreenState
           final requirements =
               (await legalRepo.legalRequirements())['requirements'] as List? ??
               const [];
+          if (!mounted) return;
           final outstanding = requirements
               .map((item) => Map<String, dynamic>.from(item as Map))
               .where((item) => item['acceptance_id'] == null)
               .toList(growable: false);
-          final needsSignature = outstanding.any(
-            (item) => item['requires_electronic_signature'] == true,
-          );
-          if (needsSignature && _signature.text.trim().length < 3) {
-            _showStepError(
-              'Type your name to electronically sign the required document.',
+          if (outstanding.isNotEmpty) {
+            setState(() => _legalAcceptanceRequired = true);
+            MortToast.show(
+              context,
+              'Review and accept every current legal document, then finish setup.',
             );
             return;
           }
@@ -504,11 +502,9 @@ class _CompactOnboardingScreenState
             clientRequestId: requestId,
             expectedRevision: _serverProgress?.revision,
             payload: {
-              'legal_version_ids': outstanding
-                  .map((item) => item['version_id'].toString())
-                  .toList(growable: false),
-              'teen_summary_viewed': _resolvedRole() == UserRole.teen,
-              'signature': _signature.text.trim(),
+              'legal_version_ids': const <String>[],
+              'teen_summary_viewed': false,
+              'signature': null,
               'platform': platform,
               'app_version': '${package.version}+${package.buildNumber}',
             },
@@ -537,7 +533,7 @@ class _CompactOnboardingScreenState
           });
           MortToast.show(
             context,
-            'Accept every rule above, then try Finish setup again.',
+            'Accept every current legal document in the Legal Center, then try Finish setup again.',
           );
         } else {
           _showStepError(_saveFailureMessage(error));
@@ -1189,11 +1185,6 @@ class _CompactOnboardingScreenState
                     setState(() => _antiGroomingAcknowledged = value ?? false),
               ),
               const SizedBox(height: MortSpacing.xs),
-              MortTextField(
-                label: 'Signature (only if a document requires one)',
-                controller: _signature,
-                enabled: !_busy,
-              ),
             ],
           ),
         ),
@@ -1432,13 +1423,36 @@ class _CompactOnboardingScreenState
             liveRegion: true,
           ),
         ],
+        MortCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Current legal documents',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: MortSpacing.xs),
+              const Text(
+                'Open and accept each published document before finishing. MORT records acceptance for its exact version and content hash.',
+              ),
+              const SizedBox(height: MortSpacing.sm),
+              MortButton(
+                label: 'Review current legal documents',
+                icon: Icons.gavel_outlined,
+                style: MortButtonStyle.secondary,
+                onPressed: () => context.push('/legal-center'),
+              ),
+            ],
+          ),
+        ),
         if (_legalAcceptanceRequired) ...[
           const SizedBox(height: MortSpacing.md),
           const _OnboardingNotice(
             icon: Icons.gavel_outlined,
             color: MortColors.warning,
             title: 'Legal acknowledgement required',
-            message: 'Check every rule above, then try Finish setup again.',
+            message:
+                'Accept each current legal document in the Legal Center, then try Finish setup again.',
             liveRegion: true,
           ),
         ],

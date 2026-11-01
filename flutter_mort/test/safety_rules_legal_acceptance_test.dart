@@ -18,6 +18,12 @@ void main() {
   final permissions = File(
     '${Directory.current.path}/lib/features/settings/native_permissions_screen.dart',
   ).readAsStringSync();
+  final legalScreens = File(
+    '${Directory.current.path}/lib/features/legal/legal_screens.dart',
+  ).readAsStringSync();
+  final legalRepository = File(
+    '${Directory.current.path}/lib/data/repositories/legal_contract_repository.dart',
+  ).readAsStringSync();
 
   test(
     'the real reachable onboarding safety step actually records legal acceptance',
@@ -45,24 +51,24 @@ void main() {
     },
   );
 
-  test(
-    'four-step onboarding submits exact outstanding versions through the completion RPC',
-    () {
-      // The v2 completion RPC owns the legal transaction. Flutter supplies
-      // exact current outstanding version IDs but cannot mark itself complete
-      // or infer acknowledgement from navigation.
-      expect(compactOnboarding, contains('legalContractRepositoryProvider'));
-      expect(compactOnboarding, contains('.legalRequirements()'));
-      expect(compactOnboarding, contains("item['acceptance_id'] == null"));
-      expect(compactOnboarding, contains("'legal_version_ids': outstanding"));
-      expect(compactOnboarding, contains('.completeOnboardingV2('));
-      expect(
-        compactOnboarding,
-        isNot(contains('.recordOnboardingAcknowledgement(')),
-      );
-      expect(compactOnboarding, isNot(contains('.completeOnboarding()')));
-    },
-  );
+  test('four-step onboarding gates completion on exact legal acceptances', () {
+    // The existing Legal Center clickwrap records each exact version and
+    // content hash. Onboarding must send users there and fail closed until
+    // the live requirements RPC reports no outstanding acceptance.
+    expect(compactOnboarding, contains('legalContractRepositoryProvider'));
+    expect(compactOnboarding, contains('.legalRequirements()'));
+    expect(compactOnboarding, contains("item['acceptance_id'] == null"));
+    expect(compactOnboarding, contains("context.push('/legal-center')"));
+    expect(compactOnboarding, contains('if (outstanding.isNotEmpty)'));
+    expect(compactOnboarding, contains('.completeOnboardingV2('));
+    expect(legalScreens, contains(".acceptLegalVersion("));
+    expect(legalRepository, contains("'p_document_version_id': versionId"));
+    final guardIndex = compactOnboarding.indexOf('if (outstanding.isNotEmpty)');
+    final completionIndex = compactOnboarding.indexOf('.completeOnboardingV2(');
+    expect(guardIndex, greaterThan(0));
+    expect(completionIndex, greaterThan(guardIndex));
+    expect(compactOnboarding, isNot(contains('.completeOnboarding()')));
+  });
 
   test(
     'the anti-grooming rule text has one single source of truth for both screens',
