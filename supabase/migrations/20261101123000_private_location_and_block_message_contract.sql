@@ -218,6 +218,7 @@ begin
     v_allowed := coalesce(
       v_application.applicant_id = v_user_id
       and v_assignment.id is not null
+      and v_assignment.job_id = v_job.id
       and v_assignment.teen_user_id = v_user_id
       and v_assignment.status = 'in_progress'
       and v_job.status = 'in_progress'

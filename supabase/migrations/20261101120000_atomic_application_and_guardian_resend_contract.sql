@@ -18,6 +18,7 @@ declare
   v_job public.jobs%rowtype;
   v_release public.mort_release_control%rowtype;
   v_age integer;
+  v_now timestamptz := clock_timestamp();
   v_guardian_linked boolean;
   v_profile_found boolean := false;
   v_job_found boolean := false;
@@ -28,34 +29,36 @@ begin
   if auth.uid() is null then
     return jsonb_build_object('eligible', false, 'code', 'authentication_required', 'message', 'Sign in to apply.', 'guardian_required_for_this_job', false, 'guardian_linked', false);
   end if;
-  select * into v_profile from public.profiles profile where profile.id = auth.uid();
+  select * into v_profile from public.profiles profile where profile.id = auth.uid() for share;
   v_profile_found := found;
-  select * into v_job from public.jobs job where job.id = p_job_id;
+  select * into v_job from public.jobs job where job.id = p_job_id for share;
   v_job_found := found;
-  select * into v_release from public.mort_release_control release where release.is_primary;
+  select * into v_release from public.mort_release_control release where release.is_primary for share;
   v_release_found := found;
-  select exists (
-    select 1
-    from public.guardian_links gl
-    join public.profiles guardian_profile on guardian_profile.id = gl.guardian_user_id
-    join auth.users guardian_auth on guardian_auth.id = gl.guardian_user_id
-    where gl.teen_user_id = auth.uid()
-      and gl.status = 'active'
-      and gl.teen_consent_at is not null
-      and gl.guardian_consent_at is not null
-      and guardian_profile.role = 'guardian'::public.mort_role
-      and guardian_profile.account_status = 'active'
-      and guardian_profile.date_of_birth is not null
-      and extract(year from age(current_date, guardian_profile.date_of_birth)) >= 18
-      and guardian_auth.email_confirmed_at is not null
-  ) into v_guardian_linked;
+  select true into v_guardian_linked
+  from public.guardian_links gl
+  join public.profiles guardian_profile on guardian_profile.id = gl.guardian_user_id
+  join auth.users guardian_auth on guardian_auth.id = gl.guardian_user_id
+  where gl.teen_user_id = auth.uid()
+    and gl.status = 'active'
+    and gl.teen_consent_at is not null
+    and gl.guardian_consent_at is not null
+    and guardian_profile.role = 'guardian'::public.mort_role
+    and guardian_profile.account_status = 'active'
+    and guardian_profile.date_of_birth is not null
+    and extract(year from age(v_now::date, guardian_profile.date_of_birth)) >= 18
+    and guardian_auth.email_confirmed_at is not null
+  order by gl.id
+  limit 1
+  for share of gl, guardian_profile, guardian_auth;
+  v_guardian_linked := coalesce(v_guardian_linked, false);
   if not v_profile_found or v_profile.role <> 'teen'::public.mort_role or v_profile.account_status <> 'active' then
     v_code := 'active_teen_account_required'; v_message := 'An active teen account is required.';
   elsif not v_release_found or v_release.maintenance_mode then
     v_code := 'maintenance_mode_active'; v_message := 'The marketplace is temporarily unavailable.';
   elsif not v_release.public_marketplace_enabled then
     v_code := 'public_marketplace_disabled'; v_message := 'The marketplace is not accepting public applications yet.';
-  elsif not v_job_found or v_job.status <> 'open'::public.mort_job_status or v_job.safety_review_status <> 'approved' or not v_job.applications_open or (v_job.expires_at is not null and v_job.expires_at <= now()) then
+  elsif not v_job_found or v_job.status <> 'open'::public.mort_job_status or v_job.safety_review_status <> 'approved' or not v_job.applications_open or (v_job.expires_at is not null and v_job.expires_at <= v_now) then
     v_code := 'job_not_available'; v_message := 'This job is not accepting applications.';
   elsif not exists (select 1 from public.profiles poster where poster.id = v_job.poster_id and poster.account_status = 'active') then
     v_code := 'job_not_available'; v_message := 'This job is not accepting applications.';
@@ -69,14 +72,15 @@ begin
   elsif v_profile.date_of_birth is null then
     v_code := 'date_of_birth_required'; v_message := 'Complete age verification before applying.';
   else
-    v_age := extract(year from age(current_date, v_profile.date_of_birth))::integer;
+    v_age := extract(year from age(v_now::date, v_profile.date_of_birth))::integer;
     if v_age < v_job.age_min or v_age > v_job.age_max then
       v_code := 'applicant_age_not_allowed'; v_message := 'Your age does not match this job’s requirements.';
     elsif not exists (
       select 1 from public.verification_cases vc
       where vc.user_id = auth.uid() and vc.verification_type = 'age'
         and vc.status = 'verified'::public.mort_verification_status
-        and (vc.expires_at is null or vc.expires_at > now())
+        and (vc.expires_at is null or vc.expires_at > v_now)
+      for share
     ) then
       v_code := 'age_verification_required'; v_message := 'Complete age verification before applying.';
     elsif v_job.requires_guardian_approval and not v_guardian_linked then
