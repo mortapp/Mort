@@ -4,24 +4,14 @@ import 'repository_base.dart';
 
 class AccountTrustRepository extends RepositoryBase {
   Future<AccountTrustProfile> getMyProfile() async {
-    requireUserId();
-    final result = _map(await client.rpc('get_my_account_trust_profile'));
-    _requireSuccess(result, 'Account trust profile could not be loaded.');
-    return AccountTrustProfile.fromMap(result);
+    throw _unavailable('Account trust status is unavailable.');
   }
 
   Future<MarketplaceTrustEligibility> getEligibility({
     String action = 'browse',
     String? jobId,
   }) async {
-    requireUserId();
-    final result = _map(
-      await client.rpc(
-        'get_marketplace_trust_eligibility',
-        params: {'p_action': action, 'p_job_id': jobId},
-      ),
-    );
-    return MarketplaceTrustEligibility.fromMap(result);
+    throw _unavailable('Marketplace trust eligibility is unavailable.');
   }
 
   Future<Map<String, dynamic>> updateDeviceSecurity({
@@ -35,9 +25,9 @@ class AccountTrustRepository extends RepositoryBase {
   }
 
   Future<Map<String, dynamic>> requestSchoolAffiliation(String email) {
-    return _action('request_school_email_affiliation', {
-      'p_school_email': email.trim().toLowerCase(),
-    }, 'School affiliation could not be requested.');
+    return Future.error(
+      _unavailable('School affiliation requests are unavailable.'),
+    );
   }
 
   Future<Map<String, dynamic>> redeemPartnerCode(String code) {
@@ -143,4 +133,9 @@ class AccountTrustRepository extends RepositoryBase {
     final trimmed = value?.trim();
     return trimmed == null || trimmed.isEmpty ? null : trimmed;
   }
+
+  static MortCodedError _unavailable(String message) => MortCodedError(
+    'account_trust_unavailable',
+    '$message The production backend does not expose this service yet.',
+  );
 }
