@@ -1,7 +1,7 @@
 # MORT Production Readiness — Flutter Backend Integration
 
-**Updated:** 2026-10-31 (workspace local date)  
-**Branch:** `codex/flutter-backend-integration`  
+**Updated:** 2026-11-01 (workspace local date)
+**Branch:** `codex/flutter-backend-integration`
 **Production backend:** Supabase project `jxbnrkasktbhtiujkhay`  
 **Status:** In progress. No production writes, migration application, deployment, marketplace activation, or payment activation occurred.
 
@@ -38,3 +38,27 @@ The production schema enforces RLS on `profiles`, `guardian_links`, `safety_repo
 7. Supabase security advisor reported 46 authenticated SECURITY DEFINER review items, 18 RLS-enabled/no-policy informational items, and leaked-password protection disabled. These need routine-level assessment; the findings alone do not establish exploitability.
 
 See [MORT-FLUTTER-BACKEND-CONTRACT-DIFF.md](MORT-FLUTTER-BACKEND-CONTRACT-DIFF.md) for the route-level dependency inventory, RLS evidence, and local migration proposal details.
+
+## Marketplace safety contract follow-up (2026-11-01)
+
+The Flutter branch now aligns application reads and status changes with the active production RPC contracts. `ApplicationsRepository` reads through `get_my_job_applications` (the server filters by caller/role) and submits only the supported actions through `update_my_job_application_status` with its optimistic `p_expected_updated_at` guard. It no longer queries the nonexistent `applications` relation, sends the obsolete RPC arguments, or exposes Quick Accept. Guardian application screens are read-only and state that Guardian decisions are unavailable; production has no Guardian approval/rejection contract to call.
+
+The teen feed no longer requests or retains device coordinates to calculate private job distances and no longer calls the absent `get_nearby_job_distances_v1`. It displays distance as unavailable until the private server contract exists. This is an intentional fail-closed behavior, not an implementation of server-side distance retrieval.
+
+Regression coverage added/updated: production `applicant_id`/`cover_note` row mapping, supported application actions and Guardian read-only affordance, and source-level assertions that Quick Accept and client distance lookup are absent. Focused results are recorded below after the current full-suite rerun.
+
+### Safety-contract completion status
+
+- **Application submission / lifecycle:** Production has `job_applications` and `mort_application_status` (`submitted`, `withdrawn`, `shortlisted`, `accepted`, `rejected`, `cancelled`). Existing `submit_job_application` and `update_my_job_application_status` are the active contracts. The submit flow's eligibility check and underlying submit function have a stale-state window: under-lock revalidation does not cover every eligibility condition (including current publishing/open/expiry and Guardian state). This remains a database blocker; no production DDL was run.
+- **Guardian application approval:** Not implemented. The live schema has no Guardian decision RPC or application statuses for Guardian approval. Client UI no longer implies the Guardian can approve/reject through a supported production path. A secure additive design still requires isolated schema validation and integration tests before migration review.
+- **Private job location:** Not implemented. Current job saving leaves `jobs.exact_address` null and exposes no save/read/release RPC or private location relation. Exact addresses remain unavailable to anon/authenticated clients. No coordinates are requested or exposed by this Flutter change.
+- **Server-side job distance:** Not implemented. Production has no distance RPC and no coordinate columns in the inspected `jobs` schema. Flutter now fails closed by omitting distance and does not calculate it from client coordinates.
+- **Blocking:** The checked-in additive proposal adds block/unblock RPCs and rejects blocked message inserts, but the trigger has no shared pair lock with block creation. Concurrent block/message serialization is unproven. The proposal is not production-applied and its pgTAP suite has not run against an isolated production-equivalent database.
+
+### Verification and environment limits
+
+- The production project remains `jxbnrkasktbhtiujkhay`; only read-only catalog, RPC, advisor, and feature-control inspection was performed. No production data, release control, or migration history was changed.
+- The production migration history has 69 entries and ends at `20261101002805_safety_reports_server_only_idempotent`; this branch's local migration chain differs. A direct connection from the local DB container could not reach the active project (`Network is unreachable`), and a supported isolated Supabase branch is unavailable on the current plan. Therefore a faithful local clone and independent two-session concurrency test are not available.
+- Full Flutter suite: **617 passed, 2 skipped, 0 failed** (`flutter test --no-pub`). Focused changed-area suite: **29 passed, 0 failed**; it passed again after removing the two analyzer warnings. `flutter analyze --no-pub`: **No issues found**. `dart format` and `git diff --check` pass.
+- No isolated integration tests have passed for application stale-state handling, Guardian consent/decision, private location authorization/release, server-side distance, or blocking races. These contracts are not complete or release-ready.
+- Marketplace publishing, payment controls, document collection, and release controls were not changed. Read-only `get_runtime_feature_status()` on 2026-11-01 reported `public_marketplace_closed=true`, `new_job_publishing_disabled=true`, `payments_disabled=true`, and `real_document_collection=false` (`maintenance_mode=false`, `ai_provider_disabled=true`).

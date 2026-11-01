@@ -6,6 +6,52 @@
 **Isolated branch:** `codex/flutter-backend-integration` (new local worktree).  
 **Production target:** Supabase `jxbnrkasktbhtiujkhay`.
 
+## 2026-11-01 marketplace safety follow-up
+
+### Application contract actually used by Flutter
+
+| Operation | Production contract | Authorization/state notes | Flutter status |
+|---|---|---|---|
+| Read current applications | `get_my_job_applications(p_application_id uuid default null) returns jsonb` | Production function returns only rows authorized for the current teen, poster, or active Guardian with mutual consent. Row output includes production `applicant_id` and `cover_note` (alongside the UI's prior `teen_id`/`note` form). | Repository uses this RPC; model maps both field shapes. It does not access absent `applications`. |
+| Change application state | `update_my_job_application_status(p_application_id uuid, p_action text, p_expected_updated_at timestamptz) returns jsonb` | Existing server transition logic permits adult poster `accepted`, `shortlisted`, `rejected`, `viewed`; applicant `withdrawn` only from submitted/shortlisted. Expected timestamp is checked server-side. | Repository sends the exact production arguments and rejects unsupported client actions. |
+| Submit application | `submit_job_application(p_job_id uuid, p_note text, p_availability_confirmed boolean, p_portfolio_ids uuid[]) returns jsonb` | Eligibility is checked before delegation. Underlying submission locks the job, but the observed recheck does not cover every eligibility field after lock. | Not altered in this follow-up. Treat eligibility stale-state race as unresolved until secure additive database change passes isolated concurrency tests. |
+| Accept application | `mort_accept_job_application(p_application_id uuid) returns uuid` | Existing implementation checks poster role/identity, teen age verification, Guardian link/consent when required, and block state. | No replacement contract or client bypass added. |
+| Guardian application decision | **No production RPC** | No production `guardian_pending`/Guardian decision state was found. Existing Guardian link read authorization is not an application decision authorization contract. | UI is read-only; no approve/reject action is presented as functional. |
+
+### Private location and distance
+
+- `jobs.exact_address` exists, but the observed save/publish RPC sets it to null and the column is not selectable by `anon` or `authenticated`. No private-location relation or save/release RPC exists in production.
+- No production server distance RPC or job-coordinate columns were found. The historical migration `20260819000000_job_site_precise_location_and_distance.sql` targets legacy `applications`; it is design reference only and is not safe to apply as written.
+- Flutter removed the missing distance-RPC call and client coordinate request. Distance stays unavailable until a server-side contract has explicit eligibility and privacy tests.
+
+### Current Flutter regression changes
+
+- `ApplicationsRepository` now reads and mutates via the exact production application RPCs, and no longer sends unsupported Quick Accept/status-v3 calls.
+- Teen application lists are scoped to the teen; Guardian views are read-only; adult job lists are scoped to the poster. Server response authorization remains the source of protected rows.
+- `MortApplication.fromMap` accepts actual production `applicant_id`/`cover_note` fields and the existing UI aliases.
+- Job feed no longer calls `get_nearby_job_distances_v1` or uses precise device coordinates for distance.
+- Quick Accept UI and tests were removed because no production contract exists.
+
+### Validation boundary
+
+These Flutter changes can be regression-tested locally, but database behavior is **not verified** in an isolated production-equivalent database. Production has 69 migrations through `20261101002805_safety_reports_server_only_idempotent`; local repo/container migration history is different. Local container egress to the production database returned `Network is unreachable`, and no supported temporary Supabase branch is available. No production SQL was executed. Application stale-state concurrency, Guardian decisions, private-location save/release, server distance, and message/block serialization remain blockers pending an isolated database matching the production catalog plus pgTAP and independent two-session tests.
+
+### Authorization matrix and contract state
+
+| Capability | Intended authorization | Production evidence / state |
+|---|---|---|
+| Read an application | Applicant; job poster; or active linked Guardian only with both teen and Guardian consent | `get_my_job_applications(p_application_id uuid default null)` enforces these branches in its body. **Flutter aligned; production RPC was inspected read-only.** |
+| Submit an application | Active, age-verified eligible teen; not self-applying; job open, approved, unexpired, accepting applications; valid age range/Guardian requirements; no block either direction | `submit_job_application(p_job_id uuid,p_note text,p_availability_confirmed boolean,p_portfolio_ids uuid[]) returns jsonb` exists. Eligibility currently precedes the locked insert; required full recheck under lock is **BLOCKED**. Preserve the unique `(job_id, applicant_id)` key. |
+| Change application state | Adult job poster may mark viewed/shortlisted/accepted/rejected; applicant may withdraw only from allowed current states; Guardian cannot decide without a dedicated contract | `update_my_job_application_status(p_application_id uuid,p_action text,p_expected_updated_at timestamptz)` applies row lock and optimistic timestamp. Flutter calls it using supported actions. **Guardian approval/rejection remains BLOCKED** because no Guardian decision RPC/state exists. |
+| Read precise job location | Poster for their own job; assigned teen only after accepted assignment and mutual confirmation of the current `job_safety_agreements.agreement_version`, and only while neither party blocks the other | No private location relation/RPC exists. `job_assignments.status` accepts `accepted`, `in_progress`, `awaiting_confirmation`, `completed`, `cancelled`, `disputed`; `job_safety_agreements.status` accepts `awaiting_both`, `awaiting_teen`, `awaiting_adult`, `confirmed`, `reconfirmation_required`. Proposed access must be narrowly restricted to an active assignment state and `confirmed` at the current version. **BLOCKED; no locations are saved or released.** |
+| Request job distance | Active teen only; bounded IDs and validated fresh coordinates; server computes and returns coarse band; no persisted teen coordinates | No production RPC or job coordinate columns exist. Flutter does not call an absent RPC or calculate client-side distances. **BLOCKED; distance remains unavailable.** |
+| Create/remove a block | Authenticated blocker for self as blocker; cannot block self; idempotent create, scoped removal | Existing `user_blocks` PK is `(blocker_id,blocked_id)`. Local RPC proposal exists, but no shared pair lock in proposal. **PARTIALLY PROPOSED; concurrent safety not verified.** |
+| Send a message | Active conversation member, sender matches authenticated user, conversation active, and neither direction blocked | Existing `conversations.status` includes `active`, `closed`, `under_review`; `send_safe_message_v2` and `mort_send_message` exist. Proposed insert trigger checks sender and membership/block, but currently neither checks active conversation nor serializes with block changes. **BLOCKED pending corrected proposal and true two-session test.** |
+
+Required isolated database test cases are enumerated in the pasted execution request. They must use actual production schema and roles. For messaging, two independent sessions must demonstrate that after the block transaction acquires the canonical pair lock and commits, a concurrent message transaction cannot commit. A single-session pgTAP sequence does not prove this race property.
+
+Flutter-side regression results on 2026-11-01: `flutter test --no-pub` completed **617 passed, 2 skipped, 0 failed**. The focused affected-area command (`flutter test test/teen_core_visual_convergence_test.dart test/android_native_parity_test.dart test/application_detail_screen_test.dart test/production_readiness_contract_test.dart --no-pub`) completed **29 passed, 0 failed**. `dart format` and `git diff --check` pass. Whole-project `flutter analyze --no-pub` remains running without diagnostics; no success is claimed for it. These client tests do not verify database concurrency, RLS, transaction rollback, private-location authorization, or location distance bands.
+
 ## Scope and inventory method
 
 Static `.rpc('name')` and `.from('name')` references were extracted from `flutter_mort/lib`. Names were compared against production `pg_proc` and public relation catalogs via read-only Supabase SQL. The counts below exclude QA fixtures, dynamic RPC names, storage buckets, and transitive website calls; a repository method is not called a required production contract solely because its name exists. Active-route reachability was checked for the critical onboarding, Guardian, report, block, identity, and admin paths.

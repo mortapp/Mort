@@ -37,12 +37,13 @@ class MortApplication {
     final jobData = json['jobs'];
     final teenData = json['teen'];
     final teen = teenData is Map<String, dynamic> ? teenData : null;
+    final applicantId = json['teen_id'] ?? json['applicant_id'];
     return MortApplication(
       id: json['id'].toString(),
       jobId: json['job_id'].toString(),
-      teenId: json['teen_id'].toString(),
+      teenId: applicantId.toString(),
       status: (json['status'] as String?) ?? 'submitted',
-      note: json['note'] as String?,
+      note: (json['note'] ?? json['cover_note']) as String?,
       guardianId: json['guardian_id'] as String?,
       job: jobData is Map<String, dynamic> ? Job.fromMap(jobData) : null,
       availabilityConfirmed: json['availability_confirmed'] == true,

@@ -151,14 +151,15 @@ void main() {
     expect(
       source,
       contains(
-        'MORT does not calculate your distance to a job from public job data',
+        'Job-distance lookup is unavailable until its private server contract is verified',
       ),
     );
-    expect(source, contains('Use current general area'));
     expect(
       source,
-      contains('does not retain raw coordinates from either request'),
+      contains('MORT will not request your device location for job distances'),
     );
+    expect(source, contains('Use current general area'));
+    expect(source, contains('Raw coordinates were discarded.'));
   });
 
   test('teen lifecycle routes use canonical progress and monochrome state', () {

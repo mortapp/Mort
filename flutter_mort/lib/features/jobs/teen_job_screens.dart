@@ -15,10 +15,8 @@ import '../../data/models/job.dart';
 import '../../data/models/profile.dart';
 import '../../data/repositories/providers.dart';
 import '../../services/native_permissions_service.dart';
-import '../../services/precise_location_service.dart';
 import '../profile/profile_avatar_widgets.dart';
 import '../teen/teen_shell.dart';
-import 'quick_accept_button.dart';
 
 const _feedCategories = [
   'All',
@@ -72,9 +70,6 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
   JobSort _sort = JobSort.newest;
   bool _locating = false;
   String? _savingJobId;
-  final _distances = <String, double>{};
-  bool _distancesLoading = false;
-  PreciseLocationStatus? _distanceStatus;
 
   @override
   void initState() {
@@ -90,39 +85,6 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
     _state.dispose();
     _filtersController.dispose();
     super.dispose();
-  }
-
-  Future<void> _refreshDistances(List<Job> jobsNeedingDistance) async {
-    if (jobsNeedingDistance.isEmpty || _distancesLoading) return;
-    setState(() => _distancesLoading = true);
-    final result = await const PreciseLocationService()
-        .requestFreshPreciseLocation();
-    if (!mounted) return;
-    if (!result.isUsable) {
-      setState(() {
-        _distancesLoading = false;
-        _distanceStatus = result.status;
-      });
-      return;
-    }
-    try {
-      final distances = await ref
-          .read(jobsRepositoryProvider)
-          .getNearbyJobDistances(
-            jobsNeedingDistance.map((job) => job.id).toList(),
-            latitude: result.position!.latitude,
-            longitude: result.position!.longitude,
-          );
-      if (!mounted) return;
-      setState(() {
-        _distances.addAll(distances);
-        _distancesLoading = false;
-        _distanceStatus = PreciseLocationStatus.granted;
-      });
-    } catch (_) {
-      // Distance is an enhancement, not required to browse the feed.
-      if (mounted) setState(() => _distancesLoading = false);
-    }
   }
 
   Future<void> _loadSavedJobs() async {
@@ -246,18 +208,6 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
     final profile = ref.watch(currentProfileProvider).asData?.value;
     final filters = _filtersFor(profile);
     final jobs = ref.watch(openJobsProvider(filters));
-    ref.listen<AsyncValue<JobFeedState>>(openJobsProvider(filters), (
-      previous,
-      next,
-    ) {
-      final items = next.asData?.value.items ?? const <Job>[];
-      final missing = items
-          .where((job) => !_distances.containsKey(job.id))
-          .toList();
-      if (missing.isNotEmpty) {
-        unawaited(_refreshDistances(missing));
-      }
-    });
     return MortScreen(
       children: [
         MortTeenDestinationHeader(
@@ -398,7 +348,7 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
                   ),
                   const SizedBox(height: MortSpacing.xs),
                   const Text(
-                    'City and state are optional. MORT does not calculate your distance to a job from public job data. With permission, MORT uses a fresh location on-device to calculate rounded job distances. If you tap Use current general area, MORT separately converts a fresh location to city and state. MORT does not retain raw coordinates from either request. Manual entry works even when location access is denied.',
+                    'City and state are optional. Job-distance lookup is unavailable until its private server contract is verified, and MORT will not request your device location for job distances. If you tap Use current general area, MORT converts a fresh location to city and state. Manual entry works without location access.',
                   ),
                   const SizedBox(height: MortSpacing.sm),
                   MortTextField(label: 'City', controller: _city),
@@ -536,38 +486,17 @@ class _TeenJobFeedScreenState extends ConsumerState<TeenJobFeedScreen> {
                   ),
                   const SizedBox(height: MortSpacing.sm),
                 ],
-                if (!_distancesLoading &&
-                    _distanceStatus != null &&
-                    _distanceStatus != PreciseLocationStatus.granted) ...[
-                  MortCard(
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.location_disabled_rounded,
-                          color: MortColors.lightBlue,
-                        ),
-                        const SizedBox(width: MortSpacing.sm),
-                        const Expanded(
-                          child: Text(
-                            'Turn on precise location to see how far each job is.',
-                          ),
-                        ),
-                        MortSecondaryButton(
-                          label: 'Enable',
-                          onPressed: () => _refreshDistances(items),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: MortSpacing.sm),
-                ],
+                const MortSafetyBanner(
+                  message:
+                      'Job distances are unavailable. Your device location is not requested for distance calculations.',
+                ),
+                const SizedBox(height: MortSpacing.sm),
                 for (final job in items) ...[
                   _TeenJobCard(
                     job: job,
                     saved: _savedJobIds.contains(job.id),
                     saving: _savingJobId == job.id,
                     onToggleSaved: () => _toggleSaved(job),
-                    distanceMiles: _distances[job.id],
                   ),
                   const SizedBox(height: MortSpacing.sm),
                 ],
@@ -612,14 +541,12 @@ class _TeenJobCard extends StatelessWidget {
     required this.saved,
     required this.saving,
     required this.onToggleSaved,
-    this.distanceMiles,
   });
 
   final Job job;
   final bool saved;
   final bool saving;
   final VoidCallback onToggleSaved;
-  final double? distanceMiles;
 
   @override
   Widget build(BuildContext context) {
@@ -713,13 +640,6 @@ class _TeenJobCard extends StatelessWidget {
             spacing: MortSpacing.sm,
             runSpacing: MortSpacing.xxs,
             children: [
-              if (distanceMiles != null)
-                _JobCardMetaChip(
-                  icon: Icons.near_me_rounded,
-                  value:
-                      '${distanceMiles! < 0.1 ? 'Less than 0.1' : distanceMiles!.toStringAsFixed(1)} mi away',
-                  emphasize: true,
-                ),
               _JobCardMetaChip(
                 icon: Icons.place_outlined,
                 value: job.locationText,
@@ -742,14 +662,6 @@ class _TeenJobCard extends StatelessWidget {
                 ),
             ],
           ),
-          if (distanceMiles == null &&
-              job.matchExplanation?.isNotEmpty == true) ...[
-            const SizedBox(height: MortSpacing.xs),
-            Text(
-              job.matchExplanation!,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
           if (job.summary?.isNotEmpty == true) ...[
             const SizedBox(height: MortSpacing.sm),
             Text(job.summary!, maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -781,17 +693,6 @@ class _TeenJobCard extends StatelessWidget {
               ),
             ],
           ),
-          if (job.quickAcceptEligible) ...[
-            const SizedBox(height: MortSpacing.sm),
-            Align(
-              alignment: Alignment.centerRight,
-              child: QuickAcceptButton(
-                job: job,
-                onAccepted: (application) =>
-                    context.push('/teen/applications/${application.id}'),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -809,19 +710,14 @@ class _TeenJobCard extends StatelessWidget {
 /// schedule, duration, transportation) -- laid out in a [Wrap] instead of
 /// each fact claiming its own full-width row.
 class _JobCardMetaChip extends StatelessWidget {
-  const _JobCardMetaChip({
-    required this.icon,
-    required this.value,
-    this.emphasize = false,
-  });
+  const _JobCardMetaChip({required this.icon, required this.value});
 
   final IconData icon;
   final String value;
-  final bool emphasize;
 
   @override
   Widget build(BuildContext context) {
-    final color = emphasize ? MortColors.silverBright : MortColors.lightBlue;
+    const color = MortColors.lightBlue;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -832,10 +728,9 @@ class _JobCardMetaChip extends StatelessWidget {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: emphasize ? MortColors.silverBright : null,
-              fontWeight: emphasize ? FontWeight.w600 : null,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: color),
           ),
         ),
       ],
@@ -1019,24 +914,6 @@ class _TeenJobDetailScreenState extends ConsumerState<TeenJobDetailScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (job.quickAcceptEligible && eligibility.eligible) ...[
-                    Align(
-                      alignment: Alignment.center,
-                      child: QuickAcceptButton(
-                        job: job,
-                        onAccepted: (application) => context.pushReplacement(
-                          '/teen/applications/${application.id}',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: MortSpacing.xs),
-                    Text(
-                      'Instant accept, or apply the regular way below.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: MortSpacing.sm),
-                  ],
                   if (!eligibility.eligible)
                     Padding(
                       padding: const EdgeInsets.only(bottom: MortSpacing.xs),

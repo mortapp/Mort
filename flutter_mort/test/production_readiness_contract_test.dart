@@ -110,17 +110,15 @@ void main() {
       );
       expect(screen, contains('ref.watch(openJobsProvider(filters))'));
       expect(screen, isNot(contains('FutureBuilder<List<Job>>')));
-      expect(
-        screen,
-        contains('MORT does not calculate your distance to a job'),
-      );
+      expect(screen, contains('Job-distance lookup is unavailable until'));
       expect(repository, isNot(contains('travel_radius_miles.lte')));
       expect(repository, contains("'list_open_jobs_page'"));
       expect(repository, isNot(contains(".from('jobs').select(_jobSelect)")));
       expect(repository, contains("'manage_job_v2'"));
       expect(repository, isNot(contains("'manage_job',")));
-      expect(applications, contains("'update_application_status_v3'"));
-      expect(applications, isNot(contains("'update_application_status_v2'")));
+      expect(applications, contains("'update_my_job_application_status'"));
+      expect(applications, isNot(contains("'update_application_status_v3'")));
+      expect(applications, isNot(contains("'quick_accept_job_v1'")));
     },
   );
 
