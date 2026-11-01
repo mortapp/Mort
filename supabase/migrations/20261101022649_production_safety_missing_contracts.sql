@@ -121,6 +121,96 @@ $function$;
 revoke all on function public.resend_guardian_invite(uuid) from public, anon;
 grant execute on function public.resend_guardian_invite(uuid) to authenticated;
 
+-- Serialize block mutations and message inserts on the same canonical pair
+-- key. The hash is only a lock key; a collision can add contention but cannot
+-- weaken authorization. The UUID strings are ordered before hashing so both
+-- directions map to the same transaction-scoped advisory lock.
+create or replace function private.user_pair_lock_key(
+  p_left_user uuid,
+  p_right_user uuid
+)
+returns bigint
+language sql
+immutable
+set search_path = ''
+as $function$
+  select pg_catalog.hashtextextended(
+    least(p_left_user::text, p_right_user::text) || ':' ||
+    greatest(p_left_user::text, p_right_user::text),
+    0
+  );
+$function$;
+
+revoke all on function private.user_pair_lock_key(uuid, uuid)
+  from public, anon, authenticated;
+
+create or replace function private.lock_user_pair(
+  p_left_user uuid,
+  p_right_user uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+begin
+  if p_left_user is null or p_right_user is null or p_left_user = p_right_user then
+    raise exception using errcode = '22023', message = 'invalid_user_pair';
+  end if;
+  perform pg_catalog.pg_advisory_xact_lock(
+    private.user_pair_lock_key(p_left_user, p_right_user)
+  );
+end;
+$function$;
+
+revoke all on function private.lock_user_pair(uuid, uuid)
+  from public, anon, authenticated;
+
+create or replace function private.lock_user_block_pair_before_write()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+begin
+  if tg_op = 'UPDATE' then
+    if new.blocker_id <> old.blocker_id or new.blocked_id <> old.blocked_id then
+      raise exception using errcode = '42501', message = 'block_pair_immutable';
+    end if;
+    perform private.lock_user_pair(old.blocker_id, old.blocked_id);
+    return new;
+  elsif tg_op = 'DELETE' then
+    perform private.lock_user_pair(old.blocker_id, old.blocked_id);
+    return old;
+  else
+    perform private.lock_user_pair(new.blocker_id, new.blocked_id);
+    return new;
+  end if;
+end;
+$function$;
+
+revoke all on function private.lock_user_block_pair_before_write()
+  from public, anon, authenticated;
+
+do $migration$
+begin
+  if not exists (
+    select 1
+    from pg_catalog.pg_trigger t
+    join pg_catalog.pg_class c on c.oid = t.tgrelid
+    join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public'
+      and c.relname = 'user_blocks'
+      and t.tgname = 'user_blocks_lock_pair_before_write'
+      and not t.tgisinternal
+  ) then
+    create trigger user_blocks_lock_pair_before_write
+      before insert or update or delete on public.user_blocks
+      for each row execute function private.lock_user_block_pair_before_write();
+  end if;
+end;
+$migration$;
+
 create or replace function private.reject_blocked_conversation_message()
 returns trigger
 language plpgsql
@@ -130,9 +220,20 @@ as $function$
 declare
   v_actor uuid := auth.uid();
   v_recipient uuid;
+  v_lock_key bigint;
+  v_lock_keys bigint[];
+  v_conversation_status text;
 begin
   if v_actor is not null and new.sender_id <> v_actor then
     raise exception using errcode = '42501', message = 'message_sender_mismatch';
+  end if;
+
+  select c.status into v_conversation_status
+  from public.conversations c
+  where c.id = new.conversation_id
+  for share;
+  if not found or v_conversation_status <> 'active' then
+    raise exception using errcode = '42501', message = 'conversation_unavailable';
   end if;
 
   if not exists (
@@ -143,6 +244,23 @@ begin
   ) then
     raise exception using errcode = '42501', message = 'conversation_member_required';
   end if;
+
+  -- A conversation may contain multiple members. Acquire all pair locks in
+  -- a stable key order so simultaneous messages cannot deadlock by choosing
+  -- opposite sender/recipient traversal orders.
+  select pg_catalog.array_agg(pair_lock_key order by pair_lock_key)
+    into v_lock_keys
+  from (
+    select distinct private.user_pair_lock_key(new.sender_id, cm.user_id)
+      as pair_lock_key
+    from public.conversation_members cm
+    where cm.conversation_id = new.conversation_id
+      and cm.user_id <> new.sender_id
+  ) pairs;
+
+  foreach v_lock_key in array coalesce(v_lock_keys, '{}'::bigint[]) loop
+    perform pg_catalog.pg_advisory_xact_lock(v_lock_key);
+  end loop;
 
   for v_recipient in
     select cm.user_id

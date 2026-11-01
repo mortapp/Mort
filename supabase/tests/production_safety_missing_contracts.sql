@@ -1,10 +1,16 @@
 begin;
-select plan(18);
+select plan(25);
 
 select has_function('public', 'block_user_v2', array['uuid', 'uuid']);
 select has_function('public', 'unblock_user', array['uuid']);
 select has_function('public', 'resend_guardian_invite', array['uuid']);
 select has_trigger('public', 'messages', 'messages_reject_blocked_pair');
+select has_function('private', 'lock_user_pair', array['uuid', 'uuid']);
+select has_trigger('public', 'user_blocks', 'user_blocks_lock_pair_before_write');
+select ok(
+  not has_function_privilege('authenticated', 'private.lock_user_pair(uuid,uuid)', 'execute'),
+  'clients cannot invoke the internal pair-lock helper'
+);
 select ok(
   not has_function_privilege('anon', 'public.block_user_v2(uuid,uuid)', 'execute'),
   'anonymous clients cannot block through the protected RPC'
@@ -43,6 +49,15 @@ select is(
   public.block_user_v2('10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000003'::uuid)->>'code',
   'invalid_block_target',
   'self-blocking is rejected'
+);
+select throws_ok(
+  $$update public.user_blocks
+    set blocked_id = '10000000-0000-4000-8000-000000000001'
+    where blocker_id = '10000000-0000-4000-8000-000000000001'
+      and blocked_id = '10000000-0000-4000-8000-000000000002'$$,
+  '42501',
+  'block_pair_immutable',
+  'existing block pair identities cannot be rewritten'
 );
 
 create temporary table qa_guardian_invite as
@@ -89,6 +104,15 @@ select throws_ok(
   'message_blocked_by_safety_control',
   'a blocked participant cannot receive a new message'
 );
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000002', true);
+select throws_ok(
+  $$insert into public.messages(conversation_id, sender_id, body)
+    values ('30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', 'blocked reply')$$,
+  '42501',
+  'message_blocked_by_safety_control',
+  'a block prevents messaging in the opposite sender direction too'
+);
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
 
 select is(
   (public.unblock_user('10000000-0000-4000-8000-000000000002')->>'removed')::boolean,
@@ -99,6 +123,24 @@ select lives_ok(
   $$insert into public.messages(conversation_id, sender_id, body)
     values ('30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 'message after unblock')$$,
   'a new message is allowed after the caller unblocks the participant'
+);
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000002', true);
+select throws_ok(
+  $$insert into public.messages(conversation_id, sender_id, body)
+    values ('30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 'spoofed sender')$$,
+  '42501',
+  'message_sender_mismatch',
+  'a conversation member cannot spoof another sender'
+);
+update public.conversations
+set status = 'closed'
+where id = '30000000-0000-4000-8000-000000000001';
+select throws_ok(
+  $$insert into public.messages(conversation_id, sender_id, body)
+    values ('30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', 'closed conversation')$$,
+  '42501',
+  'conversation_unavailable',
+  'closed conversations reject new messages'
 );
 
 select * from finish();
