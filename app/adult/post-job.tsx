@@ -34,7 +34,6 @@ export default function PostJobScreen() {
     setError(null);
     try {
       const job = await createJob({
-        posterId: user.id,
         title,
         description,
         category,

@@ -14,6 +14,26 @@ import type {
   UserRole
 } from "@/types/domain";
 
+function newClientRequestId() {
+  const cryptoApi = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+  if (cryptoApi?.randomUUID) return cryptoApi.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (character) => {
+    const random = Math.floor(Math.random() * 16);
+    const value = character === "x" ? random : (random & 0x3) | 0x8;
+    return value.toString(16);
+  });
+}
+
+function requireRpcSuccess<T>(data: T | null, error: { message: string } | null, action: string): T {
+  if (error) throw error;
+  if (data && typeof data === "object" && "ok" in data && (data as { ok?: boolean }).ok === false) {
+    const response = data as { code?: string; message?: string };
+    throw new Error(`${action} failed: ${response.code ?? response.message ?? "request_rejected"}`);
+  }
+  if (data == null) throw new Error(`${action} returned no result.`);
+  return data;
+}
+
 export async function completeOnboarding(input: {
   userId: string;
   role: Exclude<UserRole, "admin">;
@@ -89,9 +109,17 @@ export async function listAdminJobs() {
 }
 
 export async function updateJobStatus(jobId: string, status: Job["status"]) {
-  const { data, error } = await supabase.from("jobs").update({ status }).eq("id", jobId).select().single();
-  if (error) throw error;
-  return data;
+  if (status !== "removed") {
+    throw new Error(`Unsupported website moderation status: ${status}`);
+  }
+
+  const { data, error } = await supabase.rpc("admin_moderate_job", {
+    p_job_id: jobId,
+    p_action: "remove",
+    p_reason_code: "policy_violation",
+    p_note: "Removed by authorized moderation review."
+  });
+  return requireRpcSuccess(data, error, "Job moderation");
 }
 
 export async function getJob(jobId: string) {
@@ -112,7 +140,6 @@ export async function getApplication(applicationId: string) {
 }
 
 export async function createJob(input: {
-  posterId: string;
   title: string;
   description: string;
   category: string;
@@ -124,27 +151,65 @@ export async function createJob(input: {
   teenMaxAge: number;
   requiresGuardianApproval: boolean;
 }) {
-  const { data, error } = await supabase
-    .from("jobs")
-    .insert({
-      poster_id: input.posterId,
+  const payMatch = input.payLabel.trim().match(/^\$?([0-9]+(?:\.[0-9]{1,2})?)(?:\s|$)/);
+  if (!payMatch) {
+    throw new Error("Enter a starting pay amount such as $40 after completion.");
+  }
+  const adultJobAmountCents = Math.round(Number(payMatch[1]) * 100);
+  if (!Number.isSafeInteger(adultJobAmountCents) || adultJobAmountCents <= 0) {
+    throw new Error("Pay must be a positive amount.");
+  }
+
+  const { data, error } = await supabase.rpc("save_job_draft_or_publish", {
+    p_job_id: null,
+    p_client_request_id: newClientRequestId(),
+    p_payload: {
       title: input.title.trim(),
+      summary: input.description.trim().slice(0, 240),
       description: input.description.trim(),
       category: input.category.trim(),
       location_text: input.locationText.trim(),
       city: input.city.trim(),
       state: input.state.trim().toUpperCase(),
-      pay_label: input.payLabel.trim(),
       teen_min_age: input.teenMinAge,
       teen_max_age: input.teenMaxAge,
+      adult_job_amount_cents: adultJobAmountCents,
+      payment_type: "fixed",
+      payment_method: "cash",
+      payment_timing: "after_completion",
+      schedule_type: "flexible",
+      recurring: false,
+      timezone: "America/Indianapolis",
+      urgency: "normal",
+      location_type: "public",
+      work_environment: "outdoor",
+      travel_radius_miles: 5,
+      workers_needed: 1,
+      experience_level: "any",
+      skills_needed: [],
+      physical_requirements: [],
+      equipment_provided: "",
+      equipment_worker_brings: "",
+      proof_expected: false,
+      special_instructions: input.payLabel.trim(),
+      safety_notes: "Meet in a public area and follow the agreed safety plan.",
+      adult_supervision_present: true,
+      public_meeting_available: true,
+      verification_requirement: "none",
       requires_guardian_approval: input.requiresGuardianApproval,
-      status: "open"
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
+      starts_at: null,
+      ends_at: null,
+      deadline_at: null,
+      recurrence_rule: null,
+      neighborhood: null,
+      zip_code: null,
+      tip_allowed: false
+    },
+    p_publish: true
+  });
+  const response = requireRpcSuccess(data, error, "Job publishing") as { job?: Job };
+  if (!response.job) throw new Error("Job publishing returned no job.");
+  return response.job;
 }
 
 export async function applyToJob(input: {
