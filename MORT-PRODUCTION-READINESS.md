@@ -192,6 +192,8 @@ This removes the website-side direct-write blocker, but does not authorize migra
 
 The deployable safety migrations were then hardened and pushed through commit `17b5d168ac0d7625b3c242494f84014c0f1d2af6`. Application eligibility now uses a fresh execution-time clock and locks the relevant profile, job, release, age-verification, and dual-consented Guardian rows. Private-location release requires the assignment job to match the application job. Guardian resend serializes the per-teen rate check, rotates only the selected pending link, and fails closed if its prior code is missing. The direct-migration contract suite passes **5/5**, and CI now runs it.
 
+At remote tip `32c8d58cc8373c6ef1e5cc78cc9791f95cdfd390`, frozen dependencies installed successfully and the reference website `tsc --noEmit`, 5-test safety suite, static checks, website job-write contract, and migration encoding checks all passed. The Docker-dependent disposable PostgreSQL ACL harness was not rerun in this sandbox because Docker/Podman/psql are unavailable; this does not replace the previously recorded disposable-Postgres evidence or establish production behavior.
+
 ### Final Flutter verification at `015a262` (2026-11-01)
 
 - `flutter test --no-pub`: **618 passed, 2 skipped, 0 failed**.

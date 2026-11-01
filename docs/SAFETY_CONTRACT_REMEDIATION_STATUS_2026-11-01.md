@@ -62,6 +62,7 @@ The same migration adds pair-locked `block_user_v2` and `unblock_user_v2` RPCs, 
 - Hosted project inspection was read-only.
 - Follow-up review found the live job ACL uses column-level INSERT/UPDATE grants, so a table-level REVOKE alone was insufficient; the migration now removes residual column grants and does not add broad table SELECT. `node scripts/qa-safety-contracts-acl.mjs` and the static regression pass; this checks the ACL block only.
 - The schema-preflight expected column was corrected to hosted `guardian_links.teen_user_id` after read-only catalog comparison. Its staging runner now requires an explicit project-ref/host match, refuses production and the deleted project, enforces TLS, and keeps the database password out of psql arguments. Static checks and a wrong-host refusal check pass; no isolated-database preflight has run.
+- A fresh rerun at remote tip `32c8d58cc8373c6ef1e5cc78cc9791f95cdfd390` completed the frozen dependency install and `tsc --noEmit` with no errors. The 5-test unit suite, static safety checks, website job-write contract, and migration encoding checks also passed. The disposable PostgreSQL ACL harness could not start in this sandbox because `docker`, `podman`, and `psql` are unavailable; no ACL result was invented or substituted.
 
 ## Validation not possible yet
 
