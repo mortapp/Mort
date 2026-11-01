@@ -1,5 +1,6 @@
 import 'package:uuid/uuid.dart';
 
+import '../models/production_backend_rows.dart';
 import 'repository_base.dart';
 
 class SafetyRepository extends RepositoryBase {
@@ -171,7 +172,7 @@ class SafetyRepository extends RepositoryBase {
 
   Future<List<Map<String, dynamic>>> listBlockedUsers() async {
     final rows = await client
-        .from('blocks')
+        .from(productionUserBlocksTable)
         .select()
         .eq('blocker_id', requireUserId())
         .order('created_at', ascending: false);
@@ -180,12 +181,17 @@ class SafetyRepository extends RepositoryBase {
 
   Future<List<Map<String, dynamic>>> listMyReports() async {
     final rows = await client
-        .from('reports')
-        .select('id,reason,status,created_at')
+        .from(productionSafetyReportsTable)
+        .select('id,category,status,created_at')
         .eq('reporter_id', requireUserId())
         .order('created_at', ascending: false)
         .limit(50);
-    return List<Map<String, dynamic>>.from(rows as List);
+    return (rows as List)
+        .map(
+          (row) =>
+              mapProductionSafetyReport(Map<String, dynamic>.from(row as Map)),
+        )
+        .toList(growable: false);
   }
 
   Future<List<Map<String, dynamic>>> listVisibleSafetyPings() async {
