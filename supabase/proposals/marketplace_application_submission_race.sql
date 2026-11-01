@@ -27,6 +27,11 @@ declare
   v_application_id uuid;
   v_application public.job_applications%rowtype;
   v_existing_application public.job_applications%rowtype;
+  v_profile public.profiles%rowtype;
+  v_age_verification_id uuid;
+  v_guardian_link_id uuid;
+  v_now timestamptz;
+  v_today date;
 begin
   if v_user is null then
     return jsonb_build_object('ok', false, 'code', 'authentication_required');
@@ -134,6 +139,13 @@ begin
   order by profile.id
   for share;
 
+  select profile.* into v_profile
+  from public.profiles profile
+  where profile.id = v_user;
+  if not found or v_profile.date_of_birth is null then
+    return jsonb_build_object('ok', false, 'code', 'date_of_birth_required');
+  end if;
+
   perform verification.id
   from public.verification_cases verification
   where verification.user_id = v_user
@@ -148,6 +160,12 @@ begin
   where release_control.is_primary
   for share;
 
+  -- now() and current_date are fixed at transaction start in PostgreSQL.
+  -- Capture wall-clock time only after lock waits have completed, then repeat
+  -- the eligibility predicates that can change merely with elapsed time.
+  v_now := clock_timestamp();
+  v_today := (v_now at time zone current_setting('TimeZone'))::date;
+
   -- Crucially, this is recomputed only after the relevant locks are held.
   -- It reuses production's existing DOB, age verification, Guardian consent,
   -- release state, job approval/open/expiry/application-window, poster-active,
@@ -159,6 +177,54 @@ begin
       'code', v_eligibility->>'code',
       'message', v_eligibility->>'message'
     );
+  end if;
+
+  if v_job.expires_at is not null and v_job.expires_at <= v_now then
+    return jsonb_build_object('ok', false, 'code', 'job_not_available',
+      'message', 'This job is not accepting applications.');
+  end if;
+
+  if extract(year from age(v_today, v_profile.date_of_birth))::integer < v_job.age_min
+     or extract(year from age(v_today, v_profile.date_of_birth))::integer > v_job.age_max then
+    return jsonb_build_object('ok', false, 'code', 'applicant_age_not_allowed',
+      'message', 'Your age does not match this job’s requirements.');
+  end if;
+
+  select verification.id into v_age_verification_id
+  from public.verification_cases verification
+    where verification.user_id = v_user
+      and verification.verification_type = 'age'
+      and verification.status = 'verified'::public.mort_verification_status
+      and (verification.expires_at is null or verification.expires_at > v_now)
+  order by verification.id
+  limit 1
+  for share;
+  if not found then
+    return jsonb_build_object('ok', false, 'code', 'age_verification_required',
+      'message', 'Complete age verification before applying.');
+  end if;
+
+  if v_job.requires_guardian_approval then
+    select gl.id into v_guardian_link_id
+    from public.guardian_links gl
+    join public.profiles guardian_profile on guardian_profile.id = gl.guardian_user_id
+    join auth.users guardian_auth on guardian_auth.id = gl.guardian_user_id
+    where gl.teen_user_id = v_user
+      and gl.status = 'active'
+      and gl.teen_consent_at is not null
+      and gl.guardian_consent_at is not null
+      and guardian_profile.role = 'guardian'::public.mort_role
+      and guardian_profile.account_status = 'active'
+      and guardian_profile.date_of_birth is not null
+      and extract(year from age(v_today, guardian_profile.date_of_birth)) >= 18
+      and guardian_auth.email_confirmed_at is not null
+    order by gl.id
+    limit 1
+    for share of gl, guardian_profile, guardian_auth;
+    if not found then
+      return jsonb_build_object('ok', false, 'code', 'guardian_approval_required',
+        'message', 'Link a guardian before applying to this job.');
+    end if;
   end if;
 
   v_application_id := public.mort_submit_job_application(p_job_id, p_note);

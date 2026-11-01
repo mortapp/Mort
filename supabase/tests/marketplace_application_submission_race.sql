@@ -2,7 +2,7 @@
 -- The two-session stale-state and accept/retry scenarios are documented in the
 -- backend contract diff; this catalog suite alone does not prove concurrency.
 begin;
-select plan(6);
+select plan(10);
 
 select has_function('public', 'submit_job_application',
   array['uuid', 'text', 'boolean', 'uuid[]']);
@@ -25,6 +25,21 @@ select ok(exists (
 ), 'unique job/applicant key remains the idempotency boundary');
 select ok(coalesce((public.get_runtime_feature_status()->>'new_job_publishing_disabled')::boolean, false),
   'new job publishing remains fail-closed during contract QA');
+
+-- Guard against regression to transaction-start time after a lock wait. These
+-- are structural assertions; they do not replace real two-session tests.
+select ok(position('clock_timestamp()' in lower(pg_get_functiondef(
+  'public.submit_job_application(uuid,text,boolean,uuid[])'::regprocedure
+))) > 0, 'submission captures wall-clock time after acquiring locks');
+select ok(position('expires_at > v_now' in lower(pg_get_functiondef(
+  'public.submit_job_application(uuid,text,boolean,uuid[])'::regprocedure
+))) > 0, 'verification expiry is rechecked against captured wall-clock time');
+select ok(position('age(v_today, v_profile.date_of_birth)' in lower(pg_get_functiondef(
+  'public.submit_job_application(uuid,text,boolean,uuid[])'::regprocedure
+))) > 0, 'applicant age is recalculated using post-lock current date');
+select ok(position('for share of gl, guardian_profile, guardian_auth' in lower(pg_get_functiondef(
+  'public.submit_job_application(uuid,text,boolean,uuid[])'::regprocedure
+))) > 0, 'qualifying Guardian relationship and account rows remain locked through insertion');
 
 select * from finish();
 rollback;

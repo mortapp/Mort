@@ -73,6 +73,10 @@ The live message RPCs validate active conversation membership and block state, b
 
 The location relation and RPCs are absent in production. `jobs.exact_address` cannot be selected by authenticated clients, but read-only ACL inspection shows authenticated table INSERT and exact-address UPDATE privileges. The older repository migration targets a deleted legacy `applications` schema and exposes fine-grained distance output; it is not reusable. No location DDL was added. The proposed safe design and test matrix are in [MORT-FLUTTER-BACKEND-CONTRACT-DIFF.md](MORT-FLUTTER-BACKEND-CONTRACT-DIFF.md).
 
+### Application race proposal review (2026-11-01)
+
+Reviewed the live `get_job_application_eligibility`, `submit_job_application`, and `mort_submit_job_application` definitions read-only. The proposal now rechecks wall-clock job expiry, age-verification expiry, applicant age, and required dual-consented adult Guardian eligibility after the job and authorization rows are locked. The final age-verification and qualifying Guardian records are themselves row-locked through insert. Added a Node source-contract regression test; it failed before the SQL proposal change and passes after it. Added four pgTAP catalog assertions for wall-clock and authorization locks. `git diff --check` passes. These results do not establish SQL compilation or race behavior: no exact isolated production database is available, and the pgTAP/two-session tests remain unrun. Production remains untouched.
+
 Current production controls were not changed. Marketplace/publishing/payments remain disabled, and real document collection remains false. Static checks completed: `flutter test --no-pub` passed (617 passed, 2 skipped, 0 failed), `flutter analyze --no-pub` reported no issues (ran in 597.1 seconds), `dart format --output=none --set-exit-if-changed lib test` formatted 310 files with 0 changes, PowerShell harness parsing passed, pgTAP assertion count matches its plan (25), and `git diff --check` passed. Database integration and migration-history reconciliation remain blocked; no PR was created.
 
 ## Backend security completion review (2026-11-01)
