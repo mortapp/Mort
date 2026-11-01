@@ -23,7 +23,11 @@ void main() {
     final config = _read('lib/core/config/app_config.dart');
     final main = _read('lib/main.dart');
 
-    expect(AppConfig.expectedSupabaseProjectRef, 'rakjydmgwwgtdislanbt');
+    expect(AppConfig.expectedSupabaseProjectRef, 'jxbnrkasktbhtiujkhay');
+    expect(
+      config,
+      contains("expectedSupabaseProjectRef = 'jxbnrkasktbhtiujkhay'"),
+    );
     expect(config, contains('assertValidReleaseConfiguration'));
     expect(
       config,
@@ -37,6 +41,44 @@ void main() {
     expect(main, contains('return reporter.providerConfigured'));
     expect(main, contains('FlutterError.presentError'));
   });
+
+  test(
+    'Android release and QA builds target the authoritative Supabase project',
+    () {
+      final releaseProfile = _read(
+        '../scripts/android-release-profile-common.ps1',
+      );
+      final deviceBuild = _read('../scripts/build-android-device-test-apk.ps1');
+      final playBuild = _read('../scripts/build-play-console-aab.ps1');
+      final authVerifier = _read('../scripts/verify-google-auth-release.ps1');
+      final publicClientConfig = _read('../scripts/android-signing-common.ps1');
+
+      expect(
+        releaseProfile,
+        contains(r"$expectedUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co'"),
+      );
+      expect(releaseProfile, contains('Get-MortSupabasePublishableKey'));
+      expect(
+        deviceBuild,
+        contains(r"$expectedUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co'"),
+      );
+      expect(
+        deviceBuild,
+        contains(r"$expectedProjectRef = 'jxbnrkasktbhtiujkhay'"),
+      );
+      expect(deviceBuild, contains('Get-MortSupabasePublishableKey'));
+      expect(
+        playBuild,
+        contains(r"$expectedUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co'"),
+      );
+      expect(playBuild, contains('Get-MortSupabasePublishableKey'));
+      expect(publicClientConfig, contains('Get-MortSupabasePublishableKey'));
+      expect(
+        authVerifier,
+        contains(r"$manifest.supabaseProjectRef -ne 'jxbnrkasktbhtiujkhay'"),
+      );
+    },
+  );
 
   test(
     'reviewer routes are compile-gated and production scripts exclude them',

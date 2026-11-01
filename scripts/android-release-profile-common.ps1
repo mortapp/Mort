@@ -22,8 +22,8 @@ Set-StrictMode -Version Latest
 $root = Split-Path $PSScriptRoot -Parent
 $flutterRoot = Join-Path $root 'flutter_mort'
 $outputDirectory = Join-Path $root 'build\play'
-$expectedUrl = 'https://rakjydmgwwgtdislanbt.supabase.co'
-$expectedProjectRef = 'rakjydmgwwgtdislanbt'
+$expectedUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co'
+$expectedProjectRef = 'jxbnrkasktbhtiujkhay'
 $expectedAuthRedirectUrl = 'com.mortapp.mobile://app/auth-callback'
 $expectedCertificateSha256 = Get-MortUploadCertificateSha256
 $defineFile = $null
@@ -80,8 +80,8 @@ if ((ConvertTo-MortCertificateDigest $certificateSha256) -ne (ConvertTo-MortCert
   throw 'The configured upload certificate does not match MORT release identity.'
 }
 
-$supabaseUrl = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_URL' -ExpoName 'EXPO_PUBLIC_SUPABASE_URL' -Root $root
-$supabaseAnonKey = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_ANON_KEY' -ExpoName 'EXPO_PUBLIC_SUPABASE_ANON_KEY' -Root $root
+$supabaseUrl = $expectedUrl
+$supabaseAnonKey = Get-MortSupabasePublishableKey
 if ($supabaseUrl -ne $expectedUrl) { throw 'Release build targets the wrong Supabase project.' }
 if ([string]::IsNullOrWhiteSpace($supabaseAnonKey)) { throw 'The public Supabase key is missing.' }
 $env:SUPABASE_URL = $supabaseUrl
