@@ -88,7 +88,9 @@ void main() {
 
       expect(router, contains('if (AppConfig.playReviewModeEnabled)'));
       expect(pilot, contains(r'-PlayReviewModeEnabled $false'));
-      expect(pilot, contains('BLOCKED-EXTERNAL'));
+      expect(pilot, contains('sentry_crash_provider.dart'));
+      expect(pilot, contains('remote_push_provider.dart'));
+      expect(pilot, contains('BLOCKED-CONFIG'));
     },
   );
 
