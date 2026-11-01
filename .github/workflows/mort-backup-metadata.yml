@@ -23,6 +23,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Verify backup encryption
+        run: pnpm qa:backup-encryption && pnpm qa:backup-workflow
       - name: Create metadata-only snapshot
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
@@ -33,7 +35,8 @@ jobs:
         run: |
           test -n "$BACKUP_ARCHIVE_PASSPHRASE"
           tar -czf "$RUNNER_TEMP/mort-metadata-backup.tar.gz" backups/ supabase/migrations/ supabase/functions/ supabase/config.toml
-          openssl enc -aes-256-cbc -salt -pbkdf2 -iter 200000 -pass env:BACKUP_ARCHIVE_PASSPHRASE -in "$RUNNER_TEMP/mort-metadata-backup.tar.gz" -out "$RUNNER_TEMP/mort-metadata-backup.tar.gz.enc"
+          node scripts/backup-encryption.mjs "$RUNNER_TEMP/mort-metadata-backup.tar.gz" "$RUNNER_TEMP/mort-metadata-backup.tar.gz.enc"
+          rm -f "$RUNNER_TEMP/mort-metadata-backup.tar.gz"
           sha256sum "$RUNNER_TEMP/mort-metadata-backup.tar.gz.enc" > "$RUNNER_TEMP/mort-metadata-backup.sha256"
       - uses: actions/upload-artifact@v7
         with:
@@ -43,3 +46,4 @@ jobs:
             ${{ runner.temp }}/mort-metadata-backup.sha256
           if-no-files-found: error
           retention-days: 30
+

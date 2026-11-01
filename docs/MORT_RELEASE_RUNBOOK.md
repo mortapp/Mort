@@ -6,7 +6,7 @@ Status: operator runbook for verified closed testing. Production pilot and publi
 
 1. Work from `C:\Users\micha\Mort` on an attributed tree. Do not discard unknown changes.
 2. Confirm `flutter_mort/pubspec.yaml` has an unused version code of at least 97.
-3. Confirm package `com.mortapp.mobile` and Supabase ref `rakjydmgwwgtdislanbt`.
+3. Confirm package `com.mortapp.mobile` and Supabase ref `jxbnrkasktbhtiujkhay` (the current project pinned by the Flutter release scripts).
 4. Confirm protected `MORT_UPLOAD_*` signing values resolve and match the pinned upload certificate.
 5. Load only the public Supabase URL/anon key into the build process. Never log or archive privileged values.
 6. Confirm the intended profile and every feature flag. Closed testing must keep public marketplace, identity collection, payments, ads, IAP, Google auth, remote push, and crash provider flags false.
@@ -72,3 +72,4 @@ Never bypass these scripts by invoking `flutter build appbundle` with hand-selec
 - Revoke compromised tokens/credentials through their provider and rotate server secrets.
 - For a safety incident, preserve minimal audit evidence, restrict affected accounts, and follow `MORT_INCIDENT_RUNBOOK.md`.
 - Release a higher version code for fixes; never reuse 97 after Play accepts it.
+

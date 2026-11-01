@@ -1,4 +1,4 @@
-const projectRef = "rakjydmgwwgtdislanbt";
+const projectRef = "jxbnrkasktbhtiujkhay";
 const accessToken = process.env.SUPABASE_ACCESS_TOKEN;
 
 if (!accessToken) {
@@ -99,3 +99,4 @@ output.secrets_printed = false;
 
 console.log(JSON.stringify(output));
 if (errorCount > 0) process.exitCode = 1;
+

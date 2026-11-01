@@ -2,8 +2,8 @@
 
 ## Current Status
 
-- Hosted project: `rakjydmgwwgtdislanbt`
-- Hosted mode: `disabled`
+- Current hosted project: `jxbnrkasktbhtiujkhay`
+- Current hosted mode: not independently verified; runtime status confirms real document collection is disabled
 - Trust/safety architecture: implemented
 - Production identity provider: not connected
 - Real identity collection: disabled
@@ -57,4 +57,5 @@ The deployed vendor-neutral webhook is the only prepared provider path. Its data
 ## Data Exposure
 
 Own-status payloads are minimized. Public trust badges are authenticated-only and derive from current production results. They expose no document path, school identifier, government identifier, selfie metadata, student number, or residential address.
+
 

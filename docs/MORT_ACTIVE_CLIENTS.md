@@ -1,6 +1,6 @@
 # MORT Active Clients
 
-Audit date: 2026-07-22
+Audit date: 2026-11-01 (backend target checked read-only)
 
 | Client | Status | Evidence | Release claim |
 |---|---|---|---|
@@ -9,4 +9,5 @@ Audit date: 2026-07-22
 | `swift_mort` | Reference-only native iOS work | Source inspection and parity documentation exist | No Xcode, archive, device, or TestFlight verification |
 | Flutter web build | Temporary browser preview | Release web build passes with native IAP and ads disabled | Not a substitute for native iPhone testing |
 
-The shared hosted backend is Supabase project `rakjydmgwwgtdislanbt`. Legacy clients were preserved. A client is not promoted to a release client merely because its source exists.
+The current hosted backend target is Supabase project `jxbnrkasktbhtiujkhay`, confirmed in the current Flutter release profile and by the read-only Supabase project listing. Historical reports for prior projects do not establish current hosted readiness. A client is not promoted to a release client merely because its source exists.
+

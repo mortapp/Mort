@@ -1,16 +1,27 @@
 # MORT Google Auth External Setup
 
-Project ref: `rakjydmgwwgtdislanbt`
+Current project ref: `jxbnrkasktbhtiujkhay`
 
 Never place the Google Web OAuth client secret in Flutter, Dart defines, Android
 resources, Gradle, iOS files, Expo variables, Git, logs, screenshots, zips, APKs,
 or AABs. Enter it only in Supabase Auth provider configuration or an approved
 server-side secret manager.
 
-## VERIFIED LIVE (2026-08-20) -- real end-to-end login tested twice
+## Current status (2026-11-01)
 
-Google Sign-In is confirmed genuinely working, not just configured. Two
-separate real logins were run through `https://mort-web.vercel.app/login` ->
+The Google provider settings and an end-to-end login have not been verified for
+the current project `jxbnrkasktbhtiujkhay`. The sign-in evidence below is
+historical evidence for the prior Supabase project; it does not establish that
+Google OAuth works for the current backend. The owner must confirm the current
+Google client ID and secret in Supabase Auth, the callback
+`https://jxbnrkasktbhtiujkhay.supabase.co/auth/v1/callback` in Google Cloud,
+and the app redirect allowlist before repeating web and installed-app tests.
+No provider settings or credentials were changed during this review.
+
+## Historical sign-in evidence (2026-08-20; prior Supabase project)
+
+The historical report says two separate real logins were run through
+`https://mort-web.vercel.app/login` ->
 "Continue with Google" -> real Google consent screen -> real account
 selection -> real Supabase token exchange -> real session -> real redirect
 to `/app/onboarding`, each followed by a real sign-out:
@@ -26,10 +37,9 @@ to `/app/onboarding`, each followed by a real sign-out:
    `mort-506011`) after the owner pasted its matching secret into Supabase
    and saved. Also fully succeeded end-to-end.
 
-Supabase's Google provider is now configured with the new, owner-controlled
-client (Client ID confirmed persisted after page reload; Client Secret
-pasted directly by the owner from Google's one-time creation dialog --
-never read, typed, or handled by the automated agent at any point).
+At the time of those historical tests, the prior project's Google provider
+was documented as configured with the new, owner-controlled client. This does
+not verify the current project's provider configuration.
 
 **Android and iOS use this exact same configuration.** MORT's mobile OAuth
 flow goes through Supabase's PKCE authorization-code exchange (external
@@ -40,7 +50,7 @@ client to configure for this to work on Android or iOS. The two additional
 the current flow; they exist only as a defensive fallback should native
 Google Sign-In/Credential Manager ever be added later.
 
-Note on the consent screen text ("Sign in to rakjydmgwwgtdislanbt.supabase.co"):
+Note on the historical consent screen text (the prior Supabase project host):
 this is Google's own anti-phishing security display, always showing the
 actual domain that performs the token exchange (Supabase's domain, since
 Supabase -- not MORT directly -- receives the authorization code). It is
@@ -49,7 +59,7 @@ without giving Supabase Auth a custom domain (e.g. `auth.mortapp.com`,
 requiring real DNS + a paid Supabase tier) -- a real, deliberately separate
 future project, not a quick setting.
 
-## Superseded status snapshot (2026-08-19, browser-controlled completion pass)
+## Historical configuration snapshot (2026-08-19; not current-project verification)
 
 A dedicated GCP project (`mort-506011`, name "MORT") was created under the
 owner's `kolawoleorelesi@gmail.com` account -- the previously-referenced
@@ -66,15 +76,15 @@ replacement was created end-to-end.
 | Support email configured | DONE -- `mortapp@googlegroups.com` (both user-support and developer-contact fields) |
 | Published Privacy/Terms location | NOT YET ENTERED on the consent screen branding page -- add once the Vercel legal site is live at its final URL |
 | Approved Google test users configured | Not yet added -- app is in default testing-adjacent state under a personal (non-Workspace) External audience; add test Google accounts before wide testing if verification is still pending |
-| Web OAuth client created | DONE -- "MORT Supabase Web Client", `382105285546-g863e5np7ol1s3rcrgq8np47ciks18mu.apps.googleusercontent.com`, redirect URI `https://rakjydmgwwgtdislanbt.supabase.co/auth/v1/callback`, JS origin `https://mort-web.vercel.app` |
-| Supabase callback added to Web client | DONE (see above) |
+| Web OAuth client created | HISTORICAL -- owner must verify the current callback `https://jxbnrkasktbhtiujkhay.supabase.co/auth/v1/callback` in Google Cloud |
+| Supabase callback added to Web client | OWNER VERIFY for the current project |
 | Android OAuth client | Created defensively (not required by the current PKCE/browser flow, but registered in case native Google Sign-In/Credential Manager is ever added): two clients, package `com.mortapp.mobile`, covering both distinct classical (RSA) certificates found in Play Console's App Signing certificate export (see below) |
 | iOS OAuth client | NOT REQUIRED BY SELECTED BROWSER FLOW (unchanged) |
 | Android package `com.mortapp.mobile` verified | VERIFIED IN SOURCE |
 | Play App Signing certificate fingerprints documented | DONE -- extracted via `openssl x509` from the official Play Console "Download certificates" export (`certificates.zip`), not by reading the UI's copy-only buttons. Two distinct classical (RSA-4096, sha256WithRSAEncryption) certs exist in that export (`deployment_cert.der` and `hybrid_classical_cert.der` -- different keys, both registered as separate Android OAuth clients out of caution) plus one post-quantum (ML-DSA-65) cert, not registered (no current consumer needs a PQC SHA fingerprint). See fingerprints below. |
-| Web client ID entered in Supabase | DONE -- `382105285546-g863e5np7ol1s3rcrgq8np47ciks18mu.apps.googleusercontent.com` |
-| Google secret entered in Supabase | **NOT DONE -- see "Remaining Owner Step" below** |
-| Google provider enabled | Was already `Enabled` in Supabase before this pass (with the old, inaccessible client's ID+secret); Client ID has now been swapped to the new client, but the **secret has not**, so the provider is presently in a broken/mismatched state until the owner pastes the new secret |
+| Web client ID entered in Supabase | OWNER VERIFY for the current project |
+| Google secret entered in Supabase | OWNER VERIFY for the current project; never record its value here |
+| Google provider enabled | OWNER VERIFY for the current project |
 | Manual identity linking enabled | CONFIGURED (unchanged) |
 | Nonce skipping disabled | VERIFIED (unchanged) |
 | Exact app redirect allowlisted | CONFIGURED -- `com.mortapp.mobile://app/auth-callback` present in Supabase's redirect allowlist alongside `https://mort-web.vercel.app/*` variants |
@@ -102,22 +112,20 @@ with (`Protect app signing key: Releases signed by Play`), distinct from the
 upload-key certificate below (which only ever touches the AAB the owner
 uploads to Play Console, never a device).
 
-### Remaining Owner Step -- REQUIRED before Google Sign-In will work at all
+### Current owner verification required
 
-The new Web client's secret was generated in Google Cloud Console and shown
-once in a browser dialog. Per this session's absolute rule against handling
-credentials, the automated agent did not read, copy, or paste it -- the
-owner copied it directly from the Google Cloud dialog. **That secret still
-needs to be pasted into Supabase Dashboard -> Authentication -> Sign In /
-Providers -> Google -> "Client Secret (for OAuth)" field, replacing the old
-value, and the form Saved.** Until that happens, Google Sign-In is
-non-functional (Client ID and Secret belong to different, mismatched OAuth
-clients). This is a five-second manual step; nothing else blocks it.
+The current Supabase project's OAuth provider state is not available from this
+repository review. In Supabase, confirm the Web client ID and matching secret
+are saved for project `jxbnrkasktbhtiujkhay`; in Google Cloud, confirm its
+authorized redirect URI is
+`https://jxbnrkasktbhtiujkhay.supabase.co/auth/v1/callback`. Then verify the
+app redirect allowlist and run approved-account web and installed-app flows.
+Never copy the secret into a repository, build artifact, or report.
 
-## Google Cloud Owner Steps (HISTORICAL -- superseded by the 2026-08-19 pass above; kept for reference on what was originally planned)
+## Current Google Cloud Owner Steps
 
 1. Open Google Auth Platform in the Google Cloud project owned by MORT.
-2. Configure app name `MORT`, support email `mortapp.help@gmail.com`, developer
+2. Configure app name `MORT`, support email `mortapp@googlegroups.com`, developer
    contact email, the approved MORT logo, the published Privacy location, and the
    published Terms location.
 3. Keep scopes limited to `openid`, `email`, and `profile`. Do not request Gmail,
@@ -125,14 +133,14 @@ clients). This is a five-second manual step; nothing else blocks it.
 4. If the app remains in Google testing mode, add only approved test accounts.
 5. Create a **Web application** OAuth client.
 6. Add this exact authorized redirect URI:
-   `https://rakjydmgwwgtdislanbt.supabase.co/auth/v1/callback`
+   `https://jxbnrkasktbhtiujkhay.supabase.co/auth/v1/callback`
 7. Do not add wildcard redirects or unrelated development origins.
 8. Store the Web client secret temporarily in an approved password manager while
    completing the next section. Do not paste it into a task, issue, or source file.
 
 ## Supabase Owner Steps
 
-1. Open Supabase project `rakjydmgwwgtdislanbt`.
+1. Open Supabase project `jxbnrkasktbhtiujkhay`.
 2. Go to Authentication, Sign In / Providers, Google.
 3. Enter the Web client ID.
 4. Enter the Web client secret in the provider secret field.
@@ -180,3 +188,4 @@ Use approved isolated accounts to verify:
     QA password, service-role key, or database password.
 
 Do not mark Google authentication 100% until those installed-app tests pass.
+

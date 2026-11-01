@@ -1,6 +1,6 @@
 # MORT Firebase Push Owner Setup
 
-Updated: 2026-07-30
+Updated: 2026-11-01
 
 No credential is included in this document or in mobile source.
 
@@ -38,9 +38,10 @@ No credential is included in this document or in mobile source.
 
 ## Current Hosted State
 
-- `send-push`: ACTIVE, JWT verification enabled.
-- Server invoke secret: present.
-- FCM provider secrets: absent.
-- Database and client remote-push flags: false.
-- Real FCM delivery: not verified.
+- Current project: `jxbnrkasktbhtiujkhay`.
+- `send-push`: not present in the current project's read-only deployed-function listing.
+- Provider and invoke-secret presence: not reverified for the current project; secret values were not read.
+- Current remote-push runtime state and real-device FCM delivery: not verified.
+- Keep remote push disabled in release profiles until deployment, server-secret setup, and device tests are evidenced.
+
 

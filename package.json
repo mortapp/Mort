@@ -25,6 +25,9 @@
     "qa:onboarding-v2:legacy-compat": "node scripts/qa-onboarding-v2-legacy-compatibility.mjs",
     "qa:onboarding-v2:legacy-compat:transaction": "node scripts/qa-onboarding-v2-legacy-compatibility-transaction.mjs",
     "qa:production-client": "node scripts/qa-production-client-contract.mjs",
+    "qa:active-project-reference": "node scripts/active-project-reference.test.mjs",
+    "qa:backup-encryption": "node --test scripts/backup-encryption.test.mjs",
+    "qa:backup-workflow": "node scripts/backup-workflow.test.mjs",
     "qa:reference-website-job-write-contract": "node scripts/qa-reference-website-job-write-contract.mjs",
     "qa:safety-contract-schema-preflight": "node scripts/qa-safety-contract-schema-preflight.mjs",
     "qa:safety-contracts:unit": "node --test supabase/tests/application_submission_race_contract.test.mjs supabase/tests/guardian_resend_contract.test.mjs supabase/tests/private_location_release_contract.test.mjs",
@@ -97,3 +100,4 @@
     "node": ">=22"
   }
 }
+

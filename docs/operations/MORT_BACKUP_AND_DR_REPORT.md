@@ -32,15 +32,17 @@ relations (`profiles`, `guardian_links`, `jobs`, `job_applications`, and
 `notifications`); it no longer queries legacy `teen_profiles`,
 `guardian_connections`, or `applications`. The backup guard regression suite
 passed 4/4 tests. This is code-safety evidence only: the metadata workflow has
-not been run against production and is not a user-data backup. A local code
-patch adds a versioned AES-256-GCM envelope, scrypt-derived key, random salt
-and nonce, plus authentication-tag verification. Its focused test passed 1/1
-and the local backup utility test set passed 5/5, including wrong-key and
-ciphertext tampering rejection. GitHub rejected the workflow-file push because
-the connected OAuth app lacks `workflow` scope; therefore the remote scheduled
-workflow still uses unauthenticated AES-256-CBC, and the AES-GCM workflow edit
-remains local and uncommitted. No backup workflow ran with protected secrets;
-this change does not make the artifact a complete recovery backup.
+not been run against production and is not a user-data backup. The encrypted
+artifact helper uses a versioned AES-256-GCM envelope, scrypt-derived key,
+random salt and nonce, and authentication-tag verification. The unit test
+checks round-trip recovery, wrong-key rejection, and ciphertext-tampering
+rejection. A local branch change makes the metadata workflow call that helper
+and remove the plaintext tarball before artifact upload. The push was rejected
+because the GitHub OAuth app lacks `workflow` scope, so the default-branch
+scheduled workflow still uses AES-256-CBC until this change is published and
+merged. The workflow has not been run with protected secrets, and no artifact
+or restore was verified. This change does not make the artifact a complete
+recovery backup.
 
 The Supabase organization currently reports the Free plan and the production
 project is healthy on Postgres 17.11. Supabase's current docs say Free projects
@@ -89,3 +91,4 @@ reset, replay migrations against production, or connect to the deleted project.
 
 No paid Supabase resource was created. No production control, legal/release
 record, or user data was changed.
+

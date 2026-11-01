@@ -1,6 +1,6 @@
 # External Setup Still Needed
 
-- The old Supabase project `rakjydmgwwgtdislanbt` has been rebuilt and remotely verified for the current MORT backend baseline. See `docs/OLD_PROJECT_REBUILD_REPORT.md`.
+- The current Supabase project is `jxbnrkasktbhtiujkhay` (read-only project status: `ACTIVE_HEALTHY`, Free plan). Prior-project verification reports do not establish readiness for this target. Current backup, restore, monitoring, provider, and mobile release gates are tracked in `docs/MORT_RELEASE_READINESS.md`.
 - For any new staging/production project, apply the Supabase migration to the target project and run the same smoke/RLS checks before use.
 - Deploy `send-push` Edge Function for any new project.
 - Set `SEND_PUSH_INVOKE_SECRET` in Supabase/server environment, not in Expo.
@@ -15,3 +15,4 @@
 - Complete real iPhone EAS preview/TestFlight push, camera/photo, auth, and role-flow testing before real users.
 - Configure RevenueCat iOS public SDK key, products, entitlements, offerings, and sandbox purchase testing.
 - Configure AdMob missing ad unit IDs, UMP/consent, app-ads.txt website hosting, and App Store ads/privacy disclosures.
+
