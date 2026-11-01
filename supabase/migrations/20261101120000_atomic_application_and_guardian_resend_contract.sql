@@ -146,7 +146,7 @@ $$;
 -- rather than racing through a stale eligibility result.
 create or replace function public.submit_job_application(
   p_job_id uuid,
-  p_note text,
+  p_note text default null,
   p_availability_confirmed boolean default false,
   p_portfolio_ids uuid[] default '{}'::uuid[]
 )

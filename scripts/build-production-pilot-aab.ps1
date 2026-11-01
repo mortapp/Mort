@@ -1,10 +1,10 @@
 [CmdletBinding()]
 param()
 
-$crashProvider = Join-Path $PSScriptRoot '..\flutter_mort\lib\core\observability\production_crash_provider.dart'
-$pushProvider = Join-Path $PSScriptRoot '..\flutter_mort\lib\features\notifications\remote_push_service.dart'
+$crashProvider = Join-Path $PSScriptRoot '..\flutter_mort\lib\core\observability\sentry_crash_provider.dart'
+$pushProvider = Join-Path $PSScriptRoot '..\flutter_mort\lib\services\push\remote_push_provider.dart'
 if (-not (Test-Path -LiteralPath $crashProvider) -or -not (Test-Path -LiteralPath $pushProvider)) {
-  throw 'BLOCKED-EXTERNAL: production pilot requires real crash and remote-push provider implementations.'
+  throw 'BLOCKED-CONFIG: production pilot requires the app crash and remote-push provider implementations.'
 }
 
 & (Join-Path $PSScriptRoot 'android-release-profile-common.ps1') `

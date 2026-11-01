@@ -2,13 +2,13 @@
 -- production-schema QA database. This catalog suite is not a substitute for
 -- seeded authorization and two-session lifecycle tests.
 begin;
-select plan(18);
+select plan(20);
 
-select has_table('private', 'job_private_locations');
-select has_table('private', 'job_private_location_requests');
-select has_table('private', 'job_private_location_history');
-select has_table('private', 'job_private_location_access_events');
-select has_table('private', 'job_safety_agreement_history');
+select has_table('private', 'job_private_locations', 'private job locations table exists');
+select has_table('private', 'job_private_location_requests', 'private location idempotency table exists');
+select has_table('private', 'job_private_location_history', 'private location history table exists');
+select has_table('private', 'job_private_location_access_events', 'private location access log exists');
+select has_table('private', 'job_safety_agreement_history', 'private safety agreement history exists');
 
 select has_function('public', 'save_job_private_location_v1', array['uuid', 'text', 'text', 'text', 'uuid']);
 select has_function('public', 'get_released_job_location', array['uuid']);
@@ -43,6 +43,14 @@ select ok(position('v_assignment.adult_user_id = v_job.poster_id' in lower(pg_ge
 select ok(position('v_agreement.location_version = v_location.location_version' in lower(pg_get_functiondef(
   'public.get_released_job_location(uuid)'::regprocedure
 ))) > 0, 'release requires the confirmed current location version');
+select ok(position('v_location.poster_id is distinct from v_job.poster_id' in lower(pg_get_functiondef(
+  'public.get_released_job_location(uuid)'::regprocedure
+))) > 0, 'release denies private location rows whose owner differs from the job owner');
+select ok(position('if v_job.status::text in (''cancelled'', ''completed'')' in lower(pg_get_functiondef(
+  'public.get_released_job_location(uuid)'::regprocedure
+))) > position('from public.jobs job' in lower(pg_get_functiondef(
+  'public.get_released_job_location(uuid)'::regprocedure
+))), 'terminal state is checked only after the locked job row is loaded');
 
 select * from finish();
 rollback;

@@ -32,6 +32,8 @@ test('proposal: submission rechecks time-sensitive eligibility after all locks a
 test('migration: submit wrapper locks the job and eligibility uses a fresh locked snapshot', () => {
   const submitStart = migration.indexOf('create or replace function public.submit_job_application');
   const submitSql = migration.slice(submitStart);
+  assert.match(submitSql, /p_note text default null,\s*p_availability_confirmed boolean default false,\s*p_portfolio_ids uuid\[\] default '\{\}'::uuid\[\]/i,
+    'replacement RPC must preserve all live parameter defaults and call compatibility');
   const lock = submitSql.indexOf('for update;');
   const eligibility = submitSql.indexOf('v_eligibility := public.get_job_application_eligibility');
 

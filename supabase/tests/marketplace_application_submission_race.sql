@@ -2,10 +2,11 @@
 -- The two-session stale-state and accept/retry scenarios are documented in the
 -- backend contract diff; this catalog suite alone does not prove concurrency.
 begin;
-select plan(10);
+select plan(11);
 
 select has_function('public', 'submit_job_application',
   array['uuid', 'text', 'boolean', 'uuid[]']);
+select has_function('public', 'get_job_application_eligibility', array['uuid']);
 select has_function('public', 'mort_submit_job_application', array['uuid', 'text']);
 select ok(has_function_privilege('authenticated',
   'public.submit_job_application(uuid,text,boolean,uuid[])', 'EXECUTE'),
@@ -29,16 +30,16 @@ select ok(coalesce((public.get_runtime_feature_status()->>'new_job_publishing_di
 -- Guard against regression to transaction-start time after a lock wait. These
 -- are structural assertions; they do not replace real two-session tests.
 select ok(position('clock_timestamp()' in lower(pg_get_functiondef(
-  'public.submit_job_application(uuid,text,boolean,uuid[])'::regprocedure
+  'public.get_job_application_eligibility(uuid)'::regprocedure
 ))) > 0, 'submission captures wall-clock time after acquiring locks');
 select ok(position('expires_at > v_now' in lower(pg_get_functiondef(
-  'public.submit_job_application(uuid,text,boolean,uuid[])'::regprocedure
+  'public.get_job_application_eligibility(uuid)'::regprocedure
 ))) > 0, 'verification expiry is rechecked against captured wall-clock time');
-select ok(position('age(v_today, v_profile.date_of_birth)' in lower(pg_get_functiondef(
-  'public.submit_job_application(uuid,text,boolean,uuid[])'::regprocedure
+select ok(position('age(v_now::date, v_profile.date_of_birth)' in lower(pg_get_functiondef(
+  'public.get_job_application_eligibility(uuid)'::regprocedure
 ))) > 0, 'applicant age is recalculated using post-lock current date');
 select ok(position('for share of gl, guardian_profile, guardian_auth' in lower(pg_get_functiondef(
-  'public.submit_job_application(uuid,text,boolean,uuid[])'::regprocedure
+  'public.get_job_application_eligibility(uuid)'::regprocedure
 ))) > 0, 'qualifying Guardian relationship and account rows remain locked through insertion');
 
 select * from finish();
