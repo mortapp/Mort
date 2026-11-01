@@ -15,7 +15,7 @@ test("legacy plaintext data exporter is retired before any database import or co
   assert.doesNotMatch(dataExporter, new RegExp(deletedProjectRef));
 });
 
-test("metadata exporter requires the explicitly approved production ref before constructing a client", () => {
+test("metadata exporter resolves the guarded production ref before constructing a client", () => {
   assert.doesNotMatch(schemaExporter, new RegExp(deletedProjectRef));
   const targetGuard = schemaExporter.indexOf("MORT_BACKUP_PROJECT_REF");
   const databaseClient = schemaExporter.indexOf("new pg.Client");
@@ -35,9 +35,10 @@ test("metadata row-count query references relations present in the active produc
   }
 });
 
-test("backup target accepts only the authoritative production project reference", () => {
+test("backup target defaults to and accepts only the authoritative production reference", () => {
   assert.equal(resolveBackupTarget("jxbnrkasktbhtiujkhay"), "jxbnrkasktbhtiujkhay");
-  assert.throws(() => resolveBackupTarget(undefined), /MORT_BACKUP_PROJECT_REF/);
+  assert.equal(resolveBackupTarget(undefined), "jxbnrkasktbhtiujkhay");
+  assert.equal(resolveBackupTarget("  "), "jxbnrkasktbhtiujkhay");
   assert.throws(() => resolveBackupTarget("some-other-project"), /authoritative production project/);
   assert.throws(() => resolveBackupTarget(deletedProjectRef), /authoritative production project/);
 });

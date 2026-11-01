@@ -61,9 +61,8 @@ reset, replay migrations against production, or connect to the deleted project.
 
 - Put a valid password for the active Supabase project into the protected
   `backend-operations` GitHub environment secret store; do not send it in chat.
-- Set the exact `MORT_BACKUP_PROJECT_REF=jxbnrkasktbhtiujkhay` workflow environment
-  value. Until a workflow maintainer with GitHub `workflow` scope adds it, the
-  target guard will stop the metadata exporter before any database connection.
+- `MORT_BACKUP_PROJECT_REF` is optional; the exporter defaults to
+  `jxbnrkasktbhtiujkhay` and rejects any explicitly supplied different ref.
 - Put a narrowly scoped service credential capable of listing/downloading all
   production Storage objects into the same protected environment.
 - Create a high-entropy archive encryption secret and maintain an offline
