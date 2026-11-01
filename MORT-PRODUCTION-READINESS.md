@@ -182,6 +182,12 @@ Read-only production ACL inspection found `authenticated` has explicit column-le
 
 Docker is available in the current workstation, but the running local Supabase databases have migration heads `20261025080236`, `20261015005047`, and `20260824034646`, all behind production’s `20261101002805`. No local container was treated as production-equivalent. Full migration replay, pgTAP/RLS behavior, and independent two-session race tests remain open; the hosted project still lists only its main branch.
 
+### Reference website job-write cutover — 2026-11-01
+
+The reference Expo website is now cut over in commit `763fc1efdf8c323670c8e88b94448b268e26836d` on `codex/flutter-backend-integration`. Its adult posting flow calls `save_job_draft_or_publish` with a server-derived owner, an idempotency key, and the canonical payload; it no longer sends `poster_id`, `status`, or directly inserts into `public.jobs`. Its admin removal flow calls the reasoned `admin_moderate_job` RPC rather than directly updating job status. The new `qa:reference-website-job-write-contract` test and the existing safety/encoding checks pass.
+
+This removes the website-side direct-write blocker, but does not authorize migration deployment: the full hosted-schema replay, RLS/address-access tests, and two-session race tests remain outstanding.
+
 ### Final Flutter verification at `015a262` (2026-11-01)
 
 - `flutter test --no-pub`: **618 passed, 2 skipped, 0 failed**.

@@ -2,7 +2,7 @@
 
 ## Scope
 
-The corrected append-only migrations and this report are now present in the `codex/flutter-backend-integration` checkout at feature-branch base commit `e55fdee8a61898965f6fa532bc705b8d38c04303`. No Supabase hosted schema, production data, auth configuration, provider configuration, or GitHub remote branch was changed.
+The corrected append-only migrations and this report are now present on the `codex/flutter-backend-integration` branch at the current follow-up commit. The reference website job-write cutover is committed in `763fc1efdf8c323670c8e88b94448b268e26836d`. No Supabase hosted schema, production data, auth configuration, provider configuration, or GitHub remote branch other than this feature branch was changed.
 
 The requested isolated Supabase branch was not created because its recurring cost was **$0.01344/hour** and approval was declined.
 
@@ -62,7 +62,7 @@ The same migration adds pair-locked `block_user_v2` and `unblock_user_v2` RPCs, 
 - The repository's historical migration-parity check still fails on a pre-existing hash mismatch in `20260918032930_guardian_teen_summary_v1.sql`; that historical file was not rewritten.
 - The new SQL has not been applied or syntax-replayed as a complete migration against a database.
 - Independent two-session tests for application submission and block/send ordering remain outstanding.
-- The production ACL correction removes authenticated direct job INSERT/UPDATE column grants. Website source still has a direct job insert path, so the migration must not be applied until website create/edit flows cut over to and pass QA through `save_job_draft_or_publish(uuid,uuid,jsonb,boolean)`.
+- The production ACL correction removes authenticated direct job INSERT/UPDATE column grants. The reference website now uses `save_job_draft_or_publish(uuid,uuid,jsonb,boolean)` for posting and `admin_moderate_job` for removal; `qa:reference-website-job-write-contract` confirms no direct website `jobs` INSERT/UPDATE remains. The migration must still not be applied until the cutover passes authenticated end-to-end QA and the full hosted-schema replay is complete.
 
 ## Hosted findings
 
