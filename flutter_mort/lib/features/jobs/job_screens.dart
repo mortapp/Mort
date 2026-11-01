@@ -1068,8 +1068,8 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
     children: [
       MortCard(
         child: Text(
-          'Use an approximate area here. Exact job-site details are collected '
-          'privately in the Safety Agreement after an applicant is selected. '
+          'Use an approximate area here. Private exact-address collection is '
+          'not available yet, so do not enter a street address in this field. '
           'Travel-distance estimates are not available yet.',
           style: Theme.of(context).textTheme.bodySmall,
         ),

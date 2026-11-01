@@ -479,10 +479,6 @@ begin
   if not found then
     return jsonb_build_object('ok', false, 'code', 'exact_location_not_released');
   end if;
-  if v_job.status::text in ('cancelled', 'completed')
-     or (v_assignment.id is not null and v_assignment.status in ('cancelled', 'completed')) then
-    return jsonb_build_object('ok', false, 'code', 'exact_location_not_released');
-  end if;
   select * into v_assignment
   from public.job_assignments assignment
   where assignment.application_id = p_application_id
@@ -494,12 +490,19 @@ begin
   if not found then
     return jsonb_build_object('ok', false, 'code', 'exact_location_not_released');
   end if;
+  if v_job.status::text in ('cancelled', 'completed')
+     or (v_assignment.id is not null and v_assignment.status in ('cancelled', 'completed')) then
+    return jsonb_build_object('ok', false, 'code', 'exact_location_not_released');
+  end if;
   select * into v_location
   from private.job_private_locations location
   where location.job_id = v_job.id
   for share;
   if not found then
     return jsonb_build_object('ok', false, 'code', 'exact_location_not_configured');
+  end if;
+  if v_location.poster_id is distinct from v_job.poster_id then
+    return jsonb_build_object('ok', false, 'code', 'exact_location_not_released');
   end if;
   if v_job.poster_id = v_user_id then
     v_allowed := true;

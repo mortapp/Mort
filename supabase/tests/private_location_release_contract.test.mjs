@@ -105,8 +105,8 @@ test('job posting UI does not capture client coordinates or promise distance est
     'job posting cannot send client-captured coordinates as trusted private location data');
   assert.match(jobScreen, /Travel-distance estimates are not available yet/i,
     'the UI must not promise a distance result without server-side geocoding');
-  assert.match(jobScreen, /Exact job-site details are collected[\s\S]{0,100}privately in the Safety Agreement/i,
-    'the UI must explain the actual private location lifecycle');
+  assert.match(jobScreen, /Private exact-address collection is[\s\S]{0,60}not available yet/i,
+    'the UI must not promise a private address-entry flow that is not implemented');
 });
 
 test('safety agreement snapshot binds location availability and version without embedding the address', () => {
@@ -151,4 +151,22 @@ test('migration revokes exact-location access after terminal job or assignment s
     'owner reads must also be revoked when the assigned teen and poster block each other');
   assert.match(migrationReleaseRpc, /block\.blocker_id\s*=\s*v_pair_other[\s\S]*?block\.blocked_id\s*=\s*v_user_id/i,
     'all release checks must test both directions of the actor-participant block');
+});
+
+test('release loads and validates locked job and assignment rows before terminal-state denial', () => {
+  const start = migration.indexOf('create or replace function public.get_released_job_location(');
+  const end = migration.indexOf('$$;', start);
+  const release = migration.slice(start, end);
+  const appRead = release.indexOf('from public.job_applications application');
+  const assignmentRead = release.indexOf('from public.job_assignments assignment');
+  const jobRead = release.indexOf('from public.jobs job');
+  const terminalCheck = release.indexOf("if v_job.status::text in ('cancelled', 'completed')");
+  assert.ok(appRead >= 0 && assignmentRead > appRead && jobRead > assignmentRead,
+    'lifecycle rows must be selected in the approved lock order');
+  assert.ok(terminalCheck > jobRead,
+    'terminal-state checks must use the locked job and assignment rows, never NULL-initialized records');
+  assert.match(release.slice(terminalCheck), /v_assignment\.status in \('cancelled', 'completed'\)/,
+    'terminal assignment states must deny exact-address release');
+  assert.match(release, /v_location\.poster_id is distinct from v_job\.poster_id/,
+    'the private location owner must match the locked job owner');
 });
