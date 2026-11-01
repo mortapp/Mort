@@ -28,6 +28,12 @@ The same migration adds `resend_guardian_invite(uuid)`:
 - creates a replacement code for the same link; and
 - leaves other pending links untouched.
 
+The resend path now also takes a deterministic per-teen advisory transaction lock
+before the 24-hour rate count, locks the selected pending link before rotating it,
+and returns `guardian_invite_code_missing` instead of creating a replacement when
+the selected link has no active prior code. The focused Guardian resend regression
+passes alongside the application-race and private-location migration tests.
+
 ### Private job-address release
 
 `20261101123000_private_location_and_block_message_contract.sql` adds a hosted-schema-specific private location table and RPCs:
@@ -52,6 +58,7 @@ The same migration adds pair-locked `block_user_v2` and `unblock_user_v2` RPCs, 
 - TypeScript check passed.
 - Focused structural assertions passed for the job lock, duplicate guard, link-scoped resend, private location gates, pair locks, and restricted grants.
 - New `qa:safety-contracts:static` automated test passed for NULL-safe authorization, location-version binding, valid reconfirmation handling, direct job-write revocation, and deterministic locking.
+- The deployable migration is now covered directly, not only through proposal fixtures: `qa:safety-contracts:unit` passes **5/5** tests for application locking, Guardian resend serialization, and private-location cross-job binding. CI runs this suite plus the static contract checks.
 - Hosted project inspection was read-only.
 - Follow-up review found the live job ACL uses column-level INSERT/UPDATE grants, so a table-level REVOKE alone was insufficient; the migration now removes residual column grants and does not add broad table SELECT. `node scripts/qa-safety-contracts-acl.mjs` and the static regression pass; this checks the ACL block only.
 

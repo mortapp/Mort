@@ -188,6 +188,8 @@ The reference Expo website is now cut over in commit `763fc1efdf8c323670c8e88b94
 
 This removes the website-side direct-write blocker, but does not authorize migration deployment: the full hosted-schema replay, RLS/address-access tests, and two-session race tests remain outstanding.
 
+The deployable safety migrations were then hardened and pushed through commit `17b5d168ac0d7625b3c242494f84014c0f1d2af6`. Application eligibility now uses a fresh execution-time clock and locks the relevant profile, job, release, age-verification, and dual-consented Guardian rows. Private-location release requires the assignment job to match the application job. Guardian resend serializes the per-teen rate check, rotates only the selected pending link, and fails closed if its prior code is missing. The direct-migration contract suite passes **5/5**, and CI now runs it.
+
 ### Final Flutter verification at `015a262` (2026-11-01)
 
 - `flutter test --no-pub`: **618 passed, 2 skipped, 0 failed**.
