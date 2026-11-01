@@ -17,6 +17,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'mort-release-observability.ps1')
 . (Join-Path $PSScriptRoot 'android-signing-common.ps1')
 
 $root = Split-Path $PSScriptRoot -Parent
@@ -130,7 +131,7 @@ $defines = [ordered]@{
   MORT_IDENTITY_VERIFICATION_ENABLED = $IdentityVerificationEnabled.ToString().ToLowerInvariant()
   MORT_MARKETPLACE_PAYMENTS_ENABLED = 'false'
   MORT_REMOTE_PUSH_ENABLED = $RemotePushEnabled.ToString().ToLowerInvariant()
-  MORT_CRASH_REPORTING_ENABLED = $CrashReportingEnabled.ToString().ToLowerInvariant()
+  MORT_CRASH_REPORTING_ENABLED = 'false'
   MORT_PAYMENT_PROVIDER_MODE = [string]$profile.paymentProviderMode
   MORT_SUPPORT_AI_ENABLED = ([bool]$profile.chatbotAiEnabled).ToString().ToLowerInvariant()
   MORT_DETERMINISTIC_SUPPORT_ENABLED = ([bool]$profile.deterministicChatbotFallbackEnabled).ToString().ToLowerInvariant()
@@ -157,6 +158,7 @@ $defines = [ordered]@{
   # accidental one.
   USE_TEST_ADS = 'true'
 }
+Set-MortCrashReportingDefines -Defines $defines -Enabled:$CrashReportingEnabled -SentryDsn $env:SENTRY_DSN
 foreach ($name in $defines.Keys) {
   if ($name -match '(?i)(SERVICE.?ROLE|ACCESS.?TOKEN|REFRESH.?TOKEN|PASSWORD|CLIENT.?SECRET|PRIVATE.?KEY|WEBHOOK.?SECRET)') {
     throw "Forbidden secret-like dart-define key: $name"
