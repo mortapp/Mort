@@ -273,3 +273,5 @@ The local Firebase receiver is real, but hosted push delivery is not complete. T
 - `dart format --output=none --set-exit-if-changed lib test`: **311 files, 0 changed**.
 - `pnpm run qa:safety-contracts:unit`: **15/15 passed**; static safety check, website job-write contract, and migration UTF-8 check (**241 files**) passed.
 - The final Flutter suite and analyzer do not make the missing hosted push, provider setup, release-mode configuration, backup recovery, or production callbacks complete. No AAB was produced because the signed artifact must pass the configured release profile and production configuration gates.
+
+Final release-path inspection confirmed `scripts/build-production-public-aab.ps1` intentionally throws `BLOCKED-EXTERNAL` until an approved identity provider, legal terms, moderation operations, native QA, push/crash providers, and audited server activation exist. Do not remove this guard. A public AAB is therefore not currently buildable. The existing upload signing identity is valid, but signing alone does not make an artifact safe to publish.
