@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_mort/core/theme/mort_theme.dart';
+import 'package:flutter_mort/core/widgets/date_of_birth_field.dart';
+import 'package:flutter_mort/data/repositories/auth_repository.dart';
 import 'package:flutter_mort/features/auth/unified_auth_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -38,6 +40,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Age-gated'), findsOneWidget);
+    expect(find.byType(DateOfBirthField), findsOneWidget);
     expect(find.textContaining('Use at least 12 characters'), findsOneWidget);
     fields = tester.widgetList<TextFormField>(find.byType(TextFormField));
     expect(fields.first.controller?.text, 'teen@example.com');
@@ -56,6 +59,12 @@ void main() {
     expect(fields.first.controller?.text, 'teen@example.com');
     expect(fields.last.controller?.text, 'SignIn1!');
     expect(tester.takeException(), isNull);
+  });
+
+  test('email signup sends the DOB key enforced by the auth trigger', () {
+    expect(AuthRepository.signupMetadataForDateOfBirth(DateTime(2010, 6, 29)), {
+      'date_of_birth': '2010-06-29',
+    });
   });
 
   testWidgets('unified auth is overflow-free on Samsung at 1.3 text scale', (

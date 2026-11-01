@@ -8,7 +8,9 @@ import '../../core/errors/user_facing_error.dart';
 import '../../core/reviewer/reviewer_session.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
+import '../../core/utils/date_of_birth.dart';
 import '../../core/utils/validators.dart';
+import '../../core/widgets/date_of_birth_field.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/onboarding_progress.dart';
 import '../../data/repositories/providers.dart';
@@ -34,6 +36,7 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
   final _signInForm = GlobalKey<FormState>();
   final _signUpForm = GlobalKey<FormState>();
   final _email = TextEditingController();
+  final _dateOfBirth = TextEditingController();
   final _signInPassword = TextEditingController();
   final _signUpPassword = TextEditingController();
   late UnifiedAuthMode _mode;
@@ -67,6 +70,7 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
   @override
   void dispose() {
     _email.dispose();
+    _dateOfBirth.dispose();
     _signInPassword.dispose();
     _signUpPassword.dispose();
     super.dispose();
@@ -156,7 +160,11 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
       }
       final response = await ref
           .read(authRepositoryProvider)
-          .signUp(email: _email.text.trim(), password: _signUpPassword.text);
+          .signUp(
+            email: _email.text.trim(),
+            password: _signUpPassword.text,
+            dateOfBirth: DateOfBirthParser.tryParse(_dateOfBirth.text)!,
+          );
       if (!mounted) return;
       if (response.session == null) {
         MortToast.show(
@@ -236,8 +244,7 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
         if (!_backendReady) ...[
           const SizedBox(height: MortSpacing.md),
           const MortSafetyBanner(
-            message:
-                'Secure sign-in is unavailable until MORT reconnects to its hosted backend.',
+            message: 'Secure sign-in is unavailable until MORT reconnects to its hosted backend.',
           ),
         ],
         const SizedBox(height: MortSpacing.md),
@@ -293,6 +300,24 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
                   ),
                 ] else ...[
                   const SizedBox(height: MortSpacing.sm),
+                  if (!_isSignIn) ...[
+                    DateOfBirthField(
+                      controller: _dateOfBirth,
+                      validator: (value) {
+                        final result = DateOfBirthParser.validate(value);
+                        if (!result.isValid) return result.message;
+                        if (DateOfBirthParser.ageOn(
+                              result.date!,
+                              DateTime.now(),
+                            ) <
+                            13) {
+                          return 'MORT is only available to people ages 13 and older.';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: MortSpacing.sm),
+                  ],
                   MortTextField(
                     key: ValueKey(_mode),
                     label: 'Password',

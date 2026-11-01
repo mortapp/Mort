@@ -8,6 +8,7 @@ import '../../core/auth/oauth_flow.dart';
 import '../../core/config/app_config.dart';
 import '../../core/errors/mort_error.dart';
 import '../../core/observability/operational_telemetry.dart';
+import '../../core/utils/date_of_birth.dart';
 import '../../services/push/push_notification_coordinator.dart';
 import '../services/secure_device_storage.dart';
 import '../services/supabase_service.dart';
@@ -114,14 +115,21 @@ class AuthRepository {
   Future<AuthResponse> signUp({
     required String email,
     required String password,
+    required DateTime dateOfBirth,
   }) async {
     final response = await SupabaseService.client.auth.signUp(
       email: email,
       password: password,
+      data: signupMetadataForDateOfBirth(dateOfBirth),
       emailRedirectTo: AppConfig.resolvedAuthConfirmationRedirectUrl,
     );
     return response;
   }
+
+  @visibleForTesting
+  static Map<String, String> signupMetadataForDateOfBirth(
+    DateTime dateOfBirth,
+  ) => {'date_of_birth': DateOfBirthParser.toIsoDate(dateOfBirth)};
 
   Future<AuthResponse> signIn({
     required String email,
