@@ -119,3 +119,19 @@ An active Flutter canceled-application detail screen queried absent `job_managem
 A refreshed literal-string source scan in `flutter_mort/lib` found 191 distinct direct RPC names (77 public production function names, 142 names absent) and 32 direct table names (43 public production relations, 17 absent). All 43 public relations have RLS enabled. The missing names span optional/pilot/finance, payment-disabled, location-absent, and admin/support paths; presence by name is not evidence of route reachability. This scan is not a complete field-level contract check: dynamic RPCs, embedded field payloads, and every selected/filtered database column still need route-aware verification. Database tests remain stopped because neither the only Supabase production branch nor local Docker databases match the production migration history.
 
 Latest Flutter verification after that UI change: full suite **618 passed, 2 skipped, 0 failed**; `flutter analyze --no-pub` **no issues**; `dart format --output=none --set-exit-if-changed lib test` **310 files, 0 changes**. `job_management_requests` and `listManagementEvents` no longer appear in Flutter source/tests.
+
+## Sequential launch checklist progress (2026-11-01)
+
+### 1. Backend and database safety — still blocked from completion
+
+- Read-only Supabase branch inspection still returns only the production `main` branch (`jxbnrkasktbhtiujkhay`); there is no isolated branch. Production history still contains 69 entries through `20261101002805`. No paid resource, production write, migration, or deployment was performed.
+- The application-race, exact-address ACL, private-location, role-age, and pair-lock proposals remain local proposals. The required exact-schema pgTAP/RLS suite and independent two-session tests have not run. Do not treat their presence or local fixture smoke checks as completion.
+- Live global status was re-read on 2026-11-01: `public_marketplace_closed=true`, `new_job_publishing_disabled=true`, `payments_disabled=true`, `real_document_collection=false`; `maintenance_mode=false`, `ai_provider_disabled=true`. No release controls changed.
+
+### 2. Website integration and build validation
+
+Read-only validation ran in `repos/mort-web` while preserving that checkout's pre-existing uncommitted changes. `npm run typecheck` exited 0; `npm run build` exited 0, including its prebuild gates: production-config/legal/pet-preference Node tests **7/7 passed**, legal publication snapshot versions and hashes verified, Next.js production compilation succeeded, and all 16 static pages generated. No code in the website checkout was edited by this validation. This proves build readiness only; authenticated teen/adult/Guardian/admin isolation and full browser end-to-end flows remain unverified.
+
+### 3. Identity and trust
+
+The production Edge Function inventory still contains only `stripe-create-assignment-payment-intent`, `stripe-assignment-webhook`, and `stripe-runtime-status`; neither identity-provider handler is deployed. The production feature status continues to report `real_document_collection=false`. No person was verified, no documents were collected, and no provider credential or staff authorization was added. Identity-provider approval, provider credentials, real-user verification flow tests, and secure first-reviewer provisioning remain external/isolated-QA gates.
