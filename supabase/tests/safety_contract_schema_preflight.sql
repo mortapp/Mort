@@ -56,7 +56,7 @@ BEGIN
       ('public.verification_cases', 'status'),
       ('public.verification_cases', 'expires_at'),
       ('public.guardian_links', 'id'),
-      ('public.guardian_links', 'teen_id'),
+      ('public.guardian_links', 'teen_user_id'),
       ('public.guardian_links', 'status'),
       ('public.conversations', 'id'),
       ('public.conversations', 'status'),

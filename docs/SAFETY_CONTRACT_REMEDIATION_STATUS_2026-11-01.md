@@ -61,6 +61,7 @@ The same migration adds pair-locked `block_user_v2` and `unblock_user_v2` RPCs, 
 - The deployable migration is now covered directly, not only through proposal fixtures: `qa:safety-contracts:unit` passes **5/5** tests for application locking, Guardian resend serialization, and private-location cross-job binding. CI runs this suite plus the static contract checks.
 - Hosted project inspection was read-only.
 - Follow-up review found the live job ACL uses column-level INSERT/UPDATE grants, so a table-level REVOKE alone was insufficient; the migration now removes residual column grants and does not add broad table SELECT. `node scripts/qa-safety-contracts-acl.mjs` and the static regression pass; this checks the ACL block only.
+- The schema-preflight expected column was corrected to hosted `guardian_links.teen_user_id` after read-only catalog comparison. Its staging runner now requires an explicit project-ref/host match, refuses production and the deleted project, enforces TLS, and keeps the database password out of psql arguments. Static checks and a wrong-host refusal check pass; no isolated-database preflight has run.
 
 ## Validation not possible yet
 

@@ -104,12 +104,16 @@ confirmation:
 
 ```bash
 MORT_QA_TARGET=staging \
+MORT_QA_ALLOWED_PROJECT_REF='<isolated-staging-project-ref>' \
 MORT_QA_SCHEMA_PREFLIGHT_CONFIRM=ISOLATED_SCHEMA_ONLY \
-SUPABASE_DB_URL='postgresql://user:password@qa-staging.example.test:5432/mort' \
+SUPABASE_DB_URL='postgresql://postgres:<db-password>@db.<isolated-staging-project-ref>.supabase.co:5432/postgres?sslmode=require' \
 node scripts/qa-safety-contract-schema-preflight.mjs
 ```
 
 The preflight checks the relations, columns, function signatures, message/conversation
-shape, and valid safety-agreement reconfirmation status required by the drafts. It is
-read-only and is not evidence of a successful migration replay or two-session race
-test. Never point it at production as a substitute for an isolated environment.
+shape, and valid safety-agreement reconfirmation status required by the drafts. For
+staging, the database host must exactly match the explicitly supplied project ref.
+Local runs accept localhost only. The runner passes the URL password through
+`PGPASSWORD`, not the psql command arguments. It is read-only and is not evidence of a successful
+migration replay or two-session race test. Never point it at production as a substitute
+for an isolated environment.

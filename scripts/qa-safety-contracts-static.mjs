@@ -9,6 +9,14 @@ const locationMigration = await readFile(
   "supabase/migrations/20261101123000_private_location_and_block_message_contract.sql",
   "utf8",
 );
+const schemaPreflightSql = await readFile(
+  "supabase/tests/safety_contract_schema_preflight.sql",
+  "utf8",
+);
+const schemaPreflightRunner = await readFile(
+  "scripts/qa-safety-contract-schema-preflight.mjs",
+  "utf8",
+);
 
 function includes(source, needle, label) {
   assert.ok(source.includes(needle), `missing ${label}: ${needle}`);
@@ -55,6 +63,16 @@ assert.equal((locationMigration.match(/pg_advisory_xact_lock/g) ?? []).length >=
 includes(locationMigration, "order by member.user_id", "deterministic participant lock order");
 includes(locationMigration, "from public.conversations conversation\n  where conversation.id = p_conversation_id\n  for update", "conversation-row lock");
 includes(locationMigration, "create or replace function public.unblock_user_v2", "locked unblock RPC");
+
+// The read-only schema preflight must match the hosted Guardian foreign key
+// name and require an explicit isolated staging project allowlist.
+includes(schemaPreflightSql, "('public.guardian_links', 'teen_user_id')", "hosted Guardian teen column");
+excludes(schemaPreflightSql, "('public.guardian_links', 'teen_id')", "legacy Guardian teen column");
+includes(schemaPreflightRunner, "MORT_QA_ALLOWED_PROJECT_REF", "explicit isolated staging project ref");
+includes(schemaPreflightRunner, "const expectedHost = `db.${allowedStagingRef}.supabase.co`", "staging database host binding");
+includes(schemaPreflightRunner, "fileURLToPath", "Windows-compatible SQL file path");
+includes(schemaPreflightRunner, "psqlEnvironment.PGPASSWORD", "database password kept out of process arguments");
+includes(schemaPreflightRunner, "if (target === 'staging') psqlEnvironment.PGSSLMODE = 'require'", "TLS enforced for staging database");
 
 for (const source of [applicationMigration, locationMigration]) {
   excludes(source, "public.is_profile_active(", "nonexistent hosted helper");
