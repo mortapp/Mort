@@ -54,14 +54,14 @@ begin
   end if;
 
   -- There is no request ID in the production signature. The unique
-  -- (job_id, applicant_id) key is therefore the durable idempotency boundary:
-  -- a retry after a committed submit returns the existing application instead
-  -- of raising unique_violation or creating another record. The locked job
-  -- serializes concurrent calls that use this RPC.
+  -- (job_id, applicant_id) key is therefore the durable idempotency boundary.
+  -- Read the existing row without a row lock: the live acceptance path locks
+  -- application then job, while a new submit must lock job before insert. A
+  -- locking replay read here would invert that order and deadlock with accept.
+  -- This replay is read-only; the job lock still serializes new submits.
   select * into v_existing_application
   from public.job_applications
-  where job_id = p_job_id and applicant_id = v_user
-  for update;
+  where job_id = p_job_id and applicant_id = v_user;
   if found then
     if v_existing_application.status in (
       'submitted'::public.mort_application_status,

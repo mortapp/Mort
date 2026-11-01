@@ -152,6 +152,24 @@ void main() {
     );
   });
 
+  testWidgets(
+    'canceled application uses a generic message without requesting an absent job history table',
+    (tester) async {
+      final applications = _FakeApplicationsRepository(status: 'canceled');
+      await tester.pumpWidget(
+        _app(view: ApplicationView.teen, repository: applications),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'This job was canceled. Contact support if you need help with an assigned job.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
   testMortWidgets(
     'adult application actions match deployed state RPC actions',
     (tester) async {

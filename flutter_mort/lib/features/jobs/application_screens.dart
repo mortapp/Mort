@@ -410,29 +410,9 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
           ],
           if (application.status == 'canceled' && job != null) ...[
             const SizedBox(height: MortSpacing.sm),
-            FutureBuilder<List<Map<String, dynamic>>>(
-              future: ref
-                  .watch(jobsRepositoryProvider)
-                  .listManagementEvents(job.id),
-              builder: (context, snapshot) {
-                final events = snapshot.data ?? const [];
-                final cancellations = events.where(
-                  (event) =>
-                      event['action'] == 'cancel' && event['succeeded'] == true,
-                );
-                final reason = cancellations.isEmpty
-                    ? null
-                    : cancellations.last['reason']?.toString();
-                if (reason == null || reason.isEmpty) {
-                  return const MortSafetyBanner(
-                    message:
-                        'This job was canceled. Contact support if you need help with an assigned job.',
-                  );
-                }
-                return MortSafetyBanner(
-                  message: 'Cancellation reason: $reason',
-                );
-              },
+            const MortSafetyBanner(
+              message:
+                  'This job was canceled. Contact support if you need help with an assigned job.',
             ),
           ],
           const SizedBox(height: MortSpacing.md),

@@ -285,16 +285,6 @@ class JobsRepository extends RepositoryBase {
     return List<Map<String, dynamic>>.from(rows as List);
   }
 
-  Future<List<Map<String, dynamic>>> listManagementEvents(String jobId) async {
-    final rows = await client
-        .from('job_management_requests')
-        .select('action,reason,from_status,to_status,succeeded,created_at')
-        .eq('job_id', jobId)
-        .not('completed_at', 'is', null)
-        .order('created_at');
-    return List<Map<String, dynamic>>.from(rows as List);
-  }
-
   static List<Job> _jobs(Object? rows) {
     return List<Map<String, dynamic>>.from(
       rows as List,
