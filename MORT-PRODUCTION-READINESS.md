@@ -30,7 +30,7 @@ The production schema enforces RLS on `profiles`, `guardian_links`, `safety_repo
 ## Remaining blockers
 
 1. The proposed database contracts are not verified against an isolated production-schema clone. Obtain a supported isolated Supabase environment or equivalent clone before considering migration approval.
-2. Production migration history (69 entries, latest observed `20261101002805_safety_reports_server_only_idempotent`) diverges from the repository's historical 239-file chain. Reconcile migration history before proposing any deployment; do not replay the chain.
+2. Production migration history (69 entries, latest observed `20261101002805_safety_reports_server_only_idempotent`) diverges from the repository's historical 238-file chain. Reconcile migration history before proposing any deployment; do not replay the chain.
 3. Message blocking trigger concurrency/transaction behavior and all pgTAP cases remain unverified on the isolated clone.
 4. `get_safety_center_config` is absent; identity start/submit/appeal RPCs and the provider Edge Function are absent. Document collection remains fail-closed.
 5. Supabase Auth dashboard now visibly marks Google OAuth `ENABLED`; client credential validity and a real production OAuth login are still unverified.
@@ -65,7 +65,7 @@ Regression coverage added/updated: production `applicant_id`/`cover_note` row ma
 
 ## Backend safety-contract continuation (2026-11-01)
 
-Production inspection was read-only. Production lists 69 migrations through `20261101002805`; this checkout has 240 migrations with a divergent history. `supabase` CLI is unavailable, the local Docker DB does not reproduce production, and Supabase reports only the main branch (no isolated child). No paid environment was created. Database execution stopped at that boundary, as required.
+Production inspection was read-only. Production lists 69 migrations from `20261026194801` through `20261101002805`; this checkout has 238 migration files and zero matching version IDs. Supabase CLI 2.122.0 is available, but the local Docker DB does not reproduce production, and Supabase reports only the main branch (no isolated child). No paid environment was created. Database execution stopped at that boundary, as required.
 
 The application race is confirmed: the authenticated submit RPC checks eligibility before entering the service-role-only insert RPC; the locked insert rechecks only a subset of release, job-window, active-poster and Guardian gates. A proposal now locks the job and relevant authorization rows before rerunning the existing eligibility function. It is not applied or integration-tested. The unique `(job_id, applicant_id)` constraint remains the duplicate guard.
 
@@ -113,7 +113,7 @@ The following changes are local review proposals only. Production remained read-
 ### Test and migration limits
 
 - Supabase lists only production `main`; an isolated branch is unavailable on the current plan, and no free production-equivalent clone is present. No paid resource or upgrade was created. Per instruction, SQL/pgTAP execution stopped here; production was not substituted as a test DB.
-- Production history is 69 migrations through `20261101002805_safety_reports_server_only_idempotent`; this checkout contains 240 migrations with zero matching migration versions. Fresh local Docker inspection found `mort-release-dispute-fixture-2` at PostgreSQL 17.11 with 318 migrations through `20261025080236` and 259 public tables; `mort-mobile` has 302 migrations through `20261015005047`; `loop` has 27 through `20260824034646`. None matches production. This divergence is unresolved. Do not replay any local chain or use these databases for production-contract tests.
+- Production history is 69 migrations through `20261101002805_safety_reports_server_only_idempotent`; this checkout contains 238 migrations with zero matching migration versions. Fresh local Docker inspection found `mort-release-dispute-fixture-2` at PostgreSQL 17.11 with 318 migrations through `20261025080236` and 259 public tables; `mort-mobile` has 302 through `20261015005047`; `loop` has 27 through `20260824034646`. None matches production. This divergence is unresolved. Do not replay any local chain or use these databases for production-contract tests.
 - New application, role-age, exact-address ACL, location lifecycle, and block/message proposals must pass pgTAP plus an independent two-session test on a matching isolated DB before review/merge. Added local pgTAP files currently have assertion plans of 26 (block/message), 6 (application contract), 5 (role-age), 5 (exact-address ACL), and 13 (private-location grants/contracts); plans match their assertion counts, but none of these database suites have run. Website job creation must be cut over before exact-address privilege revocation. Final Flutter checks passed: `flutter analyze --no-pub` (no issues), `dart format --output=none --set-exit-if-changed lib test` (310 files, 0 changes), `flutter test --no-pub` (617 passed, 2 skipped, 0 failed).
 - Marketplace/publishing/payments remain disabled, identity-document collection remains disabled, and draft PR #45 must remain draft pending database-dependent validation.
 
