@@ -32,7 +32,7 @@ if ((ConvertTo-MortCertificateDigest $sha1) -ne (ConvertTo-MortCertificateDigest
 Set-MortUploadSigningEnvironment $signing
 
 # Public Supabase client configuration only; no privileged backend secret is embedded.
-$env:SUPABASE_URL = $supabaseUrl
+$env:SUPABASE_URL = $expectedUrl
 $env:SUPABASE_ANON_KEY = $publicAnonKey
 
 & (Join-Path $PSScriptRoot 'build-standard-closed-test-aab.ps1')
