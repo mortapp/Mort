@@ -11,6 +11,7 @@ test('Guardian decisions are a separate application state and are not inferred f
   assert.match(migration, /guardian_decision_status text not null default 'not_required'/i);
   assert.match(migration, /guardian_decision_status.*'pending'.*'approved'.*'rejected'/is);
   assert.match(migration, /optional_job_approval_enabled/i);
+  assert.match(migration, /set_guardian_alert_preferences[\\s\\S]*for update/i);
   assert.match(migration, /guardian_approval_required/i);
 });
 
