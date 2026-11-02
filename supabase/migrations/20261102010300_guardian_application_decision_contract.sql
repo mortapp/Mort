@@ -55,7 +55,7 @@ begin
   from public.guardian_links gl
   join public.guardian_preferences preference on preference.link_id = gl.id
   where gl.teen_user_id = auth.uid()
-    and gl.status = ''active''
+    and gl.status = 'active'
     and gl.teen_consent_at is not null
     and gl.guardian_consent_at is not null
   for share of preference;
@@ -73,7 +73,7 @@ begin
       from public.guardian_links gl
       join public.guardian_preferences preference on preference.link_id = gl.id
       where gl.teen_user_id = auth.uid()
-        and gl.status = ''active''
+        and gl.status = 'active'
         and gl.teen_consent_at is not null
         and gl.guardian_consent_at is not null
         and preference.optional_job_approval_enabled
@@ -89,9 +89,9 @@ begin
   v_def := replace(v_def, v_old, v_new);
   if v_def = v_before then raise exception 'guardian_eligibility_gate_patch_failed'; end if;
 
-  v_old := '''guardian_required_for_this_job'', coalesce(v_job.requires_guardian_approval, false),';
-  v_new := '''guardian_required_for_this_job'', coalesce(v_job.requires_guardian_approval, false),
-    ''guardian_approval_required'', v_guardian_approval_required,';
+  v_old := ''guardian_required_for_this_job', coalesce(v_job.requires_guardian_approval, false),';
+  v_new := ''guardian_required_for_this_job', coalesce(v_job.requires_guardian_approval, false),
+    'guardian_approval_required', v_guardian_approval_required,';
   v_before := v_def;
   v_def := replace(v_def, v_old, v_new);
   if v_def = v_before then raise exception 'guardian_eligibility_response_patch_failed'; end if;
@@ -118,9 +118,9 @@ begin
     v_user_id,
     nullif(btrim(p_cover_note), ''''),
     case
-      when coalesce((v_eligibility->>''guardian_approval_required'')::boolean, false)
-        then ''pending''
-      else ''not_required''
+      when coalesce((v_eligibility->>'guardian_approval_required')::boolean, false)
+        then 'pending'
+      else 'not_required'
     end
   )
   returning id into v_application_id;';
@@ -146,28 +146,28 @@ begin
   v_new := 'if v_user is null or not exists (
     select 1 from public.profiles current_profile
     where current_profile.id = v_user
-      and current_profile.account_status = ''active''
-      and current_profile.role in (''teen''::public.mort_role, ''adult''::public.mort_role, ''guardian''::public.mort_role, ''admin''::public.mort_role, ''moderator''::public.mort_role)
+      and current_profile.account_status = 'active'
+      and current_profile.role in ('teen'::public.mort_role, 'adult'::public.mort_role, 'guardian'::public.mort_role, 'admin'::public.mort_role, 'moderator'::public.mort_role)
   ) then';
   v_before := v_def;
   v_def := replace(v_def, v_old, v_new);
   if v_def = v_before then raise exception 'guardian_application_reader_role_patch_failed'; end if;
 
-  v_old := '''guardian_id'',ja.guardian_id,''availability_confirmed''';
-  v_new := '''guardian_id'',ja.guardian_id,''guardian_decision_status'',ja.guardian_decision_status,''guardian_decided_by'',ja.guardian_decided_by,''guardian_decided_at'',ja.guardian_decided_at,''guardian_decision_reason'',ja.guardian_decision_reason,''availability_confirmed''';
+  v_old := ''guardian_id',ja.guardian_id,'availability_confirmed'';
+  v_new := ''guardian_id',ja.guardian_id,'guardian_decision_status',ja.guardian_decision_status,'guardian_decided_by',ja.guardian_decided_by,'guardian_decided_at',ja.guardian_decided_at,'guardian_decision_reason',ja.guardian_decision_reason,'availability_confirmed'';
   v_before := v_def;
   v_def := replace(v_def, v_old, v_new);
   if v_def = v_before then raise exception 'guardian_application_reader_payload_patch_failed'; end if;
 
-  v_old := 'and (ja.applicant_id=v_user or j.poster_id=v_user or exists(select 1 from public.guardian_links gl where gl.teen_user_id=ja.applicant_id and gl.guardian_user_id=v_user and gl.status=''active'' and gl.teen_consent_at is not null and gl.guardian_consent_at is not null));';
+  v_old := 'and (ja.applicant_id=v_user or j.poster_id=v_user or exists(select 1 from public.guardian_links gl where gl.teen_user_id=ja.applicant_id and gl.guardian_user_id=v_user and gl.status='active' and gl.teen_consent_at is not null and gl.guardian_consent_at is not null));';
   v_new := 'and (
     ja.applicant_id=v_user
     or (
       j.poster_id=v_user
       and (
-        (not j.requires_guardian_approval and ja.guardian_decision_status=''not_required'')
+        (not j.requires_guardian_approval and ja.guardian_decision_status='not_required')
         or (
-          ja.guardian_decision_status=''approved''
+          ja.guardian_decision_status='approved'
           and exists (
             select 1
             from public.guardian_links gl
@@ -175,11 +175,11 @@ begin
             join auth.users guardian_auth on guardian_auth.id=gl.guardian_user_id
             where gl.teen_user_id=ja.applicant_id
               and gl.guardian_user_id=ja.guardian_decided_by
-              and gl.status=''active''
+              and gl.status='active'
               and gl.teen_consent_at is not null
               and gl.guardian_consent_at is not null
-              and guardian_profile.role=''guardian''::public.mort_role
-              and guardian_profile.account_status=''active''
+              and guardian_profile.role='guardian'::public.mort_role
+              and guardian_profile.account_status='active'
               and guardian_profile.date_of_birth is not null
               and extract(year from age(current_date,guardian_profile.date_of_birth))>=18
               and guardian_auth.email_confirmed_at is not null
@@ -194,11 +194,11 @@ begin
       join auth.users guardian_auth on guardian_auth.id=gl.guardian_user_id
       where gl.teen_user_id=ja.applicant_id
         and gl.guardian_user_id=v_user
-        and gl.status=''active''
+        and gl.status='active'
         and gl.teen_consent_at is not null
         and gl.guardian_consent_at is not null
-        and guardian_profile.role=''guardian''::public.mort_role
-        and guardian_profile.account_status=''active''
+        and guardian_profile.role='guardian'::public.mort_role
+        and guardian_profile.account_status='active'
         and guardian_profile.date_of_birth is not null
         and extract(year from age(current_date,guardian_profile.date_of_birth))>=18
         and guardian_auth.email_confirmed_at is not null
@@ -228,14 +228,14 @@ begin
       select 1 from public.jobs j
       where j.id=ja.job_id and j.poster_id=v_user
         and (
-          (not j.requires_guardian_approval and ja.guardian_decision_status=''not_required'')
+          (not j.requires_guardian_approval and ja.guardian_decision_status='not_required')
           or (
-            ja.guardian_decision_status=''approved''
+            ja.guardian_decision_status='approved'
             and exists(
               select 1 from public.guardian_links gl
               where gl.teen_user_id=ja.applicant_id
                 and gl.guardian_user_id=ja.guardian_decided_by
-                and gl.status=''active''
+                and gl.status='active'
                 and gl.teen_consent_at is not null
                 and gl.guardian_consent_at is not null
             )
@@ -262,21 +262,21 @@ begin
     join public.profiles guardian_profile on guardian_profile.id = gl.guardian_user_id
     join auth.users guardian_auth on guardian_auth.id = gl.guardian_user_id
     where gl.teen_user_id = v_app.applicant_id
-      and gl.status = ''active''
+      and gl.status = 'active'
       and gl.teen_consent_at is not null
       and gl.guardian_consent_at is not null
       and (v_app.guardian_id is null or gl.guardian_user_id = v_app.guardian_id)
-      and guardian_profile.role = ''guardian''::public.mort_role
-      and guardian_profile.account_status = ''active''
+      and guardian_profile.role = 'guardian'::public.mort_role
+      and guardian_profile.account_status = 'active'
       and guardian_profile.date_of_birth is not null
       and extract(year from age(current_date, guardian_profile.date_of_birth)) >= 18
       and guardian_auth.email_confirmed_at is not null
   ) then
-    raise exception ''guardian_approval_required'';
+    raise exception 'guardian_approval_required';
   end if;';
-  v_new := '  if (v_job.requires_guardian_approval or v_app.guardian_decision_status <> ''not_required'')
+  v_new := '  if (v_job.requires_guardian_approval or v_app.guardian_decision_status <> 'not_required')
      and (
-       v_app.guardian_decision_status <> ''approved''
+       v_app.guardian_decision_status <> 'approved'
        or v_app.guardian_decided_by is null
        or v_app.guardian_id is distinct from v_app.guardian_decided_by
        or not exists (
@@ -286,17 +286,17 @@ begin
          join auth.users guardian_auth on guardian_auth.id = gl.guardian_user_id
          where gl.teen_user_id = v_app.applicant_id
            and gl.guardian_user_id = v_app.guardian_decided_by
-           and gl.status = ''active''
+           and gl.status = 'active'
            and gl.teen_consent_at is not null
            and gl.guardian_consent_at is not null
-           and guardian_profile.role = ''guardian''::public.mort_role
-           and guardian_profile.account_status = ''active''
+           and guardian_profile.role = 'guardian'::public.mort_role
+           and guardian_profile.account_status = 'active'
            and guardian_profile.date_of_birth is not null
            and extract(year from age(current_date, guardian_profile.date_of_birth)) >= 18
            and guardian_auth.email_confirmed_at is not null
        )
      ) then
-    raise exception ''guardian_approval_required'';
+    raise exception 'guardian_approval_required';
   end if;';
   if position(v_old in v_def)=0 then raise exception 'guardian_acceptance_gate_patch_failed'; end if;
   v_def := replace(v_def,v_old,v_new);
