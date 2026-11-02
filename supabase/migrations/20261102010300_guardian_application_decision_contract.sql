@@ -304,6 +304,31 @@ begin
 end;
 $migration$;
 
+-- Return the new Guardian state immediately after submission so the teen
+-- client can show the pending decision without reading another user's data.
+do $migration$
+declare
+  v_def text;
+  v_old text := $old$
+      'guardian_id', v_application.guardian_id,
+      'availability_confirmed', v_application.availability_confirmed,
+$old$;
+  v_new text := $new$
+      'guardian_id', v_application.guardian_id,
+      'guardian_decision_status', v_application.guardian_decision_status,
+      'guardian_decided_by', v_application.guardian_decided_by,
+      'guardian_decided_at', v_application.guardian_decided_at,
+      'guardian_decision_reason', v_application.guardian_decision_reason,
+      'availability_confirmed', v_application.availability_confirmed,
+$new$;
+begin
+  v_def := pg_get_functiondef('public.submit_job_application(uuid,text,boolean,uuid[])'::regprocedure);
+  if position(v_old in v_def)=0 then raise exception 'guardian_submission_response_patch_failed'; end if;
+  v_def := replace(v_def,v_old,v_new);
+  execute v_def;
+end;
+$migration$;
+
 create or replace function public.guardian_decide_job_application(
   p_application_id uuid,
   p_decision text,
