@@ -232,12 +232,20 @@ begin
           or (
             ja.guardian_decision_status='approved'
             and exists(
-              select 1 from public.guardian_links gl
+              select 1
+              from public.guardian_links gl
+              join public.profiles guardian_profile on guardian_profile.id=gl.guardian_user_id
+              join auth.users guardian_auth on guardian_auth.id=gl.guardian_user_id
               where gl.teen_user_id=ja.applicant_id
                 and gl.guardian_user_id=ja.guardian_decided_by
                 and gl.status='active'
                 and gl.teen_consent_at is not null
                 and gl.guardian_consent_at is not null
+                and guardian_profile.role='guardian'::public.mort_role
+                and guardian_profile.account_status='active'
+                and guardian_profile.date_of_birth is not null
+                and extract(year from age(current_date,guardian_profile.date_of_birth))>=18
+                and guardian_auth.email_confirmed_at is not null
             )
           )
         )
