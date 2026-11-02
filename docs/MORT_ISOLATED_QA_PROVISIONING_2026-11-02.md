@@ -21,6 +21,10 @@ history is not the production baseline: it has 82 entries, including ten QA
 specific migrations, and lacks production version
 `20261102113314_guardian_id_response_mask_production`. Do not treat it as an
 exact production clone or apply proposals whose source guards do not match.
+The exact migration/hash comparison and reconciliation plan are in
+`MORT_SUPABASE_MIGRATION_DRIFT_2026-11-02.md`. The existing isolated project has
+six Storage buckets and zero objects; preserve those bucket definitions and all
+ten QA migrations. Do not reset or replay the baseline over this project.
 
 ## Prerequisites that require an owner decision or external setup
 
@@ -38,17 +42,26 @@ exact production clone or apply proposals whose source guards do not match.
 ### Provider sandbox reference points
 
 These are official provider documentation, not recommendations or an assertion
-that MORT has selected them:
+that MORT has selected them. Based on their published capabilities:
 
-- [Yoti Age Verification sandbox](https://developers.yoti.com/age-verification/sandbox-introduction)
-- [Yoti Identity Verification sandbox](https://developers.yoti.com/identity-verification/sandbox)
-- [Persona environments](https://docs.withpersona.com/2025-12-08/environments) and [integration testing](https://docs.withpersona.com/integration-testing)
+- [Yoti Age Verification sandbox](https://developers.yoti.com/age-verification/sandbox-introduction) supports mocked outcomes only; the integration guide requires a verified Yoti organization/service and sandbox signing credentials.
+- [Yoti Identity Verification sandbox](https://developers.yoti.com/identity-verification/sandbox) supports mock data and simulated approve/reject outcomes. Yoti's [onboarding page](https://developers.yoti.com/identity-verification/production-keys) says the free sandbox can be used before account approval. [Yoti supported documents](https://developers.yoti.com/identity-verification/supported-documents) lists government identity documents; it does not establish school-ID acceptance.
+- [Persona environments](https://docs.withpersona.com/environments) support simulated pass/fail without real verification. Persona says information extraction and verification technology testing requires contacting them; this does not establish a school-ID workflow.
 - [Veriff test integration](https://devdocs.veriff.com/docs/how-to-create-an-integration)
+- [Veriff supported identity document types](https://devdocs.veriff.com/v1/docs/supported-document-types) lists passport, ID card, driver's license, residence permit and visa for IDV; school ID is not listed. Veriff test decisions are manually triggered and are not actual Veriff verification outcomes.
 - [Google Workspace for Education test domain](https://knowledge.workspace.google.com/admin/getting-started/editions/create-a-test-domain-with-google-workspace-for-education?rd=1&visit_id=639178287111378853-1944727267)
 
-All provider candidates require owner/product/legal selection and separate
-technical validation. A mocked vendor outcome must never be labeled as an
-actual verified identity, age, or enrollment in production.
+No provider is selected for MORT. Yoti's published age and IDV sandboxes are
+documented candidates for exercising their separate integration result paths
+with mock outcomes; neither proves a real verification. Age sandbox onboarding
+requires a verified organization/service; its IDV sandbox is documented as
+available before organization approval, with sandbox keys. Persona and Veriff
+can simulate result handling, with the limitations above. None of the selected/current MORT
+providers is confirmed to verify school IDs; the published Yoti/Veriff document
+lists do not include school ID, so MORT must get written provider confirmation
+before adopting one for that case type. No sandbox credentials or provider
+integration are configured. A mocked outcome must never be labeled as an actual
+verified identity, age, or school enrollment in production.
 
 ## Supported account and fixture sequence
 

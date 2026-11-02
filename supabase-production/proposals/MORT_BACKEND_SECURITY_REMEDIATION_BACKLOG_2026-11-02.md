@@ -184,3 +184,54 @@ Harness inputs additionally require application ID, Guardian ID, six synthetic c
   job/application fixture procedure; and server-only isolated service-role
   secret. No QA role account or fixture was created, no proposal was applied,
   and production remained unchanged.
+
+## Migration-drift and isolated-baseline update — 2026-11-02
+
+- Full read-only comparison found 73 production ledger rows and 82 isolated
+  rows. Seventy-two migration names are shared and their isolated IDs were
+  restamped; 71 statement-payload SHA-256 values are identical. The shared
+  `restrict_job_application_direct_select` SQL hash differs only by the
+  isolated ledger payload's final newline (475 bytes vs 474); normalized
+  executable statements are identical. The remaining ten isolated-only
+  migrations, their exact versions/hashes, dependencies and effects are in
+  `docs/MORT_SUPABASE_MIGRATION_DRIFT_2026-11-02.md`.
+- Production-only migration `20261102113314_guardian_id_response_mask_production`
+  (SHA-256 `96ad143a1c066d3496ca492774c810a9bc196e629f2c7fa2bf908459c4392efa`)
+  is absent in isolated QA. Two independent QA harmonization migrations were
+  recorded at 11:23 UTC and modify the current reader's Guardian-ID / decision
+  reason masks. The function contains stricter active Guardian/adult/confirmed
+  email checks. Ledger timestamps support divergence before the production
+  migration, but do not establish the operator reason. Do not synthesize a
+  history row or replay the stale text replacement.
+- Proposal source review across all five guards: verification review and both
+  check-in RPCs match production; eligibility (`401d64ec19cf1fa1ab072709266fe4a7`
+  vs isolated `5b701599fe40c74a21e027aae102eea1`) and acceptance
+  (`a44e036f16579106d9ae615d2a54235f` vs isolated
+  `c53a5ecfc861bb6b6eb723ba2f465892`) differ substantively. QA adds a
+  verification-triplet helper / optional Guardian-preference gate and a
+  Guardian decision-status requirement, respectively. These stem from the
+  isolated-only verification and Guardian-decision migrations, not formatting.
+  Keep the production guards unchanged; do not port QA Guardian decisions
+  without policy approval.
+- Current production and isolated catalogs both show RLS+FORCE RLS on
+  `job_applications`, anon/authenticated SELECT denied, service_role SELECT
+  allowed, no usable SELECT policy, and authenticated-only EXECUTE on the
+  SECURITY DEFINER/empty-search-path scoped reader. The reader definition has
+  applicant/current-link/dual-consent caller gates in both projects. Anonymous
+  API denial tests again passed in isolated QA.
+- Local clean baseline container `supabase_db_mort-proposals-local-20261102`
+  has PostgreSQL 17.6 and 73 migration rows through `20261102113314`, including
+  the Guardian mask and direct-SELECT restriction. It is a clean SQL baseline
+  on the same major, not the hosted 17.11 patch/runtime or a complete ACL clone.
+  The direct-SELECT pgTAP test ran in a transaction and rolled back: 4/5 passed;
+  service_role SELECT failed because this local baseline does not have the
+  hosted ACL. Production and isolated ACLs both explicitly grant the same role
+  table rights. Keep the test strict and fix local test bootstrap separately.
+- Isolated QA currently has six Storage buckets and zero objects, in addition
+  to the ten QA-only migrations; no Auth users, application data, or staff rows
+  were present. Preserve it as-is. Reconciliation plan: retain this project as
+  the QA-extension environment; use a separate disposable local clean baseline
+  for production migrations; before any future QA DDL, snapshot DB/schema,
+  Auth/config, bucket metadata and Storage bytes, then test in a new disposable
+  branch/clone. If it fails, abandon that new clone and preserve the existing
+  isolated project. No reset, migration-table edit, or DDL was done.
