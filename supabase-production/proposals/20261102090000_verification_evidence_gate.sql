@@ -65,6 +65,7 @@ AS $function$
 declare
   v_user uuid := auth.uid();
   v_case public.verification_cases%rowtype;
+  v_case_snapshot public.verification_cases%rowtype;
   v_date_of_birth date;
   v_now timestamptz;
   v_evidence_expires_at timestamptz;
@@ -79,18 +80,18 @@ begin
     raise exception 'Invalid review outcome';
   end if;
 
-  select * into v_case
+  -- Start with an unlocked snapshot to discover the subject. All paths that
+  -- mutate eligibility/verification state lock the profile before the case.
+  select * into v_case_snapshot
   from public.verification_cases verification
-  where verification.id = p_case_id
-  for update;
+  where verification.id = p_case_id;
   if not found then raise exception 'Verification case not found'; end if;
 
   select profile.date_of_birth into v_date_of_birth
   from public.profiles profile
-  where profile.id = v_case.user_id
+  where profile.id = v_case_snapshot.user_id
   for share;
   if not found then raise exception 'Verification subject not found'; end if;
-  v_now := clock_timestamp();
 
   if p_status = 'verified'::public.mort_verification_status then
     if v_date_of_birth is null
@@ -100,14 +101,34 @@ begin
 
     perform provider.provider_key
     from private.verification_provider_allowlist provider
-    where provider.provider_key = v_case.provider
-      and provider.verification_type = v_case.verification_type
+    where provider.provider_key = v_case_snapshot.provider
+      and provider.verification_type = v_case_snapshot.verification_type
       and provider.is_enabled
     for share;
     if not found then
       raise exception 'trusted_verification_provider_unavailable';
     end if;
+  end if;
 
+  -- Global lock order: subject profile -> provider allowlist (when approving)
+  -- -> verification case -> provider result. Re-read under the row lock and
+  -- reject a stale snapshot instead of applying a decision to changed details.
+  select * into v_case
+  from public.verification_cases verification
+  where verification.id = p_case_id
+  for update;
+  if not found then raise exception 'Verification case not found'; end if;
+  if v_case.user_id is distinct from v_case_snapshot.user_id
+     or v_case.provider is distinct from v_case_snapshot.provider
+     or v_case.verification_type is distinct from v_case_snapshot.verification_type
+     or v_case.provider_reference is distinct from v_case_snapshot.provider_reference
+     or v_case.status is distinct from v_case_snapshot.status
+     or v_case.updated_at is distinct from v_case_snapshot.updated_at then
+    raise exception 'verification_case_changed_retry';
+  end if;
+  v_now := clock_timestamp();
+
+  if p_status = 'verified'::public.mort_verification_status then
     select result.expires_at into v_evidence_expires_at
     from private.verification_provider_results result
     where result.verification_case_id = v_case.id

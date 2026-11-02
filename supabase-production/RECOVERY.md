@@ -6,7 +6,7 @@
 
 ## Current recovery gap
 
-The recovered 71-file migration history in this workdir is a schema-change record, **not a data backup**. It does not contain production rows, Auth credentials, Storage object bytes, Edge Function secrets, OAuth provider settings, or Vercel secrets.
+The recovered 73-file migration history in this workdir is a schema-change record, **not a data backup**. It does not contain production rows, Auth credentials, Storage object bytes, Edge Function secrets, OAuth provider settings, or Vercel secrets.
 
 Supabase Free does not include managed daily database backups or database branching. Supabase recommends regular CLI exports and off-site backups for Free projects. A Pro subscription includes daily database backups with 7-day retention, but database backups do not include Storage object bytes; those must be backed up separately.
 

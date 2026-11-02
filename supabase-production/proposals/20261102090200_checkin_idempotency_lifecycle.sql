@@ -110,9 +110,16 @@ begin
     if not found then
       return jsonb_build_object('ok', false, 'code', 'idempotency_result_unavailable');
     end if;
-    if existing_checkin.application_id <> p_application_id
-       or existing_checkin.request_interval_minutes is null then
-      return jsonb_build_object('ok', false, 'code', 'idempotency_payload_unverifiable');
+    if existing_checkin.application_id <> p_application_id then
+      return jsonb_build_object('ok', false, 'code', 'idempotency_key_reused');
+    end if;
+    -- Old rows have no recorded interval. Preserve the previous successful
+    -- same-application retry behavior without claiming payload equivalence.
+    if existing_checkin.request_interval_minutes is null then
+      return jsonb_build_object(
+        'ok', true, 'replayed', true, 'payload_verified', false,
+        'checkin_id', existing_checkin.id, 'expected_at', existing_checkin.expected_at
+      );
     end if;
     if existing_checkin.request_interval_minutes <> p_minutes_from_now then
       return jsonb_build_object('ok', false, 'code', 'idempotency_key_reused');
@@ -209,10 +216,17 @@ begin
   if checkin.status = 'completed' then
     if checkin.completion_request_id = p_client_request_id then
       return jsonb_build_object(
-        'ok', true, 'replayed', true, 'checkin_id', checkin.id, 'completed_at', checkin.completed_at
+        'ok', true, 'replayed', true, 'payload_verified', true,
+        'checkin_id', checkin.id, 'completed_at', checkin.completed_at
       );
     end if;
-    return jsonb_build_object('ok', false, 'code', 'checkin_already_completed');
+    -- Before request IDs were persisted, completed rows were idempotent
+    -- success responses for the authorized teen. Keep that safe no-op contract
+    -- for legacy and already-completed rows without binding a new request ID.
+    return jsonb_build_object(
+      'ok', true, 'replayed', true, 'payload_verified', false,
+      'checkin_id', checkin.id, 'completed_at', checkin.completed_at
+    );
   end if;
 
   if checkin.status <> 'scheduled'
@@ -241,7 +255,8 @@ begin
     return jsonb_build_object('ok', false, 'code', 'active_checkin_not_found');
   end if;
   return jsonb_build_object(
-    'ok', true, 'replayed', false, 'checkin_id', completed_id, 'completed_at', completed_at_value
+    'ok', true, 'replayed', false, 'payload_verified', true,
+    'checkin_id', completed_id, 'completed_at', completed_at_value
   );
 end;
 $function$;

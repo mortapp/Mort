@@ -10,6 +10,7 @@ Scope is the current production source observed read-only on `jxbnrkasktbhtiujkh
 - **Narrow proposal:** Add a private provider-result ledger keyed to the existing case and subject, restricted to trusted server-side inserts. The reviewer may approve only when a current, successful, case-type-matched result exists and its provider/reference match the case. No manual override is proposed. An empty provider allowlist keeps verification fail-closed until a provider is selected, approved, integrated, and its webhook signature validation is deployed. Retain the existing minimum-age check and audit trail.
 - **Regression tests:** unauthenticated/nonstaff denied; staff can reject/mark needs-review without provider evidence; staff cannot verify missing/mismatched/rejected/expired/wrong-type/untrusted evidence; cannot verify under-13 or missing-DOB user; can verify only with matching current successful evidence; replayed provider event is unique; reviewer and evidence attempts are audited; provider result/document details never appear in public reads.
 - **Prerequisites:** Provider selection, contract and sandbox credentials; counsel/product approval of accepted evidence per verification type; secure provider callback deployment and signing-secret provisioning. No production documents or real identity data may be collected before those gates pass.
+- **Concurrency review:** The first draft locked the case before the subject profile, opposite the application/acceptance eligibility order and therefore deadlock-prone. The proposal now locks profile, then provider allowlist when approving, then case, and rechecks captured subject/provider/type/reference plus status/update timestamp under `FOR UPDATE`, rejecting stale reviewer snapshots. Provider callback code must follow the same subject/profile → allowlist → case → result order. A separate review found eligibility locking profile→job while acceptance locks application→job→pair→profile; eligibility now locks job→pair→profile to remove that cycle. Static lock-order checks pass; multi-session RPC behavior remains required.
 
 ## Priority 0 — acceptance must serialize with blocking
 
@@ -34,7 +35,8 @@ Scope is the current production source observed read-only on `jxbnrkasktbhtiujkh
 - **Severity / exploitability:** Medium-to-high safety-integrity severity; moderate concurrency/expiry risk. Any active teen can call the authenticated RPC for their own check-in. The current completion request ID is required but ignored; completed check-ins can be reported as successful with any new request ID. Scheduling does not lock/recheck the assignment or job lifecycle, and a reused schedule request ID can return an old check-in for a different application or interval.
 - **Affected:** `public.schedule_active_job_checkin(uuid,integer,uuid)`, `public.complete_active_job_checkin(uuid,uuid)`, `public.job_safety_checkins`, `public.job_assignments`, `public.jobs`; safety notifications/escalation readers.
 - **Unsafe behavior:** Scheduling selects an accepted/in-progress assignment without row locks or checking current job state; on an idempotency-key conflict it returns the prior check-in without comparing application/interval. Completion accepts a required request ID but never stores or compares it and does not verify the related assignment/job remains active.
-- **Narrow proposal:** Add nullable requested-interval and completion-request fields (preserving existing rows), a bounded interval check, and a partial unique index for completion request IDs. Lock assignment then job then check-in (matching safety-cancellation's assignment/application/job order), require assignment `accepted|in_progress` and job `filled|in_progress`, and recheck participant/application/job relationships. Bind schedule retries to the original application and interval; return an idempotency conflict for key reuse with a different payload or legacy rows whose payload cannot be verified. Bind completion retries to the request ID, make only a `scheduled`→`completed` transition, and fail closed after cancellation/closure.
+- **Narrow proposal:** Add nullable requested-interval and completion-request fields (preserving existing rows), a bounded interval check, and a partial unique index for completion request IDs. Lock assignment then job then check-in (matching safety-cancellation's assignment/application/job order), require assignment `accepted|in_progress` and job `filled|in_progress`, and recheck participant/application/job relationships. Bind schedule retries to the original application and interval; conflict on a different application or a known different interval, while preserving safe legacy retries whose interval was never stored. Bind completion retries to the request ID, make only a `scheduled`→`completed` transition, and fail closed after cancellation/closure.
+- **Compatibility refinement:** A legacy schedule retry for the same application now returns the original successful check-in with `payload_verified=false` when its old interval was never stored; a different application still conflicts. Authorized retries against already-completed legacy check-ins remain successful no-ops with `payload_verified=false`; request IDs already bound to another check-in still conflict. This preserves the previous success contract without claiming unverifiable payload equality.
 - **Regression tests:** same-key/same-payload schedule replay; same-key/different-application and different-interval conflict; two-session duplicate schedule; completion same-key replay; key reused across check-ins denied; different key after completion has explicit stable result; concurrent cancel/complete and complete/complete; no new check-in after terminal assignment/job; all existing teen/participant RLS and escalation behavior unchanged; legacy rows with null new fields remain readable and are never overwritten.
 - **Prerequisites:** Isolated PostgreSQL 17 with synthetic accepted/in-progress assignments and two independent sessions. Do not create a real funded job; the existing payments-off gate must remain closed.
 
@@ -56,17 +58,23 @@ Harness inputs additionally require application ID, Guardian ID, six synthetic c
 ## Execution status and controls
 
 - Read-only production inspection only; no DDL/data/Auth/release-control writes.
-- Read-only production migration catalog reports 73 applied versions through
-  `20261102113314`; the local production workdir has 72 SQL files and its
-  checked-in export manifest records 71. The disposable local replay therefore
-  is not a complete hosted-history clone: it is missing hosted version
-  `20261102113314_guardian_id_response_mask_production`, while the manifest
-  omits the already-present local/hosted
-  `20261102040639_restrict_job_application_direct_select`. Reconcile and export
-  the missing hosted version before claiming full migration parity.
-- The five target RPCs' source hashes matched between current production and
-  the 72-file local replay. All three proposal SQL files then compiled and
-  committed against that disposable local PostgreSQL 17 database.
+- Production migration catalog reports 73 applied versions through
+  `20261102113314`. The local SQL directory, manifest, and hosted ledger now
+  each contain the same 73 version/name pairs in the same ascending order.
+- Recovered `20261102040639_restrict_job_application_direct_select` directly
+  from the production ledger into
+  `supabase-production/recovered-ledger-sources/`; SHA-256 is
+  `d816da845f1c71643a0d577b9629b98b3e8db9c0ed4c3667e8a4e7db7a60cf6d`.
+  Its existing local migration's executable body matches production after
+  line-ending/trailing-newline normalization; local editorial comments are
+  preserved and the historical file was not rewritten.
+- Recovered exact ledger SQL for
+  `20261102113314_guardian_id_response_mask_production` into the migration
+  directory; SHA-256 is
+  `96ad143a1c066d3496ca492774c810a9bc196e629f2c7fa2bf908459c4392efa`.
+  This is historical source already applied in production, not an instruction
+  to execute it again. Both recovered payloads were byte-for-byte verified
+  against their production ledger SQL values.
 - Fixture-free local negative tests passed for anonymous/no-claim rejection,
   anon EXECUTE denial, SECURITY DEFINER/empty-search-path preservation, private
   evidence-table RLS and grants, and an empty provider allowlist. The test ran
@@ -76,17 +84,29 @@ Harness inputs additionally require application ID, Guardian ID, six synthetic c
   and AI provider disabled. The proposals do not write release-control rows.
 - No production migration or the stale Guardian-ID response-mask proposal was applied.
 - No changes to marketplace, publishing, payments, document collection, or AI controls are proposed.
-- SQL proposals compile locally, but they have not passed positive authorization,
-  provider-evidence, RLS, or two-session behavioral tests. Do not run them against
-  production; exact-source guards intentionally stop if the inspected
-  definitions have changed.
+- The complete 73-file baseline replay passed on disposable local PostgreSQL
+  17, reporting 73 local ledger rows from `20261026194801` through
+  `20261102113314`. All three final proposal SQL files compiled from a clean
+  baseline. One intervening attempt to reapply drafts over already-replaced
+  local functions was rejected by their exact-source guards; a clean local
+  reset/replay followed and the final clean compile passed.
+- Fixture-free local SQL authorization checks passed and rolled back. A new
+  independent two-session test passed for the canonical participant-pair
+  advisory lock in reversed participant order and the check-in completion
+  request lock (both contenders waited until the holder committed). These
+  verify lock-key serialization only; they do not exercise authenticated RPC
+  behavior or application/check-in fixtures.
+- Provider-evidence, positive authorization, Guardian RLS/API behavior,
+  application-vs-block RPC race, and check-in lifecycle RPC race remain unrun.
+  Do not run proposals against production; exact-source guards stop if the
+  inspected definitions have changed.
 - The full isolated Guardian role matrix remains blocked: no approved legal
   versions, provider sandbox/submissions, authorized first-reviewer/staff
   membership, synthetic accounts/application/Guardian relationship, or
   server-only QA service-role credential is provisioned. No such data was
   fabricated.
-- Required next actions: reconcile/export the 73rd hosted migration; choose and
-  approve age, identity and school evidence providers/policies; publish
+- Required next actions: choose and approve age, identity and school evidence
+  providers/policies; publish
   counsel-approved test legal versions in isolated QA; provision an authorized
   reviewer with training; create six synthetic accounts through Auth and the
   supported onboarding/Guardian flows; issue a synthetic application through

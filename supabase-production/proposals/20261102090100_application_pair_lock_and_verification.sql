@@ -38,8 +38,6 @@ begin
   if auth.uid() is null then
     return jsonb_build_object('eligible', false, 'code', 'authentication_required', 'message', 'Sign in to apply.', 'guardian_required_for_this_job', false, 'guardian_linked', false);
   end if;
-  select * into v_profile from public.profiles profile where profile.id = auth.uid() for share;
-  v_profile_found := found;
   select * into v_job from public.jobs job where job.id = p_job_id for share;
   v_job_found := found;
   if v_job_found then
@@ -57,6 +55,11 @@ begin
     for share;
     v_poster_active := coalesce(v_poster_active, false);
   end if;
+  -- Match acceptance's job -> participant-pair -> profile lock order. Locking
+  -- profile before job here can deadlock with acceptance, which owns the job
+  -- lock before checking the teen profile.
+  select * into v_profile from public.profiles profile where profile.id = auth.uid() for share;
+  v_profile_found := found;
   select * into v_release from public.mort_release_control release where release.is_primary for share;
   v_release_found := found;
   -- Lock active, dual-consented Guardian records and their identity rows

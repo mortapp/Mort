@@ -1,7 +1,7 @@
 {
   "source_project_ref": "jxbnrkasktbhtiujkhay",
-  "exported_on": "2026-11-01",
-  "migration_count": 71,
+  "exported_on": "2026-11-02",
+  "migration_count": 73,
   "migrations": [
     {
       "version": "20261026194801",
@@ -357,6 +357,16 @@
       "version": "20261102003741",
       "name": "private_location_and_block_message_contract",
       "sha256": "6950b856320e8a72f131b3dcb111e915356ffb732a0a216b1d2810d97f62b036"
+    },
+    {
+      "version": "20261102040639",
+      "name": "restrict_job_application_direct_select",
+      "sha256": "d816da845f1c71643a0d577b9629b98b3e8db9c0ed4c3667e8a4e7db7a60cf6d"
+    },
+    {
+      "version": "20261102113314",
+      "name": "guardian_id_response_mask_production",
+      "sha256": "96ad143a1c066d3496ca492774c810a9bc196e629f2c7fa2bf908459c4392efa"
     }
   ]
 }
