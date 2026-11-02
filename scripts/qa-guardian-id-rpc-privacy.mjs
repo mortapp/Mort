@@ -38,7 +38,12 @@ const required = [
   'QA_ADMIN_EMAIL', 'QA_ADMIN_PASSWORD',
 ];
 const missing = required.filter((name) => !process.env[name]);
-assert.deepEqual(missing, [], `Missing QA-only environment variables: ${missing.join(', ')}`);
+if (missing.length > 0) {
+  console.error(
+    `[qa-guardian-id-rpc-privacy] BLOCKED before network: missing isolated QA environment variables: ${missing.join(', ')}`,
+  );
+  process.exit(2);
+}
 assert.match(projectUrl, /^https:\/\/[a-z0-9]+\.supabase\.co$/i);
 assert.match(projectUrl, /ckcxakhxqlkhppsxxjhv/i, 'Refusing to run outside the isolated QA project');
 assert.notMatch(projectUrl, /jxbnrkasktbhtiujkhay|rakjydmgwwgtdislanbt/i, 'Production/deleted project is prohibited');
