@@ -17,6 +17,7 @@ test('Guardian decisions are a separate application state and are not inferred f
 test('submission records a pending decision when the job or linked Guardian preference requires it', () => {
   assert.match(migration, /case[\s\S]*guardian_approval_required[\s\S]*then 'pending'[\s\S]*else 'not_required'/i);
   assert.match(migration, /guardian_submission_insert_patch_failed/i);
+  assert.match(migration, /guardian_decision_status', v_application\.guardian_decision_status/i);
 });
 
 test('only an active, adult, email-confirmed, dual-consented Guardian can decide', () => {
@@ -33,8 +34,8 @@ test('only an active, adult, email-confirmed, dual-consented Guardian can decide
 });
 
 test('pending or rejected applications are hidden from posters and cannot be accepted', () => {
-  assert.match(migration, /guardian_decision_status=''approved''/i);
-  assert.match(migration, /guardian_decision_status <> ''approved''/i);
+  assert.match(migration, /guardian_decision_status='approved'/i);
+  assert.match(migration, /guardian_decision_status <> 'approved'/i);
   assert.match(migration, /drop policy if exists applications_select_parties/i);
   assert.match(migration, /guardian_decision_status='pending'/i);
 });
