@@ -47,7 +47,13 @@ const statusPath = resolve(output, 'release-status.json');
 if (!existsSync(statusPath)) failures.push('release-status.json is missing');
 const status = existsSync(statusPath)
   ? JSON.parse(readFileSync(statusPath, 'utf8'))
-  : { deploymentReady: false, missingConfiguration: ['unknown'] };
+  : { deploymentReady: false, missingConfig: ['unknown'], legalApprovalClaimed: status.legalApprovalClaimed === true, externalLegalReviewPending: true };
+if (status.deploymentReady !== true) {
+  failures.push(`required public configuration is incomplete: ${(status.missingConfig ?? []).join(', ') || 'unknown'}`);
+}
+if (status.legalApprovalClaimed !== true || status.externalLegalReviewPending === true) {
+  failures.push('qualified legal review and approval are not evidenced; public legal pages must remain draft');
+}
 const publicConfigPath = resolve(output, 'assets', 'public-config.js');
 if (!existsSync(publicConfigPath)) failures.push('public-config.js is missing');
 if (existsSync(publicConfigPath)) {
@@ -122,7 +128,7 @@ const report = {
   packagePass: failures.length === 0,
   deploymentReady: status.deploymentReady === true && failures.length === 0,
   checkedRoutes: checked,
-  missingConfiguration: status.missingConfiguration ?? [],
+  missingConfiguration: status.missingConfig ?? [],
   httpsValidation,
   failures,
   legalApprovalClaimed: false,
