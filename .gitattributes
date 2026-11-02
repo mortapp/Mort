@@ -32,3 +32,6 @@
 *.png binary
 *.webp binary
 *.zip binary
+
+# Recovered production migration snapshots preserve their original line endings.
+supabase-production/migrations/*.sql -text

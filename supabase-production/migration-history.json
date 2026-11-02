@@ -1,0 +1,362 @@
+{
+  "source_project_ref": "jxbnrkasktbhtiujkhay",
+  "exported_on": "2026-11-01",
+  "migration_count": 71,
+  "migrations": [
+    {
+      "version": "20261026194801",
+      "name": "mort_production_core_architecture",
+      "sha256": "cb0e53f045c48bae83fa2f828d2046846ed2fdd8e2aff79ae0e8f60441d9f051"
+    },
+    {
+      "version": "20261026195135",
+      "name": "mort_production_architecture_hardening",
+      "sha256": "0702d9ce825c7bc39efcd116573b960e06bd36013a177e387339cdb6f155369c"
+    },
+    {
+      "version": "20261026195746",
+      "name": "mort_production_workflow_rpcs",
+      "sha256": "e75c65bebe148938ecc33642ea26ba7f1ad78e685d6986e5ed5631717869a02a"
+    },
+    {
+      "version": "20261026195814",
+      "name": "mort_production_messaging_workflows",
+      "sha256": "f70d5df86afeb282a2e03cc9ce046659d7740482d0557c699ac6e0023d14a8bb"
+    },
+    {
+      "version": "20261026195853",
+      "name": "mort_production_role_verification_workflows",
+      "sha256": "dfd92b6d5ea222a7ab5d65d33604c22bb4039e81a615cfde28aa15ceb09d62b5"
+    },
+    {
+      "version": "20261027072203",
+      "name": "mort_job_interests",
+      "sha256": "b15dbdce4849783fb55cffe6d8a8347e3720fd19a1ea28184f28cfa3af5f0fdb"
+    },
+    {
+      "version": "20261027073519",
+      "name": "mort_protect_exact_job_address",
+      "sha256": "aab757dde0d383a942eb6d0c1dacaa3cd7283252b47a78bc932d903070c9d397"
+    },
+    {
+      "version": "20261027082432",
+      "name": "mort_enforce_job_age_eligibility",
+      "sha256": "39e8ea67ed2c01ce597990e1fbaed69eb3dca836864a7e4f198eefae528d52c7"
+    },
+    {
+      "version": "20261027084715",
+      "name": "mort_release_mode_status",
+      "sha256": "bf95f4253bb6145afb8312e646bf19c0e4619a0a3555f764d83986b3f6c94e87"
+    },
+    {
+      "version": "20261027084830",
+      "name": "mort_release_status_invoker_access",
+      "sha256": "65607f44285f286390a55194ead71017ca4444b968fd0938470693e3baf6b03d"
+    },
+    {
+      "version": "20261027092720",
+      "name": "mort_auth_profile_bootstrap",
+      "sha256": "7851ea105c38d0fdba3798d599cb9e152105887529b8f221825de433d1f09bc8"
+    },
+    {
+      "version": "20261027092959",
+      "name": "mort_auth_invoker_wrappers",
+      "sha256": "3f04c64db9293a1efed0ce3f727d5ac36d91624e16b15fba17e748655911b491"
+    },
+    {
+      "version": "20261027102746",
+      "name": "onboarding_progress_rpc_contract",
+      "sha256": "41b5bb4b8066b704ec6a75068d48ab3406598845a10301604b0d2e99bd77b1fc"
+    },
+    {
+      "version": "20261027120458",
+      "name": "mort_stripe_production_foundation",
+      "sha256": "0a0bbd30d9267349649ddecef6f200e66d2f16cf81bdd2a3cf65863bda78d371"
+    },
+    {
+      "version": "20261027121059",
+      "name": "mort_flutter_marketplace_contract",
+      "sha256": "f578dd7bbc077613c553f3f654a0ca1ee46a0e156b9c15dbaf915d9ad234f6d3"
+    },
+    {
+      "version": "20261027121614",
+      "name": "mort_stripe_assignment_payment_api",
+      "sha256": "0c4ac5e66c80b189b7e0acfbcbf26fdc84d87f37c48ac54e36d493e56e98063f"
+    },
+    {
+      "version": "20261027121939",
+      "name": "mort_stripe_assignment_payment_status",
+      "sha256": "95a74b4ebfa8f44c13327be5ddad6d2596d720d101fac011cc6116e40243fee1"
+    },
+    {
+      "version": "20261028010003",
+      "name": "mort_teen_guardian_onboarding",
+      "sha256": "2ade658e9b19c66ccd4309fea9ad8ec8cb19e95a426b3dd393cfc43a4b2a682a"
+    },
+    {
+      "version": "20261028010507",
+      "name": "mort_guardian_link_lifecycle",
+      "sha256": "0121629a7e717cc9f57ffa1bceeaee19a1e5bd1dd8f3d8ef98907ac6c7bb4cc0"
+    },
+    {
+      "version": "20261028010533",
+      "name": "mort_guardian_link_revocation_audit",
+      "sha256": "e8183e3d0ac5d331898d26ba5a87d567f5e7ba00a21f7240d288999a763cee7e"
+    },
+    {
+      "version": "20261028012746",
+      "name": "mort_production_foreign_key_indexes",
+      "sha256": "ca5cd3449403eaefccbff78285183b49b321b1f315e86e57ac8818195ce1503e"
+    },
+    {
+      "version": "20261028031921",
+      "name": "mort_public_marketplace_activation",
+      "sha256": "62940df89effae500b41dd01c2329a5a779a0891dc6948aa8468fdef56fb8b50"
+    },
+    {
+      "version": "20261028034447",
+      "name": "flutter_application_backend_contract",
+      "sha256": "33afef66dc308a76502e2d7c3b40cf5c39f67449b032286891be02627a467652"
+    },
+    {
+      "version": "20261028040220",
+      "name": "flutter_job_management_contract",
+      "sha256": "0ec9e3e6a8fc567babbae0e07e059797a55ecdeb5f8e185250a01c0b3e264168"
+    },
+    {
+      "version": "20261028040438",
+      "name": "status_event_actor_indexes",
+      "sha256": "a5791167994853a7a04aa69ce8120bc1c7160533186e695d2a8ffea9b7994c0d"
+    },
+    {
+      "version": "20261028041541",
+      "name": "flutter_legal_clickwrap_foundation",
+      "sha256": "a78ed025124dbe1f31b628bc9c5d421cc03d457423dab805e4c3b70e13d6571f"
+    },
+    {
+      "version": "20261028041919",
+      "name": "flutter_legal_contract_index_and_actor_fix",
+      "sha256": "bb17385f78b0ed0cd9bb512e7c578af98481cd4e158f7081f949bd3e26c96b03"
+    },
+    {
+      "version": "20261028043814",
+      "name": "production_runtime_feature_status_contract",
+      "sha256": "03d681677002a3af47aee4ea8aec87a7daa4e24404e01e2d3c2f5aecc60628e9"
+    },
+    {
+      "version": "20261028044508",
+      "name": "guard_job_acceptance_guardian_consent",
+      "sha256": "88a898e2c50447f3719808696f61da1c2f3dfe0bc6e9a4520edc76a28ea90e45"
+    },
+    {
+      "version": "20261028045055",
+      "name": "enable_rls_private_security_tables",
+      "sha256": "64dd1f04ec52fc057108ab18aa486fca8e72feedf71291ad325d83fb6962297d"
+    },
+    {
+      "version": "20261028045720",
+      "name": "flutter_job_contract_backend",
+      "sha256": "246fd4aff83737f103d48fec0b64cbccceae3ed93c19ace306c0580a1863de80"
+    },
+    {
+      "version": "20261028052414",
+      "name": "guardian_alert_preferences",
+      "sha256": "800fc7b536bcf4524bd462e4b309906c786e71c868521f8a8f4e0be4039353dc"
+    },
+    {
+      "version": "20261028053421",
+      "name": "safety_report_contract",
+      "sha256": "744c248772cbc6197f1572224693ab9b6bcd3b88f01b5c747071a9efbf2da45b"
+    },
+    {
+      "version": "20261028053832",
+      "name": "safety_report_invoker_security",
+      "sha256": "13207542c9f3122939b709fd7c3f3ed85e19573cb445395a39812e68ab5ad6b6"
+    },
+    {
+      "version": "20261028054348",
+      "name": "safety_ping_and_job_checkins",
+      "sha256": "7c870c6caa03eff1a47918b6eac964d2371d3c47e57243ba3dd6cc0ff0adbe8c"
+    },
+    {
+      "version": "20261028055217",
+      "name": "saved_jobs_contract",
+      "sha256": "e9306536fa5783afe43411284973577fcbbfc1e8add008d6c1ceeb0b33da6c63"
+    },
+    {
+      "version": "20261028062156",
+      "name": "mort_flutter_job_safety_agreements",
+      "sha256": "71610fdb87104a0e4950f7f9da633c435b206214d186177f7b1c1ec1e88e85e0"
+    },
+    {
+      "version": "20261028062322",
+      "name": "mort_flutter_job_safety_rpc_invoker_wrappers",
+      "sha256": "8f92466c549e14c90013515a04cdb1181d6d0ee64f1b29a0b858c8c826ab925e"
+    },
+    {
+      "version": "20261028065139",
+      "name": "mort_job_execution_status_live_model",
+      "sha256": "d9c428c0c1f25751760f5ee6d30e5c964a6d3758c64345a85d0b35b075ab00a4"
+    },
+    {
+      "version": "20261028070130",
+      "name": "mort_job_safety_cancellation_live_model",
+      "sha256": "6ae5bf21dd499091cacb00c85cb7bdb9aa102d1c25060d313628cacb90ba7873"
+    },
+    {
+      "version": "20261028070221",
+      "name": "index_job_safety_cancellation_relations",
+      "sha256": "decf3e1754cef46e56f502ed4e8b36940b08a10d7332f03cd6ba2c89ec321ecf"
+    },
+    {
+      "version": "20261028071751",
+      "name": "mort_job_execution_pins_live_model",
+      "sha256": "b4da1026a7bc0e5cdc3b2b312c8a03bfc059a6e1914729841a1632acac0882a9"
+    },
+    {
+      "version": "20261028071846",
+      "name": "mort_job_execution_review_response_access",
+      "sha256": "b6eea4e04f67b9dff48d5125d14da22166461c504b7e7933e8cc124b68adbfb7"
+    },
+    {
+      "version": "20261028071941",
+      "name": "mort_job_execution_review_response_indexes",
+      "sha256": "c52d94865b5a229b0d33fb0d8da5ad08ce2481dda5fb9abacf4409914499d70e"
+    },
+    {
+      "version": "20261028073745",
+      "name": "flutter_proof_upload_review_current_model",
+      "sha256": "6a6a21e0dd264b62f649f3561e0927ec5f0636328a6b28c048c05f379b98f020"
+    },
+    {
+      "version": "20261028074611",
+      "name": "harden_proof_review_completion_lifecycle",
+      "sha256": "e686915b8de5f97623afa6b3452af473e64e6f6a234eea2710d7e9f4b6d450b5"
+    },
+    {
+      "version": "20261028074711",
+      "name": "serialize_proof_review_locks",
+      "sha256": "4099274fab73cb80b2fdcc0c466d4c9c750664cb4f6de92453ba72064e4f8d67"
+    },
+    {
+      "version": "20261028075800",
+      "name": "flutter_first_party_trust_status_contract",
+      "sha256": "355bc6b7bc169f88b33a5c9539e985b04d0c5b0bad6e511d1a97c4c3a0851768"
+    },
+    {
+      "version": "20261028081226",
+      "name": "flutter_identity_provider_unavailable_status",
+      "sha256": "fbcea7d90566ed368199fb6d3220ebbc056ffed8945e44704d2458a90257b400"
+    },
+    {
+      "version": "20261028101143",
+      "name": "completed_job_star_reviews",
+      "sha256": "910680f67d0b27c602eb8959a617f1c3210da0e9f610d05b978883dfe5a418cc"
+    },
+    {
+      "version": "20261028111929",
+      "name": "mort_public_messaging_contract",
+      "sha256": "f9b1e82894c50f3a61ba1d2854e671bf6d8bc212293a9f87e6125f04111e8cc6"
+    },
+    {
+      "version": "20261028114820",
+      "name": "mort_message_moderation_visibility",
+      "sha256": "94ed3f6a87b700511f88bc5adb7bf8c756aa2a3479f885358ce6d7ce4309e361"
+    },
+    {
+      "version": "20261028120908",
+      "name": "restrict_job_contract_table_writes",
+      "sha256": "924e039a611c4d40e88129d83ab53f41c3ea8257ebbaf0b0dd50931aff079f1e"
+    },
+    {
+      "version": "20261031220518",
+      "name": "allow_confirmed_pending_legal_acceptance",
+      "sha256": "b8009009ca64c5368e1f21b604958a9ab3cfbca5812032c5fb66216be34c2c0e"
+    },
+    {
+      "version": "20261031224305",
+      "name": "fix_onboarding_account_user_id_ambiguity",
+      "sha256": "b2f79924794e8d772e82e99be2b30d1d74cf97051d119e7096fec3448f033406"
+    },
+    {
+      "version": "20261031225301",
+      "name": "fix_onboarding_safety_user_id_ambiguity",
+      "sha256": "a018309c2e383df86d826f7e7a2eec02113967b42b64a248ea610855875943b4"
+    },
+    {
+      "version": "20261031230849",
+      "name": "require_verified_school_email_for_minors",
+      "sha256": "bdf9041531dac2fe9e7ecbc7ad1966b83128d97f7ae92e36062b752a7cf9ab6a"
+    },
+    {
+      "version": "20261031231634",
+      "name": "approve_herron_student_email_domains",
+      "sha256": "68d6f4d67432d2188c8859f124f160c750e65e38d1c31caec94ee317241ca2f0"
+    },
+    {
+      "version": "20261031232548",
+      "name": "enforce_minimum_age_and_hybrid_identity_requirements",
+      "sha256": "37520bb4cb01983f0e24f6952c7e7f82bb806e7e7e764f78b69e4f38e63ae4eb"
+    },
+    {
+      "version": "20261031233241",
+      "name": "require_dob_for_email_signups",
+      "sha256": "7e5b3277cd261973be46c182b542207ddc68a9703b1fada41b77cfee53d02b1c"
+    },
+    {
+      "version": "20261031234728",
+      "name": "optimize_participant_rls_auth_uid_initplans",
+      "sha256": "e43e5aa8df0c1788d552f12e95a1cc2743f10b0a4805d418f4f44739ddaef5bc"
+    },
+    {
+      "version": "20261031235321",
+      "name": "restrict_direct_job_application_inserts",
+      "sha256": "f2112cae30cd37a7ab546cb6e9bbdeb5a8eb9fcc01040e93ca2acf86cb9d0f71"
+    },
+    {
+      "version": "20261101001147",
+      "name": "hide_jobs_from_inactive_posters",
+      "sha256": "2fc328f01d7e2e523a6d23c01db77553d653b9c5fa7b44d13c56ac179546f330"
+    },
+    {
+      "version": "20261101001315",
+      "name": "restrict_guardian_link_direct_writes",
+      "sha256": "24324ed6d17d3c0bae8651b5a6bb6f3dfbf455c26b4b9188401edfbb7d0a9733"
+    },
+    {
+      "version": "20261101001528",
+      "name": "require_active_guardian_for_teen_access",
+      "sha256": "8d50a9c61e172917879552f3acbf362122f388f6327f68b86c28f2f3da09aae6"
+    },
+    {
+      "version": "20261101001842",
+      "name": "limit_message_sends_to_safe_rpc",
+      "sha256": "55423978127016fd1f697c71d022de53c2fc90ce5e1c15f916b5c023fa28bc50"
+    },
+    {
+      "version": "20261101002049",
+      "name": "require_active_guardian_for_job_approval",
+      "sha256": "79a93a596bc8116147e1d4c45a43f21daa6544bb84b2e3350b8b23ecdfba7dd4"
+    },
+    {
+      "version": "20261101002253",
+      "name": "enforce_minimum_age_on_verification_review",
+      "sha256": "41b1d301b064ec3c993b5c7fc3a303806dcbe7ee5a209aed52a5d5535422dda5"
+    },
+    {
+      "version": "20261101002805",
+      "name": "safety_reports_server_only_idempotent",
+      "sha256": "7e28e40545898cd81a16e01bf530e62d29d48635c7b3eacd54a9deeaec7f7d5e"
+    },
+    {
+      "version": "20261102003713",
+      "name": "atomic_application_and_guardian_resend_contract",
+      "sha256": "938aa78d7096058a8f61343902a1571e225188c3ac456f207e1709fa6b9954f0"
+    },
+    {
+      "version": "20261102003741",
+      "name": "private_location_and_block_message_contract",
+      "sha256": "6950b856320e8a72f131b3dcb111e915356ffb732a0a216b1d2810d97f62b036"
+    }
+  ]
+}

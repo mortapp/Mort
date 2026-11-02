@@ -1,0 +1,8 @@
+.temp/
+.branches/
+.env
+.env.*
+*.dump
+*.backup
+*.sql.gz
+*.enc
