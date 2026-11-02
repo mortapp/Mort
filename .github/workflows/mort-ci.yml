@@ -150,6 +150,11 @@ jobs:
           # This is the project's public browser anon key, never a privileged
           # service-role credential. The validator decodes and verifies it.
           EXPO_PUBLIC_SUPABASE_URL: https://jxbnrkasktbhtiujkhay.supabase.co
+          MORT_PUBLIC_PUBLISHER_NAME: MORT
+          MORT_PUBLIC_SUPPORT_EMAIL: support@mortapp.org
+          MORT_PUBLIC_PRIVACY_EMAIL: privacy@mortapp.org
+          MORT_PUBLIC_CHILD_SAFETY_EMAIL: safety@mortapp.org
+          MORT_PUBLIC_WEBSITE_URL: https://mortapp.org
           EXPO_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4Ym5ya2Fza3RiaHRpdWpraGF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwMjE2NjcsImV4cCI6MjEwODU5NzY2N30.oNHdfbR27JrTxVO7-GM1SjS9sOdrkumoGNzMS97KjQE
       - run: node scripts/validate-public-legal-site.mjs
 
