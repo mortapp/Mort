@@ -55,7 +55,7 @@ function readSupabasePublicConfig() {
       if (name === 'EXPO_PUBLIC_SUPABASE_ANON_KEY' && !key) key = value;
     }
   } catch { /* Vercel environment may provide the public values directly. */ }
-  const expectedUrl = 'https://rakjydmgwwgtdislanbt.supabase.co';
+  const expectedUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co';
   if (url && url !== expectedUrl) throw new Error('Public legal site points to the wrong Supabase project.');
   if (key) {
     const payload = JSON.parse(Buffer.from(key.split('.')[1], 'base64url').toString('utf8'));
@@ -119,9 +119,9 @@ function page({ route, title, description, body, scripts = '' }) {
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#02040a"><meta name="description" content="${escapeHtml(description)}"><title>${escapeHtml(title)} | MORT</title><link rel="icon" href="/mort-mark.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/legal.css"></head>
 <body><a class="skip" href="#content">Skip to content</a><canvas id="legal-sky" aria-hidden="true"></canvas><div class="veil" aria-hidden="true"></div>
-<header class="topbar"><a class="brand" href="/"><img src="/mort-mark.svg" width="28" height="28" alt="">MORT <small>Legal &amp; safety</small></a><span class="sp"></span><span class="draft">Effective ${effectiveDate} · United States</span><a class="back" href="https://mortapp.org">&larr; Back to MORT</a></header>
+<header class="topbar"><a class="brand" href="/"><img src="/mort-mark.svg" width="28" height="28" alt="">MORT <small>Legal &amp; safety</small></a><span class="sp"></span><span class="draft">Draft — pending legal review · Proposed effective date ${effectiveDate} · United States</span><a class="back" href="https://mortapp.org">&larr; Back to MORT</a></header>
 <div class="wrap"><aside class="side"><div class="lbl">Legal &amp; safety</div><nav aria-label="Legal and support">${navFor(route)}</nav></aside><main id="content" class="content"><div class="eyebrow">MORT Legal &amp; Safety · United States</div><h1>${escapeHtml(title)}</h1><p class="tagline">${escapeHtml(description)}</p>${blocker}<div class="callout"><b>Important:</b> MORT is a 13+ local-work marketplace and safety platform. Feature and job eligibility can vary by age, role, jurisdiction, school status, verification state, account status, app version, and provider readiness. Verification and safety tools reduce risk but do not guarantee identity, safety, job quality, payment, or legal compliance.</div>${body}</main></div>
-<footer class="foot"><div class="row"><span><b>MORT</b> &nbsp;·&nbsp; Publisher: ${publisher}</span><span>Support: ${supportEmail}</span><span>Effective: ${effectiveDate}</span><span>Website: ${websiteUrl}</span></div><div class="row" style="margin-top:8px"><span>Mandatory rights under applicable law remain protected. State-specific provisions appear in the U.S. State Law Addendum.</span></div></footer>${scripts}<script src="/assets/atmosphere.js"></script></body></html>`;
+<footer class="foot"><div class="row"><span><b>MORT</b> &nbsp;·&nbsp; Publisher: ${publisher}</span><span>Support: ${supportEmail}</span><span>Proposed effective date: ${effectiveDate}</span><span>Website: ${websiteUrl}</span></div><div class="row" style="margin-top:8px"><span>Mandatory rights under applicable law remain protected. State-specific provisions appear in the U.S. State Law Addendum.</span></div></footer>${scripts}<script src="/assets/atmosphere.js"></script></body></html>`;
 }
 
 const termsBody = `
@@ -363,7 +363,7 @@ write('vercel.json', JSON.stringify({
     { key: 'Referrer-Policy', value: 'no-referrer' },
     { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
     { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
-    { key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://rakjydmgwwgtdislanbt.supabase.co wss://rakjydmgwwgtdislanbt.supabase.co; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" },
+    { key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://jxbnrkasktbhtiujkhay.supabase.co wss://jxbnrkasktbhtiujkhay.supabase.co; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" },
   ] }],
 }, null, 2));
 
