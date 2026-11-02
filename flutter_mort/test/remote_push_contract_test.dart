@@ -32,6 +32,15 @@ void main() {
     expect(preferences.copyWith(pushEnabled: false).pushEnabled, isFalse);
   });
 
+  test('in-app notification ownership filter matches Supabase schema', () {
+    final repository = File(
+      'lib/data/repositories/notifications_repository.dart',
+    ).readAsStringSync();
+
+    expect(repository, contains(".eq('user_id', requireUserId())"));
+    expect(repository, isNot(contains(".eq('recipient_id', requireUserId())")));
+  });
+
   test('Firebase stays dormant and Supabase remains the notification backend', () {
     final appConfig = File(
       'lib/core/config/app_config.dart',

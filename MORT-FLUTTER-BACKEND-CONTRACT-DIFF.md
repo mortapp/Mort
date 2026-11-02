@@ -35,6 +35,14 @@ remain read-only. The local historical migration chain still diverges from the
 71 hosted migration entries; do not run `supabase db push` against the entire
 local chain until reconciliation is complete.
 
+The next location-notification and distance migrations are currently local
+drafts only. They compiled and passed `supabase/tests/step1_location_distance_integration.sql`
+against the schema-only Docker clone with synthetic rows rolled back. They
+have not been applied to production. The Flutter notification repository now
+filters `public.notifications` by hosted `user_id` (not `recipient_id`), with a
+regression test. Distance remains unavailable in the app until its opt-in
+location flow is integrated and the production migration is approved.
+
 Location changes invalidate old confirmations and set the agreement to
 reconfirmation-required, but no notification/outbox enqueue is currently
 wired for the affected participants. This is a pre-marketplace blocker. The

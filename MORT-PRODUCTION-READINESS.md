@@ -47,6 +47,28 @@ current 241-file historical chain: its versions still diverge from the 71
 hosted versions. The two new migration filenames now match the versions
 Supabase recorded; full historical migration reconciliation remains open.
 
+## Step 1 follow-up — local Docker validation only
+
+The supplied location-notification and distance drafts were reviewed and
+revised locally. `20261102010000_job_location_change_notifications.sql` and
+`20261102010100_job_distance_band_contract.sql` applied successfully to the
+disposable schema-only Docker clone `mort-prod-schema-test-20261101`; the
+rollback-only integration test passed. The test used synthetic Auth/profile,
+job, application, agreement, and verification rows and left no fixture data.
+The distance contract stores rounded approximate centers in a private table,
+checks teen/job/age-verification/Guardian/block/release eligibility, rate
+limits requests, and returns broad bands only. These two migrations have **not**
+been applied to production.
+
+The Flutter notification repository was also aligned with production's
+`notifications.user_id` ownership column (it previously queried the
+nonexistent `recipient_id` column). The app's distance UI still deliberately
+reports unavailable and does not call the new RPC; integrating distance would
+require a reviewed opt-in location flow and production migration approval.
+The focused Flutter notification test was added and formatted, but the Windows
+Flutter test runner stalled during Dart test compilation and was stopped; that
+test is not reported as passed.
+
 Location changes invalidate prior safety confirmations and set the agreement
 to reconfirmation-required, but the hosted contract currently has no
 participant notification/outbox enqueue for that transition. Add and test that

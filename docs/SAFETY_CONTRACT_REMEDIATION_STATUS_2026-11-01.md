@@ -31,6 +31,20 @@ are renamed to match. The rest of the repository migration history still
 diverges from production. Do not use `supabase db push` against the whole local
 241-file chain until that historical mismatch is reconciled.
 
+## Step 1 local follow-up — 2026-11-01
+
+The supplied notification and distance SQL was reviewed against the running
+schema-only Docker clone. The initial distance draft put approximate
+coordinates on `public.jobs` and returned a fine-grained distance; that draft
+was not applied. Revised local migrations now keep rounded centers in a
+private table and return only broad distance bands after teen, job, age
+verification, Guardian, block, release-control, and rate-limit checks.
+`supabase/tests/step1_location_distance_integration.sql` passed against the
+Docker clone with synthetic fixtures rolled back. These two new migrations
+remain unapplied to production. The Flutter distance UI remains unavailable
+until an opt-in location flow is integrated. The notification inbox query was
+corrected to use production's `notifications.user_id` column.
+
 ## Historical scope before production rollout
 
 The corrected append-only migrations and this report were present on the `codex/flutter-backend-integration` branch at the time of that report. The reference website job-write cutover was committed in `763fc1efdf8c323670c8e88b94448b268e26836d`. This paragraph describes the pre-rollout state only; the production changes are documented at the top of this file.
