@@ -6,7 +6,7 @@ const [schemaMigration, visibilityMigration] = await Promise.all([
   readFile(new URL('../migrations/20261102010300_guardian_application_decision_schema_rpc.sql', import.meta.url), 'utf8'),
   readFile(new URL('../migrations/20261102010400_guardian_application_visibility_contract.sql', import.meta.url), 'utf8'),
 ]);
-const migration = schemaMigration + '\\n' + visibilityMigration;
+const migration = schemaMigration + '\n' + visibilityMigration;
 
 test('Guardian decisions are a separate application state and are not inferred from a Guardian link', () => {
   assert.match(migration, /guardian_decision_status text not null default 'not_required'/i);
