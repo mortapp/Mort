@@ -387,7 +387,7 @@ declare
   v_user uuid := auth.uid();
   v_app public.job_applications%rowtype;
   v_job public.jobs%rowtype;
-  v_now timestamptz := clock_timestamp();
+  v_now timestamptz;
 begin
   if v_user is null then
     return jsonb_build_object('ok',false,'code','authentication_required');
@@ -445,6 +445,8 @@ begin
   if not found then
     return jsonb_build_object('ok',false,'code','active_guardian_required');
   end if;
+
+  v_now := clock_timestamp();
 
   update public.job_applications
   set guardian_decision_status=p_decision,
