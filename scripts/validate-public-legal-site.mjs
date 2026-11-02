@@ -61,7 +61,7 @@ if (existsSync(publicConfigPath)) {
   } else {
     try {
       const config = JSON.parse(match[1]);
-      if (config.supabaseUrl !== 'https://rakjydmgwwgtdislanbt.supabase.co') {
+      if (config.supabaseUrl !== 'https://jxbnrkasktbhtiujkhay.supabase.co') {
         failures.push('public-config.js points to the wrong Supabase project');
       }
       if (!config.supabaseAnonKey) {
@@ -70,7 +70,7 @@ if (existsSync(publicConfigPath)) {
         const payload = JSON.parse(
           Buffer.from(config.supabaseAnonKey.split('.')[1], 'base64url').toString('utf8'),
         );
-        if (payload.role !== 'anon' || payload.ref !== 'rakjydmgwwgtdislanbt') {
+        if (payload.role !== 'anon' || payload.ref !== 'jxbnrkasktbhtiujkhay') {
           failures.push('public-config.js does not contain the expected anon key');
         }
       }
