@@ -100,6 +100,41 @@ begin
 end;
 $migration$;
 
+-- Serialize preference changes with application eligibility. The Guardian
+-- link row is the shared lock so an opt-in cannot race an application insert.
+do $migration$
+declare
+  v_def text;
+  v_old text := $old$
+  if not exists (
+    select 1
+    from public.guardian_links link
+    where link.id = p_link_id
+      and link.teen_user_id = user_id
+      and link.status = 'active'
+  ) then
+    return jsonb_build_object('ok', false, 'code', 'active_guardian_link_not_found');
+  end if;
+$old$;
+  v_new text := $new$
+  perform link.id
+  from public.guardian_links link
+  where link.id = p_link_id
+    and link.teen_user_id = user_id
+    and link.status = 'active'
+  for update;
+  if not found then
+    return jsonb_build_object('ok', false, 'code', 'active_guardian_link_not_found');
+  end if;
+$new$;
+begin
+  v_def := pg_get_functiondef('public.set_guardian_alert_preferences(uuid,boolean,boolean,boolean,boolean,boolean,boolean)'::regprocedure);
+  if position(v_old in v_def)=0 then raise exception 'guardian_preference_lock_patch_failed'; end if;
+  v_def := replace(v_def,v_old,v_new);
+  execute v_def;
+end;
+$migration$;
+
 -- Store a pending decision at submission time whenever the job or a linked
 -- Guardian preference requires it.
 do $migration$
