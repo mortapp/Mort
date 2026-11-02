@@ -114,3 +114,73 @@ Harness inputs additionally require application ID, Guardian ID, six synthetic c
   run provider evidence, applicant/poster/Guardian/admin privacy and nested
   response tests plus real two-session block/accept and check-in lifecycle
   tests. Review exact SQL before any separate deployment approval.
+
+## Isolated QA execution update — 2026-11-02
+
+- Read-only isolated inspection confirmed project `ckcxakhxqlkhppsxxjhv` is
+  active PostgreSQL 17, with 82 migrations, zero Auth users/profiles/legal
+  documents/legal role requirements/verification cases/applications/Guardian
+  links/staff identities/staff memberships, and no Edge Functions or configured
+  provider-result tables. The migration catalog differs from the reconciled
+  production baseline: ten isolated-only migrations are present and
+  `20261102113314_guardian_id_response_mask_production` is absent. This is not
+  an exact production clone.
+- The isolated school-domain registry has two active, verified entries; domain
+  names were not exposed. No synthetic confirmed mailbox exists. MORT's
+  school-email flow depends on a confirmed email domain; this does not satisfy
+  school-ID verification.
+- Guardian invitation signatures exist in isolated QA:
+  `create_guardian_invite_v2(text)`, `accept_guardian_invite(text)`,
+  `cancel_guardian_invite(uuid)`, and `resend_guardian_invite(uuid)`; all were
+  observed as SECURITY DEFINER. The supported flow also requires the
+  authenticated teen/adult onboarding, invite-code acceptance, and both
+  `mort_set_guardian_consent(uuid,boolean)` actions. No link was created.
+- No supported first-reviewer bootstrap path was found. Staff tables deny
+  authenticated and `service_role` INSERT/UPDATE; no provisioning RPC exists;
+  the staff audit RPC requires an already active staff membership. First
+  reviewer assignment, training, AAL2 and scoped permissions require an
+  authorized MORT operator and an approved owner-operated provisioning
+  procedure. No staff identity was fabricated or inserted.
+- Candidate provider sandbox docs were identified, not selected/configured:
+  Yoti age/IDV sandbox, Persona test environments, Veriff test integration, and
+  Google Workspace for Education test-domain option. Provider account approval,
+  sandbox credentials, signature secrets, counsel-approved evidence policy,
+  and confirmation that a provider supports school-ID evidence are still
+  external prerequisites. No paid service or provider account was created.
+- Ran `scripts/qa-guardian-id-rpc-privacy.mjs` against the isolated API using
+  only its publishable key. Actual passes: anonymous
+  `get_my_job_applications` denied (42501), anonymous nested status-update RPC
+  denied (42501), and anonymous direct application read denied (42501). The
+  authenticated role matrix was BLOCKED for missing application/Guardian IDs
+  and six credential pairs; service-role preservation was BLOCKED because the
+  isolated service-role secret was not configured. No positive Guardian ID or
+  nested JSON assertion ran.
+- Ran `scripts/qa-isolated-anonymous-safety-rpcs.mjs` against the isolated API.
+  Actual passes (all 42501): anonymous denied for
+  `get_my_job_applications`, `get_job_application_eligibility`,
+  `update_my_job_application_status`, `mort_accept_job_application`,
+  `schedule_active_job_checkin`, `complete_active_job_checkin`, and direct
+  `job_applications` SELECT.
+- Proposal 901 exact-source preflight against isolated QA: three of five
+  guarded functions matched the proposal (`mort_review_verification_case`,
+  `schedule_active_job_checkin`, `complete_active_job_checkin`); two did not
+  (`get_job_application_eligibility`, `mort_accept_job_application`). Actual
+  MD5s for eligibility and acceptance are
+  `5b701599fe40c74a21e027aae102eea1` and
+  `c53a5ecfc861bb6b6eb723ba2f465892`, while expected MD5s are
+  `401d64ec19cf1fa1ab072709266fe4a7` and
+  `a44e036f16579106d9ae615d2a54235f`. Do not apply proposal 901 there; its exact
+  source guard is expected to reject these isolated-only schema differences.
+  Proposals 900 and 902 were not applied; no SQL is needed for the anonymous
+  API checks, and no authenticated fixtures exist.
+- Repeatable prerequisite, supported-account sequence, exact harness inputs,
+  concurrency matrix, external dependencies, and output are documented in
+  `docs/MORT_ISOLATED_QA_PROVISIONING_2026-11-02.md`. Static/compile checks and
+  local Docker PostgreSQL-17 tests are recorded separately above; they are not
+  authenticated isolated API or workflow concurrency tests.
+- Remaining actual test blockers: approved legal test versions; provider
+  selection, sandbox credentials and evidence policy; authorized and trained
+  first reviewer; confirmed synthetic mailboxes/accounts; authorized isolated
+  job/application fixture procedure; and server-only isolated service-role
+  secret. No QA role account or fixture was created, no proposal was applied,
+  and production remained unchanged.
