@@ -29,10 +29,7 @@ void main() {
       contains("expectedSupabaseProjectRef = 'jxbnrkasktbhtiujkhay'"),
     );
     expect(config, contains('assertValidReleaseConfiguration'));
-    expect(
-      config,
-      contains('production pilot requires a configured remote push provider'),
-    );
+    expect(config, contains('static const remotePushEnabled = false;'));
     expect(
       config,
       contains('reviewer mode must be excluded from production builds'),
@@ -89,7 +86,7 @@ void main() {
       expect(router, contains('if (AppConfig.playReviewModeEnabled)'));
       expect(pilot, contains(r'-PlayReviewModeEnabled $false'));
       expect(pilot, contains('sentry_crash_provider.dart'));
-      expect(pilot, contains('remote_push_provider.dart'));
+      expect(pilot, contains(r'-RemotePushEnabled $false'));
       expect(pilot, contains('BLOCKED-CONFIG'));
     },
   );

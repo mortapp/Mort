@@ -24,8 +24,6 @@
 	<string>MORT can use your location while the app is open to select a general job-search area. Exact coordinates are not shown in the public job feed.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>MORT lets you select job proof, a profile photo, or a safety report attachment from your photo library.</string>
-	<key>NSUserNotificationsUsageDescription</key>
-	<string>MORT sends safety, guardian approval, application, and message notifications.</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<!-- Google Mobile Ads SDK (google_mobile_ads, compiled in via

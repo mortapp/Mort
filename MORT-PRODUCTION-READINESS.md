@@ -174,7 +174,7 @@ An aggregate-only, read-only production snapshot (no IDs, emails, or document da
 - Read-only Supabase organization/project inspection confirmed the active project is healthy on Postgres 17.11 and the organization is on the Free plan. Supabase documents that Free does not include automated daily backups or project branching, and database backups omit Storage object bytes. See the [backup and disaster-recovery report](docs/operations/MORT_BACKUP_AND_DR_REPORT.md) for current requirements and source links.
 - The target guard defaults to `jxbnrkasktbhtiujkhay` and rejects any explicit different ref, so the scheduled workflow needs no file change. The earlier attempt to add an explicit workflow variable was dropped after GitHub denied the workflow-file push for missing OAuth `workflow` scope; no workflow-file change was pushed. The backup guard, exporter retirement, and report updates were pushed in commit `eb711ed`.
 - Flutter has Sentry crash-reporting code with privacy-sanitizer tests, but the production Android release builder previously omitted its existing `SENTRY_DSN` define. The release helper now passes a configured HTTPS DSN only when crash reporting is enabled and fails closed if it is absent or malformed. The focused PowerShell contract test passed **5/5** cases, and all three changed PowerShell scripts parsed successfully. The unrelated release-mode and network-security QA scripts could not start because this fresh worktree lacks `@supabase/supabase-js`; they were not reported as passing. The local `SENTRY_DSN` is missing (value was not displayed), so live event delivery and production monitoring remain unverified and a protected provider DSN is still required.
-- The production-candidate profile also requires remote push. Its Android release builder now forwards only the existing `FIREBASE_PROJECT_ID`, `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_ANDROID_API_KEY`, and `FIREBASE_ANDROID_APP_ID` values when push is enabled, and fails closed when any is missing. The focused push-config test passed **3 scenarios**. These four local values and `SENTRY_DSN` are all missing (presence only was checked; no values were displayed), so the signed production-candidate AAB cannot be built here. Do not build a release artifact with remote push/crash reporting falsely marked enabled.
+- Historical note (superseded by the 2026-11-01 Firebase dormancy section below): the production-candidate profile previously required Firebase remote push. That requirement and the Firebase configuration checks have now been removed; crash reporting still requires its configured provider.
 - The offline production profile validator reports that the public profile would enable marketplace and identity flags, but `productionActivationApproved=false`; no public build was attempted. Read-only live `get_release_mode_status()` returns `release_mode=production_public`, `public_marketplace_enabled=false`, and `real_document_collection=false`, so the server-side release gate would reject a public production artifact. Payments remain disabled. No artifact was built or deployed.
 - The active native iOS `MORTIOSV8` target (wired by the repository's iOS CI workflow and using `com.mortapp.mobile`) still referenced the deleted Supabase project. Its endpoint and publishable key now match the verified active production project; the live key listing confirmed that exact user-provided publishable key is enabled. The Swift contract test now asserts the exact endpoint and key, and a local configuration assertion passed with no stale deleted-project references under `ios/`. Swift/Xcode are unavailable on this Windows host, so the Xcode build and Swift test still require macOS CI; no iOS release was produced.
 - Repository-wide `node --test` was attempted after the backup change: **8 passed, 9 could not start** because BrowserStack/Appium tests lack `webdriverio`, and Node's built-in runner cannot load Deno `jsr:`/`npm:` imports. The focused `node --test scripts/*.test.mjs` backup utility suite passed **5/5**. These results are not a full Deno or mobile E2E run.
@@ -264,7 +264,7 @@ The app's native callback is consistently `com.mortapp.mobile://app/auth-callbac
 
 Production has three active Edge Functions, all Stripe functions: assignment-payment-intent, assignment-webhook, and runtime-status. The native Stripe webhook handler exists at `https://jxbnrkasktbhtiujkhay.supabase.co/functions/v1/stripe-assignment-webhook`; there is no connected Stripe endpoint-management tool in this session, and the prior ops lane found the sandbox endpoint references the deleted Supabase ref. The sandbox Stripe endpoint must be pointed to the active URL and exercised with Stripe test events before it can be marked fixed; do not edit a live-mode endpoint or activate payments. The test-mode endpoint can be changed only after Stripe test-mode access is available.
 
-The local Firebase receiver is real, but hosted push delivery is not complete. The production-schema clone has `public.notifications` and `public.notification_preferences`, but no push-device relation or `get_my_push_status`, `register_my_push_device_v2`, or `unregister_my_push_devices_v2` RPC. Production also has no push-sender Edge Function. The secure local credential directory has an Sentry DSN and Supabase public configuration, but does not contain `FIREBASE_PROJECT_ID`, `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_ANDROID_API_KEY`, or `FIREBASE_ANDROID_APP_ID`; no Firebase Android config file exists in the Flutter repository. Do not enable push in a candidate until its device registration/unregistration authorization contract, server-side sender, Firebase configuration, and delivery tests are present.
+Historical note (superseded by the 2026-11-01 Firebase dormancy section below): production had no push-device RPC or push sender. Firebase is now deliberately dormant and is not required in mobile release builds; Supabase in-app notifications remain the supported path.
 
 ### Final local verification after trust UI cleanup
 
@@ -281,3 +281,46 @@ Final release-path inspection confirmed `scripts/build-production-public-aab.ps1
 The Stripe `Mort sandbox` account had two enabled webhook endpoints targeting the deleted Supabase host: one for Connect/payout events and one for platform payment/dispute/transfer/refund events. The hosted `stripe-assignment-webhook` currently verifies a single environment-specific signing secret and processes assignment PaymentIntent events; it does not implement the payout/Connect/refund/dispute lifecycle. Both stale endpoints were disabled in test mode, and read-back confirmed both are disabled. The separate `Mort` test account's endpoint was already disabled. No live-mode endpoint was read or changed, no live Stripe endpoint was edited, and payments remain disabled. To restore a functional sandbox callback, first provide an isolated/test-safe webhook runtime with the correct signing secret and complete supported contracts; do not point these Stripe test endpoints at the production database.
 
 The user's requested OneDrive credential directory already contained provider and Android signing files. Its Windows ACLs were restricted to the current Windows user and SYSTEM. An additional copy of the rotated database credential was written as a Windows DPAPI CurrentUser-encrypted blob; a hash comparison against Windows Credential Manager verified the encrypted copy round-trips without printing the value. No credentials were added to the repository.
+
+### Firebase dormancy and restore follow-up — 2026-11-01
+
+This section supersedes earlier notes saying Firebase remote push is required
+for a production candidate. The owner directed that Firebase be disabled and
+retained, not removed. Flutter now hard-disables remote push, always returns
+`DisabledRemotePushProvider`, and keeps the Supabase-backed in-app inbox.
+All six release profiles are false and the Node/PowerShell validation paths
+reject remote push enablement. Android manifest merge removes Firebase's
+initialization provider, FCM receiver/service components, and
+`POST_NOTIFICATIONS`; the misleading iOS notification-purpose string is gone.
+Firebase packages/source remain dormant. The local `send-push` function has an
+early disabled response and is not deployed. No production config or mobile
+release was changed.
+
+The focused final Flutter suites passed **23/23** and the full suite passed
+**624 tests, 2 skipped, 0 failed** after the final source and test edits.
+Release-profile validation passed for six safe profiles, the pilot AAB
+preflight test passed, the PowerShell push configuration check passed, and
+formatting reported 311 files with no changes. After removing the unused
+import found in the first analyzer run, the final `flutter analyze --no-pub`
+reported **No issues found** (547.3 seconds). The generated Android merged
+debug manifest was searched: no Firebase initialization/service/receiver/
+provider components or `POST_NOTIFICATIONS` permission remained. This verifies
+manifest removal, not a completed APK/AAB build; the debug build did not finish.
+The production
+AAB gate remains closed for identity/legal/operational reasons; push
+configuration is no longer a required release setting.
+
+Read-only production checks via Supabase connector found six private Storage
+buckets with zero objects and two Auth users. Local Supabase Auth and Storage
+health endpoints returned HTTP 200. However, the reusable Docker schema-test
+database was already modified with private-location candidate tables absent
+from the live production catalog. A disposable replay stopped on that existing
+object, and the disposable databases were removed. This snapshot is not counted
+as an exact production clone. Direct `pg_dump` from the active project is
+blocked from this host because the DB hostname resolves to IPv6 with no route
+from Docker and no IPv4 A record was available. The Supabase connector can
+inspect catalogs but cannot export a backup. No full production database/Auth
+backup, data restore, or Storage-byte restore is available or claimed. No
+production writes occurred. See
+[`MORT_SUPABASE_ONLY_NOTIFICATIONS_AND_RESTORE_2026-11-01.md`](docs/operations/MORT_SUPABASE_ONLY_NOTIFICATIONS_AND_RESTORE_2026-11-01.md)
+for OAuth owner setup steps and the exact restore boundary.

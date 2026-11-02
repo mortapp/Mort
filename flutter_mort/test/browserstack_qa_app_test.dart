@@ -148,7 +148,7 @@ void main() {
           .onPressed,
       isNull,
     );
-    expect(find.text('denied'), findsNWidgets(3));
+    expect(find.text('denied'), findsNWidgets(2));
     expect(
       find.text('denied; accuracy unavailable; services off'),
       findsOneWidget,

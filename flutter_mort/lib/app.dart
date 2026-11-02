@@ -7,16 +7,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'l10n/app_localizations.dart';
 import 'core/auth/auth_startup.dart';
 import 'core/routing/app_router.dart';
-import 'core/routing/notification_destination.dart';
 import 'core/theme/mort_theme.dart';
 import 'core/widgets/app_lock_gate.dart';
 import 'core/widgets/auth_startup_gate.dart';
-import 'core/widgets/mort_widgets.dart';
 import 'core/observability/product_analytics.dart';
 import 'core/preferences/mort_experience_preferences.dart';
 import 'data/repositories/providers.dart';
 import 'services/app_lock_controller.dart';
-import 'services/push/push_notification_coordinator.dart';
 
 class MortApp extends ConsumerStatefulWidget {
   const MortApp({super.key});
@@ -28,8 +25,6 @@ class MortApp extends ConsumerStatefulWidget {
 class _MortAppState extends ConsumerState<MortApp> with WidgetsBindingObserver {
   String? _lastStartupNavigationKey;
   String? _promptedLegalReacceptanceForUserId;
-  StreamSubscription? _foregroundPushSubscription;
-  StreamSubscription? _openedPushSubscription;
   late final _router = ref.read(appRouterProvider);
 
   @override
@@ -41,34 +36,12 @@ class _MortAppState extends ConsumerState<MortApp> with WidgetsBindingObserver {
       AppLockController.instance.initialize();
       _recordCurrentSurface();
     });
-    final push = PushNotificationCoordinator.instance;
-    _foregroundPushSubscription = push.foregroundMessages.listen((_) {
-      if (!mounted) return;
-      ref.invalidate(notificationsRepositoryProvider);
-      MortToast.show(
-        context,
-        'New MORT update. Open Notifications for details.',
-      );
-    });
-    _openedPushSubscription = push.openedMessages.listen((message) async {
-      try {
-        final profile = await ref.read(currentProfileProvider.future);
-        if (!mounted) return;
-        ref
-            .read(appRouterProvider)
-            .go(notificationDestination(message.data, profile?.role));
-      } catch (_) {
-        if (mounted) ref.read(appRouterProvider).go('/account-status');
-      }
-    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _router.routerDelegate.removeListener(_recordCurrentSurface);
-    _foregroundPushSubscription?.cancel();
-    _openedPushSubscription?.cancel();
     super.dispose();
   }
 

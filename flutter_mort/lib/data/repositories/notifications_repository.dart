@@ -23,7 +23,9 @@ class NotificationPreferences {
       map['categories'] as Map? ?? const {},
     );
     return NotificationPreferences(
-      pushEnabled: map['push_enabled'] == true,
+      // Remote device push is disabled for MORT. Keep server preferences
+      // opted out while Supabase in-app notifications remain available.
+      pushEnabled: false,
       categories: rawCategories.map(
         (key, value) => MapEntry(key, value == true),
       ),
@@ -49,28 +51,6 @@ class NotificationPreferences {
     quietEnd: quietEnd ?? this.quietEnd,
     timezoneName: timezoneName ?? this.timezoneName,
   );
-}
-
-class PushRegistrationStatus {
-  const PushRegistrationStatus({
-    required this.remotePushEnabled,
-    required this.activeDeviceCount,
-    required this.provider,
-    required this.providerDeliveryVerified,
-  });
-
-  final bool remotePushEnabled;
-  final int activeDeviceCount;
-  final String provider;
-  final bool providerDeliveryVerified;
-
-  factory PushRegistrationStatus.fromMap(Map<String, dynamic> map) =>
-      PushRegistrationStatus(
-        remotePushEnabled: map['remote_push_enabled'] == true,
-        activeDeviceCount: (map['active_device_count'] as num?)?.toInt() ?? 0,
-        provider: map['provider']?.toString() ?? 'fcm',
-        providerDeliveryVerified: map['provider_delivery_verified'] == true,
-      );
 }
 
 class NotificationsRepository extends RepositoryBase {
@@ -118,7 +98,7 @@ class NotificationsRepository extends RepositoryBase {
       await client.rpc(
             'update_my_notification_preferences',
             params: {
-              'p_push_enabled': preferences.pushEnabled,
+              'p_push_enabled': false,
               'p_categories': preferences.categories,
               'p_quiet_hours_enabled': preferences.quietHoursEnabled,
               'p_quiet_start': preferences.quietStart,
@@ -132,66 +112,6 @@ class NotificationsRepository extends RepositoryBase {
     return NotificationPreferences.fromMap(
       Map<String, dynamic>.from(response['preferences'] as Map),
     );
-  }
-
-  Future<PushRegistrationStatus> getPushStatus() async {
-    final response = Map<String, dynamic>.from(
-      await client.rpc('get_my_push_status') as Map,
-    );
-    _requireOk(response);
-    return PushRegistrationStatus.fromMap(response);
-  }
-
-  Future<void> registerDevice({
-    required String deviceId,
-    required String provider,
-    required String registrationToken,
-    required String platform,
-    required String permissionStatus,
-    required String appVersion,
-    required String locale,
-    required String timezoneName,
-    required String environment,
-    required String clientRequestId,
-  }) async {
-    final response = Map<String, dynamic>.from(
-      await client.rpc(
-            'register_my_push_device_v2',
-            params: {
-              'p_device_id': deviceId,
-              'p_provider': provider,
-              'p_registration_token': registrationToken,
-              'p_platform': platform,
-              'p_permission_status': permissionStatus,
-              'p_app_version': appVersion,
-              'p_locale': locale,
-              'p_timezone_name': timezoneName,
-              'p_environment': environment,
-              'p_client_request_id': clientRequestId,
-            },
-          )
-          as Map,
-    );
-    _requireOk(response);
-  }
-
-  Future<void> unregisterDevices({
-    required String deviceId,
-    required bool allDevices,
-    required String clientRequestId,
-  }) async {
-    final response = Map<String, dynamic>.from(
-      await client.rpc(
-            'unregister_my_push_devices_v2',
-            params: {
-              'p_device_id': deviceId,
-              'p_all_devices': allDevices,
-              'p_client_request_id': clientRequestId,
-            },
-          )
-          as Map,
-    );
-    _requireOk(response);
   }
 
   void _requireOk(Map<String, dynamic> response) {

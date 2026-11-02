@@ -33,10 +33,9 @@ class AppConfig {
     'MORT_MARKETPLACE_PAYMENTS_ENABLED',
     defaultValue: false,
   );
-  static const remotePushEnabled = bool.fromEnvironment(
-    'MORT_REMOTE_PUSH_ENABLED',
-    defaultValue: false,
-  );
+  // Remote push is dormant by product decision. Supabase in-app notifications
+  // remain available; build defines cannot activate Firebase messaging.
+  static const remotePushEnabled = false;
   static const firebaseProjectId = String.fromEnvironment(
     'FIREBASE_PROJECT_ID',
   );
@@ -369,9 +368,6 @@ class AppConfig {
 
   static Map<String, String> get safeReleaseDiagnostics => {
     ...releaseConfiguration.safeDiagnostics,
-    'Firebase client config': isFirebaseClientConfigured
-        ? 'configured'
-        : 'not configured',
     'Crash provider': crashReportingEnabled && isSentryConfigured
         ? 'configured'
         : 'disabled',
@@ -442,11 +438,6 @@ class AppConfig {
     if (releaseStage == 'closed_test' && publicMarketplaceEnabled) {
       errors.add('closed test cannot open the public marketplace');
     }
-    if (remotePushEnabled && !isFirebaseClientConfigured) {
-      errors.add(
-        'remote push is enabled without complete Firebase client configuration',
-      );
-    }
     if (crashReportingEnabled && !isSentryConfigured) {
       errors.add('crash reporting is enabled without a valid Sentry DSN');
     }
@@ -459,11 +450,6 @@ class AppConfig {
       if (publicMarketplaceEnabled || publicActivationApproved) {
         errors.add('production pilot must keep public activation closed');
       }
-      if (!remotePushEnabled) {
-        errors.add(
-          'production pilot requires a configured remote push provider',
-        );
-      }
       if (!crashReportingEnabled) {
         errors.add('production pilot requires a configured crash provider');
       }
@@ -475,8 +461,8 @@ class AppConfig {
       if (!identityVerificationEnabled) {
         errors.add('public mode requires production identity verification');
       }
-      if (!remotePushEnabled || !crashReportingEnabled) {
-        errors.add('public mode requires push and crash providers');
+      if (!crashReportingEnabled) {
+        errors.add('public mode requires a configured crash provider');
       }
     }
     return List.unmodifiable(errors);

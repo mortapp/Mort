@@ -8,7 +8,6 @@ import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../services/native_permissions_service.dart';
-import '../../services/push/push_notification_coordinator.dart';
 
 class NativePermissionsScreen extends StatefulWidget {
   const NativePermissionsScreen({
@@ -28,7 +27,6 @@ class NativePermissionsScreen extends StatefulWidget {
 }
 
 class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
-  final _pushCoordinator = PushNotificationCoordinator.instance;
   late Future<NativePermissionSnapshot> _future;
   bool _busy = false;
   String? _areaMessage;
@@ -114,18 +112,10 @@ class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
                 _PermissionCard(
                   icon: Icons.notifications_outlined,
                   title: 'Notifications',
-                  status: _permissionLabel(status.notifications),
-                  detail: _pushCoordinator.configured
-                      ? 'Permission enables remote alerts on this device. After approval, MORT securely registers this signed-in installation.'
-                      : 'Remote push is disabled in this build, so MORT will not request notification permission. The in-app notification inbox still works.',
-                  onRequest:
-                      !widget.nativeActionsEnabled ||
-                          _busy ||
-                          !_pushCoordinator.configured
-                      ? null
-                      : () => _run(() async {
-                          await _pushCoordinator.requestPermissionAndRegister();
-                        }),
+                  status: 'Device push alerts off',
+                  detail:
+                      'MORT uses Supabase for the in-app notification inbox and does not request device push permission.',
+                  onRequest: null,
                 ),
                 const SizedBox(height: MortSpacing.sm),
                 _PermissionCard(

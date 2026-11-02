@@ -42,6 +42,10 @@ type DeliveryResult = {
   latency_ms: number;
 };
 
+// Kept dormant for compatibility; MORT uses its Supabase in-app inbox and
+// remote device push is disabled by product decision.
+const remotePushDeliveryEnabled = false;
+
 const notificationTypes = [
   "application_update",
   "job_update",
@@ -99,6 +103,9 @@ let cachedAccessToken: { value: string; expiresAt: number } | null = null;
 
 Deno.serve(async (request) => {
   const traceId = correlationId(request);
+  if (!remotePushDeliveryEnabled) {
+    return correlatedJson({ ok: false, code: "remote_push_disabled" }, 503, traceId);
+  }
   if (request.method !== "POST") {
     return correlatedJson({ ok: false, code: "post_required" }, 405, traceId);
   }

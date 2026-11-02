@@ -77,20 +77,27 @@ void main() {
     );
   });
 
-  test('Firebase notification requirements are enabled for release builds', () {
-    expect(gradle, contains('isCoreLibraryDesugaringEnabled = true'));
-    expect(
-      gradle,
-      contains(
-        'coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")',
-      ),
-    );
-    expect(gradle, contains('multiDexEnabled = true'));
-    expect(
-      manifest,
-      isNot(contains('android.permission.WAKE_LOCK" tools:node="remove"')),
-    );
-  });
+  test(
+    'Android release retains native support while remote push stays off',
+    () {
+      expect(gradle, contains('isCoreLibraryDesugaringEnabled = true'));
+      expect(
+        gradle,
+        contains(
+          'coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")',
+        ),
+      );
+      expect(gradle, contains('multiDexEnabled = true'));
+      expect(
+        manifest,
+        isNot(contains('android.permission.WAKE_LOCK" tools:node="remove"')),
+      );
+      expect(
+        File('lib/core/config/app_config.dart').readAsStringSync(),
+        contains('static const remotePushEnabled = false;'),
+      );
+    },
+  );
 
   test('Android and iOS declare equivalent foreground capabilities', () {
     expect(infoPlist, contains('NSFaceIDUsageDescription'));

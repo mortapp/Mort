@@ -195,7 +195,7 @@ void main() {
     );
   });
 
-  test('production candidate requires push and crash while staying closed', () {
+  test('production candidate requires crash reporting while staying closed', () {
     final invalid = configuration(
       profile: MortReleaseProfile.productionCandidate,
       releaseStage: 'production_pilot',
@@ -205,41 +205,48 @@ void main() {
     final valid = configuration(
       profile: MortReleaseProfile.productionCandidate,
       releaseStage: 'production_pilot',
-      remotePushEnabled: true,
       crashReportingEnabled: true,
     );
     expect(valid.validationErrors, isEmpty);
+
+    final pushRequested = configuration(
+      profile: MortReleaseProfile.productionCandidate,
+      releaseStage: 'production_pilot',
+      remotePushEnabled: true,
+      crashReportingEnabled: true,
+    );
+    expect(
+      pushRequested.validationErrors,
+      contains(
+        'remote push is disabled in MORT builds; use Supabase in-app notifications',
+      ),
+    );
   });
 
-  test(
-    'production requires provider, server activation, and approved legal versions',
-    () {
-      final valid = configuration(
-        profile: MortReleaseProfile.production,
-        releaseStage: 'production_public',
-        publicMarketplaceEnabled: true,
-        identityVerificationEnabled: true,
-        remotePushEnabled: true,
-        crashReportingEnabled: true,
-        productionActivationApproved: true,
-        termsVersion: 'terms-2026-08-approved',
-        privacyVersion: 'privacy-2026-08-approved',
-        communityVersion: 'community-2026-08-approved',
-        safetyVersion: 'safety-2026-08-approved',
-      );
-      expect(valid.validationErrors, isEmpty);
+  test('production requires server activation and approved legal versions', () {
+    final valid = configuration(
+      profile: MortReleaseProfile.production,
+      releaseStage: 'production_public',
+      publicMarketplaceEnabled: true,
+      identityVerificationEnabled: true,
+      crashReportingEnabled: true,
+      productionActivationApproved: true,
+      termsVersion: 'terms-2026-08-approved',
+      privacyVersion: 'privacy-2026-08-approved',
+      communityVersion: 'community-2026-08-approved',
+      safetyVersion: 'safety-2026-08-approved',
+    );
+    expect(valid.validationErrors, isEmpty);
 
-      final invalid = configuration(
-        profile: MortReleaseProfile.production,
-        releaseStage: 'production_public',
-        publicMarketplaceEnabled: true,
-        identityVerificationEnabled: true,
-        remotePushEnabled: true,
-        crashReportingEnabled: true,
-      );
-      expect(invalid.validationErrors, isNotEmpty);
-    },
-  );
+    final invalid = configuration(
+      profile: MortReleaseProfile.production,
+      releaseStage: 'production_public',
+      publicMarketplaceEnabled: true,
+      identityVerificationEnabled: true,
+      crashReportingEnabled: true,
+    );
+    expect(invalid.validationErrors, isNotEmpty);
+  });
 
   test(
     'payments, ads, IAP, callbacks, and deterministic fallback fail closed',
@@ -264,7 +271,6 @@ void main() {
         releaseStage: 'production_public',
         publicMarketplaceEnabled: true,
         identityVerificationEnabled: true,
-        remotePushEnabled: true,
         crashReportingEnabled: true,
         productionActivationApproved: true,
         adsEnabled: true,
@@ -278,7 +284,6 @@ void main() {
       final candidateWithAds = configuration(
         profile: MortReleaseProfile.productionCandidate,
         releaseStage: 'production_pilot',
-        remotePushEnabled: true,
         crashReportingEnabled: true,
         adsEnabled: true,
       );
@@ -310,7 +315,6 @@ void main() {
         releaseStage: 'production_public',
         publicMarketplaceEnabled: true,
         identityVerificationEnabled: true,
-        remotePushEnabled: true,
         crashReportingEnabled: true,
         productionActivationApproved: true,
         iapEnabled: true,

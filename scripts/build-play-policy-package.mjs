@@ -269,7 +269,7 @@ const sdkRows = [
   ['google_mobile_ads','Yes','No (ADS_ENABLED=false)','No intended ad request; native code remains bundled','AD_ID/AdServices removed; WAKE_LOCK removed','Check final AAB/Play SDK declaration; do not enable','AppConfig and manifest remove rules'],
   ['device_info_plus / package_info_plus','Yes','Feature dependent','Local device/app metadata; only declared server submission counts','None','Verify no analytics submission','pubspec.lock/source'],
   ['cached_network_image','Yes','On approved image display','Fetches approved HTTPS media','INTERNET','Ensure signed/private URLs and cache policy','pubspec.lock'],
-  ['FCM/Firebase Messaging','No Flutter dependency detected','No','No Flutter FCM collection claimed','None','Reaudit if added','pubspec.lock'],
+  ['FCM/Firebase Messaging','Dormant dependency retained; all release profiles force it off','No','Supabase inbox only; no device-token registration or push delivery','None','Enable only after a reviewed provider decision and tested backend contract','release profiles + AppConfig'],
 ];
 write('docs/play/MORT_PLAY_SDK_DATA_INVENTORY.csv', sdkRows.map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(',')).join('\n'));
 

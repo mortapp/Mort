@@ -29,6 +29,9 @@ $expectedProjectRef = 'jxbnrkasktbhtiujkhay'
 $expectedAuthRedirectUrl = 'com.mortapp.mobile://app/auth-callback'
 $expectedCertificateSha256 = Get-MortUploadCertificateSha256
 $defineFile = $null
+if ($RemotePushEnabled) {
+  throw 'BLOCKED-CONFIG: remote push is disabled for MORT; use Supabase in-app notifications.'
+}
 
 if ([string]::IsNullOrWhiteSpace($ReleaseProfile)) {
   $ReleaseProfile = switch ($ReleaseStage) {
@@ -108,8 +111,8 @@ if ($ReleaseStage -eq 'closed_test' -and $PublicMarketplaceEnabled) {
 if ($GoogleAuthEnabled -and $ReleaseStage -ne 'closed_test') {
   throw 'Google Auth activation is approved only for the closed-test profile.'
 }
-if ($ReleaseStage -like 'production_*' -and (-not $RemotePushEnabled -or -not $CrashReportingEnabled)) {
-  throw 'Production profiles require real remote-push and crash providers.'
+if ($ReleaseStage -like 'production_*' -and -not $CrashReportingEnabled) {
+  throw 'Production profiles require the configured crash provider.'
 }
 if ($ReleaseStage -eq 'production_public' -and (-not $IdentityVerificationEnabled -or -not $PublicActivationApproved)) {
   throw 'Public production requires approved identity verification and public activation evidence.'
@@ -160,11 +163,7 @@ $defines = [ordered]@{
   USE_TEST_ADS = 'true'
 }
 Set-MortCrashReportingDefines -Defines $defines -Enabled:$CrashReportingEnabled -SentryDsn $env:SENTRY_DSN
-Set-MortRemotePushDefines -Defines $defines -Enabled:$RemotePushEnabled `
-  -FirebaseProjectId $env:FIREBASE_PROJECT_ID `
-  -FirebaseMessagingSenderId $env:FIREBASE_MESSAGING_SENDER_ID `
-  -FirebaseAndroidApiKey $env:FIREBASE_ANDROID_API_KEY `
-  -FirebaseAndroidAppId $env:FIREBASE_ANDROID_APP_ID
+Set-MortRemotePushDefines -Defines $defines -Enabled:$false
 foreach ($name in $defines.Keys) {
   if ($name -match '(?i)(SERVICE.?ROLE|ACCESS.?TOKEN|REFRESH.?TOKEN|PASSWORD|CLIENT.?SECRET|PRIVATE.?KEY|WEBHOOK.?SECRET)') {
     throw "Forbidden secret-like dart-define key: $name"

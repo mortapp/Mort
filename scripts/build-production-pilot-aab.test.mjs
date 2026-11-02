@@ -10,7 +10,7 @@ const builder = readFileSync(
   'utf8',
 );
 
-test('production pilot preflight checks the crash and push providers wired by the app', () => {
+test('production pilot preflight keeps crash reporting but leaves Firebase push dormant', () => {
   const crashProvider = path.join(
     root,
     'flutter_mort',
@@ -19,19 +19,10 @@ test('production pilot preflight checks the crash and push providers wired by th
     'observability',
     'sentry_crash_provider.dart',
   );
-  const pushProvider = path.join(
-    root,
-    'flutter_mort',
-    'lib',
-    'services',
-    'push',
-    'remote_push_provider.dart',
-  );
-
   assert.ok(existsSync(crashProvider), 'real Sentry provider exists');
-  assert.ok(existsSync(pushProvider), 'real Firebase push provider exists');
   assert.match(builder, /sentry_crash_provider\.dart/);
-  assert.match(builder, /remote_push_provider\.dart/);
+  assert.match(builder, /-RemotePushEnabled \$false/);
+  assert.doesNotMatch(builder, /remote_push_provider\.dart/);
   assert.doesNotMatch(builder, /production_crash_provider\.dart/);
   assert.doesNotMatch(builder, /remote_push_service\.dart/);
 });

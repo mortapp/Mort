@@ -71,6 +71,8 @@ class DisabledRemotePushProvider implements RemotePushProvider {
   Future<void> deleteToken() async {}
 }
 
+// Retained as dormant source per product direction. MORT release builds must
+// use Supabase in-app notifications and never initialize this provider.
 class FirebaseRemotePushProvider implements RemotePushProvider {
   bool _initialized = false;
 
@@ -166,9 +168,7 @@ class FirebaseRemotePushProvider implements RemotePushProvider {
 }
 
 RemotePushProvider createRemotePushProvider() =>
-    AppConfig.remotePushEnabled && AppConfig.isFirebaseClientConfigured
-    ? FirebaseRemotePushProvider()
-    : const DisabledRemotePushProvider();
+    const DisabledRemotePushProvider();
 
 void configureRemotePushBackgroundHandler() {
   if (!kIsWeb &&

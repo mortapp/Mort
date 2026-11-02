@@ -106,6 +106,11 @@ class MortReleaseConfiguration {
 
   List<String> get validationErrors {
     final errors = <String>[];
+    if (remotePushEnabled) {
+      errors.add(
+        'remote push is disabled in MORT builds; use Supabase in-app notifications',
+      );
+    }
     if (operationalMode.trim().isEmpty) {
       errors.add('operational mode is missing');
     }
@@ -253,10 +258,8 @@ class MortReleaseConfiguration {
         if (publicMarketplaceEnabled || productionActivationApproved) {
           errors.add('production candidate must keep public activation closed');
         }
-        if (!remotePushEnabled || !crashReportingEnabled) {
-          errors.add(
-            'production candidate requires verified push and crash providers',
-          );
+        if (!crashReportingEnabled) {
+          errors.add('production candidate requires a verified crash provider');
         }
         break;
       case MortReleaseProfile.production:
@@ -269,8 +272,8 @@ class MortReleaseConfiguration {
         if (!identityVerificationEnabled) {
           errors.add('production requires verified adult identity integration');
         }
-        if (!remotePushEnabled || !crashReportingEnabled) {
-          errors.add('production requires verified push and crash providers');
+        if (!crashReportingEnabled) {
+          errors.add('production requires a verified crash provider');
         }
         if (_isUnapprovedLegalVersion(termsVersion) ||
             _isUnapprovedLegalVersion(privacyVersion) ||

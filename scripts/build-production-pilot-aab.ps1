@@ -2,9 +2,8 @@
 param()
 
 $crashProvider = Join-Path $PSScriptRoot '..\flutter_mort\lib\core\observability\sentry_crash_provider.dart'
-$pushProvider = Join-Path $PSScriptRoot '..\flutter_mort\lib\services\push\remote_push_provider.dart'
-if (-not (Test-Path -LiteralPath $crashProvider) -or -not (Test-Path -LiteralPath $pushProvider)) {
-  throw 'BLOCKED-CONFIG: production pilot requires the app crash and remote-push provider implementations.'
+if (-not (Test-Path -LiteralPath $crashProvider)) {
+  throw 'BLOCKED-CONFIG: production pilot requires the app crash provider implementation.'
 }
 
 & (Join-Path $PSScriptRoot 'android-release-profile-common.ps1') `
@@ -16,7 +15,7 @@ if (-not (Test-Path -LiteralPath $crashProvider) -or -not (Test-Path -LiteralPat
   -GoogleAuthEnabled $false `
   -PublicMarketplaceEnabled $false `
   -IdentityVerificationEnabled $false `
-  -RemotePushEnabled $true `
+  -RemotePushEnabled $false `
   -CrashReportingEnabled $true `
   -PublicActivationApproved $false `
   -AdsEnabled $true

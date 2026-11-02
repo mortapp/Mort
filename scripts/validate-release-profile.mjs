@@ -70,6 +70,9 @@ for (const [name, profile] of Object.entries(matrix.profiles)) {
   if (profile.marketplacePaymentsEnabled === false && profile.paymentProviderMode !== "disabled") {
     fail(`${name} selects a payment provider while payments are disabled`);
   }
+  if (profile.remotePushEnabled !== false) {
+    fail(`${name} must keep remote push disabled; MORT notifications use Supabase in-app inbox`);
+  }
   if (profile.publicMarketplaceEnabled && name !== "production") {
     fail(`${name} cannot enable the public marketplace`);
   }

@@ -11,7 +11,6 @@ import '../../data/models/notification_item.dart';
 import '../../data/repositories/notifications_repository.dart';
 import '../../data/repositories/providers.dart';
 import '../../services/push/push_notification_coordinator.dart';
-import '../../services/push/remote_push_provider.dart';
 
 const _notificationCategoryLabels = <String, String>{
   'application_updates': 'Application updates',
@@ -26,15 +25,9 @@ const _notificationCategoryLabels = <String, String>{
 };
 
 class _NotificationSettingsSnapshot {
-  const _NotificationSettingsSnapshot({
-    required this.preferences,
-    required this.status,
-    required this.permission,
-  });
+  const _NotificationSettingsSnapshot({required this.preferences});
 
   final NotificationPreferences preferences;
-  final PushRegistrationStatus status;
-  final RemotePushPermission permission;
 }
 
 class NotificationCenterScreen extends ConsumerStatefulWidget {
@@ -69,46 +62,11 @@ class _NotificationCenterScreenState
     final repository = ref.read(notificationsRepositoryProvider);
     return _NotificationSettingsSnapshot(
       preferences: await repository.getPreferences(),
-      status: await repository.getPushStatus(),
-      permission: await PushNotificationCoordinator.instance.permissionStatus(),
     );
   }
 
   void _reloadSettings() {
     setState(() => _settingsFuture = _loadSettings());
-  }
-
-  Future<void> _setPushEnabled(bool enabled) async {
-    if (_settingsBusy) return;
-    setState(() => _settingsBusy = true);
-    try {
-      if (enabled) {
-        final permission = await PushNotificationCoordinator.instance
-            .requestPermissionAndRegister();
-        if (permission != RemotePushPermission.authorized &&
-            permission != RemotePushPermission.provisional) {
-          throw StateError(
-            permission == RemotePushPermission.unavailable
-                ? 'Remote alerts are not configured in this build.'
-                : 'Notification permission was not granted.',
-          );
-        }
-      } else {
-        await PushNotificationCoordinator.instance
-            .disableAllRemoteNotifications();
-      }
-      if (mounted) {
-        MortToast.show(
-          context,
-          enabled ? 'Remote alerts enabled.' : 'Remote alerts disabled.',
-        );
-        _reloadSettings();
-      }
-    } catch (error) {
-      if (mounted) MortToast.show(context, userFacingError(error));
-    } finally {
-      if (mounted) setState(() => _settingsBusy = false);
-    }
   }
 
   Future<void> _savePreferences(NotificationPreferences preferences) async {
@@ -294,27 +252,17 @@ class _NotificationCenterScreenState
 
   Widget _buildSettings(_NotificationSettingsSnapshot snapshot) {
     final preferences = snapshot.preferences;
-    final coordinator = PushNotificationCoordinator.instance;
-    final providerAvailable = coordinator.configured;
     return MortCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Device alerts', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: MortSpacing.xs),
           Text(
-            providerAvailable
-                ? '${snapshot.status.activeDeviceCount} active device${snapshot.status.activeDeviceCount == 1 ? '' : 's'} using FCM.'
-                : 'Remote alerts are not configured in this build. In-app updates remain available.',
+            'In-app notifications',
+            style: Theme.of(context).textTheme.titleLarge,
           ),
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Allow remote alerts'),
-            subtitle: Text(_permissionLabel(snapshot.permission)),
-            value: preferences.pushEnabled && providerAvailable,
-            onChanged: _settingsBusy || !providerAvailable
-                ? null
-                : _setPushEnabled,
+          const SizedBox(height: MortSpacing.xs),
+          const Text(
+            'Updates in this inbox are provided by Supabase. Device push alerts are turned off.',
           ),
           const Divider(),
           Text(
@@ -374,9 +322,7 @@ class _NotificationCenterScreenState
               ],
             ),
           const SizedBox(height: MortSpacing.sm),
-          const Text(
-            'Lock-screen alerts use generic text. MORT never puts exact addresses, job PINs, evidence, verification documents, or private message text in a push notification.',
-          ),
+          const Text('This inbox does not send lock-screen notifications.'),
         ],
       ),
     );
@@ -399,12 +345,3 @@ String _displayTime(String value) {
   final suffix = time.period == DayPeriod.am ? 'AM' : 'PM';
   return '$hour:${time.minute.toString().padLeft(2, '0')} $suffix';
 }
-
-String _permissionLabel(RemotePushPermission permission) =>
-    switch (permission) {
-      RemotePushPermission.authorized => 'Device permission granted',
-      RemotePushPermission.provisional => 'Provisional device permission',
-      RemotePushPermission.denied => 'Device permission denied',
-      RemotePushPermission.notDetermined => 'Permission not requested',
-      RemotePushPermission.unavailable => 'Provider setup required',
-    };
