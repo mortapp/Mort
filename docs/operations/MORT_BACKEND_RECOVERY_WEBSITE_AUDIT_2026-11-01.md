@@ -76,6 +76,10 @@ This verifies route delivery, not successful signup, OAuth, form submission, or 
 
 A separate website branch, `codex/mort-website-verification-20261101`, removes the unsupported claim that Guardians can currently approve applications before posters see them. It has not been deployed. The separate `legal.mortapp.org` host was not changed.
 
+## CI and repository safety blocker
+
+The inherited `.github/workflows/mort-ci.yml` still sets `MORT_SUPABASE_PROJECT_REF` to the deleted project `rakjydmgwwgtdislanbt` in its Stripe local-regression job. That job must be corrected or safely disabled before CI is triggered for this proposal. The connected GitHub app lacks the `workflow` scope needed to update workflow files, so no PR was opened and no workflow was run. Do not reconnect to or run tests against the deleted project.
+
 ## Change boundary
 
 No production database writes, migration applications, Auth setting changes, backup jobs, DNS changes, Vercel deployments, release-control changes, marketplace activation, or payment activation were performed.
