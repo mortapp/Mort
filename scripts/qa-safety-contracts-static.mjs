@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const applicationMigration = await readFile(
-  "supabase/migrations/20261101120000_atomic_application_and_guardian_resend_contract.sql",
+  "supabase/migrations/20261102003713_atomic_application_and_guardian_resend_contract.sql",
   "utf8",
 );
 const locationMigration = await readFile(
-  "supabase/migrations/20261101123000_private_location_and_block_message_contract.sql",
+  "supabase/migrations/20261102003741_private_location_and_block_message_contract.sql",
   "utf8",
 );
 const schemaPreflightSql = await readFile(

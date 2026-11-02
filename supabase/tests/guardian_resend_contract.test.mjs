@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const migration = await readFile(
-  new URL('../migrations/20261101120000_atomic_application_and_guardian_resend_contract.sql', import.meta.url),
+  new URL('../migrations/20261102003713_atomic_application_and_guardian_resend_contract.sql', import.meta.url),
   'utf8',
 );
 const resend = migration.split('create or replace function public.resend_guardian_invite')[1]

@@ -1,10 +1,48 @@
 # MORT Flutter ↔ Production Supabase Contract Diff
 
-**Status:** In progress; no production changes applied.  
-**Snapshot:** 2026-10-31 local date (Supabase catalog inspected read-only; migration list through `20261101002805_safety_reports_server_only_idempotent`).  
+**Status:** Safety-contract migrations applied to production; other blockers remain.
+**Snapshot:** Updated 2026-11-01 after production migration versions `20261102003713` and `20261102003741`.
 **Code baseline:** `29a8cf141b44b6ae7a4a37965b99f9c47b310282`.  
 **Isolated branch:** `codex/flutter-backend-integration` (new local worktree).  
 **Production target:** Supabase `jxbnrkasktbhtiujkhay`.
+
+## Current production state after safety migration rollout
+
+The application race/Guardian resend and private-location/block-message
+migrations have been applied to production and recorded in hosted migration
+history. This supersedes older sections below that describe them as proposals
+or unapplied. Production now has the locked eligibility recheck, link-scoped
+Guardian resend, private address save/release contract, and shared pair locks
+for block/message mutations. RLS is enabled and forced on the new private
+tables; anon cannot execute the new RPCs; authenticated direct jobs INSERT and
+UPDATE, including exact-address writes, is revoked. The deployed website post
+action uses `save_job_draft_or_publish`.
+
+Read-only verification after apply found zero application rows, zero safety
+agreement rows, and zero public jobs with a non-null exact address. Release
+status still reports marketplace closed, new publishing disabled, payments
+disabled, and real document collection disabled. The schema-only Docker
+production clone tests recorded later in this file passed the application
+pgTAP, private-location catalog and authorization pgTAP suites, plus separate
+two-session application and block/message race tests; no production rows were
+used for tests.
+
+Still missing: a server-side job-distance RPC, real provider-backed age/
+identity/school verification, full database/Auth/Storage restore proof, real
+Google OAuth login validation, complete operations/on-call readiness, and a
+signed release candidate/device acceptance. Guardian application decisions
+remain read-only. The local historical migration chain still diverges from the
+71 hosted migration entries; do not run `supabase db push` against the entire
+local chain until reconciliation is complete.
+
+Location changes invalidate old confirmations and set the agreement to
+reconfirmation-required, but no notification/outbox enqueue is currently
+wired for the affected participants. This is a pre-marketplace blocker. The
+post-rollout Supabase security advisor reports 23 RLS-enabled/no-policy
+relations (private relations have no client grants), 51 authenticated
+`SECURITY DEFINER` review notices, and leaked-password protection disabled.
+These findings need routine-level assessment and Auth dashboard remediation;
+the counts alone do not establish exploitability.
 
 ## Authentication and school-affiliation follow-up
 
@@ -24,7 +62,7 @@
 - Production read-only catalog evidence remains the source for live signatures. Full hosted-schema migration replay, pgTAP data behavior, RLS negative/positive cases, and real two-session application/block-message races remain blocked until a production-equivalent schema is available locally without a paid resource.
 - The latest production read-only catalog check found no job assignments, so there is no live assignment record against which to validate release behavior. Production was only queried read-only.
 
-## 2026-11-01 marketplace safety follow-up
+## 2026-11-01 marketplace safety follow-up — earlier proposal notes
 
 ### Application contract actually used by Flutter
 
@@ -370,4 +408,24 @@ The migrations remain unapplied in production. Schema-snapshot replay does not r
 ### Final verification update — 2026-11-01
 
 The final Flutter suite after the fail-closed trust UI cleanup and production-readiness test correction passed **623 tests, 2 skipped, 0 failed**. `flutter analyze --no-pub` reported no issues; Dart format checked 311 files with zero changes. Safety-contract unit tests passed 15/15; safety static, website job-write, and 241-file migration encoding checks passed. The SQL behavior tests used a disposable local PostgreSQL schema snapshot and synthetic rows, including independent application and block/message sessions. They do not prove parity with hosted Auth/Storage services or a complete production backup restore. No production migration, release-control change, marketplace launch, or payment activation occurred.
+
+### Production rollout update — 2026-11-01
+
+Both backend safety migrations are now applied to production project
+`jxbnrkasktbhtiujkhay` and recorded in Supabase migration history as
+`20261102003713_atomic_application_and_guardian_resend_contract` and
+`20261102003741_private_location_and_block_message_contract`. Read-only
+post-apply checks confirmed the functions, private tables, forced RLS, and
+revoked authenticated direct job/exact-address writes. The deployed website
+posting path uses `save_job_draft_or_publish`. Production had and still has no
+job application rows, safety-agreement rows, or non-null public exact-address
+rows. Marketplace/publishing/payments/document collection remain disabled.
+
+The schema-only Docker clone results already recorded above passed the
+application pgTAP, private-location catalog and authorization pgTAP suites,
+plus independent two-session application and block/message race tests. These
+do not prove a full database/Auth/Storage restore. The server-side job-distance
+RPC remains absent, Guardian application decisions remain read-only, and the
+repository's historical migration chain still diverges from production; do
+not run `supabase db push` against the full local chain.
 

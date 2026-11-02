@@ -1,6 +1,7 @@
 -- Safety contracts: serialize application eligibility with insertion and make
 -- Guardian resend link-scoped. This migration is intentionally append-only.
--- It must be validated in an isolated Supabase environment before deployment.
+-- Validated against the production schema-only Docker clone and applied to
+-- Supabase project jxbnrkasktbhtiujkhay as migration 20261102003713.
 
 begin;
 

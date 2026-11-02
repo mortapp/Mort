@@ -3,9 +3,61 @@
 **Updated:** 2026-11-01 (workspace local date)
 **Branch:** `codex/mort-nov5-backend-safety`
 **Production backend:** Supabase project `jxbnrkasktbhtiujkhay`  
-**Status:** In progress. No production writes, migration application, deployment, marketplace activation, or payment activation occurred.
+**Status:** Two additive backend safety migrations are applied to production. No user rows, release controls, marketplace state, or payment state were changed; no app/site deployment occurred.
 
-## Nov 1 backend hardening continuation
+## Production safety migration rollout — 2026-11-01
+
+At the owner's explicit request, both safety-contract migrations were applied
+to Supabase production project `jxbnrkasktbhtiujkhay` through the authenticated
+Supabase migration connector:
+
+- `20261102003713_atomic_application_and_guardian_resend_contract`
+- `20261102003741_private_location_and_block_message_contract`
+
+Supabase recorded both versions. Read-only post-apply verification found 71
+migrations total; the application eligibility/submission functions, scoped
+Guardian resend, private-location save/release, and pair-locked block/message
+functions are present. The five new private history/location tables have RLS
+enabled and forced. `anon` cannot execute the new RPCs. Authenticated direct
+`INSERT`/`UPDATE` on `public.jobs`, including `exact_address`, is now revoked;
+the current production website's posting action uses the existing
+`save_job_draft_or_publish` server RPC, which writes a null public exact address.
+
+The migrations made no user-data updates. Before apply, production had zero
+applications, zero safety agreements, and zero non-null `jobs.exact_address`
+rows; after apply those counts remain zero. The migration ledger is the only
+expected production data change. Runtime flags were re-read after apply:
+`public_marketplace_closed=true`, `new_job_publishing_disabled=true`,
+`payments_disabled=true`, and `real_document_collection=false`.
+
+The repository had already recorded successful validation against a
+schema-only dump of the production database: application pgTAP **11/11**,
+private-location catalog pgTAP **20/20**, authorization pgTAP **9/9**, and
+independent two-session application and block/message race tests passed. These
+tests used synthetic rows in Docker and did not touch production data. The
+full dump was schema-only, so it does not prove Auth/Storage service restore or
+hosted callback behavior. Current Node unit tests also pass **15/15**, the
+static and disposable PostgreSQL ACL checks pass, and the website write
+contract passes.
+
+The release controls remain fail-closed. A server-side job-distance RPC was
+not part of these two migrations and remains absent. Guardian application
+decisions remain unavailable/read-only. Do not run `supabase db push` from the
+current 241-file historical chain: its versions still diverge from the 71
+hosted versions. The two new migration filenames now match the versions
+Supabase recorded; full historical migration reconciliation remains open.
+
+Location changes invalidate prior safety confirmations and set the agreement
+to reconfirmation-required, but the hosted contract currently has no
+participant notification/outbox enqueue for that transition. Add and test that
+notification before enabling private-address release in a live marketplace.
+The post-migration security advisor reports 23 RLS-enabled relations without
+policies (private/no-client-grant tables), 51 authenticated-executable
+`SECURITY DEFINER` review notices, and leaked-password protection disabled.
+The private relations remain default-deny to clients; review each definer
+routine and enable leaked-password protection through Supabase Auth settings.
+
+## Nov 1 backend hardening continuation — historical notes below pre-rollout
 
 - Working branch: `codex/mort-nov5-backend-safety`, based on `fa2daa789068e610048c1375956a00b1790ab34e`.
 - Application submission draft now captures `clock_timestamp()` only after eligibility evidence and shared block-pair locks; the lower-level insert helper rechecks the full eligibility RPC. The wrapper now rejects NULL/missing eligibility results.

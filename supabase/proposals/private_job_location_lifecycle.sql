@@ -1,6 +1,6 @@
 -- SUPERSEDED — DO NOT APPLY.
 -- This retired proposal does not match the current production schema contract.
 -- The only current draft for review is:
---   supabase/migrations/20261101123000_private_location_and_block_message_contract.sql
+--   supabase/migrations/20261102003741_private_location_and_block_message_contract.sql
 -- That migration is still unverified and must not be applied to production.
 -- Do not use this file for backfill, geocoding, or distance calculations.

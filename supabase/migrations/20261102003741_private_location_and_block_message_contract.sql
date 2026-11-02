@@ -1,6 +1,6 @@
 -- Safety contracts for the hosted job_applications/job_assignments schema.
--- This migration is a draft until it is replayed in an isolated Supabase
--- environment. It must not be applied directly to the hosted main project.
+-- Validated against the production schema-only Docker clone and applied to
+-- Supabase project jxbnrkasktbhtiujkhay as migration 20261102003741.
 
 begin;
 

@@ -1,8 +1,39 @@
 # MORT Safety-Contract Remediation Status — 2026-11-01
 
-## Scope
+## Production rollout update — 2026-11-01
 
-The corrected append-only migrations and this report are now present on the `codex/flutter-backend-integration` branch at the current follow-up commit. The reference website job-write cutover is committed in `763fc1efdf8c323670c8e88b94448b268e26836d`. No Supabase hosted schema, production data, auth configuration, provider configuration, or GitHub remote branch other than this feature branch was changed.
+This update supersedes the earlier “not applied” sections below. The owner
+explicitly requested production SQL changes. Both migrations were applied to
+`jxbnrkasktbhtiujkhay` and appear in Supabase migration history as:
+
+- `20261102003713_atomic_application_and_guardian_resend_contract`
+- `20261102003741_private_location_and_block_message_contract`
+
+Post-apply catalog checks confirmed the new RPCs and private tables exist,
+`anon` has no execute rights on the new RPCs, and RLS is enabled and forced on
+the private location/history tables. Authenticated direct job INSERT/UPDATE,
+including exact-address column writes, is revoked. The live website's job
+posting action uses the existing server-side `save_job_draft_or_publish` RPC.
+Production flags still report marketplace closed, publishing disabled,
+payments disabled, and real document collection disabled.
+
+No user rows were changed. Production had and still has zero job applications,
+zero safety agreements, and zero jobs with a non-null exact address. The
+schema-only Docker clone validation already recorded below passed application
+pgTAP (11/11), private-location catalog pgTAP (20/20), location authorization
+pgTAP (9/9), and independent two-session application and block/message race
+tests. This is not a full database/Auth/Storage restore proof or a hosted
+callback test. Job-distance RPC and Guardian application decisions were not
+included in these migrations and remain unavailable.
+
+Supabase recorded the migrations at the versions above; the repository files
+are renamed to match. The rest of the repository migration history still
+diverges from production. Do not use `supabase db push` against the whole local
+241-file chain until that historical mismatch is reconciled.
+
+## Historical scope before production rollout
+
+The corrected append-only migrations and this report were present on the `codex/flutter-backend-integration` branch at the time of that report. The reference website job-write cutover was committed in `763fc1efdf8c323670c8e88b94448b268e26836d`. This paragraph describes the pre-rollout state only; the production changes are documented at the top of this file.
 
 The requested isolated Supabase branch was not created because its recurring cost was **$0.01344/hour** and approval was declined.
 

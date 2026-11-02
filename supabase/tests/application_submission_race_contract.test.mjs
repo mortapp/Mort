@@ -7,7 +7,7 @@ const proposal = await readFile(
   'utf8',
 );
 const migration = await readFile(
-  new URL('../migrations/20261101120000_atomic_application_and_guardian_resend_contract.sql', import.meta.url),
+  new URL('../migrations/20261102003713_atomic_application_and_guardian_resend_contract.sql', import.meta.url),
   'utf8',
 );
 
