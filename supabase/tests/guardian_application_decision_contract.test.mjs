@@ -15,7 +15,7 @@ test('Guardian decisions are a separate application state and are not inferred f
 });
 
 test('submission records a pending decision when the job or linked Guardian preference requires it', () => {
-  assert.match(migration, /case[\s\S]*guardian_approval_required[\s\S]*then ''pending''[\s\S]*else ''not_required''/i);
+  assert.match(migration, /case[\s\S]*guardian_approval_required[\s\S]*then 'pending'[\s\S]*else 'not_required'/i);
   assert.match(migration, /guardian_submission_insert_patch_failed/i);
 });
 
