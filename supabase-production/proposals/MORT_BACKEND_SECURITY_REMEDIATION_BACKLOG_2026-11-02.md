@@ -235,3 +235,129 @@ Harness inputs additionally require application ID, Guardian ID, six synthetic c
   Auth/config, bucket metadata and Storage bytes, then test in a new disposable
   branch/clone. If it fails, abandon that new clone and preserve the existing
   isolated project. No reset, migration-table edit, or DDL was done.
+
+## 2026-11-02 — local ACL parity and production-contract review
+
+### Production behavior and Proposal 901 scope
+
+- Read-only production function hashes were rechecked immediately before local
+  proposal validation: `mort_review_verification_case` MD5
+  `9de9e53ea3e300b78819932eabc14594`; `get_job_application_eligibility`
+  `401d64ec19cf1fa1ab072709266fe4a7`; `mort_accept_job_application`
+  `a44e036f16579106d9ae615d2a54235f`; `schedule_active_job_checkin`
+  `68ddb42187ef290145bda12d93a7b00b`; and
+  `complete_active_job_checkin` `7a7b9ea9824a47e14e783b79aefac098`.
+- Production eligibility checks an active teen, release control,
+  open/safety-approved job, active poster, DOB/job age bounds, current age
+  verification, duplicate active application, blocks, and a current dual-
+  consent adult Guardian only when `jobs.requires_guardian_approval` is true.
+  The RPC is called inside `submit_job_application` and again by the locked
+  lower-level submit helper. It does not currently recheck teen school-ID or
+  school-email verification, nor the poster's current identity verification.
+- Production acceptance requires the job poster to be an active adult, a
+  submitted/shortlisted application, no participant block, current adult
+  identity verification, an active teen with current age verification and age
+  inside the job bounds, and—only for jobs requiring it—a current active,
+  dual-consented adult Guardian link whose Guardian account is active, adult,
+  and email-confirmed. It creates the assignment, accepts one application,
+  rejects other active applications, fills the job, and creates the
+  conversation and participant membership in the same transaction. It does
+  not currently recheck school-ID or school-email state and has no
+  participant-pair lock.
+- Production role approval requires current verified `age`, `school_id`, and
+  `school_email` cases before activating a teen role; adult approval requires
+  current `identity`. Those case types and `expires_at` columns exist in
+  production. Because cases can expire or be revoked later, Proposal 901 now
+  rechecks all three teen tracks at submission eligibility and acceptance,
+  adult identity at acceptance, and the poster's identity before an
+  application is treated as eligible. Poster failure uses the generic
+  unavailable-job result.
+- Guardian preference/optional-approval fields and Guardian application
+  decision fields found only in isolated QA are not referenced. Production
+  uses `jobs.requires_guardian_approval`, dual-consent fields on
+  `guardian_links`, and `job_applications.guardian_id`; Guardian application
+  views remain read-only. No Guardian decision state was added.
+- Review found a same-job acceptance deadlock in the application-row → job-row
+  order: one acceptance could hold application A and the job while another
+  held application B waiting for the job; the winner then tried to reject B.
+  Proposal 901 now takes a nonblocking per-job transaction advisory lock after
+  locking the selected application and before waiting on the job row. A loser
+  returns `job_acceptance_in_progress_retry`, releases its application lock,
+  and can be retried. The deterministic participant-pair lock remains before
+  the block check.
+- Eligibility and acceptance lock current Guardian link/profile/auth rows in
+  deterministic order before the teen profile, matching the link-before-
+  profile order in unlink/consent revocation. Verification rows are locked
+  before eligibility is evaluated against a fresh transaction clock.
+
+### Proposal 900 and 902 review
+
+- Proposal 900 remains fail-closed with an empty provider allowlist. Review
+  found and fixed an uninitialized `v_now` in the minimum-age check, rejects
+  non-future reviewer expiry, requires provider evidence received on/after the
+  case's current submission, and records the selected provider-result ID/key
+  in the same-transaction audit row. Provider event IDs remain unique; anon
+  and authenticated receive no ledger access; service_role has SELECT/INSERT
+  only. There is still no signed provider callback function or configured
+  provider, so production verification remains unavailable. Cascade deletion
+  of evidence metadata remains subject to approved retention/account-erasure
+  policy.
+- Proposal 902's function source hashes still match production. It uses only
+  production assignment/job/application/check-in fields, adds nullable request
+  metadata and a partial unique idempotency index, and preserves legacy rows.
+  Schedule and completion lock assignment → job → check-in; completion's
+  request-key advisory lock is acquired first. It rechecks active
+  assignment/job/application state and preserves safe retries. The existing
+  check-in workflow does not write an audit or notification event, and Proposal
+  902 adds none; a new audit event requires a separate contract decision.
+- All three proposals remain local proposal files, unapplied to production and
+  hosted QA.
+
+### Local ACL and test-environment parity evidence
+
+- Production `information_schema.role_table_grants` reports seven table
+  privileges—`SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER`—
+  for service_role on `public.job_applications`, and no table grants to anon or
+  authenticated. Added `scripts/qa-local-hosted-job-applications-acl.ps1`.
+  It refuses any target except the named disposable local PostgreSQL
+  container, requires 73 ledger versions from `20261026194801` through
+  `20261102113314`, refuses existing anon/authenticated table or column
+  privileges, grants the hosted service_role ACL, then verifies each of those
+  privileges remains absent for anon/authenticated.
+- The existing five-assertion pgTAP file was not changed. It passes 5/5 on
+  the local base and again on the proposal-validation copy. ACL verification
+  reports anon=false, authenticated=false, and service_role=true for table and
+  column SELECT; local service_role table grants match all seven hosted
+  privileges.
+- **Correction to earlier environment reporting:** the local base has 73
+  migration ledger rows, but its live catalog also contained unledgered empty
+  Proposal 900 tables and Proposal 902 columns/index, plus proposal-edited
+  function bodies. Earlier calling this a clean baseline was inaccurate. The
+  original local container was not reset or cleaned; only the requested
+  service_role ACL was changed there. A separate scratch database was created
+  from a local dump, the known empty unledgered proposal artifacts were removed
+  in that scratch only, and the five functions were restored from committed
+  production migration source. All five hashes matched production before the
+  drafts were applied. This reconstructs the known production contract for
+  local SQL compilation, but is not a full fresh migration replay or exact
+  managed Postgres 17.11 clone; the local scratch runs PostgreSQL 17.6.
+- All three guarded proposals compiled/applied in the scratch database. The
+  fixture-free negative authorization SQL block completed and rolled back;
+  direct-SELECT pgTAP passed 5/5; the ledger remained 73; and scratch
+  marketplace/document-collection flags were false. The two-session protocol
+  script passed pair-lock serialization, check-in-key serialization, and the
+  same-job acceptance fail-fast lock test (latest rerun: 609 ms). These test lock protocols,
+  not authenticated RPC workflows.
+- Static proposal review, 73-file migration recovery and both recovered
+  production ledger hashes, migration encoding (240 files), and `git diff
+  --check` passed. No Auth fixtures were created. Authenticated application,
+  acceptance, revocation, and check-in RPC races remain blocked by the approved
+  legal/provider/staff/synthetic-fixture prerequisites already documented.
+- `qa-migration-reconciliation-parity.mjs` was also run and still fails on the
+  pre-existing historical `20260918032930_guardian_teen_summary_v1.sql` hash
+  mismatch (actual `21eb6a0accd633b5fb92319b4062385a931899b6`, expected
+  `65455e7593dbcb51612f71303ba808063b43f6a6`). That unrelated historical SQL
+  was not rewritten; the production-specific 73-version recovery check passes.
+- Read-only production release-control check still reports
+  `public_marketplace_enabled=false`, `real_document_collection=false`, and
+  `maintenance_mode=false`. No production or hosted-QA state changed.

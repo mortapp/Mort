@@ -69,6 +69,7 @@ declare
   v_date_of_birth date;
   v_now timestamptz;
   v_evidence_expires_at timestamptz;
+  v_evidence_result_id uuid;
 begin
   if v_user is null or not private.has_staff_role(array['admin','moderator']::public.mort_role[]) then
     raise exception 'Authorized verification reviewer required';
@@ -92,6 +93,7 @@ begin
   where profile.id = v_case_snapshot.user_id
   for share;
   if not found then raise exception 'Verification subject not found'; end if;
+  v_now := clock_timestamp();
 
   if p_status = 'verified'::public.mort_verification_status then
     if v_date_of_birth is null
@@ -127,9 +129,13 @@ begin
     raise exception 'verification_case_changed_retry';
   end if;
   v_now := clock_timestamp();
+  if p_expires_at is not null and p_expires_at <= v_now then
+    raise exception 'verification_expiry_must_be_in_future';
+  end if;
 
   if p_status = 'verified'::public.mort_verification_status then
-    select result.expires_at into v_evidence_expires_at
+    select result.id, result.expires_at
+      into v_evidence_result_id, v_evidence_expires_at
     from private.verification_provider_results result
     where result.verification_case_id = v_case.id
       and result.user_id = v_case.user_id
@@ -139,6 +145,7 @@ begin
       and result.result = 'verified'
       and result.verified_at <= v_now
       and result.received_at <= v_now
+      and result.received_at >= coalesce(v_case.submitted_at, v_case.created_at)
       and (result.expires_at is null or result.expires_at > v_now)
     order by result.received_at desc
     limit 1
@@ -159,7 +166,11 @@ begin
   where id=v_case.id;
   insert into public.admin_audit_log(actor_id,action,target_type,target_id,reason,metadata)
   values (v_user,'verification_reviewed','verification_case',p_case_id::text,
-          nullif(btrim(p_note),''),jsonb_build_object('status',p_status));
+          nullif(btrim(p_note),''),jsonb_build_object(
+            'status',p_status,
+            'provider_result_id',v_evidence_result_id,
+            'provider_key',case when p_status = 'verified'::public.mort_verification_status then v_case.provider else null end
+          ));
   return p_case_id;
 end;
 $function$;

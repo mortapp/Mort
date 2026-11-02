@@ -29,6 +29,7 @@ declare
   v_now timestamptz;
   v_guardian_linked boolean;
   v_poster_active boolean := false;
+  v_poster_identity_verified boolean := false;
   v_profile_found boolean := false;
   v_job_found boolean := false;
   v_release_found boolean := false;
@@ -54,16 +55,15 @@ begin
     where poster.id = v_job.poster_id
     for share;
     v_poster_active := coalesce(v_poster_active, false);
+    perform verification.id
+    from public.verification_cases verification
+    where verification.user_id = v_job.poster_id
+      and verification.verification_type = 'identity'
+      and verification.status = 'verified'::public.mort_verification_status
+    for share;
   end if;
-  -- Match acceptance's job -> participant-pair -> profile lock order. Locking
-  -- profile before job here can deadlock with acceptance, which owns the job
-  -- lock before checking the teen profile.
-  select * into v_profile from public.profiles profile where profile.id = auth.uid() for share;
-  v_profile_found := found;
-  select * into v_release from public.mort_release_control release where release.is_primary for share;
-  v_release_found := found;
-  -- Lock active, dual-consented Guardian records and their identity rows
-  -- before evaluating age against the fresh clock captured below.
+  -- Guardian unlink and consent-revocation workflows lock link rows before
+  -- profile rows. Preserve that order here to avoid link/profile deadlocks.
   perform gl.id
   from public.guardian_links gl
   join public.profiles guardian_profile on guardian_profile.id = gl.guardian_user_id
@@ -76,7 +76,15 @@ begin
     and guardian_profile.account_status = 'active'
     and guardian_profile.date_of_birth is not null
     and guardian_auth.email_confirmed_at is not null
+  order by gl.guardian_user_id, gl.id
   for share of gl, guardian_profile, guardian_auth;
+  -- Match acceptance's job -> pair -> Guardian link/identity -> teen profile
+  -- order. Locking the teen profile before a Guardian link can deadlock with
+  -- unlink, which locks the link before updating the profile.
+  select * into v_profile from public.profiles profile where profile.id = auth.uid() for share;
+  v_profile_found := found;
+  select * into v_release from public.mort_release_control release where release.is_primary for share;
+  v_release_found := found;
   -- Lock every age-verification row in the eligible state, including expired
   -- rows, then evaluate expiry against the post-lock wall clock.
   perform verification.id
@@ -86,6 +94,15 @@ begin
     and verification.status = 'verified'::public.mort_verification_status
   for share;
   v_now := clock_timestamp();
+  if v_job_found then
+    select exists (
+      select 1 from public.verification_cases vc
+      where vc.user_id = v_job.poster_id
+        and vc.verification_type = 'identity'
+        and vc.status = 'verified'::public.mort_verification_status
+        and (vc.expires_at is null or vc.expires_at > v_now)
+    ) into v_poster_identity_verified;
+  end if;
   select exists (
     select 1
     from public.guardian_links gl
@@ -110,7 +127,7 @@ begin
     v_code := 'public_marketplace_disabled'; v_message := 'The marketplace is not accepting public applications yet.';
   elsif not v_job_found or v_job.status <> 'open'::public.mort_job_status or v_job.safety_review_status <> 'approved' or not v_job.applications_open or (v_job.expires_at is not null and v_job.expires_at <= v_now) then
     v_code := 'job_not_available'; v_message := 'This job is not accepting applications.';
-  elsif not v_poster_active then
+  elsif not v_poster_active or not v_poster_identity_verified then
     v_code := 'job_not_available'; v_message := 'This job is not accepting applications.';
   elsif exists (
     select 1 from public.job_applications application
@@ -195,6 +212,17 @@ begin
   for update;
   if not found then raise exception 'Application not found'; end if;
 
+  -- The status-update wrapper locks its selected application before calling
+  -- this RPC. Two posters can therefore hold different application rows for
+  -- the same job while one acceptance later rejects the other's row. A
+  -- nonblocking per-job lock makes the loser abort and release its app row,
+  -- avoiding the app-row/job-row deadlock without changing the wrapper API.
+  if not pg_catalog.pg_try_advisory_xact_lock(
+    pg_catalog.hashtextextended('mort-accept-job:' || v_app.job_id::text, 0)
+  ) then
+    raise exception 'job_acceptance_in_progress_retry';
+  end if;
+
   select * into v_job
   from public.jobs
   where id = v_app.job_id
@@ -223,6 +251,28 @@ begin
   ) then
     raise exception 'This interaction is unavailable';
   end if;
+
+  -- Unlink/revocation locks Guardian links before updating teen profiles.
+  -- Lock matching active consent rows and Guardian identity records first so
+  -- the final eligibility predicate cannot race a revocation.
+  if v_job.requires_guardian_approval then
+    perform gl.id
+    from public.guardian_links gl
+    join public.profiles guardian_profile on guardian_profile.id = gl.guardian_user_id
+    join auth.users guardian_auth on guardian_auth.id = gl.guardian_user_id
+    where gl.teen_user_id = v_app.applicant_id
+      and gl.status = 'active'
+      and gl.teen_consent_at is not null
+      and gl.guardian_consent_at is not null
+      and (v_app.guardian_id is null or gl.guardian_user_id = v_app.guardian_id)
+      and guardian_profile.role = 'guardian'::public.mort_role
+      and guardian_profile.account_status = 'active'
+      and guardian_profile.date_of_birth is not null
+      and guardian_auth.email_confirmed_at is not null
+    order by gl.guardian_user_id, gl.id
+    for share of gl, guardian_profile, guardian_auth;
+  end if;
+
   select profile.date_of_birth into v_date_of_birth
   from public.profiles profile
   where profile.id = v_app.applicant_id

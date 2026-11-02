@@ -73,9 +73,30 @@ async function assertSerialized(label, holderExpression, contenderExpression) {
   console.log(`[qa-safety-proposal-two-session-locks] PASS ${label}: serialized in ${Math.round(elapsed)} ms`);
 }
 
+async function assertFailFast(label, holderExpression, contenderExpression) {
+  const holder = spawn('docker', [
+    'exec', '-i', container, 'psql', '-U', 'postgres', '-d', 'postgres', '-X', '-qAt',
+    '-v', 'ON_ERROR_STOP=1',
+  ], { windowsHide: true });
+  const holderDone = runAndCapture(holder);
+  holder.stdin.end(`begin;\nselect pg_advisory_xact_lock(${holderExpression});\nselect 'holder_locked';\nselect pg_sleep(2.2);\ncommit;\n\\q\n`);
+  await waitForOutput(holder, 'holder_locked');
+
+  const started = performance.now();
+  const contenderOutput = await runAndCapture(query(`select pg_try_advisory_xact_lock(${contenderExpression});`));
+  const elapsed = performance.now() - started;
+  await holderDone;
+
+  assert.equal(contenderOutput, 'f', `${label}: a competing acceptance must fail fast while the job lock is held`);
+  assert.ok(elapsed < 1_000, `${label}: contender waited instead of failing fast (${Math.round(elapsed)} ms)`);
+  console.log(`[qa-safety-proposal-two-session-locks] PASS ${label}: fail-fast in ${Math.round(elapsed)} ms`);
+}
+
 const pairA = `pg_catalog.hashtextextended(least('10000000-0000-4000-8000-000000000001'::uuid,'10000000-0000-4000-8000-000000000002'::uuid)::text || ':' || greatest('10000000-0000-4000-8000-000000000001'::uuid,'10000000-0000-4000-8000-000000000002'::uuid)::text,0)`;
 const pairB = `pg_catalog.hashtextextended(least('10000000-0000-4000-8000-000000000002'::uuid,'10000000-0000-4000-8000-000000000001'::uuid)::text || ':' || greatest('10000000-0000-4000-8000-000000000002'::uuid,'10000000-0000-4000-8000-000000000001'::uuid)::text,0)`;
 const checkinA = `pg_catalog.hashtextextended('job-checkin-complete:10000000-0000-4000-8000-000000000001:20000000-0000-4000-8000-000000000001',0)`;
+const acceptanceJobA = `pg_catalog.hashtextextended('mort-accept-job:' || '30000000-0000-4000-8000-000000000001',0)`;
 
 await assertSerialized('accept/block/message participant-pair key', pairA, pairB);
 await assertSerialized('check-in completion idempotency key', checkinA, checkinA);
+await assertFailFast('same-job acceptance serialization key (protocol only)', acceptanceJobA, acceptanceJobA);
