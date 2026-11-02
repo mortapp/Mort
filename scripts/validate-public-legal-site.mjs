@@ -96,8 +96,10 @@ if (!existsSync(deletionScriptPath)) {
   if (!deletionScript.includes('shouldCreateUser: false')) failures.push('account deletion could create an account');
   if (!deletionScript.includes("flowType: 'pkce'")) failures.push('account deletion auth is not PKCE');
   if (/https:\/\/esm\.sh/.test(deletionScript)) failures.push('account deletion imports executable code from a third-party CDN');
-  if (!/finally\s*\{[\s\S]*result\.textContent\s*=\s*['"][^'"]*This page never confirms whether an account exists\./.test(deletionScript)) {
-    failures.push('account deletion does not use one generic finally response');
+  const genericLookupMessage = 'If that address belongs to an eligible MORT account, a private sign-in link has been sent.';
+  const genericTryCatch = /try\\s*\\{[\\s\\S]*result\\.textContent\\s*=\\s*['"]If that address belongs to an eligible MORT account, a private sign-in link has been sent\\.['"];[\\s\\S]*\\}\\s*catch\\s*\\{\\s*result\\.textContent\\s*=\\s*['"]If that address belongs to an eligible MORT account, a private sign-in link has been sent\\.['"];\\s*\\}\\s*finally\\s*\\{/;
+  if (!genericTryCatch.test(deletionScript) || !deletionScript.includes(genericLookupMessage)) {
+    failures.push('account deletion must return the same non-enumerating response on OTP success and failure');
   }
   if (/error\.message|console\.(log|error)|user\.email/.test(deletionScript)) failures.push('account deletion exposes backend/account detail');
 }
