@@ -219,7 +219,8 @@ Harness inputs additionally require application ID, Guardian ID, six synthetic c
   SECURITY DEFINER/empty-search-path scoped reader. The reader definition has
   applicant/current-link/dual-consent caller gates in both projects. Anonymous
   API denial tests again passed in isolated QA.
-- Local clean baseline container `supabase_db_mort-proposals-local-20261102`
+- Earlier local validation snapshot, superseded by the fresh PG17.11 replay
+  below: container `supabase_db_mort-proposals-local-20261102`
   has PostgreSQL 17.6 and 73 migration rows through `20261102113314`, including
   the Guardian mask and direct-SELECT restriction. It is a clean SQL baseline
   on the same major, not the hosted 17.11 patch/runtime or a complete ACL clone.
@@ -353,11 +354,134 @@ Harness inputs additionally require application ID, Guardian ID, six synthetic c
   --check` passed. No Auth fixtures were created. Authenticated application,
   acceptance, revocation, and check-in RPC races remain blocked by the approved
   legal/provider/staff/synthetic-fixture prerequisites already documented.
-- `qa-migration-reconciliation-parity.mjs` was also run and still fails on the
-  pre-existing historical `20260918032930_guardian_teen_summary_v1.sql` hash
-  mismatch (actual `21eb6a0accd633b5fb92319b4062385a931899b6`, expected
-  `65455e7593dbcb51612f71303ba808063b43f6a6`). That unrelated historical SQL
-  was not rewritten; the production-specific 73-version recovery check passes.
+- Earlier validation snapshot reported a hash failure for the historical
+  Guardian migration. The final correction and root cause are recorded in the
+  section below; the source SQL and expected Git blob hash were preserved.
 - Read-only production release-control check still reports
   `public_marketplace_enabled=false`, `real_document_collection=false`, and
   `maintenance_mode=false`. No production or hosted-QA state changed.
+
+## 2026-11-02 — final technical review and PostgreSQL 17.11 replay
+
+### Historical hash root cause
+
+- `git hash-object supabase/migrations/20260918032930_guardian_teen_summary_v1.sql`
+  returns `65455e7593dbcb51612f71303ba808063b43f6a6`, equal to the expected
+  Git blob SHA. The validator previously used the literal two-byte separator
+  backslash + zero instead of Git's NUL byte, which yields the reported false
+  hash `21eb6a0accd633b5fb92319b4062385a931899b6`. The validator now uses NUL;
+  `node scripts/qa-migration-reconciliation-parity.mjs` passes. A read-only
+  production ledger query for this version/name returned no row; there is no
+  active production SQL payload for this September migration to compare.
+  Neither the historical migration nor expected hash changed.
+
+### Proposal 900 findings
+
+- Caller must be authenticated and hold the current admin/moderator staff
+  role. The reviewer locks subject profile -> provider allowlist -> case ->
+  result, compares the case snapshot after locking, and writes decision plus
+  audit in one transaction. A failed audit insert rolls back the decision.
+  `verification_provider_allowlist` remains empty; service_role alone can
+  read/insert the result ledger, with no client grants.
+- Evidence must match case ID, user, verification type, provider key and
+  provider reference; result must be `verified`, received no earlier than the
+  case submission, and not expired. Review also bounds its expiry by the
+  provider result expiry.
+- Open stale-evidence edge: `verified_at` is checked as not in the future but
+  not as after case submission. Actual risk depends on the still-unselected
+  provider's event/reference semantics. Before implementing its callback,
+  require signature verification, a case-bound reference, unique provider
+  event handling, and a documented timestamp rule. Do not enable a provider
+  or claim the verification lifecycle complete.
+
+### Proposal 901 findings
+
+- The fresh production migration replay matched all live hashes before
+  proposal compilation: reviewer `9de9e53ea3e300b78819932eabc14594`,
+  eligibility `401d64ec19cf1fa1ab072709266fe4a7`, acceptance
+  `a44e036f16579106d9ae615d2a54235f`, schedule
+  `68ddb42187ef290145bda12d93a7b00b`, completion
+  `7a7b9ea9824a47e14e783b79aefac098`.
+- Eligibility rechecks current teen age and all existing production
+  school-ID/school-email tracks; current poster identity; active accounts,
+  job state, release flag, blocks, and the actual Guardian contract.
+  Acceptance rechecks current adult identity and teen age/school state, locks
+  the application/job and shared participant pair, and rechecks active dual
+  Guardian consent only where `requires_guardian_approval` is true. QA-only
+  Guardian preference/decision fields are absent.
+- Competing same-job accepts fail fast using a nonblocking transaction lock,
+  avoiding the prior application-row/job-row cycle. The retry exception is
+  propagated through the existing status RPC. The Flutter caller's RPC shape
+  is unchanged, but it currently has no specific message/automatic retry for
+  `job_acceptance_in_progress_retry`; add client compatibility coverage.
+- Row locks prevent concurrent updates to existing verification rows from
+  changing status during the decision. Absent rows cannot be predicate-locked;
+  later READ COMMITTED checks can see a newly created row. Runtime concurrency
+  is still unverified.
+
+### Proposal 902 findings
+
+- Nullable request metadata/unique partial index are additive and legacy
+  completed rows remain readable. Lifecycle locks are assignment -> job ->
+  check-in; completion serializes a request key first. No audit/notification
+  behavior is silently added to a workflow that had neither.
+- Fixed a discovered idempotency defect: for newly completed rows, a different
+  completion request ID previously fell through the legacy success branch.
+  It now returns `idempotency_key_reused`. Legacy success without payload
+  proof remains only when the old row has no stored completion request ID.
+- Schedule retry lookup happens after current assignment/job checks. If that
+  job is later terminal, an identical request gets `active_assignment_required`
+  instead of the original result. This is fail-closed and writes nothing, but
+  the terminal retry contract needs a product/client decision and real tests.
+
+### Local PostgreSQL 17.11 evidence and limitations
+
+- A new PostgreSQL 17.11 (`server_version_num=170011`) container replayed all
+  73 `supabase-production/migrations` byte-for-byte in order. The runner stores
+  each source SHA in a local-only provenance ledger; result:
+  `FRESH_PRODUCTION_BASELINE_REPLAY=PASS
+  73|20261026194801|20261102113314|73 PostgreSQL=170011 source_bytes=exact`.
+- The Supabase image's empty `auth.users` lacks `email_confirmed_at`, and
+  `storage` is owned by `supabase_admin`; test-only bootstrap added that empty
+  Auth column and allowed local `postgres` to create minimal `storage.buckets`,
+  `storage.objects`, and `storage.foldername` objects used by these migrations.
+  No users, objects, or production data were copied. This is not a full hosted
+  Supabase Auth/Storage clone.
+- All three proposals compiled/applied locally from the clean baseline. The
+  unchanged direct-SELECT privacy test passed 5/5 after applying a guarded
+  local ACL script. It verified anon/authenticated table and column SELECT
+  false and service_role SELECT true. Fixture-free pgTAP passed 19/19: 14
+  compiled-definition predicates and five actual no-claim authorization
+  denials. The source checks do not prove database state transitions.
+- The two-session lock-protocol harness passed on PostgreSQL 17.11: pair lock
+  2.396s, check-in request lock 2.370s, same-job fail-fast 0.831s. This
+  confirms lock-key serialization only; it does not invoke application RPCs or
+  prove row-lock/callback race outcomes.
+- The historical migration `20261028031921_mort_public_marketplace_activation`
+  sets the replayed local control true. A local-only safety override set
+  `public_marketplace_enabled=false` and `real_document_collection=false`
+  before proposal validation; the provider allowlist remains empty. Production
+  controls were read-only and untouched.
+- Authenticated/positive workflow tests, stateful expiry/revocation/retry
+  tests, actual two-session application/acceptance/block races, and authenticated
+  RLS remain blocked until the approved legal docs, provider sandbox,
+  authorized staff reviewer and supported synthetic-account fixtures exist.
+  The exact remaining prerequisites are in `docs/MORT-2.0-EXECUTION-CHECKLIST.md`.
+
+- The earlier note that the hash reconciliation still failed and the earlier
+  claim that PostgreSQL 17.6 was the best available baseline are superseded by
+  this evidence. The older 17.6 scratch containers were not used for the final
+  replay; only the byte-exact fresh PG17.11 run counts.
+- A read-only catalog comparison of the previous PostgreSQL 17.6.1.140
+  container and the fresh 17.11.0.006 container found the sampled Auth
+  `email_confirmed_at` column, Storage buckets/objects, `storage` schema owner
+  (`supabase_admin`), and post-bootstrap application-table SELECT privileges
+  equal. The 17.11 replay started from a clean database and needed the documented
+  test-only Auth/Storage bootstrap. This is a bounded catalog comparison, not a
+  comprehensive Supabase platform comparison. No disposable managed 17.11
+  project was available without creating or paying for a hosted resource.
+- Final ACL bootstrap and test reruns were restricted to
+  `mort-pg1711-baseline6-mort20261102`; the ACL and two-session harness now
+  refuse the older non-parity container. The ACL result was anon=false,
+  authenticated=false, service_role=true for both table and column SELECT.
+- Production project `jxbnrkasktbhtiujkhay` and hosted QA were not modified.

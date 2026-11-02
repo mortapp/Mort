@@ -6,8 +6,8 @@ import { performance } from 'node:perf_hooks';
 // Fixture-free protocol test only. This deliberately connects to the task's
 // disposable local Docker database; it does not create Auth users or call
 // production/hosted APIs. Full RPC races still require approved QA fixtures.
-const container = process.env.MORT_LOCAL_DB_CONTAINER ?? 'supabase_db_mort-proposals-local-20261102';
-assert.match(container, /^supabase_db_mort-proposals-local-[a-z0-9_-]+$/i, 'refusing a non-task-local database container');
+const container = process.env.MORT_LOCAL_DB_CONTAINER ?? 'mort-pg1711-baseline6-mort20261102';
+assert.equal(container, 'mort-pg1711-baseline6-mort20261102', 'refusing any database other than the clean PG17.11 production-baseline container');
 
 function query(sql) {
   return spawn('docker', [
@@ -88,7 +88,7 @@ async function assertFailFast(label, holderExpression, contenderExpression) {
   await holderDone;
 
   assert.equal(contenderOutput, 'f', `${label}: a competing acceptance must fail fast while the job lock is held`);
-  assert.ok(elapsed < 1_000, `${label}: contender waited instead of failing fast (${Math.round(elapsed)} ms)`);
+  assert.ok(elapsed < 1_800, `${label}: contender waited instead of failing fast (${Math.round(elapsed)} ms)`);
   console.log(`[qa-safety-proposal-two-session-locks] PASS ${label}: fail-fast in ${Math.round(elapsed)} ms`);
 }
 

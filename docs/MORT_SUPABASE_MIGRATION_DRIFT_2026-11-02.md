@@ -130,7 +130,7 @@ The production/isolated direct-select migration source digest differs only becau
 5. Before any future isolated schema/data work, obtain a complete verified snapshot (database/schema/ledger, Auth users/config, Storage bucket definitions and object bytes), record checksums, and prove the export can be read. A database dump alone does not protect Storage bytes. Require exact SQL review and apply only to a new branch/clone, never the existing project.
 6. Rollback is to abandon the newly created disposable branch/clone and retain the original isolated project plus its snapshot and logs. Do not reverse historical migrations, edit applied ledger rows, or restore over the original project. If a future test requires mutating existing QA state, stop until a non-destructive restore path is demonstrated. No such change is made by this report.
 
-## Validation executed
+## Earlier validation snapshot — superseded by the final update below
 - Read-only migration ledger comparisons: 73 production rows, 82 isolated rows, all migration names/hashes accounted for above.
 - PostgreSQL 17.6 local baseline ledger: 73 entries from `20261026194801` through `20261102113314`; both mask/direct-SELECT migration rows present.
 - `supabase-production/proposals/tests/20261102010500_job_application_direct_select_privacy.sql` ran transactionally and rolled back: 4/5 pgTAP assertions passed; service_role SELECT assertion failed in local baseline because its local grant is absent. Hosted production and isolated QA catalog checks both show service_role SELECT=true. Do not weaken that assertion; treat as local privilege-environment mismatch to resolve before relying on local test.
@@ -138,3 +138,35 @@ The production/isolated direct-select migration source digest differs only becau
 - Static migration, proposal, recovery, RLS/grant catalog and file-integrity checks are listed in the branch checklist. No hosted schema migration or data was changed.
 
 Provider/synthetic-user prerequisites are described in `MORT_ISOLATED_QA_PROVISIONING_2026-11-02.md`. No provider is selected. Yoti publishes age and IDV sandbox flows with mocked outcomes; Persona and Veriff also provide integration simulations with provider-specific limitations. The published Yoti and Veriff document type lists do not identify school IDs, so school-ID support remains unconfirmed and requires written vendor confirmation before selection. No provider credentials, paid account, or test data was created.
+
+## 2026-11-02 final validator and PostgreSQL 17.11 replay update
+
+The earlier migration-parity failure for
+`20260918032930_guardian_teen_summary_v1.sql` was a false positive. The
+validator used the literal two-byte separator backslash + zero instead of the
+NUL byte required by Git's blob hash. Correct byte calculations yield:
+
+- Git NUL-byte SHA / `git hash-object`: `65455e7593dbcb51612f71303ba808063b43f6a6`.
+- Old literal-backslash-zero SHA: `21eb6a0accd633b5fb92319b4062385a931899b6`.
+- Read-only production migration ledger lookup for that version/name: no row.
+
+The local SQL and expected hash were preserved. The parity validator now
+hashes Git objects correctly and passes. There is no active production payload
+for that September migration to compare, so this is not a production-ledger
+content discrepancy.
+
+A genuinely fresh, localhost-only Supabase PostgreSQL 17.11 image replayed the
+73 production SQL files in order using byte-preserving Node streams. The local
+source ledger is `73|20261026194801|20261102113314|73`. The five guarded
+function hashes matched live production before proposal compilation. Proposal
+compilation, local ACL and pgTAP results are in
+`supabase-production/proposals/MORT_BACKEND_SECURITY_REMEDIATION_BACKLOG_2026-11-02.md`
+and `docs/MORT-2.0-EXECUTION-CHECKLIST.md`.
+
+This matches PostgreSQL 17.11 but not the complete hosted Supabase platform.
+Bootstrap needed the empty Auth table's missing `email_confirmed_at` column,
+local `postgres` creation permission on `storage`, and minimal
+`storage.buckets`, `storage.objects`, and `storage.foldername` definitions
+used by the MORT migration set. No Auth users, Storage objects, or production
+data were copied. The first PowerShell text-stream replay was discarded after
+it changed a curly apostrophe; only the subsequent byte-exact replay counts.

@@ -1,12 +1,19 @@
 param(
-  [string]$Container = 'supabase_db_mort-proposals-local-20261102'
+  [string]$Container = 'mort-pg1711-baseline6-mort20261102'
 )
 
 $ErrorActionPreference = 'Stop'
 
-if ($Container -cne 'supabase_db_mort-proposals-local-20261102') {
-  throw 'Refusing non-approved container. This bootstrap is only for the disposable local production-baseline container.'
+$freshContainer = 'mort-pg1711-baseline6-mort20261102'
+if ($Container -cne $freshContainer) {
+  throw 'Refusing non-approved container. This bootstrap is only for the clean PostgreSQL 17.11 production-baseline container.'
 }
+
+$ledgerPreflight = @'
+  SELECT count(*)::integer, min(version), max(version)
+    INTO migration_count, minimum_version, maximum_version
+  FROM public.qa_production_migration_replay;
+'@
 
 $preflight = @'
 DO $guard$
@@ -18,9 +25,7 @@ BEGIN
   IF current_database() <> 'postgres' THEN
     RAISE EXCEPTION 'refusing database %', current_database();
   END IF;
-  SELECT count(*)::integer, min(version), max(version)
-    INTO migration_count, minimum_version, maximum_version
-  FROM supabase_migrations.schema_migrations;
+__MORT_MIGRATION_LEDGER_QUERY__
   IF migration_count <> 73
      OR minimum_version <> '20261026194801'
      OR maximum_version <> '20261102113314' THEN
@@ -94,6 +99,7 @@ BEGIN
 END
 $verify$;
 '@
+$preflight = $preflight.Replace('__MORT_MIGRATION_LEDGER_QUERY__', $ledgerPreflight.Trim())
 
 $preflight | docker exec -i $Container psql -U postgres -d postgres -v ON_ERROR_STOP=1
 if ($LASTEXITCODE -ne 0) {
@@ -102,7 +108,9 @@ if ($LASTEXITCODE -ne 0) {
 
 $verification = @'
 SELECT 'migration_count=' || count(*) || ';first=' || min(version) || ';last=' || max(version)
-FROM supabase_migrations.schema_migrations;
+FROM public.qa_production_migration_replay;
+'@
+$verification += @'
 SELECT rolname || ':table_select=' || has_table_privilege(rolname, 'public.job_applications', 'SELECT')
   || ';column_select=' || has_any_column_privilege(rolname, 'public.job_applications', 'SELECT')
 FROM pg_roles

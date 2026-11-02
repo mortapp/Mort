@@ -220,6 +220,9 @@ begin
         'checkin_id', checkin.id, 'completed_at', checkin.completed_at
       );
     end if;
+    if checkin.completion_request_id is not null then
+      return jsonb_build_object('ok', false, 'code', 'idempotency_key_reused');
+    end if;
     -- Before request IDs were persisted, completed rows were idempotent
     -- success responses for the authorized teen. Keep that safe no-op contract
     -- for legacy and already-completed rows without binding a new request ID.
