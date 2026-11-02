@@ -32,6 +32,7 @@ begin
   end if;
 
   if p_report_id is null
+     or p_action is null
      or p_action not in ('triage','investigate','resolve','dismiss','reopen','assign','unassign')
      or p_reason is null
      or char_length(btrim(p_reason)) not between 10 and 1000
