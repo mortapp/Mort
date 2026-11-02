@@ -83,8 +83,8 @@ begin
   v_def := replace(v_def, v_old, v_new);
   if v_def = v_before then raise exception 'guardian_preference_policy_patch_failed'; end if;
 
-  v_old := $old$elsif v_job.requires_guardian_approval and not v_guardian_linked then$old$;
-  v_new := $new$elsif v_guardian_approval_required and not v_guardian_linked then$new$;
+  v_old := $old$  elsif v_job.requires_guardian_approval and not v_guardian_linked then$old$;
+  v_new := $new$  elsif v_guardian_approval_required and not v_guardian_linked then$new$;
   v_before := v_def;
   v_def := replace(v_def, v_old, v_new);
   if v_def = v_before then raise exception 'guardian_eligibility_gate_patch_failed'; end if;
@@ -110,13 +110,13 @@ declare
 begin
   v_def := pg_get_functiondef('public.mort_submit_job_application(uuid,text)'::regprocedure);
   v_old := $old$  insert into public.job_applications(job_id, applicant_id, cover_note)
-  values (p_job_id, v_user_id, nullif(btrim(p_cover_note), ''''))
+  values (p_job_id, v_user_id, nullif(btrim(p_cover_note), ''))
   returning id into v_application_id;$old$;
   v_new := $new$  insert into public.job_applications(job_id, applicant_id, cover_note, guardian_decision_status)
   values (
     p_job_id,
     v_user_id,
-    nullif(btrim(p_cover_note), ''''),
+    nullif(btrim(p_cover_note), ''),
     case
       when coalesce((v_eligibility->>'guardian_approval_required')::boolean, false)
         then 'pending'
@@ -423,7 +423,7 @@ begin
     v_app.applicant_id,
     'guardian_application_decision',
     case when p_decision='approved' then 'Guardian approved your application' else 'Guardian did not approve this application' end,
-    case when p_decision='approved' then 'Your application can now be reviewed by the job poster.' else 'Your Guardian did not approve this application. You can contact them outside the job conversation if you need to discuss it.' end,
+    case when p_decision='approved' then 'Your application can now be reviewed by the job poster.' else 'Your Guardian did not approve this application. You can talk with them directly if you have questions.' end,
     jsonb_build_object('application_id',v_app.id,'job_id',v_app.job_id,'decision',p_decision)
   );
 
