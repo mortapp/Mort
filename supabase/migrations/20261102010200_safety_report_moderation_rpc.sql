@@ -63,7 +63,7 @@ begin
         return jsonb_build_object('ok', false, 'code', 'safety_report_transition_not_allowed');
       end if;
       v_new_status := 'triaged';
-      v_new_assignee := coalesce(p_assigned_to, v_report.assigned_to, v_actor);
+      v_new_assignee := coalesce(p_assigned_to, v_actor);
       v_resolved_at := null;
     when 'investigate' then
       if v_report.status not in ('open','triaged','investigating') then
@@ -89,6 +89,7 @@ begin
         return jsonb_build_object('ok', false, 'code', 'safety_report_transition_not_allowed');
       end if;
       v_new_status := 'open';
+      v_new_assignee := coalesce(p_assigned_to, v_actor);
       v_resolved_at := null;
     when 'assign' then
       v_new_assignee := coalesce(p_assigned_to, v_actor);
@@ -96,7 +97,8 @@ begin
       v_new_assignee := null;
   end case;
 
-  if v_new_assignee is not null and not exists (
+  if v_new_assignee is distinct from v_report.assigned_to
+     and v_new_assignee is not null and not exists (
     select 1
     from public.profiles assignee
     join private.user_roles staff_role on staff_role.user_id = assignee.id
