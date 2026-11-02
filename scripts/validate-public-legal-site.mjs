@@ -98,7 +98,7 @@ if (!existsSync(deletionScriptPath)) {
   if (/https:\/\/esm\.sh/.test(deletionScript)) failures.push('account deletion imports executable code from a third-party CDN');
   const genericLookupMessage = 'If that address belongs to an eligible MORT account, a private sign-in link has been sent.';
   const genericResponseCount = deletionScript.split(genericLookupMessage).length - 1;
-  if (genericResponseCount !== 2 || !/catch\\s*\\{/.test(deletionScript) || !/finally\\s*\\{/.test(deletionScript)) {
+  if (genericResponseCount !== 2 || !/catch\s*\{/.test(deletionScript) || !/finally\s*\{/.test(deletionScript)) {
     failures.push('account deletion must return the same non-enumerating response on OTP success and failure');
   }
   if (/error\.message|console\.(log|error)|user\.email/.test(deletionScript)) failures.push('account deletion exposes backend/account detail');
