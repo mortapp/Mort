@@ -6,10 +6,15 @@ import { readFile, readdir } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const approvedContainer = 'mort-pg1711-reviewfresh-mort20261102';
+const approvedContainers = new Set([
+  'mort-pg1711-reviewfresh-mort20261102',
+  'mort-pg1711-finalreview-20261102',
+]);
 const containerArg = process.argv.indexOf('--container');
-const container = containerArg >= 0 ? process.argv[containerArg + 1] : approvedContainer;
-assert.equal(container, approvedContainer, 'refusing any target except the named disposable local container');
+const container = containerArg >= 0
+  ? process.argv[containerArg + 1]
+  : 'mort-pg1711-reviewfresh-mort20261102';
+assert.ok(approvedContainers.has(container), 'refusing any target except an explicitly named disposable local container');
 
 const repoRoot = fileURLToPath(new URL('../', import.meta.url));
 const migrationDir = join(repoRoot, 'supabase-production', 'migrations');

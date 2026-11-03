@@ -5,7 +5,15 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const container = 'mort-pg1711-reviewfresh-mort20261102';
+const allowedContainers = new Set([
+  'mort-pg1711-reviewfresh-mort20261102',
+  'mort-pg1711-finalreview-20261102',
+]);
+const containerArg = process.argv.indexOf('--container');
+const container = containerArg >= 0
+  ? process.argv[containerArg + 1]
+  : 'mort-pg1711-reviewfresh-mort20261102';
+assert.ok(allowedContainers.has(container), 'refusing any target except an explicitly named disposable local container');
 const repoRoot = fileURLToPath(new URL('../', import.meta.url));
 const proposalsDir = join(repoRoot, 'supabase-production', 'proposals');
 const proposals = [

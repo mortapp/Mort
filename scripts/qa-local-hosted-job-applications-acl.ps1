@@ -4,9 +4,12 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$freshContainer = 'mort-pg1711-reviewfresh-mort20261102'
-if ($Container -cne $freshContainer) {
-  throw 'Refusing non-approved container. This bootstrap is only for the clean PostgreSQL 17.11 production-baseline container.'
+$approvedContainers = @(
+  'mort-pg1711-reviewfresh-mort20261102',
+  'mort-pg1711-finalreview-20261102'
+)
+if ($Container -cnotin $approvedContainers) {
+  throw 'Refusing non-approved container. This bootstrap is limited to explicitly named disposable PostgreSQL 17.11 test containers.'
 }
 
 $ledgerPreflight = @'

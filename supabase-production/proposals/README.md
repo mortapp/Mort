@@ -2,6 +2,20 @@
 
 These files are review candidates only. They are deliberately stored outside `../migrations/` and must not be moved into the applied chain until the remaining authenticated workflow tests pass in a legitimate isolated environment and the exact change set receives production review.
 
+## Final independent review finding
+
+Proposal 901 preserves a narrow pre-authorization lock window in
+`mort_accept_job_application`: an active authenticated adult can call the
+granted RPC with another user's application ID, acquire its application-row
+`FOR UPDATE` lock, then fail the poster check after the job lookup. This does
+not return the application data and mirrors the existing production contract,
+but it permits short-lived lock contention/denial-of-service attempts. Before
+production application, consider an unlocked owner-scoped application/job
+preflight followed by the existing app → per-job → job → participant-pair lock
+sequence and a final ownership recheck. Add a two-session test proving an
+unrelated adult cannot hold/block the target application lock. This review did
+not alter Proposal 901 or claim the concern is runtime-tested.
+
 The distance-band, safety-report moderation, and Guardian application-decision proposals were copied from `codex/mort-backend-guardian-moderation-20261101`. They have not been applied to production. The Guardian visibility proposal needs the additional direct-table privilege protection in `20261102010500_restrict_job_application_direct_select.sql`: row-level policies do not hide individual columns, and the current table-level SELECT grant otherwise exposes `guardian_id` to posters of visible applications.
 
 Do not run these SQL files in production from the Supabase SQL editor or CLI.
@@ -53,9 +67,9 @@ Production schema and source hashes match the five current guards. Guardian dual
 
 The backend recommendation is to replay a previously committed operation only for the same authenticated teen and exact request identity/payload, including after terminal lifecycle, while rejecting a new key after termination and a reused key with changed payload. Completion already follows that rule for rows storing a request ID; pre-migration completed rows retain `payload_verified=false` legacy success.
 
-Flutter's safety repository now uses a secure local request coordinator for schedule and completion. It persists the request ID and canonical payload before sending, reuses them after a timeout or process restart, rejects a changed payload while the prior result is uncertain, and clears the record only after explicit success or a definitive `{ok:false}` response. A later user action then receives a new ID. Concurrent duplicate calls in one repository share one in-flight future. The screen distinguishes a replayed success and maps retry/stale/authorization responses to safe refresh guidance. These code changes are not deployed, and no authenticated live RPC was called.
+Flutter's safety repository now uses a secure local request coordinator for schedule and completion. It persists the request ID and canonical payload before sending, reuses them after a timeout or process restart, rejects a changed payload while the prior result is uncertain, and clears the record only after explicit success or a definitive `{ok:false}` response. A later user action then receives a new ID. Concurrent duplicate calls share one process-wide in-flight future across repository/coordinator instances, matching the process-wide secure-storage intent. Secure-storage read/write failures prevent the RPC from being sent. The screen distinguishes a replayed success and maps retry/stale/authorization responses to safe refresh guidance. These code changes are not deployed, and no authenticated live RPC was called.
 
-After this client change, the complete Flutter suite passed **629 tests, 2 skipped, 0 failed**. `dart analyze` over every changed Dart file reported no issues. The app-level test suite is fixture-free: it proves client request persistence/coalescing and response handling, not an authenticated Supabase workflow.
+Before the final cross-instance coalescing fix, the Flutter suite passed **629 tests, 2 skipped, 0 failed**. After that fix, the full suite passed **632 tests, 2 skipped, 0 failed**; targeted `dart analyze` reported no issues. Fixture-free client tests prove request persistence/coalescing and response handling, not authenticated Supabase workflows. On a new disposable local PostgreSQL 17.11 replay of all 73 migrations, all five proposal source hashes matched, proposals 900–902 compiled, rollback-only fixture-free pgTAP passed 23/23, and direct-SELECT privacy pgTAP passed 5/5. No authenticated provider/role/RLS or workflow concurrency integration test was run.
 
 ## External prerequisites and work that can proceed locally
 

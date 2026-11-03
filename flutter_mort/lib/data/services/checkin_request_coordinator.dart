@@ -60,7 +60,11 @@ class CheckinRequestCoordinator {
 
   final CheckinRetryStorage _storage;
   final String Function() _newRequestId;
-  final Map<String, _InFlightRequest> _inFlight = {};
+  // Secure storage is shared by the process, even when a provider rebuilds a
+  // repository/coordinator. Keep the reservation single-flight at process
+  // scope so two instances cannot mint competing IDs before either write is
+  // visible to the other.
+  static final Map<String, _InFlightRequest> _inFlight = {};
 
   Future<Map<String, dynamic>> execute({
     required String userId,

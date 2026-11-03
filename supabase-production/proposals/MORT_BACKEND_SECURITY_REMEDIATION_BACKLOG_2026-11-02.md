@@ -600,8 +600,9 @@ document-collection, or AI setting changed.
   the same UUID and payload. A payload change while outcome is uncertain is
   rejected before network access. Explicit `{ok:false}` and success responses
   retire the pending intent; a later user action receives a new UUID. In-flight
-  duplicate calls in one repository share a future. Malformed persisted state
-  fails closed.
+  duplicate calls share a process-wide future across repository/coordinator
+  instances. Secure-storage read/write failures prevent an untracked RPC.
+  Malformed persisted state fails closed.
 - Scheduling and completion RPC names, parameters and return JSON are unchanged.
   Safety Center reports server replayed success distinctly. UI error mapping now
   covers stale application state, transient concurrent acceptance, authorization
@@ -655,8 +656,55 @@ retry behavior, and actual two-session application/acceptance/block/check-in
 RPC races remain blocked. Do not count static or protocol-only tests as those
 workflow tests.
 
-The complete Flutter suite after this client change passed **629 tests, 2
-skipped, 0 failed**. Analyzer on all touched Dart files passed with no issues.
-These are client-side tests only; the coordinator's simulated timeout/replay
-responses are not evidence that the hosted RPCs have passed authenticated
-integration testing.
+The complete Flutter suite before the final cross-instance coalescing fix
+passed **629 tests, 2 skipped, 0 failed**. The final review added a failing
+cross-instance duplicate regression, fixed the process-local race, and reran
+the focused repository test file successfully. The final full suite then passed
+**632 tests, 2 skipped, 0 failed**; targeted analyzer reported no issues.
+Client-side retry tests do not prove authenticated RPC behavior.
+
+### Final independent proposal/client review — 2026-11-02
+
+- The first cross-instance concurrency regression reproduced two RPC calls for
+  one concurrent logical action. Moving the in-flight registry to process
+  scope keyed by user/operation/entity makes repository/coordinator instances
+  in the app isolate share the exact request future. It does not coordinate
+  multiple OS processes or Flutter isolates.
+- The focused retry suite passed after the fix; the final full suite passed
+  **632 tests, 2 skipped, 0 failed**. Targeted `dart analyze` found no issues.
+- A new disposable local PG 17.11 database replayed the 73 migration files
+  byte-exactly. All five proposal source hashes matched. Proposals 900–902
+  compiled; rollback-only fixture-free pgTAP passed **23/23**; direct-SELECT
+  privacy pgTAP passed **5/5**. The isolated ACL check retained service_role
+  and denied table/column SELECT to anon and authenticated. Provider allowlist
+  remained empty. No authenticated provider/role/RLS or RPC concurrency test
+  ran.
+- Proposal review found no client-signature change. 900 remains fail-closed
+  with an empty provider allowlist and requires a reviewed signed callback
+  adapter before enabling any provider. 901 uses production fields and makes
+  Guardian dual consent conditional on `jobs.requires_guardian_approval`; its
+  transient acceptance denial is surfaced to refresh/retry. 902 exact key and
+  exact payload retries replay prior outcomes; new keys after termination and
+  changed payload under an existing key are denied. Order remains 900 → 901 →
+  902; rollback restores function definitions in reverse order while retaining
+  additive evidence/audit data.
+- Final decision: GO for controlled code/proposal review only; NO-GO for
+  production application or release pending legitimate authenticated tests.
+
+### Proposal 901 authorization/lock review — P2 follow-up
+
+- `mort_accept_job_application(uuid)` is executable by authenticated users and
+  checks active adult role before selecting the requested application `FOR
+  UPDATE`; the job-poster ownership check happens only after that row lock.
+  An unrelated active adult with a known application UUID cannot read its data
+  through this RPC, but can transiently contend on its row lock before being
+  rejected. This pattern is present in the current production contract and is
+  preserved by Proposal 901; it is not a new data disclosure.
+- Narrow hardening: first perform an unlocked owner-scoped application/job
+  preflight, then take the existing application → per-job acceptance → job →
+  pair locks and recheck ownership under lock. This must preserve the wrapper's
+  app-row-first serialization and be verified with an independent session
+  proving an unrelated caller cannot hold the target lock.
+- Track as an authorization/availability review item before production apply;
+  the proposal has not been modified based only on static review. Authenticated
+  positive/negative lock tests remain blocked.

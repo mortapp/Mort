@@ -6,6 +6,8 @@ import 'package:flutter_mort/data/services/checkin_request_coordinator.dart';
 
 class _MemoryRetryStorage implements CheckinRetryStorage {
   final values = <String, String>{};
+  bool failRead = false;
+  bool failWrite = false;
 
   @override
   Future<void> delete(String key) async {
@@ -13,10 +15,14 @@ class _MemoryRetryStorage implements CheckinRetryStorage {
   }
 
   @override
-  Future<String?> read(String key) async => values[key];
+  Future<String?> read(String key) async {
+    if (failRead) throw StateError('secure read unavailable');
+    return values[key];
+  }
 
   @override
   Future<void> write(String key, String value) async {
+    if (failWrite) throw StateError('secure write unavailable');
     values[key] = value;
   }
 }
@@ -36,6 +42,7 @@ void main() {
           newRequestId: () => 'request-${++generated}',
         ),
         checkinRpcInvoker: (function, params) async {
+          expect(storage.values, hasLength(1));
           calls.add({'function': function, ...params});
           requestIds.add(params['p_client_request_id']!);
           throw TimeoutException('server may have committed before timeout');
@@ -156,6 +163,54 @@ void main() {
     },
   );
 
+  test('secure-storage read failure prevents an untracked RPC', () async {
+    final storage = _MemoryRetryStorage()..failRead = true;
+    var calls = 0;
+    final repository = SafetyRepository(
+      authenticatedUserId: () => 'teen-1',
+      checkinRequestCoordinator: CheckinRequestCoordinator(
+        storage: storage,
+        newRequestId: () => 'request-1',
+      ),
+      checkinRpcInvoker: (_, _) async {
+        calls += 1;
+        return {'ok': true};
+      },
+    );
+
+    await expectLater(
+      repository.scheduleActiveJobCheckin(
+        applicationId: 'application-1',
+        minutesFromNow: 60,
+      ),
+      throwsStateError,
+    );
+    expect(calls, 0);
+  });
+
+  test('secure-storage write failure prevents an untracked RPC', () async {
+    final storage = _MemoryRetryStorage()..failWrite = true;
+    var calls = 0;
+    final repository = SafetyRepository(
+      authenticatedUserId: () => 'teen-1',
+      checkinRequestCoordinator: CheckinRequestCoordinator(
+        storage: storage,
+        newRequestId: () => 'request-1',
+      ),
+      checkinRpcInvoker: (_, _) async {
+        calls += 1;
+        return {'ok': true};
+      },
+    );
+
+    await expectLater(
+      repository.completeActiveJobCheckin(checkinId: 'checkin-1'),
+      throwsStateError,
+    );
+    expect(calls, 0);
+    expect(storage.values, isEmpty);
+  });
+
   test('concurrent duplicate calls share one in-flight submission', () async {
     final storage = _MemoryRetryStorage();
     final response = Completer<dynamic>();
@@ -187,4 +242,40 @@ void main() {
     response.complete({'ok': true, 'checkin_id': 'checkin-1'});
     await Future.wait([first, duplicate]);
   });
+
+  test(
+    'separate repository instances share one concurrent logical request',
+    () async {
+      final storage = _MemoryRetryStorage();
+      final response = Completer<dynamic>();
+      var calls = 0;
+
+      SafetyRepository makeRepository(String generatedRequestId) =>
+          SafetyRepository(
+            authenticatedUserId: () => 'teen-1',
+            checkinRequestCoordinator: CheckinRequestCoordinator(
+              storage: storage,
+              newRequestId: () => generatedRequestId,
+            ),
+            checkinRpcInvoker: (_, _) {
+              calls += 1;
+              return response.future;
+            },
+          );
+
+      final first = makeRepository('request-first').scheduleActiveJobCheckin(
+        applicationId: 'application-1',
+        minutesFromNow: 60,
+      );
+      final second = makeRepository('request-second').scheduleActiveJobCheckin(
+        applicationId: 'application-1',
+        minutesFromNow: 60,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(calls, 1);
+      response.complete({'ok': true, 'checkin_id': 'checkin-1'});
+      await Future.wait([first, second]);
+    },
+  );
 }

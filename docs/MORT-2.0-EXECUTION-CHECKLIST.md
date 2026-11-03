@@ -99,15 +99,19 @@ it is the current execution record.
 - [x] Added a secure-storage check-in request coordinator. It writes the
   user/operation/entity scoped request ID and canonical payload before the RPC,
   resumes the same ID after timeout/restart, blocks payload changes while the
-  previous result is uncertain, and shares concurrent duplicate calls within
-  the repository. Malformed recovery state fails closed.
+  previous result is uncertain, and coalesces concurrent duplicate calls
+  process-wide across repository/coordinator instances. Secure-storage
+  read/write failures prevent an untracked RPC. Malformed recovery state fails
+  closed.
 - [x] Wired scheduling and completion repository methods through the
   coordinator without changing the RPC names or parameter signatures.
 - [x] Updated Safety Center to distinguish Proposal 902 replayed success and
   mapped transient acceptance, idempotency, terminal-lifecycle, stale-state,
   and authorization responses to safe user guidance.
-- [x] Full Flutter suite: **629 passed, 2 skipped, 0 failed**. This includes
-  the coordinator, repository, error-mapping and Safety Center replay tests.
+- [x] Before final cross-instance fix: **629 passed, 2 skipped, 0 failed**.
+  Final rerun after that fix: **632 passed, 2 skipped, 0 failed**.
+  Coordinator/repository, error-mapping and Safety Center replay tests are in
+  the full suite.
   Focused coverage includes timeout then process restart, payload mismatch/no
   send, terminal denial followed by a new key, success then a new user action,
   account/operation isolation, duplicate in-flight submission, explicit
@@ -219,3 +223,48 @@ evidence. The final read-only recheck found 73 migration rows through
 production SQL, data, Auth, RLS, provider configuration,
 release-control, marketplace, payment, document-collection, merge, push, or
 deployment change occurred. Hosted QA was not modified.
+
+## 2026-11-02 — final retry/proposal review from `ae24fd7`
+
+- The first cross-instance concurrency regression test failed against the
+  starting implementation: two separate repository/coordinator instances
+  issued **2 RPC calls** for one concurrent logical schedule operation. The
+  in-flight registry was instance-local even though the secure intent is
+  process-shared.
+- The fix makes in-flight coalescing process-wide, keyed by user, operation and
+  entity. The regression now requires one RPC and one shared result. It does
+  not coordinate multiple OS processes or Flutter isolates.
+- Tests verify pending state is stored before the RPC, timeout followed by a
+  newly constructed repository reuses the exact request ID and payload, changed
+  payload is rejected without network access, storage read/write failures
+  prevent an untracked RPC, explicit denial clears the intent, and a later user
+  action gets a new ID.
+- A new disposable local PostgreSQL 17.11 container replayed all 73 migration
+  files byte-exactly. Its five pre-proposal function MD5s matched the source
+  guards: 900 `9de9e53ea3e300b78819932eabc14594`; 901
+  `401d64ec19cf1fa1ab072709266fe4a7` and
+  `a44e036f16579106d9ae615d2a54235f`; 902
+  `68ddb42187ef290145bda12d93a7b00b` and
+  `7a7b9ea9824a47e14e783b79aefac098`.
+- All three proposals compiled on that clean local baseline. The revised 900/902
+  function test passed fixture-free pgTAP **23/23** in a rollback-only
+  transaction. Application direct-SELECT pgTAP passed **5/5**; local ACL checks
+  showed anon/authenticated table and column SELECT false, service_role true.
+  Provider allowlist count remained zero and local marketplace/document controls
+  were set false by the local test harness only.
+- Proposal 900–902 were reviewed locally against that reconciled baseline; no
+  hosted environment was contacted for this review. Rollout remains 900 → 901 → 902, each in its own
+  reviewed transaction, with captured function definitions restored in reverse
+  order and additive evidence/audit data retained. The provider allowlist stays
+  empty; Guardian consent remains conditional on
+  `jobs.requires_guardian_approval`; Proposal 902 exact-key/exact-payload replay
+  remains distinct from new or changed requests.
+- Authenticated provider, role/RLS, and real RPC concurrency behavior remains
+  unverified. Flutter tests do not establish database behavior.
+- Proposal 901 review identified a P2 availability concern preserved from the
+  current contract: `mort_accept_job_application` locks the requested
+  application before checking the caller owns the job. An unrelated active
+  adult cannot read its contents but may briefly contend on the row. Track an
+  unlocked owner-scoped preflight + final ownership recheck, preserving the
+  existing lock order, and prove denial cannot hold the target row in two
+  sessions before production application.
