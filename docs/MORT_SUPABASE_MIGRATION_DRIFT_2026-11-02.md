@@ -102,7 +102,7 @@ Read-only comparison of production `jxbnrkasktbhtiujkhay` and isolated QA `ckcxa
 | 20261102112306 | guardian_id_mask_harmonize_strict_check | cfbdf7c568488710a530bd8b0c9f12d8f9e4e862ab7b5ce437cef61d5d94d8e8 | Exact-anchor replacement in `get_my_job_applications`; strengthens Guardian ID visibility to require active Guardian profile, adult DOB, and confirmed email in addition to active dual consent. |
 | 20261102112319 | guardian_decision_reason_mask_harmonize | ef5985b9efb9ac0db14433d5f417b97fff021ca1e905963cea5cc48e3084ec06 | Exact-anchor replacement in `get_my_job_applications`; masks the QA-only Guardian decision reason and applies the same current Guardian identity checks. Depends on the Guardian decision schema extension. |
 
-## Missing Guardian mask migration
+## Guardian mask migration absent from isolated QA, applied in production
 The production row `20261102113314_guardian_id_response_mask_production` has exact payload SHA-256 `96ad143a1c066d3496ca492774c810a9bc196e629f2c7fa2bf908459c4392efa`; no row with that version or name exists in isolated QA. The isolated project contains two differently named, separately hashed Guardian masking migrations at 11:23 UTC, before production's 11:33 UTC migration. Current isolated function `get_my_job_applications(uuid)` has MD5 `ab635df2e852da240d1f82595afc372c`; production and the clean local baseline have MD5 `94a1b987774f994019ba6269b9abeb16`. Catalog timestamps show the isolated chain diverged before the production migration and received independent harmonization; catalog data cannot prove the operator/audit reason it was omitted. Do not insert a synthetic history row or replay the production text: its old anchor is no longer present. The production and isolated RPC definitions both enforce caller-scoped Guardian-ID masking; isolated has additional active-account/adult/confirmed-email checks.
 
 ## Proposal source comparison
@@ -148,12 +148,23 @@ NUL byte required by Git's blob hash. Correct byte calculations yield:
 
 - Git NUL-byte SHA / `git hash-object`: `65455e7593dbcb51612f71303ba808063b43f6a6`.
 - Old literal-backslash-zero SHA: `21eb6a0accd633b5fb92319b4062385a931899b6`.
-- Read-only production migration ledger lookup for that version/name: no row.
+- The current authoritative production migration catalog contains 73 rows and
+  includes `20261102113314_guardian_id_response_mask_production` under that
+  exact version/name. Its one SQL statement is 1,598 bytes and has SHA-256
+  `96ad143a1c066d3496ca492774c810a9bc196e629f2c7fa2bf908459c4392efa`, equal
+  to the recovered source and local manifest.
 
 The local SQL and expected hash were preserved. The parity validator now
-hashes Git objects correctly and passes. There is no active production payload
-for that September migration to compare, so this is not a production-ledger
-content discrepancy.
+hashes Git objects correctly and passes. The `20260918032930` legacy SQL file
+is not one of the active production 73 versions. Separately, the later
+production migration `20261102113314` is applied. The earlier report that this
+production ledger lookup had no row was incorrect. The
+current read-only checks through both Supabase `list_migrations` and
+`supabase_migrations.schema_migrations` confirm it is applied at the named
+version, not represented by another migration. The exact earlier query is not
+preserved, so its false-negative cause cannot be established more narrowly.
+The baseline classification remains correct: this is one of the 73 applied
+production versions, with exact payload provenance.
 
 A genuinely fresh, localhost-only Supabase PostgreSQL 17.11 image replayed the
 73 production SQL files in order using byte-preserving Node streams. The local

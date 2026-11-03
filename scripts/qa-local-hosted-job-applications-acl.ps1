@@ -1,10 +1,10 @@
 param(
-  [string]$Container = 'mort-pg1711-baseline6-mort20261102'
+  [string]$Container = 'mort-pg1711-reviewfresh-mort20261102'
 )
 
 $ErrorActionPreference = 'Stop'
 
-$freshContainer = 'mort-pg1711-baseline6-mort20261102'
+$freshContainer = 'mort-pg1711-reviewfresh-mort20261102'
 if ($Container -cne $freshContainer) {
   throw 'Refusing non-approved container. This bootstrap is only for the clean PostgreSQL 17.11 production-baseline container.'
 }

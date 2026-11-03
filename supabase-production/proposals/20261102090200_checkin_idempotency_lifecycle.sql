@@ -65,6 +65,42 @@ begin
     return jsonb_build_object('ok', false, 'code', 'checkin_interval_invalid');
   end if;
 
+  -- Serialize retries for this caller/key before reading the old result. This
+  -- lets an exact accepted retry return its original response even after the
+  -- assignment or job becomes terminal, while a new key still needs an active
+  -- assignment below.
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(
+      'job-checkin-schedule:' || user_id::text || ':' || p_client_request_id::text,
+      0
+    )
+  );
+
+  select * into existing_checkin
+  from public.job_safety_checkins
+  where teen_user_id = user_id
+    and client_request_id = p_client_request_id
+  for update;
+  if found then
+    if existing_checkin.application_id is distinct from p_application_id then
+      return jsonb_build_object('ok', false, 'code', 'idempotency_key_reused');
+    end if;
+    -- Prior deployed rows did not store the requested interval. We cannot
+    -- prove the payload is identical, so fail closed and require a refresh.
+    if existing_checkin.request_interval_minutes is null then
+      return jsonb_build_object(
+        'ok', false, 'code', 'idempotency_result_unverifiable'
+      );
+    end if;
+    if existing_checkin.request_interval_minutes <> p_minutes_from_now then
+      return jsonb_build_object('ok', false, 'code', 'idempotency_key_reused');
+    end if;
+    return jsonb_build_object(
+      'ok', true, 'replayed', true, 'payload_verified', true,
+      'checkin_id', existing_checkin.id, 'expected_at', existing_checkin.expected_at
+    );
+  end if;
+
   select * into assignment
   from public.job_assignments
   where application_id = p_application_id
@@ -110,16 +146,13 @@ begin
     if not found then
       return jsonb_build_object('ok', false, 'code', 'idempotency_result_unavailable');
     end if;
-    if existing_checkin.application_id <> p_application_id then
+    if existing_checkin.application_id is distinct from p_application_id then
       return jsonb_build_object('ok', false, 'code', 'idempotency_key_reused');
     end if;
-    -- Old rows have no recorded interval. Preserve the previous successful
-    -- same-application retry behavior without claiming payload equivalence.
+    -- This fallback handles a concurrent writer from the prior function body.
+    -- Old rows lack interval evidence, so never claim the payload matched.
     if existing_checkin.request_interval_minutes is null then
-      return jsonb_build_object(
-        'ok', true, 'replayed', true, 'payload_verified', false,
-        'checkin_id', existing_checkin.id, 'expected_at', existing_checkin.expected_at
-      );
+      return jsonb_build_object('ok', false, 'code', 'idempotency_result_unverifiable');
     end if;
     if existing_checkin.request_interval_minutes <> p_minutes_from_now then
       return jsonb_build_object('ok', false, 'code', 'idempotency_key_reused');

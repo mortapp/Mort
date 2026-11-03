@@ -3,7 +3,7 @@
 -- they do not prove authenticated role workflows or concurrency behavior.
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(19);
+SELECT extensions.plan(23);
 
 SELECT extensions.ok(
   position('result.expires_at is null or result.expires_at > v_now' in pg_get_functiondef('public.mort_review_verification_case(uuid,public.mort_verification_status,text,timestamp with time zone)'::regprocedure)) > 0,
@@ -11,8 +11,9 @@ SELECT extensions.ok(
 );
 SELECT extensions.ok(
   position('result.result = ''verified''' in pg_get_functiondef('public.mort_review_verification_case(uuid,public.mort_verification_status,text,timestamp with time zone)'::regprocedure)) > 0
-  AND position('result.received_at >= coalesce(v_case.submitted_at, v_case.created_at)' in pg_get_functiondef('public.mort_review_verification_case(uuid,public.mort_verification_status,text,timestamp with time zone)'::regprocedure)) > 0,
-  'approval requires a successful result received for the current case'
+  AND position('result.received_at >= coalesce(v_case.submitted_at, v_case.created_at)' in pg_get_functiondef('public.mort_review_verification_case(uuid,public.mort_verification_status,text,timestamp with time zone)'::regprocedure)) > 0
+  AND position('result.verified_at >= coalesce(v_case.submitted_at, v_case.created_at)' in pg_get_functiondef('public.mort_review_verification_case(uuid,public.mort_verification_status,text,timestamp with time zone)'::regprocedure)) > 0,
+  'approval requires a successful result generated and received for the current case'
 );
 SELECT extensions.ok(
   position('v_case.user_id is distinct from v_case_snapshot.user_id' in pg_get_functiondef('public.mort_review_verification_case(uuid,public.mort_verification_status,text,timestamp with time zone)'::regprocedure)) > 0
@@ -77,6 +78,29 @@ SELECT extensions.ok(
   position('pg_try_advisory_xact_lock' in pg_get_functiondef('public.mort_accept_job_application(uuid)'::regprocedure)) > 0
   AND position('job_acceptance_in_progress_retry' in pg_get_functiondef('public.mort_accept_job_application(uuid)'::regprocedure)) > 0,
   'competing acceptances use a fail-fast per-job transaction lock'
+);
+SELECT extensions.ok(
+  position('job-checkin-schedule:' in pg_get_functiondef('public.schedule_active_job_checkin(uuid,integer,uuid)'::regprocedure)) > 0
+  AND position('select * into existing_checkin' in pg_get_functiondef('public.schedule_active_job_checkin(uuid,integer,uuid)'::regprocedure))
+      < position('select * into assignment' in pg_get_functiondef('public.schedule_active_job_checkin(uuid,integer,uuid)'::regprocedure)),
+  'schedule retry lookup is serialized and precedes active-assignment checks'
+);
+SELECT extensions.ok(
+  position('existing_checkin.application_id is distinct from p_application_id' in pg_get_functiondef('public.schedule_active_job_checkin(uuid,integer,uuid)'::regprocedure)) > 0
+  AND position('existing_checkin.request_interval_minutes <> p_minutes_from_now' in pg_get_functiondef('public.schedule_active_job_checkin(uuid,integer,uuid)'::regprocedure)) > 0
+  AND position('existing_checkin.expected_at' in pg_get_functiondef('public.schedule_active_job_checkin(uuid,integer,uuid)'::regprocedure)) > 0,
+  'schedule retry binds application and interval and replays the original expected time'
+);
+SELECT extensions.ok(
+  position('existing_checkin.request_interval_minutes is null' in pg_get_functiondef('public.schedule_active_job_checkin(uuid,integer,uuid)'::regprocedure)) > 0
+  AND position('''code'', ''idempotency_result_unverifiable''' in pg_get_functiondef('public.schedule_active_job_checkin(uuid,integer,uuid)'::regprocedure)) > 0
+  AND position('''code'', ''active_assignment_required''' in pg_get_functiondef('public.schedule_active_job_checkin(uuid,integer,uuid)'::regprocedure)) > 0,
+  'legacy retry payloads without interval proof fail closed and new keys still require an active assignment'
+);
+SELECT extensions.ok(
+  position('if found then' in pg_get_functiondef('public.schedule_active_job_checkin(uuid,integer,uuid)'::regprocedure)) > 0
+  AND position('''payload_verified'', true' in pg_get_functiondef('public.schedule_active_job_checkin(uuid,integer,uuid)'::regprocedure)) > 0,
+  'same-key, payload-matching schedule retry can replay after a terminal lifecycle'
 );
 
 SET LOCAL ROLE authenticated;

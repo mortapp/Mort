@@ -35,8 +35,8 @@ Scope is the current production source observed read-only on `jxbnrkasktbhtiujkh
 - **Severity / exploitability:** Medium-to-high safety-integrity severity; moderate concurrency/expiry risk. Any active teen can call the authenticated RPC for their own check-in. The current completion request ID is required but ignored; completed check-ins can be reported as successful with any new request ID. Scheduling does not lock/recheck the assignment or job lifecycle, and a reused schedule request ID can return an old check-in for a different application or interval.
 - **Affected:** `public.schedule_active_job_checkin(uuid,integer,uuid)`, `public.complete_active_job_checkin(uuid,uuid)`, `public.job_safety_checkins`, `public.job_assignments`, `public.jobs`; safety notifications/escalation readers.
 - **Unsafe behavior:** Scheduling selects an accepted/in-progress assignment without row locks or checking current job state; on an idempotency-key conflict it returns the prior check-in without comparing application/interval. Completion accepts a required request ID but never stores or compares it and does not verify the related assignment/job remains active.
-- **Narrow proposal:** Add nullable requested-interval and completion-request fields (preserving existing rows), a bounded interval check, and a partial unique index for completion request IDs. Lock assignment then job then check-in (matching safety-cancellation's assignment/application/job order), require assignment `accepted|in_progress` and job `filled|in_progress`, and recheck participant/application/job relationships. Bind schedule retries to the original application and interval; conflict on a different application or a known different interval, while preserving safe legacy retries whose interval was never stored. Bind completion retries to the request ID, make only a `scheduled`→`completed` transition, and fail closed after cancellation/closure.
-- **Compatibility refinement:** A legacy schedule retry for the same application now returns the original successful check-in with `payload_verified=false` when its old interval was never stored; a different application still conflicts. Authorized retries against already-completed legacy check-ins remain successful no-ops with `payload_verified=false`; request IDs already bound to another check-in still conflict. This preserves the previous success contract without claiming unverifiable payload equality.
+- **Narrow proposal:** Add nullable requested-interval and completion-request fields (preserving existing rows), a bounded interval check, and a partial unique index for completion request IDs. Lock assignment then job then check-in (matching safety-cancellation's assignment/application/job order), require assignment `accepted|in_progress` and job `filled|in_progress`, and recheck participant/application/job relationships. Bind new schedule retries to the original application and interval; conflict on changed application/interval. For legacy rows with no stored interval, fail with `idempotency_result_unverifiable` rather than assert payload equality. Bind completion retries to the request ID, make only a `scheduled`→`completed` transition, and fail closed after cancellation/closure.
+- **Compatibility refinement:** An exact same request ID, application and interval replays the original schedule output, even after job termination. New keys after termination fail the active lifecycle check. A legacy schedule key whose interval was not persisted is explicitly unverifiable and requires refresh/reconciliation. Authorized reads of already-completed legacy check-ins remain no-op success with `payload_verified=false`; bound completion IDs must match.
 - **Regression tests:** same-key/same-payload schedule replay; same-key/different-application and different-interval conflict; two-session duplicate schedule; completion same-key replay; key reused across check-ins denied; different key after completion has explicit stable result; concurrent cancel/complete and complete/complete; no new check-in after terminal assignment/job; all existing teen/participant RLS and escalation behavior unchanged; legacy rows with null new fields remain readable and are never overwritten.
 - **Prerequisites:** Isolated PostgreSQL 17 with synthetic accepted/in-progress assignments and two independent sessions. Do not create a real funded job; the existing payments-off gate must remain closed.
 
@@ -370,10 +370,11 @@ Harness inputs additionally require application ID, Guardian ID, six synthetic c
   Git blob SHA. The validator previously used the literal two-byte separator
   backslash + zero instead of Git's NUL byte, which yields the reported false
   hash `21eb6a0accd633b5fb92319b4062385a931899b6`. The validator now uses NUL;
-  `node scripts/qa-migration-reconciliation-parity.mjs` passes. A read-only
-  production ledger query for this version/name returned no row; there is no
-  active production SQL payload for this September migration to compare.
-  Neither the historical migration nor expected hash changed.
+  `node scripts/qa-migration-reconciliation-parity.mjs` passes. This
+  September legacy migration has no row in the active production 73-version
+  ledger; the local Git hash validation is separate from the active production
+  migration baseline. Neither the historical migration nor expected hash
+  changed.
 
 ### Proposal 900 findings
 
@@ -384,15 +385,15 @@ Harness inputs additionally require application ID, Guardian ID, six synthetic c
   `verification_provider_allowlist` remains empty; service_role alone can
   read/insert the result ledger, with no client grants.
 - Evidence must match case ID, user, verification type, provider key and
-  provider reference; result must be `verified`, received no earlier than the
-  case submission, and not expired. Review also bounds its expiry by the
-  provider result expiry.
-- Open stale-evidence edge: `verified_at` is checked as not in the future but
-  not as after case submission. Actual risk depends on the still-unselected
-  provider's event/reference semantics. Before implementing its callback,
-  require signature verification, a case-bound reference, unique provider
-  event handling, and a documented timestamp rule. Do not enable a provider
-  or claim the verification lifecycle complete.
+  provider reference; result must be `verified`, generated and received no
+  earlier than the case submission, not future-dated, and not expired. Review
+  also bounds its expiry by provider evidence expiry. Proposal SQL now rejects
+  `verified_at` earlier than the current case submission.
+- Signature verification, tenant binding, replay/order handling, event-time
+  semantics and case-bound provider reference are external adapter
+  requirements, not implemented in the SQL proposal. Keep the provider
+  allowlist empty and do not claim verification is operational until those
+  controls and provider sandbox tests pass.
 
 ### Proposal 901 findings
 
@@ -429,10 +430,22 @@ Harness inputs additionally require application ID, Guardian ID, six synthetic c
   completion request ID previously fell through the legacy success branch.
   It now returns `idempotency_key_reused`. Legacy success without payload
   proof remains only when the old row has no stored completion request ID.
-- Schedule retry lookup happens after current assignment/job checks. If that
-  job is later terminal, an identical request gets `active_assignment_required`
-  instead of the original result. This is fail-closed and writes nothing, but
-  the terminal retry contract needs a product/client decision and real tests.
+- Schedule retry lookup is serialized and now happens before active
+  assignment/job checks. The recommendation is to replay the original stored
+  result only when the authenticated teen, application, request ID and
+  interval match exactly, including after terminal job state. A new key after
+  termination remains `active_assignment_required`; changed app/interval under
+  an existing key is `idempotency_key_reused`. Legacy rows without interval
+  metadata fail with `idempotency_result_unverifiable` because the stored
+  request payload cannot be proven identical.
+- Flutter's safety repository generates a fresh UUID by default; the current
+  screen does not retain a request ID across retry. Consequently a network
+  timeout followed by another tap is a new request, not an idempotent retry.
+  Proposal 902 does not silently change client behavior. A separate client
+  change must persist the intent UUID and map `idempotency_key_reused` to a
+  clear refresh/reconcile action. Completed check-in rows replay only a
+  matching stored request ID; the legacy no-ID row response remains marked
+  unverified.
 
 ### Local PostgreSQL 17.11 evidence and limitations
 
@@ -450,9 +463,10 @@ Harness inputs additionally require application ID, Guardian ID, six synthetic c
 - All three proposals compiled/applied locally from the clean baseline. The
   unchanged direct-SELECT privacy test passed 5/5 after applying a guarded
   local ACL script. It verified anon/authenticated table and column SELECT
-  false and service_role SELECT true. Fixture-free pgTAP passed 19/19: 14
-  compiled-definition predicates and five actual no-claim authorization
-  denials. The source checks do not prove database state transitions.
+  false and service_role SELECT true. The earlier fixture-free pgTAP run passed
+  19/19; the final recheck below expanded it to 23/23. These tests inspect
+  source predicates and no-claim denials, not stateful authenticated
+  transitions.
 - The two-session lock-protocol harness passed on PostgreSQL 17.11: pair lock
   2.396s, check-in request lock 2.370s, same-job fail-fast 0.831s. This
   confirms lock-key serialization only; it does not invoke application RPCs or
@@ -480,8 +494,97 @@ Harness inputs additionally require application ID, Guardian ID, six synthetic c
   test-only Auth/Storage bootstrap. This is a bounded catalog comparison, not a
   comprehensive Supabase platform comparison. No disposable managed 17.11
   project was available without creating or paying for a hosted resource.
-- Final ACL bootstrap and test reruns were restricted to
-  `mort-pg1711-baseline6-mort20261102`; the ACL and two-session harness now
-  refuse the older non-parity container. The ACL result was anon=false,
-  authenticated=false, service_role=true for both table and column SELECT.
+- The earlier ACL bootstrap used
+  `mort-pg1711-baseline6-mort20261102`; the final rerun below uses a separately
+  replayed clean container. ACL and two-session harnesses refuse the older
+  non-parity container. Both runs verify anon=false, authenticated=false,
+  service_role=true for both table and column SELECT.
 - Production project `jxbnrkasktbhtiujkhay` and hosted QA were not modified.
+
+## 2026-11-02 — final migration and proposal recheck
+
+### Migration history conclusion
+
+The current read-only Supabase `list_migrations` response and direct query of
+`supabase_migrations.schema_migrations` agree on **73** applied production
+rows, ordered from `20261026194801` to `20261102113314`. Version
+`20261102113314` is present under the exact name
+`guardian_id_response_mask_production`; it is not an alias under another
+version. The one recorded statement is 1,598 bytes with SHA-256
+`96ad143a1c066d3496ca492774c810a9bc196e629f2c7fa2bf908459c4392efa`, matching
+the recovered SQL and manifest. The manifest and production API have **zero**
+ordered version/name mismatches. The earlier no-row report cannot be
+reproduced; its exact query was not preserved, so its false-negative mechanism
+is unknown. The production baseline remains 73, with this migration correctly
+classified as applied. No migration repair or SQL write was performed.
+
+The separate historical Git hash mismatch concerned the legacy root migration
+`20260918032930_guardian_teen_summary_v1.sql`, outside the active production
+73-version set. Its expected Git blob hash is correct; only the validator's
+NUL-byte encoding was wrong and has already been corrected.
+
+### Final proposal review and severity
+
+| Severity | Finding / exploitability | State and next control |
+| --- | --- | --- |
+| High, conditional launch gate | Enabling a verification provider without a signed, tenant-bound, replay-safe callback could admit forged, stale, or misbound evidence. This path is not active while the allowlist is empty. | Keep allowlist empty. Require raw-body signature verification, event ID deduplication, timestamp/replay-window checks, provider-account binding, immutable case/session binding, audit and provider sandbox tests before enabling. |
+| Medium, client reliability | Flutter creates a new check-in request UUID on each repository call and current screens do not retain one for timeout retries. A second schedule tap can create a separate schedule; a completion retry can conflict with the first stored ID. | Backend exact-key replay is proposed; client intent-ID persistence and a specific `idempotency_key_reused` message remain a separate code change. No current Flutter behavior was changed. |
+| Medium, user recovery | Proposal 901 can return `job_acceptance_in_progress_retry`; Flutter has no dedicated retry message or automatic retry. | Surface a recoverable status and refresh/retry with a fresh expected application version before deployment. No application is accepted on this transient denial. |
+| Low, legacy compatibility | Old scheduled check-in rows do not store the requested interval, so payload equivalence cannot be proven. Old completed rows do not store a completion request ID. | Schedule returns `idempotency_result_unverifiable` for legacy rows; completed legacy check-ins preserve read-only no-op success with `payload_verified=false`. New rows enforce exact payload/request matching. |
+| No reportable defect established | No deadlock cycle was found in the static order among the three proposals, and transaction-local decision/audit and check-in writes roll back atomically. Actual cross-RPC row-lock races remain untested. | Keep authenticated concurrency and audit/notification integration as release gates; do not infer runtime correctness from advisory-key tests. |
+
+### Proposal details
+
+- Proposal 900 requires an active authorized staff reviewer; takes locks in
+  subject profile -> provider allowlist -> case -> evidence order; rechecks the
+  case snapshot; matches case/user/type/provider/reference; requires a verified
+  result generated and received on/after current case submission, not in the
+  future or expired; bounds review expiry by evidence expiry; and commits the
+  case decision with audit atomically. Its provider allowlist remains empty.
+  The evidence predicate now rejects stale `verified_at` timestamps. Signature,
+  tenant, replay and provider event-time verification still belong to an
+  approved trusted adapter and remain unimplemented.
+- Proposal 901 still matches production signatures and uses production fields.
+  It preserves teen age, school ID/email and adult identity checks, shared
+  participant-pair locking, and current Guardian dual consent only when the
+  production job requires Guardian approval. Proposal 901 adds no Guardian
+  decision rights. Authorization denial and the transient retry response
+  preserve the existing RPC shapes; the Flutter UI needs a dedicated retry
+  experience. Pair-lock and same-job advisory-key order show no static
+  deadlock cycle, but actual two-session RPC races are not verified.
+- Proposal 902 now serializes schedule requests by teen/request ID, checks an
+  existing request before lifecycle gates, and replays only when caller,
+  application and stored interval match. New/mismatched requests remain
+  fail-closed. Completion returns a stored result only for matching request ID
+  on new rows and rejects key reuse; its row-lock order remains
+  assignment -> job -> check-in after request-key serialization. No audit or
+  notification path is added where the current lifecycle has none.
+
+### Tests for this recheck
+
+- Fresh local Supabase PostgreSQL `17.11.0.006` (`170011`) replay: 73/73 source
+  files, exact order and exact per-file source bytes; no Auth or profile rows.
+- All three full proposal files compiled against that clean baseline before
+  revisions. Revised Proposal 900 reviewer and Proposal 902 schedule function
+  bodies were then compiled inside a transaction, fixture-free pgTAP passed
+  **23/23**, and pre/post function hashes matched after transaction rollback.
+- Direct application SELECT privacy pgTAP: **5/5**. ACL evidence confirms
+  anon/authenticated have no table or column SELECT and service_role retains
+  both. Static proposal, migration recovery, parity, 240-file encoding,
+  JavaScript syntax, and `git diff --check` passed.
+- Two-session advisory-lock protocol: **3/3** (participant pair 2.395s,
+  check-in request key 2.396s, same-job acceptance fail-fast 0.872s). These do
+  not call application or check-in RPCs with authenticated users and are not
+  workflow race tests.
+
+Authenticated expiry/revocation state changes, Guardian unlink/consent races,
+duplicate acceptance, schedule/completion row-backed retries, provider
+callbacks and RLS role matrix remain unverified. Approved legal terms, provider
+sandbox credentials, an authorized staff reviewer, supported synthetic
+accounts/fixtures and isolated authenticated credentials are still required.
+No fabricated identity, evidence, legal acceptance, Guardian relationship or
+staff identity was used.
+
+Production `jxbnrkasktbhtiujkhay` and hosted QA remained read-only. No production
+migration, data, Auth, RLS, provider, release-control, payment, marketplace,
+document-collection, or AI setting changed.

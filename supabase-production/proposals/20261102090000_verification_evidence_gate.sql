@@ -144,6 +144,7 @@ begin
       and result.provider_reference = v_case.provider_reference
       and result.result = 'verified'
       and result.verified_at <= v_now
+      and result.verified_at >= coalesce(v_case.submitted_at, v_case.created_at)
       and result.received_at <= v_now
       and result.received_at >= coalesce(v_case.submitted_at, v_case.created_at)
       and (result.expires_at is null or result.expires_at > v_now)

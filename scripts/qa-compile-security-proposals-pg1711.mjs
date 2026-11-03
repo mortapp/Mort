@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const container = 'mort-pg1711-baseline6-mort20261102';
+const container = 'mort-pg1711-reviewfresh-mort20261102';
 const repoRoot = fileURLToPath(new URL('../', import.meta.url));
 const proposalsDir = join(repoRoot, 'supabase-production', 'proposals');
 const proposals = [

@@ -6,8 +6,8 @@ import { performance } from 'node:perf_hooks';
 // Fixture-free protocol test only. This deliberately connects to the task's
 // disposable local Docker database; it does not create Auth users or call
 // production/hosted APIs. Full RPC races still require approved QA fixtures.
-const container = process.env.MORT_LOCAL_DB_CONTAINER ?? 'mort-pg1711-baseline6-mort20261102';
-assert.equal(container, 'mort-pg1711-baseline6-mort20261102', 'refusing any database other than the clean PG17.11 production-baseline container');
+const container = process.env.MORT_LOCAL_DB_CONTAINER ?? 'mort-pg1711-reviewfresh-mort20261102';
+assert.equal(container, 'mort-pg1711-reviewfresh-mort20261102', 'refusing any database other than the clean PG17.11 production-baseline container');
 
 function query(sql) {
   return spawn('docker', [

@@ -2,7 +2,7 @@
 
 Status date: 2026-11-02  
 Branch: `codex/guardian-rpc-privacy-20261102`  
-Starting commit: `8435e63b73c10991a1ca26d10946e3c58a58226b`  
+Starting commit for this final recheck: `24d7de3457b4168b71d5e0f1983d944b6f723f2a`
 Scope: production migration replay and review of proposals 900–902. This file
 was not present in this checkout at task start; it is added here as the current
 execution record.
@@ -36,9 +36,10 @@ execution record.
 - [x] Run direct-SELECT privacy pgTAP unchanged: **5/5 passed**. `anon` and
   `authenticated` have no table or column SELECT; `service_role` retains
   SELECT; scoped application RPC remains SECURITY DEFINER.
-- [x] Run the fixture-free proposal pgTAP suite: **19/19 passed**. Fourteen
-  assertions inspect compiled source predicates; five call unauthenticated
-  APIs with no JWT subject and verify denial.
+- [x] Run the fixture-free proposal pgTAP suite: **23/23 passed**. Eighteen
+  assertions inspect compiled source predicates, including terminal schedule
+  replay and stale-verification-time rules; five call unauthenticated APIs
+  with no JWT subject and verify denial.
 - [x] Run the two-session advisory-lock protocol harness on PostgreSQL 17.11:
   participant-pair serialization in 2.396s, check-in request-key
   serialization in 2.370s, and same-job fail-fast in 0.831s. This tests lock
@@ -65,23 +66,30 @@ execution record.
 ## Proposal review findings still requiring work
 
 - Proposal 900 locks reviewer subject/profile, provider allowlist, case, and
-  result; rechecks case identity, requires a successful result received after
-  case submission, validates type/provider/reference and expiry, then writes
-  the decision and audit in one transaction. It does not require provider
-  `verified_at` to be after case submission. Provider timestamp semantics and
-  signed webhook binding are unknown. Keep the allowlist empty until the
-  provider callback and event semantics are reviewed.
+  result; rechecks case identity; requires verified evidence to be generated
+  and received no earlier than current case submission, not future-dated or
+  expired; validates case/user/type/provider/reference; then writes the
+  decision and audit atomically. The allowlist is empty. A real provider
+  adapter still must verify signatures, event replay/order, tenant and
+  case-bound references before any provider is enabled.
 - Proposal 901 uses production Guardian semantics only. Guardian dual consent
   is required only when `jobs.requires_guardian_approval` is true; QA-only
   Guardian preferences/decision fields are absent. New
   `job_acceptance_in_progress_retry` propagates through the existing status
-  update wrapper; Flutter currently has no dedicated user-facing retry
-  message. Add client/API compatibility and actual concurrency tests.
-- Proposal 902 checks active assignment/job before schedule idempotency lookup;
-  a retry after terminal lifecycle returns `active_assignment_required`. It
-  writes no new row, but terminal retry semantics need a client decision. A
-  mismatched completion request ID for newly bound rows now returns
-  `idempotency_key_reused`; actual retries still need row-backed tests.
+  update wrapper; Flutter has no dedicated retry message or automatic retry.
+  The RPC signature is unchanged. Guardian dual consent is enforced only when
+  production `jobs.requires_guardian_approval` is true.
+- Proposal 902 checks persisted schedule keys before lifecycle state. The same
+  teen/application/key/interval replays the original response after terminal
+  job state; a new key still requires an active assignment, while a changed
+  app/interval under an existing key returns `idempotency_key_reused`. Legacy
+  schedule rows without interval metadata fail with
+  `idempotency_result_unverifiable`; refresh/reconcile instead of claiming an
+  exact retry.
+  Completion replays a matching stored request ID and rejects a different ID
+  on newly bound rows. Current Flutter UI generates a new UUID for every call
+  and does not retain it across network retries; client idempotency is a
+  separate follow-up. No Flutter behavior was changed here.
 
 ## Validation limits and release blockers
 
@@ -104,6 +112,37 @@ execution record.
   provisioning, synthetic accounts through supported onboarding/consent, and
   isolated service-role credentials. Do not fabricate them or bypass
   triggers/RLS.
+
+## 2026-11-02 — migration history and retry-contract recheck
+
+- The previous “production row absent” conclusion for
+  `20261102113314_guardian_id_response_mask_production` was incorrect. Current
+  read-only `list_migrations` and `supabase_migrations.schema_migrations`
+  inspection show all 73 production rows and this exact version/name as the
+  final row, not an alias. Its one SQL payload is 1,598 bytes, SHA-256
+  `96ad143a1c066d3496ca492774c810a9bc196e629f2c7fa2bf908459c4392efa`, matching
+  recovered SQL and manifest. All 73 ordered version/name pairs match the
+  manifest. The earlier lookup query was not preserved, so the false-negative
+  cause cannot be established more narrowly.
+- Five guarded live production function MD5s still match the current
+  definitions. A new clean local PostgreSQL 17.11 container replayed all 73
+  production migrations with exact-byte streaming. All three proposals
+  compiled; revised Proposal 900 review and Proposal 902 schedule definitions
+  were separately compiled in a rollback-only transaction. Fixture-free
+  pgTAP passed **23/23**, and both function definitions matched their
+  pre-transaction hashes after rollback. Direct-select privacy pgTAP passed
+  **5/5**. Local ACL checks showed anon/authenticated SELECT false and
+  service_role SELECT true; local release controls were false and the provider
+  allowlist was empty.
+- The lock-key harness passed pair-lock serialization (2.395s), check-in
+  request-key serialization (2.396s), and acceptance fail-fast (0.872s). It
+  does not execute the actual application/acceptance RPC workflows.
+- Authenticated verification, Guardian revocation, row-backed schedule and
+  completion retries, real provider webhook events, RLS role matrix, and
+  application/block/acceptance concurrency remain unverified until legitimate
+  legal/provider/staff/test prerequisites are available. No synthetic
+  identity/evidence was created.
+- Production and hosted QA remained read-only.
 
 ## Production boundary
 

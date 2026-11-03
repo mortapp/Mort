@@ -6,7 +6,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const approvedContainer = 'mort-pg1711-baseline6-mort20261102';
+const approvedContainer = 'mort-pg1711-reviewfresh-mort20261102';
 const containerArg = process.argv.indexOf('--container');
 const container = containerArg >= 0 ? process.argv[containerArg + 1] : approvedContainer;
 assert.equal(container, approvedContainer, 'refusing any target except the named disposable local container');

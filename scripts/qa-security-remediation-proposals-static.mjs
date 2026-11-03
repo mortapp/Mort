@@ -11,6 +11,7 @@ const localAcl = await readFile(new URL('./qa-local-hosted-job-applications-acl.
 const baselineReplay = await readFile(new URL('./qa-replay-production-baseline-17-11.mjs', import.meta.url), 'utf8');
 const proposalCompiler = await readFile(new URL('./qa-compile-security-proposals-pg1711.mjs', import.meta.url), 'utf8');
 const twoSessionLocks = await readFile(new URL('./qa-safety-proposal-two-session-locks.mjs', import.meta.url), 'utf8');
+const proposalRevisionTest = await readFile(new URL('./qa-test-security-proposal-revisions-pg1711.mjs', import.meta.url), 'utf8');
 const fixtureFreeTests = await readFile(new URL('../supabase-production/proposals/tests/20261102090600_fixture_free_proposal_contracts.sql', import.meta.url), 'utf8');
 const backlog = await read('MORT_BACKEND_SECURITY_REMEDIATION_BACKLOG_2026-11-02.md');
 const eligibilityFunction = applications.slice(
@@ -96,7 +97,7 @@ assert.match(checkins, /request_interval_minutes integer/);
 assert.match(checkins, /completion_request_id uuid/);
 assert.match(checkins, /job_safety_checkins_teen_completion_request_uidx/);
 assert.match(checkins, /idempotency_key_reused/);
-assert.match(checkins, /request_interval_minutes is null[\s\S]*'ok', true, 'replayed', true, 'payload_verified', false/);
+assert.match(checkins, /request_interval_minutes is null[\s\S]*'code', 'idempotency_result_unverifiable'/);
 assert.match(checkins, /checkin\.status = 'completed'[\s\S]*'ok', true, 'replayed', true, 'payload_verified', false/);
 assert.match(checkins, /if checkin\.completion_request_id is not null then\s+return jsonb_build_object\('ok', false, 'code', 'idempotency_key_reused'\)/);
 assert.match(checkins, /status not in \('accepted', 'in_progress'\)/);
@@ -104,20 +105,25 @@ assert.match(checkins, /status not in \('filled', 'in_progress'\)/);
 assert.match(checkins, /'replayed', true/);
 assert.match(checkins, /'replayed', false/);
 
-assert.match(localAcl, /mort-pg1711-baseline6-mort20261102/);
+assert.match(localAcl, /mort-pg1711-reviewfresh-mort20261102/);
 assert.doesNotMatch(localAcl, /supabase_db_mort-proposals-local-20261102/, 'ACL bootstrap must reject the older non-parity database');
 assert.match(localAcl, /migration_count <> 73/);
 assert.match(localAcl, /GRANT ALL PRIVILEGES ON TABLE public\.job_applications TO service_role/);
 assert.match(localAcl, /has_any_column_privilege\('authenticated', 'public\.job_applications', 'SELECT'\)/);
 assert.doesNotMatch(localAcl, /grant\s+[^;]*\b(?:anon|authenticated)\b/i, 'local ACL parity must never grant API roles');
-assert.match(baselineReplay, /mort-pg1711-baseline6-mort20261102/);
+assert.match(baselineReplay, /mort-pg1711-reviewfresh-mort20261102/);
 assert.match(baselineReplay, /source_bytes=exact/);
 assert.match(baselineReplay, /spawn\('docker'/);
-assert.match(proposalCompiler, /mort-pg1711-baseline6-mort20261102/);
+assert.match(proposalCompiler, /mort-pg1711-reviewfresh-mort20261102/);
 assert.match(proposalCompiler, /public_marketplace_enabled=false, real_document_collection=false/);
-assert.match(twoSessionLocks, /mort-pg1711-baseline6-mort20261102/);
+assert.match(twoSessionLocks, /mort-pg1711-reviewfresh-mort20261102/);
 assert.match(twoSessionLocks, /same-job acceptance serialization key \(protocol only\)/);
-assert.match(fixtureFreeTests, /extensions\.plan\(19\)/);
+assert.match(proposalRevisionTest, /mort-pg1711-reviewfresh-mort20261102/);
+assert.match(proposalRevisionTest, /test transaction must roll both proposal revisions back/);
+assert.match(fixtureFreeTests, /extensions\.plan\(23\)/);
+assert.match(verification, /result\.verified_at >= coalesce\(v_case\.submitted_at, v_case\.created_at\)/);
+assert.match(checkins, /job-checkin-schedule:/);
+assert.match(checkins, /existing_checkin\.application_id is distinct from p_application_id/);
 assert.doesNotMatch(fixtureFreeTests, /\b(?:insert\s+into|update\s+public\.|delete\s+from|truncate\s+)/i, 'fixture-free regression test must not seed or mutate application records');
 
 for (const priority of ['Priority 0', 'Priority 1']) assert.ok(backlog.includes(priority));
