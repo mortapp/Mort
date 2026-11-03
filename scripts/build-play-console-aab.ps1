@@ -8,8 +8,7 @@ $root = Resolve-Path "$PSScriptRoot\.."
 . (Join-Path $PSScriptRoot 'android-signing-common.ps1')
 
 $expectedSha1 = '7F:3E:52:5C:05:F3:D8:72:C1:68:63:08:EA:F2:79:5A:8E:96:D9:97'
-$expectedUrl = 'https://rakjydmgwwgtdislanbt.supabase.co'
-$publicAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYXNlIiwicmVmIjoicmFranlkbWd3d2d0ZGlzbGFuYnQiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc4MTg3MTE3NSwiZXhwIjoyMDk3NDQ3MTc1fQ.DorOgj6jdPTrPX45Vi0O1dYgx-e3zgO6_S39JDcL2Ww'
+$expectedUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co'
 
 $signing = Get-MortUploadSigning
 if (-not (Test-Path -LiteralPath $signing.StorePath -PathType Leaf)) {
@@ -31,7 +30,11 @@ if ((ConvertTo-MortCertificateDigest $sha1) -ne (ConvertTo-MortCertificateDigest
 
 Set-MortUploadSigningEnvironment $signing
 
-# Public Supabase client configuration only; no privileged backend secret is embedded.
+$publicUrl = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_URL' -ExpoName 'EXPO_PUBLIC_SUPABASE_URL' -Root $root
+$publicAnonKey = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_ANON_KEY' -ExpoName 'EXPO_PUBLIC_SUPABASE_ANON_KEY' -Root $root
+if ($publicUrl -ne $expectedUrl -or [string]::IsNullOrWhiteSpace($publicAnonKey)) {
+  throw 'Public Supabase client configuration is missing or targets the wrong project.'
+}
 $env:SUPABASE_URL = $expectedUrl
 $env:SUPABASE_ANON_KEY = $publicAnonKey
 

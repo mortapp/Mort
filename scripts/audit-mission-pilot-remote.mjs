@@ -1,6 +1,6 @@
 import pg from "pg";
 
-const projectRef = "rakjydmgwwgtdislanbt";
+const projectRef = "jxbnrkasktbhtiujkhay";
 const password = process.env.SUPABASE_DB_PASSWORD;
 
 if (!password) throw new Error("SUPABASE_DB_PASSWORD is required.");

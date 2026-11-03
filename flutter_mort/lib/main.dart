@@ -17,7 +17,6 @@ import 'core/config/app_config.dart';
 import 'features/ads/data/ad_consent_service.dart';
 import 'features/qa/browserstack_qa_app.dart';
 import 'services/push/push_notification_coordinator.dart';
-import 'services/push/remote_push_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,7 +35,6 @@ Future<void> main() async {
   // Flutter's MediaQuery.viewPadding/SafeArea calculations in sync with
   // the OS's actual (mandatory) edge-to-edge behavior.
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  configureRemotePushBackgroundHandler();
   if (MortSentryCrashProvider.canInitialize) {
     try {
       await MortSentryCrashProvider.run(_runApp);

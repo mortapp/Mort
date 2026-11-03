@@ -62,7 +62,7 @@ if (staleUsers.length > 0) {
 console.log(
   JSON.stringify(
     {
-      project_ref: "rakjydmgwwgtdislanbt",
+      project_ref: "jxbnrkasktbhtiujkhay",
       aggregate_only: true,
       strict_feature_qa_users: staleUsers.length,
       remaining_auth_user_references: references,

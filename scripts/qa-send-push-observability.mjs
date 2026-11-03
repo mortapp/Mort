@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 
-const projectRef = "rakjydmgwwgtdislanbt";
+const projectRef = "jxbnrkasktbhtiujkhay";
 const expectedUrl = `https://${projectRef}.supabase.co`;
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

@@ -131,7 +131,7 @@ void main() {
     expect(find.text('Test job'), findsOneWidget);
   });
 
-  testWidgets('loads guardian approval details with guardian role', (
+  testWidgets('loads guardian application details in read-only view', (
     tester,
   ) async {
     final repository = _FakeApplicationsRepository();
@@ -143,7 +143,13 @@ void main() {
     expect(repository.recordedCalls, hasLength(1));
     expect(repository.recordedCalls.single['applicationId'], 'app-1');
     expect(repository.recordedCalls.single['role'], UserRole.guardian);
-    expect(find.text('Approval request'), findsOneWidget);
+    expect(find.text('Application details'), findsOneWidget);
+    expect(
+      find.text(
+        'Guardian view is read-only. Application decisions are made by the teen and job poster.',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Test job'), findsOneWidget);
   });
 

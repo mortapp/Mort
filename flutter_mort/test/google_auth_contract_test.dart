@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -34,6 +35,16 @@ void main() {
   final closedApkBuild = File(
     '${root.path}/scripts/build-closed-test-apk.ps1',
   ).readAsStringSync();
+  final publicAabBuild = File(
+    '${root.path}/scripts/build-production-public-aab.ps1',
+  ).readAsStringSync();
+  final releaseProfiles =
+      jsonDecode(
+            File(
+              '${root.path}/config/mort-release-profiles.json',
+            ).readAsStringSync(),
+          )
+          as Map<String, dynamic>;
   final releaseBuild = File(
     '${root.path}/scripts/android-release-profile-common.ps1',
   ).readAsStringSync();
@@ -97,12 +108,25 @@ void main() {
     expect(releaseBuild, contains('MORT_AUTH_REDIRECT_URL'));
     expect(releaseBuild, contains("'com.mortapp.mobile://app/auth-callback'"));
     expect(releaseBuild, contains('GOOGLE_AUTH_ENABLED = '));
+    expect(releaseBuild, contains(r'if ($GoogleAuthEnabled)'));
+    expect(releaseBuild, contains('verify-google-oauth-production.mjs'));
     expect(
       releaseBuild,
-      contains(
-        "throw 'Google Auth activation is approved only for the closed-test profile.'",
+      isNot(
+        contains(
+          'Google Auth activation is approved only for the closed-test profile.',
+        ),
       ),
     );
+  });
+
+  test('public production activates Google only with a provider preflight', () {
+    final production =
+        (releaseProfiles['profiles'] as Map<String, dynamic>)['production']
+            as Map<String, dynamic>;
+    expect(production['googleAuthEnabled'], isTrue);
+    expect(publicAabBuild, contains(r'-GoogleAuthEnabled $true'));
+    expect(releaseBuild, contains('verify-google-oauth-production.mjs'));
   });
 
   test('session completion and restoration remain Supabase owned', () {
@@ -116,7 +140,7 @@ void main() {
     expect(authRepository, contains("rpc('ensure_my_profile')"));
     expect(
       secureSessionStorage,
-      contains("'mort.rakjydmgwwgtdislanbt.auth.session.v1'"),
+      contains("'mort.jxbnrkasktbhtiujkhay.auth.session.v1'"),
     );
     expect(secureSessionStorage, contains('persistSession('));
     expect(secureSessionStorage, contains('removePersistedSession('));

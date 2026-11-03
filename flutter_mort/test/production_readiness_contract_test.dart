@@ -23,11 +23,11 @@ void main() {
     final config = _read('lib/core/config/app_config.dart');
     final main = _read('lib/main.dart');
 
-    expect(AppConfig.expectedSupabaseProjectRef, 'rakjydmgwwgtdislanbt');
+    expect(AppConfig.expectedSupabaseProjectRef, 'jxbnrkasktbhtiujkhay');
     expect(config, contains('assertValidReleaseConfiguration'));
     expect(
       config,
-      contains('production pilot requires a configured remote push provider'),
+      contains('production pilot requires a configured crash provider'),
     );
     expect(
       config,
@@ -39,6 +39,39 @@ void main() {
   });
 
   test(
+    'Android production build scripts target the approved Supabase project',
+    () {
+      final profileBuild = _read(
+        '../scripts/android-release-profile-common.ps1',
+      );
+      final playBuild = _read('../scripts/build-play-console-aab.ps1');
+      final deviceBuild = _read('../scripts/build-android-device-test-apk.ps1');
+      final publicConfigLoader = _read('../scripts/android-signing-common.ps1');
+      final sentryConfigLoader = _read('../scripts/sentry-client-config.ps1');
+
+      expect(
+        profileBuild,
+        contains('https://jxbnrkasktbhtiujkhay.supabase.co'),
+      );
+      expect(
+        profileBuild,
+        contains(r"$expectedProjectRef = 'jxbnrkasktbhtiujkhay'"),
+      );
+      expect(playBuild, contains('https://jxbnrkasktbhtiujkhay.supabase.co'));
+      expect(deviceBuild, contains('https://jxbnrkasktbhtiujkhay.supabase.co'));
+      expect(
+        deviceBuild,
+        contains('MORT_SUPABASE_PROJECT_REF=jxbnrkasktbhtiujkhay'),
+      );
+      expect(
+        publicConfigLoader,
+        contains(r'mort credientals\supabase-public.env'),
+      );
+      expect(sentryConfigLoader, contains(r'mort credientals\sentry.env'));
+    },
+  );
+
+  test(
     'reviewer routes are compile-gated and production scripts exclude them',
     () {
       final router = _read('lib/core/routing/app_router.dart');
@@ -46,7 +79,7 @@ void main() {
 
       expect(router, contains('if (AppConfig.playReviewModeEnabled)'));
       expect(pilot, contains(r'-PlayReviewModeEnabled $false'));
-      expect(pilot, contains('BLOCKED-EXTERNAL'));
+      expect(pilot, contains(r'-RemotePushEnabled $false'));
     },
   );
 
@@ -77,8 +110,10 @@ void main() {
       expect(repository, isNot(contains(".from('jobs').select(_jobSelect)")));
       expect(repository, contains("'manage_job_v2'"));
       expect(repository, isNot(contains("'manage_job',")));
-      expect(applications, contains("'update_application_status_v3'"));
-      expect(applications, isNot(contains("'update_application_status_v2'")));
+      expect(applications, contains("'update_my_job_application_status'"));
+      expect(applications, contains("'get_my_job_applications'"));
+      expect(applications, isNot(contains("'update_application_status_v3'")));
+      expect(applications, isNot(contains(".from('applications')")));
     },
   );
 

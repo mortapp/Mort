@@ -196,9 +196,15 @@ final pendingRequiredLegalReacceptanceProvider = FutureProvider<bool>((
 final applicationsRepositoryProvider = Provider<ApplicationsRepository>(
   (ref) => ApplicationsRepository(),
 );
-final myApplicationsProvider = FutureProvider.autoDispose(
-  (ref) => ref.watch(applicationsRepositoryProvider).listMyApplications(),
-);
+final myApplicationsProvider = FutureProvider.autoDispose((ref) {
+  final profile = ref.watch(currentProfileProvider).asData?.value;
+  final role = profile?.role == UserRole.guardian
+      ? UserRole.guardian
+      : UserRole.teen;
+  return ref
+      .watch(applicationsRepositoryProvider)
+      .listMyApplications(role: role);
+});
 final myJobsProvider = FutureProvider.autoDispose(
   (ref) => ref.watch(jobsRepositoryProvider).listMyJobs(),
 );

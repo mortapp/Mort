@@ -27,7 +27,7 @@ const requiredTables = [
 ];
 
 const requiredBuckets = ["proof-uploads", "verification-uploads", "report-uploads"];
-const currentMismatchedLiveRef = "rakjydmgwwgtdislanbt";
+const currentMismatchedLiveRef = "jxbnrkasktbhtiujkhay";
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const mobileSourceRoots = ["app", "components", "lib", "providers"];
 const forbiddenMobileSecretPatterns = [/service_role/i, /SUPABASE_SERVICE_ROLE_KEY/];
@@ -63,7 +63,7 @@ if (!supabaseUrl || !anonKey) {
 }
 
 if (!["local", "staging"].includes(target ?? "")) {
-  fail("Set MORT_QA_TARGET=local or MORT_QA_TARGET=staging. Do not run this against the mismatched live project.");
+  fail("Set MORT_QA_TARGET=local or MORT_QA_TARGET=staging. Do not run this against production.");
 }
 
 const url = new URL(supabaseUrl);

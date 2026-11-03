@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 0.9.16+111
+version: 0.9.17+122
 environment:
   sdk: ^3.11.0
 
@@ -53,8 +53,6 @@ dependencies:
   flutter_svg: ^2.3.0
   image: 4.9.1
   crypto: ^3.0.7
-  firebase_core: ^4.12.1
-  firebase_messaging: ^16.4.3
   flutter_timezone: ^5.1.0
   # 9.7.0+ pins Sentry/HybridSDK 8.56+, whose Swift API bridge hides
   # configureScope and fails the native plugin build. 9.6.0 uses 8.52.1.
@@ -86,6 +84,7 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
+  http: ^1.6.0
   geolocator_platform_interface: ^4.2.8
   plugin_platform_interface: ^2.1.8
 

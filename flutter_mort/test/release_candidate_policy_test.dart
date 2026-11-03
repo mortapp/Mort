@@ -78,7 +78,7 @@ void main() {
       multiLine: true,
     ).firstMatch(_read('pubspec.yaml'));
     expect(match, isNotNull);
-    expect(int.parse(match!.group(2)!), greaterThanOrEqualTo(98));
+    expect(int.parse(match!.group(2)!), greaterThanOrEqualTo(122));
   });
 
   test(

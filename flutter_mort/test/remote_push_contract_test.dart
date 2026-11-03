@@ -49,15 +49,18 @@ void main() {
     ).readAsStringSync();
 
     expect(appConfig, contains("defaultValue: false"));
-    expect(appConfig, contains('FIREBASE_ANDROID_APP_ID'));
-    expect(appConfig, contains('FIREBASE_IOS_APP_ID'));
+    expect(appConfig, isNot(contains('FIREBASE_')));
+    expect(
+      File('pubspec.yaml').readAsStringSync(),
+      isNot(contains('firebase_')),
+    );
+    expect(provider, isNot(contains('Firebase')));
+    expect(createRemotePushProvider().configured, isFalse);
     expect(coordinator, contains('registerDevice('));
     expect(coordinator, contains('unregisterDevices('));
     expect(repository, contains('register_my_push_device_v2'));
     expect(repository, contains('unregister_my_push_devices_v2'));
-    expect(provider, contains("@pragma('vm:entry-point')"));
-    expect(provider, contains('getInitialMessage'));
-    expect(provider, contains('onMessageOpenedApp'));
+
     expect(edge, contains('FCM_SERVICE_ACCOUNT_PRIVATE_KEY'));
     expect(edge, contains('service_claim_push_events'));
     expect(edge, contains('genericCopy'));

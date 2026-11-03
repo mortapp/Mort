@@ -16,13 +16,18 @@ if (-not $OutputPath) {
 # Public client configuration only. This is intentionally safe to compile into
 # the Android app; no service-role, database password, webhook secret, or other
 # privileged credential is used here.
-$supabaseUrl = 'https://rakjydmgwwgtdislanbt.supabase.co'
-$supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYXNlIiwicmVmIjoicmFranlkbWd3d2d0ZGlzbGFuYnQiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc4MTg3MTE3NSwiZXhwIjoyMDk3NDQ3MTc1fQ.DorOgj6jdPTrPX45Vi0O1dYgx-e3zgO6_S39JDcL2Ww'
+$supabaseUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co'
+. (Join-Path $PSScriptRoot 'android-signing-common.ps1')
+$configuredSupabaseUrl = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_URL' -ExpoName 'EXPO_PUBLIC_SUPABASE_URL' -Root $root
+$supabaseAnonKey = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_ANON_KEY' -ExpoName 'EXPO_PUBLIC_SUPABASE_ANON_KEY' -Root $root
+if ($configuredSupabaseUrl -ne $supabaseUrl -or [string]::IsNullOrWhiteSpace($supabaseAnonKey)) {
+  throw 'Public Supabase client configuration is missing or targets the wrong project.'
+}
 
 $defines = @(
   "--dart-define=SUPABASE_URL=$supabaseUrl",
   "--dart-define=SUPABASE_ANON_KEY=$supabaseAnonKey",
-  '--dart-define=MORT_SUPABASE_PROJECT_REF=rakjydmgwwgtdislanbt',
+  '--dart-define=MORT_SUPABASE_PROJECT_REF=jxbnrkasktbhtiujkhay',
   '--dart-define=MORT_RELEASE_STAGE=internal_test',
   '--dart-define=MORT_RELEASE_PROFILE=automated_test',
   '--dart-define=MORT_OPERATIONAL_MODE=automated_test',

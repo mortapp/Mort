@@ -3,7 +3,7 @@ import { relative, resolve } from "node:path";
 
 import pg from "pg";
 
-const projectRef = "rakjydmgwwgtdislanbt";
+const projectRef = "jxbnrkasktbhtiujkhay";
 const migrationRoot = resolve("supabase", "migrations");
 const requestedPaths = process.argv.slice(2);
 const dbPassword = process.env.SUPABASE_DB_PASSWORD;

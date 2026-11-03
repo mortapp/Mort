@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createHash } from 'node:crypto';
 import pg from 'pg';
 
-const projectUrl = 'https://rakjydmgwwgtdislanbt.supabase.co';
+const projectUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co';
 const required = (name) => {
   const value = process.env[name];
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
@@ -10,7 +10,7 @@ const required = (name) => {
 };
 
 if (required('EXPO_PUBLIC_SUPABASE_URL') !== projectUrl) {
-  throw new Error('Play review fixtures must target rakjydmgwwgtdislanbt.');
+  throw new Error('Play review fixtures must target jxbnrkasktbhtiujkhay.');
 }
 const teenPassword = required('PLAY_REVIEW_TEEN_PASSWORD');
 const adultPassword = required('PLAY_REVIEW_ADULT_PASSWORD');
@@ -35,7 +35,7 @@ const supabase = createClient(projectUrl, required('SUPABASE_SERVICE_ROLE_KEY'),
   auth: { persistSession: false, autoRefreshToken: false },
 });
 const database = new pg.Client({
-  host: 'db.rakjydmgwwgtdislanbt.supabase.co',
+  host: 'db.jxbnrkasktbhtiujkhay.supabase.co',
   port: 5432,
   database: 'postgres',
   user: 'postgres',
