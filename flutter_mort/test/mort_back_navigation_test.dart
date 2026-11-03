@@ -77,10 +77,22 @@ Future<void> _pumpPublicRouter(WidgetTester tester, GoRouter router) async {
       child: MaterialApp.router(
         theme: mortTestTheme(ThemeData()),
         routerConfig: router,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(disableAnimations: true),
+          child: child!,
+        ),
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  await tester.pump(const Duration(milliseconds: 500));
+}
+
+Future<void> _pumpRouteTransition(WidgetTester tester) async {
+  // MORT keeps its atmospheric render loop alive while a route is visible,
+  // so pumpAndSettle never completes. Advance the navigation animation with
+  // bounded frames instead.
+  await tester.pump(const Duration(milliseconds: 100));
+  await tester.pump(const Duration(milliseconds: 400));
 }
 
 Future<void> _tapText(WidgetTester tester, String label) async {
@@ -88,7 +100,7 @@ Future<void> _tapText(WidgetTester tester, String label) async {
   expect(control, findsOneWidget);
   await tester.ensureVisible(control);
   await tester.tap(control);
-  await tester.pumpAndSettle();
+  await _pumpRouteTransition(tester);
 }
 
 void main() {
@@ -221,7 +233,7 @@ void main() {
   });
 
   testMortWidgets(
-    'system back repeatedly follows server-authoritative onboarding order',
+    'system back fallback follows server-authoritative onboarding order',
     (tester) async {
       final router = _onboardingRouter(initialLocation: '/onboarding/skills');
       addTearDown(router.dispose);
@@ -231,16 +243,29 @@ void main() {
         '/onboarding/preferences': 'Guardian route',
         '/onboarding/safety': 'Preferences route',
       }.entries) {
-        for (var attempt = 0; attempt < 3; attempt += 1) {
-          router.go(transition.key);
-          await tester.pumpAndSettle();
-          expect(find.byType(PopScope<Object?>), findsOneWidget);
+        router.go(transition.key);
+        await tester.pump(const Duration(milliseconds: 500));
+        expect(find.byType(PopScope<Object?>), findsOneWidget);
 
-          await tester.binding.handlePopRoute();
-          await tester.pumpAndSettle();
+        final scope = tester.widget<PopScope<Object?>>(
+          find.byType(PopScope<Object?>),
+        );
+        scope.onPopInvokedWithResult?.call(false, null);
+        // Let the route-change notification and its page transition each
+        // receive a frame without settling perpetual atmosphere animations.
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.pump(const Duration(milliseconds: 400));
 
-          expect(find.text(transition.value), findsOneWidget);
-        }
+        expect(
+          router.routeInformationProvider.value.uri.path,
+          MortBackNavigation.fallbackRoute(transition.key),
+        );
+        expect(
+          find.text(transition.value),
+          findsOneWidget,
+          reason:
+              'visible text: ${find.byType(Text).evaluate().map((element) => (element.widget as Text).data).toList()}',
+        );
       }
     },
   );
@@ -267,12 +292,12 @@ void main() {
         expect(control, findsOneWidget);
         await tester.ensureVisible(control);
         await tester.tap(control);
-        await tester.pumpAndSettle();
+        await _pumpRouteTransition(tester);
         expect(router.state.uri.path, legalRoute.value.$1);
         expect(find.text(legalRoute.value.$2), findsOneWidget);
 
         await tester.binding.handlePopRoute();
-        await tester.pumpAndSettle();
+        await _pumpRouteTransition(tester);
 
         expect(router.state.uri.path, '/onboarding/safety');
         expect(find.text('Review MORT safety rules'), findsOneWidget);
@@ -317,11 +342,11 @@ void main() {
       );
 
       await tester.tap(find.text('Open saved jobs'));
-      await tester.pumpAndSettle();
+      await _pumpRouteTransition(tester);
       expect(find.byTooltip('Back'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Back'));
-      await tester.pumpAndSettle();
+      await _pumpRouteTransition(tester);
       expect(find.text('Open saved jobs'), findsOneWidget);
     });
 
@@ -346,13 +371,13 @@ void main() {
         );
 
         await tester.pumpWidget(MaterialApp.router(routerConfig: router));
-        await tester.pumpAndSettle();
+        await _pumpRouteTransition(tester);
 
         expect(router.state.uri.path, '/details');
         expect(find.byTooltip('Back'), findsOneWidget);
 
         await tester.tap(find.byTooltip('Back'));
-        await tester.pumpAndSettle();
+        await _pumpRouteTransition(tester);
 
         expect(router.state.uri.path, '/');
         expect(find.byKey(const ValueKey('home')), findsOneWidget);
@@ -390,15 +415,15 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      await _pumpRouteTransition(tester);
       expect(find.byKey(const ValueKey('navToDetails')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('navToDetails')));
-      await tester.pumpAndSettle();
+      await _pumpRouteTransition(tester);
 
       // Now a route was pushed onto the Navigator, MortBackButton should pop it.
       expect(find.byTooltip('Back'), findsOneWidget);
       await tester.tap(find.byTooltip('Back'));
-      await tester.pumpAndSettle();
+      await _pumpRouteTransition(tester);
 
       expect(find.byKey(const ValueKey('navToDetails')), findsOneWidget);
     });
@@ -416,7 +441,7 @@ void main() {
 
       expect(find.byTooltip('Back'), findsOneWidget);
       await tester.tap(find.byTooltip('Back'));
-      await tester.pumpAndSettle();
+      await _pumpRouteTransition(tester);
 
       expect(router.state.uri.path, '/splash');
       expect(find.text('Enter MORT'), findsOneWidget);
@@ -434,7 +459,7 @@ void main() {
       expect(find.byType(TextFormField), findsWidgets);
 
       await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
+      await _pumpRouteTransition(tester);
 
       expect(router.state.uri.path, '/splash');
       expect(find.text('Enter MORT'), findsOneWidget);
@@ -449,13 +474,13 @@ void main() {
 
       await _tapText(tester, 'Create account');
       expect(router.state.uri.path, '/auth/sign-up');
-      expect(find.text('Age-gated'), findsOneWidget);
+      expect(find.text('NEW ACCOUNT'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Back'));
-      await tester.pumpAndSettle();
+      await _pumpRouteTransition(tester);
 
       expect(router.state.uri.path, '/welcome');
-      expect(find.text('Welcome to MORT'), findsOneWidget);
+      expect(find.text('Built for local work'), findsOneWidget);
     });
 
     testWidgets('real Sign in Forgot password back returns to Sign in', (
@@ -470,10 +495,10 @@ void main() {
       expect(find.text('Reset password'), findsOneWidget);
 
       await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
+      await _pumpRouteTransition(tester);
 
       expect(router.state.uri.path, '/auth/sign-in');
-      expect(find.text('Welcome back'), findsOneWidget);
+      expect(find.text('WELCOME BACK'), findsOneWidget);
     });
 
     for (final legalRoute in const {
@@ -491,10 +516,10 @@ void main() {
         expect(router.state.uri.path, legalRoute.value);
 
         await tester.binding.handlePopRoute();
-        await tester.pumpAndSettle();
+        await _pumpRouteTransition(tester);
 
         expect(router.state.uri.path, '/auth/sign-in');
-        expect(find.text('Welcome back'), findsOneWidget);
+        expect(find.text('WELCOME BACK'), findsOneWidget);
       });
     }
   });

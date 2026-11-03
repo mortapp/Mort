@@ -6,10 +6,23 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'secure_device_storage.dart';
 
-const mortSupabaseProjectRef = 'rakjydmgwwgtdislanbt';
-const mortSecureSessionKey = 'mort.rakjydmgwwgtdislanbt.auth.session.v1';
+const mortSupabaseProjectRef = String.fromEnvironment(
+  'MORT_SUPABASE_PROJECT_REF',
+  defaultValue: 'rakjydmgwwgtdislanbt',
+);
+const mortSecureSessionKey = 'mort.$mortSupabaseProjectRef.auth.session.v1';
 const mortLegacySecureSessionKey = 'mort.supabase.session';
 const mortLegacySupabaseSessionKey = 'sb-rakjydmgwwgtdislanbt-auth-token';
+const _legacySupabaseProjectRef = 'rakjydmgwwgtdislanbt';
+
+List<String> legacySessionPreferenceKeysForProject(String projectRef) =>
+    projectRef == _legacySupabaseProjectRef
+    ? const <String>[
+        mortLegacySupabaseSessionKey,
+        mortLegacySecureSessionKey,
+        supabasePersistSessionKey,
+      ]
+    : const <String>[];
 
 abstract interface class MortSessionValueStore {
   Future<String?> read(String key);
@@ -68,11 +81,8 @@ class MortSecureSessionStorage extends LocalStorage {
            FlutterSecureSessionValueStore(storage ?? mortSecureDeviceStorage),
        _legacyPreferences = legacyPreferences;
 
-  static const legacyPreferenceKeys = <String>[
-    mortLegacySupabaseSessionKey,
-    mortLegacySecureSessionKey,
-    supabasePersistSessionKey,
-  ];
+  static List<String> get legacyPreferenceKeys =>
+      legacySessionPreferenceKeysForProject(mortSupabaseProjectRef);
 
   final MortSessionValueStore _secureStore;
   MortSessionValueStore? _legacyPreferences;
@@ -112,13 +122,15 @@ class MortSecureSessionStorage extends LocalStorage {
       return;
     }
 
-    final legacySecure = await _secureStore.read(mortLegacySecureSessionKey);
-    if (await _migrateCandidate(
-      legacySecure,
-      sourceStore: _secureStore,
-      sourceKey: mortLegacySecureSessionKey,
-    )) {
-      return;
+    if (legacyPreferenceKeys.contains(mortLegacySecureSessionKey)) {
+      final legacySecure = await _secureStore.read(mortLegacySecureSessionKey);
+      if (await _migrateCandidate(
+        legacySecure,
+        sourceStore: _secureStore,
+        sourceKey: mortLegacySecureSessionKey,
+      )) {
+        return;
+      }
     }
 
     final preferences = _legacyPreferences ??=

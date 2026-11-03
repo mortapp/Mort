@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,6 +17,7 @@ import '../../features/guardian/guardian_mode_screens.dart';
 import '../../features/financial/financial_safety_center.dart';
 import '../../features/financial/financial_section_screens.dart';
 import '../../features/guardian/guardian_safety_pings_screen.dart';
+import '../../features/guide/mascot_picker_screen.dart';
 import '../../features/guide/mort_guide_screens.dart';
 import '../../features/jobs/job_screens.dart';
 import '../../features/jobs/job_progress_screen.dart';
@@ -35,9 +37,6 @@ import '../../features/notifications/notification_center_screen.dart';
 import '../../features/onboarding/compact_onboarding.dart';
 import '../../features/payments/stripe_marketplace_screens.dart';
 import '../../features/payments/admin_payment_operations_screen.dart';
-import '../../features/payments/screens/payment_review_screen.dart';
-import '../../features/history/screens/job_payment_history_screen.dart';
-import '../../features/receipts/screens/receipt_detail_screen.dart';
 import '../../features/admin/admin_moderation_detail_screen.dart';
 import '../../features/admin/admin_operational_alerts_screen.dart';
 import '../../features/auth/google_auth_screens.dart';
@@ -46,15 +45,20 @@ import '../../features/safety/trust_safety_screens.dart';
 import '../../features/support/support_screens.dart';
 import '../../features/support/support_assistant_screen.dart';
 import '../../features/settings/account_management_screens.dart';
+import '../../features/history/screens/financial_history_route.dart';
 import '../../features/settings/experience_settings_screen.dart';
 import '../../features/settings/native_permissions_screen.dart';
 import '../../features/settings/release_diagnostics_screen.dart';
 import '../../features/trust/account_trust_screens.dart';
 import '../../features/trust/teen_verification_screens.dart';
 import '../../features/teen/teen_profile_screen.dart';
+import '../../features/teen/progression_hub_screen.dart';
+import '../../features/teen/progression_leaderboard_screen.dart';
+import '../../features/teen/progression_share_screen.dart';
 import '../../features/teen/teen_shell.dart';
 import '../../services/screen_security_service.dart';
 import '../widgets/mort_widgets.dart';
+import '../atmosphere/mort_atmosphere_preview_screen.dart';
 import '../reviewer/reviewer_session.dart';
 import 'route_access.dart';
 
@@ -82,6 +86,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/', builder: (_, _) => const SplashScreen()),
       GoRoute(path: '/splash', builder: (_, _) => const SplashScreen()),
       GoRoute(path: '/welcome', builder: (_, _) => const WelcomeScreen()),
+      if (kDebugMode)
+        GoRoute(
+          path: '/debug/atmosphere',
+          builder: (_, _) => const MortAtmospherePreviewScreen(),
+        ),
       GoRoute(
         path: '/auth/sign-in',
         builder: (_, _) => const UnifiedAuthScreen(),
@@ -258,6 +267,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         role: UserRole.teen,
       ),
       _guarded('/teen/goals', const EarningsGoalsScreen(), role: UserRole.teen),
+      _guarded(
+        '/teen/progression',
+        const ProgressionHubScreen(),
+        role: UserRole.teen,
+      ),
+      _guarded(
+        '/teen/progression/leaderboard',
+        const ProgressionLeaderboardScreen(),
+        role: UserRole.teen,
+      ),
+      _guarded(
+        '/teen/progression/share',
+        const ProgressionShareScreen(),
+        role: UserRole.teen,
+      ),
       _guarded(
         '/financial',
         const FinancialSafetyCenterScreen(),
@@ -1002,10 +1026,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       _guarded('/settings', const SettingsScreen()),
-      _guarded(
-        '/settings/payment-history',
-        const JobPaymentHistoryScreen(backendUnavailable: true),
-      ),
       _guarded('/settings/blocked-users', const BlockedUsersScreen()),
       _guarded('/settings/profile', const ProfileSetupScreen()),
       _guarded('/settings/connected-accounts', const ConnectedAccountsScreen()),
@@ -1019,6 +1039,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       _guarded('/settings/privacy', const PrivacySettingsScreen()),
       _guarded('/settings/safety', const SafetySettingsScreen()),
       _guarded('/settings/data', const DataControlsScreen()),
+      _guarded(
+        '/settings/payment-history',
+        const SensitiveScreenProtection(child: FinancialHistoryRoute()),
+      ),
       _guarded('/settings/about', const AboutMortScreen()),
       _guarded('/settings/subscription', const MortPlusView()),
       _guarded('/settings/ad-preferences', const AdPreferencesScreen()),
@@ -1057,30 +1081,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => GuardedRoute(
           child: PaymentStatusScreen(
             contractId: state.pathParameters['contractId'] ?? '',
-          ),
-        ),
-      ),
-      GoRoute(
-        path: '/payments/review',
-        builder: (_, _) => GuardedRoute(
-          requiredRole: UserRole.adult,
-          child: const PaymentReviewUnavailableScreen(),
-        ),
-      ),
-      GoRoute(
-        path: '/contracts/:contractId/payment/review',
-        builder: (_, state) => GuardedRoute(
-          requiredRole: UserRole.adult,
-          child: PaymentReviewUnavailableScreen(
-            contractId: state.pathParameters['contractId'],
-          ),
-        ),
-      ),
-      GoRoute(
-        path: '/receipts/:receiptNumber',
-        builder: (_, state) => GuardedRoute(
-          child: ReceiptDetailScreen(
-            receiptNumber: state.pathParameters['receiptNumber'],
           ),
         ),
       ),
@@ -1183,6 +1183,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       _guarded('/guide', const MortGuideView()),
+      _guarded('/guide/mascot', const MortMascotPickerScreen()),
       _guarded('/guide/history', const MortGuideHistoryView()),
       _guarded('/guide/delete-history', const MortGuideDeleteHistoryView()),
       GoRoute(

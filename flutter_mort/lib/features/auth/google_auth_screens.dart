@@ -10,15 +10,24 @@ import '../../core/config/app_config.dart';
 import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
+import '../../core/theme/mort_tokens.dart';
 import '../../core/utils/validators.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/providers.dart';
 
 class GoogleAuthSection extends ConsumerStatefulWidget {
-  const GoogleAuthSection({super.key, this.successRoute = '/account-status'});
+  const GoogleAuthSection({
+    super.key,
+    this.successRoute = '/account-status',
+    this.signUp = false,
+  });
 
   final String successRoute;
+
+  /// Copy variant for the account-creation mode of the unified auth
+  /// screen. The underlying OAuth flow is identical in both modes.
+  final bool signUp;
 
   @override
   ConsumerState<GoogleAuthSection> createState() => _GoogleAuthSectionState();
@@ -88,7 +97,7 @@ class _GoogleAuthSectionState extends ConsumerState<GoogleAuthSection> {
 
   @override
   Widget build(BuildContext context) {
-    if (!AppConfig.googleAuthEnabled) return const SizedBox.shrink();
+    if (!ref.watch(googleAuthEnabledProvider)) return const SizedBox.shrink();
     final repository = ref.watch(authRepositoryProvider);
     final state = ref
         .watch(oauthFlowStateProvider)
@@ -102,37 +111,30 @@ class _GoogleAuthSectionState extends ConsumerState<GoogleAuthSection> {
         );
     final enabled = !state.isBusy;
     _scrollCancelIntoViewIfNeeded(state);
+    final buttonLabel = widget.signUp
+        ? 'Sign up with Google'
+        : 'Continue with Google';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Row(
-          children: [
-            Expanded(child: Divider()),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: MortSpacing.sm),
-              child: Text('or'),
-            ),
-            Expanded(child: Divider()),
-          ],
-        ),
-        const SizedBox(height: MortSpacing.sm),
         Semantics(
           button: true,
           enabled: enabled,
-          label: 'Continue with Google',
+          label: buttonLabel,
           child: SizedBox(
             height: 52,
             child: OutlinedButton(
               onPressed: enabled ? _launch : null,
               style: OutlinedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: const Color(0xFF1F1F1F),
-                disabledBackgroundColor: const Color(0xFFF2F2F2),
-                disabledForegroundColor: const Color(0xFF5F6368),
-                side: const BorderSide(color: Color(0xFF747775)),
+                backgroundColor: MortColors.cardAlt,
+                foregroundColor: MortColors.text,
+                disabledBackgroundColor: MortColors.line,
+                disabledForegroundColor: MortColors.textMuted,
+                side: const BorderSide(color: MortColors.borderSilver),
+                overlayColor: MortColors.primary.withValues(alpha: 0.08),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(MortRadii.medium),
                 ),
               ),
               child: Row(
@@ -151,11 +153,14 @@ class _GoogleAuthSectionState extends ConsumerState<GoogleAuthSection> {
                       semanticsLabel: 'Google',
                     ),
                   const SizedBox(width: 12),
-                  Text(
-                    state.isBusy
-                        ? 'Connecting to Google...'
-                        : 'Continue with Google',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  Flexible(
+                    child: Text(
+                      state.isBusy ? 'Connecting to Google...' : buttonLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ],
               ),
@@ -189,6 +194,19 @@ class _GoogleAuthSectionState extends ConsumerState<GoogleAuthSection> {
               const SizedBox(height: _cancelScrollClearance),
             ],
           ),
+        // "or" divider: the section sits above the email/password form,
+        // so the divider separates Google from the manual sign-in fields.
+        const SizedBox(height: MortSpacing.md),
+        const Row(
+          children: [
+            Expanded(child: Divider()),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: MortSpacing.sm),
+              child: Text('or'),
+            ),
+            Expanded(child: Divider()),
+          ],
+        ),
       ],
     );
   }
@@ -253,6 +271,7 @@ class _OAuthCallbackScreenState extends ConsumerState<OAuthCallbackScreen> {
           ),
         );
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.midnight,
       children: [
         MortHeader(
           eyebrow: 'Secure sign-in',
@@ -330,6 +349,7 @@ class _EmailConfirmationCallbackScreenState
     if (confirmed) _timeout?.cancel();
 
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.midnight,
       children: [
         MortHeader(
           eyebrow: 'Account security',
@@ -440,6 +460,7 @@ class _PasswordRecoveryCallbackScreenState
     if (authorized || _completed) _timeout?.cancel();
 
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.midnight,
       children: [
         MortHeader(
           eyebrow: 'Account security',
@@ -738,6 +759,7 @@ class _ConnectedAccountsScreenState
   @override
   Widget build(BuildContext context) {
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.midnight,
       children: [
         const MortHeader(
           eyebrow: 'Account security',

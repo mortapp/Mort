@@ -107,7 +107,8 @@ void main() {
       tester
           .widget<MortButton>(find.widgetWithText(MortButton, 'Call 911'))
           .onPressed,
-      isNull,
+      isNotNull,
+      reason: 'the action opens a confirmation sheet, not an immediate call',
     );
 
     await tester.binding.handlePopRoute();

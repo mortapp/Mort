@@ -138,11 +138,16 @@ async function readPayload(request: Request) {
   if (new TextEncoder().encode(rawBody).byteLength > maximumBodyBytes) {
     throw new FinancialReadHttpError("payload_too_large", 413);
   }
+  let payload: unknown;
   try {
-    return (rawBody.trim() ? JSON.parse(rawBody) : {}) as Record<string, unknown>;
+    payload = rawBody.trim() ? JSON.parse(rawBody) : {};
   } catch {
     throw new FinancialReadHttpError("invalid_json", 400);
   }
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new FinancialReadHttpError("invalid_body", 400);
+  }
+  return payload as Record<string, unknown>;
 }
 
 function optionalText(

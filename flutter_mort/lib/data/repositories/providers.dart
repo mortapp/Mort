@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/auth/oauth_flow.dart';
+import '../../core/config/app_config.dart';
 import '../models/profile.dart';
 import '../models/onboarding_progress.dart';
 import '../models/job.dart';
@@ -28,6 +29,7 @@ import 'monetization_repository.dart';
 import 'notifications_repository.dart';
 import 'observability_repository.dart';
 import 'profile_repository.dart';
+import 'progression_repository.dart';
 import 'reviews_repository.dart';
 import 'safety_repository.dart';
 import 'support_repository.dart';
@@ -174,25 +176,21 @@ final legalContractRepositoryProvider = Provider<LegalContractRepository>(
 // previously prompted an already-onboarded user to actually go re-accept it
 // -- it only surfaced if they happened to open the Legal Center themselves.
 // This mirrors the get_my_legal_requirements() shape (required + null
-// acceptance_id = outstanding) and fails open (false) on any error, since a
-// network hiccup here must never block app startup.
-final pendingRequiredLegalReacceptanceProvider = FutureProvider<bool>((
-  ref,
-) async {
-  try {
-    final result = await ref
-        .read(legalContractRepositoryProvider)
-        .legalRequirements();
-    final requirements = (result['requirements'] as List? ?? const []).map(
-      (item) => Map<String, dynamic>.from(item as Map),
-    );
-    return requirements.any(
-      (item) => item['required'] == true && item['acceptance_id'] == null,
-    );
-  } catch (_) {
-    return false;
-  }
-});
+// acceptance_id = outstanding). The user ID partitions cached results across
+// account changes; errors are surfaced so the app can keep required routes
+// gated until the server confirms current acceptance.
+final pendingRequiredLegalReacceptanceProvider =
+    FutureProvider.family<bool, String>((ref, userId) async {
+      final result = await ref
+          .read(legalContractRepositoryProvider)
+          .legalRequirements(expectedUserId: userId);
+      final requirements = (result['requirements'] as List? ?? const []).map(
+        (item) => Map<String, dynamic>.from(item as Map),
+      );
+      return requirements.any(
+        (item) => item['required'] == true && item['acceptance_id'] == null,
+      );
+    }, retry: (_, _) => null);
 final applicationsRepositoryProvider = Provider<ApplicationsRepository>(
   (ref) => ApplicationsRepository(),
 );
@@ -219,6 +217,16 @@ final trustSafetyRepositoryProvider = Provider<TrustSafetyRepository>(
 );
 final leaderboardRepositoryProvider = Provider<LeaderboardRepository>(
   (ref) => LeaderboardRepository(),
+);
+final progressionRepositoryProvider = Provider<ProgressionRepository>(
+  (ref) => ProgressionRepository(),
+);
+final myProgressionProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(progressionRepositoryProvider).getMyProgression(),
+);
+final progressionBoardProvider = FutureProvider.autoDispose.family(
+  (ref, String board) =>
+      ref.watch(progressionRepositoryProvider).getBoard(board),
 );
 final leaderboardProvider = FutureProvider.autoDispose(
   (ref) => ref.watch(leaderboardRepositoryProvider).getLeaderboard(limit: 5),
@@ -327,6 +335,15 @@ final oauthFlowStateProvider = StreamProvider<OAuthFlowSnapshot>((ref) async* {
   yield repository.oauthState;
   yield* repository.oauthStates;
 });
+
+/// Compile-time owner configuration (GOOGLE_AUTH_ENABLED) exposed as a
+/// provider so widgets read it uniformly and tests can override it.
+/// This is owner build configuration, not a debug/tester-only gate: normal
+/// public sign-in and sign-up show Google whenever the release build
+/// enables it.
+final googleAuthEnabledProvider = Provider<bool>(
+  (ref) => AppConfig.googleAuthEnabled,
+);
 
 final currentProfileProvider = FutureProvider<Profile?>((ref) async {
   ref.watch(authStateProvider);

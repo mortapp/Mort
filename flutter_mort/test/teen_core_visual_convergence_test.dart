@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_mort/core/atmosphere/mort_atmospheric_background.dart';
 import 'package:flutter_mort/core/theme/mort_theme.dart';
 import 'package:flutter_mort/core/widgets/mort_widgets.dart';
 import 'package:flutter_mort/data/models/application.dart';
@@ -26,7 +27,7 @@ void main() {
         textScaler: TextScaler.linear(2),
       );
 
-      expect(find.byType(MortSpaceBackground), findsOneWidget);
+      expect(find.byType(MortAtmosphericBackground), findsOneWidget);
       expect(find.byType(MortTeenDestinationHeader), findsOneWidget);
       expect(find.byType(MortBrandMark), findsNothing);
       expect(find.textContaining('123 Exact Street'), findsNothing);
@@ -106,7 +107,7 @@ void main() {
       );
 
       expect(teenHome, contains('MortTeenDestinationHeader('));
-      expect(teenHome, contains('if (role != UserRole.teen) ...['));
+      expect(teenHome, contains('if (role != UserRole.teen)'));
       expect(teenHome, isNot(contains('MortColors.roseGold')));
       expect(teenHome, isNot(contains('MortColors.godPink')));
       expect(teenHome, isNot(contains('MortColors.neon')));

@@ -32,9 +32,11 @@ if ($LASTEXITCODE -ne 0 -or ($jarsignerOutput -join "`n") -notmatch 'jar verifie
 }
 
 $ErrorActionPreference = 'Continue'
-$expected = & $keytool -list -v -keystore $signing.StorePath `
-  -storepass $signing.StorePassword -alias $signing.Alias 2>&1
-$expectedExitCode = $LASTEXITCODE
+$expectedResult = Invoke-MortKeytool -Executable $keytool `
+  -Arguments @('-list', '-v', '-keystore', $signing.StorePath, '-alias', $signing.Alias) `
+  -StorePassword $signing.StorePassword
+$expected = $expectedResult.Output
+$expectedExitCode = $expectedResult.ExitCode
 $actual = & $keytool -printcert -jarfile $BundlePath 2>&1
 $actualExitCode = $LASTEXITCODE
 $ErrorActionPreference = 'Stop'
@@ -90,9 +92,17 @@ foreach ($component in $exportedComponents) {
   $isPermissionProtectedFcmReceiver =
     $component.Value -match 'android:name="(?:io\.flutter\.plugins\.firebase\.messaging\.FlutterFirebaseMessagingReceiver|com\.google\.firebase\.iid\.FirebaseInstanceIdReceiver)"' -and
     $component.Value -match 'android:permission="com\.google\.android\.c2dm\.permission\.SEND"'
+  $isProtectedWorkManagerService =
+    $component.Value -match 'android:name="androidx\.work\.impl\.background\.systemjob\.SystemJobService"' -and
+    $component.Value -match 'android:permission="android\.permission\.BIND_JOB_SERVICE"'
+  $isProtectedWorkManagerDiagnostics =
+    $component.Value -match 'android:name="androidx\.work\.impl\.diagnostics\.DiagnosticsReceiver"' -and
+    $component.Value -match 'android:permission="android\.permission\.DUMP"'
   if (-not $isLauncher -and
       -not $isProtectedProfileInstaller -and
-      -not $isPermissionProtectedFcmReceiver) {
+      -not $isPermissionProtectedFcmReceiver -and
+      -not $isProtectedWorkManagerService -and
+      -not $isProtectedWorkManagerDiagnostics) {
     throw "AAB manifest contains an unexpected exported component: $($component.Value)"
   }
 }

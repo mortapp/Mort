@@ -106,6 +106,19 @@ Deno.test("financial document rejects malformed receipt identifiers", async () =
   assertEquals((await response.json()).code, "invalid_receipt_id");
 });
 
+Deno.test("financial document rejects a null JSON body as invalid input", async () => {
+  const handler = createFinancialDocumentReadHandler(documentDependencies());
+  const response = await handler(
+    new Request("http://localhost/stripe-get-financial-document", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "null",
+    }),
+  );
+  assertEquals(response.status, 400);
+  assertEquals(await response.json(), { ok: false, code: "invalid_body" });
+});
+
 Deno.test("financial document returns identical not-found behavior", async () => {
   const handler = createFinancialDocumentReadHandler(
     documentDependencies({ loadDocument: async () => null }),
@@ -150,6 +163,19 @@ Deno.test("financial history rejects malformed cursors", async () => {
   );
   assertEquals(response.status, 400);
   assertEquals((await response.json()).code, "invalid_cursor");
+});
+
+Deno.test("financial history rejects a null JSON body as invalid input", async () => {
+  const handler = createFinancialHistoryReadHandler(historyDependencies());
+  const response = await handler(
+    new Request("http://localhost/stripe-list-financial-history", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "null",
+    }),
+  );
+  assertEquals(response.status, 400);
+  assertEquals(await response.json(), { ok: false, code: "invalid_body" });
 });
 
 Deno.test("financial history validates page bounds before querying", async () => {

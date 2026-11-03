@@ -1,8 +1,27 @@
 # MORT Production Data Flow Map
 
-Audit date: 2026-08-29. Every entry is evidence-grounded (file paths cited); anything not directly verifiable from code is marked UNVERIFIED. "Dependency present" and "actively wired into the shipping build" are tracked separately — several integrations here are backend/SDK foundations that are **not yet reachable** in the current shipping build.
+Historical audit date: 2026-08-29. The detailed entries below describe the code and release state examined on that date; they are not a current release manifest.
 
-## Ground truth: the current shipping release profile
+## Current mobile distribution and push state — 2026-10-25
+
+The owner confirms MORT is in public production and supplied Google Play
+production-access evidence. The Flutter app now contains an FCM provider,
+permission and token lifecycle coordination, Supabase device registration,
+notification preferences, and notification-tap handling. Android release
+builds with remote push enabled require public `FIREBASE_*` client defines;
+the shared build script reads them from the process/user environment or
+`.env.local` and fails before compilation when a required value is missing.
+Firebase service-account credentials remain server-side.
+
+The hosted backend is a separate state: on 2026-10-25 its release policy was
+`closed_test` / `closed_pilot`, both remote-push gates were off, `pg_net` was
+disabled, and no `mort-send-push-every-minute` cron job existed. Therefore
+remote delivery was not active even though MORT is publicly distributed.
+See [PUSH_NOTIFICATIONS.md](PUSH_NOTIFICATIONS.md) for the current delivery
+contract and activation prerequisites. The dated audit below is retained as
+historical evidence and must not be read as current shipping configuration.
+
+## Ground truth recorded by the 2026-08-29 audit
 
 The single most load-bearing fact for this whole document is `scripts/build-standard-closed-test-apk.ps1`, which is what `.github/workflows/mort-signed-closed-test.yml` actually builds today:
 
@@ -20,7 +39,7 @@ The single most load-bearing fact for this whole document is `scripts/build-stan
 
 `scripts/build-production-pilot-aab.ps1` (the next stage up) additionally hard-fails today because `flutter_mort/lib/core/observability/production_crash_provider.dart` and `flutter_mort/lib/features/notifications/remote_push_service.dart` do not exist in the repo — so even the pilot profile that would turn on push/crash/ads cannot currently build. `scripts/build-production-public-aab.ps1` unconditionally throws `BLOCKED-EXTERNAL: public production requires approved identity provider, legal terms, moderation operations, native QA, push/crash providers, and audited server activation.`
 
-That means, as of today, only Google Sign-In is actually active among the optional integrations below; everything else optional is off.
+At the time of that audit, only Google Sign-In was active among the optional integrations below; the other optional integrations were off.
 
 ## Integrations
 
@@ -96,16 +115,16 @@ EVIDENCE=scripts/android-release-profile-common.ps1 GoogleAuthEnabled forbidden-
 
 ### Firebase / FCM (push notifications)
 ```
-ACTIVE_IN_PRODUCTION=NO
-DATA_SENT=none currently -- no push is sent
-PURPOSE=would be remote push notification delivery
-REQUIRED_OR_OPTIONAL=N/A (disabled)
+ACTIVE_IN_PRODUCTION=NO (MORT is publicly distributed; remote FCM delivery is disabled by the hosted backend gates)
+DATA_SENT=none while the hosted delivery gates are off; when enabled, an authorized FCM registration token and generic notification event metadata are processed
+PURPOSE=remote push notification delivery
+REQUIRED_OR_OPTIONAL=optional capability, disabled in the hosted backend snapshot dated 2026-10-25
 PROVIDER=Firebase / Google
-DISCLOSURE=not disclosed; would need disclosure once activated
-DATA_SAFETY_CATEGORY=Device or other IDs (push token) -- once active
-RETENTION=N/A while inactive
-DELETION_BEHAVIOR=push_tokens table has ON DELETE CASCADE from profiles (verified), so tokens are removed on deletion whenever they exist
-EVIDENCE=firebase_core/firebase_messaging ARE in flutter_mort/pubspec.yaml, and supabase/migrations/20260730090000_fcm_remote_push_foundation.sql + 20260730091000_fcm_device_limit_hardening.sql build the full backend (push_tokens table, device-limit hardening) -- but: (1) no flutter_mort/android/app/google-services.json exists in the repo or is injected by any CI workflow or build script (grep across .github/workflows/*.yml and scripts/*.ps1 found zero references), so the Firebase SDK cannot initialize; (2) scripts/build-standard-closed-test-apk.ps1 passes -RemotePushEnabled $false for the actual current shipping build; (3) scripts/build-production-pilot-aab.ps1, which would set RemotePushEnabled=$true, hard-fails at the top because flutter_mort/lib/features/notifications/remote_push_service.dart does not exist. Net: this is a real, substantial backend foundation with no live client wiring yet.
+DISCLOSURE=review current privacy and data-safety disclosures before enabling remote push
+DATA_SAFETY_CATEGORY=Device or other IDs (push token) when active
+RETENTION=token records are removed when devices are unregistered or their account is deleted
+DELETION_BEHAVIOR=push_tokens rows cascade on profile deletion; explicit unregister flow handles sign-out and user preference changes
+EVIDENCE=Flutter client implementation lives in flutter_mort/lib/services/push/remote_push_provider.dart, flutter_mort/lib/services/push/push_notification_coordinator.dart, and flutter_mort/lib/data/repositories/notifications_repository.dart. Firebase is initialized with explicit FirebaseOptions from Dart defines, so google-services.json is not required by this setup. The release builder supplies the public Android Firebase client defines when push is enabled and fails closed when they are missing. Supabase delivery requires both server gates, the sender Edge Function, provider secrets, and a scheduled invocation. Hosted gates were off and no cron schedule existed on 2026-10-25; see PUSH_NOTIFICATIONS.md.
 ```
 
 ### RevenueCat

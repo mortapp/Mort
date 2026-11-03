@@ -11,6 +11,7 @@ import 'core/routing/notification_destination.dart';
 import 'core/theme/mort_theme.dart';
 import 'core/widgets/app_lock_gate.dart';
 import 'core/widgets/auth_startup_gate.dart';
+import 'core/widgets/legal_reacceptance_gate.dart';
 import 'core/widgets/mort_widgets.dart';
 import 'core/observability/product_analytics.dart';
 import 'core/preferences/mort_experience_preferences.dart';
@@ -27,7 +28,6 @@ class MortApp extends ConsumerStatefulWidget {
 
 class _MortAppState extends ConsumerState<MortApp> with WidgetsBindingObserver {
   String? _lastStartupNavigationKey;
-  String? _promptedLegalReacceptanceForUserId;
   StreamSubscription? _foregroundPushSubscription;
   StreamSubscription? _openedPushSubscription;
   late final _router = ref.read(appRouterProvider);
@@ -83,6 +83,14 @@ class _MortAppState extends ConsumerState<MortApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     AppLockController.instance.handleLifecycle(state);
+    if (state == AppLifecycleState.resumed) {
+      final snapshot = ref.read(authStartupProvider).snapshot;
+      final userId = snapshot.userId;
+      if (snapshot.stage == MortAuthStartupStage.authenticated &&
+          userId != null) {
+        ref.invalidate(pendingRequiredLegalReacceptanceProvider(userId));
+      }
+    }
   }
 
   @override
@@ -101,19 +109,6 @@ class _MortAppState extends ConsumerState<MortApp> with WidgetsBindingObserver {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) router.go(snapshot.destination!);
       });
-    }
-    if (snapshot.stage == MortAuthStartupStage.authenticated &&
-        snapshot.userId != null &&
-        snapshot.userId != _promptedLegalReacceptanceForUserId) {
-      final pendingReacceptance = ref.watch(
-        pendingRequiredLegalReacceptanceProvider,
-      );
-      if (pendingReacceptance.asData?.value == true) {
-        _promptedLegalReacceptanceForUserId = snapshot.userId;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) router.go('/legal-center');
-        });
-      }
     }
     return MaterialApp.router(
       onGenerateTitle: (context) => MortLocalizations.of(context).appTitle,
@@ -140,7 +135,12 @@ class _MortAppState extends ConsumerState<MortApp> with WidgetsBindingObserver {
             preferences: preferences,
             child: AuthStartupGate(
               controller: startup,
-              child: AppLockGate(child: child ?? const SizedBox.shrink()),
+              child: LegalReacceptanceGate(
+                userId: snapshot.stage == MortAuthStartupStage.authenticated
+                    ? snapshot.userId
+                    : null,
+                child: AppLockGate(child: child ?? const SizedBox.shrink()),
+              ),
             ),
           ),
         );

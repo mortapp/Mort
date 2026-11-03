@@ -13,6 +13,7 @@ class JobPaymentHistoryScreen extends StatefulWidget {
     this.backendUnavailable = false,
     this.isOffline = false,
     this.loadError,
+    this.onRetry,
     this.onLoadMore,
     this.hasNextPage = false,
   });
@@ -22,6 +23,7 @@ class JobPaymentHistoryScreen extends StatefulWidget {
   final bool backendUnavailable;
   final bool isOffline;
   final Object? loadError;
+  final VoidCallback? onRetry;
   final VoidCallback? onLoadMore;
   final bool hasNextPage;
 
@@ -88,13 +90,20 @@ class _JobPaymentHistoryScreenState extends State<JobPaymentHistoryScreen> {
           onYearChanged: (value) => setState(() => _year = value),
         ),
         const SizedBox(height: MortSpacing.md),
-        if (widget.backendUnavailable)
+        if (widget.backendUnavailable) ...[
           const MortErrorState(
             title: 'Payment history is not available yet',
             message:
                 'MORT does not have an authoritative payment-history backend for this account.',
-          )
-        else if (widget.isLoading)
+          ),
+          if (widget.onRetry != null)
+            MortButton(
+              label: 'Try again',
+              icon: Icons.refresh,
+              style: MortButtonStyle.secondary,
+              onPressed: widget.onRetry,
+            ),
+        ] else if (widget.isLoading)
           const Center(
             child: Padding(
               padding: EdgeInsets.all(24),
@@ -134,6 +143,8 @@ class _JobPaymentHistoryScreenState extends State<JobPaymentHistoryScreen> {
             icon: Icons.expand_more,
             style: MortButtonStyle.secondary,
             onPressed: widget.onLoadMore,
+            busy: widget.onLoadMore == null,
+            busyLabel: 'Loading more',
           ),
       ],
     );

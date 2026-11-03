@@ -59,10 +59,24 @@ try {
     }
   }
 
-  Invoke-Step 'Supabase CLI discovery' 'npx supabase --help; npx supabase migration --help' {
-    & npx supabase --help *> $null
+  Invoke-Step 'Docker image pull retry contract' 'scripts/tests/local-supabase-image-pull-retry.ps1' {
+    & (Join-Path $PSScriptRoot 'tests\local-supabase-image-pull-retry.ps1')
+    if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+      throw 'Docker image pull retry regression test failed.'
+    }
+  }
+
+  Invoke-Step 'Fresh Supabase migration preflight contract' 'scripts/tests/fresh-supabase-dry-run-before-push.ps1' {
+    & (Join-Path $PSScriptRoot 'tests\fresh-supabase-dry-run-before-push.ps1')
+    if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+      throw 'Fresh Supabase migration preflight regression test failed.'
+    }
+  }
+
+  Invoke-Step 'Supabase CLI discovery' 'pnpm exec supabase --help; pnpm exec supabase migration --help' {
+    & pnpm exec supabase --help *> $null
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    & npx supabase migration --help *> $null
+    & pnpm exec supabase migration --help *> $null
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
   }
 
@@ -71,10 +85,13 @@ try {
     try {
       $env:MORT_LOCAL_SUPABASE_CONFIRM = 'LOCAL_ONLY'
       Invoke-Step 'Start local Supabase' 'scripts/local-supabase-start.ps1' {
-        & (Join-Path $PSScriptRoot 'local-supabase-start.ps1')
+        & (Join-Path $PSScriptRoot 'local-supabase-start.ps1') -Minimal
       }
       Invoke-Step 'Local Supabase reset' 'scripts/local-supabase-reset.ps1' {
         & (Join-Path $PSScriptRoot 'local-supabase-reset.ps1')
+      }
+      Invoke-Step 'Local pgTAP database tests' 'npx supabase test db --local' {
+        & npx supabase test db --local
       }
       Invoke-Step 'Local migration list' 'npx supabase migration list --local' {
         & npx supabase migration list --local
@@ -116,8 +133,8 @@ try {
     & node (Join-Path $PSScriptRoot 'qa-stripe-pre-provider-gate.mjs')
   }
 
-  Invoke-Step 'Stripe Edge Function Deno tests' 'deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests' {
-    & deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests
+  Invoke-Step 'Stripe Edge Function Deno tests' 'deno test --node-modules-dir=auto --allow-read --allow-env --allow-run=docker supabase/functions/_tests' {
+    & deno test --node-modules-dir=auto --allow-read --allow-env --allow-run=docker supabase/functions/_tests
   }
 
   if (-not [string]::IsNullOrWhiteSpace($env:SUPABASE_ACCESS_TOKEN)) {

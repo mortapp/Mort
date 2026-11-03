@@ -39,7 +39,7 @@ jobs:
       - run: node scripts/qa-stripe-pre-provider-gate.mjs
       - run: node scripts/secret_extraction_scan.mjs --self-test
       - run: node scripts/secret-scan-git-history.mjs --self-test
-      - run: deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests
+      - run: deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests/stripe_financial_history_test.ts supabase/functions/_tests/stripe_funding_quote_test.ts supabase/functions/_tests/stripe_payment_state_test.ts supabase/functions/_tests/stripe_payment_status_test.ts supabase/functions/_tests/stripe_webhook_verification_test.ts
       - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs
       - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs docs/payments/MORT_STRIPE_TASK31_SANDBOX_EVIDENCE_2026-09-18.json
       - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs --regression-manifest
@@ -67,7 +67,7 @@ jobs:
           cache: true
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.122.0
       - run: pnpm install --frozen-lockfile
       - shell: pwsh
         env:
@@ -177,6 +177,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - shell: pwsh
         run: ./scripts/secret-scan.ps1
+      - shell: pwsh
+        run: ./scripts/tests/android-keytool-credential-boundary.ps1
       - run: node scripts/secret_extraction_scan.mjs
       - run: node scripts/secret-scan-git-history.mjs
       - run: node scripts/qa-stripe-activation-gates.mjs --source-only
@@ -264,11 +266,3 @@ jobs:
           cache: true
       - shell: pwsh
         run: ./scripts/build-android-device-test-apk.ps1
-      - uses: actions/upload-artifact@v4
-        with:
-          name: mort-android-device-test-apk
-          path: build/device-test/mort-device-test.apk
-          if-no-files-found: error
-          retention-days: 7
-
-

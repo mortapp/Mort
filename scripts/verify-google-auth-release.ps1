@@ -5,6 +5,23 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $root = Split-Path $PSScriptRoot -Parent
+. (Join-Path $PSScriptRoot 'android-signing-common.ps1')
+$supabaseUrl = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_URL' -ExpoName 'EXPO_PUBLIC_SUPABASE_URL' -Root $root
+$supabaseUri = $null
+if (-not [Uri]::TryCreate($supabaseUrl, [UriKind]::Absolute, [ref]$supabaseUri) -or
+    $supabaseUri.Scheme -ne 'https' -or
+    $supabaseUri.Host -notmatch '^(?<projectRef>[a-z0-9]+)\.supabase\.co$') {
+  throw 'Google Auth release verification requires an HTTPS Supabase project URL.'
+}
+$expectedProjectRef = $Matches.projectRef
+$configuredExpectedProjectRef = Get-MortPublicConfigValue `
+  -PrimaryName 'MORT_EXPECTED_SUPABASE_PROJECT_REF' `
+  -ExpoName 'MORT_EXPECTED_SUPABASE_PROJECT_REF' `
+  -Root $root
+if (-not [string]::IsNullOrWhiteSpace($configuredExpectedProjectRef) -and
+    $configuredExpectedProjectRef.Trim() -ne $expectedProjectRef) {
+  throw 'Configured Supabase project reference does not match SUPABASE_URL.'
+}
 $versionJson = & node (Join-Path $PSScriptRoot 'read-mobile-version.mjs') --json
 if ($LASTEXITCODE -ne 0) { throw 'Could not read the authoritative mobile version.' }
 $version = $versionJson | ConvertFrom-Json
@@ -32,7 +49,7 @@ foreach ($entry in @(
   }
   if ($manifest.releaseStage -ne 'closed_test' -or
       $manifest.operationalMode -ne 'closed_pilot' -or
-      $manifest.supabaseProjectRef -ne 'rakjydmgwwgtdislanbt') {
+      $manifest.supabaseProjectRef -ne $expectedProjectRef) {
     throw "$($entry.Kind) build manifest has the wrong release identity."
   }
   if (-not $manifest.flags.googleAuthEnabled -or

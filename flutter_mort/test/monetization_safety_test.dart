@@ -36,6 +36,34 @@ void main() {
     }
   });
 
+  test('ad-free or unknown server entitlements block ads', () {
+    const service = AdMobService();
+
+    expect(
+      service.entitlementsAllowAds({
+        'ad_free_active': false,
+        'premium_active': false,
+      }),
+      isTrue,
+    );
+    expect(
+      service.entitlementsAllowAds({
+        'ad_free_active': true,
+        'premium_active': false,
+      }),
+      isFalse,
+    );
+    expect(
+      service.entitlementsAllowAds({
+        'ad_free_active': false,
+        'premium_active': true,
+      }),
+      isFalse,
+    );
+    expect(service.entitlementsAllowAds(null), isFalse);
+    expect(service.entitlementsAllowAds({'ad_free_active': false}), isFalse);
+  });
+
   test('RevenueCat is guarded off on unsupported test platform', () {
     final status = RevenueCatService.instance.status(supabaseUserId: 'user-id');
     expect(status.available, isFalse);

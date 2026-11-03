@@ -54,19 +54,29 @@ class NotificationPreferences {
 class PushRegistrationStatus {
   const PushRegistrationStatus({
     required this.remotePushEnabled,
+    required this.pushPreferenceEnabled,
+    required this.deliveryAvailable,
     required this.activeDeviceCount,
     required this.provider,
     required this.providerDeliveryVerified,
   });
 
+  /// Effective remote push state after both the user preference and server
+  /// delivery policy have been applied.
   final bool remotePushEnabled;
+  final bool pushPreferenceEnabled;
+  final bool deliveryAvailable;
   final int activeDeviceCount;
   final String provider;
   final bool providerDeliveryVerified;
 
   factory PushRegistrationStatus.fromMap(Map<String, dynamic> map) =>
       PushRegistrationStatus(
-        remotePushEnabled: map['remote_push_enabled'] == true,
+        remotePushEnabled:
+            map['remote_push_enabled'] == true &&
+            map['delivery_available'] == true,
+        pushPreferenceEnabled: map['push_preference_enabled'] == true,
+        deliveryAvailable: map['delivery_available'] == true,
         activeDeviceCount: (map['active_device_count'] as num?)?.toInt() ?? 0,
         provider: map['provider']?.toString() ?? 'fcm',
         providerDeliveryVerified: map['provider_delivery_verified'] == true,
@@ -136,10 +146,18 @@ class NotificationsRepository extends RepositoryBase {
 
   Future<PushRegistrationStatus> getPushStatus() async {
     final response = Map<String, dynamic>.from(
-      await client.rpc('get_my_push_status') as Map,
+      await client.rpc('get_my_push_status_v2') as Map,
     );
     _requireOk(response);
     return PushRegistrationStatus.fromMap(response);
+  }
+
+  Future<bool> getPushDeliveryAvailability() async {
+    final response = Map<String, dynamic>.from(
+      await client.rpc('get_push_delivery_availability') as Map,
+    );
+    _requireOk(response);
+    return response['delivery_available'] == true;
   }
 
   Future<void> registerDevice({

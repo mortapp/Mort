@@ -1,6 +1,6 @@
 # MORT Firebase Push Owner Setup
 
-Updated: 2026-07-30
+Updated: 2026-10-26
 
 No credential is included in this document or in mobile source.
 
@@ -16,11 +16,52 @@ No credential is included in this document or in mobile source.
    `FCM_SERVICE_ACCOUNT_PRIVATE_KEY`.
 5. Keep `SEND_PUSH_INVOKE_SECRET` server-only. Rotate it if its custody is ever
    uncertain.
-6. Supply Firebase public client values to the release build using the
-   `MORT_FIREBASE_*` Dart defines documented in `AppConfig`; do not commit a
-   generated configuration file containing environment-specific values.
-7. Set the hosted remote-push runtime flag only after the credential and device
+6. After applying `mort_push_delivery_scheduler` through the approved hosted
+   migration process, add these values to Supabase Vault:
+   - `mort_supabase_url`: the MORT project URL from Supabase API settings.
+   - `mort_supabase_anon_key`: the current legacy anon JWT from Supabase API
+     settings. Do not use a service-role key for the scheduled invocation.
+   - `mort_send_push_invoke_secret`: the same protected value already used for
+     the `SEND_PUSH_INVOKE_SECRET` Edge Function secret.
+7. For an Android build with remote push enabled, provide these public client
+   values in the process/user environment or the ignored repository-root
+   `.env.local` file: `FIREBASE_PROJECT_ID`,
+   `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_ANDROID_API_KEY`, and
+   `FIREBASE_ANDROID_APP_ID`. `FIREBASE_STORAGE_BUCKET` is optional. The shared
+   Android release builder passes them as Dart defines and stops if a required
+   value is missing. Provide `SENTRY_DSN` the same way when crash reporting is
+   enabled. These are client configuration values; never put Firebase service
+   account credentials in the app or its build defines.
+8. Set the hosted remote-push runtime flag only after the credential and device
    checks below pass.
+
+Use the Supabase Dashboard SQL Editor with the protected values sourced from
+their approved settings; never place values in this repository or runbook:
+
+```sql
+select vault.create_secret('<MORT project URL>', 'mort_supabase_url');
+select vault.create_secret('<current MORT legacy anon JWT>', 'mort_supabase_anon_key');
+select vault.create_secret('<existing SEND_PUSH_INVOKE_SECRET value>', 'mort_send_push_invoke_secret');
+```
+
+The scheduler calls the active `send-push` Edge Function only when both backend
+push gates are on, all three Vault entries are present, and the URL matches
+MORT's Supabase project. Its Cron job runs once per minute. Do not enable the
+runtime flag until the FCM Edge Function secrets are installed and device
+delivery checks pass.
+
+To verify the schedule without reading secret values or request headers:
+
+```sql
+select jobname, schedule, active
+from cron.job
+where jobname = 'mort-send-push';
+
+select created, status_code, error_msg
+from net._http_response
+order by created desc
+limit 20;
+```
 
 ## Required Device Verification
 
@@ -38,9 +79,35 @@ No credential is included in this document or in mobile source.
 
 ## Current Hosted State
 
+- Google Play production access/public availability is separate from Supabase's
+  backend release policy and push-delivery flags. MORT is in public production
+  on Google Play; this runbook describes backend delivery controls, not Play
+  distribution.
 - `send-push`: ACTIVE, JWT verification enabled.
-- Server invoke secret: present.
-- FCM provider secrets: absent.
-- Database and client remote-push flags: false.
+- Hosted `send-push` is version 31 and its deployed `index.ts` matches this
+  checkout byte-for-byte (SHA-256 comparison). The Edge Function secret-name
+  list includes `SEND_PUSH_INVOKE_SECRET`, `SUPABASE_URL`, and
+  `SUPABASE_SERVICE_ROLE_KEY`; only names were inspected, never values.
+- The three required FCM Edge Function secret names are absent:
+  `FCM_PROJECT_ID`, `FCM_SERVICE_ACCOUNT_EMAIL`, and
+  `FCM_SERVICE_ACCOUNT_PRIVATE_KEY`. FCM delivery cannot succeed until the
+  owner provisions the approved Firebase service credential.
+- Hosted backend release policy: `closed_test` / `closed_pilot`; public
+  marketplace and remote push are disabled in that backend policy.
+- Remote-push policy and runtime flags: false, confirmed by a read-only check on
+  2026-10-26.
+- All three scheduler Vault entries: absent from Supabase Vault as of the
+  2026-10-26 read-only check. Only secret names were queried; secret values
+  were not read.
 - Real FCM delivery: not verified.
+- `pg_cron` is enabled; `pg_net` is not installed.
+- No `mort-send-push` schedule is configured. The hosted database currently
+  has three other active MORT cron jobs.
+- The repository contains a fail-closed scheduler migration, but it has not been
+  applied to the hosted database. Hosted migration history must be reconciled
+  through the approved owner process before any migration is applied.
+- The hosted migration history currently has 275 records and ends at
+  `20261012014250`; this checkout has 248 migration files. There are 34 hosted-
+  only versions and 7 checkout-only versions, so do not apply or repair
+  migrations until their mapping has been reviewed against the hosted schema.
 

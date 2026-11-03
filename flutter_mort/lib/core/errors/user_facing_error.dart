@@ -170,6 +170,10 @@ String applicationErrorMessage(String code, {String? fallback}) {
       'You have reached today\'s support ticket limit. Add updates to an existing ticket or try again tomorrow.',
     'proof_file_size_invalid' => 'Choose a proof image smaller than 10 MB.',
     'proof_file_type_invalid' => 'Choose a JPEG, PNG, or WebP proof image.',
+    'proof_image_dimensions_invalid' =>
+      'Choose a proof image under 24 megapixels and 12,000 pixels per side.',
+    'avatar_image_dimensions_invalid' =>
+      'Choose a profile photo under 16 megapixels and 12,000 pixels per side.',
     'invalid_proof_submission' => 'Start a new proof upload and try again.',
     'invalid_proof_path' || 'proof_object_not_found' =>
       'The proof upload could not be verified. Choose the photo again and retry.',
@@ -179,6 +183,8 @@ String applicationErrorMessage(String code, {String? fallback}) {
       'Choose a verification image smaller than 10 MB.',
     'verification_file_type_invalid' =>
       'Choose a JPEG, PNG, or WebP verification image.',
+    'verification_image_dimensions_invalid' =>
+      'Choose a verification image under 24 megapixels and 12,000 pixels per side.',
     'invalid_verification_submission' =>
       'Start a new verification request and try again.',
     'invalid_verification_details' =>

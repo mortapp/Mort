@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/errors/user_facing_error.dart';
 import '../../core/routing/notification_destination.dart';
@@ -78,7 +79,69 @@ class _NotificationCenterScreenState
     setState(() => _settingsFuture = _loadSettings());
   }
 
+  /// Master contract 106: explain what push alerts are and what they never
+  /// contain BEFORE the OS permission request. Returns true only when the
+  /// user explicitly chose Allow.
+  Future<bool> _showPushEducationDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Allow device alerts?'),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'MORT can alert you about applications, messages, jobs, safety check-ins, guardian updates, and support replies.',
+              ),
+              SizedBox(height: MortSpacing.sm),
+              Text(
+                'Lock-screen alerts use generic text only. MORT never puts exact addresses, job PINs, evidence, verification documents, or private message text in a push notification.',
+              ),
+              SizedBox(height: MortSpacing.sm),
+              Text(
+                'Safety and account-security alerts are never delayed by quiet hours. You can turn alerts off at any time.',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Not now'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Allow alerts'),
+          ),
+        ],
+      ),
+    );
+    return result == true;
+  }
+
   Future<void> _setPushEnabled(bool enabled) async {
+    if (_settingsBusy) return;
+    if (enabled) {
+      final current = await PushNotificationCoordinator.instance
+          .permissionStatus();
+      if (current == RemotePushPermission.denied) {
+        if (mounted) {
+          setState(() => _settingsFuture = _loadSettings());
+          MortToast.show(
+            context,
+            'Device permission is denied. Open device settings to allow alerts.',
+          );
+        }
+        return;
+      }
+      if (current == RemotePushPermission.notDetermined) {
+        if (!mounted) return;
+        final allowed = await _showPushEducationDialog();
+        if (!allowed) return;
+      }
+    }
     if (_settingsBusy) return;
     setState(() => _settingsBusy = true);
     try {
@@ -295,7 +358,10 @@ class _NotificationCenterScreenState
   Widget _buildSettings(_NotificationSettingsSnapshot snapshot) {
     final preferences = snapshot.preferences;
     final coordinator = PushNotificationCoordinator.instance;
-    final providerAvailable = coordinator.configured;
+    final providerAvailable =
+        coordinator.configured && snapshot.status.deliveryAvailable;
+    final canChangePushPreference =
+        preferences.pushEnabled || providerAvailable;
     return MortCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -303,19 +369,51 @@ class _NotificationCenterScreenState
           Text('Device alerts', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: MortSpacing.xs),
           Text(
-            providerAvailable
-                ? '${snapshot.status.activeDeviceCount} active device${snapshot.status.activeDeviceCount == 1 ? '' : 's'} using FCM.'
-                : 'Remote alerts are not configured in this build. In-app updates remain available.',
+            !coordinator.configured
+                ? 'Remote alerts are not configured in this build. In-app updates remain available.'
+                : !snapshot.status.deliveryAvailable
+                ? 'MORT remote alert delivery is currently unavailable. In-app updates remain available.'
+                : '${snapshot.status.activeDeviceCount} active device${snapshot.status.activeDeviceCount == 1 ? '' : 's'} using FCM.',
           ),
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
             title: const Text('Allow remote alerts'),
-            subtitle: Text(_permissionLabel(snapshot.permission)),
-            value: preferences.pushEnabled && providerAvailable,
-            onChanged: _settingsBusy || !providerAvailable
+            subtitle: Text(
+              preferences.pushEnabled && !providerAvailable
+                  ? 'Your alert preference is saved, but remote delivery is unavailable. You can still turn alerts off.'
+                  : _permissionLabel(snapshot.permission),
+            ),
+            value: preferences.pushEnabled,
+            onChanged: _settingsBusy || !canChangePushPreference
                 ? null
                 : _setPushEnabled,
           ),
+          if (snapshot.permission == RemotePushPermission.denied) ...[
+            // Master contract 107: when the OS denied push, provide the
+            // Open Settings escape hatch instead of a dead switch.
+            MortCard(
+              color: MortColors.warning.withValues(alpha: 0.12),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.notifications_off_outlined,
+                    color: MortColors.warning,
+                  ),
+                  const SizedBox(width: MortSpacing.sm),
+                  const Expanded(
+                    child: Text(
+                      'Device alerts were denied in system settings. MORT cannot request them again from inside the app.',
+                    ),
+                  ),
+                  MortSecondaryButton(
+                    label: 'Open Settings',
+                    onPressed: openAppSettings,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: MortSpacing.sm),
+          ],
           const Divider(),
           Text(
             'Alert categories',

@@ -25,6 +25,7 @@ class MortAuthStartupSnapshot {
     required this.stage,
     this.destination,
     this.userId,
+    this.underAgeOfConsent,
     this.message,
   });
 
@@ -34,6 +35,7 @@ class MortAuthStartupSnapshot {
   final MortAuthStartupStage stage;
   final String? destination;
   final String? userId;
+  final bool? underAgeOfConsent;
   final String? message;
 
   bool get blocksNavigation => switch (stage) {
@@ -229,6 +231,11 @@ MortAuthStartupSnapshot routeAuthenticatedProfile({
     stage: MortAuthStartupStage.authenticated,
     destination: destination,
     userId: userId,
+    underAgeOfConsent: switch (role) {
+      'teen' => true,
+      'adult' => false,
+      _ => null,
+    },
   );
 }
 
@@ -431,6 +438,7 @@ class AuthStartupController extends ChangeNotifier {
         initialRecoveryGrace,
         onTimeout: () async {
           await Future<void>.delayed(const Duration(milliseconds: 250));
+          if (completer.isCompleted) return completer.future;
           return _gateway.currentSession;
         },
       );
@@ -543,3 +551,7 @@ final authStartupProvider = ChangeNotifierProvider<AuthStartupController>((
   unawaited(controller.start());
   return controller;
 });
+
+final authStartupSnapshotProvider = Provider<MortAuthStartupSnapshot>(
+  (ref) => ref.watch(authStartupProvider).snapshot,
+);

@@ -123,23 +123,30 @@ async function checkPaymentSheetContract(scope) {
   const edge = await text("supabase/functions/stripe-create-job-payment-intent/index.ts");
   const client = await text("flutter_mort/lib/features/payments/stripe_payment_sheet_service.dart");
   const config = await text("flutter_mort/lib/core/config/app_config.dart");
+  const screen = await text("flutter_mort/lib/features/payments/stripe_marketplace_screens.dart");
   const pubspec = await text("flutter_mort/pubspec.yaml");
   assertQa(edge.includes("payment_intent_client_secret") && edge.includes("customer_ephemeral_key_secret"), "server Payment Sheet contract is incomplete");
-  assertQa(client.includes("stripe_sandbox_configuration_invalid"), "sandbox Payment Sheet configuration gate is absent");
-  assertQa(config.includes("nativeStripePaymentSheetCompiledIn = true"), "native Stripe compilation boundary is not explicit");
-  assertQa(pubspec.includes("flutter_stripe:"), "sandbox PaymentSheet SDK is not declared");
-  assertQa(client.includes("initPaymentSheet") && client.includes("presentPaymentSheet"), "PaymentSheet execution is not wired");
-  assertQa(client.includes("pk_test_"), "PaymentSheet does not reject non-test publishable keys");
-  qaLog(scope, "sandbox PaymentSheet is compiled and executable only behind test-key validation while public activation remains separately gated");
+  assertQa(client.includes("marketplace_payments_disabled"), "Flutter payment service does not fail closed");
+  assertQa(config.includes("nativeStripePaymentSheetCompiledIn = false"), "native Stripe SDK must remain excluded from this release");
+  assertQa(config.includes("supportsStripePaymentSheet => false"), "Stripe Payment Sheet support gate is not disabled");
+  assertQa(screen.includes("fundingEnabled && nativeSupported && !_busy"), "marketplace funding controls are not disabled without server and native support");
+  assertQa(!pubspec.includes("flutter_stripe:"), "Stripe Payment Sheet SDK is unexpectedly compiled into this release");
+  qaLog(scope, "Flutter keeps marketplace funding disabled without the native Stripe SDK while the backend payment contract remains separately gated");
 }
 
 async function checkWebhookSignature(scope) {
   const webhook = await text("supabase/functions/stripe-webhook/index.ts");
   const verification = await text("supabase/functions/stripe-webhook/verification.ts");
+  const migration = await text("supabase/migrations/20261025012531_mort_financial_integrity_and_webhook_fencing.sql");
   assertQa(webhook.includes("await request.text()"), "webhook does not preserve raw body");
   assertQa(verification.includes("constructEventAsync(rawBody, signature"), "Stripe signature verification is absent");
-  assertQa(webhook.includes("verifyWebhookEvent(runtime.stripe, rawBody, signature"), "webhook source verification is not enforced before dispatch");
-  qaLog(scope, "webhook verifies Stripe-Signature against the untouched raw body before dispatch");
+  assertQa(webhook.includes("await verifyWebhookEvent("), "webhook handler does not invoke source-aware signature verification");
+  assertQa(webhook.includes("runtime.connectWebhookSecret"), "Connect webhook signing secret is not wired to verification");
+  const routeCheckIndex = webhook.indexOf("assertWebhookEventRoute(event, verified.source)");
+  const claimIndex = webhook.indexOf('"stripe_server_claim_webhook_event"');
+  assertQa(routeCheckIndex >= 0 && claimIndex > routeCheckIndex, "webhook source/event allowlist is not checked before dispatch");
+  assertQa(migration.includes("'payment_intent.requires_action'"), "requires_action is not accepted by the webhook SQL dispatcher");
+  qaLog(scope, "webhook verifies raw-body signatures against platform or Connect secrets and routes only allowed source/event pairs before database dispatch");
 }
 
 async function checkWebhookReplay(scope) {
@@ -251,8 +258,8 @@ async function checkGooglePlayBoundary(scope) {
   assertQa(!pubspec.includes("purchases_flutter"), "legacy RevenueCat SDK returned to the signed client");
   assertQa(!pubspec.includes("in_app_purchase:"), "Google Play Billing SDK is compiled into an IAP-disabled release");
   assertQa(!manifest.includes("com.android.vending.BILLING"), "Android billing permission is present in an IAP-disabled release");
-  assertQa(config.includes("nativeBillingCompiledIn = false") && config.includes("nativeStripePaymentSheetCompiledIn = true"), "native financial compilation gates are not explicit");
-  qaLog(scope, "Google Play Billing remains absent while sandbox Stripe PaymentSheet is the separate physical-service payment surface");
+  assertQa(config.includes("nativeBillingCompiledIn = false") && config.includes("nativeStripePaymentSheetCompiledIn = false"), "native billing and Stripe compilation gates are not explicitly disabled");
+  qaLog(scope, "Google Play Billing and Stripe Payment Sheet remain absent from the native client while marketplace payments are disabled");
 }
 
 async function checkSavedPaymentConsent(scope) {
@@ -292,11 +299,13 @@ async function checkResolutionIdempotency(scope) {
 async function checkRefundWebhookReconciliation(scope) {
   const apply = await functionSource("public.stripe_server_apply_refund_event");
   const webhook = await text("supabase/functions/stripe-webhook/index.ts");
+  const migration = await text("supabase/migrations/20261025012531_mort_financial_integrity_and_webhook_fencing.sql");
   assertQa(apply.includes("stripe_refund_total_exceeds_capture"), "webhook refund total is not capture bounded");
   assertQa(apply.includes("provider_refund_id"), "refund provider reference is not reconciled");
-  assertQa(webhook.includes('"charge.refunded"') && webhook.includes("applyRefund"), "charge/refund webhook events are not reconciled");
+  assertQa(webhook.includes('"charge.refunded"') && webhook.includes("normalizeRefund"), "charge/refund webhook events are not normalized");
+  assertQa(migration.includes("elsif p_event_type = 'charge.refunded'") && migration.includes("public.stripe_server_apply_refund_event"), "charge.refunded does not dispatch through the database reconciliation path");
   assertQa(!webhook.includes('"refund_reconciliation_required"'), "refund events are still ignored");
-  qaLog(scope, "verified refund and charge.refunded events reconcile idempotent private payment state");
+  qaLog(scope, "verified refund events are normalized in the webhook and reconciled by the fenced database dispatcher");
 }
 
 async function checkPolicyVersioning(scope) {

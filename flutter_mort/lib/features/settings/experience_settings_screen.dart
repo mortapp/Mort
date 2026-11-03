@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../../core/config/app_config.dart';
 import '../../core/errors/user_facing_error.dart';
 import '../../core/preferences/mort_experience_preferences.dart';
 import '../../core/theme/mort_colors.dart';
@@ -29,6 +30,7 @@ class ExperienceSettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final preferences = ref.watch(mortExperiencePreferencesProvider);
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.settings,
       children: [
         MortGlassHeader(
           eyebrow: appearanceFirst ? 'Appearance' : 'Accessibility',
@@ -155,6 +157,7 @@ class PrivacySettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MortScreen(
+    atmosphereIntensity: MortAtmosphereIntensity.settings,
     children: [
       const MortGlassHeader(
         eyebrow: 'Privacy',
@@ -207,6 +210,7 @@ class SafetySettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MortScreen(
+    atmosphereIntensity: MortAtmosphereIntensity.settings,
     children: [
       const MortGlassHeader(
         eyebrow: 'Safety',
@@ -263,6 +267,7 @@ class DataControlsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MortScreen(
+    atmosphereIntensity: MortAtmosphereIntensity.settings,
     children: [
       const MortGlassHeader(
         eyebrow: 'Data controls',
@@ -311,17 +316,20 @@ class AboutMortScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MortScreen(
+    atmosphereIntensity: MortAtmosphereIntensity.settings,
     children: [
       const MortGlassHeader(
         eyebrow: 'About',
         title: 'MORT',
         subtitle: 'Safe neighborhood jobs. For teens. By community.',
       ),
-      FutureBuilder<PackageInfo>(
-        future: PackageInfo.fromPlatform(),
+      FutureBuilder<PackageInfo?>(
+        // Bounded read: a hung plugin call must never leave About stuck
+        // on a skeleton.
+        future: AppConfig.tryReadPackageInfo(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const MortSkeletonCard();
-          final package = snapshot.requireData;
+          final package = snapshot.data;
+          if (package == null) return const MortSkeletonCard();
           return MortGlassCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

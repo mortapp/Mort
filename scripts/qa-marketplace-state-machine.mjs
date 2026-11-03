@@ -72,7 +72,21 @@ await withQaUsers(
       transportation_considerations: "The general downtown area has sidewalks.",
       adult_job_amount_cents: 2300,
     });
-    assertQa(alpha.result?.ok === true && beta.result?.ok === true, "paging fixtures did not publish");
+    assertQa(
+      alpha.result?.ok === true && beta.result?.ok === true,
+      `paging fixtures did not publish: ${JSON.stringify([
+        {
+          fixture: "alpha",
+          ok: alpha.result?.ok === true,
+          code: alpha.result?.code ?? "unknown",
+        },
+        {
+          fixture: "beta",
+          ok: beta.result?.ok === true,
+          code: beta.result?.code ?? "unknown",
+        },
+      ])}`,
+    );
 
     const first = await feed(teen.client);
     assertQa(!first.error && first.data?.ok === true, `first feed page failed: ${first.error?.message}`);

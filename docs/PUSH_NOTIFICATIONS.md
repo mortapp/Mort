@@ -1,98 +1,56 @@
-﻿# Push Notifications
+# Flutter Push Notifications
 
-MORT uses Expo push tokens on-device and a Supabase Edge Function for delivery. The Expo/mobile app never contains a service-role key.
+MORT's Android and iOS app uses Firebase Cloud Messaging (FCM) through the
+Flutter `firebase_messaging` integration. Expo push tokens and the legacy
+reference clients are not part of this delivery path.
 
-## Client Registration
+## Delivery flow
 
-`lib/notifications.ts` requests iOS notification permission on a real device, reads the EAS project id, gets an Expo push token, and stores it in:
+1. `PushNotificationCoordinator` checks the server's public
+   `get_push_delivery_availability()` RPC before requesting operating-system
+   permission or registering a device token.
+2. After permission is granted, the app registers the FCM token with
+   `register_my_push_device_v2`. The server owns token persistence, device
+   limits, account-switch handling, revocation, and idempotency.
+3. Notification events are queued in `notification_events`. The authenticated
+   `send-push` Edge Function claims eligible events, sends generic FCM copy,
+   and records provider results.
+4. `get_my_push_status_v2()` reports the user's preference separately from
+   effective remote delivery. A preference alone does not mean a device can
+   receive remote alerts.
 
-- `push_tokens`
-- `profiles.expo_push_token` as a fallback compatibility field
+Effective delivery requires both the active release policy's `remote_push`
+flag and `push_delivery_runtime.remote_push_enabled`. The availability RPC,
+the service runtime status, token registration, and the push-event sender all
+enforce these server gates. The Flutter UI also fails closed when the status
+RPC is unavailable. App-side Firebase configuration by itself cannot turn
+delivery on.
 
-Logout marks the user's push tokens inactive.
+## Production prerequisites
 
-## Queue Creation
+- Store `FCM_PROJECT_ID`, `FCM_SERVICE_ACCOUNT_EMAIL`, and
+  `FCM_SERVICE_ACCOUNT_PRIVATE_KEY` as Supabase Edge Function secrets.
+- Keep `SUPABASE_SERVICE_ROLE_KEY` and `SEND_PUSH_INVOKE_SECRET` server-side.
+- Supply only Firebase's public client configuration through the documented
+  `FIREBASE_*` Flutter Dart defines. Never embed a service-account credential
+  or Supabase service-role key in the app.
+- Configure Supabase Cron or an external scheduler to invoke `send-push` with
+  the server-only invocation secret. A deployed Edge Function without a
+  scheduler does not provide background delivery.
+- Configure APNs for iOS and verify delivery on real Android and iOS devices,
+  including permission denial, token refresh, reinstall, account switch,
+  logout, background/terminated delivery, quiet hours, and invalid-token
+  cleanup.
+- Enable the backend release-policy and runtime flags only after the required
+  credentials, schedule, privacy review, and real-device checks are complete.
 
-Database triggers create both `notifications` rows and `notification_events` rows for application updates, guardian approvals, proof uploads, safety pings, verification decisions, and reports.
+Google Play production access or store availability does not change the
+Supabase push policy. As last checked on 2026-10-25, the hosted backend's
+release policy and runtime push flag were both off, `send-push` was deployed,
+and no scheduled invocation was configured. Remote FCM delivery was therefore
+not active or verified at that time. Recheck the live backend before relying
+on remote alerts.
 
-Push text should stay generic. Do not include exact addresses, phone numbers, payment handles, report details, or sensitive minor information in push bodies.
-
-## Edge Function
-
-`supabase/functions/send-push/index.ts`:
-
-- processes pending `notification_events`
-- can process one notification id for staging tests
-- sends through Expo's server push API
-- marks events `sent` or `failed`
-- deactivates `DeviceNotRegistered` tokens
-- sanitizes direct test push title/body for phone/email patterns
-- uses `SUPABASE_SERVICE_ROLE_KEY` only inside the Edge Function runtime
-- requires `x-mort-push-secret` to match `SEND_PUSH_INVOKE_SECRET`
-
-## Deploy
-
-```powershell
-supabase functions deploy send-push
-supabase secrets set SUPABASE_URL=https://<project-ref>.supabase.co
-supabase secrets set SUPABASE_SERVICE_ROLE_KEY (server-side only placeholder)<service-role-key-from-dashboard>
-supabase secrets set SEND_PUSH_INVOKE_SECRET (server-side only placeholder)<long-random-invocation-secret>
-```
-
-## Test Safely
-
-Use a staging notification row first:
-
-```sql
-insert into public.notification_events (recipient_id, title, body, data)
-values ('<real-test-user-id>', 'MORT test', 'Open MORT for details.', '{"type":"staging-test"}');
-```
-
-Then invoke the queue:
-
-```powershell
-$env:SUPABASE_URL="https://<project-ref>.supabase.co"
-$env:SUPABASE_FUNCTION_JWT="<temporary-function-jwt-or-anon-key-for-staging>"
-$env:SEND_PUSH_INVOKE_SECRET (server-side only placeholder)"<same-secret-set-on-edge-function>"
-.\scripts\invoke-send-push.ps1 -BatchSize 25
-```
-
-The script can also use a full function URL:
-
-```powershell
-$env:SUPABASE_FUNCTION_URL="https://<project-ref>.supabase.co/functions/v1/send-push"
-.\scripts\invoke-send-push.ps1 -BatchSize 25
-```
-
-## Check Results
-
-Inspect pending/sent/failed events in staging:
-
-```sql
-select id, recipient_id, title, status, last_error, created_at, sent_at
-from public.notification_events
-order by created_at desc
-limit 25;
-```
-
-Check push token errors:
-
-```sql
-select user_id, platform, is_active, last_error, updated_at
-from public.push_tokens
-order by updated_at desc
-limit 25;
-```
-
-`DeviceNotRegistered` means Expo reports the device token is no longer valid. The Edge Function marks those tokens inactive.
-
-## Debug Checklist
-
-- Confirm the user registered a push token on a real iPhone or EAS build.
-- Confirm `EXPO_PUBLIC_PROJECT_ID` matches the EAS project id.
-- Confirm `SEND_PUSH_INVOKE_SECRET` in the request header matches the Edge Function secret.
-- Confirm the Edge Function has `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `SEND_PUSH_INVOKE_SECRET`.
-- Confirm push body text does not contain sensitive personal data.
-
-For scheduled delivery, configure Supabase Cron or an external scheduler to invoke the function periodically with the same secret header. Do not put service-role keys in mobile, web, GitHub, or this script.
-
+See [MORT Firebase Push Owner Setup](MORT_FIREBASE_PUSH_OWNER_SETUP.md) for the
+credential names and device-verification checklist. Do not use this runbook to
+manually insert real user tokens or message content into production tables.

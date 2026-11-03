@@ -5,8 +5,15 @@ import 'package:uuid/uuid.dart';
 import 'repository_base.dart';
 
 class LegalContractRepository extends RepositoryBase {
-  Future<Map<String, dynamic>> legalRequirements() async {
-    requireUserId();
+  Future<Map<String, dynamic>> legalRequirements({
+    String? expectedUserId,
+  }) async {
+    final currentUserId = requireUserId();
+    if (expectedUserId != null && currentUserId != expectedUserId) {
+      throw StateError(
+        'The signed-in account changed during legal verification.',
+      );
+    }
     return _map(await client.rpc('get_my_legal_requirements'));
   }
 

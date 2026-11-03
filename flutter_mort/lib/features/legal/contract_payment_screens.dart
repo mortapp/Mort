@@ -529,7 +529,7 @@ class PaymentStatusScreen extends ConsumerWidget {
           eyebrow: 'Payment record',
           title: 'Payment status',
           subtitle:
-              'Stripe job funding is available only when server controls enable the sandbox. MORT does not call the flow escrow or treat poster sent as worker received.',
+              'Stripe job funding is available only when server controls enable it. MORT does not call the flow escrow or treat poster sent as worker received.',
         ),
         FutureBuilder<Map<String, dynamic>>(
           future: _load(ref),

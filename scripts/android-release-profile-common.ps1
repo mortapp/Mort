@@ -22,8 +22,8 @@ Set-StrictMode -Version Latest
 $root = Split-Path $PSScriptRoot -Parent
 $flutterRoot = Join-Path $root 'flutter_mort'
 $outputDirectory = Join-Path $root 'build\play'
-$expectedUrl = 'https://rakjydmgwwgtdislanbt.supabase.co'
-$expectedProjectRef = 'rakjydmgwwgtdislanbt'
+$expectedProjectRef = ''
+$expectedUrl = ''
 $expectedAuthRedirectUrl = 'com.mortapp.mobile://app/auth-callback'
 $expectedCertificateSha256 = Get-MortUploadCertificateSha256
 $defineFile = $null
@@ -70,9 +70,11 @@ Set-MortUploadSigningEnvironment $signing
 $keytool = (Get-Command keytool -ErrorAction Stop).Source
 $previousPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
-$certificateOutput = & $keytool -list -v -keystore $signing.StorePath `
-  -storepass $signing.StorePassword -alias $signing.Alias 2>&1
-$certificateExitCode = $LASTEXITCODE
+$certificateResult = Invoke-MortKeytool -Executable $keytool `
+  -Arguments @('-list', '-v', '-keystore', $signing.StorePath, '-alias', $signing.Alias) `
+  -StorePassword $signing.StorePassword
+$certificateOutput = $certificateResult.Output
+$certificateExitCode = $certificateResult.ExitCode
 $ErrorActionPreference = $previousPreference
 if ($certificateExitCode -ne 0) { throw 'The upload certificate could not be inspected.' }
 $certificateSha256 = (($certificateOutput | Select-String '^\s*SHA256:' | Select-Object -First 1).Line -replace '^\s*SHA256:\s*','').Trim()
@@ -82,6 +84,22 @@ if ((ConvertTo-MortCertificateDigest $certificateSha256) -ne (ConvertTo-MortCert
 
 $supabaseUrl = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_URL' -ExpoName 'EXPO_PUBLIC_SUPABASE_URL' -Root $root
 $supabaseAnonKey = Get-MortPublicConfigValue -PrimaryName 'SUPABASE_ANON_KEY' -ExpoName 'EXPO_PUBLIC_SUPABASE_ANON_KEY' -Root $root
+$configuredExpectedProjectRef = Get-MortPublicConfigValue `
+  -PrimaryName 'MORT_EXPECTED_SUPABASE_PROJECT_REF' `
+  -ExpoName 'MORT_EXPECTED_SUPABASE_PROJECT_REF' `
+  -Root $root
+$supabaseUri = $null
+if (-not [Uri]::TryCreate($supabaseUrl, [UriKind]::Absolute, [ref]$supabaseUri) -or
+    $supabaseUri.Scheme -ne 'https' -or
+    $supabaseUri.Host -notmatch '^(?<projectRef>[a-z0-9]+)\.supabase\.co$') {
+  throw 'Release build requires an HTTPS Supabase project URL.'
+}
+$expectedProjectRef = $Matches.projectRef
+if (-not [string]::IsNullOrWhiteSpace($configuredExpectedProjectRef) -and
+    $configuredExpectedProjectRef.Trim() -ne $expectedProjectRef) {
+  throw 'Configured Supabase project reference does not match SUPABASE_URL.'
+}
+$expectedUrl = "https://$expectedProjectRef.supabase.co"
 if ($supabaseUrl -ne $expectedUrl) { throw 'Release build targets the wrong Supabase project.' }
 if ([string]::IsNullOrWhiteSpace($supabaseAnonKey)) { throw 'The public Supabase key is missing.' }
 $env:SUPABASE_URL = $supabaseUrl
@@ -95,6 +113,53 @@ if (Test-Path -LiteralPath $envLocalPath) {
   if ($envLocal -match '(?m)^\s*(SUPABASE_SERVICE_ROLE_KEY|SUPABASE_ACCESS_TOKEN|SUPABASE_DB_PASSWORD)\s*=') {
     throw '.env.local contains a privileged Supabase secret.'
   }
+}
+
+$firebaseProjectId = ''
+$firebaseMessagingSenderId = ''
+$firebaseAndroidApiKey = ''
+$firebaseAndroidAppId = ''
+$firebaseStorageBucket = ''
+if ($RemotePushEnabled) {
+  $firebaseInputs = @(
+    @('FIREBASE_PROJECT_ID', 'FIREBASE_PROJECT_ID'),
+    @('FIREBASE_MESSAGING_SENDER_ID', 'FIREBASE_MESSAGING_SENDER_ID'),
+    @('FIREBASE_ANDROID_API_KEY', 'FIREBASE_ANDROID_API_KEY'),
+    @('FIREBASE_ANDROID_APP_ID', 'FIREBASE_ANDROID_APP_ID')
+  )
+  $firebaseValues = @()
+  foreach ($input in $firebaseInputs) {
+    $value = Get-MortPublicConfigValue -PrimaryName $input[0] -ExpoName $input[1] -Root $root
+    if ([string]::IsNullOrWhiteSpace($value)) {
+      throw "Remote push requires public Firebase client config: $($input[0])."
+    }
+    $firebaseValues += $value.Trim()
+  }
+  $firebaseProjectId = $firebaseValues[0]
+  $firebaseMessagingSenderId = $firebaseValues[1]
+  $firebaseAndroidApiKey = $firebaseValues[2]
+  $firebaseAndroidAppId = $firebaseValues[3]
+  $firebaseStorageBucket = Get-MortPublicConfigValue `
+    -PrimaryName 'FIREBASE_STORAGE_BUCKET' `
+    -ExpoName 'FIREBASE_STORAGE_BUCKET' `
+    -Root $root
+  if ($firebaseStorageBucket) { $firebaseStorageBucket = $firebaseStorageBucket.Trim() }
+}
+
+$sentryDsn = ''
+if ($CrashReportingEnabled) {
+  $sentryDsn = Get-MortPublicConfigValue `
+    -PrimaryName 'SENTRY_DSN' `
+    -ExpoName 'SENTRY_DSN' `
+    -Root $root
+  $sentryUri = $null
+  if ([string]::IsNullOrWhiteSpace($sentryDsn) -or
+      -not [Uri]::TryCreate($sentryDsn, [UriKind]::Absolute, [ref]$sentryUri) -or
+      $sentryUri.Scheme -ne 'https' -or
+      [string]::IsNullOrWhiteSpace($sentryUri.Host)) {
+    throw 'Crash reporting requires a valid HTTPS SENTRY_DSN.'
+  }
+  $sentryDsn = $sentryDsn.Trim()
 }
 
 if ($ReleaseStage -ne 'closed_test' -and $PlayReviewModeEnabled) {
@@ -122,6 +187,7 @@ $defines = [ordered]@{
   SUPABASE_URL = $supabaseUrl
   SUPABASE_ANON_KEY = $supabaseAnonKey
   MORT_SUPABASE_PROJECT_REF = $expectedProjectRef
+  MORT_EXPECTED_SUPABASE_PROJECT_REF = $expectedProjectRef
   MORT_AUTH_REDIRECT_URL = $expectedAuthRedirectUrl
   MORT_RELEASE_STAGE = $ReleaseStage
   MORT_RELEASE_PROFILE = $ReleaseProfile
@@ -144,6 +210,7 @@ $defines = [ordered]@{
   MORT_MINIMUM_SUPPORTED_APP_VERSION = [string]$profile.minimumSupportedAppVersion
   MORT_MAINTENANCE_MODE = ([bool]$profile.maintenanceMode).ToString().ToLowerInvariant()
   MORT_DEBUG_ENDPOINTS_ENABLED = ([bool]$profile.debugEndpointsEnabled).ToString().ToLowerInvariant()
+  MORT_BROWSERSTACK_QA_MODE = 'false'
   PLAY_REVIEW_MODE_ENABLED = $PlayReviewModeEnabled.ToString().ToLowerInvariant()
   GOOGLE_AUTH_ENABLED = $GoogleAuthEnabled.ToString().ToLowerInvariant()
   IAP_ENABLED = 'false'
@@ -156,6 +223,18 @@ $defines = [ordered]@{
   # rollout requires a deliberate follow-up change here, not an
   # accidental one.
   USE_TEST_ADS = 'true'
+}
+if ($RemotePushEnabled) {
+  $defines['FIREBASE_PROJECT_ID'] = $firebaseProjectId
+  $defines['FIREBASE_MESSAGING_SENDER_ID'] = $firebaseMessagingSenderId
+  $defines['FIREBASE_ANDROID_API_KEY'] = $firebaseAndroidApiKey
+  $defines['FIREBASE_ANDROID_APP_ID'] = $firebaseAndroidAppId
+  if ($firebaseStorageBucket) {
+    $defines['FIREBASE_STORAGE_BUCKET'] = $firebaseStorageBucket
+  }
+}
+if ($CrashReportingEnabled) {
+  $defines['SENTRY_DSN'] = $sentryDsn
 }
 foreach ($name in $defines.Keys) {
   if ($name -match '(?i)(SERVICE.?ROLE|ACCESS.?TOKEN|REFRESH.?TOKEN|PASSWORD|CLIENT.?SECRET|PRIVATE.?KEY|WEBHOOK.?SECRET)') {

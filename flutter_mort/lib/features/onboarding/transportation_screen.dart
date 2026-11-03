@@ -167,6 +167,7 @@ class _TransportationScreenState extends ConsumerState<TransportationScreen> {
 
     if (_role != UserRole.teen) {
       return MortScreen(
+        atmosphereIntensity: MortAtmosphereIntensity.midnight,
         children: [
           const MortHeader(
             eyebrow: 'Transportation',
@@ -192,6 +193,7 @@ class _TransportationScreenState extends ConsumerState<TransportationScreen> {
     }
 
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.midnight,
       children: [
         const MortHeader(
           eyebrow: 'Getting there',

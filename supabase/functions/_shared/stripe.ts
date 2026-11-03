@@ -179,7 +179,7 @@ export function validatedRedirectUrl(value: unknown, kind: "return" | "refresh")
   } catch {
     throw new PublicError(`invalid_${kind}_url`, 400);
   }
-  const configured = (Deno.env.get("MORT_STRIPE_ALLOWED_REDIRECT_ORIGINS") ?? "https://mort-web.vercel.app")
+  const configured = (Deno.env.get("MORT_STRIPE_ALLOWED_REDIRECT_ORIGINS") ?? "https://mortapp.org")
     .split(",").map((origin) => origin.trim()).filter(Boolean);
   if (url.protocol !== "https:" || !configured.includes(url.origin)) throw new PublicError(`unapproved_${kind}_url`, 400);
   return url.toString();

@@ -10,6 +10,16 @@ import '../../core/widgets/mort_widgets.dart';
 import '../../services/native_permissions_service.dart';
 import '../../services/push/push_notification_coordinator.dart';
 
+class _NativePermissionsScreenSnapshot {
+  const _NativePermissionsScreenSnapshot({
+    required this.permissions,
+    required this.pushDeliveryAvailable,
+  });
+
+  final NativePermissionSnapshot permissions;
+  final bool pushDeliveryAvailable;
+}
+
 class NativePermissionsScreen extends StatefulWidget {
   const NativePermissionsScreen({
     super.key,
@@ -29,7 +39,7 @@ class NativePermissionsScreen extends StatefulWidget {
 
 class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
   final _pushCoordinator = PushNotificationCoordinator.instance;
-  late Future<NativePermissionSnapshot> _future;
+  late Future<_NativePermissionsScreenSnapshot> _future;
   bool _busy = false;
   String? _areaMessage;
 
@@ -40,7 +50,18 @@ class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
   }
 
   void _refresh() {
-    _future = widget.permissionsService.snapshot();
+    _future = _loadSnapshot();
+  }
+
+  Future<_NativePermissionsScreenSnapshot> _loadSnapshot() async {
+    final results = await Future.wait<Object>([
+      widget.permissionsService.snapshot(),
+      _pushCoordinator.deliveryAvailable(),
+    ]);
+    return _NativePermissionsScreenSnapshot(
+      permissions: results[0] as NativePermissionSnapshot,
+      pushDeliveryAvailable: results[1] as bool,
+    );
   }
 
   Future<void> _run(Future<void> Function() action) async {
@@ -74,6 +95,7 @@ class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
   @override
   Widget build(BuildContext context) {
     return MortScreen(
+      atmosphereIntensity: MortAtmosphereIntensity.settings,
       children: [
         Semantics(
           identifier: 'qa-permissions-explanation',
@@ -88,7 +110,7 @@ class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
           const SizedBox(height: MortSpacing.sm),
           MortCard(child: Text(widget.nativeActionsDisabledMessage!)),
         ],
-        FutureBuilder<NativePermissionSnapshot>(
+        FutureBuilder<_NativePermissionsScreenSnapshot>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -108,20 +130,25 @@ class _NativePermissionsScreenState extends State<NativePermissionsScreen> {
                 ),
               );
             }
-            final status = snapshot.requireData;
+            final data = snapshot.requireData;
+            final status = data.permissions;
+            final remotePushAvailable =
+                _pushCoordinator.configured && data.pushDeliveryAvailable;
             return Column(
               children: [
                 _PermissionCard(
                   icon: Icons.notifications_outlined,
                   title: 'Notifications',
                   status: _permissionLabel(status.notifications),
-                  detail: _pushCoordinator.configured
-                      ? 'Permission enables remote alerts on this device. After approval, MORT securely registers this signed-in installation.'
-                      : 'Remote push is disabled in this build, so MORT will not request notification permission. The in-app notification inbox still works.',
+                  detail: !_pushCoordinator.configured
+                      ? 'Remote push is disabled in this build, so MORT will not request notification permission. The in-app notification inbox still works.'
+                      : !data.pushDeliveryAvailable
+                      ? 'MORT remote alert delivery is currently unavailable, so MORT will not request notification permission. The in-app notification inbox still works.'
+                      : 'Permission enables remote alerts on this device. After approval, MORT securely registers this signed-in installation.',
                   onRequest:
                       !widget.nativeActionsEnabled ||
                           _busy ||
-                          !_pushCoordinator.configured
+                          !remotePushAvailable
                       ? null
                       : () => _run(() async {
                           await _pushCoordinator.requestPermissionAndRegister();

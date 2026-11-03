@@ -1,0 +1,8 @@
+-- Superseded no-op migration.
+--
+-- This migration version was never recorded in production. The complete MORT
+-- Earnings Safety schema, policies, and RPCs are created by the canonical
+-- 20260901200551_mort_earnings_safety_v1.sql migration, which is already in
+-- production migration history. Keeping this earlier version empty lets
+-- production reconcile its missing migration history without attempting to
+-- create those same objects a second time.

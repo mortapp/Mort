@@ -1686,7 +1686,8 @@ export function securityBoundaryClassification(
 
   if (
     sensitiveDataDisclosure && !educationalQuery && !negatedSecret &&
-    !benignReporting
+    !benignReporting && !reportedSecurityConcern && !quotedReportingContext &&
+    !reporterSolicit
   ) {
     return {
       level: 1,
@@ -1791,7 +1792,7 @@ export function localClassification(message: string): Classification {
         value,
       );
   const guardianJobFlow =
-    /(?:guardian.*(?:job|jobs|work|application|applications|listing|listings|settings)|(?:job|jobs|work|application|applications|listing|listings).*guardian|guardian.*(?:settings.*(?:job|work|application|listing)|(?:job|work|application|listing).*(?:settings|profile)))/i
+    /(?:guardian.*(?:job|jobs|application|applications|listing|listings|approval|approve|review|status|screen)|(?:job|jobs|application|applications|listing|listings|approval|approve|review|status|screen).*guardian|guardian.*(?:settings.*(?:job|application|listing|approval)|(?:job|application|listing|approval).*(?:settings|profile)))/i
       .test(value);
   const jobPaymentWorkflow =
     /(?:payment history|payment status|payment preferences|payout|paid status|job.*payment|payment.*job|application.*payment|payment.*application|listing.*payment)/i
@@ -1832,7 +1833,7 @@ export function localClassification(message: string): Classification {
     jobSearchSupport ||
     jobWorkflow ||
     guardianJobFlow ||
-    /(?:\bjobs?\b|\bapplications?\b|\blistings?\b|job pin|start pin|finish pin|start code|finish code|work location|pin screen|pin instructions|code i need before i start)/i
+    /(?:\bjobs?\b|\bapplications?\b|\blistings?\b|job pin|start pin|finish pin|start code|finish code|work location|pin screen|pin instructions|code i need before i start|looking for work|need work|want work|search for work|apply for a job|review job application|guardian approval)/i
       .test(
         value,
       );
@@ -1866,10 +1867,19 @@ export function localClassification(message: string): Classification {
       provider_allowed: true,
     };
   }
+  const accountOnlyFlow = (guardianAccountFlow || accountEducationPattern ||
+    benignSecretEducation) && !jobSupport;
+  const generalAccountSupport =
+    /(?:account|guardian|login|sign(?:ed)?[- ]?in|sign(?:ed)?[- ]?out|identity|verification|verify|email|password|locked out|approval settings|link.*guardian|unlink.*guardian|reset.*account|support.*account|guardian.*settings|parental controls)/i
+      .test(value);
+  const generalJobSupport =
+    /(?:job|jobs|application|applications|listing|listings|application status|job status|approval|approve|post.*job|pause.*listing|edit.*job|work location|nearby jobs|review.*application|save.*job|close.*listing|guardian.*approve|teen.*application)/i
+      .test(value);
   if (
-    safetyCenterSupport ||
-    /(?:how do i report|where is the report button|i want to block|report a user|block this profile|report a message|block someone|blocked users|report someone|report inappropriate conduct|safety center|feel unsafe|unsafe.*job|job seems unsafe|hide exact addresses|safety settings|safety guidelines|safety issue|uncomfortable at a job|safety policy|submit a report|undo a report|safer job practices|unsafe work environment)/i
-      .test(value)
+    (safetyCenterSupport ||
+      /(?:how do i report|where is the report button|i want to block|report a user|block this profile|report a message|block someone|blocked users|report someone|report inappropriate conduct|safety center|feel unsafe|unsafe.*job|job seems unsafe|hide exact addresses|safety settings|safety guidelines|safety issue|uncomfortable at a job|safety policy|submit a report|undo a report|safer job practices|unsafe work environment)/i
+        .test(value)) && !accountOnlyFlow && !privacySupport &&
+    !benignPromptEducation && !benignReportingEducation && !benignContextBoundary
   ) {
     return {
       level: 1,
@@ -1910,10 +1920,33 @@ export function localClassification(message: string): Classification {
       provider_allowed: true,
     };
   }
+  if (generalAccountSupport && !jobSupport && !privacySupport &&
+    !safetyCenterSupport && !benignPromptEducation && !benignReportingEducation &&
+    !benignContextBoundary) {
+    return {
+      level: 1,
+      triage_band: "concern",
+      category: "account",
+      intent: "account_access",
+      action: "offer_handoff",
+      provider_allowed: true,
+    };
+  }
+  if (accountOnlyFlow) {
+    return {
+      level: 1,
+      triage_band: "concern",
+      category: "account",
+      intent: "account_access",
+      action: "offer_handoff",
+      provider_allowed: true,
+    };
+  }
   if (
-    jobSupport &&
+    generalJobSupport &&
     !(educationalWorkflowConcept && !jobSearchSupport && !jobWorkflow &&
-      !teenJobWorkflow)
+      !teenJobWorkflow) &&
+    !safetyCenterSupport && !privacySupport && !humanSupport && !paymentSupport
   ) {
     return {
       level: 1,
@@ -1924,12 +1957,16 @@ export function localClassification(message: string): Classification {
       provider_allowed: true,
     };
   }
-  if (guardianAccountFlow || accountEducationPattern || benignSecretEducation) {
+  if (
+    jobSupport &&
+    !(educationalWorkflowConcept && !jobSearchSupport && !jobWorkflow &&
+      !teenJobWorkflow)
+  ) {
     return {
       level: 1,
       triage_band: "concern",
-      category: "account",
-      intent: "account_access",
+      category: "marketplace",
+      intent: "jobs_or_applications",
       action: "offer_handoff",
       provider_allowed: true,
     };

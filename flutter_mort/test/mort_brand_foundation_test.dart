@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_mort/core/atmosphere/mort_wordmark_reveal.dart';
 import 'package:flutter_mort/core/theme/mort_theme.dart';
 import 'package:flutter_mort/core/widgets/mort_widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -60,7 +61,8 @@ void main() {
       ),
       findsNothing,
     );
-    expect(find.text('M O R T'), findsOneWidget);
+    expect(find.byType(MortBrandMark), findsOneWidget);
+    expect(find.byType(MortWordmarkReveal), findsOneWidget);
   });
 }
 

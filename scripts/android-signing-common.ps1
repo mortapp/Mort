@@ -6,6 +6,56 @@ function Get-MortUploadCertificateSha256 {
   $script:MortUploadCertificateSha256
 }
 
+function Invoke-MortKeytool {
+  param(
+    [Parameter(Mandatory)][string]$Executable,
+    [Parameter(Mandatory)][string[]]$Arguments,
+    [string]$StorePassword,
+    [string]$KeyPassword,
+    [scriptblock]$Invoker
+  )
+
+  $storeVariable = 'MORT_KEYTOOL_STOREPASS'
+  $keyVariable = 'MORT_KEYTOOL_KEYPASS'
+  $previousStorePassword = [Environment]::GetEnvironmentVariable($storeVariable, 'Process')
+  $previousKeyPassword = [Environment]::GetEnvironmentVariable($keyVariable, 'Process')
+  $safeArguments = @($Arguments)
+
+  try {
+    if ($PSBoundParameters.ContainsKey('StorePassword')) {
+      [Environment]::SetEnvironmentVariable($storeVariable, $StorePassword, 'Process')
+      $safeArguments += @('-storepass:env', $storeVariable)
+    }
+    if ($PSBoundParameters.ContainsKey('KeyPassword')) {
+      [Environment]::SetEnvironmentVariable($keyVariable, $KeyPassword, 'Process')
+      $safeArguments += @('-keypass:env', $keyVariable)
+    }
+
+    if ($Invoker) {
+      $execution = & $Invoker $Executable $safeArguments
+    } else {
+      $output = @(& $Executable @safeArguments 2>&1)
+      $execution = [pscustomobject]@{
+        Output = $output
+        ExitCode = $LASTEXITCODE
+      }
+    }
+
+    if ($null -eq $execution -or
+      $null -eq $execution.PSObject.Properties['Output'] -or
+      $null -eq $execution.PSObject.Properties['ExitCode']) {
+      throw 'The keytool invoker returned an invalid result.'
+    }
+    return [pscustomobject]@{
+      Output = @($execution.Output)
+      ExitCode = [int]$execution.ExitCode
+    }
+  } finally {
+    [Environment]::SetEnvironmentVariable($storeVariable, $previousStorePassword, 'Process')
+    [Environment]::SetEnvironmentVariable($keyVariable, $previousKeyPassword, 'Process')
+  }
+}
+
 function ConvertTo-MortCertificateDigest {
   param([Parameter(Mandatory)][string]$Value)
   ($Value -replace '[^0-9A-Fa-f]', '').ToUpperInvariant()

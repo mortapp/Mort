@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_mort/core/reviewer/reviewer_session.dart';
+import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/features/auth/unified_auth_screen.dart';
 import 'package:flutter_mort/features/reviewer/reviewer_screens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -150,7 +151,10 @@ void main() {
     testWidgets('ordinary email keeps password authentication', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [reviewerModeEnabledProvider.overrideWithValue(true)],
+          overrides: [
+            reviewerModeEnabledProvider.overrideWithValue(true),
+            googleAuthEnabledProvider.overrideWithValue(true),
+          ],
           child: const MaterialApp(home: UnifiedAuthScreen()),
         ),
       );
@@ -162,7 +166,7 @@ void main() {
 
       expect(find.text('Continue as Play Reviewer'), findsNothing);
       expect(find.text('Password'), findsOneWidget);
-      expect(find.text('Continue with Google'), findsNothing);
+      expect(find.text('Continue with Google'), findsOneWidget);
       expect(find.text('Forgot password'), findsOneWidget);
     });
 

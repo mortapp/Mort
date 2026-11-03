@@ -10,6 +10,12 @@ authorization. **This document describes the corrected, locally-verified
 proposed state. Hosted still has the original, unmodified RESTRICT behavior
 — nothing described here has been deployed.**
 
+The 2026-09-21 certification pass found five later financial relationships
+created after the original matrix. They are repaired by
+`20260921090000_account_deletion_financial_fk_repair.sql` and classified as
+class D below. Hosted retains the five RESTRICT relationships until that
+pending migration is deployed.
+
 ## Classes
 
 - **A. DELETE / CASCADE** — the row has no independent value once the user
@@ -85,6 +91,18 @@ the row and its FK actions are actually applied).
 Grouped by table for readability; every row is one of the 87 relationships.
 `REFERENCES` omitted where it's `public.profiles(id)` (the default); noted
 explicitly for the eight that reference `auth.users(id)` directly.
+
+### Later financial relationships (2026-09-21 supplement)
+
+| TABLE | COLUMN | CURRENT | NULLABLE | SUBJECT/ACTOR/SHARED | FINAL_CLASS | FINAL_ON_DELETE | NOTE |
+|---|---|---|---|---|---|---|---|
+| private.financial_documents | owner_id | RESTRICT | N | SUBJECT | D | SET NULL | Retain immutable financial history under the financial hold; sever the user link when deletion is eligible |
+| private.stripe_job_funding_quotes | payer_id | RESTRICT | N | SHARED PARTY | D | SET NULL | Retain quote history after the retention gate permits deletion |
+| private.stripe_job_funding_quotes | worker_id | RESTRICT | N | SHARED PARTY | D | SET NULL | Retain the shared quote and sever the worker link |
+| private.stripe_tip_attempts | payer_id | RESTRICT | N | SHARED PARTY | D | SET NULL | Retain the payment attempt under the financial hold; sever the payer link |
+| private.stripe_tip_attempts | worker_id | RESTRICT | N | SHARED PARTY | D | SET NULL | Retain the shared attempt and sever the worker link |
+
+### Original 2026-08-29 classification
 
 | TABLE | COLUMN | CURRENT | NULLABLE | SUBJECT/ACTOR/SHARED | FINAL_CLASS | FINAL_ON_DELETE | NOTE |
 |---|---|---|---|---|---|---|---|

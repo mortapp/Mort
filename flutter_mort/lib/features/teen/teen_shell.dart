@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/mort_colors.dart';
-import '../../core/widgets/mort_liquid_glass.dart';
+import '../../core/widgets/mort_widgets.dart';
 
 class TeenShell extends StatefulWidget {
   const TeenShell({super.key, required this.navigationShell});
@@ -109,13 +109,27 @@ class MortTeenDestinationHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final navigation = TeenNavigationScope.maybeOf(context);
-    return MortGlassHeader(
+    return MortHeader(
       title: title,
       eyebrow: eyebrow,
       subtitle: subtitle,
       trailing: trailing,
-      showBack: navigation?.canGoBack == true,
-      onBack: navigation?.onBack,
+      showBackButton: false,
+      leading: navigation?.canGoBack == true
+          ? Semantics(
+              button: true,
+              label: 'Back',
+              child: IconButton(
+                tooltip: 'Back',
+                onPressed: navigation?.onBack,
+                constraints: const BoxConstraints.tightFor(
+                  width: 48,
+                  height: 48,
+                ),
+                icon: const Icon(Icons.arrow_back_rounded),
+              ),
+            )
+          : null,
     );
   }
 }

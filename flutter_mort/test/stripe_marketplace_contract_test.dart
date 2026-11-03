@@ -6,19 +6,22 @@ import 'package:flutter_test/flutter_test.dart';
 String _read(String path) => File(path).readAsStringSync();
 
 void main() {
-  test('Stripe SDK is sandbox-gated and payment sheet fails closed', () {
-    expect(AppConfig.nativeStripePaymentSheetCompiledIn, isTrue);
-    expect(AppConfig.marketplacePaymentsEnabled, isFalse);
-    expect(AppConfig.supportsStripePaymentSheet, isTrue);
+  test(
+    'unavailable Stripe payment sheet fails closed without a native SDK',
+    () {
+      expect(AppConfig.nativeStripePaymentSheetCompiledIn, isFalse);
+      expect(AppConfig.marketplacePaymentsEnabled, isFalse);
+      expect(AppConfig.supportsStripePaymentSheet, isFalse);
 
-    final service = _read(
-      'lib/features/payments/stripe_payment_sheet_service.dart',
-    );
-    expect(service, contains("'stripe_sandbox_configuration_invalid'"));
-    expect(service, contains('package:flutter_stripe'));
-    expect(service, isNot(matches(RegExp(r'pk_(test|live)_[A-Za-z0-9]'))));
-    expect(service, isNot(matches(RegExp(r'sk_(test|live)_[A-Za-z0-9]'))));
-  });
+      final service = _read(
+        'lib/features/payments/stripe_payment_sheet_service.dart',
+      );
+      expect(service, contains("'marketplace_payments_disabled'"));
+      expect(service, isNot(contains('package:flutter_stripe')));
+      expect(service, isNot(matches(RegExp(r'pk_(test|live)_[A-Za-z0-9]'))));
+      expect(service, isNot(matches(RegExp(r'sk_(test|live)_[A-Za-z0-9]'))));
+    },
+  );
 
   test('job funding amount and state remain server owned', () {
     final repository = _read(
@@ -59,7 +62,7 @@ void main() {
       migration,
       contains("'digital_purchases_provider', 'google_play_billing'"),
     );
-    expect(pubspec, contains('flutter_stripe'));
+    expect(pubspec, isNot(contains('flutter_stripe')));
     expect(pubspec, isNot(contains('purchases_flutter')));
     // google_mobile_ads is deliberately allowed here -- see
     // release_candidate_policy_test.dart for the current, real ads-shipping

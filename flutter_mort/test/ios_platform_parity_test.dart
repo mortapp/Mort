@@ -110,10 +110,17 @@ void main() {
     test('fabricates no capabilities it cannot back', () {
       expect(
         pbxproj,
-        isNot(contains('CODE_SIGN_ENTITLEMENTS')),
-        reason:
-            'no APNs or Sign in with Apple entitlement until provider '
-            'configuration and legal gates actually exist',
+        contains(
+          'CODE_SIGN_ENTITLEMENTS = Runner/Runner.release.entitlements;',
+        ),
+      );
+      final releaseEntitlements = File(
+        'ios/Runner/Runner.release.entitlements',
+      ).readAsStringSync();
+      expect(releaseEntitlements, contains('<key>aps-environment</key>'));
+      expect(
+        releaseEntitlements,
+        isNot(contains('com.apple.developer.applesignin')),
       );
       expect(pbxproj, contains('GENERATE_INFOPLIST_FILE = YES;'));
     });
