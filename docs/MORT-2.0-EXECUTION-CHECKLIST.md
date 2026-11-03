@@ -224,6 +224,54 @@ production SQL, data, Auth, RLS, provider configuration,
 release-control, marketplace, payment, document-collection, merge, push, or
 deployment change occurred. Hosted QA was not modified.
 
+## 2026-11-02 — mobile/release gate recheck from `78c1d237`
+
+- Corrected active Flutter production-ref validation and project-scoped session
+  storage from the deleted project to authoritative `jxbnrkasktbhtiujkhay`.
+  Updated active Android build and network-security checks to require the
+  authoritative URL and obtain the public client key from the protected
+  environment rather than retaining the deleted project's literal key. The
+  final Play-pilot package manifest also now records the authoritative project,
+  and the release-network contract checks that manifest.
+- Secure check-in coordinator review confirmed persist-before-RPC, restart
+  recovery, exact-payload binding, timeout/ambiguous-failure retention,
+  process-wide duplicate coalescing, fail-closed secure-storage read/write,
+  and new IDs after confirmed completion or explicit denial. Added tests for
+  concurrent changed-payload rejection and cleanup failure after server
+  success; the latter retains the same request ID for safe exact replay.
+- `dart format --set-exit-if-changed lib test`: PASS, 312 files, no changes.
+  `flutter analyze`: PASS, no issues. Focused check-in tests: PASS, 14/14.
+  Full `flutter test --no-pub`: PASS, **634 passed, 2 skipped, 0 failed**.
+  `qa-release-network-security.mjs`: PASS. Closed-test profile matrix is
+  fail-closed for marketplace, payments, identity collection, push, crash
+  reporting, AI and public activation.
+- Protected Windows upload-signing credentials and keystore were present; the
+  configured MORT certificate identity checks passed before the build reached
+  the server gate. The AAB was not built: read-only
+  `get_release_mode_status` returned `release_mode=production_public`, while
+  the authorized closed-test build profile requires `closed_test`. The same
+  response reported marketplace publishing false, real document collection
+  false, and maintenance false. No profile/control was changed to force a
+  build. Next action: release owner must resolve the server/profile mismatch
+  through the separately authorized release-control process, then rerun the
+  guarded AAB builder.
+- Android native integration tests were not run because `flutter devices`
+  exposed only Windows, Chrome and Edge. iOS was not validated on Windows.
+  Authenticated Supabase API workflows remain unverified; Flutter tests and
+  local PostgreSQL proposal tests are not substitutes.
+- Read-only public website check: `mortapp.org` and `www.mortapp.org` returned
+  HTTP 200, with security headers present; latest observed Vercel production
+  deployment was `main` at `6c110cf7ef74e780320f3cd2cf5173cc204c8125`.
+- Independent SQL proposal review reconfirmed the documented staged order
+  900 → 901 → 902 and the empty provider allowlist. Proposal 901's application
+  row is locked before poster ownership is checked, leaving a P2 transient
+  lock-contention concern for unrelated active adults. Resolve or explicitly
+  accept and two-session-test this before applying Proposal 901. Proposal 902
+  retains exact-key/exact-payload replay; Guardian consent remains conditional
+  on `jobs.requires_guardian_approval`. No proposal was applied.
+- Production and hosted QA remained read-only. No migration, data, Auth, RLS,
+  provider, payment, marketplace, deployment, merge or push change occurred.
+
 ## 2026-11-02 — final retry/proposal review from `ae24fd7`
 
 - The first cross-instance concurrency regression test failed against the

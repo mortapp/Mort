@@ -211,6 +211,46 @@ void main() {
     expect(storage.values, isEmpty);
   });
 
+  test(
+    'secure-storage cleanup failure preserves the successful request intent',
+    () async {
+      final storage = _MemoryRetryStorage();
+      var generated = 0;
+      var failDelete = true;
+      final requestIds = <String>[];
+      final baseStorage = storage;
+      final faultingStorage = _DeleteFaultRetryStorage(
+        baseStorage,
+        shouldFail: () => failDelete,
+      );
+      SafetyRepository createRepository() => SafetyRepository(
+        authenticatedUserId: () => 'teen-1',
+        checkinRequestCoordinator: CheckinRequestCoordinator(
+          storage: faultingStorage,
+          newRequestId: () => 'request-${++generated}',
+        ),
+        checkinRpcInvoker: (_, params) async {
+          requestIds.add(params['p_client_request_id']!);
+          return {'ok': true, 'replayed': requestIds.length > 1};
+        },
+      );
+
+      await expectLater(
+        createRepository().completeActiveJobCheckin(checkinId: 'checkin-1'),
+        throwsStateError,
+      );
+      expect(storage.values, hasLength(1));
+
+      failDelete = false;
+      final result = await createRepository().completeActiveJobCheckin(
+        checkinId: 'checkin-1',
+      );
+      expect(requestIds, ['request-1', 'request-1']);
+      expect(result['replayed'], isTrue);
+      expect(storage.values, isEmpty);
+    },
+  );
+
   test('concurrent duplicate calls share one in-flight submission', () async {
     final storage = _MemoryRetryStorage();
     final response = Completer<dynamic>();
@@ -278,4 +318,58 @@ void main() {
       await Future.wait([first, second]);
     },
   );
+
+  test('concurrent changed payload is rejected without a second RPC', () async {
+    final storage = _MemoryRetryStorage();
+    final response = Completer<dynamic>();
+    var calls = 0;
+    final coordinator = CheckinRequestCoordinator(
+      storage: storage,
+      newRequestId: () => 'request-1',
+    );
+    final repository = SafetyRepository(
+      authenticatedUserId: () => 'teen-1',
+      checkinRequestCoordinator: coordinator,
+      checkinRpcInvoker: (_, _) {
+        calls += 1;
+        return response.future;
+      },
+    );
+
+    final original = repository.scheduleActiveJobCheckin(
+      applicationId: 'application-1',
+      minutesFromNow: 30,
+    );
+    await Future<void>.delayed(Duration.zero);
+    await expectLater(
+      repository.scheduleActiveJobCheckin(
+        applicationId: 'application-1',
+        minutesFromNow: 60,
+      ),
+      throwsA(isA<CheckinRequestPayloadMismatch>()),
+    );
+    expect(calls, 1);
+
+    response.complete({'ok': true, 'checkin_id': 'checkin-1'});
+    await original;
+  });
+}
+
+class _DeleteFaultRetryStorage implements CheckinRetryStorage {
+  const _DeleteFaultRetryStorage(this.delegate, {required this.shouldFail});
+
+  final CheckinRetryStorage delegate;
+  final bool Function() shouldFail;
+
+  @override
+  Future<String?> read(String key) => delegate.read(key);
+
+  @override
+  Future<void> write(String key, String value) => delegate.write(key, value);
+
+  @override
+  Future<void> delete(String key) {
+    if (shouldFail()) throw StateError('secure delete unavailable');
+    return delegate.delete(key);
+  }
 }

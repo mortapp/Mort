@@ -80,3 +80,22 @@ Without those prerequisites, local Flutter unit/widget tests, analyzer, static s
 The local direct-SELECT pgTAP setup is `../../scripts/qa-local-hosted-job-applications-acl.ps1`. It restores the hosted `service_role` table ACL on the disposable local container only; the strict five-assertion pgTAP file remains unchanged, and the script verifies anon/authenticated receive no table or column privileges.
 
 `../../scripts/qa-guardian-id-rpc-privacy.mjs` is an API-level regression harness for synthetic isolated accounts. It requires test-only credentials and fixture IDs through environment variables and refuses production or deleted-project URLs. On 2026-11-02 its anonymous checks passed against `ckcxakhxqlkhppsxxjhv`, while authenticated role and service-role checks were blocked by missing accounts, fixtures, and isolated service-role credentials. The repeatable prerequisite and provisioning runbook is `../../docs/MORT_ISOLATED_QA_PROVISIONING_2026-11-02.md`. The isolated project has 82 migrations and is not an exact production clone; proposal 901 source guards do not match its eligibility and acceptance functions. Do not apply source-bound proposals to this project without a reviewed, exact schema baseline. Production's current RPC response already masks Guardian IDs, and direct application-table access is restricted by the reconciled production migration; this does not replace the outstanding authenticated isolated API regression test.
+
+## 2026-11-02 mobile client recheck
+
+The Flutter retry implementation was independently reviewed starting from
+commit `78c1d237003a8578d2f065c5ab1ebd5dd148ec6`. Two additional regressions now
+cover changed-payload calls during an in-flight request and secure-storage
+cleanup failure after a successful server response. The latter must retain the
+pending key so a later attempt can replay the same logical operation. Focused
+retry tests passed 14/14; the full Flutter suite passed 634, skipped 2, failed
+0; analyzer and formatting passed. These are client-side tests, not Supabase
+authenticated integration evidence.
+
+The guarded signed closed-test AAB build was not produced. Its read-only server
+gate observed `production_public` while the build profile requests
+`closed_test`; the authoritative service also reported public marketplace and
+real document collection false. The build was stopped without changing release
+controls. Reconcile the release mode under the approved release process before
+building. The local upload certificate identity checks succeeded before that
+gate; no artifact/signature verification can be claimed.
