@@ -46,6 +46,8 @@ test("BrowserStack APK build mode remains explicit and opt-in", async () => {
   assert.match(source, /\[switch\]\$BrowserStackQa/);
   assert.match(source, /MORT_BROWSERSTACK_QA_MODE=true/);
   assert.match(source, /if \(\$BrowserStackQa\)/);
+  assert.match(source, /GOOGLE_AUTH_ENABLED=\$googleAuthEnabled/);
+  assert.match(source, /\$googleAuthEnabled = if \(\$BrowserStackQa\)/);
 });
 
 test("QA router exposes the accessibility screen used for reduced-motion proof", async () => {
@@ -62,4 +64,80 @@ test("QA router exposes the accessibility screen used for reduced-motion proof",
   );
   assert.match(source, /path: '\/settings\/accessibility'/);
   assert.match(source, /ExperienceSettingsScreen/);
+});
+
+test("Android selector fallback scrolls offscreen Flutter semantics into view", async () => {
+  const source = await readFile(
+    path.join(root, "scripts", "browserstack", "android-appium-functional-test.mjs"),
+    "utf8",
+  );
+  assert.match(source, /UiSelector\(\)\.resourceId/);
+  assert.match(source, /UiScrollable\(new UiSelector\(\)\.scrollable\(true\)\)/);
+  assert.match(source, /scrollIntoView\(new UiSelector\(\)\.resourceId/);
+  assert.match(source, /scrollIntoView\(new UiSelector\(\)\.descriptionContains/);
+  assert.match(source, /scrollIntoView\(new UiSelector\(\)\.textContains/);
+
+  // UiScrollable changes the viewport while resolving each selector. Flutter
+  // action labels are exposed through content-desc on Android, so that selector
+  // must run before the resource-id fallback can scroll past the target.
+  const fallbackStart = source.indexOf("Flutter exposes only the currently visible");
+  const fallbackEnd = source.indexOf("} catch (scrollError)", fallbackStart);
+  const fallback = source.slice(fallbackStart, fallbackEnd);
+  const descriptionSelector =
+    'scrollIntoView(new UiSelector().descriptionContains';
+  const resourceIdSelector =
+    'scrollIntoView(new UiSelector().resourceId';
+  assert.ok(
+    fallback.indexOf(descriptionSelector) < fallback.indexOf(resourceIdSelector),
+    "descriptionContains selector must run before resourceId selector in the scroll fallback",
+  );
+});
+
+
+test("financial checkpoint falls back to deterministic visible zero-state copy", async () => {
+  const source = await readFile(
+    path.join(root, "scripts", "browserstack", "android-appium-functional-test.mjs"),
+    "utf8",
+  );
+  assert.match(source, /byLabel\(driver, "Financial Safety"\)/);
+  assert.match(source, /qa-financial-zero-state/);
+  assert.match(
+    source,
+    /Your financial record starts when you complete work\./,
+  );
+});
+
+
+test("tapLabel prefers clickable Android semantics over section headings", async () => {
+  const source = await readFile(
+    path.join(root, "scripts", "browserstack", "android-appium-functional-test.mjs"),
+    "utf8",
+  );
+  assert.match(source, /label\.startsWith\("qa-"\)/);
+  assert.match(
+    source,
+    /\*\[@clickable="true" and \(contains\(@content-desc,/,
+  );
+  assert.match(
+    source,
+    /scrollIntoView\(new UiSelector\(\)\.clickable\(true\)\.descriptionContains/,
+  );
+  assert.match(
+    source,
+    /scrollIntoView\(new UiSelector\(\)\.clickable\(true\)\.textContains/,
+  );
+  assert.match(source, /await actionable\.click\(\)/);
+});
+
+
+test("keyboard checkpoint polls Android IME state instead of trusting one timing sample", async () => {
+  const source = await readFile(
+    path.join(root, "scripts", "browserstack", "android-appium-functional-test.mjs"),
+    "utf8",
+  );
+  assert.match(source, /async function waitForKeyboardState/);
+  assert.match(source, /await driver\.isKeyboardShown\(\)/);
+  assert.match(source, /await driver\.pause\(intervalMs\)/);
+  assert.match(source, /await waitForKeyboardState\(driver, true/);
+  assert.match(source, /await waitForKeyboardState\(driver, false/);
 });

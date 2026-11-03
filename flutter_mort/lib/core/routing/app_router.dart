@@ -1140,6 +1140,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         '/trust/teen-verification/capture',
         const TeenVerificationCapturePreparationScreen(),
       ),
+      _guarded(
+        '/trust/teen-verification/verify',
+        const MortVerifyTeenScreen(),
+        role: UserRole.teen,
+      ),
       _guarded('/trust/device-auth', const DeviceAuthExplanationScreen()),
       GoRoute(path: '/support', builder: (_, _) => const SupportHomeScreen()),
       _guarded('/support/chat', const SupportAssistantScreen()),

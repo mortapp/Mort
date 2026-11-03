@@ -3,7 +3,7 @@ name: MORT CI
 on:
   pull_request:
   push:
-    branches: [main, mort-supreme-production-readiness, feature/mort-stripe-backend-integration]
+    branches: [main, mort-supreme-production-readiness, feature/mort-stripe-backend-integration, feature/mort-verify-age-school]
   workflow_dispatch:
     inputs:
       run_stripe_hosted_regression:
@@ -25,6 +25,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  teen-verification-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node scripts/qa-teen-verification-security-contract.mjs
+
   stripe-contracts:
     runs-on: ubuntu-latest
     timeout-minutes: 15
