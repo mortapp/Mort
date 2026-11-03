@@ -5169,10 +5169,17 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      await ref
+      final result = await ref
           .read(safetyRepositoryProvider)
           .completeActiveJobCheckin(checkinId: checkinId);
-      if (mounted) MortToast.show(context, 'Check-in completed.');
+      if (mounted) {
+        MortToast.show(
+          context,
+          result['replayed'] == true
+              ? 'This check-in was already completed.'
+              : 'Check-in completed.',
+        );
+      }
       await _load();
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
@@ -5185,14 +5192,20 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      await ref
+      final result = await ref
           .read(safetyRepositoryProvider)
           .scheduleActiveJobCheckin(
             applicationId: applicationId,
             minutesFromNow: 60,
           );
-      if (mounted)
-        MortToast.show(context, 'Next check-in scheduled for 60 minutes.');
+      if (mounted) {
+        MortToast.show(
+          context,
+          result['replayed'] == true
+              ? 'This check-in was already scheduled.'
+              : 'Next check-in scheduled for 60 minutes.',
+        );
+      }
       await _load();
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));

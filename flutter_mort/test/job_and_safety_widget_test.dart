@@ -82,6 +82,7 @@ class _FakeSafetyRepository extends SafetyRepository {
   int configFailuresRemaining;
   int configLoadCount = 0;
   String? completedCheckinId;
+  bool completeCheckinReplayed = false;
 
   @override
   Future<Map<String, dynamic>> getSafetyCenterConfig() async {
@@ -102,7 +103,11 @@ class _FakeSafetyRepository extends SafetyRepository {
     String? clientRequestId,
   }) async {
     completedCheckinId = checkinId;
-    return {'ok': true, 'checkin_id': checkinId};
+    return {
+      'ok': true,
+      'checkin_id': checkinId,
+      'replayed': completeCheckinReplayed,
+    };
   }
 }
 
@@ -516,6 +521,45 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.completedCheckinId, 'checkin-1');
+  });
+
+  testWidgets('Safety Pulse explains an idempotently replayed completion', (
+    tester,
+  ) async {
+    final repository = _FakeSafetyRepository(
+      checkins: [
+        {
+          'checkin_id': 'checkin-replayed',
+          'application_id': 'application-1',
+          'job_id': 'job-1',
+          'job_title': 'Yard cleanup',
+          'status': 'pending',
+          'expected_at': '2026-11-02T12:00:00Z',
+        },
+      ],
+    )..completeCheckinReplayed = true;
+
+    await tester.pumpWidget(
+      _app(
+        child: const SafetyCenterScreen(),
+        overrides: [
+          safetyRepositoryProvider.overrideWithValue(repository),
+          currentProfileProvider.overrideWithValue(
+            AsyncValue.data(_teenProfile()),
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final checkInControl = find.text('I am okay').first;
+    await tester.ensureVisible(checkInControl);
+    await tester.pumpAndSettle();
+    await tester.tap(checkInControl);
+    await tester.pumpAndSettle();
+
+    expect(repository.completedCheckinId, 'checkin-replayed');
+    expect(find.text('This check-in was already completed.'), findsOneWidget);
   });
 
   testWidgets(

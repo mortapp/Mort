@@ -21,6 +21,18 @@ The isolated API role matrix remains separately blocked by missing supported onb
 
 These files are guarded proposals, not deployed production behavior. Their source-hash guards bind to production definitions inspected read-only; all five signatures matched their current production MD5s on 2026-11-02. All three proposals compiled on a fresh, local PostgreSQL 17.11 replay of the 73 production migration files. The revised Proposal 900 review function and Proposal 902 schedule function were separately compiled inside a rollback-only transaction; fixture-free pgTAP passed 23/23 and both function definitions were verified unchanged after rollback. The unchanged direct-SELECT privacy pgTAP passed 5/5. The two-session harness passed lock-key serialization checks only, not authenticated RPC workflows. Local PG17.11 is not a managed Supabase clone. Do not apply the proposals to production or the divergent hosted QA project.
 
+## Controlled implementation order and rollback
+
+The three files have independent production source guards and no direct DDL dependency on one another. Recommended staging order is:
+
+1. `20261102090000_verification_evidence_gate.sql` — install the evidence ledger and reviewer gate. Keep `private.verification_provider_allowlist` empty. Provider positive verification remains unavailable until an independently reviewed signed adapter and provider sandbox evidence exist.
+2. `20261102090100_application_pair_lock_and_verification.sql` — install current eligibility/acceptance verification checks and participant-pair serialization. Guardian dual consent remains conditional on `jobs.requires_guardian_approval`.
+3. `20261102090200_checkin_idempotency_lifecycle.sql` — add nullable idempotency metadata and replace schedule/completion RPC bodies.
+
+Before each file, verify the production migration baseline still has all 73 expected versions and check that file's exact source-hash guards against the current live function definitions. Apply each file as a separate reviewed transaction and stop immediately on a guard failure. Deploy the compatible Flutter client before or in a coordinated release with Proposal 902 so ambiguous network retries reuse persisted request IDs, and so `job_acceptance_in_progress_retry`, `idempotency_key_reused`, and `idempotency_result_unverifiable` lead users to refresh/retry safely. Existing RPC signatures remain unchanged. The Flutter changes in this branch are local code only and are not deployed.
+
+Each proposal wraps its own changes in a transaction; a SQL error before commit rolls that file back. If a later file fails, earlier committed files remain applied. Do not run a partially applied file again after its function source has changed. A reviewed rollback would restore the captured pre-proposal function definitions in reverse order (902, 901, then 900) while retaining additive columns, indexes, provider evidence, audit rows and other stored data. Do not drop tables/columns/indexes, delete evidence/audit rows, or reverse migration-ledger entries as part of rollback. No executable reverse migrations are prepared yet. Neither apply nor rollback is authorized by this proposal review.
+
 ## Provider evidence contract before enabling any provider
 
 The `private.verification_provider_allowlist` is empty. Before enabling an entry, the chosen provider must have a reviewed server-to-server adapter that:
@@ -35,13 +47,21 @@ Required provider sandbox tests include forged/rotated signatures, replayed and 
 
 ## Proposal 901 client contract
 
-Production schema and source hashes match the five current guards. Guardian dual consent is required only when `jobs.requires_guardian_approval` is true; the proposal does not import QA-only Guardian decision/preferences. Acceptance's transient `job_acceptance_in_progress_retry` returns a retryable denial without accepting or assigning the application. The existing Flutter RPC signature is unchanged, but the client currently has no dedicated message/automatic retry for that code. Add compatibility coverage and a user-visible retry path before rollout; no Flutter behavior was silently changed here.
+Production schema and source hashes match the five current guards. Guardian dual consent is required only when `jobs.requires_guardian_approval` is true; the proposal does not import QA-only Guardian decision/preferences. Acceptance's transient `job_acceptance_in_progress_retry` returns a retryable denial without accepting or assigning the application. The existing Flutter RPC signature is unchanged. The current local client maps that code to a refresh-and-retry message; it does not retry automatically. This change is not deployed.
 
 ## Proposal 902 retry contract and current Flutter behavior
 
 The backend recommendation is to replay a previously committed operation only for the same authenticated teen and exact request identity/payload, including after terminal lifecycle, while rejecting a new key after termination and a reused key with changed payload. Completion already follows that rule for rows storing a request ID; pre-migration completed rows retain `payload_verified=false` legacy success.
 
-Flutter's safety repository defaults to a new UUID on every call. The current safety screen does not retain/pass a request ID for a retry, and `userFacingError` has no specific `idempotency_key_reused` message. Thus the existing Flutter UI cannot reliably retry an ambiguous network timeout with the original key; a new tap is a new request. Before claiming client idempotency, a separate client change must retain one request UUID per user intent until response/reconciliation. This proposal does not change that existing client behavior.
+Flutter's safety repository now uses a secure local request coordinator for schedule and completion. It persists the request ID and canonical payload before sending, reuses them after a timeout or process restart, rejects a changed payload while the prior result is uncertain, and clears the record only after explicit success or a definitive `{ok:false}` response. A later user action then receives a new ID. Concurrent duplicate calls in one repository share one in-flight future. The screen distinguishes a replayed success and maps retry/stale/authorization responses to safe refresh guidance. These code changes are not deployed, and no authenticated live RPC was called.
+
+After this client change, the complete Flutter suite passed **629 tests, 2 skipped, 0 failed**. `dart analyze` over every changed Dart file reported no issues. The app-level test suite is fixture-free: it proves client request persistence/coalescing and response handling, not an authenticated Supabase workflow.
+
+## External prerequisites and work that can proceed locally
+
+Counsel must approve isolated synthetic-account legal terms and any age, identity, school-data retention, appeal and deletion policy. The verification provider must supply an approved sandbox, credentials, signed callbacks, documented event timestamps/IDs, tenant binding, and evidence expiry semantics; no provider is selected and none is enabled. MORT operations must authorize and train a human first reviewer with scoped staff membership, MFA/AAL2 and audit access. QA operations must provision synthetic applicant, poster, linked/consenting Guardian, revoked Guardian, unrelated user and administrator through supported onboarding, plus legal/versioned consent and job/check-in fixtures; isolated anon and service-role keys must be placed in a secret store.
+
+Without those prerequisites, local Flutter unit/widget tests, analyzer, static source/ACL checks, clean-baseline SQL compilation, no-claim negative tests, migration/hash checks and rollback-only pgTAP remain available. Provider-positive, authenticated role-matrix, row-backed lifecycle and real two-session RPC race tests remain blocked and must not be represented as passed.
 
 The local direct-SELECT pgTAP setup is `../../scripts/qa-local-hosted-job-applications-acl.ps1`. It restores the hosted `service_role` table ACL on the disposable local container only; the strict five-assertion pgTAP file remains unchanged, and the script verifies anon/authenticated receive no table or column privileges.
 

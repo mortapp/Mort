@@ -588,3 +588,75 @@ staff identity was used.
 Production `jxbnrkasktbhtiujkhay` and hosted QA remained read-only. No production
 migration, data, Auth, RLS, provider, release-control, payment, marketplace,
 document-collection, or AI setting changed.
+
+## 2026-11-02 — Flutter check-in retry implementation and controlled rollout
+
+### Local client code completed
+
+- `SafetyRepository` now routes both check-in RPCs through a durable coordinator.
+  The coordinator writes an owner/operation/entity-scoped request UUID plus the
+  canonical request payload to device secure storage before the RPC. Transport
+  exceptions preserve the pending operation so retry after timeout/restart uses
+  the same UUID and payload. A payload change while outcome is uncertain is
+  rejected before network access. Explicit `{ok:false}` and success responses
+  retire the pending intent; a later user action receives a new UUID. In-flight
+  duplicate calls in one repository share a future. Malformed persisted state
+  fails closed.
+- Scheduling and completion RPC names, parameters and return JSON are unchanged.
+  Safety Center reports server replayed success distinctly. UI error mapping now
+  covers stale application state, transient concurrent acceptance, authorization
+  denial, terminal job/check-in, mismatched key/payload and unverifiable legacy
+  rows. No automatic retries are issued.
+- This is Flutter repository/UI code only; it has not been deployed. It cannot
+  prove how a live RPC or Proposal 902 behaves without isolated authenticated
+  fixtures.
+
+### Proposal order and rollback
+
+Recommended controlled staging order is 900 (verification evidence gate), 901
+(current eligibility/acceptance checks and pair serialization), then 902
+(check-in request metadata and lifecycle functions). They have independent
+source guards and no direct DDL dependency. Before each file, reconcile all 73
+production versions and verify its exact function hashes. Apply one reviewed
+transaction at a time; stop on any guard failure. Keep the provider allowlist
+empty. Guardian dual consent remains conditional on the live job's
+`requires_guardian_approval` value.
+
+Each file rolls back its own uncommitted transaction on SQL failure, but a
+failure in a later file leaves earlier commits in place. A future rollback must
+restore captured prior function definitions in reverse order (902, 901, 900)
+and retain additive columns/indexes and any evidence/audit rows. No reverse
+migrations are prepared. Do not drop or truncate proposal data, or rewrite the
+production migration ledger. The compatible Flutter client should ship before
+or in a coordinated rollout with Proposal 902; RPC signatures stay unchanged.
+Proposal 901's retry denial now displays safe refresh guidance in Flutter.
+
+The current read-only production recheck still shows 73 migrations from
+`20261026194801` through `20261102113314`; all five guarded production function
+MD5s exactly match the proposal anchors. The local provider allowlist remains
+empty. No deployment or production schema change was performed.
+
+### External dependencies versus local work
+
+Counsel approval is required for isolated synthetic-account legal versions and
+age/identity/school evidence consent, retention, appeal and deletion policies.
+Provider-positive tests require an approved provider sandbox and credentials,
+verified callback signature/event ordering/timestamp/tenant/case-binding
+contract, and expiry behavior. MORT operations must authorize/train an initial
+reviewer and provide scoped staff/AAL2/audit access. QA operations must create
+all six synthetic roles through supported workflows, legal acceptances,
+Guardian consent/revocation and application/check-in fixtures, plus isolated
+client and service-role credentials stored outside source/chat.
+
+Local Flutter tests/analyzer, migration/hash/static checks, clean-baseline SQL
+compile, fixture-free pgTAP and no-claim denials do not require those accounts.
+Authenticated role access, provider-positive verification, real row-backed
+retry behavior, and actual two-session application/acceptance/block/check-in
+RPC races remain blocked. Do not count static or protocol-only tests as those
+workflow tests.
+
+The complete Flutter suite after this client change passed **629 tests, 2
+skipped, 0 failed**. Analyzer on all touched Dart files passed with no issues.
+These are client-side tests only; the coordinator's simulated timeout/replay
+responses are not evidence that the hosted RPCs have passed authenticated
+integration testing.

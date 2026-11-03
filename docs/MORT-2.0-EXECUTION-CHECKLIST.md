@@ -2,10 +2,10 @@
 
 Status date: 2026-11-02  
 Branch: `codex/guardian-rpc-privacy-20261102`  
-Starting commit for this final recheck: `24d7de3457b4168b71d5e0f1983d944b6f723f2a`
-Scope: production migration replay and review of proposals 900–902. This file
-was not present in this checkout at task start; it is added here as the current
-execution record.
+Starting commit for this client-contract task: `3a294d68d9470b2892a6477ace1aed489933254b`
+Scope: production migration replay, proposal 900–902 review, and Flutter check-in
+retry compatibility. This file was not present in this checkout at task start;
+it is the current execution record.
 
 ## Completed with evidence
 
@@ -76,7 +76,8 @@ execution record.
   is required only when `jobs.requires_guardian_approval` is true; QA-only
   Guardian preferences/decision fields are absent. New
   `job_acceptance_in_progress_retry` propagates through the existing status
-  update wrapper; Flutter has no dedicated retry message or automatic retry.
+  update wrapper; the Flutter client maps it to a refresh-and-retry message but
+  does not retry automatically.
   The RPC signature is unchanged. Guardian dual consent is enforced only when
   production `jobs.requires_guardian_approval` is true.
 - Proposal 902 checks persisted schedule keys before lifecycle state. The same
@@ -87,9 +88,75 @@ execution record.
   `idempotency_result_unverifiable`; refresh/reconcile instead of claiming an
   exact retry.
   Completion replays a matching stored request ID and rejects a different ID
-  on newly bound rows. Current Flutter UI generates a new UUID for every call
-  and does not retain it across network retries; client idempotency is a
-  separate follow-up. No Flutter behavior was changed here.
+  on newly bound rows. The updated local Flutter repository persists an
+  operation ID and exact payload across ambiguous errors and app restarts;
+  confirmed success or an explicit `{ok:false}` response ends that pending
+  intent. A subsequent user action gets a new ID. This mobile code has not
+  been deployed.
+
+## Flutter retry implementation completed locally
+
+- [x] Added a secure-storage check-in request coordinator. It writes the
+  user/operation/entity scoped request ID and canonical payload before the RPC,
+  resumes the same ID after timeout/restart, blocks payload changes while the
+  previous result is uncertain, and shares concurrent duplicate calls within
+  the repository. Malformed recovery state fails closed.
+- [x] Wired scheduling and completion repository methods through the
+  coordinator without changing the RPC names or parameter signatures.
+- [x] Updated Safety Center to distinguish Proposal 902 replayed success and
+  mapped transient acceptance, idempotency, terminal-lifecycle, stale-state,
+  and authorization responses to safe user guidance.
+- [x] Full Flutter suite: **629 passed, 2 skipped, 0 failed**. This includes
+  the coordinator, repository, error-mapping and Safety Center replay tests.
+  Focused coverage includes timeout then process restart, payload mismatch/no
+  send, terminal denial followed by a new key, success then a new user action,
+  account/operation isolation, duplicate in-flight submission, explicit
+  authorization denial, replay UI, stale response and retry errors.
+- [x] Dart analyzer on every touched Dart source and test file: **no issues**.
+  The earlier whole-package analyzer reported three `unnecessary_underscores`
+  infos; those were corrected and the changed-file analyzer passed. The full
+  test suite compiled and exercised the changed files after that correction.
+
+## Proposal deployment order and rollback readiness
+
+Recommended staging sequence, after a reviewed isolated authenticated run:
+
+1. `20261102090000_verification_evidence_gate.sql` — provider evidence ledger
+   and reviewer gate. Provider allowlist must stay empty.
+2. `20261102090100_application_pair_lock_and_verification.sql` — current
+   verification rechecks, pair locking and production acceptance contract.
+   Guardian dual consent stays conditional on `jobs.requires_guardian_approval`.
+3. `20261102090200_checkin_idempotency_lifecycle.sql` — additive nullable
+   metadata, schedule retry binding and completion request binding.
+
+The source-hash guards were last verified against the reconciled production
+baseline; recheck all 73 versions and each guard immediately before a future
+application. Each file owns one transaction and must be applied separately.
+SQL failure before commit rolls back that file; previous committed proposals
+remain. Rollback must restore captured prior function definitions in reverse
+order while retaining additive columns/indexes/evidence/audit data. No reverse
+SQL is prepared. Client release should precede or coordinate with Proposal
+902; RPC signatures are unchanged. Proposal 901's transient denial now has a
+client message, but no automatic retry is performed.
+
+## External QA prerequisites
+
+- **Counsel:** approve synthetic-account legal versions and age/identity/school
+  evidence collection, retention, appeals, deletion and consent language.
+- **Verification provider:** select/approve provider; supply sandbox credentials,
+  documented signed callback/event ID/timestamp/tenant contracts, case binding,
+  expiry and positive/negative sandbox results. No provider is enabled.
+- **MORT operations:** authorize/train an initial reviewer, scoped staff
+  membership/permissions, MFA/AAL2 and audit access using an approved bootstrap.
+- **QA operations:** provision the applicant, poster, connected/consenting
+  Guardian, revoked Guardian, unrelated user and administrator through supported
+  onboarding; provide versioned legal consent, synthetic application/check-in
+  fixtures and isolated client/service-role credentials through a secret store.
+
+Until these exist, local client tests, static/schema checks, clean baseline SQL
+compilation and fixture-free/negative tests can continue. Provider-positive,
+authenticated role, row-backed lifecycle and actual two-session RPC tests stay
+blocked. No identities or evidence were fabricated.
 
 ## Validation limits and release blockers
 
@@ -147,6 +214,8 @@ execution record.
 ## Production boundary
 
 Production `jxbnrkasktbhtiujkhay` was queried read-only for migration/function
-evidence. No production SQL, data, Auth, RLS, provider configuration,
+evidence. The final read-only recheck found 73 migration rows through
+`20261102113314` and all five proposal function hashes still match. No
+production SQL, data, Auth, RLS, provider configuration,
 release-control, marketplace, payment, document-collection, merge, push, or
 deployment change occurred. Hosted QA was not modified.
