@@ -8,8 +8,9 @@ The authoritative production client is the Flutter app in `flutter_mort`.
 
 - Android package: `com.mortapp.mobile`
 - Current verified release track: closed-test Android build
-- Hosted backend: Supabase project `rakjydmgwwgtdislanbt`
-- Production builds must come from `flutter_mort` only
+- Hosted production backend: Supabase project `jxbnrkasktbhtiujkhay` (`mort p`)
+- The deleted Supabase project `rakjydmgwwgtdislanbt` is retired and must never be used.
+- Production builds must come from `flutter_mort` only.
 
 ## Repository layout
 
@@ -28,7 +29,8 @@ The repo is intentionally structured to keep the active product client separate 
 2. Treat the Expo app and `swift_mort` as reference-only code paths.
 3. Do not ship store artifacts or release builds from the legacy Expo app.
 4. Keep app-level config and platform tooling aligned with the Flutter-first release model.
-5. Prefer the docs and scripts in the root repo for operational guidance.
+5. Never reconnect to or deploy against the deleted Supabase project `rakjydmgwwgtdislanbt`.
+6. Prefer the docs and scripts in the root repo for operational guidance.
 
 ## Local development
 
@@ -44,11 +46,4 @@ flutter run
 
 ## Release and validation
 
-Release workflows and release gates are managed via the root scripts and docs, not the legacy Expo shell.
-
-```powershell
-cd .
-.
-```
-
-The repo includes a dedicated release and readiness flow for the Flutter client, including release docs and QA automation. Use those for production validation, build packaging, and release gates.
+Release workflows and release gates are managed via the root scripts and docs, not the legacy Expo shell. The repo includes a dedicated release and readiness flow for the Flutter client, including release docs and QA automation. Use those for production validation, build packaging, and release gates.
