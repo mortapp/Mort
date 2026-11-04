@@ -1,4 +1,5 @@
-import { createCipheriv, createHash, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
+import { encryptBackupEnvelope } from "./backup-envelope.mjs";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -74,19 +75,12 @@ mkdirSync(backupDir, { recursive: true, mode: 0o700 });
 const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 const outputPath = join(backupDir, `remote-feature-data-${projectRef}-${timestamp}.json.enc`);
 const plaintext = Buffer.from(`${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
-const iv = randomBytes(12);
-const cipher = createCipheriv("aes-256-gcm", encryptionKey, iv);
-cipher.setAAD(Buffer.from(`MORT backup v1:${projectRef}:feature-data`, "utf8"));
-const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
-const envelope = Buffer.from(JSON.stringify({
-  format: "mort-encrypted-backup-v1",
-  algorithm: "aes-256-gcm",
+const envelope = encryptBackupEnvelope({
   projectRef,
   kind: "feature-data",
-  iv: iv.toString("base64"),
-  authTag: cipher.getAuthTag().toString("base64"),
-  ciphertext: ciphertext.toString("base64"),
-}) + "\n", "utf8");
+  plaintext,
+  keyText: encryptionKeyText,
+});
 writeFileSync(outputPath, envelope, { mode: 0o600 });
 const sha256 = createHash("sha256").update(envelope).digest("hex").toUpperCase();
 const rowCount = Object.values(snapshot.tables).reduce((sum, rows) => sum + rows.length, 0);
