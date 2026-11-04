@@ -1,17 +1,26 @@
 # External Setup Still Needed
 
-- The old Supabase project `rakjydmgwwgtdislanbt` has been rebuilt and remotely verified for the current MORT backend baseline. See `docs/OLD_PROJECT_REBUILD_REPORT.md`.
-- For any new staging/production project, apply the Supabase migration to the target project and run the same smoke/RLS checks before use.
-- Deploy `send-push` Edge Function for any new project.
-- Set `SEND_PUSH_INVOKE_SECRET` in Supabase/server environment, not in Expo.
-- Keep service-role/server secrets in Supabase/server tooling only. Never put them in `.env.local`, Expo/mobile source, commits, or release zips.
-- Configure Supabase Auth redirect URLs.
-- Create first admin from trusted SQL/dashboard.
-- Run Supabase advisors and resolve findings before launch.
-- Configure EAS project ID and Apple signing credentials.
-- Add final Terms, Privacy Policy, Community Rules, Safety Center, and support contact.
-- Complete legal/privacy/teen safety/App Store review.
-- Configure production monitoring, backups, abuse workflows, and moderation staffing.
-- Complete real iPhone EAS preview/TestFlight push, camera/photo, auth, and role-flow testing before real users.
-- Configure RevenueCat iOS public SDK key, products, entitlements, offerings, and sandbox purchase testing.
-- Configure AdMob missing ad unit IDs, UMP/consent, app-ads.txt website hosting, and App Store ads/privacy disclosures.
+## Current Supabase projects
+
+- Production: `jxbnrkasktbhtiujkhay` — current MORT production backend.
+- QA: `ckcxakhxqlkhppsxxjhv` — isolated validation target.
+- Retired/deleted: `rakjydmgwwgtdislanbt` — deleted. Never reconnect, deploy to, or use its credentials.
+
+Historical rebuild reports that mention the deleted project describe the old environment only. They do not establish current production readiness.
+
+## Remaining external work
+
+- Keep service-role/server secrets in Supabase/server tooling only. Never put them in mobile source, `.env.local`, commits, or release archives.
+- Verify Supabase Auth redirect URLs and OAuth provider configuration against the current production project.
+- Complete the first-admin bootstrap only through trusted, reviewed operations.
+- Re-run Supabase advisors and close the open production security findings before launch.
+- Provision QA-only credentials and test accounts for hosted Stripe and provider regression. Do not reuse production credentials.
+- Configure and verify production backups, retention, alerting, and an isolated restore test before release.
+- Complete external legal review for teen labor, parental consent/privacy, payments, data retention/deletion, and state-law requirements.
+- Confirm a monitored child-safety contact, staffed reporting/escalation workflow, and incident-response coverage.
+- Complete signed Android AAB verification and real-device testing; complete iOS archive/TestFlight testing on an authorized macOS runner.
+- Deploy and validate push, RevenueCat, and other non-Stripe Edge Functions in QA before any production deployment.
+- Configure RevenueCat products/entitlements and sandbox purchase tests only after QA secrets and app-store configuration are ready.
+- Configure AdMob IDs, UMP/consent, app-ads.txt, and App Store ads/privacy disclosures only when monetization is separately approved.
+
+Production release controls remain closed until the technical, legal, safety, backup, and store-certification gates are evidenced.
