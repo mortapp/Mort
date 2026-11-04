@@ -47,6 +47,8 @@ try {
     job_funding_enabled: row.job_funding_enabled === true,
     transfers_enabled: row.transfers_enabled === true,
     refunds_enabled: row.refunds_enabled === true,
+    payouts_approved: row.payouts_approved === true,
+    connected_accounts_approved: row.connected_accounts_approved === true,
   };
   const mutationEligible =
     row.mode === "sandbox" &&
