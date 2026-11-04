@@ -41,7 +41,7 @@ jobs:
       - run: node scripts/secret-scan-git-history.mjs --self-test
       - name: Type-check all Supabase Edge Function SDK entrypoints
         run: >-
-          deno check --no-config --node-modules-dir=none
+          deno check --no-config --lock=deno.lock --node-modules-dir=none
           supabase/functions/_shared/stripe.ts
           supabase/functions/ai-safety/index.ts
           supabase/functions/avatar-url/index.ts
@@ -55,7 +55,7 @@ jobs:
           supabase/functions/account-deletion-processor/index.ts
           supabase/functions/identity-verification-session/index.ts
           supabase/functions/_shared/support_runtime.ts
-      - run: deno test --no-config --node-modules-dir=none --allow-read --allow-env supabase/functions/_tests
+      - run: deno test --no-config --lock=deno.lock --node-modules-dir=none --allow-read --allow-env supabase/functions/_tests
       - uses: actions/upload-artifact@v4
         with:
           name: deno-lock-candidate
