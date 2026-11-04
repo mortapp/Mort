@@ -12,6 +12,10 @@ begin
      <> 'a44e036f16579106d9ae615d2a54235f' then
     raise exception 'proposal_source_mismatch:mort_accept_job_application';
   end if;
+  if md5(pg_get_functiondef('public.update_my_job_application_status(uuid,text,timestamp with time zone)'::regprocedure))
+     <> '783f373cd4ad853ee690eae22abc6289' then
+    raise exception 'proposal_source_mismatch:update_my_job_application_status';
+  end if;
 end;
 $guard$;
 
@@ -194,6 +198,8 @@ declare
   v_user uuid := auth.uid();
   v_app public.job_applications%rowtype;
   v_job public.jobs%rowtype;
+  v_job_id uuid;
+  v_applicant_id uuid;
   v_assignment uuid;
   v_conversation uuid;
   v_date_of_birth date;
@@ -206,29 +212,50 @@ begin
     raise exception 'An active adult account is required';
   end if;
 
-  select * into v_app
-  from public.job_applications
-  where id = p_application_id
-  for update;
+  -- Resolve the target without locking the application. The ownership-scoped
+  -- job lock is the first row lock, so a non-owner cannot hold another
+  -- poster's application while failing authorization.
+  select application.job_id, application.applicant_id
+    into v_job_id, v_applicant_id
+  from public.job_applications application
+  where application.id = p_application_id;
   if not found then raise exception 'Application not found'; end if;
-
-  -- The status-update wrapper locks its selected application before calling
-  -- this RPC. Two posters can therefore hold different application rows for
-  -- the same job while one acceptance later rejects the other's row. A
-  -- nonblocking per-job lock makes the loser abort and release its app row,
-  -- avoiding the app-row/job-row deadlock without changing the wrapper API.
-  if not pg_catalog.pg_try_advisory_xact_lock(
-    pg_catalog.hashtextextended('mort-accept-job:' || v_app.job_id::text, 0)
-  ) then
-    raise exception 'job_acceptance_in_progress_retry';
-  end if;
 
   select * into v_job
   from public.jobs
-  where id = v_app.job_id
+  where id = v_job_id
+    and poster_id = v_user
   for update;
-  if not found or v_job.poster_id <> v_user then
-    raise exception 'Application not found';
+  if not found then raise exception 'Application not found'; end if;
+
+  -- Keep the caller authorized for the duration of acceptance. Job ownership
+  -- is protected by the job-row lock above; this profile lock serializes
+  -- account suspension or role revocation with the transaction.
+  perform profile.id
+  from public.profiles profile
+  where profile.id = v_user
+    and profile.role = 'adult'::public.mort_role
+    and profile.account_status = 'active'
+  for share;
+  if not found then raise exception 'An active adult account is required'; end if;
+
+  -- Match the deterministic participant-pair lock shared by block and
+  -- message operations before taking the application-row lock.
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(
+      least(v_user, v_applicant_id)::text || ':' || greatest(v_user, v_applicant_id)::text,
+      0
+    )
+  );
+
+  select * into v_app
+  from public.job_applications
+  where id = p_application_id
+    and job_id = v_job.id
+  for update;
+  if not found then raise exception 'Application not found'; end if;
+  if v_app.applicant_id <> v_applicant_id then
+    raise exception 'Application changed; refresh and try again';
   end if;
   if v_job.status <> 'open'::public.mort_job_status
      or v_job.safety_review_status <> 'approved'
@@ -238,12 +265,6 @@ begin
      ) then
     raise exception 'Application is not eligible for acceptance';
   end if;
-  perform pg_catalog.pg_advisory_xact_lock(
-    pg_catalog.hashtextextended(
-      least(v_user, v_app.applicant_id)::text || ':' || greatest(v_user, v_app.applicant_id)::text,
-      0
-    )
-  );
   if exists (
     select 1 from public.user_blocks b
     where (b.blocker_id = v_user and b.blocked_id = v_app.applicant_id)
@@ -384,6 +405,157 @@ begin
   values (v_conversation, v_user), (v_conversation, v_app.applicant_id);
 
   return v_assignment;
+end;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.update_my_job_application_status(
+  p_application_id uuid,
+  p_action text,
+  p_expected_updated_at timestamp with time zone DEFAULT NULL::timestamp with time zone
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+AS $function$
+declare
+  v_user uuid := auth.uid();
+  v_role public.mort_role := private.current_role();
+  v_app public.job_applications%rowtype;
+  v_job public.jobs%rowtype;
+  v_target_job_id uuid;
+  v_target_applicant_id uuid;
+  v_assignment uuid;
+  v_recipient uuid;
+  v_title text;
+  v_body text;
+  v_updated jsonb;
+begin
+  if v_user is null or not private.is_active_user() then
+    return jsonb_build_object('ok', false, 'code', 'active_account_required');
+  end if;
+
+  -- This lookup is caller-scoped but intentionally unlocked. Acceptance takes
+  -- locks in job -> active poster profile -> participant pair -> application
+  -- order, matching mort_accept_job_application and application submission.
+  select ja.job_id, ja.applicant_id
+    into v_target_job_id, v_target_applicant_id
+  from public.job_applications ja
+  where ja.id = p_application_id
+    and (
+      ja.applicant_id = v_user
+      or exists (
+        select 1 from public.jobs j
+        where j.id = ja.job_id and j.poster_id = v_user
+      )
+    );
+  if not found then
+    return jsonb_build_object('ok', false, 'code', 'application_not_available');
+  end if;
+
+  if p_action = 'accepted' then
+    if v_role <> 'adult'::public.mort_role or v_target_applicant_id = v_user then
+      return jsonb_build_object('ok', false, 'code', 'application_action_not_allowed');
+    end if;
+
+    select * into v_job
+    from public.jobs
+    where id = v_target_job_id and poster_id = v_user
+    for update;
+    if not found then
+      return jsonb_build_object('ok', false, 'code', 'application_not_available');
+    end if;
+
+    perform profile.id
+    from public.profiles profile
+    where profile.id = v_user
+      and profile.role = 'adult'::public.mort_role
+      and profile.account_status = 'active'
+    for share;
+    if not found then
+      return jsonb_build_object('ok', false, 'code', 'active_account_required');
+    end if;
+
+    perform pg_catalog.pg_advisory_xact_lock(
+      pg_catalog.hashtextextended(
+        least(v_user, v_target_applicant_id)::text || ':' || greatest(v_user, v_target_applicant_id)::text,
+        0
+      )
+    );
+
+    select ja.* into v_app
+    from public.job_applications ja
+    where ja.id = p_application_id and ja.job_id = v_job.id
+    for update;
+    if not found or v_app.applicant_id <> v_target_applicant_id then
+      return jsonb_build_object('ok', false, 'code', 'application_not_available');
+    end if;
+    if p_expected_updated_at is not null and v_app.updated_at <> p_expected_updated_at then
+      return jsonb_build_object('ok', false, 'code', 'application_changed_refresh');
+    end if;
+
+    v_assignment := public.mort_accept_job_application(v_app.id);
+    v_updated := public.get_my_job_applications(v_app.id)->'items'->0;
+    return jsonb_build_object('ok', true, 'application', v_updated, 'assignment_id', v_assignment);
+  end if;
+
+  select ja.* into v_app
+  from public.job_applications ja
+  where ja.id = p_application_id
+    and (
+      ja.applicant_id = v_user
+      or exists (
+        select 1 from public.jobs j
+        where j.id = ja.job_id and j.poster_id = v_user
+      )
+    )
+  for update;
+  if not found then
+    return jsonb_build_object('ok', false, 'code', 'application_not_available');
+  end if;
+  if p_expected_updated_at is not null and v_app.updated_at <> p_expected_updated_at then
+    return jsonb_build_object('ok', false, 'code', 'application_changed_refresh');
+  end if;
+
+  select * into v_job from public.jobs where id = v_app.job_id;
+  if p_action in ('shortlisted', 'rejected', 'viewed')
+     and v_role = 'adult'::public.mort_role
+     and v_job.poster_id = v_user
+     and v_app.status in ('submitted'::public.mort_application_status, 'shortlisted'::public.mort_application_status) then
+    if p_action = 'viewed' then
+      update public.job_applications set viewed_at = coalesce(viewed_at, now()) where id = v_app.id;
+    else
+      update public.job_applications set status = p_action::public.mort_application_status where id = v_app.id;
+      v_recipient := v_app.applicant_id;
+      v_title := case when p_action = 'shortlisted' then 'Application shortlisted' else 'Application update' end;
+      v_body := case when p_action = 'shortlisted' then 'Your application was shortlisted.' else 'Your application was declined.' end;
+    end if;
+  elsif p_action = 'withdrawn'
+        and v_role = 'teen'::public.mort_role
+        and v_app.applicant_id = v_user
+        and v_app.status in ('submitted'::public.mort_application_status, 'shortlisted'::public.mort_application_status) then
+    update public.job_applications
+    set status = 'withdrawn'::public.mort_application_status, withdrawn_at = now()
+    where id = v_app.id;
+    v_recipient := v_job.poster_id;
+    v_title := 'Application withdrawn';
+    v_body := 'A teen withdrew their application.';
+  else
+    return jsonb_build_object('ok', false, 'code', 'application_action_not_allowed');
+  end if;
+
+  if v_recipient is not null then
+    insert into public.notifications(user_id, notification_type, title, body, data)
+    values (
+      v_recipient,
+      'application_status',
+      v_title,
+      v_body,
+      jsonb_build_object('application_id', v_app.id, 'job_id', v_app.job_id)
+    );
+  end if;
+  v_updated := public.get_my_job_applications(v_app.id)->'items'->0;
+  return jsonb_build_object('ok', true, 'application', v_updated, 'assignment_id', v_assignment);
 end;
 $function$;
 
