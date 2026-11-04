@@ -36,6 +36,18 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+      - name: Check release and backup operator script syntax
+        run: |
+          node --check scripts/backup-feature-data.mjs
+          node --check scripts/backup-feature-schema.mjs
+          node --check scripts/build-public-legal-vercel.mjs
+          node --check scripts/play-release-qa-helpers.mjs
+          node --check scripts/qa-release-network-security.mjs
+          node --check scripts/qa-smoke.mjs
+          node --check scripts/qa-rls.mjs
+          node --check scripts/qa-stripe-pre-provider-gate.mjs
+          node --check scripts/revenuecat-common.mjs
+          node --check scripts/stripe-pre-provider-runtime-status.mjs
       - run: node scripts/qa-stripe-pre-provider-gate.mjs
       - run: node scripts/secret_extraction_scan.mjs --self-test
       - run: node scripts/secret-scan-git-history.mjs --self-test
