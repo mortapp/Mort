@@ -201,4 +201,3 @@ const sha256 = createHash("sha256").update(envelope).digest("hex").toUpperCase()
 console.log(`[backup-feature-schema] Project ref: ${projectRef}`);
 console.log(`[backup-feature-schema] Encrypted snapshot: ${outputPath}`);
 console.log(`[backup-feature-schema] Relations=${snapshot.relations.length}, policies=${snapshot.policies.length}, functions=${snapshot.functions.length}, migrations=${snapshot.migrations.length}, encrypted SHA-256=${sha256}`);
-);
