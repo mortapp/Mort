@@ -252,6 +252,10 @@ jobs:
   android-device-test-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # Public client credentials only; this APK is explicitly non-production/internal-test.
+      SUPABASE_URL: https://jxbnrkasktbhtiujkhay.supabase.co
+      SUPABASE_ANON_KEY: ${{ secrets.MORT_PRODUCTION_SUPABASE_ANON_KEY }}
     steps:
       - uses: actions/checkout@v7
       - uses: subosito/flutter-action@v2
