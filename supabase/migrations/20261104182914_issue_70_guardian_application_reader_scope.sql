@@ -47,8 +47,7 @@ begin
   from pg_catalog.pg_proc p
   join pg_catalog.pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public'
-    and p.proname = 'get_my_job_applications'
-    and pg_catalog.pg_get_function_identity_arguments(p.oid) = 'p_application_id uuid';
+    and p.oid = 'public.get_my_job_applications(uuid)'::regprocedure;
 
   if v_function_oid is null then
     raise exception 'Issue 70 migration stopped: expected public.get_my_job_applications(uuid) was not found';
