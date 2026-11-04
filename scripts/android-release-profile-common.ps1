@@ -18,12 +18,13 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'android-signing-common.ps1')
+. (Join-Path $PSScriptRoot 'android-java-common.ps1')
 
 $root = Split-Path $PSScriptRoot -Parent
 $flutterRoot = Join-Path $root 'flutter_mort'
 $outputDirectory = Join-Path $root 'build\play'
-$expectedUrl = 'https://rakjydmgwwgtdislanbt.supabase.co'
-$expectedProjectRef = 'rakjydmgwwgtdislanbt'
+$expectedUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co'
+$expectedProjectRef = 'jxbnrkasktbhtiujkhay'
 $expectedAuthRedirectUrl = 'com.mortapp.mobile://app/auth-callback'
 $expectedCertificateSha256 = Get-MortUploadCertificateSha256
 $defineFile = $null
@@ -167,6 +168,8 @@ if ($defineJson -match '(?i)(service_role|client_secret|db_password|private_key|
   throw 'Release dart-defines contain a forbidden secret marker.'
 }
 [IO.File]::WriteAllText($defineFile, $defineJson, [Text.UTF8Encoding]::new($false))
+
+Set-MortAndroidBuildJava | Out-Null
 
 Push-Location $flutterRoot
 try {

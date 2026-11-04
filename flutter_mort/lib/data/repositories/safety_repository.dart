@@ -1,9 +1,37 @@
 import 'package:uuid/uuid.dart';
 
+import '../services/checkin_request_coordinator.dart';
 import 'repository_base.dart';
+
+typedef SafetyCheckinRpcInvoker =
+    Future<dynamic> Function(String function, Map<String, dynamic> params);
 
 class SafetyRepository extends RepositoryBase {
   static const _uuid = Uuid();
+
+  SafetyRepository({
+    CheckinRequestCoordinator? checkinRequestCoordinator,
+    String? Function()? authenticatedUserId,
+    SafetyCheckinRpcInvoker? checkinRpcInvoker,
+  }) : _checkinRequestCoordinator =
+           checkinRequestCoordinator ?? CheckinRequestCoordinator(),
+       _authenticatedUserId = authenticatedUserId,
+       _checkinRpcInvoker = checkinRpcInvoker;
+
+  final CheckinRequestCoordinator _checkinRequestCoordinator;
+  final String? Function()? _authenticatedUserId;
+  final SafetyCheckinRpcInvoker? _checkinRpcInvoker;
+
+  String _checkinUserId() => _authenticatedUserId?.call() ?? requireUserId();
+
+  Future<dynamic> _invokeCheckinRpc(
+    String function,
+    Map<String, dynamic> params,
+  ) {
+    final injectedInvoker = _checkinRpcInvoker;
+    if (injectedInvoker != null) return injectedInvoker(function, params);
+    return client.rpc(function, params: params);
+  }
 
   Map<String, dynamic> _requireSuccess(dynamic value, String fallback) {
     if (value is Map && value['ok'] == true) {
@@ -142,31 +170,37 @@ class SafetyRepository extends RepositoryBase {
     required int minutesFromNow,
     String? clientRequestId,
   }) async {
-    requireUserId();
-    final value = await client.rpc(
-      'schedule_active_job_checkin',
-      params: {
+    final userId = _checkinUserId();
+    return _checkinRequestCoordinator.execute(
+      userId: userId,
+      operation: CheckinOperation.schedule,
+      entityId: applicationId,
+      payload: {'minutes_from_now': minutesFromNow},
+      preferredRequestId: clientRequestId,
+      request: (requestId) => _invokeCheckinRpc('schedule_active_job_checkin', {
         'p_application_id': applicationId,
         'p_minutes_from_now': minutesFromNow,
-        'p_client_request_id': clientRequestId ?? _uuid.v4(),
-      },
+        'p_client_request_id': requestId,
+      }),
     );
-    return _requireSuccess(value, 'Unable to schedule check-in');
   }
 
   Future<Map<String, dynamic>> completeActiveJobCheckin({
     required String checkinId,
     String? clientRequestId,
   }) async {
-    requireUserId();
-    final value = await client.rpc(
-      'complete_active_job_checkin',
-      params: {
+    final userId = _checkinUserId();
+    return _checkinRequestCoordinator.execute(
+      userId: userId,
+      operation: CheckinOperation.complete,
+      entityId: checkinId,
+      payload: const {},
+      preferredRequestId: clientRequestId,
+      request: (requestId) => _invokeCheckinRpc('complete_active_job_checkin', {
         'p_checkin_id': checkinId,
-        'p_client_request_id': clientRequestId ?? _uuid.v4(),
-      },
+        'p_client_request_id': requestId,
+      }),
     );
-    return _requireSuccess(value, 'Unable to complete check-in');
   }
 
   Future<List<Map<String, dynamic>>> listBlockedUsers() async {

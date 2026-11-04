@@ -22,8 +22,39 @@ void main() {
   test('release configuration is fail-closed and bound to MORT Supabase', () {
     final config = _read('lib/core/config/app_config.dart');
     final main = _read('lib/main.dart');
+    final releaseBuilder = _read(
+      '../scripts/android-release-profile-common.ps1',
+    );
+    final deviceBuilder = _read('../scripts/build-android-device-test-apk.ps1');
+    final playBuilder = _read('../scripts/build-play-console-aab.ps1');
 
-    expect(AppConfig.expectedSupabaseProjectRef, 'rakjydmgwwgtdislanbt');
+    expect(AppConfig.expectedSupabaseProjectRef, 'jxbnrkasktbhtiujkhay');
+    expect(
+      releaseBuilder,
+      contains('https://jxbnrkasktbhtiujkhay.supabase.co'),
+    );
+    expect(
+      releaseBuilder,
+      contains(r"$expectedProjectRef = 'jxbnrkasktbhtiujkhay'"),
+    );
+    expect(
+      deviceBuilder,
+      contains(
+        r"$expectedSupabaseUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co'",
+      ),
+    );
+    expect(
+      deviceBuilder,
+      contains(r'$supabaseAnonKey = $env:SUPABASE_ANON_KEY'),
+    );
+    expect(
+      playBuilder,
+      contains(r"$expectedUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co'"),
+    );
+    expect(
+      playBuilder,
+      contains("Get-MortPublicConfigValue -PrimaryName 'SUPABASE_ANON_KEY'"),
+    );
     expect(config, contains('assertValidReleaseConfiguration'));
     expect(
       config,

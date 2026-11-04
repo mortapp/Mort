@@ -6,6 +6,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'android-java-common.ps1')
 
 $root = Resolve-Path "$PSScriptRoot\.."
 $flutterRoot = Join-Path $root 'flutter_mort'
@@ -13,16 +14,22 @@ if (-not $OutputPath) {
   $OutputPath = Join-Path $root 'build\device-test\mort-device-test.apk'
 }
 
-# Public client configuration only. This is intentionally safe to compile into
-# the Android app; no service-role, database password, webhook secret, or other
-# privileged credential is used here.
-$supabaseUrl = 'https://rakjydmgwwgtdislanbt.supabase.co'
-$supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYXNlIiwicmVmIjoicmFranlkbWd3d2d0ZGlzbGFuYnQiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc4MTg3MTE3NSwiZXhwIjoyMDk3NDQ3MTc1fQ.DorOgj6jdPTrPX45Vi0O1dYgx-e3zgO6_S39JDcL2Ww'
+# Read public client configuration from the caller's protected environment.
+# Never embed a project key in this build script.
+$expectedSupabaseUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co'
+$supabaseUrl = $env:SUPABASE_URL
+$supabaseAnonKey = $env:SUPABASE_ANON_KEY
+if ($supabaseUrl -ne $expectedSupabaseUrl) {
+  throw 'Device-test build must target the authoritative MORT Supabase project.'
+}
+if ([string]::IsNullOrWhiteSpace($supabaseAnonKey)) {
+  throw 'Set SUPABASE_ANON_KEY in the protected environment before building.'
+}
 
 $defines = @(
   "--dart-define=SUPABASE_URL=$supabaseUrl",
   "--dart-define=SUPABASE_ANON_KEY=$supabaseAnonKey",
-  '--dart-define=MORT_SUPABASE_PROJECT_REF=rakjydmgwwgtdislanbt',
+  '--dart-define=MORT_SUPABASE_PROJECT_REF=jxbnrkasktbhtiujkhay',
   '--dart-define=MORT_RELEASE_STAGE=internal_test',
   '--dart-define=MORT_RELEASE_PROFILE=automated_test',
   '--dart-define=MORT_OPERATIONAL_MODE=automated_test',
@@ -46,6 +53,8 @@ $defines = @(
 if ($BrowserStackQa) {
   $defines += '--dart-define=MORT_BROWSERSTACK_QA_MODE=true'
 }
+
+Set-MortAndroidBuildJava | Out-Null
 
 Push-Location $flutterRoot
 try {

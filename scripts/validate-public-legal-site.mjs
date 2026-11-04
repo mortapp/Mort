@@ -11,6 +11,9 @@ const expectedRoutes = [
 ];
 const failures = [];
 const checked = [];
+// CI may validate a clearly marked draft package without claiming legal approval.
+// This flag never makes the package deployment-ready or changes public release state.
+const allowDraftPackage = process.env.MORT_ALLOW_DRAFT_LEGAL_PACKAGE === 'true';
 
 function routeFile(route) {
   if (route === '/') return resolve(output, 'index.html');
@@ -47,7 +50,13 @@ const statusPath = resolve(output, 'release-status.json');
 if (!existsSync(statusPath)) failures.push('release-status.json is missing');
 const status = existsSync(statusPath)
   ? JSON.parse(readFileSync(statusPath, 'utf8'))
-  : { deploymentReady: false, missingConfiguration: ['unknown'] };
+  : { deploymentReady: false, missingConfig: ['unknown'], legalApprovalClaimed: status.legalApprovalClaimed === true, externalLegalReviewPending: true };
+if (status.deploymentReady !== true && !allowDraftPackage) {
+  failures.push(`required public configuration is incomplete: ${(status.missingConfig ?? []).join(', ') || 'unknown'}`);
+}
+if ((status.legalApprovalClaimed !== true || status.externalLegalReviewPending === true) && !allowDraftPackage) {
+  failures.push('qualified legal review and approval are not evidenced; public legal pages must remain draft');
+}
 const publicConfigPath = resolve(output, 'assets', 'public-config.js');
 if (!existsSync(publicConfigPath)) failures.push('public-config.js is missing');
 if (existsSync(publicConfigPath)) {
@@ -61,7 +70,7 @@ if (existsSync(publicConfigPath)) {
   } else {
     try {
       const config = JSON.parse(match[1]);
-      if (config.supabaseUrl !== 'https://rakjydmgwwgtdislanbt.supabase.co') {
+      if (config.supabaseUrl !== 'https://jxbnrkasktbhtiujkhay.supabase.co') {
         failures.push('public-config.js points to the wrong Supabase project');
       }
       if (!config.supabaseAnonKey) {
@@ -70,7 +79,7 @@ if (existsSync(publicConfigPath)) {
         const payload = JSON.parse(
           Buffer.from(config.supabaseAnonKey.split('.')[1], 'base64url').toString('utf8'),
         );
-        if (payload.role !== 'anon' || payload.ref !== 'rakjydmgwwgtdislanbt') {
+        if (payload.role !== 'anon' || payload.ref !== 'jxbnrkasktbhtiujkhay') {
           failures.push('public-config.js does not contain the expected anon key');
         }
       }
@@ -90,8 +99,10 @@ if (!existsSync(deletionScriptPath)) {
   if (!deletionScript.includes('shouldCreateUser: false')) failures.push('account deletion could create an account');
   if (!deletionScript.includes("flowType: 'pkce'")) failures.push('account deletion auth is not PKCE');
   if (/https:\/\/esm\.sh/.test(deletionScript)) failures.push('account deletion imports executable code from a third-party CDN');
-  if (!/finally\s*\{[\s\S]*result\.textContent\s*=\s*['"][^'"]*This page never confirms whether an account exists\./.test(deletionScript)) {
-    failures.push('account deletion does not use one generic finally response');
+  const genericLookupMessage = 'If that address belongs to an eligible MORT account, a private sign-in link has been sent.';
+  const genericResponseCount = deletionScript.split(genericLookupMessage).length - 1;
+  if (genericResponseCount !== 2 || !/catch\s*\{/.test(deletionScript) || !/finally\s*\{/.test(deletionScript)) {
+    failures.push('account deletion must return the same non-enumerating response on OTP success and failure');
   }
   if (/error\.message|console\.(log|error)|user\.email/.test(deletionScript)) failures.push('account deletion exposes backend/account detail');
 }
@@ -100,7 +111,10 @@ const childSafetyPath = routeFile('/child-safety-standards/');
 if (existsSync(childSafetyPath)) {
   const standards = readFileSync(childSafetyPath, 'utf8').toLowerCase();
   for (const term of ['csam', 'csae', 'grooming', 'sexual solicitation', 'sextortion', 'trafficking', 'report', 'block', 'child-safety contact']) {
-    if (!standards.includes(term)) failures.push(`/child-safety-standards/: missing ${term}`);
+    const present = term === 'csae'
+      ? standards.includes(term) || standards.includes('child sexual abuse and exploitation')
+      : standards.includes(term);
+    if (!present) failures.push(`/child-safety-standards/: missing ${term}`);
   }
 }
 
@@ -120,9 +134,13 @@ if (baseUrl) {
 const report = {
   generatedAt: new Date().toISOString(),
   packagePass: failures.length === 0,
-  deploymentReady: status.deploymentReady === true && failures.length === 0,
+  deploymentReady: status.deploymentReady === true && status.legalApprovalClaimed === true && status.externalLegalReviewPending !== true && failures.length === 0,
+  draftReadinessBlockers: [
+    ...(status.deploymentReady === true ? [] : (status.missingConfig ?? ['public configuration incomplete'])),
+    ...(status.legalApprovalClaimed === true && status.externalLegalReviewPending !== true ? [] : ['qualified external legal review and approval pending']),
+  ],
   checkedRoutes: checked,
-  missingConfiguration: status.missingConfiguration ?? [],
+  missingConfiguration: status.missingConfig ?? [],
   httpsValidation,
   failures,
   legalApprovalClaimed: false,
@@ -131,4 +149,4 @@ const reportPath = resolve(root, 'build', 'play', 'reports', 'legal-site-validat
 mkdirSync(dirname(reportPath), { recursive: true });
 writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
 if (failures.length) throw new Error(`Legal site package validation failed: ${failures.join('; ')}`);
-process.stdout.write(`Legal site package PASS: ${checked.length} routes. Deployment ready: ${report.deploymentReady}.\n`);
+process.stdout.write(`Legal site package PASS: ${checked.length} routes. Deployment ready: ${report.deploymentReady}. Draft blockers: ${report.draftReadinessBlockers.join(', ') || 'none'}.\n`);

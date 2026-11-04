@@ -34,6 +34,19 @@ String userFacingError(Object? error) {
       message.contains('checkin_request_payload_mismatch')) {
     return 'This request changed while retrying. Close the screen, reopen it, and try again.';
   }
+  if (message.contains('idempotency_result_unverifiable')) {
+    return 'MORT could not verify the earlier check-in request. Refresh Safety Center before continuing.';
+  }
+  if (message.contains('idempotency_key_reused')) {
+    return 'This retry does not match the original check-in request. Refresh Safety Center before continuing.';
+  }
+  if (message.contains('checkin_retry_state_unavailable')) {
+    return 'MORT could not safely recover the pending check-in request. Refresh Safety Center or contact support.';
+  }
+  if (message.contains('active_assignment_required') ||
+      message.contains('active_checkin_not_found')) {
+    return 'That job or check-in is no longer active. Refresh Safety Center.';
+  }
   if (message.contains('active_job_required')) {
     return 'That job is no longer active. Refresh Safety Center and try again.';
   }
@@ -82,6 +95,8 @@ String userFacingError(Object? error) {
 
 String applicationErrorMessage(String code, {String? fallback}) {
   return switch (code) {
+    'job_acceptance_in_progress_retry' =>
+      'This job is being accepted by someone else. Refresh the application status and try again if it is still available.',
     'guardian_link_required' || 'guardian_approval_required' =>
       'This job requires guardian approval. Link a guardian or choose another job.',
     'poster_verification_required' =>

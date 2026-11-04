@@ -1,0 +1,2 @@
+create index if not exists application_status_events_actor_id_idx on public.application_status_events (actor_id);
+create index if not exists job_status_events_actor_id_idx on public.job_status_events (actor_id);
