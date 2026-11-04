@@ -1,7 +1,11 @@
 import pg from "pg";
 
-const projectRef = process.env.MORT_SUPABASE_PROJECT_REF || "rakjydmgwwgtdislanbt";
+const projectRef = process.env.MORT_SUPABASE_PROJECT_REF || "ckcxakhxqlkhppsxxjhv";
 const dbPassword = process.env.SUPABASE_DB_PASSWORD;
+if (projectRef !== "ckcxakhxqlkhppsxxjhv") {
+  console.error(JSON.stringify({ status: "FAIL", code: "qa_project_required", secret_values_printed: false }));
+  process.exit(2);
+}
 if (!dbPassword) {
   console.error(JSON.stringify({ status: "FAIL", code: "supabase_db_password_required", secret_values_printed: false }));
   process.exit(2);
@@ -22,12 +26,14 @@ try {
   await database.connect();
   const result = await database.query(`
     select mode, currency_code,
-           stripe_payments_enabled,
-           stripe_connected_onboarding_enabled,
-           stripe_job_funding_enabled,
-           stripe_transfers_enabled,
-           stripe_refunds_enabled,
-           stripe_live_mode_enabled,
+           payments_enabled,
+           connected_onboarding_enabled,
+           job_funding_enabled,
+           transfers_enabled,
+           refunds_enabled,
+           payouts_approved,
+           connected_accounts_approved,
+           live_mode_enabled,
            live_owner_approved
       from private.stripe_runtime_controls
      where singleton
@@ -36,16 +42,16 @@ try {
   if (!row) throw new Error("stripe_runtime_controls_missing");
 
   const requiredSandboxFlags = {
-    stripe_payments_enabled: row.stripe_payments_enabled === true,
-    stripe_connected_onboarding_enabled: row.stripe_connected_onboarding_enabled === true,
-    stripe_job_funding_enabled: row.stripe_job_funding_enabled === true,
-    stripe_transfers_enabled: row.stripe_transfers_enabled === true,
-    stripe_refunds_enabled: row.stripe_refunds_enabled === true,
+    payments_enabled: row.payments_enabled === true,
+    connected_onboarding_enabled: row.connected_onboarding_enabled === true,
+    job_funding_enabled: row.job_funding_enabled === true,
+    transfers_enabled: row.transfers_enabled === true,
+    refunds_enabled: row.refunds_enabled === true,
   };
   const mutationEligible =
     row.mode === "sandbox" &&
     Object.values(requiredSandboxFlags).every(Boolean) &&
-    row.stripe_live_mode_enabled === false &&
+    row.live_mode_enabled === false &&
     row.live_owner_approved === false;
 
   console.log(JSON.stringify({
@@ -55,7 +61,7 @@ try {
     currency_code: row.currency_code,
     mutation_test_eligible: mutationEligible,
     required_sandbox_flags: requiredSandboxFlags,
-    live_mode_enabled: row.stripe_live_mode_enabled === true,
+    live_mode_enabled: row.live_mode_enabled === true,
     live_owner_approved: row.live_owner_approved === true,
     secret_values_printed: false,
   }));
