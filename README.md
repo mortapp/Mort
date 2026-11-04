@@ -8,7 +8,7 @@ The authoritative production client is the Flutter app in `flutter_mort`.
 
 - Android package: `com.mortapp.mobile`
 - Current verified release track: closed-test Android build
-- Hosted backend: Supabase project `rakjydmgwwgtdislanbt`
+- Hosted backend: Supabase project `jxbnrkasktbhtiujkhay`
 - Production builds must come from `flutter_mort` only
 
 ## Repository layout
