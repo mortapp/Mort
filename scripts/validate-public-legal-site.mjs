@@ -11,6 +11,9 @@ const expectedRoutes = [
 ];
 const failures = [];
 const checked = [];
+// CI may validate a clearly marked draft package without claiming legal approval.
+// This flag never makes the package deployment-ready or changes public release state.
+const allowDraftPackage = process.env.MORT_ALLOW_DRAFT_LEGAL_PACKAGE === 'true';
 
 function routeFile(route) {
   if (route === '/') return resolve(output, 'index.html');
@@ -48,10 +51,10 @@ if (!existsSync(statusPath)) failures.push('release-status.json is missing');
 const status = existsSync(statusPath)
   ? JSON.parse(readFileSync(statusPath, 'utf8'))
   : { deploymentReady: false, missingConfig: ['unknown'], legalApprovalClaimed: status.legalApprovalClaimed === true, externalLegalReviewPending: true };
-if (status.deploymentReady !== true) {
+if (status.deploymentReady !== true && !allowDraftPackage) {
   failures.push(`required public configuration is incomplete: ${(status.missingConfig ?? []).join(', ') || 'unknown'}`);
 }
-if (status.legalApprovalClaimed !== true || status.externalLegalReviewPending === true) {
+if ((status.legalApprovalClaimed !== true || status.externalLegalReviewPending === true) && !allowDraftPackage) {
   failures.push('qualified legal review and approval are not evidenced; public legal pages must remain draft');
 }
 const publicConfigPath = resolve(output, 'assets', 'public-config.js');
@@ -108,7 +111,10 @@ const childSafetyPath = routeFile('/child-safety-standards/');
 if (existsSync(childSafetyPath)) {
   const standards = readFileSync(childSafetyPath, 'utf8').toLowerCase();
   for (const term of ['csam', 'csae', 'grooming', 'sexual solicitation', 'sextortion', 'trafficking', 'report', 'block', 'child-safety contact']) {
-    if (!standards.includes(term)) failures.push(`/child-safety-standards/: missing ${term}`);
+    const present = term === 'csae'
+      ? standards.includes(term) || standards.includes('child sexual abuse and exploitation')
+      : standards.includes(term);
+    if (!present) failures.push(`/child-safety-standards/: missing ${term}`);
   }
 }
 
@@ -128,7 +134,11 @@ if (baseUrl) {
 const report = {
   generatedAt: new Date().toISOString(),
   packagePass: failures.length === 0,
-  deploymentReady: status.deploymentReady === true && failures.length === 0,
+  deploymentReady: status.deploymentReady === true && status.legalApprovalClaimed === true && status.externalLegalReviewPending !== true && failures.length === 0,
+  draftReadinessBlockers: [
+    ...(status.deploymentReady === true ? [] : (status.missingConfig ?? ['public configuration incomplete'])),
+    ...(status.legalApprovalClaimed === true && status.externalLegalReviewPending !== true ? [] : ['qualified external legal review and approval pending']),
+  ],
   checkedRoutes: checked,
   missingConfiguration: status.missingConfig ?? [],
   httpsValidation,
@@ -139,4 +149,4 @@ const reportPath = resolve(root, 'build', 'play', 'reports', 'legal-site-validat
 mkdirSync(dirname(reportPath), { recursive: true });
 writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
 if (failures.length) throw new Error(`Legal site package validation failed: ${failures.join('; ')}`);
-process.stdout.write(`Legal site package PASS: ${checked.length} routes. Deployment ready: ${report.deploymentReady}.\n`);
+process.stdout.write(`Legal site package PASS: ${checked.length} routes. Deployment ready: ${report.deploymentReady}. Draft blockers: ${report.draftReadinessBlockers.join(', ') || 'none'}.\n`);
