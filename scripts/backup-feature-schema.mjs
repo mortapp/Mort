@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { encryptBackupEnvelope } from "./backup-envelope.mjs";
 import pg from "pg";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { chmodSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const projectRef = process.env.MORT_BACKUP_PROJECT_REF || "jxbnrkasktbhtiujkhay";
@@ -176,11 +176,22 @@ try {
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const backupDir = resolve(requestedBackupDir);
-const relativeToRepo = relative(repoRoot, backupDir);
-if (!isAbsolute(requestedBackupDir) || relativeToRepo === "" || (!relativeToRepo.startsWith("..") && !isAbsolute(relativeToRepo))) {
+if (!isAbsolute(requestedBackupDir)) {
   throw new Error("MORT_BACKUP_OUTPUT_DIR must be an absolute path outside the repository.");
 }
 mkdirSync(backupDir, { recursive: true, mode: 0o700 });
+const realRepoRoot = realpathSync(repoRoot);
+const realBackupDir = realpathSync(backupDir);
+const relativeToRepo = relative(realRepoRoot, realBackupDir);
+const backupDirIsInsideRepo =
+  relativeToRepo === "" ||
+  (relativeToRepo !== ".." &&
+    !relativeToRepo.startsWith(`..${sep}`) &&
+    !isAbsolute(relativeToRepo));
+if (backupDirIsInsideRepo) {
+  throw new Error("MORT_BACKUP_OUTPUT_DIR must resolve outside the repository.");
+}
+chmodSync(realBackupDir, 0o700);
 const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 const outputPath = join(backupDir, `remote-feature-schema-${projectRef}-${timestamp}.json.enc`);
 const plaintext = Buffer.from(`${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
