@@ -1,40 +1,33 @@
 # Enable Leaked-Password Protection
 
-## Current classification
+## Current status (2026-11-04)
 
-**DEFERRED — PLAN-LIMITED SECURITY ENHANCEMENT**
+<badge>Deferred — production setting not yet enabled</badge>
 
-Project: `rakjydmgwwgtdislanbt`
+- Production project: `jxbnrkasktbhtiujkhay`.
+- QA project: `ckcxakhxqlkhppsxxjhv`.
+- The November 3–4 production security audit found leaked-password protection disabled.
+- The prior Free-plan limitation was verified against the retired project `rakjydmgwwgtdislanbt`; that does not prove the current production project's plan or feature availability.
 
-Verified on 2026-07-14: the Supabase dashboard would not enable HaveIBeenPwned leaked-password protection because the project is on the Free plan. Supabase documents this control as available on Pro and above.
+Do not upgrade a plan or spend money solely to complete this task without separate authorization.
 
-This advisor finding is a defense-in-depth enhancement blocked by the current plan, not an unresolved MORT application-code security bug. Do not upgrade the plan or spend money solely to complete this task without separate authorization.
+## Required validation
+
+1. Confirm the current production project's plan and whether leaked-password protection is available.
+2. Verify signup, password update, and password-reset UX in QA with dedicated test accounts.
+3. Confirm error handling is safe and does not expose whether an email address exists.
+4. Obtain release-owner approval before changing the production Auth setting.
+5. Enable the setting in the production dashboard only after the QA flow passes.
+6. Re-run the Supabase Auth/Security Advisor and record the verified result and date.
 
 ## Current mitigations
 
-- strong password minimum length
-- required password complexity
+- password length and complexity requirements
 - Auth rate limiting
 - email verification
-- RLS
-- account restriction logic
+- RLS and account restriction logic
 - secure password reset flow
 
-These controls reduce password guessing, automated abuse, unauthorized data access, and account-recovery risk. They do not duplicate the HaveIBeenPwned corpus check, so the plan-limited enhancement remains worth enabling after a future authorized upgrade.
-
-## Future upgrade task
-
-> When Supabase is upgraded to Pro, enable leaked-password protection immediately and rerun Auth security advisors.
-
-## Future manual procedure
-
-Only after a separately authorized Supabase Pro upgrade:
-
-1. Open the Supabase dashboard for project `rakjydmgwwgtdislanbt`.
-2. Open Auth settings and the password-security controls.
-3. Enable leaked-password protection and save the configuration.
-4. Verify signup and password-reset behavior with dedicated QA accounts. Do not use real user credentials.
-5. Rerun the Supabase Auth/Security Advisor.
-6. Update `docs/SUPABASE_FINAL_ADVISOR_AUDIT.md` with the verified result and date.
+These controls do not replace a breached-password corpus check. Keep the item open until the current production project is checked and the control is enabled or its limitation is documented.
 
 Official reference: [Supabase password security](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
