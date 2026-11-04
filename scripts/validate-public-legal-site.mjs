@@ -90,7 +90,7 @@ if (!existsSync(deletionScriptPath)) {
   if (!deletionScript.includes('shouldCreateUser: false')) failures.push('account deletion could create an account');
   if (!deletionScript.includes("flowType: 'pkce'")) failures.push('account deletion auth is not PKCE');
   if (/https:\/\/esm\.sh/.test(deletionScript)) failures.push('account deletion imports executable code from a third-party CDN');
-  if (!/finally\s*\{[\s\S]*result\.textContent\s*=\s*['"][^'"]*This page never confirms whether an account exists\./.test(deletionScript)) {
+  if (!/finally\s*\{[\s\S]*result\.textContent\s*=\s*['"][^'"]*If that address belongs to an eligible MORT account, a private sign-in link has been sent\./.test(deletionScript)) {
     failures.push('account deletion does not use one generic finally response');
   }
   if (/error\.message|console\.(log|error)|user\.email/.test(deletionScript)) failures.push('account deletion exposes backend/account detail');
