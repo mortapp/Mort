@@ -180,7 +180,7 @@ const outputPath = join(
   backupDir,
   `remote-feature-schema-${projectRef}-${timestamp}.json`,
 );
-writeFileSync(outputPath, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
+writeFileSync(outputPath, `${JSON.stringify(snapshot, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
 
 console.log(`[backup-feature-schema] Project ref: ${projectRef}`);
 console.log(`[backup-feature-schema] Snapshot: ${outputPath}`);
