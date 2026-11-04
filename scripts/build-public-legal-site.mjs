@@ -55,7 +55,7 @@ function readSupabasePublicConfig() {
       if (name === 'EXPO_PUBLIC_SUPABASE_ANON_KEY' && !key) key = value;
     }
   } catch { /* Vercel environment may provide the public values directly. */ }
-  const expectedUrl = 'https://rakjydmgwwgtdislanbt.supabase.co';
+  const expectedUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co';
   if (url && url !== expectedUrl) throw new Error('Public legal site points to the wrong Supabase project.');
   if (key) {
     const payload = JSON.parse(Buffer.from(key.split('.')[1], 'base64url').toString('utf8'));
@@ -363,7 +363,7 @@ write('vercel.json', JSON.stringify({
     { key: 'Referrer-Policy', value: 'no-referrer' },
     { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
     { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
-    { key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://rakjydmgwwgtdislanbt.supabase.co wss://rakjydmgwwgtdislanbt.supabase.co; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" },
+    { key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://jxbnrkasktbhtiujkhay.supabase.co wss://jxbnrkasktbhtiujkhay.supabase.co; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" },
   ] }],
 }, null, 2));
 
