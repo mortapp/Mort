@@ -1,11 +1,17 @@
 import pg from "pg";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const projectRef = "rakjydmgwwgtdislanbt";
+const projectRef = process.env.MORT_BACKUP_PROJECT_REF || "jxbnrkasktbhtiujkhay";
+const backupApproved = process.env.MORT_BACKUP_APPROVED === "true";
+const storageConfirmed = process.env.MORT_BACKUP_STORAGE_CONFIRMED === "encrypted-at-rest";
+const requestedBackupDir = process.env.MORT_BACKUP_OUTPUT_DIR;
 const password = process.env.SUPABASE_DB_PASSWORD;
 
+if (projectRef !== "jxbnrkasktbhtiujkhay" || !backupApproved || !storageConfirmed || !requestedBackupDir) {
+  throw new Error("Production schema snapshot blocked. Set the production project ref, MORT_BACKUP_APPROVED=true, MORT_BACKUP_STORAGE_CONFIRMED=encrypted-at-rest, and an external encrypted MORT_BACKUP_OUTPUT_DIR after completing issue #57.");
+}
 if (!password) {
   throw new Error("Set SUPABASE_DB_PASSWORD before creating the remote schema snapshot.");
 }
@@ -163,8 +169,12 @@ try {
 }
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const backupDir = join(repoRoot, "backups");
-mkdirSync(backupDir, { recursive: true });
+const backupDir = resolve(requestedBackupDir);
+const relativeToRepo = relative(repoRoot, backupDir);
+if (!isAbsolute(requestedBackupDir) || relativeToRepo === "" || (!relativeToRepo.startsWith("..") && !isAbsolute(relativeToRepo))) {
+  throw new Error("MORT_BACKUP_OUTPUT_DIR must be an absolute path outside the repository.");
+}
+mkdirSync(backupDir, { recursive: true, mode: 0o700 });
 const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 const outputPath = join(
   backupDir,
