@@ -255,7 +255,7 @@ jobs:
     env:
       # Public client credentials only; this APK is explicitly non-production/internal-test.
       SUPABASE_URL: https://jxbnrkasktbhtiujkhay.supabase.co
-      SUPABASE_ANON_KEY: ${{ secrets.MORT_PRODUCTION_SUPABASE_ANON_KEY }}
+      SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4Ym5ya2Fza3RiaHRpdWpraGF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwMjE2NjcsImV4cCI6MjEwODU5NzY2N30.oNHdfbR27JrTxVO7-GM1SjS9sOdrkumoGNzMS97KjQE
     steps:
       - uses: actions/checkout@v7
       - uses: subosito/flutter-action@v2
