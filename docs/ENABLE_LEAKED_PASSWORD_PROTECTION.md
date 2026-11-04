@@ -2,7 +2,7 @@
 
 ## Current status (2026-11-04)
 
-<badge>Deferred — production setting not yet enabled</badge>
+**Status:** Deferred — production setting not yet enabled.
 
 - Production project: `jxbnrkasktbhtiujkhay`.
 - QA project: `ckcxakhxqlkhppsxxjhv`.
