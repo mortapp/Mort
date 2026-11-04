@@ -1,5 +1,5 @@
 import OpenAI from "npm:openai@6.48.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.110.1";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.110.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -36,7 +36,7 @@ Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return json({ ok: false, code: "post_required" }, 405);
 
-  let reservationClient: ReturnType<typeof createClient> | null = null;
+  let reservationClient: SupabaseClient<any> | null = null;
   let reservationId: string | null = null;
   let reservationFinalized = false;
   try {
