@@ -13,6 +13,9 @@ const dbUrl = process.env.SUPABASE_DB_URL || "";
 const dbPassword = process.env.SUPABASE_DB_PASSWORD || "";
 const localQa = process.env.MORT_QA_LOCAL_SUPABASE === "true";
 
+if (!localQa && projectRef !== "ckcxakhxqlkhppsxxjhv") {
+  throw new Error("Feature QA scripts are restricted to isolated QA project ckcxakhxqlkhppsxxjhv.");
+}
 if (!localQa && supabaseUrl !== `https://${projectRef}.supabase.co`) {
   throw new Error(`EXPO_PUBLIC_SUPABASE_URL must target ${projectRef}.`);
 }
