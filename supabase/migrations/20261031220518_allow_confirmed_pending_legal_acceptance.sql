@@ -33,9 +33,11 @@ begin
     -- Legacy reference schema has no account_status predicate in this RPC.
     -- Keep the actor bound to auth.uid() and require a confirmed Auth email.
     v_old := 'where profile.id = auth.uid()';
-    v_new := 'where profile.id = auth.uid() and exists (' ||
+    v_new := 'where profile.id = auth.uid() and (' ||
+      'profile.account_status = ''active'' or (' ||
+      'profile.account_status = ''pending'' and exists (' ||
       'select 1 from auth.users auth_user where auth_user.id = profile.id ' ||
-      'and auth_user.email_confirmed_at is not null)';
+      'and auth_user.email_confirmed_at is not null)))';
     if pg_catalog.strpos(v_definition, v_old) = 0 then
       raise exception 'Legacy get_my_legal_requirements actor predicate changed; refusing migration';
     end if;
@@ -68,9 +70,10 @@ begin
     -- Legacy reference schema already requires an authenticated actor and a
     -- completed role; add the confirmed-email condition without broadening it.
     v_old := 'from public.profiles where id = auth.uid() for share;';
-    v_new := 'from public.profiles where id = auth.uid() and exists (' ||
+    v_new := 'from public.profiles where id = auth.uid() and (' ||
+      'account_status = ''active'' or (account_status = ''pending'' and exists (' ||
       'select 1 from auth.users auth_user where auth_user.id = public.profiles.id ' ||
-      'and auth_user.email_confirmed_at is not null) for share;';
+      'and auth_user.email_confirmed_at is not null))) for share;';
     v_definition := pg_catalog.replace(v_definition, v_old, v_new);
   elsif pg_catalog.strpos(v_definition, 'auth_user.email_confirmed_at is not null') = 0 then
     raise exception 'Unrecognized submit_legal_acceptance actor predicate; refusing migration';
