@@ -7,9 +7,10 @@ MORT is a teen-first local hustle marketplace that helps teens earn money safely
 The authoritative production client is the Flutter app in `flutter_mort`.
 
 - Android package: `com.mortapp.mobile`
-- Current verified release track: closed-test Android build
-- Hosted backend: Supabase project `rakjydmgwwgtdislanbt`
-- Production builds must come from `flutter_mort` only
+- Current mobile release status: no production-signed AAB has been verified; the current verified artifact is a debug device-test APK.
+- Hosted production backend: Supabase project `jxbnrkasktbhtiujkhay` (`mort p`).
+- The former project `rakjydmgwwgtdislanbt` was deleted and must not be contacted or used.
+- Production builds must come from `flutter_mort` only.
 
 ## Repository layout
 
