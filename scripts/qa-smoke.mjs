@@ -27,7 +27,7 @@ const requiredTables = [
 ];
 
 const requiredBuckets = ["proof-uploads", "verification-uploads", "report-uploads"];
-const currentMismatchedLiveRef = "rakjydmgwwgtdislanbt";
+const retiredProjectRef = "rakjydmgwwgtdislanbt";
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const mobileSourceRoots = ["app", "components", "lib", "providers"];
 const forbiddenMobileSecretPatterns = [/service_role/i, /SUPABASE_SERVICE_ROLE_KEY/];
@@ -71,7 +71,7 @@ if (target === "local" && !["localhost", "127.0.0.1"].includes(url.hostname)) {
   fail("MORT_QA_TARGET=local requires a localhost or 127.0.0.1 Supabase URL.");
 }
 
-if (url.hostname.includes(currentMismatchedLiveRef)) {
+if (url.hostname.includes(retiredProjectRef)) {
   fail("This points at the current mismatched live Supabase project. Use local Supabase or a fresh staging project for QA.");
 }
 log("Mismatched live project guard OK.");
