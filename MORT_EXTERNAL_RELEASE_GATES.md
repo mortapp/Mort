@@ -90,14 +90,14 @@ FAIL_CLOSED_BEHAVIOR=N/A
 ---
 
 GATE=Live Supabase Auth dashboard settings verification (email confirmation, login rate limits)
-STATUS=CANNOT_VERIFY_FROM_REPOSITORY
-WHY=`supabase/config.toml` (local CLI dev config only) shows `enable_confirmations = false`, but this does not necessarily reflect the hosted project's actual Dashboard setting, which is not stored in git. Auth login rate-limiting is likewise Dashboard-managed, not expressed in migrations. This session's Supabase MCP is bound to an unrelated project ("Loop"), so neither could be checked live.
-TECHNICAL_WORK_COMPLETE=N/A — not a code defect, a live-configuration unknown.
-HUMAN_ACTION_REQUIRED=Someone with access to the `rakjydmgwwgtdislanbt` Supabase project dashboard should confirm Authentication → Providers → Email confirmation is enabled, and that login rate limits are configured, for production.
-CREDENTIAL_REQUIRED=NO (just dashboard access, already held by the project owner)
+STATUS=NOT_VERIFIED_FOR_RELEASE
+WHY=`supabase/config.toml` is local CLI configuration and does not establish the hosted Dashboard settings. Email confirmation and login rate limits are Dashboard-managed. The authoritative production project is `jxbnrkasktbhtiujkhay`; the former `rakjydmgwwgtdislanbt` project was deleted and must not be contacted.
+TECHNICAL_WORK_COMPLETE=N/A — live Auth configuration remains unverified.
+HUMAN_ACTION_REQUIRED=An authorized owner of `jxbnrkasktbhtiujkhay` must inspect Authentication → Providers → Email confirmation and login rate limits, then record the observed values in release evidence.
+CREDENTIAL_REQUIRED=NO (requires authorized project dashboard access)
 PROVIDER=Supabase
-LAUNCH_IMPACT=If confirmations are actually disabled in production, anyone could sign up with an unowned email address.
-FAIL_CLOSED_BEHAVIOR=Unknown until verified.
+LAUNCH_IMPACT=If confirmations are disabled, unowned email addresses could create accounts.
+FAIL_CLOSED_BEHAVIOR=Treat as unverified until inspected on the active production project.
 
 ---
 
