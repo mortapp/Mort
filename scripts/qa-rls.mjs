@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-const currentMismatchedLiveRef = "rakjydmgwwgtdislanbt";
+const retiredProjectRef = "rakjydmgwwgtdislanbt";
 const password = process.env.MORT_LOCAL_TEST_PASSWORD;
 
 const users = {
@@ -27,7 +27,7 @@ function assertLocalUrl(value, name) {
   if (!["localhost", "127.0.0.1"].includes(url.hostname)) {
     fail(`${name} must point to localhost or 127.0.0.1. Refusing target: ${url.origin}`);
   }
-  if (url.hostname.includes(currentMismatchedLiveRef)) {
+  if (url.hostname.includes(retiredProjectRef)) {
     fail("This points at the current mismatched live Supabase project. Use local Supabase for RLS QA.");
   }
   return url;
