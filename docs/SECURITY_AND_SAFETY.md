@@ -11,6 +11,6 @@
 - Reports, blocks, safety pings, support, notification events, and admin action logs are first-class records.
 - Proof, verification, and report buckets are private. Proof previews use signed URLs.
 
-Old project rebuild note: `rakjydmgwwgtdislanbt` was rebuilt and remote smoke/RLS verified on 2026-07-08. That confirms backend behavior for the current baseline only; it does not approve real-user launch.
+Current backend boundary (2026-11-04): production is Supabase project `jxbnrkasktbhtiujkhay`; QA is `ckcxakhxqlkhppsxxjhv`. The former project `rakjydmgwwgtdislanbt` is deleted and must never be reconnected. The November 3–4 production audit and unresolved findings are tracked in `docs/MORT_DEPLOYED_SUPABASE_AUDIT.md` and issue #49. Passing backend checks do not approve real-user launch.
 
 Required production work remains: legal review for teen labor, parental consent/privacy, App Store UGC moderation review, incident response, support operations, and jurisdiction-specific safety policy.
