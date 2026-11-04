@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.110.1";
+import { createClient } from "npm:@supabase/supabase-js@2.110.1";
 import {
   correlatedJson,
   correlationId,
@@ -102,7 +102,7 @@ async function readJson(request: Request) {
 function response(
   body: Record<string, unknown>,
   status = 200,
-  traceId = crypto.randomUUID(),
+  traceId: string = crypto.randomUUID(),
 ) {
   return correlatedJson(body, status, traceId, {
     ...corsHeaders,
