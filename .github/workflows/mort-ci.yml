@@ -216,7 +216,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - shell: pwsh
         env:
-          EXPO_PUBLIC_SUPABASE_URL: https://jxbnrkasktbhtiujkhay.supabase.co
+          EXPO_PUBLIC_SUPABASE_URL: https://ckcxakhxqlkhppsxxjhv.supabase.co
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.QA_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.QA_SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_DB_PASSWORD: ${{ secrets.QA_SUPABASE_DB_PASSWORD }}
@@ -245,8 +245,8 @@ jobs:
           version: latest
       - shell: pwsh
         env:
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.QA_SUPABASE_DB_PASSWORD }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.QA_SUPABASE_ACCESS_TOKEN }}
           MORT_SUPABASE_PROJECT_REF: ckcxakhxqlkhppsxxjhv
           MORT_STRIPE_MODE: sandbox
           MORT_STRIPE_TEST_WEBHOOK_URL: https://ckcxakhxqlkhppsxxjhv.supabase.co/functions/v1/stripe-assignment-webhook
