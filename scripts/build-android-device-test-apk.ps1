@@ -13,16 +13,16 @@ if (-not $OutputPath) {
   $OutputPath = Join-Path $root 'build\device-test\mort-device-test.apk'
 }
 
-# Public client configuration only. This is intentionally safe to compile into
-# the Android app; no service-role, database password, webhook secret, or other
-# privileged credential is used here.
-$supabaseUrl = 'https://rakjydmgwwgtdislanbt.supabase.co'
-$supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYXNlIiwicmVmIjoicmFranlkbWd3d2d0ZGlzbGFuYnQiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc4MTg3MTE3NSwiZXhwIjoyMDk3NDQ3MTc1fQ.DorOgj6jdPTrPX45Vi0O1dYgx-e3zgO6_S39JDcL2Ww'
+# Device-test builds are isolated to the QA Supabase project. Only the
+# publishable/anon key is compiled into the client; no privileged credential
+# is accepted by this script.
+$supabaseUrl = 'https://ckcxakhxqlkhppsxxjhv.supabase.co'
+$supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrY3hha2h4cWxraHBwc3h4amh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1Nzc1NjAsImV4cCI6MjEwOTE1MzU2MH0.8E8sGxUv7a1on8BHxq7_72TGASVkIcK4X5b1PgNO_d8'
 
 $defines = @(
   "--dart-define=SUPABASE_URL=$supabaseUrl",
   "--dart-define=SUPABASE_ANON_KEY=$supabaseAnonKey",
-  '--dart-define=MORT_SUPABASE_PROJECT_REF=rakjydmgwwgtdislanbt',
+  '--dart-define=MORT_SUPABASE_PROJECT_REF=ckcxakhxqlkhppsxxjhv',
   '--dart-define=MORT_RELEASE_STAGE=internal_test',
   '--dart-define=MORT_RELEASE_PROFILE=automated_test',
   '--dart-define=MORT_OPERATIONAL_MODE=automated_test',
@@ -49,6 +49,20 @@ if ($BrowserStackQa) {
 
 Push-Location $flutterRoot
 try {
+  if ([string]::IsNullOrWhiteSpace($env:JAVA_HOME)) {
+    throw 'JAVA_HOME must be set to the configured Temurin JDK 17 path.'
+  }
+  $javaExecutable = Join-Path $env:JAVA_HOME 'bin/java'
+  if (-not (Test-Path -LiteralPath $javaExecutable -PathType Leaf)) {
+    throw "Java executable not found under JAVA_HOME: $env:JAVA_HOME"
+  }
+  $javaVersionOutput = (& $javaExecutable -version 2>&1 | Out-String)
+  if ($javaVersionOutput -notmatch 'version "17\\.') {
+    throw "Android device-test build requires JDK 17. Detected: $javaVersionOutput"
+  }
+  & flutter config --jdk-dir="$env:JAVA_HOME"
+  if ($LASTEXITCODE -ne 0) { throw 'Flutter could not select the configured JDK 17.' }
+
   & flutter pub get
   if ($LASTEXITCODE -ne 0) { throw 'flutter pub get failed.' }
 
