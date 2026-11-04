@@ -1,5 +1,5 @@
 import { GoogleAuth } from "npm:google-auth-library@10.9.0";
-import { createClient, SupabaseClient, User } from "https://esm.sh/@supabase/supabase-js@2.110.1";
+import { createClient, SupabaseClient, User } from "npm:@supabase/supabase-js@2.110.1";
 
 export const packageName = "com.mortapp.mobile";
 export const subscriptionProductId = "mort_plus";

@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.110.1";
+import { createClient } from "npm:@supabase/supabase-js@2.110.1";
 import { validateWebhookEnvelope } from "./contract.mjs";
 
 const maximumBodyBytes = 128 * 1024;

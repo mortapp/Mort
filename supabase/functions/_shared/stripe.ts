@@ -1,5 +1,5 @@
 import Stripe from "npm:stripe@22.1.1";
-import { createClient, SupabaseClient, User } from "https://esm.sh/@supabase/supabase-js@2.110.1";
+import { createClient, SupabaseClient, User } from "npm:@supabase/supabase-js@2.110.1";
 import {
   constantTimeEqual,
   correlatedJson,

@@ -1,7 +1,7 @@
 import {
   createClient,
   type SupabaseClient,
-} from "https://esm.sh/@supabase/supabase-js@2.110.1";
+} from "npm:@supabase/supabase-js@2.110.1";
 import {
   correlatedJson,
   correlationId,
