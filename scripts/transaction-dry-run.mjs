@@ -3,7 +3,10 @@ import { relative, resolve } from "node:path";
 
 import pg from "pg";
 
-const projectRef = "rakjydmgwwgtdislanbt";
+const projectRef = process.env.MORT_SUPABASE_PROJECT_REF || "ckcxakhxqlkhppsxxjhv";
+if (projectRef === "jxbnrkasktbhtiujkhay" && process.env.MORT_ALLOW_PRODUCTION_DRY_RUN !== "true") {
+  throw new Error("Production migration dry-runs require MORT_ALLOW_PRODUCTION_DRY_RUN=true and explicit operator approval.");
+}
 const migrationRoot = resolve("supabase", "migrations");
 const requestedPaths = process.argv.slice(2);
 const dbPassword = process.env.SUPABASE_DB_PASSWORD;

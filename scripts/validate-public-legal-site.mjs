@@ -61,7 +61,7 @@ if (existsSync(publicConfigPath)) {
   } else {
     try {
       const config = JSON.parse(match[1]);
-      if (config.supabaseUrl !== 'https://rakjydmgwwgtdislanbt.supabase.co') {
+      if (config.supabaseUrl !== 'https://jxbnrkasktbhtiujkhay.supabase.co') {
         failures.push('public-config.js points to the wrong Supabase project');
       }
       if (!config.supabaseAnonKey) {
@@ -70,7 +70,7 @@ if (existsSync(publicConfigPath)) {
         const payload = JSON.parse(
           Buffer.from(config.supabaseAnonKey.split('.')[1], 'base64url').toString('utf8'),
         );
-        if (payload.role !== 'anon' || payload.ref !== 'rakjydmgwwgtdislanbt') {
+        if (payload.role !== 'anon' || payload.ref !== 'jxbnrkasktbhtiujkhay') {
           failures.push('public-config.js does not contain the expected anon key');
         }
       }
@@ -90,7 +90,7 @@ if (!existsSync(deletionScriptPath)) {
   if (!deletionScript.includes('shouldCreateUser: false')) failures.push('account deletion could create an account');
   if (!deletionScript.includes("flowType: 'pkce'")) failures.push('account deletion auth is not PKCE');
   if (/https:\/\/esm\.sh/.test(deletionScript)) failures.push('account deletion imports executable code from a third-party CDN');
-  if (!/finally\s*\{[\s\S]*result\.textContent\s*=\s*['"][^'"]*This page never confirms whether an account exists\./.test(deletionScript)) {
+  if (!/finally\s*\{[\s\S]*result\.textContent\s*=\s*['"][^'"]*If that address belongs to an eligible MORT account, a private sign-in link has been sent\./.test(deletionScript)) {
     failures.push('account deletion does not use one generic finally response');
   }
   if (/error\.message|console\.(log|error)|user\.email/.test(deletionScript)) failures.push('account deletion exposes backend/account detail');

@@ -8,7 +8,7 @@
 import Foundation
 
 enum Config {
-    static let EXPO_PUBLIC_SUPABASE_URL = "https://rakjydmgwwgtdislanbt.supabase.co"
+    static let EXPO_PUBLIC_SUPABASE_URL = "https://jxbnrkasktbhtiujkhay.supabase.co"
     static let EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_Q4uDJsjSs2wWFfVOdRax7Q_vuS2ADl1"
 
     // Legacy Rork values remain empty unless that optional tooling is used.
