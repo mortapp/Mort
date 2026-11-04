@@ -1,5 +1,11 @@
 const allowedStatuses = new Set(["pending", "needs_input"]);
 
+/**
+ * @returns {
+ *   | { ok: false, code: string }
+ *   | { ok: true, providerReference: string, status: string, handoffUrl: string, handoffExpiresAt: string }
+ * }
+ */
 export function normalizeProviderHandoff({
   value,
   expectedProvider,
@@ -57,6 +63,7 @@ function cleanString(value, minimum, maximum) {
     : null;
 }
 
+/** @returns {{ ok: false, code: string }} */
 function failure(code) {
   return { ok: false, code };
 }
