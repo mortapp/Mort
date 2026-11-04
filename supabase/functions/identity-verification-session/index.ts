@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2.110.1";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.110.1";
 import {
   normalizeProviderHandoff,
   safeProviderFailure,
@@ -151,7 +151,7 @@ Deno.serve(async (request: Request) => {
   }, 200);
 });
 
-async function failSession(client: ReturnType<typeof createClient>, sessionId: string, code: string) {
+async function failSession(client: SupabaseClient<any>, sessionId: string, code: string) {
   await client.rpc("fail_identity_verification_handoff_v2", {
     p_session_request_id: sessionId,
     p_failure_code: code,
