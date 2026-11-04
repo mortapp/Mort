@@ -39,6 +39,8 @@ jobs:
       - run: node scripts/qa-stripe-pre-provider-gate.mjs
       - run: node scripts/secret_extraction_scan.mjs --self-test
       - run: node scripts/secret-scan-git-history.mjs --self-test
+      - name: Regenerate lock from active Edge Function dependency graph
+        run: rm -f deno.lock
       - name: Type-check all Supabase Edge Function SDK entrypoints
         run: >-
           deno check --no-config --lock=deno.lock --node-modules-dir=none
