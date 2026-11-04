@@ -1,3 +1,4 @@
+import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import pg from "pg";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
@@ -5,12 +6,16 @@ import { fileURLToPath } from "node:url";
 
 const projectRef = process.env.MORT_BACKUP_PROJECT_REF || "jxbnrkasktbhtiujkhay";
 const backupApproved = process.env.MORT_BACKUP_APPROVED === "true";
-const storageConfirmed = process.env.MORT_BACKUP_STORAGE_CONFIRMED === "encrypted-at-rest";
 const requestedBackupDir = process.env.MORT_BACKUP_OUTPUT_DIR;
+const encryptionKeyText = process.env.MORT_BACKUP_ENCRYPTION_KEY;
 const password = process.env.SUPABASE_DB_PASSWORD;
 
-if (projectRef !== "jxbnrkasktbhtiujkhay" || !backupApproved || !storageConfirmed || !requestedBackupDir) {
-  throw new Error("Production schema snapshot blocked. Set the production project ref, MORT_BACKUP_APPROVED=true, MORT_BACKUP_STORAGE_CONFIRMED=encrypted-at-rest, and an external encrypted MORT_BACKUP_OUTPUT_DIR after completing issue #57.");
+if (projectRef !== "jxbnrkasktbhtiujkhay" || !backupApproved || !requestedBackupDir || !encryptionKeyText) {
+  throw new Error("Production schema snapshot blocked. Set the production project ref, MORT_BACKUP_APPROVED=true, MORT_BACKUP_ENCRYPTION_KEY (base64-encoded 32-byte key), and an external MORT_BACKUP_OUTPUT_DIR after completing issue #57.");
+}
+const encryptionKey = Buffer.from(encryptionKeyText, "base64");
+if (encryptionKey.length !== 32 || encryptionKey.toString("base64").replace(/=+$/, "") !== encryptionKeyText.replace(/=+$/, "")) {
+  throw new Error("MORT_BACKUP_ENCRYPTION_KEY must be a base64-encoded 32-byte key.");
 }
 if (!password) {
   throw new Error("Set SUPABASE_DB_PASSWORD before creating the remote schema snapshot.");
@@ -176,14 +181,24 @@ if (!isAbsolute(requestedBackupDir) || relativeToRepo === "" || (!relativeToRepo
 }
 mkdirSync(backupDir, { recursive: true, mode: 0o700 });
 const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-const outputPath = join(
-  backupDir,
-  `remote-feature-schema-${projectRef}-${timestamp}.json`,
-);
-writeFileSync(outputPath, `${JSON.stringify(snapshot, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
-
+const outputPath = join(backupDir, `remote-feature-schema-${projectRef}-${timestamp}.json.enc`);
+const plaintext = Buffer.from(`${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
+const iv = randomBytes(12);
+const cipher = createCipheriv("aes-256-gcm", encryptionKey, iv);
+cipher.setAAD(Buffer.from(`MORT backup v1:${projectRef}:feature-schema`, "utf8"));
+const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+const envelope = Buffer.from(JSON.stringify({
+  format: "mort-encrypted-backup-v1",
+  algorithm: "aes-256-gcm",
+  projectRef,
+  kind: "feature-schema",
+  iv: iv.toString("base64"),
+  authTag: cipher.getAuthTag().toString("base64"),
+  ciphertext: ciphertext.toString("base64"),
+}) + "\n", "utf8");
+writeFileSync(outputPath, envelope, { mode: 0o600 });
+const sha256 = createHash("sha256").update(envelope).digest("hex").toUpperCase();
 console.log(`[backup-feature-schema] Project ref: ${projectRef}`);
-console.log(`[backup-feature-schema] Snapshot: ${outputPath}`);
-console.log(
-  `[backup-feature-schema] Relations=${snapshot.relations.length}, policies=${snapshot.policies.length}, functions=${snapshot.functions.length}, migrations=${snapshot.migrations.length}`,
+console.log(`[backup-feature-schema] Encrypted snapshot: ${outputPath}`);
+console.log(`[backup-feature-schema] Relations=${snapshot.relations.length}, policies=${snapshot.policies.length}, functions=${snapshot.functions.length}, migrations=${snapshot.migrations.length}, encrypted SHA-256=${sha256}`);
 );
