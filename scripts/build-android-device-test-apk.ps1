@@ -57,7 +57,7 @@ try {
     throw "Java executable not found under JAVA_HOME: $env:JAVA_HOME"
   }
   $javaVersionOutput = (& $javaExecutable -version 2>&1 | Out-String)
-  if ($javaVersionOutput -notmatch 'version "17\\.') {
+  if ($javaVersionOutput -notmatch 'version "17\.') {
     throw "Android device-test build requires JDK 17. Detected: $javaVersionOutput"
   }
   & flutter config --jdk-dir="$env:JAVA_HOME"
