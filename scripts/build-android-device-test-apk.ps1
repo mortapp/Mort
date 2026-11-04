@@ -6,6 +6,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'android-java-common.ps1')
 
 $root = Resolve-Path "$PSScriptRoot\.."
 $flutterRoot = Join-Path $root 'flutter_mort'
@@ -52,6 +53,8 @@ $defines = @(
 if ($BrowserStackQa) {
   $defines += '--dart-define=MORT_BROWSERSTACK_QA_MODE=true'
 }
+
+Set-MortAndroidBuildJava | Out-Null
 
 Push-Location $flutterRoot
 try {
