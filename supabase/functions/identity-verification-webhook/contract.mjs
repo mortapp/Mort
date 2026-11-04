@@ -80,6 +80,12 @@ export async function sha256Hex(value) {
   return bytesToHex(new Uint8Array(digest));
 }
 
+/**
+ * @returns {Promise<
+ *   | { ok: false, code: string }
+ *   | { ok: true, eventId: string, eventTimestamp: string, payload: any, payloadSha256: string, normalizedStatus: string, failureCode: string | null, deliveryAttempt: number, payloadVersion: string }
+ * >}
+ */
 export async function validateWebhookEnvelope({
   rawBody,
   headers,
@@ -219,6 +225,7 @@ function validFutureDate(value, now) {
   return Number.isFinite(parsed) && parsed > now && parsed <= now + 3 * 366 * 24 * 60 * 60 * 1000;
 }
 
+/** @returns {{ ok: false, code: string }} */
 function failure(code) {
   return { ok: false, code };
 }
