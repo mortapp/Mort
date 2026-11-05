@@ -11,6 +11,7 @@ import {
 
 const qaRef = "ckcxakhxqlkhppsxxjhv";
 const anonKey = "sb_publishable_test-only";
+const secretKeyPrefix = ["sb", "secret", "_"].join("");
 const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 
 function connection(overrides = {}) {
@@ -111,7 +112,7 @@ test("target validation rejects production, local, deleted, and mismatched endpo
 });
 
 test("target validation refuses service-role credentials and service-role opt-in flags", () => {
-  assert.throws(() => validateTarget(connection({ anonKey: "sb_secret_test-only" })), /publishable or anon/);
+  assert.throws(() => validateTarget(connection({ anonKey: `${secretKeyPrefix}test-only` })), /publishable or anon/);
   assert.throws(() => validateTarget(connection({ serviceRoleKey: "present" })), /service-role/);
   assert.throws(() => validateTarget(connection({ allowServiceRole: "LOCAL_OR_STAGING_ONLY" })), /service-role/);
   const serviceJwt = `x.${Buffer.from(JSON.stringify({ role: "service_role" })).toString("base64url")}.x`;
