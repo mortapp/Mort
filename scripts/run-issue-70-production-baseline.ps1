@@ -117,11 +117,16 @@ try {
   }
   [IO.File]::WriteAllText($configPath, $config, [Text.UTF8Encoding]::new($false))
 
+  # Supabase init may scaffold a starter migration. Remove only generated SQL
+  # files in this unique temp project before copying the verified baseline.
+  Get-ChildItem -LiteralPath $migrationTarget -File -Filter '*.sql' -ErrorAction SilentlyContinue |
+    Remove-Item -Force
   foreach ($entry in $manifest.migrations) {
     Copy-Item -LiteralPath $sourceByVersion[$entry.version] -Destination $migrationTarget
   }
-  if (@(Get-ChildItem -LiteralPath $migrationTarget -File -Filter '*.sql').Count -ne 73) {
-    throw 'The disposable production baseline does not contain exactly 73 SQL files.'
+  $copiedMigrationCount = @(Get-ChildItem -LiteralPath $migrationTarget -File -Filter '*.sql').Count
+  if ($copiedMigrationCount -ne 73) {
+    throw "The disposable production baseline contains $copiedMigrationCount SQL files, expected 73."
   }
 
   $exclude = 'gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor'
