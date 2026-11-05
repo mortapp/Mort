@@ -41,6 +41,10 @@ Push-Location $root
 try {
   $script:regressionCommit = (& git rev-parse HEAD).Trim()
 
+  Invoke-Step 'Guardian authenticated API harness safety and response assertions' 'node --test scripts/qa-guardian-application-reader-api.test.mjs' {
+    & node --test (Join-Path $PSScriptRoot 'qa-guardian-application-reader-api.test.mjs')
+  }
+
   $requiredMigrationSlugs = @(
     'mort_stripe_policy_and_funding_v1',
     'mort_stripe_funding_attempts_and_state_v1',

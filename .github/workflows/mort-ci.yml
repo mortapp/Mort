@@ -85,8 +85,6 @@ jobs:
         with:
           version: latest
       - run: pnpm install --frozen-lockfile
-      - name: Test Guardian authenticated API harness safety and response assertions
-        run: node --test scripts/qa-guardian-application-reader-api.test.mjs
       - shell: pwsh
         env:
           MORT_SUPABASE_PROJECT_REF: ckcxakhxqlkhppsxxjhv
