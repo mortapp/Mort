@@ -16,7 +16,7 @@
 // nullable, not RESTRICT) -- this script adds an end-to-end behavioral proof
 // for the categories above, not a full bespoke fixture per FK.
 //
-// Run against local: SUPABASE_DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
+// Run against local: SUPABASE_DB_URL=postgresql://postgres:postgres@127.0.0.1:65432/postgres
 import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
 

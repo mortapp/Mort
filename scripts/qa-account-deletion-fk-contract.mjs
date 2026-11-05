@@ -26,7 +26,7 @@
 // cannot silently become deletion-breaking) for all of them.
 //
 // Runs against local (set SUPABASE_DB_URL, e.g.
-// postgresql://postgres:postgres@127.0.0.1:54322/postgres) or hosted (set
+// postgresql://postgres:postgres@127.0.0.1:65432/postgres) or hosted (set
 // SUPABASE_DB_PASSWORD; connects to db.rakjydmgwwgtdislanbt.supabase.co).
 import pg from "pg";
 
