@@ -37,15 +37,22 @@ $migrationPath = Join-Path $PSScriptRoot '..\supabase\production-baseline-migrat
 $testPath = Join-Path $PSScriptRoot '..\supabase\production-baseline-tests\guardian_application_reader_scope.test.sql'
 $migration = Get-Content -LiteralPath $migrationPath -Raw
 $test = Get-Content -LiteralPath $testPath -Raw
+$testSql = [regex]::Replace($test, '(?im)^begin;[ \t]*(?:\r?\n)?', '')
+$testSql = [regex]::Replace($testSql, '(?im)^rollback;[ \t]*$', '')
 
-# The hosted ACL grants service_role EXECUTE. The recovered 73-migration local
-# baseline does not, so mirror only that existing trusted-role ACL in this
-# rollback transaction before applying the migration and checking preservation.
+# The hosted ACL grants service_role EXECUTE and direct SELECT. The recovered
+# 73-migration local baseline does not, so mirror only those existing trusted-
+# role ACLs in this rollback transaction before applying the migration and
+# checking preservation. No grant is added to anon or authenticated.
+# Strip the test file's standalone transaction wrapper so Windows psql does not
+# emit a nested-BEGIN warning under PowerShell's stop-on-error semantics.
 $sql = @"
 BEGIN;
 GRANT EXECUTE ON FUNCTION public.get_my_job_applications(uuid) TO service_role;
+GRANT SELECT ON TABLE public.job_applications TO service_role;
 $migration
-$test
+$testSql
+ROLLBACK;
 "@
 
 $output = $sql | & docker exec -i $ContainerName psql -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1
@@ -54,8 +61,8 @@ $output | Write-Output
 if ($psqlExitCode -ne 0 -or ($output -join "`n") -match '(?m)^\s*not ok\b') {
   throw "Issue #70 database regression failed (psql exit $psqlExitCode)."
 }
-if (($output -join "`n") -notmatch '1\.\.33') {
-  throw 'Issue #70 database regression did not report the expected 33-test plan.'
+if (($output -join "`n") -notmatch '1\.\.35') {
+  throw 'Issue #70 database regression did not report the expected 35-test plan.'
 }
 
 $after = (& docker exec $ContainerName psql -U postgres -d postgres -Atc $baselineQuery | Out-String).Trim()
@@ -63,4 +70,4 @@ if ($LASTEXITCODE -ne 0 -or $after -ne $before) {
   throw "Rollback did not preserve the local baseline. Before: $before; after: $after"
 }
 
-Write-Host "[qa-issue-70-guardian-application-reader] PASS: 33 assertions; baseline unchanged ($after)." -ForegroundColor Green
+Write-Host "[qa-issue-70-guardian-application-reader] PASS: 35 assertions; baseline unchanged ($after)." -ForegroundColor Green

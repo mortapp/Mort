@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, auth, pg_catalog;
 
-select plan(33);
+select plan(35);
 
 create temporary table issue70_users (
   user_key text primary key,
@@ -132,8 +132,13 @@ select ok(
 select ok(not has_function_privilege('anon', 'public.get_my_job_applications(uuid)', 'EXECUTE'), 'anon cannot execute the reader');
 select ok(has_function_privilege('authenticated', 'public.get_my_job_applications(uuid)', 'EXECUTE'), 'authenticated can execute the reader');
 select ok(has_function_privilege('service_role', 'public.get_my_job_applications(uuid)', 'EXECUTE'), 'service_role keeps existing execute access');
+select ok(has_table_privilege('service_role', 'public.job_applications', 'SELECT'), 'service_role keeps existing direct application SELECT');
 select ok(not has_table_privilege('anon', 'public.job_applications', 'SELECT'), 'anon has no direct application SELECT');
 select ok(not has_table_privilege('authenticated', 'public.job_applications', 'SELECT'), 'authenticated has no direct application SELECT');
+select ok(
+  position('private.is_admin()' in pg_get_functiondef('public.get_my_job_applications(uuid)'::regprocedure)) = 0,
+  'reader does not add a broad administrator bypass'
+);
 select is(
   (length(pg_get_functiondef('public.get_my_job_applications(uuid)'::regprocedure)) -
    length(replace(pg_get_functiondef('public.get_my_job_applications(uuid)'::regprocedure), 'guardian_profile.role', ''))) /
