@@ -32,6 +32,16 @@ function Invoke-Git {
   if ($LASTEXITCODE -ne 0) { throw "Git command failed with exit code $LASTEXITCODE." }
 }
 
+function Get-FreeTcpPort {
+  $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Any, 0)
+  try {
+    $listener.Start()
+    return [int]$listener.LocalEndpoint.Port
+  } finally {
+    $listener.Stop()
+  }
+}
+
 try {
   New-Item -ItemType Directory -Path $archiveRoot -Force | Out-Null
   New-Item -ItemType Directory -Path $supabaseRoot -Force | Out-Null
@@ -127,6 +137,20 @@ try {
   } else {
     $config = [regex]::Replace($config, '(?m)^\[db\]\s*$', "[db]`nmajor_version = 17", 1)
   }
+  # Do not collide with other local Supabase projects. Only this disposable
+  # project's PostgreSQL and shadow ports are remapped; existing stacks remain
+  # untouched.
+  $databasePort = Get-FreeTcpPort
+  $shadowPort = Get-FreeTcpPort
+  while ($shadowPort -eq $databasePort) { $shadowPort = Get-FreeTcpPort }
+  $databasePortPattern = '(?ms)(^\[db\]\s*.*?^port\s*=\s*)\d+'
+  $shadowPortPattern = '(?ms)(^\[db\]\s*.*?^shadow_port\s*=\s*)\d+'
+  if (-not [regex]::IsMatch($config, $databasePortPattern) -or -not [regex]::IsMatch($config, $shadowPortPattern)) {
+    throw 'Supabase init did not create the expected database port settings.'
+  }
+  $config = [regex]::Replace($config, $databasePortPattern, ('${1}' + $databasePort), 1)
+  $config = [regex]::Replace($config, $shadowPortPattern, ('${1}' + $shadowPort), 1)
+  Write-Host "[qa-issue-70-production-baseline] Using isolated local DB ports $databasePort and $shadowPort."
   [IO.File]::WriteAllText($configPath, $config, [Text.UTF8Encoding]::new($false))
 
   New-Item -ItemType Directory -Path $migrationTarget -Force | Out-Null
