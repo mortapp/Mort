@@ -117,6 +117,10 @@ try {
   }
   [IO.File]::WriteAllText($configPath, $config, [Text.UTF8Encoding]::new($false))
 
+  New-Item -ItemType Directory -Path $migrationTarget -Force | Out-Null
+  if (-not (Test-Path -LiteralPath $migrationTarget -PathType Container)) {
+    throw 'Supabase init did not produce a migrations directory in the disposable project.'
+  }
   # Supabase init may scaffold a starter migration. Remove only generated SQL
   # files in this unique temp project before copying the verified baseline.
   Get-ChildItem -LiteralPath $migrationTarget -File -Filter '*.sql' -ErrorAction SilentlyContinue |
