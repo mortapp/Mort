@@ -67,6 +67,12 @@ try {
   }
 
   if (-not $SkipLocalReset) {
+    Invoke-Step 'Issue #70 production-baseline migration and authorization regression' 'scripts/run-issue-70-production-baseline.ps1' {
+      & (Join-Path $PSScriptRoot 'run-issue-70-production-baseline.ps1')
+    }
+  }
+
+  if (-not $SkipLocalReset) {
     $previousConfirm = $env:MORT_LOCAL_SUPABASE_CONFIRM
     try {
       $env:MORT_LOCAL_SUPABASE_CONFIRM = 'LOCAL_ONLY'

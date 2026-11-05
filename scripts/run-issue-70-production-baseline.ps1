@@ -125,8 +125,8 @@ try {
   }
 
   $exclude = 'gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor'
-  Invoke-Supabase start --exclude $exclude --workdir $supabaseRoot
   $stackStarted = $true
+  Invoke-Supabase start --exclude $exclude --workdir $supabaseRoot
   # Repeat explicitly from a clean disposable database so migration replay is
   # the tested operation, independent of start-time behavior.
   Invoke-Supabase db reset --local --no-seed --workdir $supabaseRoot
