@@ -1,0 +1,11 @@
+{
+  "source_project_ref": "jxbnrkasktbhtiujkhay",
+  "version": "20261102040639",
+  "name": "restrict_job_application_direct_select",
+  "recovery_source": "read-only supabase_migrations.schema_migrations.statements payload",
+  "ledger_statements_md5": "806bed46eb996e0fed98e87ea9a03f3c",
+  "recovered_source_sha256": "d816da845f1c71643a0d577b9629b98b3e8db9c0ed4c3667e8a4e7db7a60cf6d",
+  "archived_file_sha256": "d42afe9175cd8235bb5690a7f8833133084111feddd9a6bb32ca645e6f2065a0",
+  "manifest_source_sha256": "d816da845f1c71643a0d577b9629b98b3e8db9c0ed4c3667e8a4e7db7a60cf6d",
+  "note": "The archived SQL source differs from the exact production-ledger payload. The archived file and original archive manifest were not modified; the baseline runner uses this separately recovered payload after verifying its SHA-256 against the manifest."
+}

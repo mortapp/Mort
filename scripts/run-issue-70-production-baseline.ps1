@@ -1,0 +1,194 @@
+[CmdletBinding()]
+param(
+  [switch]$VerifyOnly,
+  [switch]$PrepareOnly
+)
+
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+
+# This immutable commit contains the recovered 73-migration, schema-only
+# production archive and its SHA-256 manifest. It is deliberately separate
+# from the generic local Supabase migration chain.
+$baselineCommit = '05325088dcbb117e5d144828bc613fef5b47777f'
+$projectId = 'mort-issue70-baseline'
+$containerName = "supabase_db_$projectId"
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("mort-issue70-baseline-" + [guid]::NewGuid().ToString('N'))
+$archiveZip = "$tempRoot.zip"
+$archiveRoot = Join-Path $tempRoot 'archive'
+$supabaseRoot = Join-Path $tempRoot 'test-project'
+$stackStarted = $false
+
+function Invoke-Supabase {
+  param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
+  & $supabaseCommand @supabasePrefixArgs @Arguments
+  if ($LASTEXITCODE -ne 0) { throw "Supabase CLI failed with exit code $LASTEXITCODE." }
+}
+
+function Invoke-Git {
+  param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
+  & git -C $repoRoot @Arguments
+  if ($LASTEXITCODE -ne 0) { throw "Git command failed with exit code $LASTEXITCODE." }
+}
+
+function Get-FreeTcpPort {
+  $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Any, 0)
+  try {
+    $listener.Start()
+    return [int]$listener.LocalEndpoint.Port
+  } finally {
+    $listener.Stop()
+  }
+}
+
+try {
+  New-Item -ItemType Directory -Path $archiveRoot -Force | Out-Null
+  New-Item -ItemType Directory -Path $supabaseRoot -Force | Out-Null
+
+  # Fetch only the immutable archive commit and extract only its production
+  # migration bundle. No database credentials or remote Supabase targets are used.
+  Invoke-Git fetch --no-tags --depth=1 origin $baselineCommit
+  Invoke-Git archive --format=zip --output=$archiveZip $baselineCommit supabase-production
+  Expand-Archive -LiteralPath $archiveZip -DestinationPath $archiveRoot -Force
+
+  $productionArchive = Join-Path $archiveRoot 'supabase-production'
+  $manifestPath = Join-Path $productionArchive 'migration-history.json'
+  $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+  if ($manifest.source_project_ref -ne 'jxbnrkasktbhtiujkhay' -or $manifest.migration_count -ne 73 -or $manifest.migrations.Count -ne 73) {
+    throw 'Pinned production migration manifest identity/count check failed.'
+  }
+
+  $migrationSource = Join-Path $productionArchive 'migrations'
+  $migrationTarget = Join-Path $supabaseRoot 'supabase\migrations'
+  $versions = @()
+  $sourceByVersion = @{}
+  foreach ($entry in $manifest.migrations) {
+    if ($entry.version -notmatch '^\d{14}$' -or $entry.sha256 -notmatch '^[0-9a-f]{64}$') {
+      throw 'Pinned migration manifest contains an invalid version or hash.'
+    }
+    $archiveFiles = @(Get-ChildItem -LiteralPath $migrationSource -File -Filter "$($entry.version)_*.sql")
+    if ($archiveFiles.Count -ne 1) { throw "Expected one archived SQL source for migration $($entry.version)." }
+    $sourcePath = $archiveFiles[0].FullName
+    $actualHash = (Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actualHash -ne $entry.sha256) {
+      # The recovered production ledger payload is the authoritative source for
+      # this one archive mismatch. The fallback is separately checked against
+      # the manifest SHA-256; the archived historical file remains unchanged.
+      if ($entry.version -ne '20261102040639') {
+        throw "Unreconciled archived production migration hash mismatch at $($entry.version)."
+      }
+      $recoveryMetadataPath = Join-Path $repoRoot 'supabase\production-baseline-recovery\20261102040639_restrict_job_application_direct_select.json'
+      if (-not (Test-Path -LiteralPath $recoveryMetadataPath)) { throw 'The ledger-recovery provenance record is missing.' }
+      $recoveryMetadata = Get-Content -LiteralPath $recoveryMetadataPath -Raw | ConvertFrom-Json
+      if ($recoveryMetadata.source_project_ref -ne 'jxbnrkasktbhtiujkhay' -or
+          $recoveryMetadata.version -ne $entry.version -or
+          $recoveryMetadata.name -ne $entry.name -or
+          $recoveryMetadata.ledger_statements_md5 -ne '806bed46eb996e0fed98e87ea9a03f3c' -or
+          $recoveryMetadata.archived_file_sha256 -ne $actualHash -or
+          $recoveryMetadata.manifest_source_sha256 -ne $entry.sha256) {
+        throw 'The ledger-recovery provenance record does not match the pinned archive and migration manifest.'
+      }
+      $sourcePath = Join-Path $repoRoot 'supabase\production-baseline-recovery\20261102040639_restrict_job_application_direct_select.sql'
+      if (-not (Test-Path -LiteralPath $sourcePath)) { throw 'The read-only ledger-recovered migration source is missing.' }
+      $actualHash = (Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash.ToLowerInvariant()
+      if ($actualHash -ne $entry.sha256 -or $actualHash -ne $recoveryMetadata.recovered_source_sha256) { throw "Ledger-recovered migration source does not match the verified manifest hash at $($entry.version)." }
+      Write-Host "[qa-issue-70-production-baseline] Recovered exact ledger source for $($entry.version); archived copy differed."
+    }
+    $sourceByVersion[$entry.version] = $sourcePath
+    $versions += $entry.version
+  }
+  if (($versions | Sort-Object -Unique).Count -ne 73 -or (($versions | Sort-Object) -join ',') -ne ($versions -join ',')) {
+    throw 'Production migration versions are duplicated or not ordered.'
+  }
+  Write-Host "[qa-issue-70-production-baseline] Verified 73 source hashes from $($versions[0]) through $($versions[-1])."
+  if ($VerifyOnly) {
+    Write-Host '[qa-issue-70-production-baseline] Verify-only mode: no database or Docker operations were attempted.'
+    return
+  }
+
+  $cli = Get-Command supabase -ErrorAction SilentlyContinue
+  if ($cli) {
+    $supabaseCommand = $cli.Source
+    $supabasePrefixArgs = @()
+  } else {
+    $pnpm = Get-Command pnpm -ErrorAction SilentlyContinue
+    $localCli = Join-Path $repoRoot 'node_modules/.bin/supabase'
+    $localCliCmd = Join-Path $repoRoot 'node_modules/.bin/supabase.cmd'
+    if ($pnpm -and ((Test-Path -LiteralPath $localCli) -or (Test-Path -LiteralPath $localCliCmd))) {
+      $supabaseCommand = $pnpm.Source
+      $supabasePrefixArgs = @('exec', 'supabase')
+    } else {
+      $npx = Get-Command npx -ErrorAction SilentlyContinue
+      if (-not $npx) { throw 'Supabase CLI, pnpm CLI dependency, or npx is required.' }
+      $supabaseCommand = $npx.Source
+      # Match the version installed by the existing CI setup-cli action.
+      $supabasePrefixArgs = @('--yes', 'supabase@2.109.0')
+    }
+  }
+
+  Invoke-Supabase init --workdir $supabaseRoot
+  $configPath = Join-Path $supabaseRoot 'supabase\config.toml'
+  $config = Get-Content -LiteralPath $configPath -Raw
+  $config = [regex]::Replace($config, '(?m)^project_id\s*=\s*"[^"]*"', "project_id = `"$projectId`"", 1)
+  if ($config -notmatch '(?m)^\[db\]') { throw 'Supabase init did not create the expected [db] config section.' }
+  if ($config -match '(?ms)^\[db\]\s*.*?^major_version\s*=\s*\d+') {
+    $config = [regex]::Replace($config, '(?ms)(^\[db\]\s*.*?^major_version\s*=\s*)\d+', '${1}17', 1)
+  } else {
+    $config = [regex]::Replace($config, '(?m)^\[db\]\s*$', "[db]`nmajor_version = 17", 1)
+  }
+  # Do not collide with other local Supabase projects. Only this disposable
+  # project's PostgreSQL and shadow ports are remapped; existing stacks remain
+  # untouched.
+  $databasePort = Get-FreeTcpPort
+  $shadowPort = Get-FreeTcpPort
+  while ($shadowPort -eq $databasePort) { $shadowPort = Get-FreeTcpPort }
+  $databasePortPattern = '(?ms)(^\[db\]\s*.*?^port\s*=\s*)\d+'
+  $shadowPortPattern = '(?ms)(^\[db\]\s*.*?^shadow_port\s*=\s*)\d+'
+  if (-not [regex]::IsMatch($config, $databasePortPattern) -or -not [regex]::IsMatch($config, $shadowPortPattern)) {
+    throw 'Supabase init did not create the expected database port settings.'
+  }
+  $config = [regex]::Replace($config, $databasePortPattern, ('${1}' + $databasePort), 1)
+  $config = [regex]::Replace($config, $shadowPortPattern, ('${1}' + $shadowPort), 1)
+  Write-Host "[qa-issue-70-production-baseline] Using isolated local DB ports $databasePort and $shadowPort."
+  [IO.File]::WriteAllText($configPath, $config, [Text.UTF8Encoding]::new($false))
+
+  New-Item -ItemType Directory -Path $migrationTarget -Force | Out-Null
+  if (-not (Test-Path -LiteralPath $migrationTarget -PathType Container)) {
+    throw 'Supabase init did not produce a migrations directory in the disposable project.'
+  }
+  # Supabase init may scaffold a starter migration. Remove only generated SQL
+  # files in this unique temp project before copying the verified baseline.
+  Get-ChildItem -LiteralPath $migrationTarget -File -Filter '*.sql' -ErrorAction SilentlyContinue |
+    Remove-Item -Force
+  foreach ($entry in $manifest.migrations) {
+    Copy-Item -LiteralPath $sourceByVersion[$entry.version] -Destination $migrationTarget
+  }
+  $copiedMigrationCount = @(Get-ChildItem -LiteralPath $migrationTarget -File -Filter '*.sql').Count
+  if ($copiedMigrationCount -ne 73) {
+    throw "The disposable production baseline contains $copiedMigrationCount SQL files, expected 73."
+  }
+  if ($PrepareOnly) {
+    Write-Host '[qa-issue-70-production-baseline] Prepare-only mode: 73 verified migration files copied; no Docker/database operations were attempted.'
+    return
+  }
+
+  $exclude = 'gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor'
+  $stackStarted = $true
+  Invoke-Supabase start --exclude $exclude --workdir $supabaseRoot
+  # Repeat explicitly from a clean disposable database so migration replay is
+  # the tested operation, independent of start-time behavior.
+  Invoke-Supabase db reset --local --no-seed --workdir $supabaseRoot
+
+  & (Join-Path $PSScriptRoot 'qa-issue-70-guardian-application-reader.ps1') -ContainerName $containerName
+}
+finally {
+  # Cleanup is scoped to the uniquely named, temporary local project only.
+  if ($stackStarted) {
+    try { Invoke-Supabase stop --workdir $supabaseRoot --no-backup } catch { Write-Warning 'Local temporary Supabase stack cleanup needs attention.' }
+  }
+  Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath $archiveZip -Force -ErrorAction SilentlyContinue
+}
+
+Write-Host '[qa-issue-70-production-baseline] PASS: 73 verified production migration sources and Guardian pgTAP regression.' -ForegroundColor Green
