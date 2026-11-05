@@ -19,16 +19,20 @@
 // Run against local: SUPABASE_DB_URL=postgresql://postgres:postgres@127.0.0.1:65432/postgres
 import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
+import { assertFeatureQaTarget } from "./feature-qa-target-guard.mjs";
 
-const url = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "http://127.0.0.1:54321";
+const url = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const dbUrl = process.env.SUPABASE_DB_URL;
-if (!serviceRoleKey || !dbUrl) {
-  console.error("Set SUPABASE_SERVICE_ROLE_KEY and SUPABASE_DB_URL (local stack).");
+if (!serviceRoleKey || !dbUrl || !url) {
+  console.error("Set local EXPO_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and SUPABASE_DB_URL.");
   process.exit(1);
 }
-if (!/127\.0\.0\.1|localhost/.test(url) && !/127\.0\.0\.1|localhost/.test(dbUrl)) {
-  console.error("Refusing to run: this script is for the local stack only.");
+try {
+  const projectRef = new URL(url).hostname.split(".")[0];
+  assertFeatureQaTarget({ projectRef, supabaseUrl: url, dbUrl, localQa: true });
+} catch (error) {
+  console.error(`Refusing to run: ${error.message}`);
   process.exit(1);
 }
 

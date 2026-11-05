@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { assertFeatureQaTarget, isLoopbackHost } from "./feature-qa-target-guard.mjs";
@@ -107,4 +108,37 @@ test("the local override rejects an implicit remote database fallback", () => {
     dbUrl: "",
     localQa: true,
   }), /local QA requires loopback API and database endpoints/);
+});
+
+test("account-deletion database QA entrypoints enforce the shared target guard", () => {
+  for (const file of ["qa-account-deletion-fk-contract.mjs", "qa-account-deletion-functional.mjs"]) {
+    const source = readFileSync(new URL(`./${file}`, import.meta.url), "utf8");
+    assert.match(source, /assertFeatureQaTarget/);
+  }
+});
+
+test("retired remote-target utilities fail closed before running legacy code", () => {
+  for (const file of [
+    "audit-historical-qa-accounts-0.9.4.mjs",
+    "build-play-policy-package.mjs",
+    "create-old-project-test-users.mjs",
+    "create-play-review-fixtures.mjs",
+    "generate-security-warning-reconciliation.mjs",
+    "qa-account-deletion-processor.mjs",
+    "qa-old-project-smoke.mjs",
+    "qa-old-project-rls.mjs",
+  ]) {
+    const source = readFileSync(new URL(`./${file}`, import.meta.url), "utf8");
+    assert.match(source, /^throw new Error\("Disabled:/);
+  }
+  const packageScript = readFileSync(new URL("./package-final-play-production-pilot.ps1", import.meta.url), "utf8");
+  assert.match(packageScript, /^throw "Disabled:/);
+  const playReviewJs = readFileSync(new URL("./create-play-review-tenant.mjs", import.meta.url), "utf8");
+  const playReviewPs = readFileSync(new URL("./run-play-review-fixtures.ps1", import.meta.url), "utf8");
+  assert.match(playReviewJs, /^throw new Error\("Disabled:/);
+  assert.match(playReviewPs, /^throw "Disabled:/);
+  const regressionRunner = readFileSync(new URL("./run-final-supabase-regression.ps1", import.meta.url), "utf8");
+  assert.doesNotMatch(regressionRunner, /qa-old-project-smoke\.mjs/);
+  const packageJson = readFileSync(new URL("../package.json", import.meta.url), "utf8");
+  assert.doesNotMatch(packageJson, /qa:old-project-(?:smoke|rls)/);
 });
