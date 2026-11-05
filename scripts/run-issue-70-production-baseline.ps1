@@ -112,7 +112,8 @@ try {
       $npx = Get-Command npx -ErrorAction SilentlyContinue
       if (-not $npx) { throw 'Supabase CLI, pnpm CLI dependency, or npx is required.' }
       $supabaseCommand = $npx.Source
-      $supabasePrefixArgs = @('--yes', 'supabase@latest')
+      # Match the version installed by the existing CI setup-cli action.
+      $supabasePrefixArgs = @('--yes', 'supabase@2.109.0')
     }
   }
 
