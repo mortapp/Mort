@@ -62,8 +62,10 @@ jobs:
           node --check scripts/audit-mission-pilot-remote.mjs
           node --check scripts/qa-message-thread-context.mjs
           node --check scripts/feature-qa-helpers.mjs
+          node --check scripts/feature-qa-target-guard.mjs
           node --check scripts/remove-play-review-fixtures.mjs
           node --check scripts/build-final-production-pilot-readiness.mjs
+      - run: node --test scripts/feature-qa-target-guard.test.mjs
       - run: node --test scripts/backup-envelope.test.mjs
       - run: node scripts/qa-stripe-pre-provider-gate.mjs
       - run: node scripts/secret_extraction_scan.mjs --self-test
@@ -307,5 +309,6 @@ jobs:
           path: build/device-test/mort-device-test.apk
           if-no-files-found: error
           retention-days: 7
+
 
 
