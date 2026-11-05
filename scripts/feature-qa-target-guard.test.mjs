@@ -23,6 +23,15 @@ test("hosted QA rejects a production database URL even with a QA API URL", () =>
   }), /database host must match the isolated QA project/);
 });
 
+test("hosted QA rejects a database URL query parameter that overrides the QA hostname", () => {
+  assert.throws(() => assertFeatureQaTarget({
+    projectRef: QA_REF,
+    supabaseUrl: `https://${QA_REF}.supabase.co`,
+    dbUrl: `postgresql://postgres:placeholder@db.${QA_REF}.supabase.co:5432/postgres?host=db.jxbnrkasktbhtiujkhay.supabase.co`,
+    localQa: false,
+  }), /database connection URL cannot override its host/);
+});
+
 test("hosted QA rejects a loopback DB URL because it would mix environments", () => {
   assert.throws(() => assertFeatureQaTarget({
     projectRef: QA_REF,

@@ -25,6 +25,12 @@ function parseEndpoint(value, label, allowedProtocols) {
   return endpoint;
 }
 
+function assertNoDatabaseHostOverride(endpoint) {
+  if (endpoint.searchParams.has("host") || endpoint.searchParams.has("hostaddr")) {
+    throw new Error("database connection URL cannot override its host.");
+  }
+}
+
 export function assertFeatureQaTarget({ projectRef, supabaseUrl, dbUrl, localQa }) {
   if (localQa === true) {
     let api;
@@ -32,6 +38,7 @@ export function assertFeatureQaTarget({ projectRef, supabaseUrl, dbUrl, localQa 
     try {
       api = parseEndpoint(supabaseUrl, "Supabase API", ["http:", "https:"]);
       database = parseEndpoint(dbUrl, "Postgres", ["postgres:", "postgresql:"]);
+      assertNoDatabaseHostOverride(database);
     } catch {
       throw new Error("local QA requires loopback API and database endpoints.");
     }
@@ -52,6 +59,7 @@ export function assertFeatureQaTarget({ projectRef, supabaseUrl, dbUrl, localQa 
 
   if (dbUrl) {
     const database = parseEndpoint(dbUrl, "Postgres", ["postgres:", "postgresql:"]);
+    assertNoDatabaseHostOverride(database);
     if (database.hostname.toLowerCase() !== QA_DATABASE_HOST) {
       throw new Error("database host must match the isolated QA project.");
     }
