@@ -91,6 +91,25 @@ jobs:
           MORT_STRIPE_MODE: sandbox
         run: ./scripts/run-mort-stripe-regression.ps1
 
+  guardian-production-baseline:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Replay the pinned production baseline and test Issue #70
+        shell: pwsh
+        run: ./scripts/run-issue-70-production-baseline.ps1
+
   expo-reference:
     runs-on: ubuntu-latest
     timeout-minutes: 25

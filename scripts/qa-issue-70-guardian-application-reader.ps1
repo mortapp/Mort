@@ -33,7 +33,7 @@ if ($baseline.Count -ne 5 -or
   throw "Local test DB is not the reviewed production-equivalent baseline (PostgreSQL 17, 73 migrations through 20261102113314, function MD5 94a1b987774f994019ba6269b9abeb16). Actual fingerprint: $before"
 }
 
-$migrationPath = Join-Path $PSScriptRoot '..\supabase\migrations\20261104182914_issue_70_guardian_application_reader_scope.sql'
+$migrationPath = Join-Path $PSScriptRoot '..\supabase\production-baseline-migrations\20261104182914_issue_70_guardian_application_reader_scope.sql'
 $testPath = Join-Path $PSScriptRoot '..\supabase\production-baseline-tests\guardian_application_reader_scope.test.sql'
 $migration = Get-Content -LiteralPath $migrationPath -Raw
 $test = Get-Content -LiteralPath $testPath -Raw
