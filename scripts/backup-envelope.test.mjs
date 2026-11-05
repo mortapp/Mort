@@ -5,6 +5,7 @@ import {
   decryptBackupEnvelope,
   encryptBackupEnvelope,
 } from "./backup-envelope.mjs";
+import { createBackupPostgresConfig } from "./backup-postgres-config.mjs";
 
 const keyText = Buffer.alloc(32, 7).toString("base64");
 const plaintext = Buffer.from(JSON.stringify({
@@ -89,4 +90,17 @@ test("backup envelope rejects malformed encryption keys", () => {
     plaintext,
     keyText: "not-a-key",
   }), /backup_encryption_key_must_be_base64_32_bytes/);
+});
+
+test("production backup database requires verified TLS and the authoritative target", () => {
+  const config = createBackupPostgresConfig({
+    projectRef: "jxbnrkasktbhtiujkhay",
+    password: "test-only-placeholder",
+  });
+  assert.equal(config.host, "db.jxbnrkasktbhtiujkhay.supabase.co");
+  assert.equal(config.ssl.rejectUnauthorized, true);
+  assert.throws(() => createBackupPostgresConfig({
+    projectRef: "ckcxakhxqlkhppsxxjhv",
+    password: "test-only-placeholder",
+  }), /backup_database_target_not_authoritative_production/);
 });

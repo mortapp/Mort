@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { encryptBackupEnvelope } from "./backup-envelope.mjs";
+import { createBackupPostgresConfig } from "./backup-postgres-config.mjs";
 import pg from "pg";
 import { chmodSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -22,14 +23,7 @@ if (!password) {
   throw new Error("Set SUPABASE_DB_PASSWORD before creating the remote schema snapshot.");
 }
 
-const client = new pg.Client({
-  host: `db.${projectRef}.supabase.co`,
-  port: 5432,
-  database: "postgres",
-  user: "postgres",
-  password,
-  ssl: { rejectUnauthorized: false },
-});
+const client = new pg.Client(createBackupPostgresConfig({ projectRef, password }));
 
 const queries = {
   database: `
