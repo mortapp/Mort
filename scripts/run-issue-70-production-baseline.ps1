@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param([switch]$VerifyOnly)
+param(
+  [switch]$VerifyOnly,
+  [switch]$PrepareOnly
+)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -100,9 +103,17 @@ try {
     $supabasePrefixArgs = @()
   } else {
     $pnpm = Get-Command pnpm -ErrorAction SilentlyContinue
-    if (-not $pnpm) { throw 'Supabase CLI or pnpm is required.' }
-    $supabaseCommand = $pnpm.Source
-    $supabasePrefixArgs = @('exec', 'supabase')
+    $localCli = Join-Path $repoRoot 'node_modules/.bin/supabase'
+    $localCliCmd = Join-Path $repoRoot 'node_modules/.bin/supabase.cmd'
+    if ($pnpm -and ((Test-Path -LiteralPath $localCli) -or (Test-Path -LiteralPath $localCliCmd))) {
+      $supabaseCommand = $pnpm.Source
+      $supabasePrefixArgs = @('exec', 'supabase')
+    } else {
+      $npx = Get-Command npx -ErrorAction SilentlyContinue
+      if (-not $npx) { throw 'Supabase CLI, pnpm CLI dependency, or npx is required.' }
+      $supabaseCommand = $npx.Source
+      $supabasePrefixArgs = @('--yes', 'supabase@latest')
+    }
   }
 
   Invoke-Supabase init --workdir $supabaseRoot
@@ -131,6 +142,10 @@ try {
   $copiedMigrationCount = @(Get-ChildItem -LiteralPath $migrationTarget -File -Filter '*.sql').Count
   if ($copiedMigrationCount -ne 73) {
     throw "The disposable production baseline contains $copiedMigrationCount SQL files, expected 73."
+  }
+  if ($PrepareOnly) {
+    Write-Host '[qa-issue-70-production-baseline] Prepare-only mode: 73 verified migration files copied; no Docker/database operations were attempted.'
+    return
   }
 
   $exclude = 'gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor'
