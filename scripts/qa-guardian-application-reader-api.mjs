@@ -33,7 +33,8 @@ function isPublishableOrAnonKey(key) {
   if (typeof key !== "string" || key.length === 0) return false;
   if (key.startsWith("sb_publishable_")) return true;
   if (key.startsWith("sb_secret_")) return false;
-  return decodeJwtPayload(key)?.role === "anon";
+  const payload = decodeJwtPayload(key);
+  return payload?.role === "anon" && payload?.ref === QA_PROJECT_REF;
 }
 
 export function validateTarget({
@@ -298,7 +299,10 @@ export async function runGuardianApiChecks(config, fetchImpl = fetch, log = cons
       accessToken: config.fixture.expiredSessionToken,
     });
   } else {
-    skippedCases.push({ name: "expired session receives no application data", reason: "expired JWT fixture not supplied" });
+    skippedCases.push({
+      name: "expired session receives no application data",
+      reason: config.fixture.expiredSessionToken ? "missing application fixture teenA" : "expired JWT fixture not supplied",
+    });
   }
   for (const entry of skippedCases) log(`SKIP ${entry.name}: ${entry.reason}`);
   try {

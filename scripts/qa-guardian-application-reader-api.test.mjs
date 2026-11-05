@@ -102,6 +102,11 @@ function apiMock(testFixture, options = {}) {
 
 test("target validation accepts only the designated isolated QA project and an anon key", () => {
   assert.equal(validateTarget(connection()), qaRef);
+  const encoded = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  const qaJwt = `${encoded({ alg: "HS256", typ: "JWT" })}.${encoded({ role: "anon", ref: qaRef })}.fixture-signature`;
+  const productionJwt = `${encoded({ alg: "HS256", typ: "JWT" })}.${encoded({ role: "anon", ref: "jxbnrkasktbhtiujkhay" })}.fixture-signature`;
+  assert.equal(validateTarget(connection({ anonKey: qaJwt })), qaRef);
+  assert.throws(() => validateTarget(connection({ anonKey: productionJwt })), /publishable or anon/);
 });
 
 test("target validation rejects production, local, deleted, and mismatched endpoints", () => {
