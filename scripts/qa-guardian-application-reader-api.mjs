@@ -356,11 +356,18 @@ export async function runGuardianApiChecks(config, fetchImpl = fetch, log = cons
   return { passed: cases.length - failures.length, failed: failures.length, skipped: skippedCases.length, skippedCases };
 }
 
+export function getCliExitCode(result) {
+  if (result.failed > 0) return 1;
+  if (result.skipped > 0) return 2;
+  return 0;
+}
+
 async function main() {
   const config = loadRuntimeConfig(process.env);
   const result = await runGuardianApiChecks(config);
   console.log(`[qa-guardian-application-reader-api] ${result.passed} passed, ${result.failed} failed, ${result.skipped} skipped.`);
-  if (result.failed > 0) process.exitCode = 1;
+  if (result.skipped > 0) console.error("[qa-guardian-application-reader-api] BLOCKED: required fixture cases were skipped; API coverage is incomplete.");
+  process.exitCode = getCliExitCode(result);
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {

@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   buildCasePlan,
   classifyApplicationResponse,
+  getCliExitCode,
   runGuardianApiChecks,
   validateFixture,
   validateTarget,
@@ -281,4 +282,11 @@ test("API harness counts unavailable role fixtures as skipped, never passed", as
   assert.equal(result.skipped, 15);
   assert.ok(result.skippedCases.some((entry) => entry.name === "linked Guardian reads linked application" && entry.reason.includes("linkedGuardian")));
   assert.ok(result.skippedCases.some((entry) => entry.name === "expired session receives no application data"));
+  assert.equal(getCliExitCode(result), 2);
+});
+
+test("API CLI exit status distinguishes clean pass, blocked coverage, and failures", () => {
+  assert.equal(getCliExitCode({ passed: 1, failed: 0, skipped: 0 }), 0);
+  assert.equal(getCliExitCode({ passed: 1, failed: 0, skipped: 1 }), 2);
+  assert.equal(getCliExitCode({ passed: 0, failed: 1, skipped: 0 }), 1);
 });
