@@ -34,7 +34,7 @@ if ($baseline.Count -ne 5 -or
 }
 
 $migrationPath = Join-Path $PSScriptRoot '..\supabase\migrations\20261104182914_issue_70_guardian_application_reader_scope.sql'
-$testPath = Join-Path $PSScriptRoot '..\supabase\tests\database\guardian_application_reader_scope.test.sql'
+$testPath = Join-Path $PSScriptRoot '..\supabase\production-baseline-tests\guardian_application_reader_scope.test.sql'
 $migration = Get-Content -LiteralPath $migrationPath -Raw
 $test = Get-Content -LiteralPath $testPath -Raw
 
