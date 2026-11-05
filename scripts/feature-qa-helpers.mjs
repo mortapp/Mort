@@ -1022,4 +1022,3 @@ export async function confirmSafetyAgreement(teenClient, adultClient, applicatio
   }
   return adultConfirmation.data;
 }
-

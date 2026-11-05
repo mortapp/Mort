@@ -59,4 +59,3 @@ export function assertFeatureQaTarget({ projectRef, supabaseUrl, dbUrl, localQa 
 
   return "hosted_qa";
 }
-
