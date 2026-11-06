@@ -26,11 +26,28 @@ keys, database passwords, access tokens, or provider secrets.
 ## Current backup tooling coverage
 
 PR #69 adds an AES-256-GCM authenticated envelope, SHA-256 reporting, TLS
-certificate validation, an authoritative-project target guard, an approval
-environment gate, and database export code. The data export covers rows in
-`public` tables and `storage.buckets`/`storage.objects` metadata. The schema
-export captures selected schema, policies, grants, functions, triggers,
-migrations, and bucket metadata.
+certificate validation, an authoritative-project target guard, an explicit
+approval flag in the export scripts, and database export code. The data export
+covers rows in `public` tables and `storage.buckets`/`storage.objects` metadata.
+The schema export captures selected schema, policies, grants, functions,
+triggers, migrations, and bucket metadata.
+
+The checked-in `mort-backup-metadata.yml` workflow is not wired to that exporter
+contract. It passes only `SUPABASE_DB_PASSWORD`, while the script requires
+`MORT_BACKUP_APPROVED`, `MORT_BACKUP_OUTPUT_DIR`, and
+`MORT_BACKUP_ENCRYPTION_KEY`; it therefore exits before opening a database
+connection. Its later archive step does not include the exporter's external
+output directory and uses AES-256-CBC plus a separate SHA-256 sidecar, not the
+exporter's authenticated GCM envelope. A read-only GitHub environment check on
+2026-11-05 found zero protection rules on `backend-operations`, so the workflow
+declaration alone is not an approval gate. Do not run or rely on this workflow
+until its inputs, artifact path, authenticated encryption, and environment
+reviewer controls are corrected and verified.
+
+A name-only GitHub secret inventory on 2026-11-05 found no
+`MORT_BACKUP_ENCRYPTION_KEY` or `BACKUP_ARCHIVE_PASSPHRASE` at the repository
+or `backend-operations` environment scope. The environment has no protection
+rules or variables. Organization-level secret inheritance was not inspected.
 
 This does **not** back up `auth.users` or recoverable Auth identity state,
 Storage object bytes, Edge Function source/configuration, or all project/Auth
@@ -54,6 +71,11 @@ restore drill has run. The current toolset is a partial encrypted export, not a
 complete disaster-recovery system. Do not claim backup creation or recovery is
 verified. Do not assume the current Supabase plan provides point-in-time
 recovery.
+
+The production database password disclosed previously is treated as
+compromised. It has **not** been rotated. The repository's confirmed consumers,
+rotation sequence, pooler risks, and evidence required for closure are recorded
+in [MORT_DATABASE_CREDENTIAL_ROTATION.md](MORT_DATABASE_CREDENTIAL_ROTATION.md).
 
 ## Recovery Objectives
 
