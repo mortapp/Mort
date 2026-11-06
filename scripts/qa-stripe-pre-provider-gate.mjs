@@ -6,8 +6,8 @@ import {
   extractAllowlistedSecretNames,
 } from "./stripe-pre-provider-gate-core.mjs";
 
-const projectRef = "rakjydmgwwgtdislanbt";
-const webhookUrl = `https://${projectRef}.supabase.co/functions/v1/stripe-webhook`;
+const projectRef = "ckcxakhxqlkhppsxxjhv";
+const webhookUrl = `https://${projectRef}.supabase.co/functions/v1/stripe-assignment-webhook`;
 const fixedNow = new Date("2026-09-18T12:00:00.000Z");
 
 function baseline(overrides = {}) {
@@ -17,7 +17,7 @@ function baseline(overrides = {}) {
     runtimeMode: "sandbox",
     webhookEnvironment: "test",
     webhookUrl,
-    functionNames: new Set(["stripe-webhook"]),
+    functionNames: new Set(["stripe-assignment-webhook"]),
     secretNames: new Set([
       "STRIPE_TEST_SECRET_KEY",
       "STRIPE_TEST_PUBLISHABLE_KEY",

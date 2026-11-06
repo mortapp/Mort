@@ -1,4 +1,4 @@
-import { serviceClient, withDatabase } from "./feature-qa-helpers.mjs";
+import { projectRef, serviceClient, withDatabase } from "./feature-qa-helpers.mjs";
 
 const staleUsers = [];
 for (let page = 1; ; page += 1) {
@@ -62,7 +62,7 @@ if (staleUsers.length > 0) {
 console.log(
   JSON.stringify(
     {
-      project_ref: "rakjydmgwwgtdislanbt",
+      project_ref: projectRef,
       aggregate_only: true,
       strict_feature_qa_users: staleUsers.length,
       remaining_auth_user_references: references,

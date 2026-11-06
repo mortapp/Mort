@@ -45,7 +45,7 @@ const headers = {
   'Referrer-Policy': 'no-referrer',
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
   'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
-  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://rakjydmgwwgtdislanbt.supabase.co wss://rakjydmgwwgtdislanbt.supabase.co; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://jxbnrkasktbhtiujkhay.supabase.co wss://jxbnrkasktbhtiujkhay.supabase.co; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
 };
 writeFileSync(resolve(output, 'config.json'), `${JSON.stringify({
   version: 3,

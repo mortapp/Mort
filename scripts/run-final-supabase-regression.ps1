@@ -25,7 +25,6 @@ if (-not $localQa) {
 }
 
 $scripts = @(
-  'qa-old-project-smoke.mjs',
   'qa-resumable-onboarding.mjs',
   'qa-orphaned-onboarding-progress.mjs',
   'qa-complete-multi-user-isolation.mjs',
@@ -107,7 +106,6 @@ $scripts = @(
 )
 
 $hostedOnlyScripts = @(
-  'qa-old-project-smoke.mjs',
   'audit-remote-storage.mjs',
   'audit-mission-pilot-remote.mjs'
 )

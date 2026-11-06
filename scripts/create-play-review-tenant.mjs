@@ -1,1 +1,1 @@
-await import('./create-play-review-fixtures.mjs');
+throw new Error("Disabled: legacy Play review fixture creation is not configured for the current QA environment.");

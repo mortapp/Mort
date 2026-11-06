@@ -1,6 +1,6 @@
 # MORT Google Play Upload Signing Setup
 
-> Status: closed-test publication candidate dated 2026-07-20. Not legal approval, not a public launch, and not a production-readiness claim.
+> Status: historical signing procedure; production AAB not yet re-verified as of 2026-11-04. A QA-only device-test APK exists, but it is not a signed Play Store AAB or store certification.
 
 ## Implemented signing boundary
 
@@ -21,7 +21,7 @@ Required environment names are `MORT_UPLOAD_KEYSTORE_PATH`, `MORT_UPLOAD_KEY_ALI
 .\scripts\build-closed-test-apk.ps1
 `
 
-The AAB build targets `rakjydmgwwgtdislanbt`, fixes release stage to `closed_test`, fixes operational mode to `closed_pilot`, disables public marketplace and real identity verification, disables ads and IAP, obfuscates Dart code, and stores symbol files outside the repository at `C:\Users\micha\MortSymbolsandroid\0.9.0+90`.
+The production AAB build targets `jxbnrkasktbhtiujkhay`; QA/device-test builds target `ckcxakhxqlkhppsxxjhv`. The production AAB build fixes release stage to `closed_test`, fixes operational mode to `closed_pilot`, disables public marketplace and real identity verification, disables ads and IAP, obfuscates Dart code, and stores symbol files outside the repository at `C:\Users\micha\MortSymbolsandroid\0.9.0+90`.
 
 ## Play App Signing
 
