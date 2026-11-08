@@ -11,6 +11,7 @@ const expectedProfiles = [
   "reviewer_demo",
   "closed_test",
   "production_candidate",
+  "production_prelaunch",
   "production",
 ];
 const requiredKeys = [
@@ -79,14 +80,29 @@ for (const [name, profile] of Object.entries(matrix.profiles)) {
   if (profile.reviewerModeEnabled !== (name === "reviewer_demo")) {
     fail(`${name} has an invalid reviewer-mode boundary`);
   }
-  if (["reviewer_demo", "closed_test", "production_candidate", "production"].includes(name) && profile.debugEndpointsEnabled) {
+  if (["reviewer_demo", "closed_test", "production_candidate", "production_prelaunch", "production"].includes(name) && profile.debugEndpointsEnabled) {
     fail(`${name} cannot compile debug endpoints`);
   }
   if (["reviewer_demo", "closed_test"].includes(name) && profile.adsEnabled) {
     fail(`${name} cannot enable ads -- real ad traffic is reserved for production_candidate/production`);
   }
-  if (["reviewer_demo", "closed_test", "production_candidate", "production"].includes(name) && profile.iapEnabled) {
+  if (["reviewer_demo", "closed_test", "production_candidate", "production_prelaunch", "production"].includes(name) && profile.iapEnabled) {
     fail(`${name} cannot enable unapproved IAP`);
+  }
+  if (name === "production_prelaunch" && (
+    profile.releaseStage !== "production_public" ||
+    profile.publicMarketplaceEnabled !== false ||
+    profile.marketplacePaymentsEnabled !== false ||
+    profile.paymentProviderMode !== "disabled" ||
+    profile.identityVerificationEnabled !== false ||
+    profile.productionActivationApproved !== false ||
+    profile.googleAuthEnabled !== false ||
+    profile.remotePushEnabled !== false ||
+    profile.crashReportingEnabled !== false ||
+    profile.adsEnabled !== false ||
+    profile.chatbotAiEnabled !== false
+  )) {
+    fail("production_prelaunch must target production with marketplace, document collection, payments, and providers disabled");
   }
 }
 

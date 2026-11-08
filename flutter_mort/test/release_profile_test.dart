@@ -25,16 +25,21 @@ MortReleaseConfiguration configuration({
   String safetyVersion = 'draft-2026-07',
   bool debugEndpointsEnabled = false,
   bool browserStackQaMode = false,
+  String? supabaseProjectRefOverride,
 }) {
   final hosted = profile.requiresHostedBackend;
   return MortReleaseConfiguration(
     profile: profile,
     releaseStage: releaseStage ?? profile.value,
     operationalMode: profile.value,
-    supabaseUrl: hosted ? 'https://rakjydmgwwgtdislanbt.supabase.co' : '',
+    supabaseUrl: hosted
+        ? 'https://${supabaseProjectRefOverride ?? 'jxbnrkasktbhtiujkhay'}.supabase.co'
+        : '',
     supabaseAnonKey: hosted ? 'public-anon-key' : '',
-    supabaseProjectRef: hosted ? 'rakjydmgwwgtdislanbt' : '',
-    expectedSupabaseProjectRef: 'rakjydmgwwgtdislanbt',
+    supabaseProjectRef: hosted
+        ? (supabaseProjectRefOverride ?? 'jxbnrkasktbhtiujkhay')
+        : '',
+    expectedSupabaseProjectRef: 'jxbnrkasktbhtiujkhay',
     googleAuthEnabled: googleAuthEnabled,
     appleAuthEnabled: appleAuthEnabled,
     oauthCallback: 'com.mortapp.mobile://app/auth-callback',
@@ -65,13 +70,14 @@ MortReleaseConfiguration configuration({
 }
 
 void main() {
-  test('defines the six authoritative release profiles', () {
+  test('defines the seven authoritative release profiles', () {
     expect(MortReleaseProfile.values.map((profile) => profile.value), [
       'development',
       'automated_test',
       'reviewer_demo',
       'closed_test',
       'production_candidate',
+      'production_prelaunch',
       'production',
     ]);
   });
@@ -209,6 +215,55 @@ void main() {
       crashReportingEnabled: true,
     );
     expect(valid.validationErrors, isEmpty);
+  });
+
+  test(
+    'production prelaunch targets production but keeps risky capabilities off',
+    () {
+      final valid = configuration(
+        profile: MortReleaseProfile.productionPrelaunch,
+        releaseStage: 'production_public',
+      );
+      expect(valid.validationErrors, isEmpty);
+      expect(valid.publicMarketplaceEnabled, isFalse);
+      expect(valid.marketplacePaymentsEnabled, isFalse);
+      expect(valid.identityVerificationEnabled, isFalse);
+      expect(valid.productionActivationApproved, isFalse);
+      expect(valid.googleAuthEnabled, isFalse);
+
+      final unsafe = configuration(
+        profile: MortReleaseProfile.productionPrelaunch,
+        releaseStage: 'production_public',
+        publicMarketplaceEnabled: true,
+      );
+      expect(
+        unsafe.validationErrors,
+        contains(
+          'production prelaunch must keep marketplace and provider controls disabled',
+        ),
+      );
+    },
+  );
+
+  test('production prelaunch rejects wrong stage and backend project', () {
+    final wrongStage = configuration(
+      profile: MortReleaseProfile.productionPrelaunch,
+      releaseStage: 'production_pilot',
+    );
+    expect(
+      wrongStage.validationErrors,
+      contains('production prelaunch must use production_public stage'),
+    );
+
+    final wrongProject = configuration(
+      profile: MortReleaseProfile.productionPrelaunch,
+      releaseStage: 'production_public',
+      supabaseProjectRefOverride: 'not-the-production-project',
+    );
+    expect(
+      wrongProject.validationErrors,
+      contains('hosted Supabase public configuration is missing or wrong'),
+    );
   });
 
   test(

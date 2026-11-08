@@ -1,21 +1,16 @@
+import { getReleaseStatusError } from "./release-profile-server-contract.mjs";
+
 const profile = process.argv[2];
 const supabaseUrl = process.env.SUPABASE_URL?.trim();
 const anonKey = process.env.SUPABASE_ANON_KEY?.trim();
-const knownProfiles = new Set([
-  "development",
-  "automated_test",
-  "reviewer_demo",
-  "closed_test",
-  "production_candidate",
-  "production",
-]);
 
 function fail(message) {
   throw new Error(`[release-server-gate] ${message}`);
 }
 
 async function validate() {
-  if (!knownProfiles.has(profile)) fail("unknown release profile");
+  const earlyError = getReleaseStatusError(profile, {});
+  if (earlyError === "unknown release profile") fail(earlyError);
   if (profile === "development" || profile === "automated_test") {
     console.log(
       `[release-server-gate] PASS: ${profile} has no hosted activation requirement.`,
@@ -40,33 +35,8 @@ async function validate() {
   );
   if (!response.ok) fail(`server release RPC returned HTTP ${response.status}`);
   const status = await response.json();
-  if (!status || typeof status !== "object") {
-    fail("server release RPC returned malformed data");
-  }
-  if (status.maintenance_mode === true) fail("server maintenance mode is active");
-
-  const expectedStage = {
-    reviewer_demo: "closed_test",
-    closed_test: "closed_test",
-    production_candidate: "production_pilot",
-    production: "production_public",
-  }[profile];
-  if (status.release_mode !== expectedStage) {
-    fail(
-      `server release mode is ${status.release_mode ?? "missing"}, expected ${expectedStage}`,
-    );
-  }
-  if (profile !== "production" && status.public_marketplace_enabled === true) {
-    fail("non-production build cannot target a public server marketplace");
-  }
-  if (profile === "production") {
-    if (status.public_marketplace_enabled !== true) {
-      fail("server has not approved public marketplace activation");
-    }
-    if (status.real_document_collection !== true) {
-      fail("server has not approved production identity verification");
-    }
-  }
+  const statusError = getReleaseStatusError(profile, status);
+  if (statusError) fail(statusError);
 
   console.log(
     `[release-server-gate] PASS: profile=${profile}, server_stage=${status.release_mode}, public=${status.public_marketplace_enabled === true}.`,
