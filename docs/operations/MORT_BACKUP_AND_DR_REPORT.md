@@ -44,12 +44,12 @@ declaration alone is not an approval gate. Do not run or rely on this workflow
 until its inputs, artifact path, authenticated encryption, and environment
 reviewer controls are corrected and verified.
 
-A name-only GitHub secret inventory on 2026-11-05 found no
+A name-only GitHub secret inventory on 2026-11-07 found no
 `MORT_BACKUP_ENCRYPTION_KEY` or `BACKUP_ARCHIVE_PASSPHRASE` at the repository
 or `backend-operations` environment scope. The environment has no protection
 rules or variables. Organization-level secret inheritance was not inspected.
 
-This does **not** back up `auth.users` or recoverable Auth identity state,
+The data exporter does **not** back up `auth.users` or recoverable Auth identity state,
 Storage object bytes, Edge Function source/configuration, or all project/Auth
 configuration. A PostgreSQL query of `storage.objects` is metadata only. The
 scripts have not been run against production and no isolated restore has been
@@ -73,9 +73,13 @@ verified. Do not assume the current Supabase plan provides point-in-time
 recovery.
 
 The production database password disclosed previously is treated as
-compromised. It has **not** been rotated. The repository's confirmed consumers,
-rotation sequence, pooler risks, and evidence required for closure are recorded
-in [MORT_DATABASE_CREDENTIAL_ROTATION.md](MORT_DATABASE_CREDENTIAL_ROTATION.md).
+compromised. The owner reports that it has been changed, but propagation is
+unverified: the repository-level GitHub secret was last updated
+`2026-11-01T21:18:10Z`, `backend-operations` has no protected environment
+secret/reviewer, and a direct local connection failed at TLS verification
+before authentication. No secret value was retrieved. See the
+[credential-rotation runbook](MORT_DATABASE_CREDENTIAL_ROTATION.md) for the
+trusted-CA and secret-propagation steps.
 
 ## Recovery Objectives
 
