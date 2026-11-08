@@ -19,18 +19,20 @@ select current_setting('server_version_num') || '|' ||
   (select count(*)::text from supabase_migrations.schema_migrations) || '|' ||
   (select max(version)::text from supabase_migrations.schema_migrations) || '|' ||
   md5(pg_get_functiondef('public.get_my_job_applications(uuid)'::regprocedure)) || '|' ||
-  has_function_privilege('service_role', 'public.get_my_job_applications(uuid)', 'EXECUTE')::text;
+  has_function_privilege('service_role', 'public.get_my_job_applications(uuid)', 'EXECUTE')::text || '|' ||
+  md5(pg_get_functiondef('public.update_my_job_application_status(uuid,text,timestamptz)'::regprocedure));
 "@
 
 $before = (& docker exec $ContainerName psql -U postgres -d postgres -Atc $baselineQuery | Out-String).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect the local migration baseline.' }
 $baseline = $before.Split('|')
-if ($baseline.Count -ne 5 -or
+if ($baseline.Count -ne 6 -or
     [int]$baseline[0] -lt 170000 -or [int]$baseline[0] -ge 180000 -or
     $baseline[1] -ne '73' -or
     $baseline[2] -ne '20261102113314' -or
-    $baseline[3] -ne '94a1b987774f994019ba6269b9abeb16') {
-  throw "Local test DB is not the reviewed production-equivalent baseline (PostgreSQL 17, 73 migrations through 20261102113314, function MD5 94a1b987774f994019ba6269b9abeb16). Actual fingerprint: $before"
+    $baseline[3] -ne '94a1b987774f994019ba6269b9abeb16' -or
+    $baseline[5] -notmatch '^[0-9a-f]{32}$') {
+  throw "Local test DB is not the reviewed production-equivalent baseline (PostgreSQL 17, 73 migrations through 20261102113314, verified reader/status function fingerprints). Actual fingerprint: $before"
 }
 
 $migrationPath = Join-Path $PSScriptRoot '..\supabase\production-baseline-migrations\20261104182914_issue_70_guardian_application_reader_scope.sql'
@@ -61,8 +63,8 @@ $output | Write-Output
 if ($psqlExitCode -ne 0 -or ($output -join "`n") -match '(?m)^\s*not ok\b') {
   throw "Issue #70 database regression failed (psql exit $psqlExitCode)."
 }
-if (($output -join "`n") -notmatch '1\.\.35') {
-  throw 'Issue #70 database regression did not report the expected 35-test plan.'
+if (($output -join "`n") -notmatch '1\.\.49') {
+  throw 'Issue #70 database regression did not report the expected 49-test plan.'
 }
 
 $after = (& docker exec $ContainerName psql -U postgres -d postgres -Atc $baselineQuery | Out-String).Trim()
@@ -70,4 +72,4 @@ if ($LASTEXITCODE -ne 0 -or $after -ne $before) {
   throw "Rollback did not preserve the local baseline. Before: $before; after: $after"
 }
 
-Write-Host "[qa-issue-70-guardian-application-reader] PASS: 35 assertions; baseline unchanged ($after)." -ForegroundColor Green
+Write-Host "[qa-issue-70-guardian-application-reader] PASS: 49 assertions; baseline unchanged ($after)." -ForegroundColor Green

@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, auth, pg_catalog;
 
-select plan(35);
+select plan(49);
 
 create temporary table issue70_users (
   user_key text primary key,
@@ -133,6 +133,16 @@ select ok(not has_function_privilege('anon', 'public.get_my_job_applications(uui
 select ok(has_function_privilege('authenticated', 'public.get_my_job_applications(uuid)', 'EXECUTE'), 'authenticated can execute the reader');
 select ok(has_function_privilege('service_role', 'public.get_my_job_applications(uuid)', 'EXECUTE'), 'service_role keeps existing execute access');
 select ok(has_table_privilege('service_role', 'public.job_applications', 'SELECT'), 'service_role keeps existing direct application SELECT');
+select ok(
+  (select p.prosecdef from pg_proc p where p.oid = 'public.update_my_job_application_status(uuid,text,timestamptz)'::regprocedure),
+  'status-update RPC remains SECURITY DEFINER'
+);
+select ok(
+  (select 'search_path=""' = any(p.proconfig) from pg_proc p where p.oid = 'public.update_my_job_application_status(uuid,text,timestamptz)'::regprocedure),
+  'status-update RPC keeps an empty search_path'
+);
+select ok(not has_function_privilege('anon', 'public.update_my_job_application_status(uuid,text,timestamptz)', 'EXECUTE'), 'anon cannot execute status-update RPC');
+select ok(has_function_privilege('authenticated', 'public.update_my_job_application_status(uuid,text,timestamptz)', 'EXECUTE'), 'authenticated retains status-update RPC access');
 select ok(not has_table_privilege('anon', 'public.job_applications', 'SELECT'), 'anon has no direct application SELECT');
 select ok(not has_table_privilege('authenticated', 'public.job_applications', 'SELECT'), 'authenticated has no direct application SELECT');
 select ok(
@@ -205,10 +215,6 @@ select is(
   0,
   'eligible Guardian cannot read an unrelated teen application'
 );
-update public.guardian_links
-set status = 'revoked'
-where guardian_user_id = (select id from issue70_users where user_key = 'eligible_guardian');
-
 select set_config('request.jwt.claim.sub', (select id::text from issue70_users where user_key = 'applicant'), true);
 select is(
   jsonb_array_length(public.get_my_job_applications((select id from issue70_applications where app_key = 'applicant'))->'items'),
@@ -231,6 +237,68 @@ select is(
   public.get_my_job_applications((select id from issue70_applications where app_key = 'applicant'))->'items'->0->'guardian_id',
   'null'::jsonb,
   'job poster receives a masked Guardian ID'
+);
+select is(
+  public.update_my_job_application_status((select id from issue70_applications where app_key = 'applicant'), 'viewed')->>'ok',
+  'true',
+  'job poster status update returns an authorized nested application response'
+);
+select is(
+  public.update_my_job_application_status((select id from issue70_applications where app_key = 'applicant'), 'viewed')->'application'->>'id',
+  (select id::text from issue70_applications where app_key = 'applicant'),
+  'nested status response contains only the poster-owned application'
+);
+select is(
+  public.update_my_job_application_status((select id from issue70_applications where app_key = 'applicant'), 'viewed')->'application'->'guardian_id',
+  'null'::jsonb,
+  'nested status response masks Guardian ID from the job poster'
+);
+select set_config('request.jwt.claim.sub', (select id::text from issue70_users where user_key = 'applicant'), true);
+create temporary table issue70_status_response (response jsonb) on commit drop;
+insert into issue70_status_response (response)
+select public.update_my_job_application_status(
+  (select id from issue70_applications where app_key = 'applicant'),
+  'withdrawn'
+);
+select is(
+  (select response->>'ok' from issue70_status_response),
+  'true',
+  'teen withdrawal returns an authorized nested application response'
+);
+select is(
+  (select response->'application'->>'guardian_id' from issue70_status_response),
+  (select id::text from issue70_users where user_key = 'eligible_guardian'),
+  'nested status response preserves Guardian ID for the applicant'
+);
+select is(
+  public.get_my_job_applications((select id from issue70_applications where app_key = 'applicant'))->'items'->0->>'guardian_id',
+  (select id::text from issue70_users where user_key = 'eligible_guardian'),
+  'applicant retains Guardian ID in direct reader after withdrawal'
+);
+
+select is(
+  public.unlink_guardian((select id from public.guardian_links where guardian_user_id = (select id from issue70_users where user_key = 'eligible_guardian'))),
+  jsonb_build_object(
+    'ok', true,
+    'status', 'revoked',
+    'link_id', (select id from public.guardian_links where guardian_user_id = (select id from issue70_users where user_key = 'eligible_guardian'))
+  ),
+  'teen revocation RPC succeeds for the connected Guardian link'
+);
+select set_config('request.jwt.claim.sub', (select id::text from issue70_users where user_key = 'eligible_guardian'), true);
+select is(
+  jsonb_array_length(coalesce(public.get_my_job_applications((select id from issue70_applications where app_key = 'applicant'))->'items', '[]'::jsonb)),
+  0,
+  'Guardian loses application access after the supported unlink operation'
+);
+select is(
+  public.update_my_job_application_status((select id from issue70_applications where app_key = 'applicant'), 'viewed')->>'code',
+  'active_account_required',
+  'Guardian status-update call is denied by the active-account gate'
+);
+select ok(
+  not (public.update_my_job_application_status((select id from issue70_applications where app_key = 'applicant'), 'viewed') ? 'application'),
+  'unauthorized Guardian status response contains no application object'
 );
 
 update public.guardian_links
