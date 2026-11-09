@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public, auth, pg_catalog;
 
-select plan(49);
+select plan(51);
 
 create temporary table issue70_users (
   user_key text primary key,
@@ -34,7 +34,8 @@ values
   ('missing_guardian_consent_guardian', 'guardian', 'active', date '1980-01-01', true),
   ('pending_link_guardian', 'guardian', 'active', date '1980-01-01', true),
   ('revoked_link_guardian', 'guardian', 'active', date '1980-01-01', true),
-  ('unrelated_adult', 'adult', 'active', date '1980-01-01', true);
+  ('unrelated_adult', 'adult', 'active', date '1980-01-01', true),
+  ('administrator', 'admin', 'active', date '1980-01-01', true);
 
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, invited_at,
@@ -252,6 +253,22 @@ select is(
   public.update_my_job_application_status((select id from issue70_applications where app_key = 'applicant'), 'viewed')->'application'->'guardian_id',
   'null'::jsonb,
   'nested status response masks Guardian ID from the job poster'
+);
+select set_config('request.jwt.claim.sub', (select id::text from issue70_users where user_key = 'administrator'), true);
+select is(
+  jsonb_array_length(public.get_my_job_applications((select id from issue70_applications where app_key = 'applicant'))->'items'),
+  0,
+  'administrator does not receive applications through the user-facing reader'
+);
+create temporary table issue70_admin_status_response (response jsonb) on commit drop;
+insert into issue70_admin_status_response (response)
+select public.update_my_job_application_status(
+  (select id from issue70_applications where app_key = 'applicant'),
+  'viewed'
+);
+select ok(
+  not (select response ? 'application' from issue70_admin_status_response),
+  'administrator does not receive application data through the status-update response'
 );
 select set_config('request.jwt.claim.sub', (select id::text from issue70_users where user_key = 'applicant'), true);
 create temporary table issue70_status_response (response jsonb) on commit drop;
