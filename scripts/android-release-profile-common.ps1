@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-  [ValidateSet('','development','automated_test','reviewer_demo','closed_test','production_candidate','production')]
+  [ValidateSet('','development','automated_test','reviewer_demo','closed_test','production_candidate','production_prelaunch','production')]
   [string]$ReleaseProfile = '',
   [Parameter(Mandatory)][ValidateSet('closed_test','production_pilot','production_public')][string]$ReleaseStage,
   [Parameter(Mandatory)][string]$OperationalMode,
@@ -38,6 +38,15 @@ if ([string]::IsNullOrWhiteSpace($ReleaseProfile)) {
 $profileJson = & node (Join-Path $PSScriptRoot 'validate-release-profile.mjs') --profile $ReleaseProfile
 if ($LASTEXITCODE -ne 0) { throw 'Release profile matrix validation failed.' }
 $profile = $profileJson | ConvertFrom-Json
+$unapprovedLegalVersion = @(
+  [string]$profile.termsVersion,
+  [string]$profile.privacyVersion,
+  [string]$profile.communityGuidelinesVersion,
+  [string]$profile.safetyRulesVersion
+) | Where-Object { $_.Trim() -match '^(?i:draft)|required|pending' } | Select-Object -First 1
+if ($ReleaseProfile -eq 'production_prelaunch' -and $unapprovedLegalVersion) {
+  throw 'Production prelaunch requires owner-approved legal versions.'
+}
 
 foreach ($comparison in @(
   @('release stage', $ReleaseStage, [string]$profile.releaseStage),
@@ -106,13 +115,26 @@ if ($ReleaseStage -eq 'closed_test' -and $PublicMarketplaceEnabled) {
 if ($GoogleAuthEnabled -and $ReleaseStage -ne 'closed_test') {
   throw 'Google Auth activation is approved only for the closed-test profile.'
 }
-if ($ReleaseStage -like 'production_*' -and (-not $RemotePushEnabled -or -not $CrashReportingEnabled)) {
+if ($ReleaseStage -like 'production_*' -and $ReleaseProfile -ne 'production_prelaunch' -and (-not $RemotePushEnabled -or -not $CrashReportingEnabled)) {
   throw 'Production profiles require real remote-push and crash providers.'
 }
-if ($ReleaseStage -eq 'production_public' -and (-not $IdentityVerificationEnabled -or -not $PublicActivationApproved)) {
+if ($ReleaseStage -eq 'production_public' -and $ReleaseProfile -eq 'production' -and (-not $IdentityVerificationEnabled -or -not $PublicActivationApproved)) {
   throw 'Public production requires approved identity verification and public activation evidence.'
 }
-
+if ($ReleaseProfile -eq 'production_prelaunch' -and (
+  $PublicMarketplaceEnabled -or
+  $IdentityVerificationEnabled -or
+  $PublicActivationApproved -or
+  $GoogleAuthEnabled -or
+  $RemotePushEnabled -or
+  $CrashReportingEnabled -or
+  $AdsEnabled -or
+  [bool]$profile.marketplacePaymentsEnabled -or
+  [string]$profile.paymentProviderMode -ne 'disabled' -or
+  [bool]$profile.chatbotAiEnabled
+)) {
+  throw 'Production prelaunch must keep marketplace, document collection, payments, and providers disabled.'
+}
 $versionLabel = '{0}+{1}' -f $version.versionName, $version.versionCode
 $symbolsDirectory = Join-Path $env:USERPROFILE (Join-Path 'MortSymbols\android' $versionLabel)
 New-Item -ItemType Directory -Force -Path $outputDirectory, $symbolsDirectory | Out-Null

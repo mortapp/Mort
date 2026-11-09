@@ -4,6 +4,7 @@ enum MortReleaseProfile {
   reviewerDemo('reviewer_demo'),
   closedTest('closed_test'),
   productionCandidate('production_candidate'),
+  productionPrelaunch('production_prelaunch'),
   production('production');
 
   const MortReleaseProfile(this.value);
@@ -19,12 +20,20 @@ enum MortReleaseProfile {
 
   bool get requiresHostedBackend => switch (this) {
     development || automatedTest => false,
-    reviewerDemo || closedTest || productionCandidate || production => true,
+    reviewerDemo ||
+    closedTest ||
+    productionCandidate ||
+    productionPrelaunch ||
+    production => true,
   };
 
   bool get isReleaseBuild => switch (this) {
     development || automatedTest => false,
-    reviewerDemo || closedTest || productionCandidate || production => true,
+    reviewerDemo ||
+    closedTest ||
+    productionCandidate ||
+    productionPrelaunch ||
+    production => true,
   };
 }
 
@@ -259,6 +268,33 @@ class MortReleaseConfiguration {
           );
         }
         break;
+      case MortReleaseProfile.productionPrelaunch:
+        if (releaseStage != 'production_public') {
+          errors.add('production prelaunch must use production_public stage');
+        }
+        if (publicMarketplaceEnabled ||
+            marketplacePaymentsEnabled ||
+            paymentProviderMode != 'disabled' ||
+            identityVerificationEnabled ||
+            productionActivationApproved ||
+            googleAuthEnabled ||
+            appleAuthEnabled ||
+            chatbotAiEnabled ||
+            productAnalyticsEnabled ||
+            remotePushEnabled ||
+            crashReportingEnabled ||
+            adsEnabled ||
+            iapEnabled) {
+          errors.add(
+            'production prelaunch must keep marketplace and provider controls disabled',
+          );
+        }
+        if (_hasUnapprovedLegalVersions) {
+          errors.add(
+            'production prelaunch requires owner-approved legal versions',
+          );
+        }
+        break;
       case MortReleaseProfile.production:
         if (releaseStage != 'production_public') {
           errors.add('production profile must use production_public stage');
@@ -272,10 +308,7 @@ class MortReleaseConfiguration {
         if (!remotePushEnabled || !crashReportingEnabled) {
           errors.add('production requires verified push and crash providers');
         }
-        if (_isUnapprovedLegalVersion(termsVersion) ||
-            _isUnapprovedLegalVersion(privacyVersion) ||
-            _isUnapprovedLegalVersion(communityGuidelinesVersion) ||
-            _isUnapprovedLegalVersion(safetyRulesVersion)) {
+        if (_hasUnapprovedLegalVersions) {
           errors.add(
             'production requires owner-approved legal document versions',
           );
@@ -332,6 +365,12 @@ class MortReleaseConfiguration {
         normalized.contains('required') ||
         normalized.contains('pending');
   }
+
+  bool get _hasUnapprovedLegalVersions =>
+      _isUnapprovedLegalVersion(termsVersion) ||
+      _isUnapprovedLegalVersion(privacyVersion) ||
+      _isUnapprovedLegalVersion(communityGuidelinesVersion) ||
+      _isUnapprovedLegalVersion(safetyRulesVersion);
 
   static String _enabled(bool value) => value ? 'enabled' : 'disabled';
 }

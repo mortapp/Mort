@@ -5,7 +5,7 @@ import 'release_profile.dart';
 class AppConfig {
   const AppConfig._();
 
-  static const expectedSupabaseProjectRef = 'rakjydmgwwgtdislanbt';
+  static const expectedSupabaseProjectRef = 'jxbnrkasktbhtiujkhay';
 
   static const appName = 'MORT';
   static const slogan = 'Earn nearby. Move smart.';
@@ -142,6 +142,7 @@ class AppConfig {
     'reviewer_demo',
     'closed_test',
     'production_candidate',
+    'production_prelaunch',
     'production',
   };
 
@@ -468,7 +469,26 @@ class AppConfig {
         errors.add('production pilot requires a configured crash provider');
       }
     }
-    if (releaseStage == 'production_public') {
+    if (releaseStage == 'production_public' &&
+        releaseProfile == MortReleaseProfile.productionPrelaunch) {
+      if (publicMarketplaceEnabled ||
+          publicActivationApproved ||
+          identityVerificationEnabled ||
+          marketplacePaymentsEnabled ||
+          paymentProviderMode != 'disabled' ||
+          googleAuthEnabled ||
+          appleAuthEnabled ||
+          chatbotAiEnabled ||
+          productAnalyticsEnabled ||
+          remotePushEnabled ||
+          crashReportingEnabled ||
+          adsEnabled ||
+          iapEnabled) {
+        errors.add(
+          'production prelaunch must keep marketplace, document collection, payments, and optional providers disabled',
+        );
+      }
+    } else if (releaseStage == 'production_public') {
       if (!publicMarketplaceEnabled || !publicActivationApproved) {
         errors.add('public activation is not approved');
       }

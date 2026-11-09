@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-  [ValidateSet('reviewer_demo','closed_test','production_candidate','production','production_pilot','production_public')]
+  [ValidateSet('reviewer_demo','closed_test','production_candidate','production_prelaunch','production','production_pilot','production_public')]
   [string]$Profile = 'reviewer_demo',
   [switch]$Apk
 )
@@ -15,6 +15,10 @@ $script = switch ($Profile) {
   'production_candidate' {
     if ($Apk) { throw 'Production candidate builds are distributed as verified AABs only.' }
     'build-production-pilot-aab.ps1'
+  }
+  'production_prelaunch' {
+    if ($Apk) { throw 'Production prelaunch builds are distributed as verified AABs only.' }
+    'build-production-prelaunch-aab.ps1'
   }
   'production_pilot' {
     if ($Apk) { throw 'Production pilot builds are distributed as verified AABs only.' }

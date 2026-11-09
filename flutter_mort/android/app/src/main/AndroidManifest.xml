@@ -28,6 +28,23 @@
         android:enableOnBackInvokedCallback="true"
         android:usesCleartextTraffic="false"
         android:networkSecurityConfig="@xml/network_security_config">
+        <!-- Stripe Connect is disabled for MORT releases. Remove its external
+             stripe-connect:// exported callback from the transitive SDK manifest. -->
+        <activity
+            android:name="com.reactnativestripesdk.StripeConnectDeepLinkInterceptorActivity"
+            tools:node="remove" />
+        <activity
+            android:name="com.stripe.android.financialconnections.FinancialConnectionsSheetRedirectActivity"
+            tools:node="remove" />
+        <activity
+            android:name="com.stripe.android.financialconnections.lite.FinancialConnectionsSheetLiteRedirectActivity"
+            tools:node="remove" />
+        <activity
+            android:name="com.stripe.android.link.LinkRedirectHandlerActivity"
+            tools:node="remove" />
+        <activity
+            android:name="com.stripe.android.payments.StripeBrowserProxyReturnActivity"
+            tools:node="remove" />
         <!-- Google Mobile Ads SDK requires this exact meta-data to
              initialize. This is the public AdMob App ID (safe to commit,
              not a secret): it only identifies the app to AdMob, the same
