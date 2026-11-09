@@ -68,6 +68,8 @@
 
 Production `get_release_mode_status()` returned `production_public`, maintenance off, `real_document_collection=false`, and `public_marketplace_enabled=false`. Stripe/payments were not activated. No DDL, data, Auth, RLS, secrets, provider settings, or release controls were changed.
 
+The current read-only catalog/ACL query confirmed `job_applications` has RLS enabled and forced; direct SELECT is false for `anon` and `authenticated`, true for `service_role`; `anon` cannot execute `get_my_job_applications(uuid)`, `authenticated` can; the function is SECURITY DEFINER with an empty `search_path`. This correctly blocks direct table reads but does not resolve the broader Guardian row-selection predicate described above.
+
 ## Review boundaries
 
 - Previously completed 59-function SECURITY DEFINER review is preserved; this report does not repeat it.

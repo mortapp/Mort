@@ -11,6 +11,7 @@ This report distinguishes source/CI evidence from hosted authenticated behavior.
 - Production Supabase project metadata: ACTIVE_HEALTHY; Postgres `17.11.0.003`.
 - Production migration ledger: 73 rows, latest `20261102113314`.
 - Read-only `get_release_mode_status()`: `production_public`, maintenance `false`, real document collection `false`, public marketplace `false`.
+- Read-only `job_applications` privilege check: RLS enabled and forced; direct SELECT denied to `anon` and `authenticated`, retained for `service_role`; reader RPC EXECUTE denied to `anon` and granted to `authenticated`; reader is `SECURITY DEFINER` with empty `search_path`.
 - Isolated QA project: ACTIVE_HEALTHY; Postgres `17.11.0.011`. Read-only aggregate counts: 0 Auth users, profiles, Guardian links, applications, jobs, and Storage objects.
 - Protected QA worktree `codex/qa-target-guard-20261104` remains unchanged with 24 dirty paths.
 - No production DDL, user data, Auth setting, RLS, provider setting, release control, deployment, or merge was changed.
