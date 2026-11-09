@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -2303,6 +2304,8 @@ class RoleHomeScreen extends ConsumerWidget {
         if (role == UserRole.teen) ...[
           const _TeenActiveJobSection(),
           const SizedBox(height: MortSpacing.md),
+          const _TeenQuickJobsSection(),
+          const SizedBox(height: MortSpacing.md),
           const _TeenNearbyWorkSection(),
           const SizedBox(height: MortSpacing.md),
           MortSafetyPulse(
@@ -2388,7 +2391,7 @@ class _TeenActiveJobSection extends ConsumerWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            MortSectionLabel(label: isActive ? 'Active job' : 'Upcoming job'),
+            const MortSectionLabel(label: 'Up next'),
             MortDashboardActionTile(
               label: job?.title ?? 'Job details',
               description: job == null
@@ -2464,6 +2467,97 @@ class _TeenNearbyWorkSection extends ConsumerWidget {
           onPressed: () => context.push('/teen/jobs'),
         ),
       ],
+    );
+  }
+}
+
+class _TeenQuickJobsSection extends ConsumerWidget {
+  const _TeenQuickJobsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final feedAsync = ref.watch(
+      openJobsProvider(const JobSearchFilters(limit: 12)),
+    );
+    return feedAsync.when(
+      loading: () => const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          MortSectionLabel(label: 'Quick jobs'),
+          MortSkeletonCard(),
+        ],
+      ),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (feed) {
+        final jobs = feed.items
+            .where(
+              (job) =>
+                  job.estimatedDurationMinutes != null &&
+                  job.estimatedDurationMinutes! <= 30,
+            )
+            .toList(growable: false);
+        if (jobs.isEmpty) return const SizedBox.shrink();
+        final quickJobsCardHeight = math.max(
+          196.0,
+          196 * MediaQuery.textScalerOf(context).scale(16) / 16,
+        );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const MortSectionLabel(label: 'Quick jobs · under 30 min'),
+            SizedBox(
+              height: quickJobsCardHeight,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: jobs.length,
+                separatorBuilder: (_, _) =>
+                    const SizedBox(width: MortSpacing.sm),
+                itemBuilder: (context, index) {
+                  final job = jobs[index];
+                  return SizedBox(
+                    width: 232,
+                    child: MortGlassCard(
+                      onTap: () => context.push('/teen/jobs/${job.id}'),
+                      semanticLabel:
+                          '${job.title}, ${job.payDisplay}, ${job.estimatedDurationMinutes} minutes',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            job.category,
+                            style: Theme.of(context).textTheme.labelMedium,
+                          ),
+                          const SizedBox(height: MortSpacing.xs),
+                          Expanded(
+                            child: Text(
+                              job.title,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  job.payDisplay,
+                                  style: Theme.of(context).textTheme.titleLarge,
+                                ),
+                              ),
+                              Text('${job.estimatedDurationMinutes} min'),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -1,88 +1,83 @@
 import 'package:flutter/material.dart';
 
-/// MORT monochrome palette: space black, graphite, silver, white, and a
-/// restrained cool-blue signal accent.
+/// Prototype-aligned neutral palette. Compatibility aliases remain so older
+/// screens inherit the new direction until their component APIs are renamed.
 class MortColors {
   const MortColors._();
 
-  // -- Black family --
-  // Darkened one notch below the original Rose Gold 2.0 pass so God Black
-  // reads as the dominant surface across more of the app, not just the
-  // deepest corner of the gradient.
-  static const godBlack = Color(0xFF030507);
-  static const black = Color(0xFF0A0D11);
-  static const softBlack = Color(0xFF10141A);
-  static const raisedBlack = Color(0xFF151B22);
+  // Neutral ramp. Use semantic colors only for positive, held, and emergency
+  // states; the rest of the interface stays black, white, and gray.
+  static const white = Color(0xFFFFFFFF);
+  static const gray0 = Color(0xFFFAFAFA);
+  static const gray1 = Color(0xFFF5F5F5);
+  static const gray2 = Color(0xFFE6E6E6);
+  static const gray3 = Color(0xFFD1D1D1);
+  static const gray4 = Color(0xFFB8B8B8);
+  static const gray5 = Color(0xFF9E9E9E);
+  static const gray6 = Color(0xFF858585);
+  static const gray7 = Color(0xFF6B6B6B);
+  static const gray8 = Color(0xFF525252);
+  static const gray9 = Color(0xFF333333);
+  static const black = Color(0xFF0A0A0A);
 
-  // -- White family --
-  static const white = Color(0xFFF4F7FB);
-  static const godWhite = Color(0xFFF4F7FB);
-  static const softWhite = Color(0xFFDCE2E8);
-
-  // -- Silver family --
-  static const silver = Color(0xFFB8C1CB);
-  static const silverBright = Color(0xFFE7EDF3);
-  static const silverDark = Color(0xFF89939F);
-
-  // Compatibility aliases retained while feature screens migrate to the
-  // canonical monochrome names.
-  static const roseGold = silver;
-  static const roseGoldDeep = silverDark;
-  static const roseGoldBright = silverBright;
+  // Compatibility brand names now resolve to neutral values.
+  static const godBlack = black;
+  static const softBlack = gray9;
+  static const raisedBlack = gray1;
+  static const godWhite = black;
+  static const softWhite = gray8;
+  static const silver = gray7;
+  // Legacy `silverBright` is used by older screens for primary text/icons.
+  // Keep it high contrast on the new white surface instead of near-white.
+  static const silverBright = black;
+  static const silverDark = gray8;
+  static const roseGold = gray7;
+  static const roseGoldDeep = gray9;
+  static const roseGoldBright = gray3;
   static const roseGoldHighlight = white;
-  static const roseGoldShadow = Color(0xFF3B4652);
-  static const roseGoldVeryDark = black;
-  static const roseGoldLight = silverBright;
-  static const roseGoldDark = silverDark;
-  static const roseGoldMid = silver;
-  static const neon = accent;
-  static const neonDeep = lightBlueDeep;
+  static const roseGoldShadow = gray9;
+  static const roseGoldVeryDark = gray9;
+  static const roseGoldLight = gray3;
+  static const roseGoldDark = gray8;
+  static const roseGoldMid = gray6;
+  static const neon = black;
+  static const neonDeep = gray8;
+  static const babyBlue = gray3;
+  static const babyBlueDeep = gray7;
+  static const babyBlueSoft = gray1;
+  static const lightBlue = gray7;
+  static const lightBlueSoft = gray3;
+  static const lightBlueDeep = gray9;
+  static const safetyBlue = gray7;
+  static const godPink = gray6;
+  static const godPinkSoft = gray4;
+  static const godPinkDeep = gray8;
 
-  // -- Baby Blue family (supporting identity color) --
-  static const babyBlue = Color(0xFFA7DFFF);
-  static const babyBlueDeep = Color(0xFF75C7F7);
-  static const babyBlueSoft = Color(0xFFD3F0FF);
+  static const bg = white;
+  static const bgSecondary = gray0;
+  static const bgElevated = white;
+  static const card = white;
+  static const cardAlt = gray0;
+  static const glass = gray0;
+  static const glassPressed = gray1;
+  static const line = gray2;
+  static const lineStrong = gray3;
 
-  // Cool blue is reserved for information, safety, location, and verified
-  // system state.
-  static const lightBlue = babyBlueDeep;
-  static const lightBlueSoft = babyBlueSoft;
-  static const lightBlueDeep = Color(0xFF16384B);
-  static const safetyBlue = lightBlue;
+  static const text = black;
+  static const textSoft = gray8;
+  static const textMuted = gray7;
+  static const textDisabled = gray5;
 
-  // Legacy aliases kept source-compatible while feature surfaces migrate.
-  static const godPink = silverBright;
-  static const godPinkSoft = silver;
-  static const godPinkDeep = silverDark;
+  // Semantic state colors from the prototype.
+  static const success = Color(0xFF18845B);
+  static const successDeep = Color(0xFF126846);
+  static const successSoft = Color(0xFFDDF3E9);
+  static const warning = Color(0xFF9A5C00);
+  static const danger = Color(0xFFC62828);
+  static const dangerDeep = Color(0xFFB71C1C);
 
-  // -- Background / surface aliases used throughout the app --
-  static const bg = godBlack;
-  static const bgSecondary = black;
-  static const bgElevated = raisedBlack;
-  static const card = softBlack;
-  static const cardAlt = raisedBlack;
-  static const glass = Color(0xCC10141A);
-  static const glassPressed = Color(0xE01A222B);
-  static const line = Color(0xFF27303A);
-  static const lineStrong = Color(0xFF3A4652);
-
-  // -- Text --
-  static const text = godWhite;
-  static const textSoft = softWhite;
-  static const textMuted = silverDark;
-  static const textDisabled = Color(0xFF52565E);
-
-  // -- Semantic states --
-  static const success = Color(0xFF35B779);
-  static const successDeep = Color(0xFF1E7A50);
-  static const successSoft = Color(0xFF85D9B1);
-  static const warning = Color(0xFFD59A42);
-  static const danger = Color(0xFFD44A5C);
-  static const dangerDeep = Color(0xFF912E3B);
-
-  // -- Payment-specific semantic tokens (approved Rork mapping) --
-  // Keep the MORT V7 palette intact while exposing the dedicated Payment OS
-  // color names required by the approved UI authority.
+  // Payment OS tokens are an approved semantic surface system, kept separate
+  // from the prototype's monochrome app chrome.
   static const paymentSuccess = Color(0xFF46C483);
   static const paymentSuccessDeep = Color(0xFF2E8F62);
   static const paymentWarning = Color(0xFFD9A94F);
@@ -105,41 +100,14 @@ class MortColors {
   static const paymentSilverCta = paymentSilverHigh;
   static const paymentSilverCtaBright = paymentSilverHigh;
   static const paymentSilverCtaDeep = paymentSilverLow;
+  static const premium = black;
 
-  static const premium = accent;
-
-  // -- Canonical gradients --
-  // Neutral metallic silver used by legacy gradient call sites.
-  static const metallicGradient = <Color>[
-    silverDark,
-    silver,
-    silverBright,
-    white,
-    silverBright,
-    silver,
-    silverDark,
-  ];
-
-  static const darkRoseGoldGradient = <Color>[
-    godBlack,
-    roseGoldShadow,
-    roseGold,
-  ];
-
-  static const backgroundGradient = <Color>[godBlack, black, softBlack];
-
-  static const silverMetallicGradient = <Color>[
-    silverDark,
-    silverBright,
-    silver,
-    silverDark,
-  ];
-
-  static const babyBlueGradient = <Color>[babyBlueDeep, babyBlue, babyBlueSoft];
-
-  static const godPinkGradient = <Color>[black, silver, white];
-
-  static const signatureGradient = <Color>[silverDark, silverBright, accent];
-
-  static const accent = Color(0xFFDCE7F2);
+  static const metallicGradient = <Color>[black, black];
+  static const darkRoseGoldGradient = <Color>[black, black];
+  static const backgroundGradient = <Color>[white, white];
+  static const silverMetallicGradient = <Color>[gray5, gray3, gray5];
+  static const babyBlueGradient = <Color>[gray7, gray5, gray3];
+  static const godPinkGradient = <Color>[gray9, gray6, gray3];
+  static const signatureGradient = <Color>[gray7, gray3, gray7];
+  static const accent = black;
 }

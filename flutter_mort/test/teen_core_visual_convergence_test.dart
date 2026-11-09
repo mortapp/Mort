@@ -34,7 +34,8 @@ void main() {
       expect(tester.takeException(), isNull);
 
       for (final label in [
-        'ACTIVE JOB',
+        'UP NEXT',
+        'QUICK JOBS · UNDER 30 MIN',
         'AVAILABLE NEARBY WORK',
         'Safety',
         'QUICK LINKS',
@@ -112,6 +113,7 @@ void main() {
       expect(teenHome, isNot(contains('MortColors.neon')));
 
       final active = teenHome.indexOf('const _TeenActiveJobSection()');
+      final quick = teenHome.indexOf('const _TeenQuickJobsSection()');
       final nearby = teenHome.indexOf('const _TeenNearbyWorkSection()');
       final safety = teenHome.indexOf('MortSafetyPulse(');
       final profile = teenHome.indexOf('MortProfileCompletionMeter(');
@@ -121,6 +123,7 @@ void main() {
       final leaderboard = teenHome.indexOf('const _TeenLeaderboardSection()');
       for (final index in [
         active,
+        quick,
         nearby,
         safety,
         profile,
@@ -129,7 +132,8 @@ void main() {
       ]) {
         expect(index, isNonNegative);
       }
-      expect(active, lessThan(nearby));
+      expect(active, lessThan(quick));
+      expect(quick, lessThan(nearby));
       expect(nearby, lessThan(safety));
       expect(safety, lessThan(profile));
       expect(profile, lessThan(quickLinks));
@@ -273,6 +277,7 @@ const _nearbyJob = Job(
   status: 'open',
   requiresGuardianApproval: false,
   payAmountCents: 2200,
+  estimatedDurationMinutes: 20,
 );
 
 final _teenProfile = Profile(

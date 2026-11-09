@@ -37,7 +37,7 @@ void main() {
       expect(find.text('Dashboard content'), findsOneWidget);
       await tester.enterText(find.byKey(const Key('dashboard-search')), 'Yard');
 
-      await tester.tap(find.text('Jobs').last);
+      await tester.tap(find.text('Explore').last);
       await tester.pumpAndSettle();
       expect(find.text('Applications content'), findsOneWidget);
       expect(find.byTooltip('Back'), findsOneWidget);
@@ -83,7 +83,7 @@ void main() {
         await tester.tap(find.text('Profile').last);
         await tester.pumpAndSettle();
         expect(find.text('Profile content'), findsOneWidget);
-        await tester.tap(find.text('Dashboard').last);
+        await tester.tap(find.text('Home').last);
         await tester.pumpAndSettle();
         expect(find.text('Dashboard content'), findsOneWidget);
       }
@@ -104,7 +104,7 @@ GoRouter _teenRouter() => GoRouter(
         _branch('/teen/home', 'Dashboard', includeSearch: true),
         _branch('/teen/applications', 'Applications'),
         _branch('/teen/safety', 'Safety'),
-        _branch('/teen/messages', 'Messages'),
+        _branch('/teen/messages', 'Inbox'),
         _branch('/teen/profile', 'Profile'),
       ],
     ),

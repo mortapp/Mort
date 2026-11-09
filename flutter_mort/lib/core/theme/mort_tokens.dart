@@ -49,14 +49,8 @@ class MortIconSizes {
 class MortShadows {
   const MortShadows._();
 
-  static const card = <BoxShadow>[
-    BoxShadow(color: Color(0x52000000), blurRadius: 10, offset: Offset(0, 4)),
-  ];
-
-  static const glow = <BoxShadow>[
-    BoxShadow(color: Color(0x2EB8C1CB), blurRadius: 18),
-    BoxShadow(color: Color(0x1475C7F7), blurRadius: 26),
-  ];
+  static const card = <BoxShadow>[];
+  static const glow = <BoxShadow>[];
 }
 
 class MortGradients {

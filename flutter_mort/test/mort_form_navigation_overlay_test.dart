@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_mort/core/theme/mort_colors.dart';
 import 'package:flutter_mort/core/theme/mort_theme.dart';
 import 'package:flutter_mort/core/widgets/mort_widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -176,22 +175,21 @@ void main() {
 
     final navigation = tester.widget<NavigationBar>(find.byType(NavigationBar));
     expect(navigation.selectedIndex, 1);
-    final navigationTheme = Theme.of(
-      tester.element(find.byType(NavigationBar)),
-    ).navigationBarTheme;
+    final appTheme = Theme.of(tester.element(find.byType(NavigationBar)));
+    final navigationTheme = appTheme.navigationBarTheme;
     expect(
       navigationTheme.indicatorColor,
-      MortColors.accent.withValues(alpha: 0.18),
+      appTheme.colorScheme.surfaceContainerHigh,
     );
     expect(
       navigationTheme.iconTheme!.resolve(<WidgetState>{
         WidgetState.selected,
       })!.color,
-      MortColors.accent,
+      appTheme.colorScheme.onSurface,
     );
     expect(
       navigationTheme.iconTheme!.resolve(<WidgetState>{})!.color,
-      MortColors.textMuted,
+      appTheme.colorScheme.secondary,
     );
     await tester.tap(find.text('Home'));
     expect(selected, 0);

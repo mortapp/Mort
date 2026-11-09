@@ -381,19 +381,19 @@ class MortButton extends StatelessWidget {
     final enabled =
         onPressed != null && style != MortButtonStyle.disabled && !busy;
     final bg = switch (style) {
-      MortButtonStyle.primary => MortColors.silverBright,
+      MortButtonStyle.primary => MortColors.black,
       MortButtonStyle.secondary => MortColors.cardAlt,
       MortButtonStyle.tertiary => Colors.transparent,
-      MortButtonStyle.danger => MortColors.dangerDeep,
+      MortButtonStyle.danger => MortColors.danger,
       MortButtonStyle.ghost => Colors.transparent,
       MortButtonStyle.disabled => MortColors.line,
     };
     final fg = switch (style) {
-      MortButtonStyle.primary => MortColors.godBlack,
+      MortButtonStyle.primary => MortColors.white,
       MortButtonStyle.secondary => MortColors.text,
-      MortButtonStyle.tertiary => MortColors.silverBright,
-      MortButtonStyle.danger => MortColors.godWhite,
-      MortButtonStyle.ghost => MortColors.silverBright,
+      MortButtonStyle.tertiary => MortColors.text,
+      MortButtonStyle.danger => MortColors.white,
+      MortButtonStyle.ghost => MortColors.text,
       MortButtonStyle.disabled => MortColors.textMuted,
     };
 
@@ -439,10 +439,7 @@ class MortButton extends StatelessWidget {
       opacity: enabled ? 1 : 0.58,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          gradient: style == MortButtonStyle.primary
-              ? MortGradients.metallic
-              : null,
-          color: style == MortButtonStyle.primary ? null : bg,
+          color: bg,
           borderRadius: BorderRadius.circular(MortRadii.medium),
           boxShadow: null,
         ),

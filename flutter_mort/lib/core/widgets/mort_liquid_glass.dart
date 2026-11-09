@@ -1,10 +1,6 @@
-import 'dart:ui';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../preferences/mort_experience_preferences.dart';
 import '../theme/mort_colors.dart';
 import '../theme/mort_spacing.dart';
 import '../theme/mort_tokens.dart';
@@ -36,116 +32,29 @@ class LiquidGlassContainer extends StatelessWidget {
   final VoidCallback? onTap;
   final String? semanticLabel;
 
-  bool _useLiveBlur(BuildContext context) {
-    final preferences = MortExperiencePreferencesScope.of(context);
-    if (!liveBlur ||
-        kIsWeb ||
-        MediaQuery.highContrastOf(context) ||
-        preferences.reducedTransparency) {
-      return false;
-    }
-    if (defaultTargetPlatform == TargetPlatform.android && !allowAndroidBlur) {
-      return false;
-    }
-    return true;
-  }
-
   @override
   Widget build(BuildContext context) {
     final radius = borderRadius ?? BorderRadius.circular(MortRadii.card);
     final highContrast = MediaQuery.highContrastOf(context);
-    final blur = _useLiveBlur(context);
+    final theme = Theme.of(context);
     final base = switch (variant) {
-      MortGlassVariant.regular => MortColors.bgElevated,
-      MortGlassVariant.clear => MortColors.silverBright,
-      MortGlassVariant.soft => MortColors.cardAlt,
+      MortGlassVariant.regular => theme.colorScheme.surface,
+      MortGlassVariant.clear => theme.colorScheme.surface,
+      MortGlassVariant.soft => theme.colorScheme.surfaceContainerLow,
     };
-    final baseAlpha = highContrast
-        ? 1.0
-        : blur
-        ? switch (variant) {
-            MortGlassVariant.regular => 0.2,
-            MortGlassVariant.clear => 0.08,
-            MortGlassVariant.soft => 0.16,
-          }
-        : switch (variant) {
-            MortGlassVariant.regular => 0.92,
-            MortGlassVariant.clear => 0.82,
-            MortGlassVariant.soft => 0.84,
-          };
-    final effectiveTint = tint ?? base;
-    final borderColor = highContrast
-        ? MortColors.silver
-        : Color.lerp(
-            MortColors.silverBright.withValues(alpha: 0.14),
-            effectiveTint.withValues(alpha: 0.44),
-            tint == null ? 0.0 : 0.58,
-          )!;
-
-    Widget surface = Stack(
-      fit: StackFit.passthrough,
-      children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color.lerp(
-                  base,
-                  effectiveTint,
-                  tint == null ? 0 : 0.34,
-                )!.withValues(alpha: baseAlpha),
-                base.withValues(alpha: (baseAlpha - 0.08).clamp(0.0, 1.0)),
-              ],
-            ),
-          ),
-          child: Padding(padding: padding, child: child),
-        ),
-        Positioned.fill(
-          child: IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: radius,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: const Alignment(0.25, 0.25),
-                  colors: [
-                    MortColors.silverBright.withValues(
-                      alpha: highContrast ? 0.02 : 0.16,
-                    ),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-
-    if (blur) {
-      surface = BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: MortGlassTokens.blurSigma,
-          sigmaY: MortGlassTokens.blurSigma,
-        ),
-        child: surface,
-      );
-    }
-
-    surface = ClipRRect(borderRadius: radius, child: surface);
-    surface = DecoratedBox(
+    Widget surface = DecoratedBox(
       decoration: BoxDecoration(
+        color: tint ?? base,
         borderRadius: radius,
         border: Border.all(
-          color: borderColor,
+          color: theme.colorScheme.outlineVariant,
           width: highContrast ? 1.5 : MortGlassTokens.borderWidth,
         ),
-        boxShadow: MortShadows.card,
       ),
-      child: surface,
+      child: Padding(
+        padding: padding,
+        child: Material(color: Colors.transparent, child: child),
+      ),
     );
 
     if (onTap != null) {
@@ -162,8 +71,8 @@ class LiquidGlassContainer extends StatelessWidget {
         child: InkWell(
           borderRadius: radius,
           onTap: onTap,
-          splashColor: MortColors.accent.withValues(alpha: 0.12),
-          highlightColor: MortColors.accent.withValues(alpha: 0.06),
+          splashColor: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+          highlightColor: theme.colorScheme.onSurface.withValues(alpha: 0.04),
           child: surface,
         ),
       );
@@ -228,20 +137,20 @@ class MortGlassNavigationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     assert(currentIndex >= 0 && currentIndex < destinations.length);
-    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    final theme = Theme.of(context);
     return SafeArea(
       top: false,
-      minimum: const EdgeInsets.fromLTRB(
-        MortSpacing.md,
-        MortSpacing.xs,
-        MortSpacing.md,
-        MortSpacing.xs,
-      ),
-      child: LiquidGlassContainer(
-        liveBlur: true,
-        allowAndroidBlur: true,
-        borderRadius: BorderRadius.circular(MortRadii.sheet),
-        padding: const EdgeInsets.all(MortSpacing.xxs),
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          border: Border(
+            top: BorderSide(color: theme.colorScheme.outlineVariant),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: MortSpacing.xs,
+          vertical: MortSpacing.xxs,
+        ),
         child: Row(
           children: [
             for (var index = 0; index < destinations.length; index++)
@@ -253,32 +162,15 @@ class MortGlassNavigationBar extends StatelessWidget {
                   child: Tooltip(
                     message: destinations[index].label,
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(MortRadii.card),
+                      borderRadius: BorderRadius.circular(MortRadii.small),
                       onTap: () => onDestinationSelected(index),
-                      child: AnimatedContainer(
-                        duration: disableAnimations
-                            ? Duration.zero
-                            : MortMotion.standard,
-                        curve: Curves.easeOutCubic,
+                      child: Container(
                         constraints: const BoxConstraints(
                           minHeight: MortSpacing.minTouchTarget,
                         ),
                         padding: const EdgeInsets.symmetric(
                           horizontal: MortSpacing.xxs,
                           vertical: MortSpacing.xs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: currentIndex == index
-                              ? MortColors.silverBright.withValues(alpha: 0.14)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(MortRadii.card),
-                          border: currentIndex == index
-                              ? Border.all(
-                                  color: MortColors.silver.withValues(
-                                    alpha: 0.36,
-                                  ),
-                                )
-                              : null,
                         ),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -289,8 +181,8 @@ class MortGlassNavigationBar extends StatelessWidget {
                                   : destinations[index].icon,
                               size: 22,
                               color: currentIndex == index
-                                  ? MortColors.silverBright
-                                  : MortColors.silver,
+                                  ? theme.colorScheme.onSurface
+                                  : theme.colorScheme.onSurfaceVariant,
                             ),
                             const SizedBox(height: MortSpacing.xxs),
                             Text(
@@ -301,8 +193,8 @@ class MortGlassNavigationBar extends StatelessWidget {
                               style: Theme.of(context).textTheme.labelMedium
                                   ?.copyWith(
                                     color: currentIndex == index
-                                        ? MortColors.silverBright
-                                        : MortColors.textMuted,
+                                        ? theme.colorScheme.onSurface
+                                        : theme.colorScheme.onSurfaceVariant,
                                     fontSize: 10,
                                   ),
                             ),
@@ -351,10 +243,18 @@ class MortGlassHeader extends StatelessWidget {
         showBack ??
         ((Navigator.maybeOf(context)?.canPop() ?? false) ||
             !MortBackNavigation.isRootLocation(location));
-    return LiquidGlassContainer(
-      liveBlur: true,
-      allowAndroidBlur: true,
-      borderRadius: BorderRadius.circular(MortRadii.card),
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(
+          bottom: BorderSide(color: theme.colorScheme.outlineVariant),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: MortSpacing.md,
+        vertical: MortSpacing.sm,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -385,7 +285,7 @@ class MortGlassHeader extends StatelessWidget {
                   Text(
                     eyebrow!,
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: MortColors.lightBlue,
+                      color: theme.colorScheme.onSurfaceVariant,
                       letterSpacing: 0.8,
                     ),
                   ),

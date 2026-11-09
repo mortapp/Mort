@@ -6,13 +6,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('theme does not synthesize off-palette container colors', () {
-    final scheme = MortTheme.dark().colorScheme;
+    final scheme = MortTheme.light().colorScheme;
 
     expect(scheme.primary, MortColors.accent);
-    expect(scheme.primaryContainer, MortColors.lineStrong);
+    expect(scheme.primaryContainer, MortColors.gray0);
     expect(scheme.onPrimaryContainer, MortColors.text);
-    expect(scheme.surfaceContainer, MortColors.card);
-    expect(scheme.surfaceContainerHighest, MortColors.bgElevated);
+    expect(scheme.surfaceContainer, MortColors.white);
+    expect(scheme.surfaceContainerHighest, MortColors.gray0);
     expect(scheme.outline, MortColors.lineStrong);
   });
 
@@ -98,7 +98,7 @@ void main() {
       final destructiveText = destructive.style!.foregroundColor!.resolve(
         <WidgetState>{},
       )!;
-      expect(destructiveSurface, MortColors.dangerDeep);
+      expect(destructiveSurface, MortColors.danger);
       expect(
         _contrast(destructiveSurface, destructiveText),
         greaterThanOrEqualTo(4.5),

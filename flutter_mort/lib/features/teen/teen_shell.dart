@@ -122,14 +122,14 @@ class MortTeenDestinationHeader extends StatelessWidget {
 
 const _teenDestinations = [
   MortNavigationDestination(
-    label: 'Dashboard',
-    icon: Icons.grid_view_outlined,
-    selectedIcon: Icons.grid_view_rounded,
+    label: 'Home',
+    icon: Icons.home_outlined,
+    selectedIcon: Icons.home_rounded,
   ),
   MortNavigationDestination(
-    label: 'Jobs',
-    icon: Icons.assignment_outlined,
-    selectedIcon: Icons.assignment_rounded,
+    label: 'Explore',
+    icon: Icons.explore_outlined,
+    selectedIcon: Icons.explore_rounded,
   ),
   MortNavigationDestination(
     label: 'Safety',
@@ -137,7 +137,7 @@ const _teenDestinations = [
     selectedIcon: Icons.shield_rounded,
   ),
   MortNavigationDestination(
-    label: 'Messages',
+    label: 'Inbox',
     icon: Icons.chat_bubble_outline_rounded,
     selectedIcon: Icons.chat_bubble_rounded,
   ),
