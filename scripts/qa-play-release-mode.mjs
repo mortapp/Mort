@@ -39,6 +39,7 @@ for (const flag of [
 }
 assert(prelaunchProfile.paymentProviderMode === 'disabled', 'Prelaunch must keep payment-provider mode disabled.');
 assert(commonBuild.includes("$ReleaseProfile -eq 'production_prelaunch'"), 'Shared build gate is missing prelaunch isolation.');
+assert(commonBuild.includes('Production prelaunch requires owner-approved legal versions.'), 'Production prelaunch must reject draft legal versions before building.');
 const releaseWrapper = read('scripts/build-android-release.ps1');
 assert(releaseWrapper.includes("'production_prelaunch' {"), 'Release dispatcher must expose the explicit prelaunch profile.');
 assert(releaseWrapper.includes("'production' {"), 'Public production profile must remain a separate dispatch.');

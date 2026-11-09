@@ -289,6 +289,11 @@ class MortReleaseConfiguration {
             'production prelaunch must keep marketplace and provider controls disabled',
           );
         }
+        if (_hasUnapprovedLegalVersions) {
+          errors.add(
+            'production prelaunch requires owner-approved legal versions',
+          );
+        }
         break;
       case MortReleaseProfile.production:
         if (releaseStage != 'production_public') {
@@ -303,10 +308,7 @@ class MortReleaseConfiguration {
         if (!remotePushEnabled || !crashReportingEnabled) {
           errors.add('production requires verified push and crash providers');
         }
-        if (_isUnapprovedLegalVersion(termsVersion) ||
-            _isUnapprovedLegalVersion(privacyVersion) ||
-            _isUnapprovedLegalVersion(communityGuidelinesVersion) ||
-            _isUnapprovedLegalVersion(safetyRulesVersion)) {
+        if (_hasUnapprovedLegalVersions) {
           errors.add(
             'production requires owner-approved legal document versions',
           );
@@ -363,6 +365,12 @@ class MortReleaseConfiguration {
         normalized.contains('required') ||
         normalized.contains('pending');
   }
+
+  bool get _hasUnapprovedLegalVersions =>
+      _isUnapprovedLegalVersion(termsVersion) ||
+      _isUnapprovedLegalVersion(privacyVersion) ||
+      _isUnapprovedLegalVersion(communityGuidelinesVersion) ||
+      _isUnapprovedLegalVersion(safetyRulesVersion);
 
   static String _enabled(bool value) => value ? 'enabled' : 'disabled';
 }

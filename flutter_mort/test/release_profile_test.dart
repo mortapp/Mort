@@ -223,6 +223,10 @@ void main() {
       final valid = configuration(
         profile: MortReleaseProfile.productionPrelaunch,
         releaseStage: 'production_public',
+        termsVersion: 'terms-2026-08-approved',
+        privacyVersion: 'privacy-2026-08-approved',
+        communityVersion: 'community-2026-08-approved',
+        safetyVersion: 'safety-2026-08-approved',
       );
       expect(valid.validationErrors, isEmpty);
       expect(valid.publicMarketplaceEnabled, isFalse);
@@ -234,6 +238,10 @@ void main() {
       final unsafe = configuration(
         profile: MortReleaseProfile.productionPrelaunch,
         releaseStage: 'production_public',
+        termsVersion: 'terms-2026-08-approved',
+        privacyVersion: 'privacy-2026-08-approved',
+        communityVersion: 'community-2026-08-approved',
+        safetyVersion: 'safety-2026-08-approved',
         publicMarketplaceEnabled: true,
       );
       expect(
@@ -244,6 +252,18 @@ void main() {
       );
     },
   );
+
+  test('production prelaunch rejects draft legal document versions', () {
+    final draftLegal = configuration(
+      profile: MortReleaseProfile.productionPrelaunch,
+      releaseStage: 'production_public',
+    );
+
+    expect(
+      draftLegal.validationErrors,
+      contains('production prelaunch requires owner-approved legal versions'),
+    );
+  });
 
   test('production prelaunch rejects wrong stage and backend project', () {
     final wrongStage = configuration(
