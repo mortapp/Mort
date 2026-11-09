@@ -63,8 +63,13 @@ $output | Write-Output
 if ($psqlExitCode -ne 0 -or ($output -join "`n") -match '(?m)^\s*not ok\b') {
   throw "Issue #70 database regression failed (psql exit $psqlExitCode)."
 }
-if (($output -join "`n") -notmatch '1\.\.49') {
-  throw 'Issue #70 database regression did not report the expected 49-test plan.'
+$planMatch = [regex]::Match($test, '(?im)^\s*select\s+plan\((\d+)\);\s*$')
+if (-not $planMatch.Success) {
+  throw 'Issue #70 regression SQL does not declare a single-line pgTAP plan.'
+}
+$expectedAssertions = [int]$planMatch.Groups[1].Value
+if (($output -join "`n") -notmatch "(?m)^\s*1\.\.$expectedAssertions\s*$") {
+  throw "Issue #70 database regression did not report its declared $expectedAssertions-test plan."
 }
 
 $after = (& docker exec $ContainerName psql -U postgres -d postgres -Atc $baselineQuery | Out-String).Trim()
@@ -72,4 +77,4 @@ if ($LASTEXITCODE -ne 0 -or $after -ne $before) {
   throw "Rollback did not preserve the local baseline. Before: $before; after: $after"
 }
 
-Write-Host "[qa-issue-70-guardian-application-reader] PASS: 49 assertions; baseline unchanged ($after)." -ForegroundColor Green
+Write-Host "[qa-issue-70-guardian-application-reader] PASS: $expectedAssertions assertions; baseline unchanged ($after)." -ForegroundColor Green
