@@ -42,7 +42,9 @@ No physical device was attached, so fresh install, auth/session flows, deep link
 
 ## iOS status and requirements
 
-Static project configuration identifies bundle ID `com.mortapp.mobile`, deployment target iOS 18.0, Automatic code signing, and callback URL metadata. No Xcode build/archive or iOS device acceptance ran on this Windows host.
+Static XcodeGen project configuration declares bundle ID `com.mortapp.mobile`, deployment target iOS 18.0, Automatic code signing, and URL scheme `com.mortapp.mobile`. It declares the Sign in with Apple entitlement and camera/photo-library usage descriptions. Stripe iOS SPM `25.17.0` is listed as a native dependency even though the production-prelaunch profile keeps payment flows disabled; review that dependency and all call paths before iOS release. No associated-domains entitlement or committed `PrivacyInfo.xcprivacy` was found in the static iOS file scan. These are source findings, not an Apple signing or privacy-manifest acceptance.
+
+No Xcode build/archive or iOS device acceptance ran on this Windows host.
 
 An authorized release operator needs:
 
