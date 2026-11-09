@@ -5,7 +5,7 @@ import 'package:flutter_mort/core/widgets/mort_widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('brand mark and safety glass render with centralized colors', (
+  testWidgets('brand mark and monochrome surfaces use canonical colors', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -29,9 +29,9 @@ void main() {
     expect(find.text('M O R T'), findsOneWidget);
     expect(find.text('Safety and location status'), findsOneWidget);
     expect(find.byType(Image), findsOneWidget);
-    expect(MortColors.accent, const Color(0xFFDCE7F2));
-    expect(MortColors.bg, const Color(0xFF030507));
-    expect(MortColors.lightBlue, const Color(0xFF75C7F7));
+    expect(MortColors.accent, const Color(0xFF0A0A0A));
+    expect(MortColors.bg, const Color(0xFFFFFFFF));
+    expect(MortColors.lightBlue, const Color(0xFF6B6B6B));
   });
 
   testWidgets('core controls honor reduced motion and remain focus visible', (

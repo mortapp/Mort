@@ -92,7 +92,11 @@ void main() {
 
     expect(find.text('How MORT feels'), findsOneWidget);
     expect(find.text('Reduce motion'), findsOneWidget);
-    expect(find.text('Reduce transparency'), findsOneWidget);
+    expect(find.text('Light appearance'), findsOneWidget);
+    expect(
+      find.textContaining('Dark appearance is not available yet.'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
 
     await tester.tap(find.text('Reduce motion'));
@@ -106,26 +110,29 @@ void main() {
     );
   });
 
-  testWidgets('reduced transparency removes live blur', (tester) async {
-    Widget app(bool reducedTransparency) => MaterialApp(
-      home: Scaffold(
-        body: MortExperiencePreferencesScope(
-          preferences: MortExperiencePreferences(
-            reducedTransparency: reducedTransparency,
-          ),
-          child: const LiquidGlassContainer(
-            liveBlur: true,
-            allowAndroidBlur: true,
-            child: Text('Glass'),
+  testWidgets(
+    'prototype surfaces stay flat for every transparency preference',
+    (tester) async {
+      Widget app(bool reducedTransparency) => MaterialApp(
+        home: Scaffold(
+          body: MortExperiencePreferencesScope(
+            preferences: MortExperiencePreferences(
+              reducedTransparency: reducedTransparency,
+            ),
+            child: const LiquidGlassContainer(
+              liveBlur: true,
+              allowAndroidBlur: true,
+              child: Text('Glass'),
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.pumpWidget(app(false));
-    expect(find.byType(BackdropFilter), findsOneWidget);
+      await tester.pumpWidget(app(false));
+      expect(find.byType(BackdropFilter), findsNothing);
 
-    await tester.pumpWidget(app(true));
-    expect(find.byType(BackdropFilter), findsNothing);
-  });
+      await tester.pumpWidget(app(true));
+      expect(find.byType(BackdropFilter), findsNothing);
+    },
+  );
 }

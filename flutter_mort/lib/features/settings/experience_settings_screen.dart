@@ -105,35 +105,25 @@ class ExperienceSettingsScreen extends ConsumerWidget {
               ),
               const MortSectionLabel(label: 'Appearance and performance'),
               MortGlassCard(
-                child: Column(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      value: value.reducedTransparency,
-                      title: const Text('Reduce transparency'),
-                      subtitle: const Text(
-                        'Uses solid glass fallbacks and disables live blur. This can improve readability and performance on lower-cost phones.',
-                      ),
-                      onChanged: (enabled) => _change(
-                        context,
-                        () => ref
-                            .read(mortExperiencePreferencesProvider.notifier)
-                            .setReducedTransparency(enabled),
+                    const Icon(Icons.light_mode_outlined),
+                    const SizedBox(width: MortSpacing.sm),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Light appearance'),
+                          SizedBox(height: MortSpacing.xxs),
+                          Text(
+                            'The monochrome MORT interface is active. Dark appearance is not available yet.',
+                          ),
+                        ],
                       ),
                     ),
-                    const Divider(),
-                    const ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(
-                        Icons.dark_mode_outlined,
-                        color: MortColors.lightBlue,
-                      ),
-                      title: Text('Dark appearance'),
-                      subtitle: Text(
-                        'MORT currently supports its high-contrast dark identity only. Device text size remains the source of truth.',
-                      ),
-                      trailing: MortBadge(label: 'Active'),
-                    ),
+                    const SizedBox(width: MortSpacing.xs),
+                    const MortBadge(label: 'Active'),
                   ],
                 ),
               ),

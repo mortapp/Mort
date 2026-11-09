@@ -34,7 +34,7 @@ const _destinations = [
 ];
 
 void main() {
-  testWidgets('Android glass uses the Samsung-safe frosted fallback', (
+  testWidgets('legacy glass surface renders without backdrop blur', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
@@ -53,12 +53,12 @@ void main() {
     expect(find.text('Safety surface'), findsOneWidget);
   });
 
-  testWidgets('an explicitly allowed glass surface keeps one blur layer', (
+  testWidgets('legacy blur request does not add backdrop blur', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
       MaterialApp(
-        theme: mortTestTheme(MortTheme.dark()),
+        theme: mortTestTheme(MortTheme.light()),
         home: const Scaffold(
           body: LiquidGlassContainer(
             liveBlur: true,
@@ -69,11 +69,11 @@ void main() {
       ),
     );
 
-    expect(find.byType(BackdropFilter), findsOneWidget);
+    expect(find.byType(BackdropFilter), findsNothing);
   });
 
   testMortWidgets(
-    'glass navigation is accessible and responsive at large text',
+    'flat navigation is accessible and responsive at large text',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1080, 2408);
       tester.view.devicePixelRatio = 3;
@@ -85,7 +85,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          theme: mortTestTheme(MortTheme.dark()),
+          theme: mortTestTheme(MortTheme.light()),
           home: MediaQuery(
             data: const MediaQueryData(textScaler: TextScaler.linear(1.3)),
             child: StatefulBuilder(
@@ -112,6 +112,8 @@ void main() {
         expect(size.width, greaterThanOrEqualTo(44));
         expect(size.height, greaterThanOrEqualTo(44));
       }
+      expect(find.byType(LiquidGlassContainer), findsNothing);
+      expect(find.byType(BackdropFilter), findsNothing);
       expect(tester.takeException(), isNull);
 
       await tester.tap(find.text('Safety'));
@@ -119,4 +121,23 @@ void main() {
       expect(selected, 2);
     },
   );
+
+  testWidgets('destination header uses a flat divider and no glass card', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: mortTestTheme(MortTheme.light()),
+        home: const Scaffold(
+          body: Column(
+            children: [MortGlassHeader(title: 'Explore', eyebrow: 'MORT')],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Explore'), findsOneWidget);
+    expect(find.byType(LiquidGlassContainer), findsNothing);
+    expect(find.byType(BackdropFilter), findsNothing);
+  });
 }
