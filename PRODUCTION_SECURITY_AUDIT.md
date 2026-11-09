@@ -64,9 +64,17 @@
 - **Narrow fix:** Physical Android matrix, Play Console certificate comparison, and signed iOS archive/device matrix on an authorized Mac.
 - **Status:** Open.
 
+### MEDIUM — Local Stripe migration contract differs from production
+
+- **Affected:** Future Stripe runtime status, Connect, funding, transfer, refund, and payout operations.
+- **Finding:** Read-only inspection of production `private.stripe_runtime_controls` shows columns `payments_enabled`, `connected_onboarding_enabled`, `job_funding_enabled`, `transfers_enabled`, and `refunds_enabled`, plus `service_fee_cents`. The generic/local migration chain defines `stripe_payments_enabled`, `stripe_connected_onboarding_enabled`, and related prefixed columns, plus split adult fee fields. This confirms a difference between that local chain and the live table; the recovered production-baseline directory is focused on application privacy and is not a complete Stripe schema archive, so full live function compatibility remains unverified. The local Stripe regression must not be represented as production-equivalent.
+- **Live control evidence:** Production row reads `mode=disabled`; payment, onboarding, funding, transfers, refunds, live mode, and approval flags all `false`.
+- **Narrow fix:** Recover or independently query the exact live Stripe table, function, and ACL definitions, then build a disposable test schema from a verified source before running Stripe contract tests. Do not treat the 73-row ledger count alone as proof that local migration payloads match; do not alter production or enable payments to test.
+- **Status:** Open; Stripe remains disabled and hosted/provider tests were skipped.
+
 ## Controls verified read-only
 
-Production `get_release_mode_status()` returned `production_public`, maintenance off, `real_document_collection=false`, and `public_marketplace_enabled=false`. Stripe/payments were not activated. No DDL, data, Auth, RLS, secrets, provider settings, or release controls were changed.
+Production `get_release_mode_status()` returned `production_public`, maintenance off, `real_document_collection=false`, and `public_marketplace_enabled=false`. The production Stripe runtime-control row returned disabled mode and all payment/transfer/refund/approval flags false. No DDL, data, Auth, RLS, secrets, provider settings, or release controls were changed.
 
 The current read-only catalog/ACL query confirmed `job_applications` has RLS enabled and forced; direct SELECT is false for `anon` and `authenticated`, true for `service_role`; `anon` cannot execute `get_my_job_applications(uuid)`, `authenticated` can; the function is SECURITY DEFINER with an empty `search_path`. This correctly blocks direct table reads but does not resolve the broader Guardian row-selection predicate described above.
 

@@ -2,7 +2,7 @@
 
 **Assessment date:** 2026-11-08
 **Repository:** `mortapp/Mort`
-**Release code:** `codex/production-prelaunch-android-gate`, `941d5324011ad48b9afb011047142d5b5f1701c5`
+**Release code:** `codex/production-prelaunch-android-gate`, `ddeb6ca4621215860ff8c5fa3bb3430f12a422b4`
 **PR:** [#72](https://github.com/mortapp/Mort/pull/72), draft and stacked on PR #69
 
 ## Android artifact
@@ -20,19 +20,19 @@
 | Signing | Signed; `verify-play-aab.ps1` matched the signature to the protected local MORT upload certificate |
 | Certificate SHA-256 | `04:42:C2:21:38:B0:D6:23:F9:A6:F4:78:1A:44:2B:F4:A9:33:27:8F:AB:8E:85:76:74:4D:C1:FD:7C:33:4D:EF` |
 
-The artifact manifest records `gitDirty=false` at the stated commit. The AAB was rebuilt and the official repository verifier passed. A Java `jarsigner -strict` invocation reports that the signing certificate is self-signed and lacks a timestamp; normal signature verification and the repository verifier passed. The signer matches the local protected upload certificate, but the Play Console upload/App Signing relationship has not been compared.
+This is a historical artifact built before commit `ddeb6ca`. It is not a candidate for the current source because the old runtime target assertion and secure-session namespace were wrong. The current PR #72 head pins both to the authoritative project and does not migrate sessions from the retired namespace. A Java `jarsigner -strict` invocation reported that the self-signed upload certificate lacks a timestamp; normal signature verification and the repository verifier passed. The signer matches the local protected upload certificate, but the Play Console upload/App Signing relationship has not been compared.
 
-This is a signed **prelaunch** artifact. It is not evidence of public activation, legal approval, Play review, a device test, or production launch. Do not upload it to a public production track without the required approval.
+This historical signed **prelaunch** artifact is not a current release candidate. It is not evidence of public activation, legal approval, Play review, a device test, or production launch. Do not upload it to a public production track.
 
 ## Fail-closed runtime configuration
 
-The manifest records marketplace publishing, real identity/document verification, marketplace payments, public activation, Google auth, remote push/crash reporting, AI, ads, and IAP disabled. Deterministic support fallback is enabled. The Supabase production target is the authoritative project. The read-only server release-status check also returned marketplace and real document collection false.
+The historical manifest records marketplace publishing, real identity/document verification, marketplace payments, public activation, Google auth, remote push/crash reporting, AI, ads, and IAP disabled. Deterministic support fallback is enabled. The current source corrects the production Supabase target and adds a draft-legal rejection to both runtime and Android release checks. The current profile still contains `draft-2026-07` legal labels, so `build-production-prelaunch-aab.ps1` correctly blocks before signing/compilation. A new artifact cannot be produced until legal approves final immutable version IDs.
 
 ## Automated results
 
-- CI run [42535222096](https://github.com/mortapp/Mort/actions/runs/42535222096): Flutter authoritative, public-site, Expo-reference, Stripe contracts, Android device-test APK package, local Stripe regression, and Stripe security-freeze passed. Hosted Stripe regression and Stripe provider E2E were skipped.
-- Full Flutter suite: **617 passed, 2 skipped, 0 failed**.
-- Flutter formatting and analyzer passed.
+- CI run [42544285866](https://github.com/mortapp/Mort/actions/runs/42544285866) at `ddeb6ca4621215860ff8c5fa3bb3430f12a422b4`: Flutter authoritative, public-site, Expo-reference, Stripe contracts, Android device-test APK package, local Stripe regression, and Stripe security-freeze passed. Hosted Stripe regression and Stripe provider E2E were skipped.
+- Full Flutter suite at the current source: **614 passed, 2 skipped, 0 failed**.
+- Flutter formatting (309 files) and analyzer passed.
 - Repository AAB verifier passed signature, package, version, SDK, forbidden-permission, exported-component, and artifact checks.
 - The device-test APK CI job is packaging only. Local `adb devices` showed no attached physical device.
 
@@ -55,4 +55,4 @@ An authorized release operator needs:
 
 ## Release recommendation
 
-**Android artifact: built and locally signature-verified for controlled prelaunch review. Mobile release: NOT READY for public distribution.** Remaining blockers: legal approval/final content, Google OAuth configuration and sign-in verification, backend authenticated acceptance, Play Console certificate match, physical Android testing, iOS archive/device validation, and approved operational support.
+**Android: no current AAB candidate. The old artifact is historical and stale; current build gate is blocked by draft legal identifiers. Mobile release: NOT READY for public distribution.** Remaining blockers: legal approval/final content, Google OAuth configuration and sign-in verification, backend authenticated acceptance, Play Console certificate match, physical Android testing, iOS archive/device validation, and approved operational support.

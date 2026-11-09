@@ -20,9 +20,12 @@ This list contains only work requiring an owner, legal reviewer, provider dashbo
 
 ## Website handoff for VS Code Desktop
 
-- Website PR #15 remains draft; scoped validation passed, but it is not deployed. Vercel reports the latest production deployment as READY; no deployment was created here.
-- Keep the prelaunch wording, role guards, terms/privacy/safety routes, and production-only Supabase target aligned with mobile.
-- Coordinate application/Guardian/status RPC contracts with PR #71; do not reintroduce direct writes to `jobs` or direct table reads of private application data.
+- Website PR #15 is draft at `2de7a47cc74af03666c66972fe11837d7c403493`; its `validate` check passed.
+- Website PR #16 is open/non-draft at `adfd97977e458f72e7182d344115cab2b2345404`, with no checks reported.
+- Website owner change `a5aa06009727555a27323c08ff5ca68a6b43cf51` is visible through GitHub but is not attached to an open PR and has no check runs. It covers redirects and safety-ping status validation. The local website clone is dirty and five commits behind; this mobile/backend work did not edit, fetch into, or clean it. VS Code Desktop should publish that commit through its owned branch and obtain CI.
+- Vercel read-only latest production deployment is `READY`, commit `d8eab7fddb334bde0d6ebc93259c3f160a510d94` (PR #14 homepage); no deployment or configuration was changed here.
+- Keep prelaunch wording, role guards, terms/privacy/safety routes, and the production-only Supabase target aligned with mobile. Native mobile OAuth callback is PKCE `com.mortapp.mobile://app/auth-callback`; web auth must use its own exact allowlisted `https://mortapp.org` redirect.
+- Coordinate application/Guardian/status RPC contracts with mobile PR #71 and use authorized server RPCs for job writes; do not reintroduce direct `jobs` INSERT/UPDATE or direct reads of private application rows.
 - Required website QA: adult posting via authorized RPC, teen discovery/application, Guardian consent scope, reporting/blocking, auth recovery, error/offline behavior, and cross-account denial with approved synthetic users.
 - No website code or Vercel configuration was changed by this mobile/backend lane.
 
