@@ -16,7 +16,7 @@ Authoritative matrix: `config/mort-release-profiles.json`
 
 The production row describes the required target. It is intentionally not
 buildable today: production activation remains false, legal versions are
-owner-approval-required, the remote server remains `closed_test`, and real
+approved owner values: MORT-LEGAL-2026-V5, the remote server remains `closed_test`, and real
 identity/push/crash providers are not verified.
 
 ## Defined Controls

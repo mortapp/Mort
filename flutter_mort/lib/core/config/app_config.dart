@@ -99,19 +99,19 @@ class AppConfig {
   );
   static const termsVersion = String.fromEnvironment(
     'MORT_TERMS_VERSION',
-    defaultValue: 'draft-2026-07',
+    defaultValue: 'MORT-LEGAL-2026-V5',
   );
   static const privacyVersion = String.fromEnvironment(
     'MORT_PRIVACY_VERSION',
-    defaultValue: 'draft-2026-07',
+    defaultValue: 'MORT-LEGAL-2026-V5',
   );
   static const communityGuidelinesVersion = String.fromEnvironment(
     'MORT_COMMUNITY_GUIDELINES_VERSION',
-    defaultValue: 'draft-2026-07',
+    defaultValue: 'MORT-LEGAL-2026-V5',
   );
   static const safetyRulesVersion = String.fromEnvironment(
     'MORT_SAFETY_RULES_VERSION',
-    defaultValue: 'draft-2026-07',
+    defaultValue: 'MORT-LEGAL-2026-V5',
   );
   static const minimumSupportedAppVersion = String.fromEnvironment(
     'MORT_MINIMUM_SUPPORTED_APP_VERSION',
