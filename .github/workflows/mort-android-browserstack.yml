@@ -19,6 +19,12 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v7
+      # The device-test build script fail-closes unless it runs on JDK 17;
+      # ubuntu-latest images otherwise default to a newer Temurin JDK.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
