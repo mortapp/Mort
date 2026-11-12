@@ -14,7 +14,7 @@ struct SupabaseTransportContractTests {
     @Test("Shipping iOS build resolves the public MORT Supabase endpoint")
     func publicConfigurationIsPresent() throws {
         let config = try #require(SupabaseConfig.fromEnvironment())
-        #expect(config.url.absoluteString == "https://rakjydmgwwgtdislanbt.supabase.co")
+        #expect(config.url.absoluteString == "https://jxbnrkasktbhtiujkhay.supabase.co")
         #expect(config.anonKey.hasPrefix("sb_publishable_"))
         #expect(!config.anonKey.contains("service_role"))
         #expect(!config.anonKey.hasPrefix("sb_secret_"))

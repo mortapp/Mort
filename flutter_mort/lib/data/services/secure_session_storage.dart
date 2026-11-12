@@ -6,10 +6,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'secure_device_storage.dart';
 
-const mortSupabaseProjectRef = 'rakjydmgwwgtdislanbt';
-const mortSecureSessionKey = 'mort.rakjydmgwwgtdislanbt.auth.session.v1';
+const mortSupabaseProjectRef = 'jxbnrkasktbhtiujkhay';
+const mortSecureSessionKey = 'mort.jxbnrkasktbhtiujkhay.auth.session.v1';
 const mortLegacySecureSessionKey = 'mort.supabase.session';
-const mortLegacySupabaseSessionKey = 'sb-rakjydmgwwgtdislanbt-auth-token';
+const mortLegacySupabaseSessionKey = 'sb-jxbnrkasktbhtiujkhay-auth-token';
 
 abstract interface class MortSessionValueStore {
   Future<String?> read(String key);

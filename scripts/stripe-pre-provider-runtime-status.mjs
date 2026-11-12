@@ -1,6 +1,6 @@
 import pg from "pg";
 
-const projectRef = process.env.MORT_SUPABASE_PROJECT_REF || "rakjydmgwwgtdislanbt";
+const projectRef = process.env.MORT_SUPABASE_PROJECT_REF || "jxbnrkasktbhtiujkhay";
 const dbPassword = process.env.SUPABASE_DB_PASSWORD;
 if (!dbPassword) {
   console.error(JSON.stringify({ status: "FAIL", code: "supabase_db_password_required", secret_values_printed: false }));

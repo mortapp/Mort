@@ -32,7 +32,7 @@ foreach ($entry in @(
   }
   if ($manifest.releaseStage -ne 'closed_test' -or
       $manifest.operationalMode -ne 'closed_pilot' -or
-      $manifest.supabaseProjectRef -ne 'rakjydmgwwgtdislanbt') {
+      $manifest.supabaseProjectRef -ne 'jxbnrkasktbhtiujkhay') {
     throw "$($entry.Kind) build manifest has the wrong release identity."
   }
   if (-not $manifest.flags.googleAuthEnabled -or

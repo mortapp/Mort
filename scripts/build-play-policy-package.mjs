@@ -36,7 +36,7 @@ Required environment names are \`MORT_UPLOAD_KEYSTORE_PATH\`, \`MORT_UPLOAD_KEY_
 .\\scripts\\build-closed-test-apk.ps1
 \`
 
-The AAB build targets \`rakjydmgwwgtdislanbt\`, fixes release stage to \`closed_test\`, fixes operational mode to \`closed_pilot\`, disables public marketplace and real identity verification, disables ads and IAP, obfuscates Dart code, and stores symbol files outside the repository at \`C:\\Users\\micha\\MortSymbols\android\\0.9.0+90\`.
+The AAB build targets \`jxbnrkasktbhtiujkhay\`, fixes release stage to \`closed_test\`, fixes operational mode to \`closed_pilot\`, disables public marketplace and real identity verification, disables ads and IAP, obfuscates Dart code, and stores symbol files outside the repository at \`C:\\Users\\micha\\MortSymbols\android\\0.9.0+90\`.
 
 ## Play App Signing
 
@@ -447,7 +447,7 @@ ${status}
 ## Verified source controls
 
 - HTTPS-only Android network policy; cleartext disabled.
-- Hosted Supabase project fixed to \`rakjydmgwwgtdislanbt\` by release scripts.
+- Hosted Supabase project fixed to \`jxbnrkasktbhtiujkhay\` by release scripts.
 - No service-role, database password, Supabase access token, provider secret, or signing password is passed as a Dart define.
 - Secure session storage uses \`flutter_secure_storage\`; Supabase owns refresh/session handling.
 - Release signing fails closed and is checked against the upload certificate.

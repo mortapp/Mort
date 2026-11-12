@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 export const expectedFlutterSdkKey = ["test", "YKOBjNITvzPEMKMDpFUTnSZHDQn"].join("_");
 export const revenueCatBaseUrl = "https://api.revenuecat.com/v2";
-export const mortSupabaseProjectRef = "rakjydmgwwgtdislanbt";
+export const mortSupabaseProjectRef = "jxbnrkasktbhtiujkhay";
 export const mortSupabaseUrl = `https://${mortSupabaseProjectRef}.supabase.co`;
 export const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 
