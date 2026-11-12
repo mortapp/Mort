@@ -136,15 +136,31 @@ const queries = {
     group by bucket_id
     order by bucket_id
   `,
+  // Count only tables that currently exist, so a renamed or dropped table can
+  // never break a backup run (missing tables are simply absent from counts).
   featureRowCounts: `
-    select jsonb_build_object(
-      'profiles', (select count(*)::int from public.profiles),
-      'teen_profiles', (select count(*)::int from public.teen_profiles),
-      'guardian_connections', (select count(*)::int from public.guardian_connections),
-      'jobs', (select count(*)::int from public.jobs),
-      'applications', (select count(*)::int from public.applications),
-      'notifications', (select count(*)::int from public.notifications)
-    ) as counts
+    select jsonb_object_agg(label, row_count) as counts
+    from (
+      select label,
+        (xpath('/row/c/text()', query_to_xml(
+          format('select count(*)::int as c from %s', qualified_name),
+          false, true, ''
+        )))[1]::text::int as row_count
+      from (values
+        ('profiles', 'public.profiles'),
+        ('guardian_links', 'public.guardian_links'),
+        ('guardian_preferences', 'public.guardian_preferences'),
+        ('guardian_invite_codes', 'private.guardian_invite_codes'),
+        ('job_applications', 'public.job_applications'),
+        ('application_status_events', 'public.application_status_events'),
+        ('jobs', 'public.jobs'),
+        ('notifications', 'public.notifications'),
+        ('verification_cases', 'public.verification_cases'),
+        ('legal_documents', 'public.legal_documents'),
+        ('legal_acceptances', 'public.legal_acceptances')
+      ) as tables(label, qualified_name)
+      where to_regclass(qualified_name) is not null
+    ) as existing
   `,
 };
 
