@@ -117,6 +117,9 @@ if (baseUrl) {
   httpsValidation.passed = httpsValidation.results.every((item) => item.status === 200);
 }
 
+// Mirrors the release-owner legal approval input (issue #58).
+const legalApprovalClaimed = process.env.MORT_PUBLIC_LEGAL_APPROVAL_CLAIMED === 'true';
+
 const report = {
   generatedAt: new Date().toISOString(),
   packagePass: failures.length === 0,
@@ -125,7 +128,7 @@ const report = {
   missingConfiguration: status.missingConfiguration ?? [],
   httpsValidation,
   failures,
-  legalApprovalClaimed: false,
+  legalApprovalClaimed,
 };
 const reportPath = resolve(root, 'build', 'play', 'reports', 'legal-site-validation.json');
 mkdirSync(dirname(reportPath), { recursive: true });

@@ -16,6 +16,9 @@ const requiredConfigNames = [
   'MORT_PUBLIC_EFFECTIVE_DATE',
 ];
 const publicConfig = Object.fromEntries(requiredConfigNames.map((name) => [name, process.env[name]?.trim() ?? '']));
+// Release-owner approval of the external legal/child-safety review (issue #58).
+// Kept explicit and env-driven so builds never silently claim legal approval.
+const legalApprovalClaimed = process.env.MORT_PUBLIC_LEGAL_APPROVAL_CLAIMED === 'true';
 const missingMetadataConfig = requiredConfigNames.filter((name) => !publicConfig[name]);
 const supabase = readSupabasePublicConfig();
 const missingConfig = [...missingMetadataConfig, ...(!supabase.key ? ['EXPO_PUBLIC_SUPABASE_ANON_KEY'] : [])];
@@ -350,8 +353,8 @@ write('release-status.json', JSON.stringify({
   scope: 'United States',
   deploymentReady,
   missingConfig,
-  legalApprovalClaimed: false,
-  externalLegalReviewPending: true,
+  legalApprovalClaimed,
+  externalLegalReviewPending: !legalApprovalClaimed,
   publicDeploymentClaimed: true,
   routes: routes.map(([route]) => route),
 }, null, 2));
@@ -368,5 +371,23 @@ write('vercel.json', JSON.stringify({
     { key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://jxbnrkasktbhtiujkhay.supabase.co wss://jxbnrkasktbhtiujkhay.supabase.co; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" },
   ] }],
 }, null, 2));
+
+// Deployment files that must survive every rebuild of the output directory.
+// Netlify-style _headers mirrors the vercel.json security headers; _redirects
+// keeps the static 404 fallback; app-ads.txt authorizes the approved AdSense
+// publisher account on the public domain.
+write('_headers', `/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; connect-src 'self' https://jxbnrkasktbhtiujkhay.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; font-src 'self' data: https://fonts.gstatic.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; worker-src 'none'; upgrade-insecure-requests
+`);
+
+write('_redirects', `/* /index.html 404
+`);
+
+write('app-ads.txt', `google.com, pub-9883419411387958, DIRECT, f08c47fec0942fa0
+`);
 
 console.log(JSON.stringify({ revision: REVISION, output, deploymentReady, missingConfig, routes: routes.length }, null, 2));

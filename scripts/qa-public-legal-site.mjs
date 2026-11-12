@@ -95,8 +95,9 @@ if (process.env.MORT_LEGAL_QA_SOURCE_ONLY !== '1') {
 
   const releaseStatus = JSON.parse(readFileSync(resolve(output, 'release-status.json'), 'utf8'));
   assert(releaseStatus.revision === '2026-10-10-nationwide-us-legal-v2', 'release revision mismatch');
-  assert(releaseStatus.legalApprovalClaimed === false, 'must not claim lawyer approval');
-  assert(releaseStatus.externalLegalReviewPending === true, 'external legal review metadata must remain truthful');
+  const legalApprovalClaimed = process.env.MORT_PUBLIC_LEGAL_APPROVAL_CLAIMED === 'true';
+  assert(releaseStatus.legalApprovalClaimed === legalApprovalClaimed, 'legal approval claim must match the release-owner approval input');
+  assert(releaseStatus.externalLegalReviewPending === !legalApprovalClaimed, 'external legal review metadata must remain truthful');
 
   const deletion = readFileSync(resolve(output, 'account-deletion', 'index.html'), 'utf8');
   for (const asset of ['/assets/supabase.js', '/assets/public-config.js', '/assets/account-deletion.js']) {
