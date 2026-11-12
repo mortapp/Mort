@@ -32,7 +32,7 @@ jobs:
           BACKUP_ARCHIVE_PASSPHRASE: ${{ secrets.BACKUP_ARCHIVE_PASSPHRASE }}
         run: |
           test -n "$BACKUP_ARCHIVE_PASSPHRASE"
-          tar -czf "$RUNNER_TEMP/mort-metadata-backup.tar.gz" backups/ supabase/migrations/ supabase/functions/ supabase/config.toml
+          tar -czf "$RUNNER_TEMP/mort-metadata-backup.tar.gz" backups/ supabase/migrations/ supabase/functions/ supabase/config.toml supabase/production-baseline-recovery/
           openssl enc -aes-256-cbc -salt -pbkdf2 -iter 200000 -pass env:BACKUP_ARCHIVE_PASSPHRASE -in "$RUNNER_TEMP/mort-metadata-backup.tar.gz" -out "$RUNNER_TEMP/mort-metadata-backup.tar.gz.enc"
           sha256sum "$RUNNER_TEMP/mort-metadata-backup.tar.gz.enc" > "$RUNNER_TEMP/mort-metadata-backup.sha256"
       - uses: actions/upload-artifact@v7
