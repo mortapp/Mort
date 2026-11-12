@@ -1,24 +1,22 @@
-import 'dart:convert';
-
-import 'package:crypto/crypto.dart';
-
 import '../../data/services/supabase_service.dart';
 
 /// Leaked-password protection via HaveIBeenPwned's k-anonymity range API,
-/// executed through the backend `leaked-password-check` Edge Function so the
-/// device never contacts the third-party API directly.
+/// executed through the backend `leaked-password-check` Edge Function.
 ///
-/// Only the first five characters of the password's SHA-1 hash are sent to
-/// MORT's own backend; the full hash never leaves the device.
+/// The password travels only to MORT's own backend over HTTPS (the same
+/// trust boundary as the Supabase Auth call that follows); the Edge
+/// Function hashes it locally and sends only the first five characters of
+/// the SHA-1 digest to HaveIBeenPwned, so the plain password is never
+/// shared with the third-party service.
 ///
 /// Availability policy (matches the web app's lib/leaked-password.ts):
-/// fail open on network/API errors — a temporary outage must not lock users
-/// out — but a password confirmed to appear in a known breach corpus is
-/// always rejected.
+/// fail open on network/API errors — a temporary outage must not lock
+/// users out — but a password confirmed to appear in a known breach
+/// corpus is always rejected.
 class LeakedPasswordCheck {
   LeakedPasswordCheck._();
 
-  static const String leakedPasswordCode = 'leaked_password';
+  static const String leakedPasswordCode = 'leaked_password_compromised';
   static const String leakedPasswordMessage =
       'This password appears in a public data breach. Choose a stronger, '
       'unique password.';
@@ -28,22 +26,16 @@ class LeakedPasswordCheck {
   /// or when the password is clean.
   static Future<bool> isLeaked(String password) async {
     if (!SupabaseService.isInitialized) return false;
-    final digest = sha1.convert(utf8.encode(password)).toString().toUpperCase();
-    if (digest.length != 40) return false;
-    final prefix = digest.substring(0, 5);
-    final suffix = digest.substring(5);
     try {
       final response = await SupabaseService.client.functions.invoke(
         'leaked-password-check',
-        body: {'sha1Prefix': prefix},
+        body: {'password': password},
       );
       final data = response.data is Map
           ? Map<String, dynamic>.from(response.data as Map)
           : const <String, dynamic>{};
-      if (data['ok'] != true) return false;
-      final suffixes = data['suffixes'];
-      if (suffixes is! List) return false;
-      return suffixes.any((entry) => entry == suffix);
+      if (data['check_unavailable'] == true) return false;
+      return data['leaked'] == true;
     } catch (_) {
       // Fail open: a backend outage must not block account creation.
       return false;
