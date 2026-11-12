@@ -1,6 +1,6 @@
 # MORT Apple Auth External Setup
 
-Project ref: `rakjydmgwwgtdislanbt`
+Project ref: `jxbnrkasktbhtiujkhay`
 
 Never place the Apple private key (.p8 file), Team ID + Key ID + private key
 JWT material, or any generated client secret in Flutter, Dart defines,
@@ -8,7 +8,7 @@ Android resources, Gradle, iOS files, Expo variables, Git, logs,
 screenshots, zips, APKs, or AABs. Enter it only in Supabase Auth provider
 configuration or an approved server-side secret manager.
 
-## Status: ENGINEERING + SERVER-SIDE COMPLETE, BLOCKED_EXTERNAL_APPLE_DEVELOPER_ACCOUNT (2026-08-19/20)
+## Status: CLIENT CODE PRESENT; PRODUCTION MIGRATION + APPLE PROVIDER NOT CONFIGURED (2026-11-04)
 
 The Dart/Flutter side of Apple Sign-In is built, tested, and committed --
 it reuses the exact same architecture already verified live for Google
@@ -44,25 +44,7 @@ What exists in code right now:
 - `test/google_auth_contract_test.dart` -- re-verified, all 13 original
   assertions still pass unchanged; the Google implementation's strings and
   behavior were preserved byte-for-byte during the generalization.
-- **`supabase/migrations/20260820000000_apple_identity_controls.sql` --
-  applied to production** (`rakjydmgwwgtdislanbt`, recorded as
-  `20260820113638_apple_identity_controls`), owner-approved after the
-  first attempt was correctly blocked by Claude Code's own safety
-  classifier as a production schema change. Makes
-  `record_my_auth_identity_event` (previously hardcoded to accept only
-  `'google'`) and its supporting unique index provider-agnostic across
-  `google`/`apple`, with identical per-provider validation preserved
-  (own-caller-only via `auth.uid()`, rate-limited, requires a prior link
-  event before an unlink event, idempotent via `client_request_id`).
-  Verified post-apply: migration present in Supabase's migration history;
-  function source confirms only `google`/`apple` are accepted, everything
-  else returns `provider_not_allowed`; `EXECUTE` grants confirmed limited
-  to `authenticated`/`service_role` (not `anon`/`public`); `get_advisors`
-  shows only the same pre-existing, intentional `SECURITY DEFINER`
-  advisory the original Google-only function already had, nothing new.
-  Without this migration, Apple account linking and unlinking would have
-  failed server-side with `provider_not_allowed` even after the OAuth
-  provider itself is configured below -- this is no longer a risk.
+- **`supabase/migrations/20260820000000_apple_identity_controls.sql` exists in the repository but is NOT recorded in the current production project's migration history.** A read-only check of production project `jxbnrkasktbhtiujkhay` returned no `20260820000000_apple_identity_controls` migration row. The earlier July/August report referred to the retired/deleted project and does not prove this migration is present in current production. Apple link/unlink RPC support therefore remains unverified on production. Replay the migration in isolated QA, review its grants and RLS effects, confirm a current production backup, then apply only through the approved production migration workflow. Do not enable Apple OAuth or advertise it as working until that is complete.
 
 What is genuinely blocked and requires the account owner, not this
 session: OAuth provider activation itself (everything in the two sections
@@ -87,8 +69,8 @@ under the owner's own Apple ID.
    Google's Web OAuth client.
 4. Configure that Services ID's **Sign In with Apple** settings:
    - Primary App ID: the `com.mortapp.mobile` App ID from step 2.
-   - Domains and Subdomains: `rakjydmgwwgtdislanbt.supabase.co`
-   - Return URLs: `https://rakjydmgwwgtdislanbt.supabase.co/auth/v1/callback`
+   - Domains and Subdomains: `jxbnrkasktbhtiujkhay.supabase.co`
+   - Return URLs: `https://jxbnrkasktbhtiujkhay.supabase.co/auth/v1/callback`
 5. Under **Keys**, create a new key with the **Sign In with Apple**
    capability enabled, associated with the App ID from step 2. Apple shows
    the private key (`.p8` file) exactly once at creation -- download and
@@ -103,7 +85,7 @@ under the owner's own Apple ID.
 
 ## Supabase Owner Steps
 
-1. Open Supabase project `rakjydmgwwgtdislanbt`.
+1. Open Supabase project `jxbnrkasktbhtiujkhay`.
 2. Go to Authentication, Sign In / Providers, Apple.
 3. Enter the **Client IDs** field with the Services ID from step 3 above
    (e.g. `com.mortapp.mobile.signin`). If a native app-based flow is ever
@@ -118,8 +100,8 @@ under the owner's own Apple ID.
 6. Confirm URL Configuration still contains only the existing allowlisted
    redirects (unchanged by adding Apple):
    - `com.mortapp.mobile://app/auth-callback`
-   - `https://mort-web.vercel.app/auth-callback`
-   - `https://mort-web.vercel.app/auth/confirm`
+   - `https://mortapp.org/auth/callback`
+   - `https://mortapp.org/auth/confirm`
 7. Confirm manual identity linking remains enabled (shared setting, not
    per-provider).
 8. Re-read the provider configuration and record only configured/not

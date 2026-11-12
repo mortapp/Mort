@@ -1,65 +1,50 @@
 # RevenueCat Webhook Setup
 
-Updated: 2026-07-09
+Updated: 2026-11-04
 
-## Current Status
+## Current status
 
-- Supabase project: `rakjydmgwwgtdislanbt`
-- Function URL: `https://rakjydmgwwgtdislanbt.supabase.co/functions/v1/revenuecat-webhook`
-- Function deployed: yes
-- JWT verification: disabled for this function so RevenueCat can call it directly
-- RevenueCat webhook integration: created by API
-- Webhook authorization header: generated in command scope and set as a Supabase Edge Function secret only
-- Secrets printed or committed: no
+The historical RevenueCat webhook deployment and QA evidence referred to the retired/deleted Supabase project `rakjydmgwwgtdislanbt`. That project is gone; its deployment, secrets, and test records are not available to the current environment.
 
-## Server Secrets
+Current project inventory:
+- Production Supabase: `jxbnrkasktbhtiujkhay` — no `revenuecat-webhook` Edge Function is currently deployed.
+- QA Supabase: `ckcxakhxqlkhppsxxjhv` — no Edge Functions are currently deployed.
+- No current production RevenueCat webhook endpoint is active or verified.
 
-Configured in Supabase/server environment only:
+Do not treat the historical July 2026 QA results as evidence of a working current integration.
 
-- `REVENUECAT_WEBHOOK_AUTH_HEADER`
-- `SUPABASE_SERVICE_ROLE_KEY` is required by the function runtime. The Supabase CLI skipped setting a `SUPABASE_`-prefixed secret directly, but the deployed function read the runtime service role value successfully during QA.
+## QA-only implementation
 
-Not allowed in Flutter/mobile:
+After QA credentials and a RevenueCat sandbox/test project are provisioned:
 
-- RevenueCat v2 secret API key
-- RevenueCat webhook authorization header
-- Supabase service role key
-- Supabase access token
-- Supabase DB password
+1. Review `supabase/functions/revenuecat-webhook/index.ts` and confirm its authorization-header validation and idempotency behavior.
+2. Deploy the function to QA only:
+   ```powershell
+   pnpm exec supabase functions deploy revenuecat-webhook --project-ref ckcxakhxqlkhppsxxjhv --no-verify-jwt --use-api
+   ```
+3. Set `REVENUECAT_WEBHOOK_AUTH_HEADER` in QA Edge Function secrets. Use only the QA runtime's built-in Supabase service-role configuration; never expose a service-role key in client code.
+4. Configure the RevenueCat test webhook to:
+   `https://ckcxakhxqlkhppsxxjhv.supabase.co/functions/v1/revenuecat-webhook`
+5. Verify missing/invalid authorization returns 401, valid QA events are accepted, duplicate event IDs do not grant twice, and entitlement/credit changes are limited to the correct QA user.
+6. Confirm logs contain no production project requests or credential values.
 
-## Deploy Command
+## Secret boundary
 
-```powershell
-pnpm exec supabase functions deploy revenuecat-webhook --project-ref rakjydmgwwgtdislanbt --no-verify-jwt --use-api
-```
+Never place RevenueCat v2 secret API keys, webhook authorization headers, Supabase service-role keys, Supabase access tokens, or database passwords in Flutter/mobile code, `.env.local`, screenshots, shell history, docs, or archives.
 
-## Secret Command Shape
+## Production gate
 
-Secrets were set from a temporary file under `%TEMP%`, then that file was deleted. Do not put the values in `.env.local` or source.
+Do not deploy the RevenueCat function or configure production webhooks until QA tests pass, the production migration/schema contract is reviewed, backup/restore evidence exists, and the release owner explicitly approves production deployment. No entitlement, ad-free, Plus, Adult Pro, or Guardian Plus access should be granted based on unverified provider events.
 
-```powershell
-pnpm exec supabase secrets set --project-ref rakjydmgwwgtdislanbt --env-file <temp-secret-file>
-```
+## Event mapping
 
-## Event Mapping
+The source currently defines mappings for:
+- `mort_username_change_token_1`
+- `mort_job_boost_1`
+- `mort_ad_free_lifetime`
+- `mort_plus_monthly`, `mort_plus_yearly`, and `mort_plus_lifetime`
+- `mort_adult_pro_monthly`
+- `mort_guardian_plus_monthly`
+- `mort_profile_style_pack`
 
-- `mort_username_change_token_1` grants one username token credit.
-- `mort_job_boost_1` grants one job boost credit.
-- `mort_ad_free_lifetime` grants ad-free.
-- `mort_plus_monthly`, `mort_plus_yearly`, and `mort_plus_lifetime` grant Plus and ad-free behavior.
-- `mort_adult_pro_monthly` grants Adult Pro.
-- `mort_guardian_plus_monthly` grants Guardian Plus.
-- `mort_profile_style_pack` grants profile style unlock.
-
-## QA Results
-
-- Missing authorization rejected with `401`.
-- Invalid authorization rejected with `401`.
-- Authorized QA webhook accepted with `200`.
-- QA event wrote `revenuecat_events`.
-- QA username token event granted exactly one credit to a Rebuild QA profile.
-- Duplicate event returned `duplicate_event` and did not grant twice.
-
-## Manual RevenueCat Dashboard Step
-
-The RevenueCat webhook integration was created by API. After product/offering setup is completed, manually confirm in RevenueCat dashboard that the integration is enabled for the expected app/environment and that event deliveries show `200` responses.
+Revalidate product IDs, entitlements, and current business rules in QA before enabling any mapping in production.

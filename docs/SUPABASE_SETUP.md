@@ -1,54 +1,51 @@
-﻿# Supabase Setup
+# Supabase Setup and Environment Boundaries
 
-Current mismatched live project URL: `https://rakjydmgwwgtdislanbt.supabase.co`
+## Current projects
 
-Use the anon key only as `EXPO_PUBLIC_SUPABASE_ANON_KEY` in `.env.local` or an EAS environment. Never put a service-role key in Expo/mobile code.
+- Production: `jxbnrkasktbhtiujkhay` (`https://jxbnrkasktbhtiujkhay.supabase.co`).
+- QA: `ckcxakhxqlkhppsxxjhv` (`https://ckcxakhxqlkhppsxxjhv.supabase.co`).
+- Retired/deleted: `rakjydmgwwgtdislanbt`. Do not link, reconnect, restore, or deploy to this project.
 
-## Apply Schema
+Use only public anon/publishable keys in client apps. Never put a service-role key, database password, Supabase access token, webhook secret, or provider secret in Flutter, iOS, Android, Expo, web bundles, or source control.
 
-Important: the live project currently has an older/different MORT schema. Read-only inspection found `profiles`, `jobs`, and `notification_events`, but several MVP tables such as `applications`, `guardian_connections`, `push_tokens`, `proof_uploads`, and `support_tickets` were not present. Existing `profiles` and `jobs` columns also differ from this app schema.
+## Migration sources
 
-Do not run destructive commands to force alignment. Use a Supabase branch, staging project, or reviewed SQL migration to reconcile the existing schema with `supabase/migrations/202607070001_initial_mort.sql`.
+This repository contains more than one schema lineage:
 
-For a clean/new project or reviewed branch:
+- `supabase-production/migrations` is the production migration history.
+- `supabase/migrations` includes the legacy/reference schema used by local regression and compatibility tests.
+
+Do not run the root legacy migration directory against production. Do not use `supabase db reset` against production. Do not apply broad compatibility SQL to production.
+
+## Safe workflow
+
+1. Make schema changes in a dedicated branch.
+2. Replay the exact production migration sequence in an isolated database/QA environment.
+3. Run SQL compilation, RLS/policy checks, pgTAP, authenticated positive/negative tests, and relevant app integration tests.
+4. Verify a current production backup artifact and isolated restore path before a production schema change.
+5. Review the exact SQL diff and confirm the target project is `jxbnrkasktbhtiujkhay`.
+6. Apply only the reviewed migration through the production migration workflow after explicit release approval.
+7. Re-run advisors and verify release controls remain closed.
+
+For QA validation, link only to `ckcxakhxqlkhppsxxjhv` and use QA-scoped credentials:
 
 ```bash
 supabase login
-supabase link --project-ref <fresh-staging-project-ref>
-supabase db push
+supabase link --project-ref ckcxakhxqlkhppsxxjhv
 ```
 
-Do not run `supabase db push` or `supabase db reset` on the current mismatched live project. The migration creates RLS-protected app tables, private storage buckets, helper RPCs, auth profile trigger, notification queue triggers, support tables, admin logs, and signed-preview-compatible storage policies.
+Production linking and migration application are separate, explicitly approved operations. A passing local test is not permission to apply SQL to production.
 
-For the full live-project decision tree, read `docs/SUPABASE_SCHEMA_RECONCILIATION.md` before running Supabase commands.
+## Edge Function secrets
 
-Deploy `send-push` only with server-side Edge Function secrets:
-
-```bash
-supabase functions deploy send-push
-supabase secrets set SUPABASE_URL=https://<project-ref>.supabase.co
-supabase secrets set SUPABASE_SERVICE_ROLE_KEY (server-side only placeholder)<service-role-key-from-dashboard>
-supabase secrets set SEND_PUSH_INVOKE_SECRET (server-side only placeholder)<long-random-invocation-secret>
-```
+Store function secrets in the target project's server-side secret store. Use QA-only secrets for QA functions. Never copy production service-role keys, DB passwords, access tokens, Stripe live secrets, or Apple private keys into QA or source code.
 
 ## First Admin
 
-Create a real user through Supabase Auth, finish profile setup with an adult DOB, then promote from trusted SQL/dashboard only:
+Create a real user through Supabase Auth, complete profile setup, and use a trusted, reviewed admin bootstrap procedure. Admin role must never be self-selected in client onboarding. Do not run the historical example SQL below without checking the current production schema and authorization controls.
 
-```sql
-begin;
-select set_config('mort.internal_update', 'true', true);
+## Security review
 
-update public.profiles
-set role = 'admin'
-where id = 'auth-user-id-from-supabase-auth';
+The November 3–4, 2026 production review is tracked in `docs/MORT_DEPLOYED_SUPABASE_AUDIT.md` and GitHub issue #49. Known open items include RLS coverage review, SECURITY DEFINER authorization review, leaked-password protection status, and the trusted verification-provider evidence gate. Re-run the advisor before release; historical July 2026 counts in older reports are not current evidence.
 
-commit;
-```
-
-Admin cannot be self-selected in onboarding and cannot be assigned by the Expo app.
-
-## Advisors
-
-The final live advisor rerun returned 38 security WARN findings, 0 performance WARN findings, and 28 performance INFO findings. Thirty-seven security rows are intentional authenticated security-definer lint warnings with reviewed authorization and grants. The remaining Auth row is **DEFERRED — PLAN-LIMITED SECURITY ENHANCEMENT**: the Free-plan dashboard confirmed that HaveIBeenPwned leaked-password protection requires Supabase Pro or above, so it is not an unresolved MORT code security bug. Current mitigations and the future upgrade task are documented in `docs/ENABLE_LEAKED_PASSWORD_PROTECTION.md`. The private `profile-avatars` bucket has no public listing policy, and remote QA confirmed unrelated users cannot list or directly download it.
-
+The leaked-password protection setting was found disabled in the November audit. The old project's plan status does not establish the current production project's plan capability; see `docs/ENABLE_LEAKED_PASSWORD_PROTECTION.md`.
