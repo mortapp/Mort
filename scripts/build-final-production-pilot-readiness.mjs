@@ -101,7 +101,7 @@ const manualExternalGates = [
 const readiness = {
   schemaVersion: 1,
   generatedAt: new Date().toISOString(),
-  projectRef: "rakjydmgwwgtdislanbt",
+  projectRef: "jxbnrkasktbhtiujkhay",
   release: {
     packageId: "com.mortapp.mobile",
     versionName: "0.9.1",

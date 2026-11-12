@@ -1,6 +1,6 @@
 import pg from "pg";
 
-const projectRef = "rakjydmgwwgtdislanbt";
+const projectRef = "jxbnrkasktbhtiujkhay";
 const runId = process.argv[2];
 const password = process.env.SUPABASE_DB_PASSWORD;
 

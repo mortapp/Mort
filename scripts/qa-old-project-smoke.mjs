@@ -4,7 +4,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const oldProjectRef = "rakjydmgwwgtdislanbt";
+const oldProjectRef = "jxbnrkasktbhtiujkhay";
 const oldProjectUrl = `https://${oldProjectRef}.supabase.co`;
 const requiredTables = [
   "admin_action_logs",

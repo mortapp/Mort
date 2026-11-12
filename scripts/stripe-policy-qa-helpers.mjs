@@ -29,7 +29,7 @@ export async function expectDatabaseError(operation, expectedPattern, database) 
 export async function withLocalDatabase(scope, run) {
   const database = process.env.MORT_QA_USE_HOSTED === "true"
     ? new pg.Client({
-      host: "db.rakjydmgwwgtdislanbt.supabase.co",
+      host: "db.jxbnrkasktbhtiujkhay.supabase.co",
       port: 5432,
       database: "postgres",
       user: "postgres",

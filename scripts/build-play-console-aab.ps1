@@ -8,7 +8,7 @@ $root = Resolve-Path "$PSScriptRoot\.."
 . (Join-Path $PSScriptRoot 'android-signing-common.ps1')
 
 $expectedSha1 = '7F:3E:52:5C:05:F3:D8:72:C1:68:63:08:EA:F2:79:5A:8E:96:D9:97'
-$expectedUrl = 'https://rakjydmgwwgtdislanbt.supabase.co'
+$expectedUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co'
 $publicAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYXNlIiwicmVmIjoicmFranlkbWd3d2d0ZGlzbGFuYnQiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc4MTg3MTE3NSwiZXhwIjoyMDk3NDQ3MTc1fQ.DorOgj6jdPTrPX45Vi0O1dYgx-e3zgO6_S39JDcL2Ww'
 
 $signing = Get-MortUploadSigning

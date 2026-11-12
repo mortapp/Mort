@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-const oldProjectRef = "rakjydmgwwgtdislanbt";
+const oldProjectRef = "jxbnrkasktbhtiujkhay";
 const oldProjectUrl = `https://${oldProjectRef}.supabase.co`;
 const password = process.env.MORT_REBUILD_TEST_PASSWORD;
 

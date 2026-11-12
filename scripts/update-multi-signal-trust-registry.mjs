@@ -22,7 +22,7 @@ const backend = (symbol, qaSymbol) => ({
     { path: migration, symbol },
     { path: qa, symbol: qaSymbol },
   ],
-  test: "Hosted account-trust QA passed against rakjydmgwwgtdislanbt; sandbox and production remained isolated.",
+  test: "Hosted account-trust QA passed against jxbnrkasktbhtiujkhay; sandbox and production remained isolated.",
 });
 
 const shared = (symbol, qaSymbol, swiftSymbol, flutterSymbol) => ({

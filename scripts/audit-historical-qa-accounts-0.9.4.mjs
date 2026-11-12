@@ -79,7 +79,7 @@ const report = await withDatabase(async (database) => {
   `);
 
   return {
-    project_ref: "rakjydmgwwgtdislanbt",
+    project_ref: "jxbnrkasktbhtiujkhay",
     generated_at: new Date().toISOString(),
     aggregate_only: true,
     account_summary: summary.rows[0],
