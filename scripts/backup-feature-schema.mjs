@@ -10,11 +10,13 @@ if (!password) {
   throw new Error("Set SUPABASE_DB_PASSWORD before creating the remote schema snapshot.");
 }
 
+// Connect through the Supabase session pooler: the direct database endpoint
+// is IPv6-only, which is unreachable from IPv4-only CI runners.
 const client = new pg.Client({
-  host: `db.${projectRef}.supabase.co`,
+  host: "aws-0-us-east-2.pooler.supabase.com",
   port: 5432,
   database: "postgres",
-  user: "postgres",
+  user: `postgres.${projectRef}`,
   password,
   ssl: { rejectUnauthorized: false },
 });
