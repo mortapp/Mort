@@ -1,13 +1,22 @@
 {
-  "generatedAt": "2026-09-29T19:35:31.450Z",
-  "projectRef": "jxbnrkasktbhtiujkhay",
-  "packageStatus": "built",
+  "revision": "2026-10-10-nationwide-us-legal-v2",
+  "generatedAt": "2026-11-12T14:45:31.410Z",
+  "effectiveDate": "2026-10-10",
+  "scope": "United States",
   "deploymentReady": true,
-  "missingConfiguration": [],
-  "requiredRoutes": [
+  "missingConfig": [],
+  "legalApprovalClaimed": true,
+  "externalLegalReviewPending": false,
+  "publicDeploymentClaimed": true,
+  "routes": [
     "/",
     "/privacy/",
     "/terms/",
+    "/dispute-resolution/",
+    "/us-state-law-addendum/",
+    "/guardian-terms/",
+    "/verification-privacy-notice/",
+    "/paid-services/",
     "/terms-of-use/",
     "/community-guidelines/",
     "/safety/",
@@ -18,7 +27,5 @@
     "/support/",
     "/contact/",
     "/accessibility/"
-  ],
-  "legalApprovalClaimed": false,
-  "publicDeploymentClaimed": false
+  ]
 }
