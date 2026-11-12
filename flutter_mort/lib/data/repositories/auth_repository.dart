@@ -8,6 +8,7 @@ import '../../core/auth/oauth_flow.dart';
 import '../../core/config/app_config.dart';
 import '../../core/errors/mort_error.dart';
 import '../../core/observability/operational_telemetry.dart';
+import '../../core/utils/leaked_password_check.dart';
 import '../../services/push/push_notification_coordinator.dart';
 import '../services/secure_device_storage.dart';
 import '../services/supabase_service.dart';
@@ -115,6 +116,15 @@ class AuthRepository {
     required String email,
     required String password,
   }) async {
+    // Leaked-password protection (HIBP k-anonymity, checked through the
+    // backend edge function before the password is ever sent to Supabase
+    // Auth). Fails open when the check is unavailable.
+    if (await LeakedPasswordCheck.isLeaked(password)) {
+      throw const MortCodedError(
+        LeakedPasswordCheck.leakedPasswordCode,
+        LeakedPasswordCheck.leakedPasswordMessage,
+      );
+    }
     final response = await SupabaseService.client.auth.signUp(
       email: email,
       password: password,
@@ -403,6 +413,14 @@ class AuthRepository {
       throw const MortCodedError(
         'password_recovery_session_required',
         'Request a new password reset link and open it on this device.',
+      );
+    }
+    // Leaked-password protection on password recovery, matching the sign-up
+    // path. Fails open when the check is unavailable.
+    if (await LeakedPasswordCheck.isLeaked(password)) {
+      throw const MortCodedError(
+        LeakedPasswordCheck.leakedPasswordCode,
+        LeakedPasswordCheck.leakedPasswordMessage,
       );
     }
     await SupabaseService.client.auth.updateUser(
