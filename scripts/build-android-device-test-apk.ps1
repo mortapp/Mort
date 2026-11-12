@@ -19,6 +19,8 @@ if (-not $OutputPath) {
 $supabaseUrl = 'https://ckcxakhxqlkhppsxxjhv.supabase.co'
 $supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrY3hha2h4cWxraHBwc3h4amh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1Nzc1NjAsImV4cCI6MjEwOTE1MzU2MH0.8E8sGxUv7a1on8BHxq7_72TGASVkIcK4X5b1PgNO_d8'
 
+$googleAuthEnabled = if ($BrowserStackQa) { 'false' } else { 'true' }
+
 $defines = @(
   "--dart-define=SUPABASE_URL=$supabaseUrl",
   "--dart-define=SUPABASE_ANON_KEY=$supabaseAnonKey",
@@ -36,7 +38,7 @@ $defines = @(
   '--dart-define=MORT_SUPPORT_AI_ENABLED=false',
   '--dart-define=MORT_DETERMINISTIC_SUPPORT_ENABLED=true',
   '--dart-define=MORT_PUBLIC_ACTIVATION_APPROVED=false',
-  '--dart-define=GOOGLE_AUTH_ENABLED=true',
+  "--dart-define=GOOGLE_AUTH_ENABLED=$googleAuthEnabled",
   '--dart-define=APPLE_AUTH_ENABLED=false',
   '--dart-define=ADS_ENABLED=false',
   '--dart-define=USE_TEST_ADS=true',
