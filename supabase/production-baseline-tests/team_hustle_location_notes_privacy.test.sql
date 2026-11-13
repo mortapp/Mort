@@ -15,9 +15,9 @@ begin
     email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
   ) values
     (poster_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-     'team-hustle-poster@privacy-test.invalid', '', now(), '{}'::jsonb, '{}'::jsonb, now(), now()),
+     'team-hustle-poster@privacy-test.invalid', '', now(), '{}'::jsonb, '{"date_of_birth":"1988-01-01"}'::jsonb, now(), now()),
     (viewer_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-     'team-hustle-viewer@privacy-test.invalid', '', now(), '{}'::jsonb, '{}'::jsonb, now(), now());
+     'team-hustle-viewer@privacy-test.invalid', '', now(), '{}'::jsonb, '{"date_of_birth":"2011-01-01"}'::jsonb, now(), now());
 
   insert into public.profiles (id, role, account_status, date_of_birth, display_name)
   values
