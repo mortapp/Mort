@@ -49,6 +49,7 @@ jobs:
           supabase/functions/document-vault-access/index.ts
           supabase/functions/identity-verification-webhook/index.ts
           supabase/functions/send-push/index.ts
+          supabase/functions/leaked-password-check/index.ts
           supabase/functions/ai-support/index.ts
           supabase/functions/_shared/google_play.ts
           supabase/functions/revenuecat-webhook/index.ts
