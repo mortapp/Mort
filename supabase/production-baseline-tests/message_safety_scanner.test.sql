@@ -99,7 +99,7 @@ join scanner_users u
   or (c.conv_key = 'teen_teen' and u.user_key in ('teen','other_teen'));
 
 -- Helper: send as a user and return (status, reason) from the RPC payload.
-create function pg_temp.tmp_scanner_send(
+create function pg_temp.pg_temp.tmp_scanner_send(
   p_conv_key text, p_user_key text, p_body text, p_request_suffix text
 ) returns jsonb
 language plpgsql
@@ -119,63 +119,63 @@ $fn$;
 
 -- 1. Blocked: payment offered for worn/personal items ----------------------
 select is(
-  (tmp_scanner_send('adult_teen','adult','If you include your pants Ill pay more','a1') ->> 'scanner_status'),
+  (pg_temp.tmp_scanner_send('adult_teen','adult','If you include your pants Ill pay more','a1') ->> 'scanner_status'),
   'blocked',
   'sexualized payment-for-items message is blocked'
 );
 
 select is(
-  (tmp_scanner_send('adult_teen','adult','can you send me some pics of yourself','a2') ->> 'scanner_status'),
+  (pg_temp.tmp_scanner_send('adult_teen','adult','can you send me some pics of yourself','a2') ->> 'scanner_status'),
   'blocked',
   'request for photos of the recipient is blocked'
 );
 
 select is(
-  (tmp_scanner_send('adult_teen','adult','dm me on instagram','a3') ->> 'scanner_status'),
+  (pg_temp.tmp_scanner_send('adult_teen','adult','dm me on instagram','a3') ->> 'scanner_status'),
   'blocked',
   'off-platform contact redirection is blocked'
 );
 
 select is(
-  (tmp_scanner_send('adult_teen','adult','keep this between us','a4') ->> 'scanner_status'),
+  (pg_temp.tmp_scanner_send('adult_teen','adult','keep this between us','a4') ->> 'scanner_status'),
   'blocked',
   'grooming secrecy pressure is blocked'
 );
 
 select is(
-  (tmp_scanner_send('adult_teen','adult','will you send nudes','a5') ->> 'scanner_status'),
+  (pg_temp.tmp_scanner_send('adult_teen','adult','will you send nudes','a5') ->> 'scanner_status'),
   'blocked',
   'explicit sexual content is blocked'
 );
 
 -- 2. Flagged/held for review: ambiguous patterns ---------------------------
 select is(
-  (tmp_scanner_send('adult_teen','adult','whats your snap','b1') ->> 'scanner_status'),
+  (pg_temp.tmp_scanner_send('adult_teen','adult','whats your snap','b1') ->> 'scanner_status'),
   'flagged',
   'contact handle request is held for review'
 );
 
 select is(
-  (tmp_scanner_send('adult_teen','adult','earn 5000 a week','b2') ->> 'scanner_status'),
+  (pg_temp.tmp_scanner_send('adult_teen','adult','earn 5000 a week','b2') ->> 'scanner_status'),
   'flagged',
   'unrealistic earnings offer is held for review'
 );
 
 -- 3. Clean: legitimate work messages ---------------------------------------
 select is(
-  (tmp_scanner_send('adult_teen','adult','Great, see you Saturday at 10 for the yard work','c1') ->> 'scanner_status'),
+  (pg_temp.tmp_scanner_send('adult_teen','adult','Great, see you Saturday at 10 for the yard work','c1') ->> 'scanner_status'),
   'approved',
   'normal scheduling message is delivered'
 );
 
 select is(
-  (tmp_scanner_send('adult_teen','adult','can you send me some pics of the yard when done','c2') ->> 'scanner_status'),
+  (pg_temp.tmp_scanner_send('adult_teen','adult','can you send me some pics of the yard when done','c2') ->> 'scanner_status'),
   'approved',
   'request for photos of the work (not the person) is delivered'
 );
 
 select is(
-  (tmp_scanner_send('adult_teen','adult','the job pays 40 dollars for about two hours','c3') ->> 'scanner_status'),
+  (pg_temp.tmp_scanner_send('adult_teen','adult','the job pays 40 dollars for about two hours','c3') ->> 'scanner_status'),
   'approved',
   'realistic pay discussion is delivered'
 );
