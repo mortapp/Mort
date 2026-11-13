@@ -8,6 +8,7 @@ do $fixtures$
 declare
   poster_id uuid := '92929292-9292-4292-8292-929292929201';
   viewer_id uuid := '92929292-9292-4292-8292-929292929202';
+  staff_id uuid := '92929292-9292-4292-8292-929292929204';
   hustle_id uuid := '92929292-9292-4292-8292-929292929203';
 begin
   insert into auth.users (
@@ -17,17 +18,23 @@ begin
     (poster_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
      'team-hustle-poster@privacy-test.invalid', '', now(), '{}'::jsonb, '{"date_of_birth":"1988-01-01"}'::jsonb, now(), now()),
     (viewer_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-     'team-hustle-viewer@privacy-test.invalid', '', now(), '{}'::jsonb, '{"date_of_birth":"2011-01-01"}'::jsonb, now(), now());
+     'team-hustle-viewer@privacy-test.invalid', '', now(), '{}'::jsonb, '{"date_of_birth":"2011-01-01"}'::jsonb, now(), now()),
+    (staff_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+     'team-hustle-staff@privacy-test.invalid', '', now(), '{}'::jsonb, '{"date_of_birth":"1980-01-01"}'::jsonb, now(), now());
 
   insert into public.profiles (id, role, account_status, date_of_birth, display_name)
   values
     (poster_id, 'adult', 'active', date '1988-01-01', 'Synthetic Poster'),
-    (viewer_id, 'teen', 'active', date '2011-01-01', 'Synthetic Viewer')
+    (viewer_id, 'teen', 'active', date '2011-01-01', 'Synthetic Viewer'),
+    (staff_id, 'admin', 'active', date '1980-01-01', 'Synthetic Staff')
   on conflict (id) do update
   set role = excluded.role,
       account_status = excluded.account_status,
       date_of_birth = excluded.date_of_birth,
       display_name = excluded.display_name;
+
+  insert into private.user_roles (user_id, role)
+  values (staff_id, 'moderator'::public.mort_role);
 
   insert into public.team_hustles (
     id, poster_id, title, description, location_notes
@@ -86,6 +93,7 @@ do $behavior$
 declare
   poster_id uuid := '92929292-9292-4292-8292-929292929201';
   viewer_id uuid := '92929292-9292-4292-8292-929292929202';
+  staff_id uuid := '92929292-9292-4292-8292-929292929204';
   hustle_id uuid := '92929292-9292-4292-8292-929292929203';
   v_listing jsonb;
   v_note text;
@@ -113,6 +121,15 @@ begin
   where item->>'id' = hustle_id::text;
   if v_note is distinct from 'SYNTHETIC PRIVATE MEETING NOTE - DO NOT EXPOSE' then
     raise exception 'poster did not receive their own location notes';
+  end if;
+
+  perform set_config('request.jwt.claim.sub', staff_id::text, true);
+  v_listing := public.list_team_hustles_v1();
+  select item->>'location_notes' into v_note
+  from jsonb_array_elements(v_listing) item
+  where item->>'id' = hustle_id::text;
+  if v_note is distinct from 'SYNTHETIC PRIVATE MEETING NOTE - DO NOT EXPOSE' then
+    raise exception 'authorized moderator did not receive the location notes';
   end if;
 end;
 $behavior$;
