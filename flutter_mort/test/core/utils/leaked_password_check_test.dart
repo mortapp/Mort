@@ -4,10 +4,7 @@ import 'package:flutter_mort/core/utils/leaked_password_check.dart';
 void main() {
   group('LeakedPasswordCheck response policy', () {
     test('rejects a password the backend confirms is breached', () {
-      expect(
-        LeakedPasswordCheck.responseIsLeaked({'leaked': true}),
-        isTrue,
-      );
+      expect(LeakedPasswordCheck.responseIsLeaked({'leaked': true}), isTrue);
     });
 
     test('accepts a clean response', () {
