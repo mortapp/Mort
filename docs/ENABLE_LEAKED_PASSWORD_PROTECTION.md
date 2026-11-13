@@ -12,6 +12,8 @@ The production project has an active `leaked-password-check` Edge Function (vers
 
 The deployed version does not handle `OPTIONS` preflight or add explicit CORS response headers. Because the Flutter Web client invokes the function with authorization and JSON headers, browser preflight is expected to fail; the app's fail-open behavior can then allow a password without a completed lookup. Treat the Flutter Web path as unverified until browser QA and deployment of the CORS-capable source. Native Android/iOS calls are not subject to browser CORS. The Next.js website uses its own server-side HIBP checker.
 
+The deployed version also matches suffixes without checking the HIBP prevalence count, even though `Add-Padding: true` includes random zero-count rows that must be discarded. It has no explicit request-body byte cap, per-user rate limit, HIBP timeout, or MORT-specific User-Agent. These are source-level hardening gaps addressed in PR #91; do not treat the proposed controls as live until deployment and post-deploy verification.
+
 The GitHub source had drifted to a different prefix/suffix API contract from the deployed function. PR #91 aligns the source with the deployed contract and adds request limits, a best-effort per-isolate rate limit, a four-second HIBP timeout, response validation, CORS preflight handling, and tests. These additional source controls are **not active in production until the PR is verified, merged, and the Edge Function is deployed**.
 
 An older version of this document referred to project `rakjydmgwwgtdislanbt`. That project is deleted and is not the production target. The old project's July 2026 Free-plan limitation does not establish the current plan or feature eligibility of `jxbnrkasktbhtiujkhay`.
