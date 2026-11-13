@@ -39,3 +39,48 @@ export function parseHibpRangeResponse(
 
   return { valid: true, leaked };
 }
+
+
+export async function readBoundedJson(
+  request: Request,
+  maximumBodyBytes: number,
+): Promise<Record<string, unknown>> {
+  const declaredLength = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(declaredLength) && declaredLength > maximumBodyBytes) {
+    throw new Error("payload_too_large");
+  }
+  if (!request.body) throw new Error("request_body_required");
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maximumBodyBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw new Error("payload_too_large");
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  const value: unknown = JSON.parse(
+    new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+  );
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("invalid_json");
+  }
+  return value as Record<string, unknown>;
+}
