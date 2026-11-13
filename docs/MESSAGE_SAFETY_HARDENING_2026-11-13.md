@@ -123,8 +123,15 @@ stored unreviewed.
   access review remain open before attachments can be released to recipients.
 - QA's Supabase advisor reported RLS disabled on the two new private tables
   `private.message_safety_rules` and `private.message_moderation_log`.
-  Explicit table grants are revoked from anon/authenticated, but RLS status
-  still needs a reviewed decision. Do not auto-enable RLS without verifying
-  the security-definer/owner access model and adding the intended policies.
+  Explicit table grants are revoked from anon/authenticated, and migration
+  `20261113180000_message_safety_rls.sql` now enables row level security on
+  both tables as defense-in-depth with no client policies: if a grant is ever
+  introduced by mistake, clients still see zero rows. The table owner bypasses
+  plain RLS, so the security-definer scanner trigger and staff moderation
+  functions keep working. FORCE RLS is deliberately not used, because it
+  would apply RLS to the owner and break the definer-path evidence writes.
+  Verified on QA: blocked/obfuscated messages still log evidence, clean
+  messages deliver, the staff queue works, and the recipient sees only
+  approved messages with RLS enabled on both tables.
 - This work is still an open draft PR and has not been merged or deployed to
   production.

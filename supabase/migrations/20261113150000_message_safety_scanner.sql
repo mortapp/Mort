@@ -177,6 +177,11 @@ create trigger messages_safety_scanner
   for each row execute function private.apply_message_safety_scanner();
 
 -- send_safe_message_v2: surface the scanner outcome and the generic reason.
+-- The original returned a `messages` row; the scanner outcome envelope is
+-- jsonb. CREATE OR REPLACE cannot change a return type, so the function is
+-- replaced outright. The grant statements at the end of this migration
+-- restore the original execute posture (authenticated + service_role only).
+drop function if exists public.send_safe_message_v2(uuid, text, uuid);
 create or replace function public.send_safe_message_v2(p_thread_id uuid, p_body text, p_client_request_id uuid)
 returns jsonb
 language plpgsql
