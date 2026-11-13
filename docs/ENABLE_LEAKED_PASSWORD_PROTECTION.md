@@ -2,45 +2,48 @@
 
 ## Current production status
 
-**SUPABASE AUTH CONTROL DISABLED — CUSTOM MORT CHECKER UNDER REPAIR**
+**CUSTOM MORT CHECKER DEPLOYED — SUPABASE AUTH CONTROL DISABLED**
 
 Authoritative production project: `jxbnrkasktbhtiujkhay`.
 
-On 2026-11-13, the live Supabase Security Advisor reported `auth_leaked_password_protection` as **WARN — Leaked Password Protection Disabled**. This means the separate Supabase Auth HaveIBeenPwned check is not enabled.
+On 2026-11-13, the live Supabase Security Advisor reported `auth_leaked_password_protection` as **WARN — Leaked Password Protection Disabled**. This is the separate Supabase Auth HaveIBeenPwned control; it is not the same as MORT's custom checker.
 
-The repository also contains a custom MORT HIBP k-anonymity Edge Function and Flutter client. A source review found that the Flutter client and Edge Function used incompatible request/response contracts, so the Flutter check could fail open without completing the lookup. The correction is in PR #91 and must not be considered complete until CI and the focused tests pass and the change is merged.
+The production project has an active `leaked-password-check` Edge Function (version 2, `verify_jwt=false`). Its deployed implementation manually validates the caller's user JWT with Supabase Auth, accepts a password over HTTPS from the authenticated client, hashes it server-side, sends only the first five SHA-1 digest characters to HaveIBeenPwned, and returns a boolean breach result. The Flutter client currently uses that deployed request/response contract.
+
+The GitHub source had drifted to a different prefix/suffix API contract from the deployed function. PR #91 aligns the source with the deployed contract and adds request limits, a best-effort per-isolate rate limit, a four-second HIBP timeout, response validation, CORS preflight handling, and tests. These additional source controls are **not active in production until the PR is verified, merged, and the Edge Function is deployed**.
 
 An older version of this document referred to project `rakjydmgwwgtdislanbt`. That project is deleted and is not the production target. The old project's July 2026 Free-plan limitation does not establish the current plan or feature eligibility of `jxbnrkasktbhtiujkhay`.
 
 Do not change the Supabase plan, spend money, or change production Auth settings without separate authorization.
 
-## How the custom MORT checker is intended to work
+## Custom MORT checker data flow
 
-1. The client computes the SHA-1 digest locally.
-2. The client sends only the first five hexadecimal characters to MORT's authenticated Edge Function.
-3. The Edge Function queries the HaveIBeenPwned range API using that prefix and returns candidate suffixes.
-4. The client compares the remaining 35 digest characters locally.
-5. The plaintext password and complete digest must never be sent to HaveIBeenPwned or written to logs.
+1. The authenticated client sends the password to MORT's Edge Function over HTTPS.
+2. The Edge Function validates the user JWT and hashes the password in memory.
+3. Only the first five hexadecimal characters of the SHA-1 digest are sent to HaveIBeenPwned using its range API.
+4. The Edge Function compares the returned suffixes in memory and returns only `leaked` (or `check_unavailable`).
+5. The plaintext password, full digest, HIBP prefix, and HIBP response rows must never be logged or persisted.
 
 The current availability policy is fail-open: if the HIBP service or MORT check endpoint is unavailable, signup/password recovery is not blocked. This avoids provider outages locking users out, but means an outage can temporarily bypass the custom breach check. Keep this trade-off explicit and cover it with tests.
 
 ## Separate controls — do not conflate them
 
-- **MORT custom HIBP checker:** application code and Edge Function; its client/backend contract and all password-setting paths require tests.
-- **Supabase Auth leaked-password protection:** independent server-side Auth control; currently reported disabled by the production advisor.
+- **MORT custom HIBP checker:** an application-level Edge Function used by the Flutter signup and password-recovery flows.
+- **Supabase Auth leaked-password protection:** an independent server-side Auth control; currently reported disabled by the production advisor.
 - **GitHub secret scanning and push protection:** controls for credentials accidentally committed to source/history. They do not check whether an end-user password appears in a breach corpus.
 
 ## Verification checklist
 
-After PR #91 is merged:
+Before deploying the source changes from PR #91:
 
-1. Confirm the Flutter SHA-1 prefix and suffix comparison unit tests pass.
-2. Confirm the Edge Function accepts only an authenticated request with a valid five-character prefix and returns the expected `ok`, `degraded`, and `suffixes` fields.
-3. In a controlled QA environment, test a known breached fixture and a known clean fixture. Never use a real user's password.
-4. Test HIBP timeout, non-2xx response, malformed payload, and unauthenticated request behavior.
-5. Verify signup and password recovery both call the checker; inspect any additional password-change or admin/service paths.
-6. Confirm no plaintext password, full SHA-1 digest, or HIBP suffix list is logged or persisted.
-7. Rerun the production Supabase Security Advisor and record the Auth leaked-password control separately from the custom checker.
+1. Confirm Flutter tests cover breached, clean, unavailable, and malformed response handling.
+2. Confirm Deno tests cover the SHA-1 known vector, positive HIBP matches, zero-count padding rows, and malformed provider output.
+3. Confirm Edge Function type-check passes.
+4. In a controlled QA environment, test a known breached fixture and a known clean fixture. Never use a real user's password.
+5. Test timeout, non-2xx HIBP response, malformed payload, unauthenticated request, CORS preflight, and rate-limit behavior.
+6. Verify signup and password recovery both call the checker; inspect any additional password-change or admin/service paths.
+7. Confirm no plaintext password, full SHA-1 digest, prefix, or HIBP suffix list is logged or persisted.
+8. Deploy only to the authoritative production project after the source is merged and the deployment is explicitly authorized; then verify the deployed version and rerun the Auth/Security Advisor.
 
 ## Enabling Supabase Auth protection
 
