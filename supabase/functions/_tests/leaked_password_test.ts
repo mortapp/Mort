@@ -39,3 +39,50 @@ Deno.test("HIBP range parser rejects malformed provider output", () => {
     throw new Error("Malformed provider output must be unavailable.");
   }
 });
+
+
+Deno.test("bounded JSON reader accepts a small object without content-length", async () => {
+  const request = new Request("https://example.test/check", {
+    method: "POST",
+    body: JSON.stringify({ password: "example" }),
+  });
+  const result = await (await import("../_shared/leaked_password.ts"))
+    .readBoundedJson(request, 2048);
+  if (result.password !== "example") {
+    throw new Error("Expected the bounded reader to parse a valid object.");
+  }
+});
+
+Deno.test("bounded JSON reader rejects oversized streamed bodies", async () => {
+  const request = new Request("https://example.test/check", {
+    method: "POST",
+    body: "x".repeat(2049),
+  });
+  let rejected = false;
+  try {
+    const helper = await import("../_shared/leaked_password.ts");
+    await helper.readBoundedJson(request, 2048);
+  } catch {
+    rejected = true;
+  }
+  if (!rejected) {
+    throw new Error("Expected oversized body to be rejected before full buffering.");
+  }
+});
+
+Deno.test("bounded JSON reader rejects non-object JSON", async () => {
+  const request = new Request("https://example.test/check", {
+    method: "POST",
+    body: JSON.stringify(["not", "an", "object"]),
+  });
+  let rejected = false;
+  try {
+    const helper = await import("../_shared/leaked_password.ts");
+    await helper.readBoundedJson(request, 2048);
+  } catch {
+    rejected = true;
+  }
+  if (!rejected) {
+    throw new Error("Expected array JSON payload to be rejected.");
+  }
+});
