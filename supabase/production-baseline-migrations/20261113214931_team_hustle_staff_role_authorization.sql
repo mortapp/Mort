@@ -20,7 +20,7 @@ begin
   where th.id = p_hustle_id
     and (
       th.poster_id = v_user
-      or private.has_staff_role(array['admin']::public.mort_role[])
+      or private.has_staff_role(array['admin','moderator']::public.mort_role[])
     );
   if not found then
     return jsonb_build_object('ok', false, 'code', 'not_found_or_not_poster');
@@ -55,7 +55,7 @@ begin
 
   select p.role into v_role from public.profiles p where p.id = v_user;
   if v_role is distinct from 'adult'::public.mort_role
-     and not private.has_staff_role(array['admin']::public.mort_role[]) then
+     and not private.has_staff_role(array['admin','moderator']::public.mort_role[]) then
     return jsonb_build_object('ok', false, 'code', 'adult_required');
   end if;
 
