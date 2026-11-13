@@ -5,7 +5,7 @@ if (!password)
   throw new Error("SUPABASE_DB_PASSWORD is required and is never printed.");
 
 const database = new pg.Client({
-  host: "db.jxbnrkasktbhtiujkhay.supabase.co",
+  host: "db.ckcxakhxqlkhppsxxjhv.supabase.co",
   port: 5432,
   database: "postgres",
   user: "postgres",

@@ -28,7 +28,7 @@ const tables = [
 ];
 
 const client = new pg.Client({
-  host: 'db.jxbnrkasktbhtiujkhay.supabase.co',
+  host: 'db.ckcxakhxqlkhppsxxjhv.supabase.co',
   port: 5432,
   database: 'postgres',
   user: 'postgres',

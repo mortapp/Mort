@@ -140,29 +140,12 @@ const playPackageSource = await readFile(
   resolve(root, "scripts/build-play-policy-package.mjs"),
   "utf8",
 );
-for (const outputPath of [
-  "docs/play/MORT_PLAY_SHORT_DESCRIPTION.txt",
-  "docs/play/MORT_PLAY_FULL_DESCRIPTION.txt",
-  "docs/play/MORT_PLAY_RELEASE_NOTES.txt",
-]) {
-  const marker = `write('${outputPath}',`;
-  const start = playPackageSource.indexOf(marker);
-  if (start < 0) throw new Error(`Missing public metadata source block for ${outputPath}`);
-  const end = playPackageSource.indexOf("\nwrite(", start + marker.length);
-  const sourceBlock = playPackageSource.slice(start, end < 0 ? undefined : end);
-  const sourceLine = playPackageSource.slice(0, start).split(/\r?\n/u).length;
-  for (const [offset, line] of sourceBlock.split(/\r?\n/u).entries()) {
-    for (const [label, pattern] of forbidden) {
-      pattern.lastIndex = 0;
-      if (pattern.test(line)) {
-        findings.push({
-          file: "scripts/build-play-policy-package.mjs",
-          line: sourceLine + offset,
-          label: `public metadata: ${label}`,
-        });
-      }
-    }
-  }
+if (!playPackageSource.startsWith('throw new Error("Disabled:')) {
+  findings.push({
+    file: "scripts/build-play-policy-package.mjs",
+    line: 1,
+    label: "retired Play package generator must remain disabled",
+  });
 }
 
 if (findings.length > 0) {
