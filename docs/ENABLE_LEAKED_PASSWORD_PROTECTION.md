@@ -28,6 +28,14 @@ Do not change the Supabase plan, spend money, or change production Auth settings
 
 The current availability policy is fail-open: if the HIBP service or MORT check endpoint is unavailable, signup/password recovery is not blocked. This avoids provider outages locking users out, but means an outage can temporarily bypass the custom breach check. Keep this trade-off explicit and cover it with tests.
 
+## Enforcement boundary and direct-API bypass
+
+The custom HIBP checker is an application-level preflight, not an Auth-server password policy. The Flutter and Next.js clients call it before sending a password to Supabase Auth, but Supabase Auth's public signup endpoint and authenticated password-update endpoint can still be called directly by a modified client. A caller can therefore skip the app-level preflight.
+
+Because the separate Supabase Auth leaked-password control is currently reported disabled, MORT must not claim that every account password is server-enforced against breach corpora. Treat the custom checker as defense-in-depth until the native Auth control is enabled or every password-creation/change path is routed through a trusted server boundary and direct Auth paths are appropriately restricted. Do not attempt to solve this by hiding the public anon/publishable key; it is intentionally public.
+
+A safe production decision requires checking the current Supabase plan and feature eligibility. If native Auth enforcement is unavailable, design and test a server-mediated signup/password-change flow with email verification, abuse controls, and no alternate direct paths before disabling public signup. Do not change these production settings as part of this source-only PR.
+
 ## Separate controls — do not conflate them
 
 - **MORT custom HIBP checker:** an application-level Edge Function used by the Flutter signup and password-recovery flows.
