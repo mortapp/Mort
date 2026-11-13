@@ -113,7 +113,10 @@ Deno.serve(async (request) => {
     const suffix = digest.slice(5);
     const response = await fetch(`${hibpRangeUrl}${prefix}`, {
       method: "GET",
-      headers: { "Add-Padding": "true" },
+      headers: {
+        "Add-Padding": "true",
+        "User-Agent": "MORT-Leaked-Password-Check/1.0",
+      },
       cache: "no-store",
       signal: AbortSignal.timeout(hibpTimeoutMs),
     });
