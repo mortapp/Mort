@@ -30,6 +30,8 @@ begin
      and not private.has_staff_role(array['admin']::public.mort_role[]) then
     return jsonb_build_object('ok', false, 'code', 'adult_required');
   end if;
+  -- Serialize per-user quota checks so concurrent create requests cannot exceed limits.
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_user::text, 0));
   if p_title is null or length(btrim(p_title)) < 3 or length(btrim(p_title)) > 120 then
     return jsonb_build_object('ok', false, 'code', 'invalid_title');
   end if;
@@ -94,7 +96,10 @@ begin
   if v_role <> 'teen' or v_age is null or v_age not between 13 and 17 then
     return jsonb_build_object('ok', false, 'code', 'teen_required');
   end if;
-  select * into v_hustle from public.team_hustles th where th.id = p_hustle_id;
+  -- Serialize this teen's daily join quota across different hustles.
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_user::text, 0));
+  -- Lock the target hustle so concurrent joins cannot overfill its capacity.
+  select * into v_hustle from public.team_hustles th where th.id = p_hustle_id for update;
   if not found then return jsonb_build_object('ok', false, 'code', 'not_found'); end if;
   if v_hustle.status <> 'open' then return jsonb_build_object('ok', false, 'code', 'hustle_closed'); end if;
   if v_hustle.poster_id = v_user then return jsonb_build_object('ok', false, 'code', 'cannot_join_own_hustle'); end if;
