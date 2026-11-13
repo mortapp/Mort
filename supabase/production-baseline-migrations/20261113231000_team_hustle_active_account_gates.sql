@@ -134,13 +134,15 @@ begin
     from (
       select th.id, th.title, th.description, th.category, th.city, th.region,
         th.workers_needed, th.age_min, th.age_max, th.pay_amount, th.pay_type,
-        th.location_notes, th.status, th.created_at,
+        th.status, th.created_at,
         (select count(*) from public.team_hustle_members m where m.hustle_id = th.id)::int as joined_count,
         p.display_name as poster_display_name,
         exists(select 1 from public.team_hustle_members m where m.hustle_id = th.id and m.user_id = v_user) as my_membership,
         (th.poster_id = v_user) as i_am_poster
       from public.team_hustles th join public.profiles p on p.id = th.poster_id
       where th.created_at > now() - interval '60 days'
+      order by (th.status = 'open') desc, th.created_at desc
+      limit 50
     ) h
   ), '[]'::jsonb);
 end;
