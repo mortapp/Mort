@@ -23,7 +23,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-set local search_path = extensions, public, auth, pg_catalog;
+set local search_path = pg_temp, extensions, public, auth, pg_catalog;
 
 select plan(24);
 
