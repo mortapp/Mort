@@ -7,6 +7,7 @@ import {
 } from "../_shared/observability.ts";
 import {
   parseHibpRangeResponse,
+  readBoundedJson,
   sha1Hex,
 } from "../_shared/leaked_password.ts";
 
@@ -92,7 +93,7 @@ Deno.serve(async (request) => {
 
   let password: string;
   try {
-    const body = await readJson(request);
+    const body = await readBoundedJson(request, maximumBodyBytes);
     if (
       typeof body.password !== "string" ||
       body.password.length < 1 ||
@@ -144,22 +145,6 @@ Deno.serve(async (request) => {
     traceId,
   );
 });
-
-async function readJson(request: Request) {
-  const declaredLength = Number(request.headers.get("content-length") ?? "0");
-  if (Number.isFinite(declaredLength) && declaredLength > maximumBodyBytes) {
-    throw new Error("payload_too_large");
-  }
-  const text = await request.text();
-  if (new TextEncoder().encode(text).byteLength > maximumBodyBytes) {
-    throw new Error("payload_too_large");
-  }
-  const value = JSON.parse(text);
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("invalid_json");
-  }
-  return value as Record<string, unknown>;
-}
 
 function json(
   body: Record<string, unknown>,
