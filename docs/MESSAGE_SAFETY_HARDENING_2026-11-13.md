@@ -1,8 +1,11 @@
 # MORT Message Safety Hardening — 2026-11-13
 
 Research summary and implementation notes for the message safety scanner
-(migrations `20261113150000_message_safety_scanner.sql` and
-`20261113170000_message_safety_hardening.sql`; contracts
+(migrations `20261113150000_message_safety_scanner.sql`,
+`20261113170000_message_safety_hardening.sql` and
+`20261113180000_message_safety_rls.sql`, all in
+`supabase/production-baseline-migrations/` because they target the
+production baseline schema, not the generic local chain; contracts
 `supabase/production-baseline-tests/message_safety_scanner.test.sql` and
 `supabase/production-baseline-tests/message_safety_normalization.test.sql`).
 
