@@ -99,7 +99,7 @@ join scanner_users u
   or (c.conv_key = 'teen_teen' and u.user_key in ('teen','other_teen'));
 
 -- Helper: send as a user and return (status, reason) from the RPC payload.
-create function pg_temp.pg_temp.tmp_scanner_send(
+create function pg_temp.tmp_scanner_send(
   p_conv_key text, p_user_key text, p_body text, p_request_suffix text
 ) returns jsonb
 language plpgsql
