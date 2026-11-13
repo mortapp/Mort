@@ -83,6 +83,7 @@ declare
   v_sender_is_adult boolean := false;
   v_scan text;
   v_rule record;
+  v_logged_rules integer := 0;
 begin
   select (p.role = 'adult') into v_sender_is_adult
   from public.profiles p
@@ -123,6 +124,18 @@ begin
         new.id, new.conversation_id, new.sender_id, v_rule.id, v_rule.category, v_scan
       );
     end loop;
+    get diagnostics v_logged_rules = row_count;
+
+    -- Compact/obfuscation signals may not correspond to a configurable regex
+    -- rule. Preserve an evidence row for those detections as well.
+    if v_logged_rules = 0 then
+      insert into private.message_moderation_log(
+        message_id, conversation_id, sender_id, rule_id, category, scan_result
+      ) values (
+        new.id, new.conversation_id, new.sender_id, 'normalized-pattern',
+        'normalization', v_scan
+      );
+    end if;
 
     if new.attachment_path is not null then
       insert into private.message_moderation_log(
