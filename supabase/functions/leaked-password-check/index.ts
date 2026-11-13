@@ -70,7 +70,7 @@ Deno.serve(async (request) => {
   }
 
   const authorizationHeader = request.headers.get("authorization") ?? "";
-  const token = authorizationHeader.replace(/^Bearer\\s+/i, "").trim();
+  const token = authorizationHeader.replace(/^Bearer\s+/i, "").trim();
   if (!token) {
     return json({ error: "unauthorized" }, 401, traceId);
   }
