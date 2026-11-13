@@ -22,6 +22,16 @@ const secretNames = [
   "GEMINI_API_KEY",
   "MORT_UPLOAD_STORE_PASSWORD",
   "MORT_UPLOAD_KEY_PASSWORD",
+  "GITHUB_TOKEN",
+  "GITHUB_PAT",
+  "AWS_ACCESS_KEY_ID",
+  "AWS_SECRET_ACCESS_KEY",
+  "AWS_SESSION_TOKEN",
+  "SLACK_BOT_TOKEN",
+  "OPENAI_API_KEY",
+  "ANTHROPIC_API_KEY",
+  "GOOGLE_API_KEY",
+  "SUPABASE_ACCESS_TOKEN",
 ];
 
 const syntheticFixtureTokens = new Set([
@@ -44,6 +54,15 @@ const jwtPattern = /eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g
 const privateKeyBlockPattern =
   /-----BEGIN ((?:RSA |EC |OPENSSH )?)PRIVATE KEY-----([\s\S]*?)-----END \1PRIVATE KEY-----/g;
 const providerObjectIdPattern = /\b(?:pi|ch|tr|re|dp|po|acct|evt|cus)_[A-Za-z0-9]{6,}\b/g;
+const additionalCredentialPatterns = [
+  ["github_token_pattern", /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})\b/g],
+  ["aws_access_key_pattern", /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g],
+  ["slack_token_pattern", /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/g],
+  ["openai_api_key_pattern", /\bsk-proj-[A-Za-z0-9_-]{20,}\b/g],
+  ["anthropic_api_key_pattern", /\bsk-ant-[A-Za-z0-9_-]{20,}\b/g],
+  ["google_api_key_pattern", /\bAIza[0-9A-Za-z_-]{35}\b/g],
+  ["supabase_access_token_pattern", /\bsbp_[A-Za-z0-9]{30,}\b/g],
+];
 const providerObjectTypePattern =
   /"object"\s*:\s*"(?:payment_intent|charge|transfer|refund|dispute|payout|account|customer|event)"/i;
 const providerLivemodePattern = /"livemode"\s*:\s*(?:true|false)/i;
@@ -107,6 +126,11 @@ export function classifyHistoricalBlob(path, content) {
     if (!isSyntheticFixture(path, token)) types.add("stripe_client_secret_pattern");
   }
   clientSecretPattern.lastIndex = 0;
+  for (const [type, pattern] of additionalCredentialPatterns) {
+    pattern.lastIndex = 0;
+    if (pattern.test(content)) types.add(type);
+    pattern.lastIndex = 0;
+  }
   if (containsPrivateKeyMaterial(content)) types.add("private_key_pattern");
   for (const token of content.match(jwtPattern) ?? []) {
     if (decodeJwtPayload(token)?.role === "service_role") types.add("service_role_jwt");
@@ -144,6 +168,14 @@ function selfTest() {
   assert(classifyHistoricalBlob("app/x.ts", "whsec_REALLOOKINGVALUE123").includes("provider_credential_pattern"));
   assert(classifyHistoricalBlob("app/x.ts", "pk_live_REALLOOKINGVALUE123").includes("provider_credential_pattern"));
   assert(classifyHistoricalBlob("app/x.ts", "pi_123_secret_REALLOOKINGVALUE123").includes("stripe_client_secret_pattern"));
+  assert(classifyHistoricalBlob("app/x.ts", `github_pat_${"A".repeat(40)}`).includes("github_token_pattern"));
+  assert(classifyHistoricalBlob("app/x.ts", `ghp_${"A".repeat(40)}`).includes("github_token_pattern"));
+  assert(classifyHistoricalBlob("app/x.ts", `AKIA${"A".repeat(16)}`).includes("aws_access_key_pattern"));
+  assert(classifyHistoricalBlob("app/x.ts", `xoxb-${"A".repeat(30)}`).includes("slack_token_pattern"));
+  assert(classifyHistoricalBlob("app/x.ts", `sk-proj-${"A".repeat(30)}`).includes("openai_api_key_pattern"));
+  assert(classifyHistoricalBlob("app/x.ts", `sk-ant-${"A".repeat(30)}`).includes("anthropic_api_key_pattern"));
+  assert(classifyHistoricalBlob("app/x.ts", `AIza${"A".repeat(35)}`).includes("google_api_key_pattern"));
+  assert(classifyHistoricalBlob("app/x.ts", `sbp_${"A".repeat(40)}`).includes("supabase_access_token_pattern"));
   assert(
     classifyHistoricalBlob(
       "artifacts/stripe/provider-dump.json",
@@ -188,6 +220,14 @@ const candidatePattern = [
   "(pi|seti|src)_[A-Za-z0-9]+_secret_[A-Za-z0-9_-]{8,}",
   "(pi|ch|tr|re|dp|po|acct|evt|cus)_[A-Za-z0-9]{6,}",
   "-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----",
+  "github_pat_[A-Za-z0-9_]{20,}",
+  "gh[pousr]_[A-Za-z0-9]{20,}",
+  "(AKIA|ASIA)[A-Z0-9]{16}",
+  "xox[baprs]-[A-Za-z0-9-]{10,}",
+  "sk-proj-[A-Za-z0-9_-]{20,}",
+  "sk-ant-[A-Za-z0-9_-]{20,}",
+  "AIza[0-9A-Za-z_-]{35}",
+  "sbp_[A-Za-z0-9]{30,}",
 ].join("|");
 
 for (const commit of commits) {
