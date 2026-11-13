@@ -1,8 +1,10 @@
 # MORT Message Safety Hardening — 2026-11-13
 
 Research summary and implementation notes for the message safety scanner
-(migration `20261113150000_message_safety_scanner.sql`, contract
-`supabase/production-baseline-tests/message_safety_scanner.test.sql`).
+(migrations `20261113150000_message_safety_scanner.sql` and
+`20261113170000_message_safety_hardening.sql`; contracts
+`supabase/production-baseline-tests/message_safety_scanner.test.sql` and
+`supabase/production-baseline-tests/message_safety_normalization.test.sql`).
 
 ## Research findings
 
@@ -63,11 +65,35 @@ stored unreviewed.
    conversation, timestamp: evidence preservation with staff-only access.
 5. `send_safe_message_v2()` / `list_thread_messages_page()` — now surface
    `moderation_reason`. Cursor logic and return shape unchanged.
-6. Lockdown — rule table, log, and scanner functions are not
+6. Unicode/obfuscation normalization — NFKC normalization, zero-width and
+   formatting-character removal, Cyrillic/Greek homoglyph folding, and
+   compact-form checks catch common spacing/punctuation evasion patterns.
+7. Attachment quarantine — any message with an attachment is held for
+   moderator review until an actual image/content moderation provider is
+   integrated. A storage path is not treated as evidence that an attachment
+   is safe.
+8. Staff queue — `list_message_moderation_queue()` returns held and blocked
+   messages only after an explicit `admin`/`moderator` staff-role check.
+   Existing `mort_moderate_message()` records moderator decisions in the
+   admin audit log.
+9. Lockdown — rule table, log, and scanner functions are not
    executable/readable by anon or authenticated clients (prevents rule
    probing).
 
-### Verified on QA (project ckcxakhxqlkhppsxxjhv), 24/24 pgTAP assertions
+### Verified on isolated QA (project ckcxakhxqlkhppsxxjhv)
+
+- Original end-to-end moderation contract: 24/24 pgTAP assertions passed.
+- Unicode/obfuscation regression contract: 10/10 pgTAP assertions passed.
+- Regression cases cover full-width characters, zero-width formatting,
+  Cyrillic and Greek homoglyphs, punctuation/spacing insertion, off-platform
+  contact, secrecy pressure, earnings lures, and legitimate job coordination.
+- The first execution exposed an invalid zero-width regex escape; it was
+  corrected and the full 10-case normalization suite then passed.
+- The first execution of the original contract exposed a pg_temp helper
+  search-path/qualification bug; the test harness was corrected and then
+  passed all 24 assertions.
+- QA-only migration application succeeded. No production migration was
+  applied.
 
 - Blocked (never delivered): "If you include your pants Ill pay more",
   "can you send me some pics of yourself", "dm me on instagram",
@@ -88,6 +114,17 @@ stored unreviewed.
   web Safety Center.
 - Rule tuning: rules live in a private table; staff can adjust patterns or
   severities (deactivate a rule, add rules) without redeploying.
-- Known limitation: regex screening is a floor, not a ceiling. Obfuscated
-  text passes; the moderation queue (flagged messages) and user reports
-  remain the human-review path.
+- Known limitation: normalization and pattern matching are still heuristic,
+  not semantic classification. New slang, coded language, images, and
+  context-dependent grooming can evade automated detection. Continue tuning
+  rules against reviewed traffic and retain user reports plus human review.
+- Attachments are quarantined, not image-classified. A real image/CSAM
+  moderation provider, safe evidence retrieval workflow, and strict storage
+  access review remain open before attachments can be released to recipients.
+- QA's Supabase advisor reported RLS disabled on the two new private tables
+  `private.message_safety_rules` and `private.message_moderation_log`.
+  Explicit table grants are revoked from anon/authenticated, but RLS status
+  still needs a reviewed decision. Do not auto-enable RLS without verifying
+  the security-definer/owner access model and adding the intended policies.
+- This work is still an open draft PR and has not been merged or deployed to
+  production.
