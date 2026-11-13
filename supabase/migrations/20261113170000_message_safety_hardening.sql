@@ -11,11 +11,10 @@ as $fn$
   select lower(
     regexp_replace(
       translate(
-        regexp_replace(
+        translate(
           normalize(coalesce(p_body, ''), NFKC),
-          U&'[\\200B-\\200F\\202A-\\202E\\2060\\FEFF]',
-          '',
-          'g'
+          U&'\200B\200C\200D\200E\200F\202A\202B\202C\202D\202E\2060\FEFF',
+          ''
         ),
         'аеорсхуіјѕΑΒΕΖΗΙΚΜΝΟΡΤΥΧ',
         'aeopcxyijsABEZHIKMNOPTYX'
