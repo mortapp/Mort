@@ -27,7 +27,7 @@ begin
   end if;
   select p.role into v_role from public.profiles p where p.id = v_user;
   if v_role is distinct from 'adult'::public.mort_role
-     and not private.has_staff_role(array['admin']::public.mort_role[]) then
+     and not private.has_staff_role(array['admin','moderator']::public.mort_role[]) then
     return jsonb_build_object('ok', false, 'code', 'adult_required');
   end if;
   -- Serialize per-user quota checks so concurrent create requests cannot exceed limits.
