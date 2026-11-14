@@ -1,140 +1,78 @@
-# MORT Message Safety Hardening — 2026-11-13
+# MORT Message Safety and Messaging Launch — 2026-11-14
 
-Research summary and implementation notes for the message safety scanner
-(migrations `20261113150000_message_safety_scanner.sql`,
-`20261113170000_message_safety_hardening.sql` and
-`20261113180000_message_safety_rls.sql`, all in
-`supabase/production-baseline-migrations/` because they target the
-production baseline schema, not the generic local chain; contracts
-`supabase/production-baseline-tests/message_safety_scanner.test.sql` and
-`supabase/production-baseline-tests/message_safety_normalization.test.sql`).
+This document records the production messaging deployment and its verified client/backend contract.
 
-## Research findings
+## Production state
 
-The Nov 2026 UK reporting on resale/marketplace apps documented the exact
-abuse patterns a teen-work marketplace must defend against:
+The following migrations were applied to the authoritative production Supabase project `jxbnrkasktbhtiujkhay` on 2026-11-14:
 
-- Listings and photos posted by children and teens attracted sexualized
-  messages through platform DMs, including a buyer offering GBP 30 if a
-  15-year-old seller included her underwear with a clothing sale, and a man
-  asking whether a seven-year-old had worn a listed swimsuit ([The Guardian,
-  republished by AOL](https://www.aol.co.uk/articles/dark-side-reselling-apps-pants-125416000.html)).
-- The Children's Society warned that young users are asked for indecent
-  photos in exchange for money or gifts; photos of young users have been
-  stolen and AI-deepfaked into nudes ([Sky News](https://news.sky.com/story/government-considering-banning-under-16s-from-vinted-and-ebay-13609954)).
-- Ofcom research found 15% of children aged 8-14 use Vinted monthly and 19%
-  use eBay, showing stated age limits are routinely bypassed
-  ([Metro](https://metro.co.uk/2026/11/08/under-16s-will-banned-vinted-ebay-grooming-crackdown-29774676/));
-  the UK government is considering extending the under-16 social media ban to
-  marketplaces ([The Times](https://www.thetimes.com/article/9c9d3388-5092-4c47-ba4d-bf1cc95982c9)).
-- The CEASE/Collective Shout "TikTok to OnlyFans Pipeline" report documented
-  coded, non-explicit promotion of the sex industry to young audiences —
-  euphemisms like "corn" for porn, emoji signals, links-in-bio funnels, and
-  unrealistic-earnings glamourisation
-  ([Collective Shout / CEASE report](https://cease.org.uk/wp-content/uploads/2026/11/The_TikTok_to_OnlyFans_Pipeline_Report.pdf),
-  [Digital Trends](https://www.digitaltrends.com/social-media/researchers-uncover-tiktoks-dark-side-that-lures-young-girls-into-the-world-of-adult-content/)).
-- Meta's expansion of teen account protections centers on limiting
-  adult-to-teen contact, restricting sensitive content, and escalating
-  ambiguous patterns to human review
-  ([Meta newsroom](https://about.fb.com/news/2026/11/expanding-teen-account-protections-to-teens-around-the-world/)).
-- Indiana youth-employment law: 14-15-year-olds may not operate powered
-  mowers/trimmers; separate hazardous-occupation limits apply at 16-17
-  ([Indiana DOL](https://www.in.gov/dol/youth-employment/prohibited-and-hazardous-occupations-for-minors)).
+- `20261114160000_message_safety_scanner_launch.sql`
+- `20261114160100_message_safety_normalization_and_moderation_queue.sql`
+- `20261114160200_message_safety_private_rls.sql`
+- `20261114160300_publish_messaging_realtime.sql`
+- `20261114160400_message_notifications_and_preferences.sql`
+- `20261114160500_expand_message_safety_rules.sql`
+- `20261114160600_harden_additional_message_safety_patterns.sql`
 
-## Gap found in MORT
+Production catalog verification confirms:
+- 19 active message-safety rules.
+- A `BEFORE INSERT` scanner trigger on `public.messages`.
+- An `AFTER INSERT OR UPDATE` trigger that creates recipient notifications only after a message is approved.
+- RLS enabled on `private.message_safety_rules` and `private.message_moderation_log`, with no direct anon/authenticated table access.
+- A staff-only `list_message_moderation_queue()` RPC and audited `mort_moderate_message()` action.
+- `messages`, `conversations`, and `conversation_members` published to `supabase_realtime`.
+- `send_safe_message_v2()` remains the authenticated message-send entry point; it uses the server-side `mort_send_message()` implementation internally.
 
-`mort_send_message()` inserted every message with
-`moderation_status='pending'` and no content screening. The Flutter client
-already models `blocked`/`flagged` scanner statuses and renders them, and
-`send_safe_message_v2()` returns a `scanner_status` field — but no scanner
-existed. Recipients could never see messages at all (only 'approved' or
-sender-owned messages are returned), and predatory content would have been
-stored unreviewed.
+## Safety behavior
 
-## What was implemented (QA-verified, production pending approval)
+The server scanner maps content to the existing moderation states:
+- `clean` → `approved`, delivered to conversation recipients.
+- `flagged` → held for authorized human review.
+- `blocked` → never delivered to recipients.
 
-1. `private.message_safety_rules` — 13 operator-tunable regex rules
-   (block / flag / review severities) across categories: sexualized,
-   grooming, off-platform, financial. Uses PostgreSQL ARE syntax (`\y` word
-   boundaries, not `\b`).
-2. `private.scan_message_body()` — evaluates rules; teen senders get the
-   strictest interpretation.
-3. `messages_safety_scanner` BEFORE INSERT trigger on `public.messages` —
-   defense in depth, applies to every insert path. Maps results to existing
-   statuses: clean -> `approved` (delivered), flagged -> `flagged` (held for
-   moderator), blocked -> `blocked` (never delivered). Sets a generic,
-   non-revealing `moderation_reason` for the sender.
-4. `private.message_moderation_log` — records which rule fired, with sender,
-   conversation, timestamp: evidence preservation with staff-only access.
-5. `send_safe_message_v2()` / `list_thread_messages_page()` — now surface
-   `moderation_reason`. Cursor logic and return shape unchanged.
-6. Unicode/obfuscation normalization — NFKC normalization, zero-width and
-   formatting-character removal, Cyrillic/Greek homoglyph folding, and
-   compact-form checks catch common spacing/punctuation evasion patterns.
-7. Attachment quarantine — any message with an attachment is held for
-   moderator review until an actual image/content moderation provider is
-   integrated. A storage path is not treated as evidence that an attachment
-   is safe.
-8. Staff queue — `list_message_moderation_queue()` returns held and blocked
-   messages only after an explicit `admin`/`moderator` staff-role check.
-   Existing `mort_moderate_message()` records moderator decisions in the
-   admin audit log.
-9. Lockdown — rule table, log, and scanner functions are not
-   executable/readable by anon or authenticated clients (prevents rule
-   probing).
+The 19 active rules cover sexualized contact and image requests, grooming/secrecy patterns, off-platform contact, unrealistic earnings lures, threats, coercion/blackmail, sensitive personal-information requests, exact street addresses, off-platform payment pressure, and harassment.
 
-### Verified on isolated QA (project ckcxakhxqlkhppsxxjhv)
+Normalization includes NFKC handling, zero-width and formatting-character removal, Cyrillic/Greek homoglyph folding, and compact-form checks. The scanner is heuristic and must not be represented as semantic or perfect detection. Human reporting and review remain required.
 
-- Original end-to-end moderation contract: 24/24 pgTAP assertions passed.
-- Unicode/obfuscation regression contract: 10/10 pgTAP assertions passed.
-- Regression cases cover full-width characters, zero-width formatting,
-  Cyrillic and Greek homoglyphs, punctuation/spacing insertion, off-platform
-  contact, secrecy pressure, earnings lures, and legitimate job coordination.
-- The first execution exposed an invalid zero-width regex escape; it was
-  corrected and the full 10-case normalization suite then passed.
-- The first execution of the original contract exposed a pg_temp helper
-  search-path/qualification bug; the test harness was corrected and then
-  passed all 24 assertions.
-- QA-only migration application succeeded. No production migration was
-  applied.
+## Moderation and evidence
 
-- Blocked (never delivered): "If you include your pants Ill pay more",
-  "can you send me some pics of yourself", "dm me on instagram",
-  "keep this between us", "will you send nudes".
-- Held for moderator: "whats your snap", "earn 5000 a week".
-- Delivered: normal scheduling, "pics of the yard" (work photos, not
-  personal), realistic pay discussion.
-- Recipient thread view, previews, and unread counts contain only approved
-  content; blocked/flagged never leak.
-- Evidence preserved with sender identity and timestamps; moderators can
-  approve held messages via `mort_moderate_message`; non-staff cannot.
-- Pagination cursor verified across 3 pages with no overlap.
+- `private.message_moderation_log` records matching rule evidence for held/blocked content.
+- `list_message_moderation_queue()` returns only held/blocked messages after a server-side `admin`/`moderator` staff-role check.
+- `mort_moderate_message()` records moderator decisions in `public.admin_audit_log`.
+- The Flutter admin message route now uses the staff-authorized queue RPC instead of querying the messages table directly.
+- Moderators must supply a reason in the UI before approving, keeping blocked, or removing a message.
 
-## Scope notes
+## Notifications
 
-- Age-gating of job eligibility (Indiana mower/trimmer rules) is enforced by
-  the existing job safety review pipeline; this change documents it on the
-  web Safety Center.
-- Rule tuning: rules live in a private table; staff can adjust patterns or
-  severities (deactivate a rule, add rules) without redeploying.
-- Known limitation: normalization and pattern matching are still heuristic,
-  not semantic classification. New slang, coded language, images, and
-  context-dependent grooming can evade automated detection. Continue tuning
-  rules against reviewed traffic and retain user reports plus human review.
-- Attachments are quarantined, not image-classified. A real image/CSAM
-  moderation provider, safe evidence retrieval workflow, and strict storage
-  access review remain open before attachments can be released to recipients.
-- QA's Supabase advisor reported RLS disabled on the two new private tables
-  `private.message_safety_rules` and `private.message_moderation_log`.
-  Explicit table grants are revoked from anon/authenticated, and migration
-  `20261113180000_message_safety_rls.sql` now enables row level security on
-  both tables as defense-in-depth with no client policies: if a grant is ever
-  introduced by mistake, clients still see zero rows. The table owner bypasses
-  plain RLS, so the security-definer scanner trigger and staff moderation
-  functions keep working. FORCE RLS is deliberately not used, because it
-  would apply RLS to the owner and break the definer-path evidence writes.
-  Verified on QA: blocked/obfuscated messages still log evidence, clean
-  messages deliver, the staff queue works, and the recipient sees only
-  approved messages with RLS enabled on both tables.
-- This work is still an open draft PR and has not been merged or deployed to
-  production.
+- Approved messages create a generic `new_message` notification for the other active conversation member, if that member has message notifications enabled.
+- Held/blocked messages do not notify recipients.
+- Notification payloads contain `threadId` and `messageId`, not message body text.
+- Flutter now queries `public.notifications.user_id`, matching the production schema.
+- Notification preference read/update RPCs support categories, quiet hours, and timezone.
+- Remote FCM push delivery is explicitly disabled and unverified. In-app notifications and foreground Realtime are implemented; background push must not be claimed as working.
+
+## Realtime and client integration
+
+- Flutter subscriptions now filter `public.messages.conversation_id`, not the nonexistent `thread_id` column.
+- Flutter message decoding accepts both RPC fields (`thread_id`, `scanner_status`, `scanner_reason`) and raw Realtime fields (`conversation_id`, `moderation_status`, `moderation_reason`).
+- Flutter's send UI retains a client request ID across in-screen retries.
+- Web chat was updated in `mortapp/mort-web` PR #36 to use `send_safe_message_v2()` with a per-form idempotency key. PR #36 was merged and its production-config, typecheck, ESLint, and Next.js build checks passed.
+- Apple/Swift code was deliberately not changed. Its current repository still calls legacy RPCs `get_my_message_threads()` and `send_safe_message()`, filters `messages.thread_id`, and decodes legacy field names. Those do not match the production API and require a separate Apple-only client correction before Apple messaging can be considered launch-ready.
+
+## QA verification
+
+Isolated QA project: `ckcxakhxqlkhppsxxjhv`.
+
+- Message safety and moderation contract: **37/37 pgTAP assertions passed**.
+- Unicode/obfuscation normalization contract: **10/10 pgTAP assertions passed**.
+- Notification preference transaction test passed: default read, category update, quiet-hours/timezone persistence, and explicit remote-push-disabled status.
+- Regression coverage includes blocked/flagged/delivered content, moderator-only queue access, moderator approval delivery, recipient-only notifications, generic notification text, and deep-link payloads.
+- All synthetic QA fixtures were rolled back. No synthetic production accounts, conversations, messages, or notifications were created.
+
+## Explicit limitations
+
+- Production currently has no conversation/message rows, so live two-account delivery against real launch accounts has not yet been exercised. QA tests use synthetic accounts in the isolated QA project.
+- Chat attachments remain fail-closed: the bucket is private, there are no client Storage policies, and no upload workflow is wired. No claim of attachment support should be made.
+- Remote FCM push is disabled/unverified; in-app notifications and foreground Realtime are the currently supported delivery paths.
+- Scanner patterns are heuristic. New slang, coded language, images, and context-dependent grooming can evade detection. Continue reviewing evidence and user reports.
+- No Android AAB work and no Apple/Swift source changes were included in this backend/Flutter/web messaging work.
