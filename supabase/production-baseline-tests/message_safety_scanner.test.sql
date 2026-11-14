@@ -25,7 +25,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = pg_temp, extensions, public, auth, pg_catalog;
 
-select plan(24);
+select plan(35);
 
 -- Synthetic users -----------------------------------------------------------
 create temporary table scanner_users (
@@ -249,6 +249,40 @@ select ok(
   'sender identity and timestamp are preserved with the evidence'
 );
 
+
+-- Approved-message notifications are participant-scoped and generic.
+select is(
+  (select count(*)::int from public.notifications
+   where user_id = (select id from scanner_users where user_key='teen')
+     and notification_type = 'new_message'),
+  3,
+  'each approved message creates an in-app notification for the recipient'
+);
+
+select is(
+  (select count(*)::int from public.notifications
+   where user_id = (select id from scanner_users where user_key='adult')
+     and notification_type = 'new_message'),
+  0,
+  'message sender does not receive a recipient notification'
+);
+
+select is(
+  (select count(*)::int from public.notifications
+   where user_id = (select id from scanner_users where user_key='teen')
+     and data ->> 'threadId' = (select id::text from scanner_conv where conv_key='adult_teen')),
+  3,
+  'message notifications carry the correct conversation deep link'
+);
+
+select is(
+  (select count(*)::int from public.notifications
+   where user_id = (select id from scanner_users where user_key='teen')
+     and body = 'You have a new message in MORT.'),
+  3,
+  'message notifications never expose private message text'
+);
+
 -- 6. Human review path ------------------------------------------------------
 -- Moderator approves the held earnings-lure message.
 select set_config('request.jwt.claim.sub', (select id from scanner_users where user_key='moderator')::text, true);
@@ -280,6 +314,15 @@ select is(
   'approved-by-moderator message becomes visible to the recipient'
 );
 
+
+select is(
+  (select count(*)::int from public.notifications
+   where user_id = (select id from scanner_users where user_key='teen')
+     and notification_type = 'new_message'),
+  4,
+  'moderator approval creates the recipient notification only after delivery approval'
+);
+
 -- 7. Scanner internals are locked down --------------------------------------
 select is(
   has_function_privilege('authenticated', 'private.scan_message_body(text, boolean)', 'execute'),
@@ -303,6 +346,44 @@ select is(
   has_table_privilege('anon', 'private.message_safety_rules', 'select'),
   false,
   'anon cannot read the rule table'
+);
+
+
+-- 8. Expanded launch safety coverage ----------------------------------------
+select is(
+  (pg_temp.tmp_scanner_send('adult_teen','adult','I know where you live and I will find you','d1') ->> 'scanner_status'),
+  'blocked',
+  'direct threats are blocked'
+);
+
+select is(
+  (pg_temp.tmp_scanner_send('adult_teen','adult','Pay me or I will post your photos','d2') ->> 'scanner_status'),
+  'blocked',
+  'blackmail and coercion are blocked'
+);
+
+select is(
+  (pg_temp.tmp_scanner_send('adult_teen','adult','Send me your home address','d3') ->> 'scanner_status'),
+  'blocked',
+  'requests for sensitive location information are blocked'
+);
+
+select is(
+  (pg_temp.tmp_scanner_send('adult_teen','adult','Meet me at 123 Main Street','d4') ->> 'scanner_status'),
+  'blocked',
+  'exact street addresses are blocked'
+);
+
+select is(
+  (pg_temp.tmp_scanner_send('adult_teen','adult','Send me a gift card before I start','d5') ->> 'scanner_status'),
+  'blocked',
+  'unsafe off-platform payment pressure is blocked'
+);
+
+select is(
+  (pg_temp.tmp_scanner_send('adult_teen','adult','You are worthless','d6') ->> 'scanner_status'),
+  'flagged',
+  'harassment is held for human review'
 );
 
 select * from finish();
