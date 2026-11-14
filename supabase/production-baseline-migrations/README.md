@@ -25,3 +25,5 @@ These migrations were applied to the authoritative production Supabase project o
 - `20261114160500_expand_message_safety_rules.sql`
 
 The notification migration adds the message-recipient notification trigger, the preference RPC contract used by Flutter, and an explicit disabled/unverified remote-push status. Approved messages create generic in-app notifications only for active conversation participants who have message notifications enabled; held or blocked messages do not notify recipients. The Flutter notification repository now queries the production `notifications.user_id` column. The safety expansion adds high-confidence threat, coercion, sensitive-information, exact-address, payment-pressure, and harassment rules.
+
+- `20261114160600_harden_additional_message_safety_patterns.sql` — corrects regex boundary handling for PII requests, payment pressure, and harassment.
