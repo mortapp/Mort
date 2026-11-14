@@ -19,6 +19,22 @@ void main() {
       expect(message.body, 'What time should I arrive?');
     });
 
+    test('preserves held moderation status from raw Realtime rows', () {
+      final message = MortMessage.fromMap({
+        'id': 'message-held',
+        'conversation_id': 'conversation-held',
+        'sender_id': 'sender-1',
+        'body': 'A held message.',
+        'moderation_status': 'blocked',
+        'moderation_reason': 'Unsafe contact request.',
+      });
+
+      expect(message.threadId, 'conversation-held');
+      expect(message.scannerStatus, 'blocked');
+      expect(message.blocked, isTrue);
+      expect(message.scannerReason, 'Unsafe contact request.');
+    });
+
     test('continues to parse the RPC thread_id envelope', () {
       final message = MortMessage.fromMap({
         'id': 'message-2',
