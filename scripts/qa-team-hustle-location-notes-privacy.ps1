@@ -26,8 +26,8 @@ select
   (select count(*)::text from supabase_migrations.schema_migrations) || '|' ||
   (select max(version)::text from supabase_migrations.schema_migrations) || '|' ||
   case when to_regprocedure('public.list_team_hustles_v1()') is null then 'missing' else md5(pg_get_functiondef(to_regprocedure('public.list_team_hustles_v1()'))) end || '|' ||
-  has_table_privilege('authenticated', 'public.team_hustles', 'SELECT')::text || '|' ||
-  has_any_column_privilege('authenticated', 'public.team_hustles', 'SELECT')::text;
+  case when to_regclass('public.team_hustles') is null then 'missing' else has_table_privilege('authenticated', 'public.team_hustles', 'SELECT')::text end || '|' ||
+  case when to_regclass('public.team_hustles') is null then 'missing' else has_any_column_privilege('authenticated', 'public.team_hustles', 'SELECT')::text end;
 "@
 $before = (& docker exec $ContainerName psql -U postgres -d postgres -Atc $baselineQuery | Out-String).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect the disposable production baseline.' }
@@ -40,8 +40,36 @@ if ($baseline.Count -ne 5 -or $baseline[0] -ne '73' -or $baseline[1] -ne '202611
 # BEGIN/ROLLBACK so the migration and behavioral test share one rollback scope.
 $testSql = [regex]::Replace($test, '(?im)^begin;[ \t]*(?:\r?\n)?', '')
 $testSql = [regex]::Replace($testSql, '(?im)^rollback;[ \t]*$', '')
+$fixtureSchema = @"
+-- The pinned 73-migration production archive predates the Team Hustles table.
+-- Create the minimum schema contract only inside this disposable rollback transaction.
+CREATE TABLE IF NOT EXISTS public.team_hustles (
+  id uuid PRIMARY KEY,
+  poster_id uuid NOT NULL,
+  title text NOT NULL,
+  description text NOT NULL DEFAULT '',
+  category text NOT NULL DEFAULT 'other',
+  pay_type text NOT NULL DEFAULT 'fixed',
+  pay_amount numeric NOT NULL DEFAULT 0,
+  workers_needed integer NOT NULL DEFAULT 1,
+  city text NOT NULL DEFAULT '',
+  region text NOT NULL DEFAULT '',
+  location_notes text,
+  age_min integer NOT NULL DEFAULT 13,
+  age_max integer NOT NULL DEFAULT 17,
+  status text NOT NULL DEFAULT 'open',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS public.team_hustle_members (
+  hustle_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  PRIMARY KEY (hustle_id, user_id)
+);
+"@
 $sql = @"
 BEGIN;
+$fixtureSchema
 $migration
 $testSql
 ROLLBACK;
