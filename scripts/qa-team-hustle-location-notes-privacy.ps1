@@ -74,6 +74,13 @@ GRANT SELECT (
   status, created_at, updated_at
 ) ON public.team_hustles TO authenticated;
 GRANT SELECT ON public.team_hustles TO service_role;
+-- Supabase production has no anon SELECT on this table; normalize local default ACLs.
+REVOKE ALL ON public.team_hustles FROM anon;
+REVOKE SELECT (
+  id, poster_id, title, description, category, pay_type, pay_amount,
+  workers_needed, city, region, location_notes, age_min, age_max,
+  status, created_at, updated_at
+) ON public.team_hustles FROM anon;
 "@
 $sql = @"
 BEGIN;
