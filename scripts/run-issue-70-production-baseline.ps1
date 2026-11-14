@@ -181,6 +181,7 @@ try {
   Invoke-Supabase db reset --local --no-seed --workdir $supabaseRoot
 
   & (Join-Path $PSScriptRoot 'qa-issue-70-guardian-application-reader.ps1') -ContainerName $containerName
+  & (Join-Path $PSScriptRoot 'qa-team-hustle-location-notes-privacy.ps1') -ContainerName $containerName
 }
 finally {
   # Cleanup is scoped to the uniquely named, temporary local project only.
