@@ -22,6 +22,14 @@ const secretNames = [
   "GEMINI_API_KEY",
   "MORT_UPLOAD_STORE_PASSWORD",
   "MORT_UPLOAD_KEY_PASSWORD",
+  "GITHUB_TOKEN",
+  "GITHUB_PAT",
+  "AWS_ACCESS_KEY_ID",
+  "AWS_SECRET_ACCESS_KEY",
+  "AWS_SESSION_TOKEN",
+  "SLACK_BOT_TOKEN",
+  "GOOGLE_API_KEY",
+  "SUPABASE_ACCESS_TOKEN",
 ];
 
 const syntheticFixtureTokens = new Set([
@@ -37,6 +45,7 @@ const syntheticFixtureTokens = new Set([
   "whsec_REALLOOKINGVALUE123",
   "pk_live_REALLOOKINGVALUE123",
   "pi_123_secret_REALLOOKINGVALUE123",
+  "sb_secret_" + "test-only",
 ]);
 const providerCredentialPattern = /\b(?:sk_(?:live|test)|rk_(?:live|test)|whsec_|pk_live_|sb_secret_)[A-Za-z0-9_-]{8,}\b/g;
 const clientSecretPattern = /\b(?:pi|seti|src)_[A-Za-z0-9]+_secret_[A-Za-z0-9_-]{8,}\b/g;
@@ -44,6 +53,15 @@ const jwtPattern = /eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g
 const privateKeyBlockPattern =
   /-----BEGIN ((?:RSA |EC |OPENSSH )?)PRIVATE KEY-----([\s\S]*?)-----END \1PRIVATE KEY-----/g;
 const providerObjectIdPattern = /\b(?:pi|ch|tr|re|dp|po|acct|evt|cus)_[A-Za-z0-9]{6,}\b/g;
+const additionalCredentialPatterns = [
+  ["github_token_pattern", /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})\b/g],
+  ["aws_access_key_pattern", /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g],
+  ["slack_token_pattern", /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/g],
+  ["openai_api_key_pattern", /\bsk-proj-[A-Za-z0-9_-]{20,}\b/g],
+  ["anthropic_api_key_pattern", /\bsk-ant-[A-Za-z0-9_-]{20,}\b/g],
+  ["google_api_key_pattern", /\bAIza[0-9A-Za-z_-]{35}\b/g],
+  ["supabase_access_token_pattern", /\bsbp_[A-Za-z0-9]{30,}\b/g],
+];
 const providerObjectTypePattern =
   /"object"\s*:\s*"(?:payment_intent|charge|transfer|refund|dispute|payout|account|customer|event)"/i;
 const providerLivemodePattern = /"livemode"\s*:\s*(?:true|false)/i;
@@ -52,6 +70,7 @@ function isSyntheticFixture(path, token) {
   const normalized = path.replaceAll("\\", "/");
   const allowedFixturePath =
     normalized.startsWith("scripts/qa-stripe-") ||
+    normalized === "scripts/qa-guardian-application-reader-api.test.mjs" ||
     normalized === "scripts/secret_extraction_scan.mjs" ||
     normalized === "scripts/secret-scan-git-history.mjs" ||
     normalized === "supabase/functions/_tests/stripe_webhook_verification_test.ts" ||
@@ -107,6 +126,11 @@ export function classifyHistoricalBlob(path, content) {
     if (!isSyntheticFixture(path, token)) types.add("stripe_client_secret_pattern");
   }
   clientSecretPattern.lastIndex = 0;
+  for (const [type, pattern] of additionalCredentialPatterns) {
+    pattern.lastIndex = 0;
+    if (pattern.test(content)) types.add(type);
+    pattern.lastIndex = 0;
+  }
   if (containsPrivateKeyMaterial(content)) types.add("private_key_pattern");
   for (const token of content.match(jwtPattern) ?? []) {
     if (decodeJwtPayload(token)?.role === "service_role") types.add("service_role_jwt");
@@ -144,6 +168,14 @@ function selfTest() {
   assert(classifyHistoricalBlob("app/x.ts", "whsec_REALLOOKINGVALUE123").includes("provider_credential_pattern"));
   assert(classifyHistoricalBlob("app/x.ts", "pk_live_REALLOOKINGVALUE123").includes("provider_credential_pattern"));
   assert(classifyHistoricalBlob("app/x.ts", "pi_123_secret_REALLOOKINGVALUE123").includes("stripe_client_secret_pattern"));
+  assert(classifyHistoricalBlob("app/x.ts", `github_pat_${"A".repeat(40)}`).includes("github_token_pattern"));
+  assert(classifyHistoricalBlob("app/x.ts", `ghp_${"A".repeat(40)}`).includes("github_token_pattern"));
+  assert(classifyHistoricalBlob("app/x.ts", `AKIA${"A".repeat(16)}`).includes("aws_access_key_pattern"));
+  assert(classifyHistoricalBlob("app/x.ts", `xoxb-${"A".repeat(30)}`).includes("slack_token_pattern"));
+  assert(classifyHistoricalBlob("app/x.ts", `sk-proj-${"A".repeat(30)}`).includes("openai_api_key_pattern"));
+  assert(classifyHistoricalBlob("app/x.ts", `sk-ant-${"A".repeat(30)}`).includes("anthropic_api_key_pattern"));
+  assert(classifyHistoricalBlob("app/x.ts", `AIza${"A".repeat(35)}`).includes("google_api_key_pattern"));
+  assert(classifyHistoricalBlob("app/x.ts", `sbp_${"A".repeat(40)}`).includes("supabase_access_token_pattern"));
   assert(
     classifyHistoricalBlob(
       "artifacts/stripe/provider-dump.json",
@@ -177,7 +209,6 @@ const exactSecrets = secretNames
   .filter((value) => typeof value === "string" && value.length >= 8);
 
 const findings = new Set();
-const candidateFiles = new Set();
 const candidatePattern = [
   "eyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}",
   "sk_(test|live)_[A-Za-z0-9_-]{8,}",
@@ -188,36 +219,133 @@ const candidatePattern = [
   "(pi|seti|src)_[A-Za-z0-9]+_secret_[A-Za-z0-9_-]{8,}",
   "(pi|ch|tr|re|dp|po|acct|evt|cus)_[A-Za-z0-9]{6,}",
   "-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----",
+  "github_pat_[A-Za-z0-9_]{20,}",
+  "gh[pousr]_[A-Za-z0-9]{20,}",
+  "(AKIA|ASIA)[A-Z0-9]{16}",
+  "xox[baprs]-[A-Za-z0-9-]{10,}",
+  "sk-proj-[A-Za-z0-9_-]{20,}",
+  "sk-ant-[A-Za-z0-9_-]{20,}",
+  "AIza[0-9A-Za-z_-]{35}",
+  "sbp_[A-Za-z0-9]{30,}",
 ].join("|");
+const candidateRegex = new RegExp(candidatePattern);
 
-for (const commit of commits) {
-  if (exactSecrets.length > 0) {
-    const exact = runGit(["grep", "-I", "-l", "-F", "-f", "-", commit], {
-      input: `${exactSecrets.join("\n")}\n`,
-    });
-    if (![0, 1].includes(exact.status)) throw new Error("Git exact-value history scan failed.");
-    for (const reference of exact.stdout.split(/\r?\n/).filter(Boolean)) {
-      findings.add(`${reference}:exact_environment_value`);
+// Enumerate every (blob, path) pair ever introduced in history with a single
+// `git log --raw` pass, then read each unique blob once. Grepping the full
+// tree once per commit is quadratic in history size and exceeds the CI job
+// time budget on this repository. `--raw` lists every (object, path) change,
+// so the union of its entries covers every path a blob ever lived at.
+const rawLogResult = runGit([
+  "-c", "core.quotepath=false",
+  "log", "--all", "--raw", "--no-renames", "--no-abbrev", "-m", "--format=%H",
+]);
+if (rawLogResult.status !== 0) throw new Error("Could not enumerate Git history contents.");
+let currentCommit = "";
+const pairIntroducer = new Map();
+for (const line of rawLogResult.stdout.split(/\r?\n/)) {
+  if (line.startsWith(":")) {
+    const tabIndex = line.indexOf("\t");
+    if (tabIndex === -1 || !currentCommit) continue;
+    const filePath = line.slice(tabIndex + 1);
+    const fields = line.slice(1, tabIndex).split(" ");
+    if (fields.length < 4) continue;
+    for (const sha of [fields[2], fields[3]]) {
+      if (!/^[0-9a-f]{40}$/.test(sha)) continue;
+      const key = `${sha}\n${filePath}`;
+      if (!pairIntroducer.has(key)) pairIntroducer.set(key, currentCommit);
+    }
+  } else if (/^[0-9a-f]{40}$/.test(line)) {
+    currentCommit = line;
+  }
+}
+
+const objectType = new Map();
+const objectSize = new Map();
+const objectShas = [...new Set([...pairIntroducer.keys()].map((key) => key.slice(0, 40)))];
+if (objectShas.length > 0) {
+  const batchCheck = runGit(["cat-file", "--batch-check"], {
+    input: `${objectShas.join("\n")}\n`,
+  });
+  if (batchCheck.status !== 0) throw new Error("Could not classify Git history objects.");
+  for (const line of batchCheck.stdout.split(/\r?\n/)) {
+    const [sha, type, size] = line.split(" ");
+    if (sha && type) {
+      objectType.set(sha, type);
+      objectSize.set(sha, Number(size));
     }
   }
+}
 
-  const candidates = runGit(["grep", "-I", "-l", "-E", candidatePattern, commit]);
-  if (![0, 1].includes(candidates.status)) throw new Error("Git token-pattern history scan failed.");
-  for (const reference of candidates.stdout.split(/\r?\n/).filter(Boolean)) {
-    candidateFiles.add(reference);
+const pairsBySha = new Map();
+for (const [key, introducer] of pairIntroducer) {
+  const sha = key.slice(0, 40);
+  if (objectType.get(sha) !== "blob") continue;
+  const filePath = key.slice(41);
+  if (!pairsBySha.has(sha)) pairsBySha.set(sha, []);
+  pairsBySha.get(sha).push({ sha, filePath, introducer });
+}
+
+function readBlobChunk(shaList) {
+  const batch = spawnSync("git", ["cat-file", "--batch"], {
+    cwd: process.cwd(),
+    input: `${shaList.join("\n")}\n`,
+    maxBuffer: 128 * 1024 * 1024,
+  });
+  if (batch.error || batch.status !== 0) throw new Error("Could not read Git blob contents.");
+  const contents = new Map();
+  const output = batch.stdout;
+  let offset = 0;
+  while (offset < output.length) {
+    const headerEnd = output.indexOf(0x0a, offset);
+    if (headerEnd === -1) break;
+    const [sha, , sizeText] = output.slice(offset, headerEnd).toString("utf8").split(" ");
+    const size = Number(sizeText);
+    if (!sha || !Number.isFinite(size)) throw new Error("Could not parse Git blob batch output.");
+    const contentStart = headerEnd + 1;
+    contents.set(sha, output.slice(contentStart, contentStart + size));
+    offset = contentStart + size + 1;
+  }
+  return contents;
+}
+
+let candidateBlobsInspected = 0;
+function scanBlobChunk(shaList) {
+  for (const [sha, content] of readBlobChunk(shaList)) {
+    if (content.subarray(0, 8000).includes(0)) continue; // binary blob, same skip as `git grep -I`
+    const text = content.toString("utf8");
+    const pairs = pairsBySha.get(sha) ?? [];
+    if (exactSecrets.length > 0) {
+      for (const secret of exactSecrets) {
+        if (!text.includes(secret)) continue;
+        for (const pair of pairs) {
+          findings.add(`${pair.introducer}:${pair.filePath}:exact_environment_value`);
+        }
+      }
+    }
+    if (!candidateRegex.test(text)) continue;
+    candidateBlobsInspected += 1;
+    for (const pair of pairs) {
+      for (const type of classifyHistoricalBlob(pair.filePath, text)) {
+        findings.add(`${pair.introducer}:${pair.filePath}:${type}`);
+      }
+    }
   }
 }
 
-for (const reference of candidateFiles) {
-  const separator = reference.indexOf(":");
-  const commit = reference.slice(0, separator);
-  const filePath = reference.slice(separator + 1);
-  const blob = runGit(["show", `${commit}:${filePath}`]);
-  if (blob.status !== 0) throw new Error("Could not inspect a candidate Git blob.");
-  for (const type of classifyHistoricalBlob(filePath, blob.stdout)) {
-    findings.add(`${reference}:${type}`);
+const chunkByteLimit = 48 * 1024 * 1024;
+let chunk = [];
+let chunkBytes = 0;
+for (const sha of pairsBySha.keys()) {
+  const size = objectSize.get(sha) ?? 0;
+  if (chunk.length > 0 && chunkBytes + size > chunkByteLimit) {
+    scanBlobChunk(chunk);
+    chunk = [];
+    chunkBytes = 0;
   }
+  chunk.push(sha);
+  chunkBytes += size;
 }
+if (chunk.length > 0) scanBlobChunk(chunk);
 
 const trackedEnvironmentFiles = runGit(["ls-files", ".env", ".env.*"])
   .stdout.split(/\r?\n/)
@@ -241,7 +369,7 @@ console.log(JSON.stringify({
   status: "PASS",
   commits_scanned: commits.length,
   configured_secret_values_scanned: exactSecrets.length,
-  candidate_blobs_inspected: candidateFiles.size,
+  candidate_blobs_inspected: candidateBlobsInspected,
   findings: 0,
   secret_values_printed: false,
 }));

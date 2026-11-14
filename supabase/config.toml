@@ -57,6 +57,9 @@ verify_jwt = false
 [functions.account-deletion-processor]
 verify_jwt = false
 
+[functions.leaked-password-check]
+verify_jwt = false
+
 [functions.avatar-url]
 verify_jwt = true
 
