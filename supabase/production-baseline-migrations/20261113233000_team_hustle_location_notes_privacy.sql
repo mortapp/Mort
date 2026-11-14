@@ -54,5 +54,10 @@ begin
 end;
 $function$;
 
+-- PostgreSQL grants EXECUTE to PUBLIC on new functions by default. Remove that
+-- inherited exposure and explicitly allow only signed-in app users and backend staff.
+revoke all on function public.list_team_hustles_v1() from public, anon;
+grant execute on function public.list_team_hustles_v1() to authenticated, service_role;
+
 comment on function public.list_team_hustles_v1() is
   'Lists active team hustles; location_notes are returned only to the posting account and authorized staff. Direct authenticated table SELECT is revoked.';
