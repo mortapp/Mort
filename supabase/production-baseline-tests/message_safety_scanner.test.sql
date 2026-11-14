@@ -25,7 +25,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = pg_temp, extensions, public, auth, pg_catalog;
 
-select plan(37);
+select plan(50);
 
 -- Synthetic users -----------------------------------------------------------
 create temporary table scanner_users (
@@ -401,6 +401,147 @@ select is(
   (pg_temp.tmp_scanner_send('adult_teen','adult','You are worthless','d6') ->> 'scanner_status'),
   'flagged',
   'harassment is held for human review'
+);
+
+
+-- 9. Read receipts, blocking, and message-level safety reports ---------------
+create temporary table scanner_report_target(id uuid primary key) on commit drop;
+insert into scanner_report_target
+select (pg_temp.tmp_scanner_send(
+  'adult_teen','adult','I can meet at the public park at 4 PM.','interaction-report'
+) ->> 'id')::uuid;
+
+select ok(
+  (public.mark_message_thread_read((select id from scanner_conv where conv_key='adult_teen')) ->> 'ok') = 'true',
+  'a conversation participant can mark the thread read'
+);
+
+select ok(
+  exists (
+    select 1 from public.conversation_members
+    where conversation_id=(select id from scanner_conv where conv_key='adult_teen')
+      and user_id=(select id from scanner_users where user_key='teen')
+      and last_read_at is not null
+  ),
+  'mark-read persists the participant read timestamp'
+);
+
+select set_config('request.jwt.claim.sub',(select id::text from scanner_users where user_key='other_teen'),true);
+select is(
+  public.mark_message_thread_read((select id from scanner_conv where conv_key='adult_teen')) ->> 'code',
+  'conversation_unavailable',
+  'a non-member cannot mark another conversation read'
+);
+
+select set_config('request.jwt.claim.sub',(select id::text from scanner_users where user_key='teen'),true);
+select is(
+  public.block_user_v2((select id from scanner_users where user_key='adult'),'Safety concern') ->> 'ok',
+  'true',
+  'a participant can block the other conversation participant'
+);
+
+select ok(
+  exists (
+    select 1 from public.user_blocks
+    where blocker_id=(select id from scanner_users where user_key='teen')
+      and blocked_id=(select id from scanner_users where user_key='adult')
+  ),
+  'blocking persists in the user block table'
+);
+
+select set_config('request.jwt.claim.sub',(select id::text from scanner_users where user_key='adult'),true);
+select throws_ok(
+  'select public.send_safe_message_v2((select id from scanner_conv where conv_key=''adult_teen''), ''I can arrive at 5 PM.'', ''00000000-0000-0000-0000-000000000050''::uuid)',
+  'Messaging is unavailable',
+  'a block prevents new messages in either direction'
+);
+
+select set_config('request.jwt.claim.sub',(select id::text from scanner_users where user_key='teen'),true);
+select is(
+  public.unblock_user_v2((select id from scanner_users where user_key='adult')) ->> 'ok',
+  'true',
+  'a participant can remove their block'
+);
+
+select ok(
+  not exists (
+    select 1 from public.user_blocks
+    where blocker_id=(select id from scanner_users where user_key='teen')
+      and blocked_id=(select id from scanner_users where user_key='adult')
+  ),
+  'unblocking removes the active block'
+);
+
+select is(
+  public.submit_safety_report_v2(
+    (select id from scanner_users where user_key='adult'),
+    null,
+    (select id from scanner_report_target),
+    null,
+    null,
+    'privacy',
+    'normal',
+    false,
+    'The other participant asked me for private details.',
+    now(),
+    null,
+    'Please review this message.',
+    false,
+    '00000000-0000-0000-0000-000000000051'::uuid
+  ) ->> 'ok',
+  'true',
+  'a participant can submit a report about a message in their conversation'
+);
+
+select is(
+  (select count(*)::int from public.safety_reports
+   where reporter_id=(select id from scanner_users where user_key='teen')
+     and message_id=(select id from scanner_report_target)),
+  1,
+  'message report is persisted once for the reporting participant'
+);
+
+select is(
+  public.submit_safety_report_v2(
+    (select id from scanner_users where user_key='adult'),
+    null,
+    (select id from scanner_report_target),
+    null,
+    null,
+    'privacy',
+    'normal',
+    false,
+    'The other participant asked me for private details.',
+    now(),
+    null,
+    'Please review this message.',
+    false,
+    '00000000-0000-0000-0000-000000000051'::uuid
+  ) ->> 'replayed',
+  'true',
+  'retrying the same safety report request is idempotent'
+);
+
+select set_config('request.jwt.claim.sub',(select id::text from scanner_users where user_key='other_teen'),true);
+select is(
+  public.submit_safety_report_v2(
+    (select id from scanner_users where user_key='adult'),
+    null,
+    (select id from scanner_report_target),
+    null,
+    null,
+    'privacy',
+    'normal',
+    false,
+    'The other participant asked me for private details.',
+    now(),
+    null,
+    'Please review this message.',
+    false,
+    '00000000-0000-0000-0000-000000000052'::uuid
+  ) ->> 'code',
+  'report_target_not_authorized',
+  'a non-participant cannot report a private conversation message'
 );
 
 select * from finish();
