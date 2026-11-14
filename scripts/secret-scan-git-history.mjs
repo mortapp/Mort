@@ -45,6 +45,7 @@ const syntheticFixtureTokens = new Set([
   "whsec_REALLOOKINGVALUE123",
   "pk_live_REALLOOKINGVALUE123",
   "pi_123_secret_REALLOOKINGVALUE123",
+  "sb_secret_test-only",
 ]);
 const providerCredentialPattern = /\b(?:sk_(?:live|test)|rk_(?:live|test)|whsec_|pk_live_|sb_secret_)[A-Za-z0-9_-]{8,}\b/g;
 const clientSecretPattern = /\b(?:pi|seti|src)_[A-Za-z0-9]+_secret_[A-Za-z0-9_-]{8,}\b/g;
@@ -69,6 +70,7 @@ function isSyntheticFixture(path, token) {
   const normalized = path.replaceAll("\\", "/");
   const allowedFixturePath =
     normalized.startsWith("scripts/qa-stripe-") ||
+    normalized === "scripts/qa-guardian-application-reader-api.test.mjs" ||
     normalized === "scripts/secret_extraction_scan.mjs" ||
     normalized === "scripts/secret-scan-git-history.mjs" ||
     normalized === "supabase/functions/_tests/stripe_webhook_verification_test.ts" ||
