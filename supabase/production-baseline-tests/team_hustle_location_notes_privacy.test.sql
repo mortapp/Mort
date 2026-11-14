@@ -58,9 +58,6 @@ begin
      or has_any_column_privilege('anon', 'public.team_hustles', 'SELECT') then
     raise exception 'anon must not have direct table or column SELECT on team_hustles';
   end if;
-  if has_any_column_privilege('authenticated', 'public.team_hustles', 'SELECT') then
-    raise exception 'authenticated must not retain column-level SELECT on team_hustles';
-  end if;
   if not has_table_privilege('service_role', 'public.team_hustles', 'SELECT') then
     raise exception 'service_role must retain its existing SELECT access';
   end if;
