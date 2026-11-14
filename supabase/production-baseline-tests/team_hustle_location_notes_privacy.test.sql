@@ -50,11 +50,16 @@ do $contract$
 declare
   v_definition text := pg_get_functiondef('public.list_team_hustles_v1()'::regprocedure);
 begin
-  if has_table_privilege('authenticated', 'public.team_hustles', 'SELECT') then
-    raise exception 'authenticated must not have direct SELECT on team_hustles';
+  if has_table_privilege('authenticated', 'public.team_hustles', 'SELECT')
+     or has_any_column_privilege('authenticated', 'public.team_hustles', 'SELECT') then
+    raise exception 'authenticated must not retain table or column SELECT on team_hustles';
   end if;
-  if has_table_privilege('anon', 'public.team_hustles', 'SELECT') then
-    raise exception 'anon must not have direct SELECT on team_hustles';
+  if has_table_privilege('anon', 'public.team_hustles', 'SELECT')
+     or has_any_column_privilege('anon', 'public.team_hustles', 'SELECT') then
+    raise exception 'anon must not have direct table or column SELECT on team_hustles';
+  end if;
+  if has_any_column_privilege('authenticated', 'public.team_hustles', 'SELECT') then
+    raise exception 'authenticated must not retain column-level SELECT on team_hustles';
   end if;
   if not has_table_privilege('service_role', 'public.team_hustles', 'SELECT') then
     raise exception 'service_role must retain its existing SELECT access';
