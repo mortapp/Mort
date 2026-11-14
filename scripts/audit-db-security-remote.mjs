@@ -120,10 +120,20 @@ try {
   `);
 
   // --- Staff / admin / moderator assignments ---
-  await dump("admin_role_assignments", `
-    select * from public.admin_role_assignments
-    order by assigned_at
+  await dump("staff_role_assignments", `
+    select ur.user_id, ur.role, ur.granted_at, ur.granted_by, u.email
+    from private.user_roles ur
+    left join auth.users u on u.id = ur.user_id
+    order by ur.role, ur.granted_at
   `);
+  try {
+    await dump("admin_role_assignments", `
+      select * from public.admin_role_assignments
+      order by assigned_at
+    `);
+  } catch {
+    // Table not present on this project — private.user_roles is authoritative.
+  }
 
   // --- Auth users summary (owner audit surface; includes staff/verifiers) ---
   await dump("auth_users", `
