@@ -16,7 +16,7 @@ if ($LASTEXITCODE -ne 0 -or $running -ne 'true') {
 }
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$migrationPath = Join-Path $repoRoot 'supabase\production-baseline-migrations\20261113233000_team_hustle_location_notes_privacy.sql'
+$migrationPath = Join-Path $repoRoot 'supabase\production-baseline-migrations\20261114145310_team_hustle_location_notes_privacy.sql'
 $testPath = Join-Path $repoRoot 'supabase\production-baseline-tests\team_hustle_location_notes_privacy.test.sql'
 $migration = Get-Content -LiteralPath $migrationPath -Raw
 $test = Get-Content -LiteralPath $testPath -Raw
