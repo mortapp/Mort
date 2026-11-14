@@ -90,10 +90,10 @@ class _AdminMessageModerationScreenState
     setState(() => _busyId = id);
     try {
       await ref.read(adminRepositoryProvider).moderateMessage(
-            messageId: id,
-            status: status,
-            reason: reason,
-          );
+        messageId: id,
+        status: status,
+        reason: reason,
+      );
       if (!mounted) return;
       MortToast.show(context, 'The moderation decision was recorded.');
       _refresh();
