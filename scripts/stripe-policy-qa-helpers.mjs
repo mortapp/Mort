@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import pg from "pg";
+import { assertFeatureQaTarget } from "./feature-qa-target-guard.mjs";
 
 const databaseUrl = process.env.SUPABASE_DB_URL;
 
@@ -27,16 +28,13 @@ export async function expectDatabaseError(operation, expectedPattern, database) 
 }
 
 export async function withLocalDatabase(scope, run) {
-  const database = process.env.MORT_QA_USE_HOSTED === "true"
-    ? new pg.Client({
-      host: "db.jxbnrkasktbhtiujkhay.supabase.co",
-      port: 5432,
-      database: "postgres",
-      user: "postgres",
-      password: required("SUPABASE_DB_PASSWORD"),
-      ssl: { rejectUnauthorized: false },
-    })
-    : new pg.Client({ connectionString: required("SUPABASE_DB_URL") });
+  const databaseUrl = required("SUPABASE_DB_URL");
+  const supabaseUrl = required("EXPO_PUBLIC_SUPABASE_URL");
+  const projectRef = process.env.MORT_SUPABASE_PROJECT_REF ||
+    new URL(supabaseUrl).hostname.split(".")[0];
+  const localQa = process.env.MORT_QA_LOCAL_SUPABASE === "true";
+  assertFeatureQaTarget({ projectRef, supabaseUrl, dbUrl: databaseUrl, localQa });
+  const database = new pg.Client({ connectionString: databaseUrl });
   database.on("error", () => {});
   await database.connect();
   await database.query("begin");

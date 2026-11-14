@@ -49,7 +49,7 @@ function normalizeBoolean(value) {
 }
 
 function expectedWebhookUrl(projectRef) {
-  return `https://${projectRef}.supabase.co/functions/v1/stripe-webhook`;
+  return `https://${projectRef}.supabase.co/functions/v1/stripe-assignment-webhook`;
 }
 
 export function evaluatePreProviderGate(input, now = new Date()) {
@@ -81,10 +81,10 @@ export function evaluatePreProviderGate(input, now = new Date()) {
       id: "test_webhook_endpoint",
       pass:
         webhookEnvironment === "test" &&
-        functionNames.has("stripe-webhook") &&
+        functionNames.has("stripe-assignment-webhook") &&
         webhookUrl === expectedWebhookUrl(projectRef),
       detail:
-        webhookEnvironment === "test" && functionNames.has("stripe-webhook") && webhookUrl === expectedWebhookUrl(projectRef)
+        webhookEnvironment === "test" && functionNames.has("stripe-assignment-webhook") && webhookUrl === expectedWebhookUrl(projectRef)
           ? "configured"
           : "missing_or_mismatched",
     },

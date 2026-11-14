@@ -9,7 +9,7 @@ $root = Resolve-Path "$PSScriptRoot\.."
 
 $expectedSha1 = '7F:3E:52:5C:05:F3:D8:72:C1:68:63:08:EA:F2:79:5A:8E:96:D9:97'
 $expectedUrl = 'https://jxbnrkasktbhtiujkhay.supabase.co'
-$publicAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYXNlIiwicmVmIjoicmFranlkbWd3d2d0ZGlzbGFuYnQiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc4MTg3MTE3NSwiZXhwIjoyMDk3NDQ3MTc1fQ.DorOgj6jdPTrPX45Vi0O1dYgx-e3zgO6_S39JDcL2Ww'
+$publicAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4Ym5ya2Fza3RiaHRpdWpraGF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwMjE2NjcsImV4cCI6MjEwODU5NzY2N30.oNHdfbR27JrTxVO7-GM1SjS9sOdrkumoGNzMS97KjQE'
 
 $signing = Get-MortUploadSigning
 if (-not (Test-Path -LiteralPath $signing.StorePath -PathType Leaf)) {
