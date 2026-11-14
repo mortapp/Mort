@@ -47,6 +47,8 @@ begin
       from public.team_hustles th
       join public.profiles p on p.id = th.poster_id
       where th.created_at > now() - interval '60 days'
+      order by (th.status = 'open') desc, th.created_at desc
+      limit 50
     ) h
   ), '[]'::jsonb);
 end;
