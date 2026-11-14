@@ -66,6 +66,14 @@ CREATE TABLE IF NOT EXISTS public.team_hustle_members (
   user_id uuid NOT NULL,
   PRIMARY KEY (hustle_id, user_id)
 );
+-- Reproduce the production pre-migration ACL state, including explicit column grants.
+GRANT SELECT ON public.team_hustles TO authenticated;
+GRANT SELECT (
+  id, poster_id, title, description, category, pay_type, pay_amount,
+  workers_needed, city, region, location_notes, age_min, age_max,
+  status, created_at, updated_at
+) ON public.team_hustles TO authenticated;
+GRANT SELECT ON public.team_hustles TO service_role;
 "@
 $sql = @"
 BEGIN;
