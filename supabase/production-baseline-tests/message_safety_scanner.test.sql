@@ -284,7 +284,8 @@ select is(
 );
 
 -- 6. Human review path ------------------------------------------------------
--- Moderator approves the held earnings-lure message.
+select set_config('request.jwt.claim.sub', (select id from scanner_users where user_key='moderator')::text, true);
+
 -- The staff queue exposes held messages only to authorized reviewers.
 select ok(
   exists (
@@ -295,7 +296,7 @@ select ok(
   'authorized moderator can retrieve held messages from the review queue'
 );
 
-select set_config('request.jwt.claim.sub', (select id from scanner_users where user_key='moderator')::text, true);
+-- Moderator approves the held earnings-lure message.
 select ok(
   public.mort_moderate_message(
     (select m.id from public.messages m
@@ -307,14 +308,14 @@ select ok(
   'moderator can approve a held message'
 );
 
--- Non-staff cannot moderate.
+-- Non-staff cannot access either moderation endpoint.
+select set_config('request.jwt.claim.sub', (select id from scanner_users where user_key='teen')::text, true);
 select throws_ok(
   'select public.list_message_moderation_queue(50)',
   'Authorized moderation role required',
   'non-staff teen cannot read the message moderation queue'
 );
 
-select set_config('request.jwt.claim.sub', (select id from scanner_users where user_key='teen')::text, true);
 select throws_ok(
   'select public.mort_moderate_message((select m.id from public.messages m limit 1), ''approved'', ''x'')',
   'Authorized moderation role required',
