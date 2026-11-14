@@ -10,7 +10,9 @@ class AdminRepository extends RepositoryBase {
       params: {'p_limit': limit.clamp(1, 100)},
     );
     if (result is! Map) {
-      throw StateError('The message moderation queue returned an invalid response.');
+      throw StateError(
+        'The message moderation queue returned an invalid response.',
+      );
     }
     final value = Map<String, dynamic>.from(result);
     final items = value['items'];
@@ -39,6 +41,7 @@ class AdminRepository extends RepositoryBase {
       throw StateError('The message moderation action was not confirmed.');
     }
   }
+
   Future<Map<String, dynamic>> moderationRecord({
     required String recordType,
     required String recordId,
