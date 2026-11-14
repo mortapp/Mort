@@ -174,7 +174,7 @@ class MortMessage {
   factory MortMessage.fromMap(Map<String, dynamic> json) {
     return MortMessage(
       id: json['id'].toString(),
-      threadId: json['thread_id'].toString(),
+      threadId: (json['thread_id'] ?? json['conversation_id']).toString(),
       senderId: json['sender_id'].toString(),
       body: (json['body'] as String?) ?? '',
       scannerStatus: (json['scanner_status'] as String?) ?? 'clean',
