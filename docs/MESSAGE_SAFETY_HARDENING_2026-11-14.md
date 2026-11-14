@@ -63,10 +63,10 @@ Normalization includes NFKC handling, zero-width and formatting-character remova
 
 Isolated QA project: `ckcxakhxqlkhppsxxjhv`.
 
-- Message safety and moderation contract: **37/37 pgTAP assertions passed**.
+- Message safety, moderation, read receipts, blocking, and message-report contract: **49/49 pgTAP assertions passed**.
 - Unicode/obfuscation normalization contract: **10/10 pgTAP assertions passed**.
 - Notification preference transaction test passed: default read, category update, quiet-hours/timezone persistence, and explicit remote-push-disabled status.
-- Regression coverage includes blocked/flagged/delivered content, moderator-only queue access, moderator approval delivery, recipient-only notifications, generic notification text, and deep-link payloads.
+- Regression coverage includes blocked/flagged/delivered content, moderator-only queue access, moderator approval delivery, recipient-only notifications, generic notification text, deep-link payloads, read receipts, participant-only blocking, blocked-send enforcement, message-level safety reports, and idempotent report retries.
 - All synthetic QA fixtures were rolled back. No synthetic production accounts, conversations, messages, or notifications were created.
 
 ## Explicit limitations
