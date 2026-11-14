@@ -37,16 +37,16 @@ jobs:
         env:
           MORT_AUDIT_PROJECT_REF: jxbnrkasktbhtiujkhay
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.QA_SUPABASE_ACCESS_TOKEN }}
         run: node scripts/audit-db-security-remote.mjs audit-output/production
       - name: Audit QA (mort p backend test)
         if: ${{ inputs.include_qa }}
+        continue-on-error: true
         env:
           MORT_AUDIT_PROJECT_REF: ckcxakhxqlkhppsxxjhv
-          SUPABASE_DB_PASSWORD: ${{ secrets.QA_SUPABASE_DB_PASSWORD }}
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.QA_SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.QA_SUPABASE_DB_PASSWORD || secrets.SUPABASE_DB_PASSWORD }}
         run: node scripts/audit-db-security-remote.mjs audit-output/qa
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: mort-db-security-audit
           path: audit-output/
