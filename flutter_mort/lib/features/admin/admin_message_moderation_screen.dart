@@ -75,10 +75,7 @@ class _AdminMessageModerationScreenState
     return result;
   }
 
-  Future<void> _moderate(
-    Map<String, dynamic> message,
-    String status,
-  ) async {
+  Future<void> _moderate(Map<String, dynamic> message, String status) async {
     final id = message['id']?.toString();
     if (id == null || id.isEmpty || _busyId != null) return;
     final reason = await _reason(switch (status) {
@@ -89,11 +86,9 @@ class _AdminMessageModerationScreenState
     if (reason == null || !mounted) return;
     setState(() => _busyId = id);
     try {
-      await ref.read(adminRepositoryProvider).moderateMessage(
-        messageId: id,
-        status: status,
-        reason: reason,
-      );
+      await ref
+          .read(adminRepositoryProvider)
+          .moderateMessage(messageId: id, status: status, reason: reason);
       if (!mounted) return;
       MortToast.show(context, 'The moderation decision was recorded.');
       _refresh();
