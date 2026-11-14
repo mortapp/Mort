@@ -140,7 +140,8 @@ class _AdminMessageModerationScreenState
             if (messages.isEmpty) {
               return const MortEmptyState(
                 title: 'No messages awaiting review',
-                message: 'The server has no flagged or blocked messages in the queue.',
+                message:
+                    'The server has no flagged or blocked messages in the queue.',
               );
             }
             return Column(
@@ -192,7 +193,8 @@ class _MessageReviewCard extends StatelessWidget {
             runSpacing: MortSpacing.xs,
             children: [
               MortBadge(label: status),
-              if (hasAttachment) const MortBadge(label: 'Attachment quarantined'),
+              if (hasAttachment)
+                const MortBadge(label: 'Attachment quarantined'),
             ],
           ),
           const SizedBox(height: MortSpacing.sm),
