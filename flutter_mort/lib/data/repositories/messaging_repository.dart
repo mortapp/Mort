@@ -85,7 +85,7 @@ class MessagingRepository extends RepositoryBase {
           table: 'messages',
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
-            column: 'thread_id',
+            column: 'conversation_id',
             value: threadId,
           ),
           callback: (payload) {

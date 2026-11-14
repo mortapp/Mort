@@ -39,6 +39,7 @@ import '../../features/payments/screens/payment_review_screen.dart';
 import '../../features/history/screens/job_payment_history_screen.dart';
 import '../../features/receipts/screens/receipt_detail_screen.dart';
 import '../../features/admin/admin_moderation_detail_screen.dart';
+import '../../features/admin/admin_message_moderation_screen.dart';
 import '../../features/admin/admin_operational_alerts_screen.dart';
 import '../../features/auth/google_auth_screens.dart';
 import '../../features/auth/unified_auth_screen.dart';
@@ -744,11 +745,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       _guarded(
         '/admin/messages',
-        const AdminQueueScreen(
-          title: 'Flagged messages',
-          table: 'messages',
-          statusField: 'scanner_status',
-        ),
+        const SensitiveScreenProtection(child: AdminMessageModerationScreen()),
         role: UserRole.admin,
       ),
       _guarded(

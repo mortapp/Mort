@@ -1,6 +1,47 @@
 import 'repository_base.dart';
 
 class AdminRepository extends RepositoryBase {
+  Future<List<Map<String, dynamic>>> messageModerationQueue({
+    int limit = 50,
+  }) async {
+    requireUserId();
+    final result = await client.rpc(
+      'list_message_moderation_queue',
+      params: {'p_limit': limit.clamp(1, 100)},
+    );
+    if (result is! Map) {
+      throw StateError(
+        'The message moderation queue returned an invalid response.',
+      );
+    }
+    final value = Map<String, dynamic>.from(result);
+    final items = value['items'];
+    if (items is! List) return const [];
+    return items
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
+  }
+
+  Future<void> moderateMessage({
+    required String messageId,
+    required String status,
+    required String reason,
+  }) async {
+    requireUserId();
+    final result = await client.rpc(
+      'mort_moderate_message',
+      params: {
+        'p_message_id': messageId,
+        'p_status': status,
+        'p_reason': reason.trim(),
+      },
+    );
+    if (result == null || result.toString().isEmpty) {
+      throw StateError('The message moderation action was not confirmed.');
+    }
+  }
+
   Future<Map<String, dynamic>> moderationRecord({
     required String recordType,
     required String recordId,
