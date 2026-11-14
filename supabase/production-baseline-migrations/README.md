@@ -20,3 +20,8 @@ The launch migrations are recorded in order:
 - `20261114160300_publish_messaging_realtime.sql`
 
 These migrations were applied to the authoritative production Supabase project on 2026-11-14 and verified against the live catalog. The isolated regression contracts are in `supabase/production-baseline-tests/message_safety_scanner.test.sql` and `message_safety_normalization.test.sql`. Keep these files in the production-baseline chain; do not move them into the generic local migration chain.
+
+- `20261114160400_message_notifications_and_preferences.sql`
+- `20261114160500_expand_message_safety_rules.sql`
+
+The notification migration adds the message-recipient notification trigger, the preference RPC contract used by Flutter, and an explicit disabled/unverified remote-push status. Approved messages create generic in-app notifications only for active conversation participants who have message notifications enabled; held or blocked messages do not notify recipients. The Flutter notification repository now queries the production `notifications.user_id` column. The safety expansion adds high-confidence threat, coercion, sensitive-information, exact-address, payment-pressure, and harassment rules.
