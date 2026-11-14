@@ -178,10 +178,9 @@ class MortMessage {
       senderId: json['sender_id'].toString(),
       body: (json['body'] as String?) ?? '',
       scannerStatus:
-          (json['scanner_status'] ?? json['moderation_status'] as String?) ??
-          'clean',
-      scannerReason:
-          (json['scanner_reason'] ?? json['moderation_reason']) as String?,
+          (json['scanner_status'] ?? json['moderation_status'] ?? 'clean')
+              .toString(),
+      scannerReason: (json['scanner_reason'] ?? json['moderation_reason'])?.toString(),
       createdAt: DateTime.tryParse((json['created_at'] ?? '').toString()),
     );
   }
