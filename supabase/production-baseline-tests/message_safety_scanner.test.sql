@@ -411,6 +411,7 @@ select (pg_temp.tmp_scanner_send(
   'adult_teen','adult','I can meet at the public park at 4 PM.','interaction-report'
 ) ->> 'id')::uuid;
 
+select set_config('request.jwt.claim.sub',(select id::text from scanner_users where user_key='teen'),true);
 select ok(
   (public.mark_message_thread_read((select id from scanner_conv where conv_key='adult_teen')) ->> 'ok') = 'true',
   'a conversation participant can mark the thread read'
