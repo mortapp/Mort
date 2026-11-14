@@ -25,7 +25,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = pg_temp, extensions, public, auth, pg_catalog;
 
-select plan(35);
+select plan(37);
 
 -- Synthetic users -----------------------------------------------------------
 create temporary table scanner_users (
@@ -285,6 +285,16 @@ select is(
 
 -- 6. Human review path ------------------------------------------------------
 -- Moderator approves the held earnings-lure message.
+-- The staff queue exposes held messages only to authorized reviewers.
+select ok(
+  exists (
+    select 1
+    from jsonb_array_elements(public.list_message_moderation_queue(50) -> 'items') item
+    where item ->> 'body' = 'earn 5000 a week'
+  ),
+  'authorized moderator can retrieve held messages from the review queue'
+);
+
 select set_config('request.jwt.claim.sub', (select id from scanner_users where user_key='moderator')::text, true);
 select ok(
   public.mort_moderate_message(
@@ -298,6 +308,12 @@ select ok(
 );
 
 -- Non-staff cannot moderate.
+select throws_ok(
+  'select public.list_message_moderation_queue(50)',
+  'Authorized moderation role required',
+  'non-staff teen cannot read the message moderation queue'
+);
+
 select set_config('request.jwt.claim.sub', (select id from scanner_users where user_key='teen')::text, true);
 select throws_ok(
   'select public.mort_moderate_message((select m.id from public.messages m limit 1), ''approved'', ''x'')',
