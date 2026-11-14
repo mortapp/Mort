@@ -177,7 +177,9 @@ try {
            (p.proconfig is not null and array_to_string(p.proconfig, ',') like '%search_path%') as has_search_path,
            (p.proacl is null or exists (select 1 from aclexplode(p.proacl) a
                     where a.grantee = 'authenticated'::regrole::oid)) as executable_by_authenticated_default,
-           (pg_get_functiondef(p.oid) ~ 'auth\\.uid\\(|auth\\.role\\(|current_setting\\(''request\\.jwt'')') as mentions_identity_check
+           (strpos(pg_get_functiondef(p.oid), 'auth.uid(') > 0
+             or strpos(pg_get_functiondef(p.oid), 'auth.role(') > 0
+             or strpos(pg_get_functiondef(p.oid), 'request.jwt.claims') > 0) as mentions_identity_check
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public'
