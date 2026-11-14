@@ -177,8 +177,11 @@ class MortMessage {
       threadId: (json['thread_id'] ?? json['conversation_id']).toString(),
       senderId: json['sender_id'].toString(),
       body: (json['body'] as String?) ?? '',
-      scannerStatus: (json['scanner_status'] as String?) ?? 'clean',
-      scannerReason: json['scanner_reason'] as String?,
+      scannerStatus:
+          (json['scanner_status'] ?? json['moderation_status'] as String?) ??
+          'clean',
+      scannerReason:
+          (json['scanner_reason'] ?? json['moderation_reason']) as String?,
       createdAt: DateTime.tryParse((json['created_at'] ?? '').toString()),
     );
   }
