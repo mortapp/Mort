@@ -67,6 +67,9 @@ begin
   if has_function_privilege('anon', 'public.list_team_hustles_v1()', 'EXECUTE') then
     raise exception 'anon must not execute the team-hustle listing RPC';
   end if;
+  if not has_function_privilege('service_role', 'public.list_team_hustles_v1()', 'EXECUTE') then
+    raise exception 'service_role must retain the team-hustle listing RPC';
+  end if;
   if position('th.location_notes' in v_definition) = 0
      or position('th.poster_id = v_user' in v_definition) = 0
      or position('private.has_staff_role' in v_definition) = 0 then
