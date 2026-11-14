@@ -1,5 +1,6 @@
 import {
   parseHibpRangeResponse,
+  readBoundedJson,
   sha1Hex,
 } from "../_shared/leaked_password.ts";
 
@@ -46,8 +47,7 @@ Deno.test("bounded JSON reader accepts a small object without content-length", a
     method: "POST",
     body: JSON.stringify({ password: "example" }),
   });
-  const result = await (await import("../_shared/leaked_password.ts"))
-    .readBoundedJson(request, 2048);
+  const result = await readBoundedJson(request, 2048);
   if (result.password !== "example") {
     throw new Error("Expected the bounded reader to parse a valid object.");
   }
@@ -60,8 +60,7 @@ Deno.test("bounded JSON reader rejects oversized streamed bodies", async () => {
   });
   let rejected = false;
   try {
-    const helper = await import("../_shared/leaked_password.ts");
-    await helper.readBoundedJson(request, 2048);
+    await readBoundedJson(request, 2048);
   } catch {
     rejected = true;
   }
