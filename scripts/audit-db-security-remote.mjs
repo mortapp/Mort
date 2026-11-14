@@ -63,7 +63,7 @@ try {
     select n.nspname as schema_name,
            p.proname as function_name,
            pg_get_function_identity_arguments(p.oid) as identity_args,
-           coalesce(a.grantee, 'PUBLIC') as grantee,
+           coalesce(nullif(a.grantee, 0)::regrole::text, 'PUBLIC') as grantee,
            a.privilege_type
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
@@ -165,8 +165,8 @@ try {
            pg_get_function_identity_arguments(p.oid) as identity_args,
            p.prosecdef as security_definer,
            (p.proconfig is not null and array_to_string(p.proconfig, ',') like '%search_path%') as has_search_path,
-           exists (select 1 from aclexplode(p.proacl) a
-                    where a.grantee = 'authenticated'::regrole or p.proacl is null) as executable_by_authenticated_default,
+           (p.proacl is null or exists (select 1 from aclexplode(p.proacl) a
+                    where a.grantee = 'authenticated'::regrole::oid)) as executable_by_authenticated_default,
            (pg_get_functiondef(p.oid) ~ 'auth\\.uid\\(|auth\\.role\\(|current_setting\\(''request\\.jwt'')') as mentions_identity_check
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
