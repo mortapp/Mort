@@ -25,7 +25,7 @@ $baselineQuery = @"
 select
   (select count(*)::text from supabase_migrations.schema_migrations) || '|' ||
   (select max(version)::text from supabase_migrations.schema_migrations) || '|' ||
-  md5(pg_get_functiondef('public.list_team_hustles_v1()'::regprocedure)) || '|' ||
+  case when to_regprocedure('public.list_team_hustles_v1()') is null then 'missing' else md5(pg_get_functiondef(to_regprocedure('public.list_team_hustles_v1()'))) end || '|' ||
   has_table_privilege('authenticated', 'public.team_hustles', 'SELECT')::text || '|' ||
   has_any_column_privilege('authenticated', 'public.team_hustles', 'SELECT')::text;
 "@
