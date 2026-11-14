@@ -3,6 +3,13 @@
 -- are disclosed only to the poster and authorized staff.
 
 revoke select on table public.team_hustles from authenticated;
+-- Production currently has explicit per-column SELECT grants as well as a table grant.
+-- Revoking the table grant alone leaves those column grants active.
+revoke select (
+  id, poster_id, title, description, category, pay_type, pay_amount,
+  workers_needed, city, region, location_notes, age_min, age_max,
+  status, created_at, updated_at
+) on table public.team_hustles from authenticated;
 
 create or replace function public.list_team_hustles_v1()
 returns jsonb
