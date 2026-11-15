@@ -241,7 +241,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       _guarded(
         '/teen/profile/edit',
-        const ProfileSetupScreen(initialRole: UserRole.teen),
+        _pilotUnavailable(
+          'Profile editing',
+          'Production does not expose a profile-update RPC yet. Your saved profile remains unchanged.',
+        ),
         role: UserRole.teen,
       ),
       _guarded(
@@ -365,7 +368,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       _guarded(
         '/adult/profile',
-        const ProfileSetupScreen(initialRole: UserRole.adult),
+        _pilotUnavailable(
+          'Profile editing',
+          'Production does not expose a profile-update RPC yet. Your saved profile remains unchanged.',
+        ),
         role: UserRole.adult,
       ),
       _guarded(
@@ -1004,7 +1010,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         const JobPaymentHistoryScreen(backendUnavailable: true),
       ),
       _guarded('/settings/blocked-users', const BlockedUsersScreen()),
-      _guarded('/settings/profile', const ProfileSetupScreen()),
+      _guarded(
+        '/settings/profile',
+        _pilotUnavailable(
+          'Profile editing',
+          'Production does not expose a profile-update RPC yet. Your saved profile remains unchanged.',
+        ),
+      ),
       _guarded('/settings/connected-accounts', const ConnectedAccountsScreen()),
       _guarded('/settings/guardian-mode', const GuardianModeScreen()),
       _guarded('/settings/username', const UsernameSettingsScreen()),

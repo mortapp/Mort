@@ -162,7 +162,7 @@ class Job {
       category: (json['category'] as String?) ?? 'other safe local work',
       locationText: (json['location_text'] as String?) ?? 'General area',
       city: (json['city'] as String?) ?? '',
-      state: (json['state'] as String?) ?? '',
+      state: (json['region'] ?? json['state']) as String? ?? '',
       status: (json['status'] as String?) ?? 'draft',
       requiresGuardianApproval: json['requires_guardian_approval'] == true,
       adultJobAmountCents: json['adult_job_amount_cents'] as int?,
@@ -377,7 +377,7 @@ class JobDraft {
       ..title = json['title']?.toString() ?? ''
       ..summary = json['summary']?.toString() ?? ''
       ..description = json['description']?.toString() ?? ''
-      ..category = json['category']?.toString() ?? 'cleaning'
+      ..category = _productionCategory(json['category'])
       ..estimatedDurationMinutes = _nullableInt(
         json['estimated_duration_minutes'],
       )
@@ -441,7 +441,7 @@ class JobDraft {
   String title = '';
   String summary = '';
   String description = '';
-  String category = 'cleaning';
+  String category = 'household_help';
   int? estimatedDurationMinutes;
   int workersNeeded = 1;
   String experienceLevel = 'any';
@@ -543,6 +543,27 @@ class JobDraft {
   static int? _nullableInt(Object? value) {
     if (value is int) return value;
     return int.tryParse(value?.toString() ?? '');
+  }
+
+  static String _productionCategory(Object? value) {
+    final category = value?.toString().trim().toLowerCase() ?? '';
+    return switch (category) {
+      'pet_care' || 'pet care' || 'dog walking' => 'pet_care',
+      'yard_work' || 'lawn care' || 'snow removal' ||
+      'painting/light maintenance' => 'yard_work',
+      'tutoring' => 'tutoring',
+      'tech_help' || 'technology help' => 'tech_help',
+      'household_help' || 'cleaning' || 'trash and recycling' ||
+      'organization' => 'household_help',
+      'moving_help' || 'moving/light lifting' => 'moving_help',
+      'other' ||
+      'errands' ||
+      'event setup' ||
+      'car washing' ||
+      'delivery where legally appropriate' ||
+      'other safe local work' => 'other',
+      _ => 'other',
+    };
   }
 
   static DateTime? _date(Object? value) =>

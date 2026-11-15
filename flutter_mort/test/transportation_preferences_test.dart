@@ -38,15 +38,19 @@ void main() {
     expect(migration, isNot(contains('add column if not exists address')));
   });
 
-  test('transportation client uses the authenticated RPC write path', () {
+  test('legacy transportation route fails closed against the live backend', () {
     final repository = File(
       'lib/data/repositories/profile_repository.dart',
     ).readAsStringSync();
+    final router = File('lib/core/routing/app_router.dart').readAsStringSync();
     final screen = File(
       'lib/features/onboarding/transportation_screen.dart',
     ).readAsStringSync();
 
-    expect(repository, contains("'save_my_transportation_preferences'"));
+    expect(repository, isNot(contains("'save_my_transportation_preferences'")));
+    expect(repository, contains('throw _legacyOnboardingUnavailable'));
+    expect(router, contains("'/onboarding/transportation'"));
+    expect(router, contains('legacyOnboardingPaths'));
     expect(repository, isNot(contains(".from('profiles').update")));
     expect(screen, contains('never guarantee a ride'));
     expect(screen, contains('reveal your home address'));
@@ -59,10 +63,10 @@ void main() {
       'poster_id': '00000000-0000-0000-0000-000000000020',
       'title': 'Yard cleanup',
       'description': 'Gather leaves in a visible shared yard.',
-      'category': 'lawn care',
+      'category': 'yard_work',
       'location_text': 'North side',
       'city': 'Indianapolis',
-      'state': 'IN',
+      'region': 'IN',
       'status': 'open',
       'acceptable_transportation_methods': ['walking', 'bicycle'],
       'transportation_considerations': 'Near a public bus stop.',
@@ -73,12 +77,21 @@ void main() {
           ..transportationConsiderations = 'Public meeting point';
 
     expect(job.acceptableTransportationMethods, ['walking', 'bicycle']);
+    expect(job.state, 'IN');
+    expect(job.category, 'yard_work');
     expect(job.transportationConsiderations, 'Near a public bus stop.');
     expect(draft.toMap()['acceptable_transportation_methods'], ['walking']);
     expect(
       draft.toMap()['transportation_considerations'],
       'Public meeting point',
     );
+    expect(draft.toMap()['category'], 'household_help');
+
+    final legacyDraft = JobDraft.fromLocalMap({
+      ...draft.toLocalMap(activeStep: 2),
+      'category': 'dog walking',
+    });
+    expect(legacyDraft.category, 'pet_care');
   });
 
   test('job transportation migration validates public matching fields', () {

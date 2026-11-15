@@ -136,6 +136,62 @@ class UploadsRepository extends RepositoryBase {
     );
   }
 
+  Future<String> submitMyAgeEvidence(
+    PreparedVerificationImage document, {
+    String verificationType = 'age',
+  }) async {
+    if (verificationType != 'age' && verificationType != 'school_id') {
+      throw ArgumentError.value(verificationType, 'verificationType');
+    }
+    final userId = requireUserId();
+    final submissionId = newVerificationSubmissionId();
+    final path = '$userId/$submissionId.jpg';
+    var uploaded = false;
+    try {
+      await client.storage.from('verification-evidence').uploadBinary(
+        path,
+        document.bytes,
+        fileOptions: const FileOptions(
+          contentType: 'image/jpeg',
+          cacheControl: '3600',
+          upsert: false,
+        ),
+      );
+      uploaded = true;
+      final value = await client.rpc(
+        'submit_my_verification_evidence_v1',
+        params: {
+          'p_verification_type': verificationType,
+          'p_evidence_path': path,
+        },
+      );
+      if (value is! Map) {
+        throw const MortCodedError(
+          'verification_response_invalid',
+          'The verification server returned an invalid response.',
+        );
+      }
+      final result = Map<String, dynamic>.from(value);
+      if (result['ok'] != true) {
+        throw MortCodedError(
+          (result['code'] as String?) ?? 'verification_submission_failed',
+          (result['message'] as String?) ??
+              'We could not submit your age evidence. Please try again.',
+        );
+      }
+      return path;
+    } catch (_) {
+      if (uploaded) {
+        try {
+          await client.storage.from('verification-evidence').remove([path]);
+        } catch (_) {
+          // Best-effort removal of an object whose case was not created.
+        }
+      }
+      rethrow;
+    }
+  }
+
   Future<List<Map<String, dynamic>>> listMyVerificationRequests() async {
     final rows = await client
         .from('business_verifications')

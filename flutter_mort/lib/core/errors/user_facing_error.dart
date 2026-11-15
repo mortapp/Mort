@@ -7,6 +7,15 @@ String userFacingError(Object? error) {
   if (error is MortError) return error.message;
 
   final message = error?.toString().toLowerCase() ?? '';
+  if (message.contains('activation_request_required')) {
+    return 'No pending activation request exists for this account. Confirm onboarding and required verification are complete, then refresh the admin queue.';
+  }
+  if (message.contains('account_status_request_invalid')) {
+    return 'This action only approves eligible pending activation requests; it cannot suspend or restore accounts.';
+  }
+  if (message.contains('direct suspension and restoration are not supported')) {
+    return 'Account suspension and restoration are unavailable in this app. No status change was made.';
+  }
   if (message.contains('invalid login credentials')) {
     return 'Invalid email or password.';
   }
@@ -82,6 +91,10 @@ String userFacingError(Object? error) {
 
 String applicationErrorMessage(String code, {String? fallback}) {
   return switch (code) {
+    'profile_update_unavailable' =>
+      'Profile updates are temporarily unavailable because production does not expose a profile-update action.',
+    'onboarding_legacy_unavailable' =>
+      'This older setup path is no longer supported. Return to the current onboarding flow to finish account setup.',
     'guardian_link_required' || 'guardian_approval_required' =>
       'This job requires guardian approval. Link a guardian or choose another job.',
     'poster_verification_required' =>
@@ -108,6 +121,8 @@ String applicationErrorMessage(String code, {String? fallback}) {
       'This application changed on another screen. Refresh before trying that action again.',
     'invalid_application_transition_request' =>
       'That application action is not supported. Refresh and try again.',
+    'application_action_not_allowed' =>
+      'That application action is not supported by the current workflow. The application was not changed.',
     'proof_required' =>
       'This job requires proof before it can be marked complete.',
     'proof_approval_required' =>

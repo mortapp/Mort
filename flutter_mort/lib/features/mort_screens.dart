@@ -1849,17 +1849,31 @@ class _SafetyRulesScreenState extends ConsumerState<SafetyRulesScreen> {
     setState(() => _busy = true);
     try {
       // Record the exact-version, hash-bound legal acceptance first --
-      // complete_my_onboarding() requires an active legal_acceptances row
-      // for every legal_role_requirements match, and nothing in this flow
-      // called that RPC before this fix.
+      // complete_my_onboarding_v2 requires an active legal_acceptances row
+      // for every required legal_role_requirements match; this flow now records
+      // them through the same server-authoritative RPC as compact setup.
       final legalRepo = ref.read(legalContractRepositoryProvider);
+      final legalResponse = await legalRepo.legalRequirements();
+      if (legalResponse['ok'] != true) {
+        throw StateError(
+          'Current required legal documents could not be loaded.',
+        );
+      }
       final requirements =
-          (await legalRepo.legalRequirements())['requirements'] as List? ??
-          const [];
+          (legalResponse['requirements'] as List? ?? const [])
+              .map((item) => Map<String, dynamic>.from(item as Map))
+              .where((item) => item['required'] == true)
+              .toList(growable: false);
+      if (requirements.isEmpty) {
+        throw StateError(
+          'No current required legal documents were returned.',
+        );
+      }
       final outstanding = requirements
-          .map((item) => Map<String, dynamic>.from(item as Map))
           .where((item) => item['acceptance_id'] == null)
           .toList(growable: false);
+      final currentProfile = await ref.read(currentProfileProvider.future);
+      final teenSummaryViewed = currentProfile?.role == UserRole.teen;
       final needsSignature = outstanding.any(
         (item) => item['requires_electronic_signature'] == true,
       );
@@ -1874,29 +1888,21 @@ class _SafetyRulesScreenState extends ConsumerState<SafetyRulesScreen> {
         return;
       }
       for (final item in outstanding) {
+        final versionId = item['version_id']?.toString().trim() ?? '';
+        if (versionId.isEmpty) {
+          throw StateError(
+            'A required published legal document could not be loaded.',
+          );
+        }
         await legalRepo.acceptLegalVersion(
-          versionId: item['version_id'].toString(),
-          teenSummaryViewed: true,
+          versionId: versionId,
+          teenSummaryViewed: teenSummaryViewed,
           signature: item['requires_electronic_signature'] == true
               ? _signature.text
               : null,
         );
       }
 
-      final package = await PackageInfo.fromPlatform();
-      final platform = kIsWeb
-          ? 'flutter_web'
-          : 'flutter_${defaultTargetPlatform.name}';
-      await ref
-          .read(profileRepositoryProvider)
-          .recordOnboardingAcknowledgement(
-            version: mortOnboardingAcknowledgementVersion,
-            platform: platform,
-            appVersion: '${package.version}+${package.buildNumber}',
-          );
-      await ref
-          .read(profileRepositoryProvider)
-          .saveOnboardingProgress(completedStep: 'safety');
       ref.invalidate(onboardingProgressProvider);
       if (mounted) context.go('/onboarding/review');
     } catch (error) {
@@ -2357,13 +2363,8 @@ class RoleHomeScreen extends ConsumerWidget {
 class _TeenActiveJobSection extends ConsumerWidget {
   const _TeenActiveJobSection();
 
-  static const _activeStatuses = ['in_progress', 'proof_submitted', 'accepted'];
-  static const _pendingStatuses = [
-    'submitted',
-    'adult_review',
-    'viewed',
-    'guardian_pending',
-  ];
+  static const _activeStatuses = ['accepted'];
+  static const _pendingStatuses = ['submitted', 'shortlisted'];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -2408,13 +2409,9 @@ class _TeenActiveJobSection extends ConsumerWidget {
   }
 
   String _statusLabel(String status) => switch (status) {
-    'in_progress' => 'In progress',
-    'proof_submitted' => 'Proof submitted',
     'accepted' => 'Accepted — not started yet',
     'submitted' => 'Application submitted',
-    'adult_review' => 'Waiting on poster review',
-    'viewed' => 'Viewed by poster',
-    'guardian_pending' => 'Waiting on guardian approval',
+    'shortlisted' => 'Shortlisted by poster',
     _ => status,
   };
 }
@@ -3349,6 +3346,11 @@ class _ApplicationCard extends ConsumerWidget {
             ),
           ],
           const SizedBox(height: MortSpacing.md),
+          if (guardianReview)
+            const MortSafetyBanner(
+              message:
+                  'Guardian decisions are not available in the production application workflow. This application remains unchanged.',
+            ),
           MortActionRow(
             actions: adultReview
                 ? [
@@ -3365,29 +3367,7 @@ class _ApplicationCard extends ConsumerWidget {
                     ),
                   ]
                 : guardianReview
-                ? application.status == 'guardian_pending'
-                      ? [
-                          MortAction(
-                            label: 'Approve',
-                            icon: Icons.check,
-                            onPressed: () =>
-                                _status(context, ref, 'adult_review'),
-                          ),
-                          MortAction(
-                            label: 'Reject',
-                            icon: Icons.close,
-                            onPressed: () =>
-                                _status(context, ref, 'guardian_rejected'),
-                            style: MortButtonStyle.danger,
-                          ),
-                        ]
-                      : const [
-                          MortAction(
-                            label: 'Decision recorded',
-                            icon: Icons.verified,
-                            enabled: false,
-                          ),
-                        ]
+                ? const []
                 : [
                     MortAction(
                       label: 'Upload proof',

@@ -19,7 +19,7 @@ nonisolated enum MortBackendContract {
         // Marketplace / applications
         static let discoverJobs = "list_open_jobs_page"
         static let submitApplication = "submit_job_application"
-        static let updateApplication = "update_application_status_v3"
+        static let updateApplication = "update_my_job_application_status_v3"
         static let quickAcceptJob = "quick_accept_job_v1"
         static let saveJob = "save_job_draft_or_publish_without_fee_v1"
         static let manageJob = "manage_job_v2"

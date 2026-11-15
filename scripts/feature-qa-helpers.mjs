@@ -981,7 +981,7 @@ export async function updateApplicationStatus(
     expectedUpdatedAt = null,
   },
 ) {
-  return client.rpc("update_application_status_v3", {
+  return client.rpc("update_my_job_application_status_v3", {
     p_application_id: applicationId,
     p_action: action,
     p_client_request_id: clientRequestId,

@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
 import '../../core/widgets/mort_widgets.dart';
-import '../../services/native_permissions_service.dart';
+import '../../data/repositories/providers.dart';
+import '../../data/repositories/uploads_repository.dart';
 
 class TeenVerificationOptionsScreen extends StatelessWidget {
   const TeenVerificationOptionsScreen({super.key});
@@ -16,20 +18,20 @@ class TeenVerificationOptionsScreen extends StatelessWidget {
     children: [
       const MortHeader(
         eyebrow: 'Teen trust options',
-        title: 'Choose an evidence route',
+        title: 'Choose evidence for review',
         subtitle:
-            'A current middle-school or high-school ID review is recommended when available, but it is not mandatory.',
+            'Age and school-ID are separate staff-reviewed cases. Each decision is a limited signal and does not establish legal identity.',
       ),
       const MortSafetyBanner(
         message:
-            'This screen uses synthetic examples only. It does not establish legal identity or guarantee safety.',
+            'Private staff review is available only in an explicitly enabled app release. It does not establish legal identity or guarantee safety.',
       ),
       const SizedBox(height: MortSpacing.md),
       const _VerificationOption(
-        title: 'Current school ID review',
-        badge: 'Recommended',
+        title: 'Age and school-ID evidence',
+        badge: 'Private staff review',
         description:
-            'Middle school, junior high, high school, secondary school, or a vocational secondary program. Visual review can support the label “School document reviewed”; it does not prove current enrollment, attendance, legal identity, age, or account ownership.',
+            'Submit separate documents for age evidence and school-ID review. Files are stored privately for authorized staff review. Neither result is authoritative identity confirmation.',
         icon: Icons.school_outlined,
       ),
       const SizedBox(height: MortSpacing.sm),
@@ -122,33 +124,51 @@ class _VerificationOption extends StatelessWidget {
   );
 }
 
-class TeenVerificationCapturePreparationScreen extends StatefulWidget {
+class TeenVerificationCapturePreparationScreen extends ConsumerStatefulWidget {
   const TeenVerificationCapturePreparationScreen({super.key});
 
   @override
-  State<TeenVerificationCapturePreparationScreen> createState() =>
+  ConsumerState<TeenVerificationCapturePreparationScreen> createState() =>
       _TeenVerificationCapturePreparationScreenState();
 }
 
 class _TeenVerificationCapturePreparationScreenState
-    extends State<TeenVerificationCapturePreparationScreen> {
-  final _permissions = const NativePermissionsService();
-  String? _permissionMessage;
-  bool _requesting = false;
+    extends ConsumerState<TeenVerificationCapturePreparationScreen> {
+  bool _busy = false;
+  final Set<String> _submittedTypes = <String>{};
+  String? _message;
 
-  Future<void> _requestCameraAfterExplicitAction() async {
-    if (!AppConfig.identityVerificationEnabled || _requesting) return;
-    setState(() => _requesting = true);
-    final result = await _permissions.requestCamera();
-    if (!mounted) return;
+  Future<void> _chooseAndSubmit(String verificationType) async {
+    if (!AppConfig.identityVerificationEnabled ||
+        _busy ||
+        _submittedTypes.contains(verificationType)) return;
     setState(() {
-      _requesting = false;
-      _permissionMessage = result.isGranted
-          ? 'Camera permission granted. Only an approved capture session may continue.'
-          : result.isPermanentlyDenied
-          ? 'Camera permission is blocked. Use Photo Picker or open device Settings later.'
-          : 'Camera permission was not granted. Photo Picker remains available when a reviewed capture route is enabled.';
+      _busy = true;
+      _message = null;
     });
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        requestFullMetadata: false,
+      );
+      if (picked == null) return;
+      final bytes = await picked.readAsBytes();
+      final prepared = UploadsRepository.prepareVerification(bytes);
+      await ref
+          .read(uploadsRepositoryProvider)
+          .submitMyAgeEvidence(prepared, verificationType: verificationType);
+      if (!mounted) return;
+      setState(() {
+        _submittedTypes.add(verificationType);
+        _message =
+            '${verificationType == 'age' ? 'Age evidence' : 'School-ID evidence'} received. Your case is waiting for staff review.';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _message = _safeUploadError(error, verificationType));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -156,49 +176,82 @@ class _TeenVerificationCapturePreparationScreenState
     children: [
       const MortHeader(
         eyebrow: 'Before capture',
-        title: 'Document capture and privacy',
+        title: 'Submit evidence privately',
         subtitle:
-            'MORT requests camera access only after you choose a permitted document route and tap Use camera.',
+            'Choose a clear photo for the selected evidence type. The file is resized and stripped of embedded image metadata before private upload.',
       ),
       const MortCard(
         child: Text(
-          'MORT uses your camera to capture the document or photo you choose to submit. Do not include unrelated documents or sensitive information. Images require private storage, size and dimension checks, metadata stripping, random object names, and a user-bound server record.',
+          'Submit only a document relevant to the selected age or school-ID case. Do not include unrelated pages or information. Your file is stored privately for authorized staff review.',
         ),
       ),
       const SizedBox(height: MortSpacing.md),
       const MortCard(
         child: Text(
-          'Future capture checks may warn about blur, glare, cutoff, or low resolution. “Document quality passed,” “School document reviewed,” “Age evidence reviewed,” and “Live-presence challenge completed” are limited signals. They do not mean authoritative identity confirmed.',
+          'A reviewer must examine the uploaded document, record a staff-review provider result, then approve the verification case. A successful upload is not verification approval or legal identity confirmation.',
         ),
       ),
       const SizedBox(height: MortSpacing.md),
       MortButton(
-        label: AppConfig.identityVerificationEnabled
-            ? 'Use camera'
-            : 'Use camera - Real collection disabled',
-        icon: Icons.camera_alt_outlined,
-        busy: _requesting,
-        onPressed: AppConfig.identityVerificationEnabled
-            ? _requestCameraAfterExplicitAction
+        label: !AppConfig.identityVerificationEnabled
+            ? 'Age evidence upload disabled for this release'
+            : _submittedTypes.contains('age')
+            ? 'Age evidence submitted'
+            : 'Submit age evidence photo',
+        icon: Icons.photo_library_outlined,
+        busy: _busy,
+        onPressed: AppConfig.identityVerificationEnabled &&
+                !_submittedTypes.contains('age')
+            ? () => _chooseAndSubmit('age')
             : null,
       ),
       const SizedBox(height: MortSpacing.sm),
       MortButton(
-        label: 'Photo Picker - unavailable for real IDs',
-        icon: Icons.photo_library_outlined,
-        style: MortButtonStyle.disabled,
+        label: !AppConfig.identityVerificationEnabled
+            ? 'School-ID upload disabled for this release'
+            : _submittedTypes.contains('school_id')
+            ? 'School-ID evidence submitted'
+            : 'Submit school-ID photo',
+        icon: Icons.badge_outlined,
+        style: MortButtonStyle.secondary,
+        busy: _busy,
+        onPressed: AppConfig.identityVerificationEnabled &&
+                !_submittedTypes.contains('school_id')
+            ? () => _chooseAndSubmit('school_id')
+            : null,
       ),
-      if (_permissionMessage != null) ...[
+      if (_message != null) ...[
         const SizedBox(height: MortSpacing.md),
-        Text(_permissionMessage!),
+        Text(_message!),
       ],
       if (!AppConfig.identityVerificationEnabled) ...[
         const SizedBox(height: MortSpacing.md),
         const MortSafetyBanner(
           message:
-              'This release collects no real ID or face media. Synthetic QA is controlled by server-only test routes.',
+              'Real document upload is disabled in this release. No file is collected; use the app release configured for the approved staff-review workflow.',
         ),
       ],
     ],
   );
+}
+
+String _safeUploadError(Object error, String verificationType) {
+  final message = error.toString();
+  if (message.contains('case_already_pending')) {
+    return verificationType == 'age'
+        ? 'Your age evidence is already waiting for staff review.'
+        : 'Your school-ID evidence is already waiting for staff review.';
+  }
+  if (message.contains('too_many_submissions')) {
+    return 'Too many recent attempts. Please try again later.';
+  }
+  if (message.contains('minimum_age_required')) {
+    return 'This account does not meet MORT’s minimum age requirement.';
+  }
+  if (message.contains('school_email_required') ||
+      message.contains('school_email_verification_required')) {
+    final label = verificationType == 'age' ? 'age evidence' : 'school-ID evidence';
+    return 'Complete the required school-email step before submitting $label.';
+  }
+  return 'We could not submit the evidence. Check your connection and try again.';
 }

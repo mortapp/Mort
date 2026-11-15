@@ -45,7 +45,7 @@ void main() {
     },
   );
 
-  test('profile setup uses the atomic RPC and encrypted recovery', () {
+  test('legacy profile setup fails closed and preserves encrypted recovery', () {
     final repository = File(
       'lib/data/repositories/profile_repository.dart',
     ).readAsStringSync();
@@ -54,10 +54,12 @@ void main() {
     final end = screen.indexOf('class SkillsScreen', start);
     final profileScreen = screen.substring(start, end);
 
-    expect(repository, contains("'save_my_profile_setup_v2'"));
+    expect(repository, isNot(contains("'save_my_profile_setup_v2'")));
+    expect(repository, contains('throw _profileUpdateUnavailable'));
     expect(profileScreen, contains('.saveProfileSetup('));
     expect(profileScreen, contains('writeProfileDraft'));
     expect(profileScreen, contains('clearProfileDraft'));
+    expect(profileScreen, contains('userFacingError(error)'));
     expect(profileScreen, isNot(contains('.requestUsernameChange(')));
     expect(profileScreen, isNot(contains('.updateMyProfile(')));
   });

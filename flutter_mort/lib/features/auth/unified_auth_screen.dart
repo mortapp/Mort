@@ -1,8 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../core/errors/user_facing_error.dart';
 import '../../core/reviewer/reviewer_session.dart';
@@ -100,26 +98,6 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
     setState(() => _reviewerIdentifierEntered = isReviewer);
   }
 
-  Future<void> _recordAcknowledgement() async {
-    if (!_legalAcknowledged) return;
-    try {
-      final package = await PackageInfo.fromPlatform();
-      final platform = kIsWeb
-          ? 'flutter_web'
-          : 'flutter_${defaultTargetPlatform.name}';
-      await ref
-          .read(profileRepositoryProvider)
-          .recordOnboardingAcknowledgement(
-            version: mortOnboardingAcknowledgementVersion,
-            platform: platform,
-            appVersion: '${package.version}+${package.buildNumber}',
-          );
-      ref.invalidate(onboardingProgressProvider);
-    } catch (_) {
-      // Onboarding remains the server-authoritative acknowledgement fallback.
-    }
-  }
-
   Future<void> _submit() async {
     if (_busy) return;
     if (!_backendReady) {
@@ -140,7 +118,6 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
         final response = await ref
             .read(authRepositoryProvider)
             .signIn(email: _email.text.trim(), password: _signInPassword.text);
-        if (response.session != null) await _recordAcknowledgement();
         if (mounted) context.go('/account-status');
         return;
       }
@@ -165,7 +142,6 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
         );
         _switchMode(UnifiedAuthMode.signIn);
       } else {
-        await _recordAcknowledgement();
         if (mounted) context.go('/onboarding');
       }
     } catch (error) {

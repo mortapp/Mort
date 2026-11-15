@@ -15,7 +15,7 @@ struct MortBackendContractTests {
     func jobsAndApplications() {
         #expect(MortBackendContract.RPC.discoverJobs == "list_open_jobs_page")
         #expect(MortBackendContract.RPC.submitApplication == "submit_job_application")
-        #expect(MortBackendContract.RPC.updateApplication == "update_application_status_v3")
+        #expect(MortBackendContract.RPC.updateApplication == "update_my_job_application_status_v3")
         #expect(MortBackendContract.RPC.quickAcceptJob == "quick_accept_job_v1")
         #expect(MortBackendContract.RPC.saveJob == "save_job_draft_or_publish_without_fee_v1")
         #expect(MortBackendContract.RPC.manageJob == "manage_job_v2")
