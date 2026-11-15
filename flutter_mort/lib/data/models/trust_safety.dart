@@ -55,7 +55,7 @@ class IdentityVerificationStatus {
       publicMessage: map['public_message'] as String?,
       failureCode: map['failure_code'] as String?,
       privacyNoticeVersion: map['privacy_notice_version'] as String?,
-      evidenceTypes: List<Map<String, dynamic>>.from(
+      evidenceTypes: List<String>.from(
         map['evidence_types'] as List? ?? const [],
       ),
     );
@@ -86,7 +86,7 @@ class IdentityVerificationStatus {
   final String? publicMessage;
   final String? failureCode;
   final String? privacyNoticeVersion;
-  final List<Map<String, dynamic>> evidenceTypes;
+  final List<String> evidenceTypes;
 }
 
 class SafetyIncidentSummary {

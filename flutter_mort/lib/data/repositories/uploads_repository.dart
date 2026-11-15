@@ -62,6 +62,7 @@ class UploadsRepository extends RepositoryBase {
     }
     final path = '$userId/$submissionId.jpg';
     var uploadedOrAlreadyPresent = false;
+    var uploadedByThisAttempt = false;
     try {
       try {
         await client.storage
@@ -74,8 +75,9 @@ class UploadsRepository extends RepositoryBase {
                 cacheControl: '3600',
                 upsert: false,
               ),
-            );
+        );
         uploadedOrAlreadyPresent = true;
+        uploadedByThisAttempt = true;
       } on StorageException catch (error) {
         if (error.statusCode != '409') rethrow;
         uploadedOrAlreadyPresent = true;
@@ -111,7 +113,7 @@ class UploadsRepository extends RepositoryBase {
             ? 'proof_manifest_failed'
             : 'proof_storage_upload_failed',
       );
-      if (uploadedOrAlreadyPresent) {
+      if (uploadedByThisAttempt) {
         try {
           await client.storage.from(proofBucket).remove([path]);
         } catch (_) {

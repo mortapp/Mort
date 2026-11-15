@@ -39,3 +39,25 @@ The dedicated test project was also updated and verified for the provider gate, 
 ## Rollback / stop guidance
 
 If post-deployment checks reveal a defect, stop release and apply a reviewed forward-fix migration. Do not manually flip profile/account status, verification cases, role requests, or application status. Use the approved backup/recovery procedure if rollback is needed; preserve audit and provider-evidence records.
+
+
+## Follow-up audit repairs (2026-11-15)
+
+After applying and verifying each migration against the dedicated test project first, the following forward-only migrations were applied to production project `jxbnrkasktbhtiujkhay`; matching migration sources are committed in the MORT baseline and web migration folders:
+
+| Migration | Repair |
+|---|---|
+| `20261115000000_fix_application_transition_idempotency_replay` | Checks stored request hashes before returning completed application-transition replays and rejects null actions. |
+| `20261115001000_harden_team_hustle_gate_and_capacity` | Requires verified adult status to create team hustles and serializes join capacity checks. |
+| `20261115002000_allow_unregistered_verification_evidence_cleanup` | Allows owners to remove only their own UUID-named verification uploads when no case has registered the object. |
+| `20261115004000_add_team_hustle_staff_review` | Makes newly created team hustles pending, invisible to other users, and unjoinable until staff approval; adds audited approve/reject decisions with a rejection reason. Existing posts retain approved visibility. |
+| `20261115005000_prevent_team_hustle_self_review` | Prevents an admin from reviewing their own post and safely replays an identical completed review. |
+| `20261115006000_refresh_postgrest_rpc_schema` | Explicitly refreshes the PostgREST schema cache for the new RPC. |
+
+Catalog-only verification passed on both test and production for the replay/null-action guards, adult verification gate, row-locked joins, pending review default, approved-only listing/joining, independent admin review, authenticated RPC grants, and evidence cleanup policy. The web verification page now displays RPC read failures and blocks evidence submission when the status/history data is unavailable or a review is already pending. Web regression suite: 30/30 passed; typecheck, lint, legal snapshot check, and Next.js production build passed.
+
+No Auth users were created, and no user profile, role-request, verification-case, team-hustle, or application rows were manually inserted or modified. The Flutter/Dart and Swift toolchains are unavailable in this environment, so native formatter/analyzer/device tests remain outstanding. No fresh-user Auth journey was run; the existing release checklist above still requires that Auth-driven test with authorized fresh teen/adult accounts and staff review.
+
+### Additional follow-up item
+
+The existing team-hustle create/join/leave/close calls were not migrated in this rollout to the shared `client_request_id` mutation ledger. Join capacity and admin review are protected against concurrent/duplicate state transitions, but the create flow can still be duplicated by a repeated submission. Before treating the global idempotency requirement as complete, port all team-hustle mutations to stable client request IDs and add replay/conflict tests; this was not represented as completed above.

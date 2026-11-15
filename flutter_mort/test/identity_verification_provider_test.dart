@@ -5,6 +5,22 @@ import 'package:flutter_mort/data/models/trust_safety.dart';
 import 'package:flutter_mort/services/identity_verification_provider.dart';
 
 void main() {
+  test('identity status parses production evidence type string arrays', () {
+    final teenStatus = IdentityVerificationStatus.fromMap({
+      'status': 'pending',
+      'verification_mode': 'mort_staff_review',
+      'evidence_types': [
+        'school_photo_id',
+        'official_enrollment_confirmation',
+      ],
+    });
+
+    expect(teenStatus.evidenceTypes, [
+      'school_photo_id',
+      'official_enrollment_confirmation',
+    ]);
+  });
+
   test('disabled provider cannot create a session', () {
     const provider = DisabledVerificationProvider();
     expect(provider.createSession, throwsA(isA<MortCodedError>()));
