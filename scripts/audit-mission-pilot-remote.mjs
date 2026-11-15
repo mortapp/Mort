@@ -1,5 +1,7 @@
 import pg from "pg";
 
+import { createSupabaseDirectClientConfig } from "./supabase-remote-tls.mjs";
+
 const projectRef = "jxbnrkasktbhtiujkhay";
 const password = process.env.SUPABASE_DB_PASSWORD;
 
@@ -33,14 +35,11 @@ const missionTables = [
   "resource_directory_reports",
 ];
 
-const client = new pg.Client({
-  host: `db.${projectRef}.supabase.co`,
-  port: 5432,
-  database: "postgres",
-  user: "postgres",
-  password,
-  ssl: { rejectUnauthorized: false },
-});
+// TLS verifies Supabase's root CA and the endpoint hostname; the database
+// password is never sent over an unverified connection.
+const client = new pg.Client(
+  createSupabaseDirectClientConfig({ projectRef, password }),
+);
 
 await client.connect();
 try {

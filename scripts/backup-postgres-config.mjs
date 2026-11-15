@@ -1,4 +1,4 @@
-const productionProjectRef = "jxbnrkasktbhtiujkhay";
+import { productionProjectRef, supabaseVerifiedSsl } from "./supabase-remote-tls.mjs";
 
 export function createBackupPostgresConfig({ projectRef, password }) {
   if (projectRef !== productionProjectRef) {
@@ -15,7 +15,9 @@ export function createBackupPostgresConfig({ projectRef, password }) {
     user: "postgres",
     password,
     // Never send the production database password over a connection that
-    // accepts an untrusted or hostname-mismatched TLS certificate.
-    ssl: { rejectUnauthorized: true },
+    // accepts an untrusted or hostname-mismatched TLS certificate. The direct
+    // endpoint presents Supabase's own root CA, so the vendored root must be
+    // supplied for verification to succeed.
+    ssl: supabaseVerifiedSsl(),
   };
 }
