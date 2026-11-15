@@ -115,7 +115,7 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
     setState(() => _busy = true);
     try {
       if (_isSignIn) {
-        final response = await ref
+        await ref
             .read(authRepositoryProvider)
             .signIn(email: _email.text.trim(), password: _signInPassword.text);
         if (mounted) context.go('/account-status');

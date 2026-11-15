@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
@@ -1859,15 +1858,12 @@ class _SafetyRulesScreenState extends ConsumerState<SafetyRulesScreen> {
           'Current required legal documents could not be loaded.',
         );
       }
-      final requirements =
-          (legalResponse['requirements'] as List? ?? const [])
-              .map((item) => Map<String, dynamic>.from(item as Map))
-              .where((item) => item['required'] == true)
-              .toList(growable: false);
+      final requirements = (legalResponse['requirements'] as List? ?? const [])
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .where((item) => item['required'] == true)
+          .toList(growable: false);
       if (requirements.isEmpty) {
-        throw StateError(
-          'No current required legal documents were returned.',
-        );
+        throw StateError('No current required legal documents were returned.');
       }
       final outstanding = requirements
           .where((item) => item['acceptance_id'] == null)

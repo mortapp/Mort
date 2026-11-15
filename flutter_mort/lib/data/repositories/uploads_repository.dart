@@ -75,7 +75,7 @@ class UploadsRepository extends RepositoryBase {
                 cacheControl: '3600',
                 upsert: false,
               ),
-        );
+            );
         uploadedOrAlreadyPresent = true;
         uploadedByThisAttempt = true;
       } on StorageException catch (error) {
@@ -150,15 +150,17 @@ class UploadsRepository extends RepositoryBase {
     final path = '$userId/$submissionId.jpg';
     var uploaded = false;
     try {
-      await client.storage.from('verification-evidence').uploadBinary(
-        path,
-        document.bytes,
-        fileOptions: const FileOptions(
-          contentType: 'image/jpeg',
-          cacheControl: '3600',
-          upsert: false,
-        ),
-      );
+      await client.storage
+          .from('verification-evidence')
+          .uploadBinary(
+            path,
+            document.bytes,
+            fileOptions: const FileOptions(
+              contentType: 'image/jpeg',
+              cacheControl: '3600',
+              upsert: false,
+            ),
+          );
       uploaded = true;
       final value = await client.rpc(
         'submit_my_verification_evidence_v1',

@@ -46,9 +46,14 @@ void main() {
       router,
       isNot(contains('sensitiveAction: AdminSensitiveQueueAction.identity')),
     );
+    final detail = _read(
+      'lib/features/admin/admin_moderation_detail_screen.dart',
+    );
+    expect(detail, contains('reviewVerificationCase'));
+    expect(detail, contains('verificationEvidenceUrl'));
     expect(
-      _read('lib/features/admin/admin_moderation_detail_screen.dart'),
-      contains('Actual provider verification is not connected'),
+      detail,
+      isNot(contains('Actual provider verification is not connected')),
     );
   });
 }

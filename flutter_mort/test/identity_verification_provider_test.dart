@@ -9,10 +9,7 @@ void main() {
     final teenStatus = IdentityVerificationStatus.fromMap({
       'status': 'pending',
       'verification_mode': 'mort_staff_review',
-      'evidence_types': [
-        'school_photo_id',
-        'official_enrollment_confirmation',
-      ],
+      'evidence_types': ['school_photo_id', 'official_enrollment_confirmation'],
     });
 
     expect(teenStatus.evidenceTypes, [
