@@ -122,12 +122,16 @@ class Profile {
       role: userRoleFromString(json['role'] as String?),
       displayName: json['display_name'] as String?,
       username: json['username'] as String?,
-      dob: DateOfBirthParser.tryParseIso(json['dob']?.toString()),
+      dob: DateOfBirthParser.tryParseIso(
+        (json['date_of_birth'] ?? json['dob'])?.toString(),
+      ),
       city: json['city'] as String?,
-      state: json['state'] as String?,
+      state: (json['region'] ?? json['state']) as String?,
       locationSetupMode:
           (json['location_setup_mode'] as String?) ?? 'city_state',
-      onboardingCompleted: json['onboarding_completed'] == true,
+      onboardingCompleted:
+          json['onboarding_completed_at'] != null ||
+          json['onboarding_completed'] == true,
       accountStatus: (json['account_status'] as String?) ?? 'active',
       verificationStatus:
           (json['verification_status'] as String?) ?? 'not_started',

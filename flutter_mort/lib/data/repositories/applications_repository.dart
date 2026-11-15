@@ -11,54 +11,28 @@ class ApplicationsRepository extends RepositoryBase {
     String applicationId, {
     UserRole? role,
   }) async {
-    final query = client
-        .from('applications')
-        .select(
-          role == UserRole.adult
-              ? '*, jobs!inner(*), teen:profiles!applications_teen_id_fkey(display_name,avatar_path)'
-              : '*, jobs(*), teen:profiles!applications_teen_id_fkey(display_name,avatar_path)',
-        )
-        .eq('id', applicationId);
-
-    if (role != null) {
-      final id = requireUserId();
-      if (role == UserRole.teen) {
-        query.eq('teen_id', id);
-      } else if (role == UserRole.adult) {
-        query.eq('jobs.poster_id', id);
-      } else if (role == UserRole.guardian) {
-        query.eq('guardian_id', id);
-      }
-    }
-
-    final row = await query.maybeSingle();
-    return row == null
-        ? null
-        : MortApplication.fromMap(Map<String, dynamic>.from(row));
+    if (role != null) requireUserId();
+    final result = await client.rpc(
+      'get_my_job_applications',
+      params: {'p_application_id': applicationId},
+    );
+    final map = _rpcMap(result);
+    _throwIfFailed(map);
+    final items = map['items'];
+    if (items is! List || items.isEmpty || items.first is! Map) return null;
+    return MortApplication.fromMap(
+      Map<String, dynamic>.from(items.first as Map),
+    );
   }
 
   Future<List<MortApplication>> listMyApplications() async {
-    final id = requireUserId();
-    final rows = await client
-        .from('applications')
-        .select(
-          '*, jobs(*), teen:profiles!applications_teen_id_fkey(display_name,avatar_path)',
-        )
-        .or('teen_id.eq.$id,guardian_id.eq.$id')
-        .order('created_at', ascending: false);
-    return _applications(rows);
+    requireUserId();
+    return _applicationItems(await client.rpc('get_my_job_applications'));
   }
 
   Future<List<MortApplication>> listApplicationsForMyJobs() async {
-    final id = requireUserId();
-    final rows = await client
-        .from('applications')
-        .select(
-          '*, jobs!inner(*), teen:profiles!applications_teen_id_fkey(display_name,avatar_path)',
-        )
-        .eq('jobs.poster_id', id)
-        .order('created_at', ascending: false);
-    return _applications(rows);
+    requireUserId();
+    return _applicationItems(await client.rpc('get_my_job_applications'));
   }
 
   Future<ApplicationEligibility> checkEligibility(String jobId) async {
@@ -116,8 +90,15 @@ class ApplicationsRepository extends RepositoryBase {
     String? clientRequestId,
     DateTime? expectedUpdatedAt,
   }) async {
+    const supportedActions = {'accepted', 'shortlisted', 'rejected', 'viewed', 'withdrawn'};
+    if (!supportedActions.contains(action)) {
+      throw const MortCodedError(
+        'application_action_not_allowed',
+        'That application action is not supported by the production workflow.',
+      );
+    }
     final result = await client.rpc(
-      'update_application_status_v3',
+      'update_my_job_application_status_v3',
       params: {
         'p_application_id': applicationId,
         'p_action': action,
@@ -172,10 +153,20 @@ class ApplicationsRepository extends RepositoryBase {
     return ProofUpload.fromMap(Map<String, dynamic>.from(map['proof'] as Map));
   }
 
-  static List<MortApplication> _applications(Object? rows) {
-    return List<Map<String, dynamic>>.from(
-      rows as List,
-    ).map(MortApplication.fromMap).toList(growable: false);
+  static List<MortApplication> _applicationItems(Object? result) {
+    final response = _rpcMap(result);
+    _throwIfFailed(response);
+    final items = response['items'];
+    if (items is! List) {
+      throw const MortCodedError(
+        'unknown_permission_failure',
+        'The applications service returned an incomplete list.',
+      );
+    }
+    return items
+        .whereType<Map>()
+        .map((item) => MortApplication.fromMap(Map<String, dynamic>.from(item)))
+        .toList(growable: false);
   }
 
   static Map<String, dynamic> _rpcMap(Object? result) {

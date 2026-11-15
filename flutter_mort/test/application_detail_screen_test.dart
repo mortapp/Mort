@@ -176,9 +176,7 @@ void main() {
     testMortWidgets(
       '${view.name} execution state routes through canonical job progress',
       (tester) async {
-        final repository = _FakeApplicationsRepository(
-          status: view == ApplicationView.teen ? 'accepted' : 'in_progress',
-        );
+        final repository = _FakeApplicationsRepository(status: 'accepted');
         final router = GoRouter(
           initialLocation: '/application',
           routes: [

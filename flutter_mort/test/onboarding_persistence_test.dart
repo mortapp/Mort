@@ -67,25 +67,32 @@ void main() {
     );
   });
 
-  test('client records safety before review-only completion', () {
-    final screens = File('lib/features/mort_screens.dart').readAsStringSync();
-    final preferences = File(
-      'lib/features/onboarding/onboarding_preferences_screens.dart',
-    ).readAsStringSync();
-    final safetyStart = screens.indexOf('class _SafetyRulesScreenState');
-    final safetyEnd = screens.indexOf(
-      'class _OnboardingMomentumCard',
-      safetyStart,
-    );
-    final safety = screens.substring(safetyStart, safetyEnd);
+  test(
+    'legacy safety review records legal acceptance before review routing',
+    () {
+      final screens = File('lib/features/mort_screens.dart').readAsStringSync();
+      final preferences = File(
+        'lib/features/onboarding/onboarding_preferences_screens.dart',
+      ).readAsStringSync();
+      final legalRepository = File(
+        'lib/data/repositories/legal_contract_repository.dart',
+      ).readAsStringSync();
+      final safetyStart = screens.indexOf('class _SafetyRulesScreenState');
+      final safetyEnd = screens.indexOf(
+        'class _OnboardingMomentumCard',
+        safetyStart,
+      );
+      final safety = screens.substring(safetyStart, safetyEnd);
 
-    expect(safety, contains('recordOnboardingAcknowledgement'));
-    expect(safety, contains("completedStep: 'safety'"));
-    expect(safety, contains("context.go('/onboarding/review')"));
-    expect(safety, isNot(contains('completeOnboarding()')));
-    expect(preferences, contains("completedStep: 'review'"));
-    expect(preferences, contains('completeOnboarding()'));
-  });
+      expect(safety, contains('legalRepo.acceptLegalVersion'));
+      expect(safety, isNot(contains('recordOnboardingAcknowledgement')));
+      expect(legalRepository, contains("'submit_legal_acceptance'"));
+      expect(safety, contains("context.go('/onboarding/review')"));
+      expect(safety, isNot(contains('completeOnboarding()')));
+      expect(preferences, contains("completedStep: 'review'"));
+      expect(preferences, contains('completeOnboarding()'));
+    },
+  );
 
   test('legacy payment values are clamped to non-credential choices', () {
     final source = File('lib/features/mort_screens.dart').readAsStringSync();

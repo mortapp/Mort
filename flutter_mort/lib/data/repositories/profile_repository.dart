@@ -1,7 +1,4 @@
-import 'package:uuid/uuid.dart';
-
 import '../../core/errors/mort_error.dart';
-import '../../core/utils/date_of_birth.dart';
 import '../models/onboarding_progress.dart';
 import '../models/profile.dart';
 import 'repository_base.dart';
@@ -9,12 +6,19 @@ import 'repository_base.dart';
 const _directoryProfileSelect =
     'id,role,display_name,verification_status,created_at,updated_at,'
     'username,avatar_path,avatar_moderation_status,avatar_updated_at,bio,'
-    'availability,preferred_job_categories,approximate_area,goals,'
-    'location_setup_mode';
+    'availability,preferred_job_categories,approximate_area,'
+    'location_setup_mode,city,region';
+
+const _profileUpdateUnavailable = MortCodedError(
+  'profile_update_unavailable',
+  'Profile updates are temporarily unavailable because production does not expose a profile-update action.',
+);
+const _legacyOnboardingUnavailable = MortCodedError(
+  'onboarding_legacy_unavailable',
+  'This older setup flow is no longer supported. Return to the current onboarding flow to finish account setup.',
+);
 
 class ProfileRepository extends RepositoryBase {
-  static const _uuid = Uuid();
-
   Future<Profile?> getCurrentProfile() async {
     if (client.auth.currentUser == null) return null;
     final rows = await client.rpc('get_my_profile');
@@ -43,36 +47,12 @@ class ProfileRepository extends RepositoryBase {
     String paymentPreference = 'none',
   }) async {
     requireUserId();
-    const modes = {'city_state', 'partner_supported', 'location_deferred'};
-    if (!modes.contains(locationSetupMode)) {
-      throw ArgumentError.value(locationSetupMode, 'locationSetupMode');
-    }
-    if (role != UserRole.teen && locationSetupMode != 'city_state') {
-      throw ArgumentError(
-        'Adult and guardian profiles require city and state.',
-      );
-    }
-    final result = await client.rpc(
-      'save_my_onboarding_profile',
-      params: {
-        'p_role': userRoleToString(role),
-        'p_display_name': displayName,
-        'p_dob': DateOfBirthParser.toIsoDate(dob),
-        'p_city': city,
-        'p_state': state,
-        'p_location_setup_mode': locationSetupMode,
-        'p_complete_onboarding': completeOnboarding,
-        'p_payment_preference': paymentPreference,
-        'p_client_request_id': _uuid.v4(),
-      },
-    );
-    return _profileFromRpc(result);
+    throw _legacyOnboardingUnavailable;
   }
 
   Future<Profile> completeOnboarding() async {
     requireUserId();
-    final result = await client.rpc('complete_my_onboarding');
-    return _profileFromRpc(result);
+    throw _legacyOnboardingUnavailable;
   }
 
   Future<OnboardingProgress> getOnboardingProgress() async {
@@ -164,26 +144,12 @@ class ProfileRepository extends RepositoryBase {
 
   Future<OnboardingProgress> saveOnboardingAge(DateTime dob) async {
     requireUserId();
-    final result = await client.rpc(
-      'save_my_onboarding_age',
-      params: {
-        'p_dob': DateOfBirthParser.toIsoDate(dob),
-        'p_client_request_id': _uuid.v4(),
-      },
-    );
-    return _onboardingProgressFromRpc(result);
+    throw _legacyOnboardingUnavailable;
   }
 
   Future<OnboardingProgress> saveOnboardingRole(UserRole role) async {
     requireUserId();
-    final result = await client.rpc(
-      'save_my_onboarding_role',
-      params: {
-        'p_role': userRoleToString(role),
-        'p_client_request_id': _uuid.v4(),
-      },
-    );
-    return _onboardingProgressFromRpc(result);
+    throw _legacyOnboardingUnavailable;
   }
 
   Future<OnboardingProgress> saveOnboardingProgress({
@@ -191,15 +157,7 @@ class ProfileRepository extends RepositoryBase {
     Map<String, dynamic> preferences = const {},
   }) async {
     requireUserId();
-    final result = await client.rpc(
-      'save_my_onboarding_progress',
-      params: {
-        'p_step': completedStep,
-        'p_preferences': preferences,
-        'p_client_request_id': _uuid.v4(),
-      },
-    );
-    return _onboardingProgressFromRpc(result);
+    throw _legacyOnboardingUnavailable;
   }
 
   Future<OnboardingProgress> recordOnboardingAcknowledgement({
@@ -208,21 +166,7 @@ class ProfileRepository extends RepositoryBase {
     required String appVersion,
   }) async {
     requireUserId();
-    final result = await client.rpc(
-      'record_my_onboarding_acknowledgement',
-      params: {
-        'p_acknowledgement_version': version,
-        'p_pilot_terms_notice_acknowledged': true,
-        'p_privacy_notice_acknowledged': true,
-        'p_community_rules_acknowledged': true,
-        'p_prohibited_work_acknowledged': true,
-        'p_safety_rules_acknowledged': true,
-        'p_platform': platform,
-        'p_app_version': appVersion,
-        'p_client_request_id': _uuid.v4(),
-      },
-    );
-    return _onboardingProgressFromRpc(result);
+    throw _legacyOnboardingUnavailable;
   }
 
   Future<Profile> saveProfileDetails({
@@ -262,30 +206,7 @@ class ProfileRepository extends RepositoryBase {
     required String clientRequestId,
   }) async {
     requireUserId();
-    final result = await client.rpc(
-      'save_my_profile_setup_v2',
-      params: {
-        'p_payload': {
-          'role': userRoleToString(role),
-          'display_name': displayName.trim(),
-          'username': username.trim().toLowerCase(),
-          'dob': DateOfBirthParser.toIsoDate(dob),
-          'city': city.trim(),
-          'state': state.trim().toUpperCase(),
-          'location_setup_mode': locationSetupMode,
-          'bio': bio.trim(),
-          'availability': availability.trim(),
-          'preferred_job_categories': preferredJobCategories,
-          'approximate_area': approximateArea.trim(),
-          'goals': goals.trim(),
-          'adult_account_type': adultAccountType,
-          'business_name': businessName.trim(),
-        },
-        'p_client_request_id': clientRequestId,
-        'p_edit_existing': editExisting,
-      },
-    );
-    return _profileFromRpc(result);
+    throw _profileUpdateUnavailable;
   }
 
   Future<Profile> saveTransportationPreferences({
@@ -296,18 +217,7 @@ class ProfileRepository extends RepositoryBase {
     bool guardianTransportationPossible = false,
   }) async {
     requireUserId();
-    final result = await client.rpc(
-      'save_my_transportation_preferences',
-      params: {
-        'p_methods': methods,
-        'p_max_distance_miles': maxDistanceMiles,
-        'p_max_travel_minutes': maxTravelMinutes,
-        'p_walking_distance_only': walkingDistanceOnly,
-        'p_guardian_transportation_possible': guardianTransportationPossible,
-        'p_client_request_id': _uuid.v4(),
-      },
-    );
-    return _profileFromRpc(result);
+    throw _legacyOnboardingUnavailable;
   }
 
   Future<Profile> setAvatarPath(String? path) {
@@ -320,45 +230,7 @@ class ProfileRepository extends RepositoryBase {
     String? clientRequestId,
   }) async {
     requireUserId();
-    final result = await client.rpc(
-      'update_my_profile',
-      params: {
-        'p_patch': patch,
-        'p_expected_updated_at': expectedUpdatedAt?.toUtc().toIso8601String(),
-        'p_client_request_id': clientRequestId ?? _uuid.v4(),
-      },
-    );
-    return _profileFromRpc(result);
-  }
-
-  Profile _profileFromRpc(Object? response) {
-    if (response is! Map) {
-      throw const MortCodedError(
-        'profile_response_invalid',
-        'The profile server returned an invalid response.',
-      );
-    }
-    final result = Map<String, dynamic>.from(response);
-    if (result['ok'] != true) {
-      final code = result['code']?.toString() ?? 'profile_update_failed';
-      final field = result['field']?.toString();
-      if (field != null && field.isNotEmpty) {
-        throw MortFieldCodedError(
-          code,
-          _profileErrorMessage(code),
-          field: field,
-        );
-      }
-      throw MortCodedError(code, _profileErrorMessage(code));
-    }
-    final profile = result['profile'];
-    if (profile is! Map) {
-      throw const MortCodedError(
-        'profile_response_invalid',
-        'The saved profile could not be loaded.',
-      );
-    }
-    return Profile.fromMap(Map<String, dynamic>.from(profile));
+    throw _profileUpdateUnavailable;
   }
 
   OnboardingProgress _onboardingProgressFromRpc(Object? response) {

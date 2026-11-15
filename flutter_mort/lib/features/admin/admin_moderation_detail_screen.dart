@@ -44,6 +44,7 @@ class _AdminModerationDetailScreenState
   );
 
   late Future<Map<String, dynamic>> _record;
+  late Future<String>? _verificationEvidenceUrl;
   bool _busy = false;
 
   @override
@@ -53,14 +54,22 @@ class _AdminModerationDetailScreenState
   }
 
   void _reload() {
-    _record = _uuid.hasMatch(widget.recordId)
+    final repository = ref.read(adminRepositoryProvider);
+    _record = !_uuid.hasMatch(widget.recordId)
+        ? Future.error(const FormatException('Invalid moderation record ID.'))
+        : widget.recordType == AdminModerationRecordType.identityVerification
+        ? repository.verificationCase(widget.recordId)
+        : repository.moderationRecord(
+            recordType: widget.recordType.wireName,
+            recordId: widget.recordId,
+          );
+    _verificationEvidenceUrl = widget.recordType ==
+            AdminModerationRecordType.identityVerification &&
+        _uuid.hasMatch(widget.recordId)
         ? ref
               .read(adminRepositoryProvider)
-              .moderationRecord(
-                recordType: widget.recordType.wireName,
-                recordId: widget.recordId,
-              )
-        : Future.error(const FormatException('Invalid moderation record ID.'));
+              .verificationEvidenceUrl(widget.recordId)
+        : null;
   }
 
   void _refresh() => setState(_reload);
@@ -127,24 +136,6 @@ class _AdminModerationDetailScreenState
       if (mounted) setState(() => _busy = false);
     }
   }
-
-  Future<void> _updateReport(String status) => _run(
-    '${_label(status)} report?',
-    (reason) => ref
-        .read(adminRepositoryProvider)
-        .updateReportStatus(
-          reportId: widget.recordId,
-          status: status,
-          reason: reason,
-        ),
-  );
-
-  Future<void> _setAccountStatus(String userId, String status) => _run(
-    '${_label(status)} target account?',
-    (reason) => ref
-        .read(adminRepositoryProvider)
-        .setAccountStatus(userId: userId, status: status, reason: reason),
-  );
 
   @override
   Widget build(BuildContext context) {
@@ -214,11 +205,16 @@ class _AdminModerationDetailScreenState
                 const SizedBox(height: MortSpacing.md),
                 if (widget.recordType == AdminModerationRecordType.report)
                   _reportActions(record)
-                else
+                else ...[
                   const MortSafetyBanner(
                     message:
-                        'Actual provider verification is not connected. Real ID collection is disabled, sandbox verification is QA-only, and no client-side approval action is available. Production decisions must come from a signed provider workflow after external approval.',
+                        'Review only the submitted document. The staff attestation is recorded as a provider result before the separate case decision. Do not treat it as authoritative identity confirmation.',
                   ),
+                  const SizedBox(height: MortSpacing.md),
+                  _verificationEvidencePreview(),
+                  const SizedBox(height: MortSpacing.md),
+                  _verificationActions(),
+                ],
               ],
             );
           },
@@ -227,50 +223,85 @@ class _AdminModerationDetailScreenState
     );
   }
 
+  Widget _verificationEvidencePreview() {
+    final future = _verificationEvidenceUrl;
+    if (future == null) {
+      return const MortErrorState(
+        title: 'Evidence unavailable',
+        message: 'No private document is available for this case.',
+      );
+    }
+    return FutureBuilder<String>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const MortSkeletonCard();
+        }
+        if (snapshot.hasError || snapshot.data == null) {
+          return const MortErrorState(
+            title: 'Evidence unavailable',
+            message:
+                'This reviewer cannot access the private document. Refresh or escalate through the approved support process.',
+          );
+        }
+        return MortCard(
+          child: Image.network(
+            snapshot.data!,
+            fit: BoxFit.contain,
+            errorBuilder: (_, _, _) => const Text(
+              'The private document could not be displayed. No decision was recorded.',
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _verificationActions() => MortActionRow(
+    actions: [
+      MortAction(
+        label: 'Verify evidence',
+        icon: Icons.verified_user_outlined,
+        busy: _busy,
+        onPressed: () => _run(
+          'Record a verified evidence review?',
+          (reason) => ref.read(adminRepositoryProvider).reviewVerificationCase(
+            caseId: widget.recordId,
+            decision: 'verified',
+            reason: reason,
+          ),
+        ),
+      ),
+      MortAction(
+        label: 'Reject evidence',
+        icon: Icons.block_outlined,
+        busy: _busy,
+        onPressed: () => _run(
+          'Reject this verification evidence?',
+          (reason) => ref.read(adminRepositoryProvider).reviewVerificationCase(
+            caseId: widget.recordId,
+            decision: 'rejected',
+            reason: reason,
+          ),
+        ),
+      ),
+    ],
+  );
+
   Widget _reportActions(Map<String, dynamic> record) {
     final targetUserId = record['target_user_id']?.toString();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        MortActionRow(
-          actions: [
-            MortAction(
-              label: 'Begin review',
-              icon: Icons.manage_search,
-              busy: _busy,
-              onPressed: () => _updateReport('reviewing'),
-            ),
-            MortAction(
-              label: 'Resolve',
-              icon: Icons.task_alt,
-              busy: _busy,
-              onPressed: () => _updateReport('resolved'),
-            ),
-            MortAction(
-              label: 'Dismiss',
-              icon: Icons.remove_circle_outline,
-              busy: _busy,
-              onPressed: () => _updateReport('dismissed'),
-            ),
-          ],
+        const MortSafetyBanner(
+          message:
+              'This report is read-only in the current production backend; staff report-status actions are not available in this screen.',
         ),
         if (targetUserId != null) ...[
           const SizedBox(height: MortSpacing.md),
-          MortActionRow(
-            actions: [
-              MortAction(
-                label: 'Suspend target account',
-                icon: Icons.block,
-                busy: _busy,
-                onPressed: () => _setAccountStatus(targetUserId, 'suspended'),
-              ),
-              MortAction(
-                label: 'Restore suspended account',
-                icon: Icons.person_outline,
-                busy: _busy,
-                onPressed: () => _setAccountStatus(targetUserId, 'active'),
-              ),
-            ],
+          const MortSafetyBanner(
+            message:
+                'No account suspension or restoration was offered: the production status RPC only approves eligible pending activation requests.',
           ),
         ],
       ],

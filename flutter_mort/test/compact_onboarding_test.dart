@@ -166,29 +166,49 @@ class _FakeProfileRepository extends ProfileRepository {
 }
 
 class _FakeLegalContractRepository extends LegalContractRepository {
+  final acceptedVersionIds = <String>[];
+
   @override
   Future<Map<String, dynamic>> legalRequirements() async => const {
-    'requirements': <Map<String, dynamic>>[],
+    'ok': true,
+    'requirements': <Map<String, dynamic>>[
+      {
+        'required': true,
+        'acceptance_id': null,
+        'version_id': '10000000-0000-4000-8000-000000000001',
+        'requires_electronic_signature': false,
+      },
+    ],
   };
+
+  @override
+  Future<Map<String, dynamic>> acceptLegalVersion({
+    required String versionId,
+    required bool teenSummaryViewed,
+    String? signature,
+  }) async {
+    acceptedVersionIds.add(versionId);
+    return const {'ok': true};
+  }
 }
 
 Future<void> _pumpOnboarding(
   WidgetTester tester, {
   _FakeProfileRepository? repository,
+  _FakeLegalContractRepository? legalRepository,
   TextScaler textScaler = TextScaler.noScaling,
   bool disableAnimations = false,
   double keyboardInset = 0,
   Key? onboardingKey,
 }) async {
   final fakeRepository = repository ?? _FakeProfileRepository();
+  final fakeLegalRepository = legalRepository ?? _FakeLegalContractRepository();
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         profileRepositoryProvider.overrideWithValue(fakeRepository),
         currentProfileProvider.overrideWith((ref) async => null),
-        legalContractRepositoryProvider.overrideWithValue(
-          _FakeLegalContractRepository(),
-        ),
+        legalContractRepositoryProvider.overrideWithValue(fakeLegalRepository),
       ],
       child: MaterialApp(
         theme: mortTestTheme(MortTheme.dark()),
@@ -425,7 +445,12 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final repository = _FakeProfileRepository();
-      await _pumpOnboarding(tester, repository: repository);
+      final legalRepository = _FakeLegalContractRepository();
+      await _pumpOnboarding(
+        tester,
+        repository: repository,
+        legalRepository: legalRepository,
+      );
 
       expect(find.text('Step 1 of 4'), findsOneWidget);
       expect(find.text('Your account'), findsOneWidget);
@@ -508,6 +533,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repository.completions, 1);
+      expect(legalRepository.acceptedVersionIds, [
+        '10000000-0000-4000-8000-000000000001',
+      ]);
       expect(tester.takeException(), isNull);
     },
   );

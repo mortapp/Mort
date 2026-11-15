@@ -23,23 +23,24 @@ import '../payments/widgets/fair_pay_panel.dart';
 import 'job_creation_flow.dart';
 
 const safeJobCategories = [
-  'cleaning',
-  'lawn care',
-  'dog walking',
-  'pet care',
-  'snow removal',
-  'trash and recycling',
-  'moving/light lifting',
+  'pet_care',
+  'yard_work',
   'tutoring',
-  'technology help',
-  'organization',
-  'errands',
-  'event setup',
-  'car washing',
-  'painting/light maintenance',
-  'delivery where legally appropriate',
-  'other safe local work',
+  'household_help',
+  'moving_help',
+  'tech_help',
+  'other',
 ];
+
+String safeJobCategoryLabel(String value) => switch (value) {
+  'pet_care' => 'Dog walking & pet care',
+  'yard_work' => 'Lawn & yard work',
+  'tutoring' => 'Tutoring',
+  'household_help' => 'Household help',
+  'moving_help' => 'Moving help',
+  'tech_help' => 'Technology help',
+  _ => 'Other safe local work',
+};
 
 class JobCreationScreen extends ConsumerStatefulWidget {
   const JobCreationScreen({super.key, this.jobId, this.fairPayPolicy});
@@ -903,7 +904,10 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
       MortSearchableDropdown<String>(
         label: 'Category',
         value: _category,
-        items: {for (final value in safeJobCategories) value: value},
+        items: {
+          for (final value in safeJobCategories)
+            value: safeJobCategoryLabel(value),
+        },
         searchHint: 'Search safe job categories',
         errorText: _fieldErrors['category'],
         onChanged: (value) {
@@ -1422,7 +1426,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              MortBadge(label: _draft.category),
+              MortBadge(label: safeJobCategoryLabel(_draft.category)),
               const SizedBox(height: MortSpacing.sm),
               Text(
                 _draft.title,

@@ -25,7 +25,7 @@ class MessagingRepository extends RepositoryBase {
         'p_limit': limit.clamp(1, 50),
       },
     );
-    return MessageThreadPage.fromMap(Map<String, dynamic>.from(value as Map));
+    return MessageThreadPage.fromMap(_pageResponse(value));
   }
 
   Future<MessagePage> listMessagesPage(
@@ -43,7 +43,7 @@ class MessagingRepository extends RepositoryBase {
         'p_limit': limit,
       },
     );
-    return MessagePage.fromMap(Map<String, dynamic>.from(value as Map));
+    return MessagePage.fromMap(_pageResponse(value));
   }
 
   Future<MortMessage> sendSafeMessage(
@@ -52,7 +52,7 @@ class MessagingRepository extends RepositoryBase {
     String? clientRequestId,
   }) async {
     try {
-      final row = await client.rpc(
+      final raw = await client.rpc(
         'send_safe_message_v2',
         params: {
           'p_thread_id': threadId,
@@ -60,7 +60,29 @@ class MessagingRepository extends RepositoryBase {
           'p_client_request_id': clientRequestId ?? const Uuid().v4(),
         },
       );
-      return MortMessage.fromMap(Map<String, dynamic>.from(row as Map));
+      if (raw is! Map) {
+        throw const MortCodedError(
+          'unknown_permission_failure',
+          'The message server returned an unexpected response.',
+        );
+      }
+      final response = Map<String, dynamic>.from(raw);
+      if (response['ok'] == false) {
+        throw MortCodedError(
+          response['code']?.toString() ?? 'unknown_permission_failure',
+          'The message was not sent. Refresh the conversation and try again.',
+        );
+      }
+      if (response['id'] == null ||
+          response['thread_id'] == null ||
+          response['sender_id'] == null ||
+          response['body'] == null) {
+        throw const MortCodedError(
+          'unknown_permission_failure',
+          'The message server returned an incomplete response.',
+        );
+      }
+      return MortMessage.fromMap(response);
     } catch (_) {
       await recordOperationalFailure(
         eventType: 'message_delivery_failure',
@@ -116,6 +138,29 @@ class MessagingRepository extends RepositoryBase {
         'The conversation read state could not be updated.',
       );
     }
+  }
+
+  Map<String, dynamic> _pageResponse(Object? value) {
+    if (value is! Map) {
+      throw const MortCodedError(
+        'unknown_permission_failure',
+        'The messaging server returned an unexpected page response.',
+      );
+    }
+    final response = Map<String, dynamic>.from(value);
+    if (response['ok'] == false) {
+      throw MortCodedError(
+        response['code']?.toString() ?? 'unknown_permission_failure',
+        'Messages could not be loaded. Refresh and try again.',
+      );
+    }
+    if (response['items'] is! List) {
+      throw const MortCodedError(
+        'unknown_permission_failure',
+        'The messaging server returned an incomplete page response.',
+      );
+    }
+    return response;
   }
 }
 

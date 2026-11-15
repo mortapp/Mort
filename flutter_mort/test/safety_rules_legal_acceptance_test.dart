@@ -18,42 +18,52 @@ void main() {
   final permissions = File(
     '${Directory.current.path}/lib/features/settings/native_permissions_screen.dart',
   ).readAsStringSync();
+  final safetyStart = source.indexOf('class _SafetyRulesScreenState');
+  final safetyEnd = source.indexOf('\nclass ', safetyStart + 1);
+  final legacySafety = source.substring(
+    safetyStart,
+    safetyEnd < 0 ? source.length : safetyEnd,
+  );
 
   test(
-    'the real reachable onboarding safety step actually records legal acceptance',
+    'legacy safety widget records legal acceptance through the supported RPC',
     () {
-      // Before this fix, no screen in the live sign-up flow ever called
-      // acceptLegalVersion / submit_legal_acceptance, so
-      // complete_my_onboarding()'s published_legal_acceptance_required gate
-      // could never be satisfied by a real new user.
-      expect(source, contains('legalContractRepositoryProvider'));
-      expect(source, contains('.legalRequirements()'));
-      expect(source, contains('.acceptLegalVersion('));
+      // The legacy screen is not routed in production, but remains test- and
+      // deep-link-reachable; it must still use exact server-issued versions.
+      expect(legacySafety, contains('legalContractRepositoryProvider'));
+      expect(legacySafety, contains('.legalRequirements()'));
+      expect(legacySafety, contains('await legalRepo.acceptLegalVersion('));
+      expect(legacySafety, contains("legalResponse['ok'] != true"));
+      expect(legacySafety, contains("item['required'] == true"));
       expect(
-        source,
+        legacySafety,
         contains("item['acceptance_id'] == null"),
         reason: 'must only accept outstanding, not-yet-accepted versions',
       );
-      // Legal acceptance is recorded before the acknowledgement/progress
-      // save, not after, so a failure here correctly blocks completion.
-      final acceptIndex = source.indexOf('.acceptLegalVersion(');
-      final acknowledgementIndex = source.indexOf(
-        '.recordOnboardingAcknowledgement(',
+      expect(legacySafety, contains("item['version_id']"));
+      expect(
+        legacySafety,
+        isNot(contains('.recordOnboardingAcknowledgement(')),
       );
-      expect(acceptIndex, greaterThan(0));
-      expect(acknowledgementIndex, greaterThan(acceptIndex));
+      expect(legacySafety, isNot(contains('.saveOnboardingProgress(')));
     },
   );
 
   test(
     'four-step onboarding submits exact outstanding versions through the completion RPC',
     () {
-      // The v2 completion RPC owns the legal transaction. Flutter supplies
-      // exact current outstanding version IDs but cannot mark itself complete
-      // or infer acknowledgement from navigation.
+      // Flutter records each required current document using its exact
+      // server-issued version ID before asking v2 to complete onboarding.
       expect(compactOnboarding, contains('legalContractRepositoryProvider'));
       expect(compactOnboarding, contains('.legalRequirements()'));
+      expect(compactOnboarding, contains("legalResponse['ok'] != true"));
+      expect(compactOnboarding, contains("item['required'] == true"));
       expect(compactOnboarding, contains("item['acceptance_id'] == null"));
+      expect(
+        compactOnboarding,
+        contains('await legalRepo.acceptLegalVersion('),
+      );
+      expect(compactOnboarding, contains("item['version_id']"));
       expect(compactOnboarding, contains("'legal_version_ids': outstanding"));
       expect(compactOnboarding, contains('.completeOnboardingV2('));
       expect(

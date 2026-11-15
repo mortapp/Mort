@@ -19,6 +19,105 @@ void main() {
     expect(support, contains("UserRole.admin => '/admin/jobs'"));
   });
 
+  test(
+    'age evidence flows through private upload, staff provider, and review',
+    () {
+      final uploads = _read('lib/data/repositories/uploads_repository.dart');
+      final teenScreen = _read(
+        'lib/features/trust/teen_verification_screens.dart',
+      );
+      final admin = _read('lib/data/repositories/admin_repository.dart');
+      final adminScreen = _read(
+        'lib/features/admin/admin_moderation_detail_screen.dart',
+      );
+      final migration = _read(
+        '../supabase/production-baseline-migrations/20261114223346_mort_complete_repair_bundle.sql',
+      );
+
+      expect(uploads, contains("from('verification-evidence')"));
+      expect(uploads, contains("'submit_my_verification_evidence_v1'"));
+      expect(uploads, contains("'p_verification_type': verificationType"));
+      expect(uploads, contains("verificationType != 'school_id'"));
+      expect(teenScreen, contains('submitMyAgeEvidence'));
+      expect(teenScreen, contains("_chooseAndSubmit('age')"));
+      expect(teenScreen, contains("_chooseAndSubmit('school_id')"));
+      expect(admin, contains("'mort_record_staff_document_review'"));
+      expect(admin, contains("'mort_review_verification_case'"));
+      expect(adminScreen, contains("decision: 'verified'"));
+      expect(migration, contains("('mort_staff_review','age',true)"));
+      expect(migration, contains("('mort_staff_review','school_id',true)"));
+    },
+  );
+
+  test(
+    'onboarding RPC failures are thrown and rendered instead of advanced',
+    () {
+      final profile = _read('lib/data/repositories/profile_repository.dart');
+      final onboarding = _read(
+        'lib/features/onboarding/compact_onboarding.dart',
+      );
+
+      expect(profile, contains("if (result['ok'] != true)"));
+      expect(
+        profile,
+        contains('throw MortCodedError(code, _profileErrorMessage(code))'),
+      );
+      expect(onboarding, contains('catch (error)'));
+      expect(
+        onboarding,
+        contains('_showStepError(_saveFailureMessage(error))'),
+      );
+      expect(onboarding, contains('if (!progress.completed)'));
+    },
+  );
+
+  test('onboarding records current legal versions before completing setup', () {
+    final onboarding = _read('lib/features/onboarding/compact_onboarding.dart');
+    final auth = _read('lib/features/auth/unified_auth_screen.dart');
+    final legal = _read('lib/data/repositories/legal_contract_repository.dart');
+
+    expect(onboarding, contains('legalRepo.acceptLegalVersion('));
+    expect(onboarding, contains("item['acceptance_id'] == null"));
+    expect(onboarding, contains("item['version_id']"));
+    expect(onboarding, contains('await legalRepo.acceptLegalVersion'));
+    expect(legal, contains("'submit_legal_acceptance'"));
+    expect(auth, isNot(contains('recordOnboardingAcknowledgement')));
+  });
+
+  test(
+    'staff activation is tied to role-request approval and verification gates',
+    () {
+      final migration = _read(
+        '../supabase/production-baseline-migrations/20261114223346_mort_complete_repair_bundle.sql',
+      );
+      final legacyCaseMigration = _read(
+        '../supabase/production-baseline-migrations/20261114223714_ignore_legacy_self_reported_age_cases.sql',
+      );
+      final admin = _read('lib/data/repositories/admin_repository.dart');
+
+      expect(migration, contains("p_status is null or p_status <> 'active'"));
+      expect(migration, contains("status = 'pending'"));
+      expect(migration, contains('public.mort_review_role_request'));
+      expect(migration, contains('activation_request_required'));
+      expect(migration, contains('private.is_approved_school_email(u.email)'));
+      expect(migration, contains('mort_queue_role_activation'));
+      expect(legacyCaseMigration, contains('verification_provider_allowlist'));
+      expect(
+        legacyCaseMigration,
+        contains(
+          "not (p_verification_type = 'age' and vc.provider = 'self_reported')",
+        ),
+      );
+      expect(
+        legacyCaseMigration,
+        contains(
+          "not (vc.verification_type = 'age' and vc.provider = 'self_reported')",
+        ),
+      );
+      expect(admin, contains("'admin_set_account_status_v2'"));
+    },
+  );
+
   test('release configuration is fail-closed and bound to MORT Supabase', () {
     final config = _read('lib/core/config/app_config.dart');
     final main = _read('lib/main.dart');
@@ -77,8 +176,69 @@ void main() {
       expect(repository, isNot(contains(".from('jobs').select(_jobSelect)")));
       expect(repository, contains("'manage_job_v2'"));
       expect(repository, isNot(contains("'manage_job',")));
-      expect(applications, contains("'update_application_status_v3'"));
+      expect(applications, contains("'update_my_job_application_status_v3'"));
+      expect(applications, isNot(contains("'update_application_status_v3'")));
       expect(applications, isNot(contains("'update_application_status_v2'")));
+    },
+  );
+
+  test('job model maps production region and category values', () {
+    final model = _read('lib/data/models/job.dart');
+    final composer = _read('lib/features/jobs/job_screens.dart');
+
+    expect(model, contains("json['region'] ?? json['state']"));
+    expect(model, contains("_productionCategory(json['category'])"));
+    for (final category in const [
+      'pet_care',
+      'yard_work',
+      'tutoring',
+      'household_help',
+      'moving_help',
+      'tech_help',
+      'other',
+    ]) {
+      expect(composer, contains("'$category'"));
+    }
+  });
+
+  test(
+    'application transition replay rejects a reused key with a changed payload',
+    () {
+      final migration = _read(
+        '../supabase/migrations/20261115000000_fix_application_transition_idempotency_replay.sql',
+      );
+
+      expect(migration, contains('v_existing_hash text;'));
+      expect(migration, contains('p_action is null'));
+      expect(
+        migration,
+        contains(
+          'select response, request_hash into v_response, v_existing_hash',
+        ),
+      );
+      expect(migration, contains("v_existing_hash is distinct from v_hash"));
+      expect(migration, contains("'idempotency_key_reused'"));
+    },
+  );
+
+  test('message RPC errors cannot become a sent message or empty inbox', () {
+    final messaging = _read('lib/data/repositories/messaging_repository.dart');
+
+    expect(messaging, contains("if (response['ok'] == false)"));
+    expect(messaging, contains("if (response['id'] == null"));
+    expect(messaging, contains("if (response['items'] is! List)"));
+    expect(messaging, contains('The message was not sent.'));
+  });
+
+  test(
+    'proof upload retries preserve objects that predate the current attempt',
+    () {
+      final uploads = _read('lib/data/repositories/uploads_repository.dart');
+
+      expect(uploads, contains('var uploadedByThisAttempt = false;'));
+      expect(uploads, contains('uploadedByThisAttempt = true;'));
+      expect(uploads, contains("if (error.statusCode != '409') rethrow;"));
+      expect(uploads, contains('if (uploadedByThisAttempt) {'));
     },
   );
 

@@ -56,6 +56,69 @@ class AdminRepository extends RepositoryBase {
     return value;
   }
 
+  Future<String> verificationEvidenceUrl(String caseId) async {
+    requireUserId();
+    final row = await client
+        .from('verification_cases')
+        .select('id,evidence_path,provider,status')
+        .eq('id', caseId)
+        .maybeSingle();
+    if (row == null ||
+        row['provider'] != 'mort_staff_review' ||
+        row['evidence_path'] is! String) {
+      throw StateError('The verification evidence is not available to review.');
+    }
+    return client.storage
+        .from('verification-evidence')
+        .createSignedUrl(row['evidence_path'] as String, 300);
+  }
+
+  Future<Map<String, dynamic>> verificationCase(String caseId) async {
+    requireUserId();
+    final row = await client
+        .from('verification_cases')
+        .select('id,verification_type,status,provider,submitted_at,reviewed_at')
+        .eq('id', caseId)
+        .maybeSingle();
+    if (row == null) {
+      throw StateError('The verification case is unavailable to this reviewer.');
+    }
+    return {'ok': true, 'record': Map<String, dynamic>.from(row)};
+  }
+
+  Future<void> reviewVerificationCase({
+    required String caseId,
+    required String decision,
+    required String reason,
+  }) async {
+    requireUserId();
+    if (decision != 'verified' && decision != 'rejected') {
+      throw ArgumentError.value(decision, 'decision');
+    }
+    final attestation = await client.rpc(
+      'mort_record_staff_document_review',
+      params: {
+        'p_case_id': caseId,
+        'p_decision': decision,
+        'p_note': reason.trim(),
+      },
+    );
+    _requireSuccess(
+      attestation,
+      'The provider review result was not recorded.',
+    );
+    final review = await client.rpc(
+      'mort_review_verification_case',
+      params: {
+        'p_case_id': caseId,
+        'p_status': decision,
+        'p_note': reason.trim(),
+        'p_expires_at': null,
+      },
+    );
+    _requireSuccess(review, 'The verification decision was rejected.');
+  }
+
   Future<Map<String, dynamic>> monetizationOverview() async {
     final result = await client.rpc('admin_monetization_overview');
     return Map<String, dynamic>.from(result as Map);
@@ -172,9 +235,14 @@ class AdminRepository extends RepositoryBase {
     DateTime? expiresAt,
   }) async {
     requireUserId();
-    final effectiveExpiry = status == 'suspended'
-        ? (expiresAt ?? DateTime.now().toUtc().add(const Duration(hours: 24)))
-        : null;
+    if (status != 'active') {
+      throw StateError(
+        'Direct suspension and restoration are not supported by the production account-status RPC.',
+      );
+    }
+    if (expiresAt != null) {
+      throw ArgumentError.value(expiresAt, 'expiresAt');
+    }
     final result = await client.rpc(
       'admin_set_account_status_v2',
       params: {
@@ -182,7 +250,7 @@ class AdminRepository extends RepositoryBase {
         'p_status': status,
         'p_reason_code': reasonCode,
         'p_reason': reason.trim(),
-        'p_expires_at': effectiveExpiry?.toIso8601String(),
+        'p_expires_at': null,
       },
     );
     _requireSuccess(result, 'The account status action was rejected.');

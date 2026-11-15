@@ -69,7 +69,7 @@ completed from `in_progress` without submitted proof.
 
 ## Integrity Contracts
 
-- `manage_job_v2` and `update_application_status_v3` use caller-bound request
+- `manage_job_v2` and `update_my_job_application_status_v3` use caller-bound request
   IDs and persist deterministic responses.
 - Repeating the same actor/request ID returns the stored response with
   `replayed=true`; changing the resource or action returns
@@ -122,4 +122,3 @@ cache is not persisted across repository/session recreation.
   isolation checks.
 - Full hosted wrapper: 33/33 scripts passed in 165.9 seconds.
 - Flutter: 244 passed, 2 expected compile-profile skips, 0 failed.
-

@@ -480,11 +480,25 @@ class _CompactOnboardingScreenState
           break;
         case 3:
           final legalRepo = ref.read(legalContractRepositoryProvider);
+          final legalResponse = await legalRepo.legalRequirements();
+          if (legalResponse['ok'] != true) {
+            _showStepError(
+              'Current required legal documents could not be confirmed. Refresh and try again.',
+            );
+            return;
+          }
           final requirements =
-              (await legalRepo.legalRequirements())['requirements'] as List? ??
-              const [];
+              (legalResponse['requirements'] as List? ?? const [])
+                  .map((item) => Map<String, dynamic>.from(item as Map))
+                  .where((item) => item['required'] == true)
+                  .toList(growable: false);
+          if (requirements.isEmpty) {
+            _showStepError(
+              'Current required legal documents could not be confirmed. Refresh and try again.',
+            );
+            return;
+          }
           final outstanding = requirements
-              .map((item) => Map<String, dynamic>.from(item as Map))
               .where((item) => item['acceptance_id'] == null)
               .toList(growable: false);
           final needsSignature = outstanding.any(
@@ -495,6 +509,22 @@ class _CompactOnboardingScreenState
               'Type your name to electronically sign the required document.',
             );
             return;
+          }
+          for (final item in outstanding) {
+            final versionId = item['version_id']?.toString().trim() ?? '';
+            if (versionId.isEmpty) {
+              _showStepError(
+                'A required published legal document could not be loaded. Refresh and try again.',
+              );
+              return;
+            }
+            await legalRepo.acceptLegalVersion(
+              versionId: versionId,
+              teenSummaryViewed: _resolvedRole() == UserRole.teen,
+              signature: item['requires_electronic_signature'] == true
+                  ? _signature.text.trim()
+                  : null,
+            );
           }
           final package = await PackageInfo.fromPlatform();
           final platform = kIsWeb
