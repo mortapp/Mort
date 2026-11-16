@@ -1,5 +1,5 @@
 param(
-  [string]$ProjectRef = 'jxbnrkasktbhtiujkhay',
+  [string]$ProjectRef = 'ckcxakhxqlkhppsxxjhv',
   [string]$EvidencePath = '',
   [switch]$WhatIf
 )
@@ -74,10 +74,10 @@ try {
   $runtimeStatus = $null
 }
 
-$expectedWebhookUrl = "https://$ProjectRef.supabase.co/functions/v1/stripe-webhook"
+$expectedWebhookUrl = "https://$ProjectRef.supabase.co/functions/v1/stripe-assignment-webhook"
 $secretKeyPresent = Has-Name -Text $secretListing -Name 'STRIPE_TEST_SECRET_KEY'
 $publishableKeyPresent = Has-Name -Text $secretListing -Name 'STRIPE_TEST_PUBLISHABLE_KEY'
-$webhookFunctionPresent = Has-Name -Text $functionListing -Name 'stripe-webhook'
+$webhookFunctionPresent = Has-Name -Text $functionListing -Name 'stripe-assignment-webhook'
 $webhookConfigured = $webhookFunctionPresent -and $webhookUrl -eq $expectedWebhookUrl
 $webhookSecretPresent = Has-Name -Text $secretListing -Name 'STRIPE_TEST_WEBHOOK_SECRET'
 $liveNamesPresent = @($forbiddenLiveNames | Where-Object { Has-Name -Text $secretListing -Name $_ })

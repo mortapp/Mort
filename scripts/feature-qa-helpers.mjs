@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
+import { assertFeatureQaTarget, isLoopbackHost } from "./feature-qa-target-guard.mjs";
 
 export const supabaseUrl = required("EXPO_PUBLIC_SUPABASE_URL");
 export const projectRef =
@@ -13,9 +14,7 @@ const dbUrl = process.env.SUPABASE_DB_URL || "";
 const dbPassword = process.env.SUPABASE_DB_PASSWORD || "";
 const localQa = process.env.MORT_QA_LOCAL_SUPABASE === "true";
 
-if (!localQa && supabaseUrl !== `https://${projectRef}.supabase.co`) {
-  throw new Error(`EXPO_PUBLIC_SUPABASE_URL must target ${projectRef}.`);
-}
+assertFeatureQaTarget({ projectRef, supabaseUrl, dbUrl, localQa });
 if (!dbUrl && !dbPassword) {
   throw new Error("Missing SUPABASE_DB_URL or SUPABASE_DB_PASSWORD.");
 }
@@ -32,8 +31,7 @@ function required(name) {
 
 function createDatabaseClient() {
   if (dbUrl) {
-    const localConnection =
-      /^postgres(?:ql)?:\/\/[^@]+@(?:127\.0\.0\.1|localhost):/i.test(dbUrl);
+    const localConnection = isLoopbackHost(new URL(dbUrl).hostname);
     return new pg.Client({
       connectionString: dbUrl,
       ssl: localConnection ? false : { rejectUnauthorized: false },

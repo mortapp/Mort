@@ -1,29 +1,61 @@
 # Stripe Sandbox Setup
 
-1. Use a Stripe test-mode account and confirm Connect is available for the intended platform model and country.
-2. Set `MORT_STRIPE_MODE=sandbox`, `STRIPE_TEST_SECRET_KEY`, `STRIPE_TEST_PUBLISHABLE_KEY`, `STRIPE_TEST_WEBHOOK_SECRET`, `STRIPE_TEST_CONNECT_WEBHOOK_SECRET`, `MORT_STRIPE_OPERATIONS_SECRET`, and `MORT_STRIPE_ALLOWED_REDIRECT_ORIGINS` only in Supabase Edge Function secrets.
-3. Deploy all `stripe-*` functions to project `rakjydmgwwgtdislanbt`; keep `stripe-webhook` JWT verification disabled because it verifies Stripe signatures itself.
-4. Register the deployed webhook endpoint and subscribe to the event list in `MORT_STRIPE_WEBHOOKS.md`.
-5. Keep all database enablement flags false, run configuration and unauthorized probes, then enable sandbox onboarding/funding in a controlled QA window.
-6. Use Stripe test identities, test payment methods, synthetic job records, and dedicated QA users only.
-7. Run every `qa-stripe-*.mjs` test plus real provider flows and reconcile the resulting objects.
+Updated: 2026-11-04
 
-Never put test secrets in `.env.local`, Flutter dart-defines, screenshots, shell history, docs, or archives.
+## Current environment status
 
+- Production Supabase: `jxbnrkasktbhtiujkhay`.
+- QA Supabase: `ckcxakhxqlkhppsxxjhv`.
+- Retired/deleted Supabase project: `rakjydmgwwgtdislanbt` — never use it.
+- Production Edge Functions currently active:
+  - `stripe-create-assignment-payment-intent` (JWT verification enabled).
+  - `stripe-assignment-webhook` (JWT verification disabled because the handler validates Stripe signatures).
+  - `stripe-runtime-status` (JWT verification enabled).
+- Production Stripe runtime controls are disabled: payments, payouts, transfers, onboarding, and live mode are false.
+- QA project currently has no deployed Edge Functions. Hosted Stripe regression and provider E2E remain skipped until QA-only credentials are provisioned and QA functions are deployed.
+- Do not enable production payments, payouts, transfers, connected-account onboarding, or provider mutations as part of a sandbox test.
+
+## QA-only setup
+
+Use a Stripe test-mode account and QA project only. Provision the following in a protected QA GitHub Actions/Supabase environment:
+
+- `STRIPE_TEST_SECRET_KEY`
+- `STRIPE_TEST_PUBLISHABLE_KEY`
+- `STRIPE_TEST_WEBHOOK_SECRET`
+- `STRIPE_TEST_CONNECT_WEBHOOK_SECRET`
+- `MORT_STRIPE_OPERATIONS_SECRET`
+- `MORT_STRIPE_ALLOWED_REDIRECT_ORIGINS`
+- QA-only Supabase service-role, database, and access-token credentials.
+
+Never reuse production service-role keys, database passwords, Supabase access tokens, or live Stripe credentials in QA.
+
+The QA webhook endpoint, after the function is deployed and verified, is:
+
+`https://ckcxakhxqlkhppsxxjhv.supabase.co/functions/v1/stripe-assignment-webhook`
+
+Keep the webhook's JWT verification disabled only because the webhook handler validates Stripe's signature itself. Do not disable JWT verification on authenticated payment functions.
 
 ## Ordered pre-provider gate
 
-Before any Stripe test-mode mutation, run:
+Before any Stripe test-mode mutation, run the read-only gate against QA:
 
 ```powershell
+$env:MORT_SUPABASE_PROJECT_REF = 'ckcxakhxqlkhppsxxjhv'
+$env:MORT_STRIPE_MODE = 'sandbox'
+$env:MORT_STRIPE_TEST_WEBHOOK_URL = 'https://ckcxakhxqlkhppsxxjhv.supabase.co/functions/v1/stripe-assignment-webhook'
 powershell -ExecutionPolicy Bypass -File scripts/stripe-pre-provider-test-gate.ps1 -WhatIf
 ```
 
-The gate is read-only and evaluates, in order: TEST secret-key name present; TEST publishable-key name present; the deployed `stripe-webhook` endpoint matches `https://rakjydmgwwgtdislanbt.supabase.co/functions/v1/stripe-webhook`; TEST webhook-secret name present; linked project and runtime mode are sandbox with no live Stripe secret names; and all sandbox provider-mutation runtime flags are explicitly enabled while live flags remain off.
+The gate must confirm the QA project, sandbox mode, test-key names, test webhook secret, and explicitly configured QA sandbox flags. It must reject production project refs and any live Stripe secret names.
 
-The gate writes only booleans, timestamps, the project ref, and safe status labels to `artifacts/stripe/pre-provider-gate.json`. It rejects credential-like output and never calls Stripe. A failing gate is expected while MORT's provider-operation flags remain disabled; the gate does not enable them.
+A failing gate is expected while QA provider-mutation flags remain disabled. The gate does not enable them. Never bypass a failed gate.
 
-For an operator run, keep `MORT_SUPABASE_PROJECT_REF=rakjydmgwwgtdislanbt`, `MORT_STRIPE_MODE=sandbox`, and the non-secret `MORT_STRIPE_TEST_WEBHOOK_URL` in the protected shell. `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` are operator credentials used only for Supabase/DB reads and must never be committed or printed.
+## Test procedure
 
+1. Deploy only the required Stripe functions to QA after the QA secrets are provisioned.
+2. Run contract, unauthorized, signature, replay, idempotency, and webhook-event tests.
+3. Use Stripe test identities, test payment methods, synthetic job records, and dedicated QA users only.
+4. Reconcile all test objects and confirm no production requests occurred.
+5. Keep production runtime controls disabled after the test.
 
-For Task 31, the platform and Connect webhook registrations use separate Stripe signing credentials. The Connect signing-secret name must be present before account or payout provider scenarios are allowed to run; this is checked by `scripts/stripe-connect-webhook-preflight.ps1`.
+No production payment activation or live provider mutation is authorized by this setup guide.

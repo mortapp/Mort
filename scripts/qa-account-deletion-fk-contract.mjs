@@ -25,12 +25,11 @@
 // guarantee (deletion cannot silently become blocked, and SET NULL relations
 // cannot silently become deletion-breaking) for all of them.
 //
-// Runs against local (set SUPABASE_DB_URL, e.g.
-// postgresql://postgres:postgres@127.0.0.1:54322/postgres) or hosted (set
-// SUPABASE_DB_PASSWORD; connects to db.jxbnrkasktbhtiujkhay.supabase.co).
+// Runs against local Supabase or the explicitly selected isolated QA project.
 import pg from "pg";
+import { assertFeatureQaTarget } from "./feature-qa-target-guard.mjs";
 
-const projectRef = "jxbnrkasktbhtiujkhay";
+const QA_PROJECT_REF = "ckcxakhxqlkhppsxxjhv";
 
 function fail(message) {
   console.error(`FK contract failed: ${message}`);
@@ -145,20 +144,31 @@ const CLASSIFIED = {
 const CLASS_TO_ON_DELETE = { A: "CASCADE", B: "SET NULL", D: "SET NULL" };
 
 async function main() {
-  const connectionString =
-    process.env.SUPABASE_DB_URL ??
-    (() => {
-      const password = process.env.SUPABASE_DB_PASSWORD;
-      if (!password) {
-        fail("Set SUPABASE_DB_URL (local) or SUPABASE_DB_PASSWORD (hosted).");
-        process.exit(1);
-      }
-      return `postgresql://postgres:${encodeURIComponent(password)}@db.${projectRef}.supabase.co:5432/postgres`;
-    })();
+  const localQa = process.env.MORT_QA_LOCAL_SUPABASE === "true";
+  const connectionString = process.env.SUPABASE_DB_URL ?? "";
+  const databasePassword = process.env.SUPABASE_DB_PASSWORD ?? "";
+  const apiUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
+  const projectRef = process.env.MORT_SUPABASE_PROJECT_REF ??
+    (apiUrl ? new URL(apiUrl).hostname.split(".")[0] : "");
+
+  if (!connectionString && (!databasePassword || localQa || projectRef !== QA_PROJECT_REF)) {
+    fail("Set a local SUPABASE_DB_URL with local QA enabled, or explicitly select the isolated QA project and provide its DB password.");
+    process.exit(1);
+  }
+
+  const databaseUrl = connectionString ||
+    `postgresql://postgres:${encodeURIComponent(databasePassword)}@db.${QA_PROJECT_REF}.supabase.co:5432/postgres`;
+  const guardedApiUrl = apiUrl || (projectRef === QA_PROJECT_REF ? `https://${QA_PROJECT_REF}.supabase.co` : "");
+  assertFeatureQaTarget({
+    projectRef,
+    supabaseUrl: guardedApiUrl,
+    dbUrl: databaseUrl,
+    localQa,
+  });
 
   const database = new pg.Client({
-    connectionString,
-    ssl: connectionString.includes("supabase.co") ? { rejectUnauthorized: false } : undefined,
+    connectionString: databaseUrl,
+    ssl: databaseUrl.includes("supabase.co") ? { rejectUnauthorized: false } : undefined,
   });
   await database.connect();
   try {

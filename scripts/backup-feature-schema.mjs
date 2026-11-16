@@ -1,25 +1,29 @@
+import { createHash } from "node:crypto";
+import { encryptBackupEnvelope } from "./backup-envelope.mjs";
+import { createBackupPostgresConfig } from "./backup-postgres-config.mjs";
 import pg from "pg";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { chmodSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const projectRef = "jxbnrkasktbhtiujkhay";
+const projectRef = process.env.MORT_BACKUP_PROJECT_REF || "jxbnrkasktbhtiujkhay";
+const backupApproved = process.env.MORT_BACKUP_APPROVED === "true";
+const requestedBackupDir = process.env.MORT_BACKUP_OUTPUT_DIR;
+const encryptionKeyText = process.env.MORT_BACKUP_ENCRYPTION_KEY;
 const password = process.env.SUPABASE_DB_PASSWORD;
 
+if (projectRef !== "jxbnrkasktbhtiujkhay" || !backupApproved || !requestedBackupDir || !encryptionKeyText) {
+  throw new Error("Production schema snapshot blocked. Set the production project ref, MORT_BACKUP_APPROVED=true, MORT_BACKUP_ENCRYPTION_KEY (base64-encoded 32-byte key), and an external MORT_BACKUP_OUTPUT_DIR after completing issue #57.");
+}
+const encryptionKey = Buffer.from(encryptionKeyText, "base64");
+if (encryptionKey.length !== 32 || encryptionKey.toString("base64").replace(/=+$/, "") !== encryptionKeyText.replace(/=+$/, "")) {
+  throw new Error("MORT_BACKUP_ENCRYPTION_KEY must be a base64-encoded 32-byte key.");
+}
 if (!password) {
   throw new Error("Set SUPABASE_DB_PASSWORD before creating the remote schema snapshot.");
 }
 
-// Connect through the Supabase session pooler: the direct database endpoint
-// is IPv6-only, which is unreachable from IPv4-only CI runners.
-const client = new pg.Client({
-  host: "aws-0-us-east-2.pooler.supabase.com",
-  port: 5432,
-  database: "postgres",
-  user: `postgres.${projectRef}`,
-  password,
-  ssl: { rejectUnauthorized: false },
-});
+const client = new pg.Client(createBackupPostgresConfig({ projectRef, password }));
 
 const queries = {
   database: `
@@ -139,28 +143,13 @@ const queries = {
   // Count only tables that currently exist, so a renamed or dropped table can
   // never break a backup run (missing tables are simply absent from counts).
   featureRowCounts: `
-    select jsonb_object_agg(label, row_count) as counts
-    from (
-      select label,
-        (xpath('/row/c/text()', query_to_xml(
-          format('select count(*)::int as c from %s', qualified_name),
-          false, true, ''
-        )))[1]::text::int as row_count
-      from (values
-        ('profiles', 'public.profiles'),
-        ('guardian_links', 'public.guardian_links'),
-        ('guardian_preferences', 'public.guardian_preferences'),
-        ('guardian_invite_codes', 'private.guardian_invite_codes'),
-        ('job_applications', 'public.job_applications'),
-        ('application_status_events', 'public.application_status_events'),
-        ('jobs', 'public.jobs'),
-        ('notifications', 'public.notifications'),
-        ('verification_cases', 'public.verification_cases'),
-        ('legal_documents', 'public.legal_documents'),
-        ('legal_acceptances', 'public.legal_acceptances')
-      ) as tables(label, qualified_name)
-      where to_regclass(qualified_name) is not null
-    ) as existing
+    select jsonb_build_object(
+      'profiles', (select count(*)::int from public.profiles),
+      'guardian_links', (select count(*)::int from public.guardian_links),
+      'jobs', (select count(*)::int from public.jobs),
+      'job_applications', (select count(*)::int from public.job_applications),
+      'notifications', (select count(*)::int from public.notifications)
+    ) as counts
   `,
 };
 
@@ -181,17 +170,34 @@ try {
 }
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const backupDir = join(repoRoot, "backups");
-mkdirSync(backupDir, { recursive: true });
+const backupDir = resolve(requestedBackupDir);
+if (!isAbsolute(requestedBackupDir)) {
+  throw new Error("MORT_BACKUP_OUTPUT_DIR must be an absolute path outside the repository.");
+}
+mkdirSync(backupDir, { recursive: true, mode: 0o700 });
+const realRepoRoot = realpathSync(repoRoot);
+const realBackupDir = realpathSync(backupDir);
+const relativeToRepo = relative(realRepoRoot, realBackupDir);
+const backupDirIsInsideRepo =
+  relativeToRepo === "" ||
+  (relativeToRepo !== ".." &&
+    !relativeToRepo.startsWith(`..${sep}`) &&
+    !isAbsolute(relativeToRepo));
+if (backupDirIsInsideRepo) {
+  throw new Error("MORT_BACKUP_OUTPUT_DIR must resolve outside the repository.");
+}
+chmodSync(realBackupDir, 0o700);
 const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-const outputPath = join(
-  backupDir,
-  `remote-feature-schema-${projectRef}-${timestamp}.json`,
-);
-writeFileSync(outputPath, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
-
+const outputPath = join(backupDir, `remote-feature-schema-${projectRef}-${timestamp}.json.enc`);
+const plaintext = Buffer.from(`${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
+const envelope = encryptBackupEnvelope({
+  projectRef,
+  kind: "feature-schema",
+  plaintext,
+  keyText: encryptionKeyText,
+});
+writeFileSync(outputPath, envelope, { mode: 0o600 });
+const sha256 = createHash("sha256").update(envelope).digest("hex").toUpperCase();
 console.log(`[backup-feature-schema] Project ref: ${projectRef}`);
-console.log(`[backup-feature-schema] Snapshot: ${outputPath}`);
-console.log(
-  `[backup-feature-schema] Relations=${snapshot.relations.length}, policies=${snapshot.policies.length}, functions=${snapshot.functions.length}, migrations=${snapshot.migrations.length}`,
-);
+console.log(`[backup-feature-schema] Encrypted snapshot: ${outputPath}`);
+console.log(`[backup-feature-schema] Relations=${snapshot.relations.length}, policies=${snapshot.policies.length}, functions=${snapshot.functions.length}, migrations=${snapshot.migrations.length}, encrypted SHA-256=${sha256}`);

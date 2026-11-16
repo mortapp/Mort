@@ -36,6 +36,37 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+      - name: Check release and backup operator script syntax
+        run: |
+          node --check scripts/backup-envelope.mjs
+          node --check scripts/backup-envelope.test.mjs
+          node --check scripts/backup-feature-data.mjs
+          node --check scripts/backup-feature-schema.mjs
+          node --check scripts/build-public-legal-vercel.mjs
+          node --check scripts/play-release-qa-helpers.mjs
+          node --check scripts/qa-release-network-security.mjs
+          node --check scripts/qa-smoke.mjs
+          node --check scripts/qa-rls.mjs
+          node --check scripts/qa-stripe-pre-provider-gate.mjs
+          node --check scripts/revenuecat-common.mjs
+          node --check scripts/stripe-pre-provider-runtime-status.mjs
+          node --check scripts/qa-support-global-budget.mjs
+          node --check scripts/audit-support-evaluation.mjs
+          node --check scripts/audit-play-review-schema.mjs
+          node --check scripts/qa-send-push-observability.mjs
+          node --check scripts/audit-supabase-advisors.mjs
+          node --check scripts/audit-support-chatbot-remote.mjs
+          node --check scripts/audit-stale-feature-qa-references-0.9.4.mjs
+          node --check scripts/qa-support-sql-ts-parity.mjs
+          node --check scripts/qa-redesign-backend.mjs
+          node --check scripts/audit-mission-pilot-remote.mjs
+          node --check scripts/qa-message-thread-context.mjs
+          node --check scripts/feature-qa-helpers.mjs
+          node --check scripts/feature-qa-target-guard.mjs
+          node --check scripts/remove-play-review-fixtures.mjs
+          node --check scripts/build-final-production-pilot-readiness.mjs
+      - run: node --test scripts/feature-qa-target-guard.test.mjs
+      - run: node --test scripts/backup-envelope.test.mjs
       - run: node scripts/qa-stripe-pre-provider-gate.mjs
       - run: node scripts/secret_extraction_scan.mjs --self-test
       - run: node scripts/secret-scan-git-history.mjs --self-test

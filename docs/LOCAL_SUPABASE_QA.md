@@ -21,6 +21,8 @@ Local Supabase:
 - Local anon/service keys were read from `supabase status` only and were not committed.
 - Supabase CLI reported `v2.109.1` is available; this project remains pinned to `2.109.0`.
 
+The execution record above reflects the configuration that existed on 2026-07-08. The current `supabase/config.toml` uses database port `65432`; hosted CI runners may already reserve the Supabase CLI default `54322`.
+
 Database and Storage verification:
 
 - `.\scripts\local-supabase-reset.ps1`: succeeded after migration fixes.
