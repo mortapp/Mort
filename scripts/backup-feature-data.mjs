@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 
 import pg from "pg";
 
+import { createSupabasePoolerClientConfig } from "./supabase-remote-tls.mjs";
+
 const projectRef = "jxbnrkasktbhtiujkhay";
 const password = process.env.SUPABASE_DB_PASSWORD;
 
@@ -13,15 +15,12 @@ if (!password) {
 }
 
 // Connect through the Supabase session pooler: the direct database endpoint
-// is IPv6-only, which is unreachable from IPv4-only CI runners.
-const client = new pg.Client({
-  host: "aws-0-us-east-2.pooler.supabase.com",
-  port: 5432,
-  database: "postgres",
-  user: `postgres.${projectRef}`,
-  password,
-  ssl: { rejectUnauthorized: false },
-});
+// is IPv6-only, which is unreachable from IPv4-only CI runners. TLS verifies
+// Supabase's root CA and the pooler hostname; the database password is never
+// sent over an unverified connection.
+const client = new pg.Client(
+  createSupabasePoolerClientConfig({ projectRef, password }),
+);
 
 const quoteIdentifier = (value) => `"${value.replaceAll('"', '""')}"`;
 

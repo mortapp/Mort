@@ -1,7 +1,13 @@
-name: MORT Encrypted Metadata Backup
+name: MORT Encrypted Backup
 
 on:
   workflow_dispatch:
+    inputs:
+      include_feature_data:
+        description: Include feature data snapshot (all public table rows)
+        required: false
+        default: true
+        type: boolean
   schedule:
     - cron: "17 7 * * 1"
 
@@ -9,10 +15,10 @@ permissions:
   contents: read
 
 jobs:
-  metadata-backup:
+  backup:
     environment: backend-operations
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -23,23 +29,28 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Create metadata-only snapshot
+      - name: Create metadata-only schema snapshot
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: node scripts/backup-feature-schema.mjs
+      - name: Create feature data snapshot
+        if: ${{ github.event_name == 'schedule' || inputs.include_feature_data != false }}
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: node scripts/backup-feature-data.mjs
       - name: Encrypt backup before artifact upload
         env:
           BACKUP_ARCHIVE_PASSPHRASE: ${{ secrets.BACKUP_ARCHIVE_PASSPHRASE }}
         run: |
           test -n "$BACKUP_ARCHIVE_PASSPHRASE"
-          tar -czf "$RUNNER_TEMP/mort-metadata-backup.tar.gz" backups/ supabase/migrations/ supabase/functions/ supabase/config.toml supabase/production-baseline-recovery/
-          openssl enc -aes-256-cbc -salt -pbkdf2 -iter 200000 -pass env:BACKUP_ARCHIVE_PASSPHRASE -in "$RUNNER_TEMP/mort-metadata-backup.tar.gz" -out "$RUNNER_TEMP/mort-metadata-backup.tar.gz.enc"
-          sha256sum "$RUNNER_TEMP/mort-metadata-backup.tar.gz.enc" > "$RUNNER_TEMP/mort-metadata-backup.sha256"
+          tar -czf "$RUNNER_TEMP/mort-backup.tar.gz" backups/ supabase/migrations/ supabase/functions/ supabase/config.toml supabase/production-baseline-recovery/
+          openssl enc -aes-256-cbc -salt -pbkdf2 -iter 200000 -pass env:BACKUP_ARCHIVE_PASSPHRASE -in "$RUNNER_TEMP/mort-backup.tar.gz" -out "$RUNNER_TEMP/mort-backup.tar.gz.enc"
+          sha256sum "$RUNNER_TEMP/mort-backup.tar.gz.enc" > "$RUNNER_TEMP/mort-backup.sha256"
       - uses: actions/upload-artifact@v7
         with:
-          name: mort-encrypted-metadata-backup
+          name: mort-encrypted-backup
           path: |
-            ${{ runner.temp }}/mort-metadata-backup.tar.gz.enc
-            ${{ runner.temp }}/mort-metadata-backup.sha256
+            ${{ runner.temp }}/mort-backup.tar.gz.enc
+            ${{ runner.temp }}/mort-backup.sha256
           if-no-files-found: error
           retention-days: 30

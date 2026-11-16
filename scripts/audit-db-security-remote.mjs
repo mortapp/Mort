@@ -7,6 +7,8 @@
 import pg from "pg";
 import { mkdirSync, writeFileSync } from "node:fs";
 
+import { createSupabasePoolerClientConfig } from "./supabase-remote-tls.mjs";
+
 const projectRef = process.env.MORT_AUDIT_PROJECT_REF;
 const dbPassword = process.env.SUPABASE_DB_PASSWORD;
 const accessToken = process.env.SUPABASE_ACCESS_TOKEN || "";
@@ -17,15 +19,12 @@ if (!dbPassword) throw new Error("SUPABASE_DB_PASSWORD is required.");
 
 mkdirSync(outDir, { recursive: true });
 
-const client = new pg.Client({
+const client = new pg.Client(
   // Session pooler (IPv4-reachable) — the direct endpoint is IPv6-only.
-  host: "aws-0-us-east-2.pooler.supabase.com",
-  port: 5432,
-  database: "postgres",
-  user: `postgres.${projectRef}`,
-  password: dbPassword,
-  ssl: { rejectUnauthorized: false },
-});
+  // TLS verifies Supabase's root CA and the pooler hostname; the database
+  // password is never sent over an unverified connection.
+  createSupabasePoolerClientConfig({ projectRef, password: dbPassword }),
+);
 
 async function dump(name, sql) {
   const result = await client.query(sql);
