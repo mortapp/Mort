@@ -125,9 +125,18 @@ await withQaUsers(
         applicationId,
         action: "accepted",
       });
+      // The raw response for this call is logged by updateApplicationStatus
+      // (qa-diag). Expected envelope on the local stack:
+      // {"ok":false,"code":"invalid_application_transition"} — Adult B is
+      // neither the applicant nor the job poster, so the generic-chain RPC
+      // refuses the transition before any state change.
       assertQa(
         !adultBManage.error && adultBManage.data?.ok === false,
-        "Adult B managed Adult A's application",
+        `Adult B managed Adult A's application (raw response: ${
+          adultBManage.error
+            ? JSON.stringify({ error: adultBManage.error.message })
+            : JSON.stringify(adultBManage.data)
+        })`,
       );
       qaLog(scope, "6/30 unrelated adult cannot read or manage the application");
 

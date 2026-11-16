@@ -58,6 +58,14 @@ export function qaLog(scope, message) {
   console.log(`[${scope}] PASS: ${message}`);
 }
 
+// Diagnostic logging for the QA suite. The multi-user isolation test prints the
+// raw RPC response for application-status changes so an assertion failure
+// distinguishes a real authorization leak (ok: true) from an envelope or
+// contract error (PostgREST error / unexpected code).
+export function qaDiag(tag, payload) {
+  console.log(`[qa-diag] ${tag}: ${JSON.stringify(payload)}`);
+}
+
 export async function sendSafeMessage(client, threadId, body, requestId = randomUUID()) {
   return client.rpc("send_safe_message_v2", {
     p_thread_id: threadId,
@@ -981,12 +989,27 @@ export async function updateApplicationStatus(
     expectedUpdatedAt = null,
   },
 ) {
-  return client.rpc("update_my_job_application_status_v3", {
+  // The generic local stack provides update_application_status_v3 (the
+  // applications-based contract used by supabase db reset and the Stripe
+  // regression job). update_my_job_application_status_v3 is production-only:
+  // it targets public.job_applications (applicant_id, mort_application_status),
+  // which does not exist in the generic migration chain, so calling it there
+  // surfaces a runtime column error instead of a JSON envelope. The QA suite
+  // logs the raw RPC response for either helper so isolation regressions
+  // distinguish authorization failures from contract mismatches.
+  const response = await client.rpc("update_application_status_v3", {
     p_application_id: applicationId,
     p_action: action,
     p_client_request_id: clientRequestId,
     p_expected_updated_at: expectedUpdatedAt,
   });
+  qaDiag("update_application_status_v3", {
+    rpc: "update_application_status_v3",
+    application_id: applicationId,
+    action,
+    raw_response: response.error ? { error: response.error.message } : response.data,
+  });
+  return response;
 }
 
 export async function confirmSafetyAgreement(teenClient, adultClient, applicationId) {
