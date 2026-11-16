@@ -125,9 +125,24 @@ await withQaUsers(
         applicationId,
         action: "accepted",
       });
+      const adultBAuth = await adultB.client.auth.getUser();
+      const adultBManageDiagnostic = {
+        actorsDistinct: adultA.id !== adultB.id,
+        sessionMatchesAdultB:
+          !adultBAuth.error && adultBAuth.data.user?.id === adultB.id,
+        errorCode: adultBManage.error?.code ?? null,
+        errorMessage: adultBManage.error?.message ?? null,
+        response: adultBManage.data
+          ? {
+              ok: adultBManage.data.ok ?? null,
+              code: adultBManage.data.code ?? null,
+              replayed: adultBManage.data.replayed ?? null,
+            }
+          : null,
+      };
       assertQa(
         !adultBManage.error && adultBManage.data?.ok === false,
-        "Adult B managed Adult A's application",
+        `Adult B managed Adult A's application: ${JSON.stringify(adultBManageDiagnostic)}`,
       );
       qaLog(scope, "6/30 unrelated adult cannot read or manage the application");
 

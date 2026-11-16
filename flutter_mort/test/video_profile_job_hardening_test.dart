@@ -45,24 +45,27 @@ void main() {
     },
   );
 
-  test('legacy profile setup fails closed and preserves encrypted recovery', () {
-    final repository = File(
-      'lib/data/repositories/profile_repository.dart',
-    ).readAsStringSync();
-    final screen = File('lib/features/mort_screens.dart').readAsStringSync();
-    final start = screen.indexOf('class _ProfileSetupScreenState');
-    final end = screen.indexOf('class SkillsScreen', start);
-    final profileScreen = screen.substring(start, end);
+  test(
+    'legacy profile setup fails closed and preserves encrypted recovery',
+    () {
+      final repository = File(
+        'lib/data/repositories/profile_repository.dart',
+      ).readAsStringSync();
+      final screen = File('lib/features/mort_screens.dart').readAsStringSync();
+      final start = screen.indexOf('class _ProfileSetupScreenState');
+      final end = screen.indexOf('class SkillsScreen', start);
+      final profileScreen = screen.substring(start, end);
 
-    expect(repository, isNot(contains("'save_my_profile_setup_v2'")));
-    expect(repository, contains('throw _profileUpdateUnavailable'));
-    expect(profileScreen, contains('.saveProfileSetup('));
-    expect(profileScreen, contains('writeProfileDraft'));
-    expect(profileScreen, contains('clearProfileDraft'));
-    expect(profileScreen, contains('userFacingError(error)'));
-    expect(profileScreen, isNot(contains('.requestUsernameChange(')));
-    expect(profileScreen, isNot(contains('.updateMyProfile(')));
-  });
+      expect(repository, isNot(contains("'save_my_profile_setup_v2'")));
+      expect(repository, contains('throw _profileUpdateUnavailable'));
+      expect(profileScreen, contains('.saveProfileSetup('));
+      expect(profileScreen, contains('writeProfileDraft'));
+      expect(profileScreen, contains('clearProfileDraft'));
+      expect(profileScreen, contains('userFacingError(error)'));
+      expect(profileScreen, isNot(contains('.requestUsernameChange(')));
+      expect(profileScreen, isNot(contains('.updateMyProfile(')));
+    },
+  );
 
   test('job composer reports real server publication state', () {
     final source = File(

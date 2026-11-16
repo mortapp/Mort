@@ -63,9 +63,9 @@ class _AdminModerationDetailScreenState
             recordType: widget.recordType.wireName,
             recordId: widget.recordId,
           );
-    _verificationEvidenceUrl = widget.recordType ==
-            AdminModerationRecordType.identityVerification &&
-        _uuid.hasMatch(widget.recordId)
+    _verificationEvidenceUrl =
+        widget.recordType == AdminModerationRecordType.identityVerification &&
+            _uuid.hasMatch(widget.recordId)
         ? ref
               .read(adminRepositoryProvider)
               .verificationEvidenceUrl(widget.recordId)
@@ -265,11 +265,13 @@ class _AdminModerationDetailScreenState
         busy: _busy,
         onPressed: () => _run(
           'Record a verified evidence review?',
-          (reason) => ref.read(adminRepositoryProvider).reviewVerificationCase(
-            caseId: widget.recordId,
-            decision: 'verified',
-            reason: reason,
-          ),
+          (reason) => ref
+              .read(adminRepositoryProvider)
+              .reviewVerificationCase(
+                caseId: widget.recordId,
+                decision: 'verified',
+                reason: reason,
+              ),
         ),
       ),
       MortAction(
@@ -278,11 +280,13 @@ class _AdminModerationDetailScreenState
         busy: _busy,
         onPressed: () => _run(
           'Reject this verification evidence?',
-          (reason) => ref.read(adminRepositoryProvider).reviewVerificationCase(
-            caseId: widget.recordId,
-            decision: 'rejected',
-            reason: reason,
-          ),
+          (reason) => ref
+              .read(adminRepositoryProvider)
+              .reviewVerificationCase(
+                caseId: widget.recordId,
+                decision: 'rejected',
+                reason: reason,
+              ),
         ),
       ),
     ],
