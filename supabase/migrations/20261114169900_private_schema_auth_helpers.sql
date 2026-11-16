@@ -22,6 +22,39 @@ create type public.mort_role as enum (
 
 create schema if not exists private;
 
+-- team_hustles / team_hustle_members: production tables never represented in
+-- the generic chain, now required by 20261115001000 and 20261115004000/005000.
+create table public.team_hustles (
+  id uuid default gen_random_uuid() not null,
+  poster_id uuid not null,
+  title text not null,
+  description text not null,
+  category text,
+  pay_type text default 'per_person' not null,
+  pay_amount numeric(10,2),
+  workers_needed integer default 3 not null,
+  city text,
+  region text,
+  location_notes text,
+  age_min integer default 13 not null,
+  age_max integer default 17 not null,
+  status text default 'open' not null,
+  created_at timestamptz default now() not null,
+  updated_at timestamptz default now() not null,
+  constraint team_hustles_age_max_check check (age_max >= 13 and age_max <= 17),
+  constraint team_hustles_age_min_check check (age_min >= 13 and age_min <= 17),
+  constraint team_hustles_pay_amount_check check (pay_amount is null or (pay_amount >= 1 and pay_amount <= 10000)),
+  constraint team_hustles_pay_type_check check (pay_type in ('per_person','total_split')),
+  constraint team_hustles_status_check check (status in ('open','closed')),
+  constraint team_hustles_workers_needed_check check (workers_needed >= 2 and workers_needed <= 10)
+);
+
+create table public.team_hustle_members (
+  hustle_id uuid not null,
+  user_id uuid not null,
+  joined_at timestamptz default now() not null
+);
+
 create function private.current_role() returns public.mort_role
   language sql
   stable
