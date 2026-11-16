@@ -58,6 +58,14 @@ export function qaLog(scope, message) {
   console.log(`[${scope}] PASS: ${message}`);
 }
 
+// Diagnostic logging for the QA suite. The multi-user isolation test prints the
+// raw RPC response for application-status changes so an assertion failure
+// distinguishes a real authorization leak (ok: true) from an envelope or
+// contract error (PostgREST error / unexpected code).
+export function qaDiag(tag, payload) {
+  console.log(`[qa-diag] ${tag}: ${JSON.stringify(payload)}`);
+}
+
 export async function sendSafeMessage(client, threadId, body, requestId = randomUUID()) {
   return client.rpc("send_safe_message_v2", {
     p_thread_id: threadId,
@@ -981,12 +989,26 @@ export async function updateApplicationStatus(
     expectedUpdatedAt = null,
   },
 ) {
-  return client.rpc("update_my_job_application_status_v3", {
+  // update_my_job_application_status_v3 is the production RPC name. The
+  // generic local migration chain provides a delegating shim with the same
+  // signature that forwards to update_application_status_v3, the
+  // applications-based ownership-checked engine, after its own participation
+  // pre-check. The QA suite logs the raw RPC response for every call so an
+  // isolation regression distinguishes a real authorization leak (ok: true)
+  // from an envelope or contract error.
+  const response = await client.rpc("update_my_job_application_status_v3", {
     p_application_id: applicationId,
     p_action: action,
     p_client_request_id: clientRequestId,
     p_expected_updated_at: expectedUpdatedAt,
   });
+  qaDiag("update_my_job_application_status_v3", {
+    rpc: "update_my_job_application_status_v3",
+    application_id: applicationId,
+    action,
+    raw_response: response.error ? { error: response.error.message } : response.data,
+  });
+  return response;
 }
 
 export async function confirmSafetyAgreement(teenClient, adultClient, applicationId) {

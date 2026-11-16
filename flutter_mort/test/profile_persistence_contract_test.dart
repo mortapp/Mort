@@ -28,35 +28,38 @@ void main() {
     expect(profile.updatedAt, DateTime.utc(2026, 7, 21, 12, 30));
   });
 
-  test('profile repository uses production v2 onboarding and guards legacy writes', () {
-    final source = File(
-      'lib/data/repositories/profile_repository.dart',
-    ).readAsStringSync();
+  test(
+    'profile repository uses production v2 onboarding and guards legacy writes',
+    () {
+      final source = File(
+        'lib/data/repositories/profile_repository.dart',
+      ).readAsStringSync();
 
-    expect(source, contains("'save_my_onboarding_account_v2'"));
-    expect(source, contains("'save_my_onboarding_work_v2'"));
-    expect(source, contains("'save_my_onboarding_safety_v2'"));
-    expect(source, contains("'complete_my_onboarding_v2'"));
-    for (final missingRpc in const [
-      'save_my_profile_setup_v2',
-      'save_my_onboarding_profile',
-      'save_my_transportation_preferences',
-      'update_my_profile',
-      'complete_my_onboarding',
-      'save_my_onboarding_age',
-      'save_my_onboarding_role',
-      'save_my_onboarding_progress',
-      'record_my_onboarding_acknowledgement',
-    ]) {
-      expect(source, isNot(contains("'$missingRpc'")));
-    }
-    expect(source, contains('throw _profileUpdateUnavailable'));
-    expect(source, contains('throw _legacyOnboardingUnavailable'));
-    expect(source, isNot(contains(".from('profiles').update")));
-    expect(source, isNot(contains(".from('profiles').upsert")));
-    expect(source, contains("result['ok'] != true"));
-    expect(source, contains('profile_conflict_detected'));
-  });
+      expect(source, contains("'save_my_onboarding_account_v2'"));
+      expect(source, contains("'save_my_onboarding_work_v2'"));
+      expect(source, contains("'save_my_onboarding_safety_v2'"));
+      expect(source, contains("'complete_my_onboarding_v2'"));
+      for (final missingRpc in const [
+        'save_my_profile_setup_v2',
+        'save_my_onboarding_profile',
+        'save_my_transportation_preferences',
+        'update_my_profile',
+        'complete_my_onboarding',
+        'save_my_onboarding_age',
+        'save_my_onboarding_role',
+        'save_my_onboarding_progress',
+        'record_my_onboarding_acknowledgement',
+      ]) {
+        expect(source, isNot(contains("'$missingRpc'")));
+      }
+      expect(source, contains('throw _profileUpdateUnavailable'));
+      expect(source, contains('throw _legacyOnboardingUnavailable'));
+      expect(source, isNot(contains(".from('profiles').update")));
+      expect(source, isNot(contains(".from('profiles').upsert")));
+      expect(source, contains("result['ok'] != true"));
+      expect(source, contains('profile_conflict_detected'));
+    },
+  );
 
   test('recoverable profile errors leave form controllers intact', () {
     final source = File('lib/features/mort_screens.dart').readAsStringSync();

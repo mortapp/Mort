@@ -81,7 +81,9 @@ class AdminRepository extends RepositoryBase {
         .eq('id', caseId)
         .maybeSingle();
     if (row == null) {
-      throw StateError('The verification case is unavailable to this reviewer.');
+      throw StateError(
+        'The verification case is unavailable to this reviewer.',
+      );
     }
     return {'ok': true, 'record': Map<String, dynamic>.from(row)};
   }

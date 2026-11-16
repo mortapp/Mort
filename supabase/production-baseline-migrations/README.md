@@ -27,3 +27,12 @@ These migrations were applied to the authoritative production Supabase project o
 The notification migration adds the message-recipient notification trigger, the preference RPC contract used by Flutter, and an explicit disabled/unverified remote-push status. Approved messages create generic in-app notifications only for active conversation participants who have message notifications enabled; held or blocked messages do not notify recipients. The Flutter notification repository now queries the production `notifications.user_id` column. The safety expansion adds high-confidence threat, coercion, sensitive-information, exact-address, payment-pressure, and harassment rules.
 
 - `20261114160600_harden_additional_message_safety_patterns.sql` — corrects regex boundary handling for PII requests, payment pressure, and harassment.
+
+## Chat attachment authorization and private-table deny-all — 2026-11-14 (relocated 2026-11-14)
+
+- `20261114170000_chat_attachment_authorization.sql`
+- `20261114171000_private_tables_explicit_deny_all.sql`
+
+These were originally merged into `supabase/migrations/` by #100. That placement broke the generic local chain: both files reference objects that exist only in the production baseline (for example `private.is_active_user()`, `public.conversation_members`, and the private tables that were never part of the generic chain), so `supabase db reset` failed with `function private.is_active_user() does not exist` and the `stripe-local-regression` CI job failed on every pull request.
+
+They are production-baseline changes — the chat-attachment storage policies and the private-table deny-all policies are live in production — and are now recorded here per the convention above. Do not move them back into the generic migration chain.

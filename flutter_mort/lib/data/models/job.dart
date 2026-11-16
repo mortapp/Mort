@@ -549,11 +549,15 @@ class JobDraft {
     final category = value?.toString().trim().toLowerCase() ?? '';
     return switch (category) {
       'pet_care' || 'pet care' || 'dog walking' => 'pet_care',
-      'yard_work' || 'lawn care' || 'snow removal' ||
+      'yard_work' ||
+      'lawn care' ||
+      'snow removal' ||
       'painting/light maintenance' => 'yard_work',
       'tutoring' => 'tutoring',
       'tech_help' || 'technology help' => 'tech_help',
-      'household_help' || 'cleaning' || 'trash and recycling' ||
+      'household_help' ||
+      'cleaning' ||
+      'trash and recycling' ||
       'organization' => 'household_help',
       'moving_help' || 'moving/light lifting' => 'moving_help',
       'other' ||

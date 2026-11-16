@@ -90,7 +90,13 @@ class ApplicationsRepository extends RepositoryBase {
     String? clientRequestId,
     DateTime? expectedUpdatedAt,
   }) async {
-    const supportedActions = {'accepted', 'shortlisted', 'rejected', 'viewed', 'withdrawn'};
+    const supportedActions = {
+      'accepted',
+      'shortlisted',
+      'rejected',
+      'viewed',
+      'withdrawn',
+    };
     if (!supportedActions.contains(action)) {
       throw const MortCodedError(
         'application_action_not_allowed',

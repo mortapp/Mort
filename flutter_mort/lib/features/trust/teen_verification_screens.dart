@@ -141,7 +141,8 @@ class _TeenVerificationCapturePreparationScreenState
   Future<void> _chooseAndSubmit(String verificationType) async {
     if (!AppConfig.identityVerificationEnabled ||
         _busy ||
-        _submittedTypes.contains(verificationType)) return;
+        _submittedTypes.contains(verificationType))
+      return;
     setState(() {
       _busy = true;
       _message = null;
@@ -200,7 +201,8 @@ class _TeenVerificationCapturePreparationScreenState
             : 'Submit age evidence photo',
         icon: Icons.photo_library_outlined,
         busy: _busy,
-        onPressed: AppConfig.identityVerificationEnabled &&
+        onPressed:
+            AppConfig.identityVerificationEnabled &&
                 !_submittedTypes.contains('age')
             ? () => _chooseAndSubmit('age')
             : null,
@@ -215,7 +217,8 @@ class _TeenVerificationCapturePreparationScreenState
         icon: Icons.badge_outlined,
         style: MortButtonStyle.secondary,
         busy: _busy,
-        onPressed: AppConfig.identityVerificationEnabled &&
+        onPressed:
+            AppConfig.identityVerificationEnabled &&
                 !_submittedTypes.contains('school_id')
             ? () => _chooseAndSubmit('school_id')
             : null,
@@ -250,7 +253,9 @@ String _safeUploadError(Object error, String verificationType) {
   }
   if (message.contains('school_email_required') ||
       message.contains('school_email_verification_required')) {
-    final label = verificationType == 'age' ? 'age evidence' : 'school-ID evidence';
+    final label = verificationType == 'age'
+        ? 'age evidence'
+        : 'school-ID evidence';
     return 'Complete the required school-email step before submitting $label.';
   }
   return 'We could not submit the evidence. Check your connection and try again.';
