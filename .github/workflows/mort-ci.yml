@@ -93,6 +93,43 @@ jobs:
           MORT_STRIPE_MODE: sandbox
         run: ./scripts/run-mort-stripe-regression.ps1
 
+  backup-restore-drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: supabase/setup-cli@v3
+        with:
+          version: v2.stable
+      - run: pnpm install --frozen-lockfile
+      - name: Start local Supabase with the full migration chain
+        run: supabase start -x studio,imgproxy,mailpit,logflare,vector,supavisor,edge-runtime,postgres-meta
+      - name: Seed disposable local QA data
+        run: |
+          eval "$(supabase status -o env | sed 's/^/export /')"
+          MORT_QA_TARGET=local \
+          EXPO_PUBLIC_SUPABASE_URL="$API_URL" \
+          SUPABASE_DB_URL="$DB_URL" \
+          SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          MORT_LOCAL_TEST_PASSWORD="Drill-$(openssl rand -hex 12)" \
+          node scripts/create-local-test-users.mjs
+      - name: Snapshot, reset to fresh migration chain, restore and verify
+        run: |
+          export MORT_RESTORE_DRILL_KEY="$(openssl rand -base64 32)"
+          node scripts/restore-drill-local.mjs snapshot
+          supabase db reset --local --no-seed
+          node scripts/restore-drill-local.mjs restore
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop --no-backup
+
   expo-reference:
     runs-on: ubuntu-latest
     timeout-minutes: 25

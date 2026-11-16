@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import pg from "pg";
 
+import { collectFeatureDataSnapshot } from "./backup-feature-snapshot.mjs";
 import { createSupabasePoolerClientConfig } from "./supabase-remote-tls.mjs";
 
 const projectRef = "jxbnrkasktbhtiujkhay";
@@ -22,35 +23,10 @@ const client = new pg.Client(
   createSupabasePoolerClientConfig({ projectRef, password }),
 );
 
-const quoteIdentifier = (value) => `"${value.replaceAll('"', '""')}"`;
-
 await client.connect();
-const snapshot = {
-  projectRef,
-  generatedAt: new Date().toISOString(),
-  handling: "Private local backup. Exclude from source archives and logs.",
-  tables: {},
-};
-
+let snapshot;
 try {
-  const relations = await client.query(`
-    select n.nspname as schema_name, c.relname as table_name
-    from pg_class c
-    join pg_namespace n on n.oid = c.relnamespace
-    where c.relkind in ('r', 'p')
-      and (
-        n.nspname = 'public'
-        or (n.nspname = 'storage' and c.relname in ('buckets', 'objects'))
-      )
-    order by n.nspname, c.relname
-  `);
-
-  for (const relation of relations.rows) {
-    const key = `${relation.schema_name}.${relation.table_name}`;
-    const qualified = `${quoteIdentifier(relation.schema_name)}.${quoteIdentifier(relation.table_name)}`;
-    const rows = await client.query(`select to_jsonb(source_row) as value from ${qualified} source_row`);
-    snapshot.tables[key] = rows.rows.map((row) => row.value);
-  }
+  snapshot = await collectFeatureDataSnapshot(client, { projectRef });
 } finally {
   await client.end();
 }
