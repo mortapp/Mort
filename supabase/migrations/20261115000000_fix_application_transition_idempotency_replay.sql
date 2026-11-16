@@ -26,7 +26,8 @@ begin
      or p_client_request_id is null
      or v_action not in (
        'adult_review', 'guardian_rejected', 'viewed', 'accepted',
-       'rejected', 'withdrawn', 'in_progress', 'completed'
+       'rejected', 'withdrawn', 'in_progress', 'proof_submitted',
+       'completed'
      ) then
     return jsonb_build_object(
       'ok', false,

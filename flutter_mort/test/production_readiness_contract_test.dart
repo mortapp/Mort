@@ -201,25 +201,42 @@ void main() {
     }
   });
 
-  test(
-    'application transition replay rejects a reused key with a changed payload',
-    () {
-      final migration = _read(
-        '../supabase/migrations/20261115000000_fix_application_transition_idempotency_replay.sql',
-      );
+  test('generic application transition checks participation before delegation', () {
+    final genericMigration = _read(
+      '../supabase/migrations/20261115000000_fix_application_transition_idempotency_replay.sql',
+    );
+    final productionMigration = _read(
+      '../supabase/production-baseline-migrations/20261115000000_fix_application_transition_idempotency_replay.sql',
+    );
 
-      expect(migration, contains('v_existing_hash text;'));
-      expect(migration, contains('p_action is null'));
-      expect(
-        migration,
-        contains(
-          'select response, request_hash into v_response, v_existing_hash',
-        ),
-      );
-      expect(migration, contains("v_existing_hash is distinct from v_hash"));
-      expect(migration, contains("'idempotency_key_reused'"));
-    },
-  );
+    expect(genericMigration, contains('security invoker'));
+    expect(
+      genericMigration,
+      contains('public.is_application_participant(p_application_id)'),
+    );
+    expect(
+      genericMigration,
+      contains('return public.update_application_status_v3('),
+    );
+    expect(
+      genericMigration.indexOf('public.is_application_participant'),
+      lessThan(
+        genericMigration.indexOf('return public.update_application_status_v3('),
+      ),
+    );
+    expect(productionMigration, contains('v_existing_hash text;'));
+    expect(
+      productionMigration,
+      contains(
+        'select response, request_hash into v_response, v_existing_hash',
+      ),
+    );
+    expect(
+      productionMigration,
+      contains('v_existing_hash is distinct from v_hash'),
+    );
+    expect(productionMigration, contains("'idempotency_key_reused'"));
+  });
 
   test('message RPC errors cannot become a sent message or empty inbox', () {
     final messaging = _read('lib/data/repositories/messaging_repository.dart');
