@@ -28,7 +28,12 @@ create function private.current_role() returns public.mort_role
   security definer
   set search_path = ''
 as $$
-  select p.role from public.profiles p where p.id = (select auth.uid());
+  -- The generic chain types profiles.role as public.user_role; production
+  -- retyped it to public.mort_role out of band. Cast locally so the signature
+  -- matches production without altering the column type.
+  select p.role::text::public.mort_role
+  from public.profiles p
+  where p.id = (select auth.uid());
 $$;
 
 create function private.is_active_user() returns boolean
