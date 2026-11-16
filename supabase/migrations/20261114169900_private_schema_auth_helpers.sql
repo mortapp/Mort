@@ -46,7 +46,7 @@ as $$
     select 1 from public.profiles p
     where p.id = (select auth.uid())
       and p.account_status = 'active'
-      and p.role in ('teen','adult','admin','moderator')
+      and p.role::text in ('teen','adult','admin','moderator')
   );
 $$;
 
