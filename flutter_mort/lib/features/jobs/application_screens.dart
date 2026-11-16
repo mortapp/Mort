@@ -453,10 +453,7 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
           ),
         );
       }
-      if ([
-        'submitted',
-        'shortlisted',
-      ].contains(application.status)) {
+      if (['submitted', 'shortlisted'].contains(application.status)) {
         actions.addAll([
           MortAction(
             label: 'Accept applicant',
@@ -512,10 +509,7 @@ class _ApplicationLifecycleCard extends ConsumerWidget {
     }
 
     final actions = <MortAction>[];
-    if ([
-      'submitted',
-      'shortlisted',
-    ].contains(application.status)) {
+    if (['submitted', 'shortlisted'].contains(application.status)) {
       actions.add(
         MortAction(
           label: 'Withdraw application',

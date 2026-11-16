@@ -126,17 +126,29 @@ await withQaUsers(
         action: "accepted",
       });
       // The raw response for this call is logged by updateApplicationStatus
-      // (qa-diag). Expected envelope on the local stack:
+      // (qa-diag) and the diagnostic object below. Expected envelope on the
+      // local stack via the delegating shim:
       // {"ok":false,"code":"invalid_application_transition"} — Adult B is
-      // neither the applicant nor the job poster, so the generic-chain RPC
-      // refuses the transition before any state change.
+      // neither the applicant nor the job poster, so the ownership-checked
+      // engine refuses the transition before any state change.
+      const adultBAuth = await adultB.client.auth.getUser();
+      const adultBManageDiagnostic = {
+        actorsDistinct: adultA.id !== adultB.id,
+        sessionMatchesAdultB:
+          !adultBAuth.error && adultBAuth.data.user?.id === adultB.id,
+        errorCode: adultBManage.error?.code ?? null,
+        errorMessage: adultBManage.error?.message ?? null,
+        response: adultBManage.data
+          ? {
+              ok: adultBManage.data.ok ?? null,
+              code: adultBManage.data.code ?? null,
+              replayed: adultBManage.data.replayed ?? null,
+            }
+          : null,
+      };
       assertQa(
         !adultBManage.error && adultBManage.data?.ok === false,
-        `Adult B managed Adult A's application (raw response: ${
-          adultBManage.error
-            ? JSON.stringify({ error: adultBManage.error.message })
-            : JSON.stringify(adultBManage.data)
-        })`,
+        `Adult B managed Adult A's application: ${JSON.stringify(adultBManageDiagnostic)}`,
       );
       qaLog(scope, "6/30 unrelated adult cannot read or manage the application");
 

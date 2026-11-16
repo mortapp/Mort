@@ -989,22 +989,21 @@ export async function updateApplicationStatus(
     expectedUpdatedAt = null,
   },
 ) {
-  // The generic local stack provides update_application_status_v3 (the
-  // applications-based contract used by supabase db reset and the Stripe
-  // regression job). update_my_job_application_status_v3 is production-only:
-  // it targets public.job_applications (applicant_id, mort_application_status),
-  // which does not exist in the generic migration chain, so calling it there
-  // surfaces a runtime column error instead of a JSON envelope. The QA suite
-  // logs the raw RPC response for either helper so isolation regressions
-  // distinguish authorization failures from contract mismatches.
-  const response = await client.rpc("update_application_status_v3", {
+  // update_my_job_application_status_v3 is the production RPC name. The
+  // generic local migration chain provides a delegating shim with the same
+  // signature that forwards to update_application_status_v3, the
+  // applications-based ownership-checked engine, after its own participation
+  // pre-check. The QA suite logs the raw RPC response for every call so an
+  // isolation regression distinguishes a real authorization leak (ok: true)
+  // from an envelope or contract error.
+  const response = await client.rpc("update_my_job_application_status_v3", {
     p_application_id: applicationId,
     p_action: action,
     p_client_request_id: clientRequestId,
     p_expected_updated_at: expectedUpdatedAt,
   });
-  qaDiag("update_application_status_v3", {
-    rpc: "update_application_status_v3",
+  qaDiag("update_my_job_application_status_v3", {
+    rpc: "update_my_job_application_status_v3",
     application_id: applicationId,
     action,
     raw_response: response.error ? { error: response.error.message } : response.data,
