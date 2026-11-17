@@ -264,10 +264,18 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
       - uses: supabase/setup-cli@v3
         with:
           version: 2.122.1
       - run: pnpm install --frozen-lockfile
+      - name: password-guard type check and unit tests
+        run: |
+          deno check --no-config --lock=deno.lock --frozen --node-modules-dir=none \
+            supabase/functions/password-guard/index.ts scripts/qa/replica/password-guard-serve.ts
+          deno test --no-config --lock=deno.lock --frozen --node-modules-dir=none supabase/functions/password-guard
       - name: Build production replica, verify parity, run journeys and authz suites
         env:
           REPLICA_OUT: ${{ runner.temp }}/replica-out
@@ -279,6 +287,8 @@ jobs:
           path: |
             ${{ runner.temp }}/replica-out/journeys.json
             ${{ runner.temp }}/replica-out/authz.json
+            ${{ runner.temp }}/replica-out/password.json
+            ${{ runner.temp }}/replica-out/auth-attestation-rejections.txt
             ${{ runner.temp }}/replica-out/*.log
             ${{ runner.temp }}/replica-out/replica-fingerprint.txt
           if-no-files-found: warn

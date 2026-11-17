@@ -42,3 +42,9 @@ They are production-baseline changes — the chat-attachment storage policies an
 - `20261116120000_onboarding_activation_and_staff_review_boundaries.sql`
 
 Pending explicit production approval (listed in `PENDING_PRODUCTION_APPROVAL.txt`). Fixes defects reproduced through the public API on the local production replica (`scripts/qa/replica/build-and-test.sh`): pending teens could not skip guardian setup; staff activation did not require completed onboarding or current legal acceptance; guardians could never be activated (so `accept_guardian_invite` was unreachable); `profiles.guardian_setup_status` was client-writable; staff could review their own verification evidence and role requests. Each function is the exact live production body plus a minimal change. Rollback: re-apply the previous bodies from `supabase/production-baseline-recovery/` (ledger + 2026-11-12 baseline), restore `grant update (guardian_setup_status) on public.profiles to authenticated`, and restore the two-value `role_requests_requested_role_check` (only after confirming no `guardian` role requests exist).
+
+## Server-enforced password attestation — 2026-11-16 (NOT applied to production)
+
+- `20261116130000_server_enforced_password_attestation.sql`
+
+Pending explicit production approval. Requires the Vault secret `mort_password_attestation_secret` and the `password-guard` Edge Function (same secret in `MORT_PASSWORD_ATTESTATION_SECRET`) to be deployed first, otherwise every password signup/change fails closed. Full design, evidence, deployment order, key rotation, residual risk and rollback: `docs/security/PASSWORD_PROTECTION_2026-11-16.md`.
