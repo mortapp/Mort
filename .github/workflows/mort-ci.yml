@@ -293,6 +293,44 @@ jobs:
             ${{ runner.temp }}/replica-out/replica-fingerprint.txt
           if-no-files-found: warn
 
+  disaster-recovery-drill:
+    # End-to-end DR drill on disposable local replicas: populate through real
+    # user journeys, full encrypted backup (auth + private + public + Storage
+    # bytes), destroy, rebuild empty, restore, verify. Never touches a hosted
+    # project. Uploads only the verification report and timings (no data).
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.122.1
+      - run: pnpm install --frozen-lockfile
+      - name: Backup -> destroy -> restore -> verify
+        env:
+          DR_DRILL_OUT: ${{ runner.temp }}/dr-drill
+        run: scripts/dr/drill-local.sh
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: disaster-recovery-drill
+          path: |
+            ${{ runner.temp }}/dr-drill/restore-report.json
+            ${{ runner.temp }}/dr-drill/backup-summary.json
+            ${{ runner.temp }}/dr-drill/timings.json
+            ${{ runner.temp }}/dr-drill/restore.log
+          if-no-files-found: warn
+
   stripe-provider-e2e:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_stripe_provider_e2e }}
     environment: stripe-sandbox-provider

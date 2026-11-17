@@ -49,6 +49,18 @@ if [ "${PRE_FIX:-0}" != "1" ]; then
   done <"$ROOT/supabase/production-baseline-migrations/PENDING_PRODUCTION_APPROVAL.txt"
 fi
 
+if [ "${BUILD_ONLY:-0}" = "1" ]; then
+  # Fresh, empty replica for disaster-recovery restore drills. Vault secrets
+  # are not portable between projects, so the runbook re-creates them from the
+  # key manager; the drill simulates that step here.
+  if grep -q server_enforced_password_attestation "$ROOT/supabase/production-baseline-migrations/PENDING_PRODUCTION_APPROVAL.txt"; then
+    docker exec "$DB" psql -U postgres -v ON_ERROR_STOP=1 -qAt -c \
+      "select vault.create_secret('${MORT_PASSWORD_ATTESTATION_SECRET:-$(openssl rand -hex 32)}', 'mort_password_attestation_secret', 'replica test secret')" >>"$OUT/build.log"
+  fi
+  echo "replica built (BUILD_ONLY): no tests run"
+  exit 0
+fi
+
 GUARD_PID=""
 cleanup() { [ -n "$GUARD_PID" ] && kill "$GUARD_PID" 2>/dev/null || true; }
 trap cleanup EXIT
