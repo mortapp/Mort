@@ -36,3 +36,9 @@ The notification migration adds the message-recipient notification trigger, the 
 These were originally merged into `supabase/migrations/` by #100. That placement broke the generic local chain: both files reference objects that exist only in the production baseline (for example `private.is_active_user()`, `public.conversation_members`, and the private tables that were never part of the generic chain), so `supabase db reset` failed with `function private.is_active_user() does not exist` and the `stripe-local-regression` CI job failed on every pull request.
 
 They are production-baseline changes — the chat-attachment storage policies and the private-table deny-all policies are live in production — and are now recorded here per the convention above. Do not move them back into the generic migration chain.
+
+## Onboarding activation and staff review boundaries — 2026-11-16 (NOT applied to production)
+
+- `20261116120000_onboarding_activation_and_staff_review_boundaries.sql`
+
+Pending explicit production approval (listed in `PENDING_PRODUCTION_APPROVAL.txt`). Fixes defects reproduced through the public API on the local production replica (`scripts/qa/replica/build-and-test.sh`): pending teens could not skip guardian setup; staff activation did not require completed onboarding or current legal acceptance; guardians could never be activated (so `accept_guardian_invite` was unreachable); `profiles.guardian_setup_status` was client-writable; staff could review their own verification evidence and role requests. Each function is the exact live production body plus a minimal change. Rollback: re-apply the previous bodies from `supabase/production-baseline-recovery/` (ledger + 2026-11-12 baseline), restore `grant update (guardian_setup_status) on public.profiles to authenticated`, and restore the two-value `role_requests_requested_role_check` (only after confirming no `guardian` role requests exist).
