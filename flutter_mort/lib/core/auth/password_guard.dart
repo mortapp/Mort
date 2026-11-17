@@ -83,7 +83,8 @@ class PasswordGuard {
       'date_of_birth': dateOfBirthIso,
       if (displayName != null && displayName.trim().isNotEmpty)
         'display_name': displayName.trim(),
-      if (redirectTo != null && redirectTo.isNotEmpty) 'redirect_to': redirectTo,
+      if (redirectTo != null && redirectTo.isNotEmpty)
+        'redirect_to': redirectTo,
     });
     final auth = result['auth'];
     final refreshToken = auth is Map ? auth['refresh_token'] : null;
