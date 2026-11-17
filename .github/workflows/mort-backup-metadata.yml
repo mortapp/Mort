@@ -54,3 +54,41 @@ jobs:
             ${{ runner.temp }}/mort-backup.sha256
           if-no-files-found: error
           retention-days: 30
+
+  full-dr-backup:
+    # Full disaster-recovery backup (auth identities, private + public schemas,
+    # Storage metadata AND bytes) sealed with AES-256-GCM. OFF until the owner
+    # approves: set repository variable MORT_FULL_DR_BACKUP=1 and add the
+    # backend-operations secrets SUPABASE_SERVICE_ROLE_KEY and
+    # MORT_BACKUP_ENCRYPTION_KEY. Read-only against production.
+    # Runbook: docs/operations/MORT_DISASTER_RECOVERY_RUNBOOK_2026-11-16.md
+    if: ${{ vars.MORT_FULL_DR_BACKUP == '1' }}
+    environment: backend-operations
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Full encrypted DR backup
+        env:
+          DR_SOURCE: production
+          DR_OUT: ${{ runner.temp }}/dr
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          MORT_BACKUP_ENCRYPTION_KEY: ${{ secrets.MORT_BACKUP_ENCRYPTION_KEY }}
+        run: node scripts/dr/dr-full-backup.mjs
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mort-full-dr-backup
+          path: |
+            ${{ runner.temp }}/dr/*.enc
+            ${{ runner.temp }}/dr/*.sha256
+          if-no-files-found: error
+          retention-days: 30
