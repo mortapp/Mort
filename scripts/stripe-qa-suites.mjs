@@ -168,7 +168,9 @@ async function checkJobFunding(scope) {
   assertQa(preview.includes("stripe_job_funding_enabled"), "preview ignores funding shutdown");
   assertQa(event.includes("payment_intent.succeeded") && event.includes("'funded'"), "funded state lacks provider event binding");
   const client = await text("flutter_mort/lib/features/payments/stripe_marketplace_screens.dart");
-  assertQa(client.includes("waiting for provider confirmation"), "client implies callback is authoritative");
+  assertQa(client.includes("refreshPaymentStatus(paymentIntentId)"), "client skips server-authoritative payment status refresh");
+  assertQa(client.includes("waiting for verified provider confirmation"), "client does not communicate pending server confirmation");
+  assertQa(client.includes("if (normalizedState == 'SUCCEEDED')"), "client does not gate funded UI on the server-reported state");
   qaLog(scope, "server controls gate funding and only a verified provider event marks a payment funded");
 }
 
