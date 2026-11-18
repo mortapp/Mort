@@ -30,6 +30,7 @@ class MortFundingQuote {
     required this.currencyCode,
     required this.state,
     required this.expiresAt,
+    required this.paymentEligibility,
   });
 
   factory MortFundingQuote.fromJson(Map<String, dynamic> json) {
@@ -42,6 +43,7 @@ class MortFundingQuote {
       currencyCode: json['currency_code'] as String,
       state: json['state']?.toString() ?? 'UNKNOWN',
       expiresAt: DateTime.parse(json['expires_at'] as String),
+      paymentEligibility: json['payment_eligibility'] == true,
     );
   }
 
@@ -53,6 +55,7 @@ class MortFundingQuote {
   final String currencyCode;
   final String state;
   final DateTime expiresAt;
+  final bool paymentEligibility;
 }
 
 class MortPaymentIntentInitialization {
@@ -68,7 +71,7 @@ class MortPaymentIntentInitialization {
   factory MortPaymentIntentInitialization.fromJson(Map<String, dynamic> json) {
     return MortPaymentIntentInitialization(
       tipOrJobId:
-          (json['payment_intent_id'] ?? json['provider_payment_intent_id'])
+          (json['provider_payment_intent_id'] ?? json['payment_intent_id'])
               as String,
       clientSecret: json['payment_intent_client_secret'] as String,
       publishableKey: json['publishable_key'] as String,

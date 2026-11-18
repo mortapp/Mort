@@ -118,8 +118,13 @@ class _JobContractScreenState extends ConsumerState<JobContractScreen> {
     final values = await Future.wait([
       repository.contractVersions(widget.contractId),
       repository.contractAcceptances(widget.contractId),
+      repository.paymentObligations(widget.contractId),
     ]);
-    return {'versions': values[0], 'acceptances': values[1]};
+    return {
+      'versions': values[0],
+      'acceptances': values[1],
+      'obligations': values[2],
+    };
   }
 
   Future<void> _confirm(String versionId) async {
@@ -149,6 +154,7 @@ class _JobContractScreenState extends ConsumerState<JobContractScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final role = ref.watch(currentProfileProvider).asData?.value?.role;
     return MortScreen(
       children: [
         const MortHeader(
@@ -174,6 +180,9 @@ class _JobContractScreenState extends ConsumerState<JobContractScreen> {
                 const [];
             final acceptances =
                 snapshot.data?['acceptances'] as List<Map<String, dynamic>>? ??
+                const [];
+            final obligations =
+                snapshot.data?['obligations'] as List<Map<String, dynamic>>? ??
                 const [];
             if (versions.isEmpty) {
               return const MortEmptyState(
@@ -267,6 +276,19 @@ class _JobContractScreenState extends ConsumerState<JobContractScreen> {
                       'Saved ${formatDateTime(item['accepted_at'])}',
                     ),
                   ),
+                if (AppConfig.marketplacePaymentsEnabled &&
+                    role == UserRole.adult &&
+                    version['status'] == 'active' &&
+                    obligations.isNotEmpty) ...[
+                  const SizedBox(height: MortSpacing.sm),
+                  MortButton(
+                    label: 'Review server-authoritative job funding',
+                    icon: Icons.lock_outline,
+                    onPressed: () => context.push(
+                      '/contracts/${widget.contractId}/fund',
+                    ),
+                  ),
+                ],
                 if (version['status'] == 'pending_confirmation') ...[
                   MortTextField(
                     label: 'Confirmation sentence',
@@ -506,22 +528,43 @@ class _ContractChangeScreenState extends ConsumerState<ContractChangeScreen> {
   }
 }
 
-class PaymentStatusScreen extends ConsumerWidget {
+class PaymentStatusScreen extends ConsumerStatefulWidget {
   const PaymentStatusScreen({super.key, required this.contractId});
 
   final String contractId;
 
-  Future<Map<String, dynamic>> _load(WidgetRef ref) async {
-    final repository = ref.read(legalContractRepositoryProvider);
-    final values = await Future.wait([
-      repository.paymentObligations(contractId),
-      repository.paymentDisputes(contractId),
-    ]);
-    return {'obligations': values[0], 'disputes': values[1]};
-  }
+  @override
+  ConsumerState<PaymentStatusScreen> createState() => _PaymentStatusScreenState();
+}
+
+class _PaymentStatusScreenState extends ConsumerState<PaymentStatusScreen> {
+  late Future<Map<String, dynamic>> _status;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void initState() {
+    super.initState();
+    _status = _load();
+  }
+
+  Future<Map<String, dynamic>> _load() async {
+    final repository = ref.read(legalContractRepositoryProvider);
+    final stripe = ref.read(stripeMarketplaceRepositoryProvider);
+    final values = await Future.wait([
+      repository.paymentObligations(widget.contractId),
+      repository.paymentDisputes(widget.contractId),
+      stripe.paymentSummary(widget.contractId),
+    ]);
+    return {
+      'obligations': values[0],
+      'disputes': values[1],
+      'summary': values[2],
+    };
+  }
+
+  void _refresh() => setState(() => _status = _load());
+
+  @override
+  Widget build(BuildContext context) {
     final role = ref.watch(currentProfileProvider).asData?.value?.role;
     return MortScreen(
       children: [
@@ -531,8 +574,15 @@ class PaymentStatusScreen extends ConsumerWidget {
           subtitle:
               'Stripe job funding is available only when server controls enable the sandbox. MORT does not call the flow escrow or treat poster sent as worker received.',
         ),
+        MortButton(
+          label: 'Refresh payment and refund status',
+          icon: Icons.refresh,
+          style: MortButtonStyle.secondary,
+          onPressed: _refresh,
+        ),
+        const SizedBox(height: MortSpacing.sm),
         FutureBuilder<Map<String, dynamic>>(
-          future: _load(ref),
+          future: _status,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const MortSkeletonCard();
@@ -549,6 +599,8 @@ class PaymentStatusScreen extends ConsumerWidget {
             final disputes =
                 snapshot.data?['disputes'] as List<Map<String, dynamic>>? ??
                 const [];
+            final summary =
+                snapshot.data?['summary'] as Map<String, dynamic>? ?? const {};
             final paymentState = mortPaymentStateForObligations(
               obligations,
               providerEnabled: AppConfig.marketplacePaymentsEnabled,
@@ -557,6 +609,34 @@ class PaymentStatusScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 MortPaymentStatePanel(state: paymentState),
+                const SizedBox(height: MortSpacing.sm),
+                MortCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Server payment: ${_label(summary['funding_status'])}',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      Text(
+                        'Refunded: ${_money(summary['refunded_amount_cents'], summary['currency_code'])}',
+                      ),
+                      Text('Recipient transfer: ${_label(summary['transfer_status'])}'),
+                      Text(
+                        summary['dispute_active'] == true
+                            ? 'Dispute: open or under review'
+                            : 'Dispute: none currently active',
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: MortSpacing.sm),
+                MortButton(
+                  label: 'Open financial history and receipts',
+                  icon: Icons.receipt_long_outlined,
+                  style: MortButtonStyle.secondary,
+                  onPressed: () => context.push('/settings/payment-history'),
+                ),
                 const SizedBox(height: MortSpacing.sm),
                 if (obligations.isEmpty)
                   const MortEmptyState(
@@ -618,12 +698,11 @@ class PaymentStatusScreen extends ConsumerWidget {
                 ],
                 if (AppConfig.marketplacePaymentsEnabled &&
                     role == UserRole.teen) ...[
-                  MortButton(
-                    label: 'Stripe payout setup',
-                    icon: Icons.account_balance_outlined,
-                    style: MortButtonStyle.secondary,
-                    onPressed: () =>
-                        context.push('/payments/stripe/payout-setup'),
+                  const MortCard(
+                    color: MortColors.cardAlt,
+                    child: Text(
+                      'Teen payout onboarding remains unavailable until MORT receives external approval for its recipient and guardian model. No payout account or transfer can be started here.',
+                    ),
                   ),
                   const SizedBox(height: MortSpacing.sm),
                 ],

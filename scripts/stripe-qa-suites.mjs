@@ -101,12 +101,16 @@ async function checkOnboardingLinkSecurity(scope) {
 }
 
 async function checkPaymentAmountForgery(scope) {
-  const args = await functionArguments("public.stripe_server_prepare_job_payment");
-  const source = await functionSource("public.stripe_server_prepare_job_payment");
-  assertQa(!args.includes("amount"), "payment preparation accepts a client amount");
-  assertQa(source.includes("public.job_payment_obligations"), "server does not derive amount from the obligation");
-  assertQa(source.includes("payment_amount_limit_exceeded"), "server amount ceiling is absent");
-  qaLog(scope, "payment creation accepts no client amount and derives cents/currency from the accepted obligation");
+  const quoteArgs = await functionArguments("public.stripe_server_create_job_funding_quote_v1");
+  const quoteSource = await functionSource("public.stripe_server_create_job_funding_quote_v1");
+  const legacySource = await functionSource("public.stripe_server_prepare_job_payment");
+  assertQa(!quoteArgs.includes("amount"), "funding quote creation accepts a client amount");
+  assertQa(quoteSource.includes("public.job_payment_obligations"), "server does not derive amount from the obligation");
+  assertQa(quoteSource.includes("payment_amount_limit_exceeded"), "server amount ceiling is absent");
+  assertQa(quoteSource.includes("calculate_mort_service_fee_v1"), "quote does not use the fixed-fee calculator");
+  assertQa(legacySource.includes("legacy_percentage_funding_path_disabled_use_quote_v1"), "legacy percentage fee path is not disabled");
+  assertQa(!legacySource.includes("adult_service_fee_bps"), "legacy funding RPC still calculates percentage fees");
+  qaLog(scope, "quote funding accepts no client amount, derives the obligation server-side, uses the fixed-fee calculator, and rejects the legacy percentage path");
 }
 
 async function checkPaymentIdempotency(scope) {
@@ -303,18 +307,21 @@ async function checkPolicyVersioning(scope) {
   await withDatabase(async (database) => {
     const result = await database.query(`
       select service_fee_bps, service_fee_min_cents, service_fee_max_cents,
+             service_fee_fixed_cents,
              quote_ttl_seconds, version
       from private.stripe_financial_policy_versions
       where environment = 'test' and policy_kind = 'service_fee'
         and currency_code = 'USD' and scope_key = 'global' and active
     `);
     assertQa(result.rowCount === 1, "sandbox service-fee policy is missing or ambiguous");
-    assertQa(result.rows[0].service_fee_bps === 800, "sandbox service-fee rate is not 800 bps");
-    assertQa(result.rows[0].service_fee_min_cents === 100, "sandbox service-fee minimum is not 100 cents");
-    assertQa(result.rows[0].service_fee_max_cents === 500, "sandbox service-fee maximum is not 500 cents");
+    assertQa(result.rows[0].service_fee_bps === 0, "percentage-based service fees must remain disabled");
+    assertQa(result.rows[0].service_fee_min_cents === 0, "legacy percentage minimum must remain zero");
+    assertQa(result.rows[0].service_fee_max_cents === 0, "legacy percentage maximum must remain zero");
+    assertQa(result.rows[0].service_fee_fixed_cents === 0, "sandbox test fee must remain zero until owner approval");
+    assertQa(result.rows[0].version === "sandbox-flat-fee-test-only-v1", "active policy is not the fixed zero-fee test version");
     assertQa(result.rows[0].quote_ttl_seconds === 900, "sandbox quote TTL is not 900 seconds");
   });
-  qaLog(scope, "versioned sandbox policy stores the approved fee and 900-second quote TTL while live policy remains gated");
+  qaLog(scope, "versioned sandbox policy uses a zero flat fee and 900-second quote TTL while live pricing remains unapproved");
 }
 
 async function checkFundingQuote(scope) {

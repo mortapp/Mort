@@ -66,13 +66,15 @@ async function processEvent(
     const intent = event.data.object as Stripe.PaymentIntent;
     const tipAttemptId = intent.metadata?.mort_tip_attempt_ref;
     if (tipAttemptId) {
-      return rpc(supabase, "stripe_server_apply_tip_event_v1", {
+      const result = await rpc(supabase, "stripe_server_apply_tip_event_v1", {
         p_tip_attempt_id: tipAttemptId,
         p_provider_payment_intent_id: intent.id,
         p_provider_status: event.type,
         p_amount_cents: intent.amount,
         p_currency_code: intent.currency.toUpperCase(),
       });
+      await complete(supabase, environment, event.id, "processed", "tip_payment_state_synchronized");
+      return result;
     }
     const quoteRef = intent.metadata?.mort_quote_ref;
     const contractRef = intent.metadata?.mort_contract_ref;

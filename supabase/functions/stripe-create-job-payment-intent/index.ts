@@ -131,7 +131,10 @@ Deno.serve(async (request: Request) => {
     if (recordError) throw recordError;
     return json({
       ok: true,
-      payment_intent_id: recorded.payment_intent_id,
+      // Keep the provider object ID distinct from the internal row UUID.
+      // The status endpoint accepts only the provider `pi_` identifier.
+      payment_intent_id: paymentIntent.id,
+      provider_payment_intent_id: paymentIntent.id,
       payment_attempt_id: preparedAttempt.attempt_id,
       environment: stripeRuntime.environment,
       publishable_key: stripeRuntime.publishableKey,

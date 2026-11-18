@@ -31,10 +31,10 @@ await withLocalDatabase("stripe-funding-quote", async (database) => {
   const quoteOne = created.rows[0].quote;
   assertQa(quoteOne.ok === true, "quote creation failed");
   assertQa(quoteOne.base_pay_cents === 2500, "quote did not use backend obligation base pay");
-  assertQa(quoteOne.service_fee_cents === 200, "quote did not calculate the authoritative fee");
-  assertQa(quoteOne.authoritative_total_cents === 2700, "quote total is not base plus fee");
+  assertQa(quoteOne.service_fee_cents === 0, "sandbox quote must not invent or charge a service fee");
+  assertQa(quoteOne.authoritative_total_cents === 2500, "quote total is not base plus the zero test fee");
   assertQa(quoteOne.currency_code === "USD", "quote currency mismatch");
-  assertQa(quoteOne.policy_version === "sandbox-2026-09-16-v1", "quote did not bind the seeded policy version");
+  assertQa(quoteOne.policy_version === "sandbox-flat-fee-test-only-v1", "quote did not bind the zero flat-fee test policy");
 
   const stored = await database.query(
     `select *, extract(epoch from (expires_at - created_at))::integer ttl_seconds
@@ -109,7 +109,7 @@ await withLocalDatabase("stripe-funding-quote", async (database) => {
        id, contract_id, contract_version_id, obligation_id, adult_id, teen_id,
        environment, operation_version, earnings_amount_cents, service_fee_cents,
        total_amount_cents, currency_code, transfer_group, idempotency_key, status
-     ) values ($1, $2, $3, $4, $5, $6, 'test', 99, 2500, 200, 2700, 'USD',
+     ) values ($1, $2, $3, $4, $5, $6, 'test', 99, 2500, 0, 2500, 'USD',
        $7, $8, 'processing')`,
     [
       paymentIntentId,
@@ -142,7 +142,7 @@ await withLocalDatabase("stripe-funding-quote", async (database) => {
        connected_account_readiness, payment_eligibility, provider_availability,
        request_id, request_payload_sha256, state, created_at, expires_at, expired_at
      ) values (
-       $1, 'test', $2, $3, $4, $5, $6, $7, 2500, 200, 2700, 'USD',
+       $1, 'test', $2, $3, $4, $5, $6, $7, 2500, 0, 2500, 'USD',
        $8, $9, 'GREEN', $10, 'READY_FOR_TRANSFER', true, 'NOT_CHECKED',
        $11, repeat('a', 64), 'EXPIRED', statement_timestamp() - interval '1000 seconds',
        statement_timestamp() - interval '100 seconds', statement_timestamp() - interval '100 seconds'

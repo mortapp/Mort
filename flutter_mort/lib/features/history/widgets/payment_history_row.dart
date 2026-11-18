@@ -53,7 +53,7 @@ class MortPaymentHistoryRow extends StatelessWidget {
                   MortPaymentStateBadge(state: entry.status),
                   const SizedBox(height: MortSpacing.xs),
                   Text(
-                    formatCents(entry.amountCents),
+                    formatCents(entry.amountCents, currency: entry.currencyCode),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: MortColors.paymentSilverHigh,
                       fontWeight: FontWeight.w800,
