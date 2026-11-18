@@ -20,7 +20,14 @@ REVOKE ALL PRIVILEGES ON TABLE public.job_payment_obligations
   FROM PUBLIC, anon, authenticated;
 GRANT SELECT ON TABLE public.job_payment_obligations TO authenticated;
 
-REVOKE ALL PRIVILEGES ON FUNCTION public.request_my_role_activation_v1()
-  FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.request_my_role_activation_v1()
-  TO authenticated, service_role;
+-- Some supported test baselines do not contain the optional role-activation
+-- RPC. Keep the privilege hardening when it exists without making the entire
+-- migration fail before subsequent Stripe migrations can be applied.
+DO $migration$
+BEGIN
+  IF to_regprocedure('public.request_my_role_activation_v1()') IS NOT NULL THEN
+    EXECUTE 'REVOKE ALL PRIVILEGES ON FUNCTION public.request_my_role_activation_v1() FROM PUBLIC, anon';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.request_my_role_activation_v1() TO authenticated, service_role';
+  END IF;
+END
+$migration$;
