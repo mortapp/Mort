@@ -129,7 +129,8 @@ class _JobPaymentHistoryScreenState extends State<JobPaymentHistoryScreen> {
           for (final entry in _filtered) ...[
             MortPaymentHistoryRow(
               entry: entry,
-              onViewReceipt: entry.receiptId == null || widget.onViewReceipt == null
+              onViewReceipt:
+                  entry.receiptId == null || widget.onViewReceipt == null
                   ? null
                   : () => widget.onViewReceipt!(entry.receiptId!),
             ),

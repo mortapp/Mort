@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/errors/mort_error.dart';
 import '../../core/errors/user_facing_error.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
@@ -221,7 +222,8 @@ class _StripeJobFundingScreenState
     try {
       final repository = ref.read(stripeMarketplaceRepositoryProvider);
       if (_providerPaymentIntentId != null) {
-        _notice = 'A previous payment is awaiting status verification. Refresh payment status before requesting a new quote.';
+        _notice =
+            'A previous payment is awaiting status verification. Refresh payment status before requesting a new quote.';
         return;
       }
       final quote = await repository.createFundingQuote(
@@ -229,7 +231,7 @@ class _StripeJobFundingScreenState
       );
       if (quote.state != 'ACTIVE' ||
           quote.totalCents != quote.basePayCents + quote.serviceFeeCents) {
-        throw const MortCodedError(
+        throw MortCodedError(
           'funding_quote_invalid',
           'The server could not verify this funding quote. No payment was started.',
         );
@@ -274,17 +276,19 @@ class _StripeJobFundingScreenState
           if (mounted) setState(_reload);
           return;
         }
-        if (priorState == 'CANCELED' || priorState == 'CANCELLED' ||
+        if (priorState == 'CANCELED' ||
+            priorState == 'CANCELLED' ||
             priorState == 'FAILED') {
           _pendingQuote = null;
           _paymentRequestId = null;
           _providerPaymentIntentId = null;
-          _notice = 'The prior payment attempt ended without a confirmed charge. Request a fresh quote before trying again.';
+          _notice =
+              'The prior payment attempt ended without a confirmed charge. Request a fresh quote before trying again.';
           return;
         }
-        if (priorState != 'REQUIRESPAYMENTMETHOD' &&
-            priorState != 'DECLINED') {
-          _notice = 'MORT is still verifying this payment. Refresh its status before attempting another payment.';
+        if (priorState != 'REQUIRESPAYMENTMETHOD' && priorState != 'DECLINED') {
+          _notice =
+              'MORT is still verifying this payment. Refresh its status before attempting another payment.';
           return;
         }
       }
@@ -292,18 +296,20 @@ class _StripeJobFundingScreenState
         _pendingQuote = null;
         _paymentRequestId = null;
         _providerPaymentIntentId = null;
-        _notice = 'This quote expired. Request a new quote and review its amount before paying.';
+        _notice =
+            'This quote expired. Request a new quote and review its amount before paying.';
         return;
       }
       if (quote.state != 'ACTIVE' ||
           quote.totalCents != quote.basePayCents + quote.serviceFeeCents) {
-        throw const MortCodedError(
+        throw MortCodedError(
           'funding_quote_invalid',
           'The server could not verify this funding quote. No payment was started.',
         );
       }
       if (!quote.paymentEligibility) {
-        _notice = 'Payment is blocked until the recipient account is verified and approved. No charge was started.';
+        _notice =
+            'Payment is blocked until the recipient account is verified and approved. No charge was started.';
         return;
       }
       if (_savePaymentMethod) {
@@ -322,7 +328,7 @@ class _StripeJobFundingScreenState
           initialization['provider_payment_intent_id'] ??
           initialization['payment_intent_id'];
       if (paymentIntentId is! String || !paymentIntentId.startsWith('pi_')) {
-        throw const MortCodedError(
+        throw MortCodedError(
           'payment_intent_reference_invalid',
           'The payment service did not return a verifiable payment reference. No payment was confirmed.',
         );
@@ -345,9 +351,11 @@ class _StripeJobFundingScreenState
         _notice = 'Payment confirmed by MORT. This job is funded.';
         _reload();
       } else if (!completed && normalizedState == 'REQUIRESPAYMENTMETHOD') {
-        _notice = 'Payment Sheet was canceled. No funded status was recorded; you can retry this same payment safely.';
+        _notice =
+            'Payment Sheet was canceled. No funded status was recorded; you can retry this same payment safely.';
       } else {
-        _notice = 'MORT is waiting for verified provider confirmation before showing this job as funded.';
+        _notice =
+            'MORT is waiting for verified provider confirmation before showing this job as funded.';
       }
     } catch (error) {
       if (!mounted) return;
@@ -382,13 +390,17 @@ class _StripeJobFundingScreenState
             final runtime = snapshot.data?['runtime'] as Map<String, dynamic>;
             final summary = snapshot.data?['summary'] as Map<String, dynamic>;
             final quote = _pendingQuote;
-            final fundingEnabled = runtime['payments_enabled'] == true &&
+            final fundingEnabled =
+                runtime['payments_enabled'] == true &&
                 runtime['job_funding_enabled'] == true;
             final nativeSupported =
                 AppConfig.supportsStripePaymentSheet && !kIsWeb;
             final alreadyFunded = summary['funding_status'] == 'funded';
-            final canContinue = fundingEnabled && nativeSupported &&
-                !alreadyFunded && !_busy &&
+            final canContinue =
+                fundingEnabled &&
+                nativeSupported &&
+                !alreadyFunded &&
+                !_busy &&
                 (quote == null || quote.paymentEligibility);
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -437,8 +449,12 @@ class _StripeJobFundingScreenState
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
                   value: _savePaymentMethod,
-                  onChanged: fundingEnabled && nativeSupported && !_busy &&
-                          quote == null && !alreadyFunded
+                  onChanged:
+                      fundingEnabled &&
+                          nativeSupported &&
+                          !_busy &&
+                          quote == null &&
+                          !alreadyFunded
                       ? (value) => setState(() => _savePaymentMethod = value)
                       : null,
                   title: const Text('Save payment method'),

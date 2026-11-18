@@ -4,7 +4,6 @@ import 'package:flutter_mort/core/utils/formatters.dart';
 import 'package:flutter_mort/data/repositories/providers.dart';
 import 'package:flutter_mort/features/history/models/payment_history.dart';
 import 'package:flutter_mort/features/history/screens/job_payment_history_screen.dart';
-import 'package:flutter_mort/features/payments/models/payment_state.dart';
 
 class ServerBackedPaymentHistoryScreen extends ConsumerStatefulWidget {
   const ServerBackedPaymentHistoryScreen({super.key});
@@ -66,7 +65,8 @@ class _ServerBackedPaymentHistoryScreenState
     final receiptId = item['receipt_id']?.toString();
     final orderNumber = item['order_number']?.toString();
     final subtitleParts = [
-      if (displaySubtitle != null && displaySubtitle.isNotEmpty) displaySubtitle,
+      if (displaySubtitle != null && displaySubtitle.isNotEmpty)
+        displaySubtitle,
       rawStatus.replaceAll('_', ' '),
     ];
     return MortPaymentHistoryEntry(
@@ -79,7 +79,9 @@ class _ServerBackedPaymentHistoryScreenState
       kind: _historyKind(eventKind, eventType),
       receiptId: receiptId,
       receiptNumber: orderNumber ?? receiptId,
-      displaySubtitle: subtitleParts.where((part) => part.isNotEmpty).join(' · '),
+      displaySubtitle: subtitleParts
+          .where((part) => part.isNotEmpty)
+          .join(' · '),
     );
   }
 
@@ -120,18 +122,24 @@ class _ServerBackedPaymentHistoryScreenState
   MortPaymentState _paymentState(String status, String eventKind) {
     final normalized = status.replaceAll('_', '').toUpperCase();
     return switch (normalized) {
-      'SUCCEEDED' || 'PAID' || 'CREDIT' || 'DEBIT' || 'COMPLETED' =>
-        MortPaymentState.succeeded,
+      'SUCCEEDED' ||
+      'PAID' ||
+      'CREDIT' ||
+      'DEBIT' ||
+      'COMPLETED' => MortPaymentState.succeeded,
       'PROCESSING' => MortPaymentState.processing,
       'REQUIRESACTION' => MortPaymentState.requiresAction,
-      'PENDING' || 'OPEN' || 'NEEDSRESPONSE' || 'UNDERREVIEW' =>
-        MortPaymentState.pending,
+      'PENDING' ||
+      'OPEN' ||
+      'NEEDSRESPONSE' ||
+      'UNDERREVIEW' => MortPaymentState.pending,
       'DECLINED' => MortPaymentState.declined,
       'FAILED' || 'FUNDINGFAILED' => MortPaymentState.failed,
       'CANCELLED' || 'CANCELED' => MortPaymentState.cancelled,
-      _ => eventKind == 'receipt'
-          ? MortPaymentState.succeeded
-          : MortPaymentState.unknown,
+      _ =>
+        eventKind == 'receipt'
+            ? MortPaymentState.succeeded
+            : MortPaymentState.unknown,
     };
   }
 
@@ -163,12 +171,16 @@ class _ServerBackedPaymentHistoryScreenState
                 const SizedBox(height: 12),
                 Text('Receipt: ${document['receipt_id'] ?? receiptId}'),
                 Text('Order: ${document['order_number'] ?? 'Not provided'}'),
-                Text('Type: ${document['document_type'] ?? 'Financial document'}'),
+                Text(
+                  'Type: ${document['document_type'] ?? 'Financial document'}',
+                ),
                 Text('Date: ${document['document_date'] ?? 'Not provided'}'),
                 Text('Status: ${document['status'] ?? 'Unknown'}'),
                 Text('Amount: ${formatCents(cents, currency: currency)}'),
                 if (document['masked_provider_reference'] != null)
-                  Text('Provider reference: ${document['masked_provider_reference']}'),
+                  Text(
+                    'Provider reference: ${document['masked_provider_reference']}',
+                  ),
                 const SizedBox(height: 12),
                 const Text(
                   'This receipt is a MORT record, not an escrow statement or a guarantee that funds were held until work completion.',

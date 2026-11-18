@@ -284,9 +284,8 @@ class _JobContractScreenState extends ConsumerState<JobContractScreen> {
                   MortButton(
                     label: 'Review server-authoritative job funding',
                     icon: Icons.lock_outline,
-                    onPressed: () => context.push(
-                      '/contracts/${widget.contractId}/fund',
-                    ),
+                    onPressed: () =>
+                        context.push('/contracts/${widget.contractId}/fund'),
                   ),
                 ],
                 if (version['status'] == 'pending_confirmation') ...[
@@ -534,7 +533,8 @@ class PaymentStatusScreen extends ConsumerStatefulWidget {
   final String contractId;
 
   @override
-  ConsumerState<PaymentStatusScreen> createState() => _PaymentStatusScreenState();
+  ConsumerState<PaymentStatusScreen> createState() =>
+      _PaymentStatusScreenState();
 }
 
 class _PaymentStatusScreenState extends ConsumerState<PaymentStatusScreen> {
@@ -621,7 +621,9 @@ class _PaymentStatusScreenState extends ConsumerState<PaymentStatusScreen> {
                       Text(
                         'Refunded: ${_money(summary['refunded_amount_cents'], summary['currency_code'])}',
                       ),
-                      Text('Recipient transfer: ${_label(summary['transfer_status'])}'),
+                      Text(
+                        'Recipient transfer: ${_label(summary['transfer_status'])}',
+                      ),
                       Text(
                         summary['dispute_active'] == true
                             ? 'Dispute: open or under review'
@@ -692,7 +694,7 @@ class _PaymentStatusScreenState extends ConsumerState<PaymentStatusScreen> {
                     label: 'Review Stripe job funding',
                     icon: Icons.lock_outline,
                     onPressed: () =>
-                        context.push('/contracts/$contractId/fund'),
+                        context.push('/contracts/${widget.contractId}/fund'),
                   ),
                   const SizedBox(height: MortSpacing.sm),
                 ],
