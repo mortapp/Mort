@@ -83,6 +83,20 @@ await withLocalDatabase("stripe-funding-quote", async (database) => {
   assertQa(superseded.rows[0].superseded_by_quote_id === quoteTwo.quote_id, "supersession linkage is missing");
 
   const attemptRequest = randomUUID();
+  await expectDatabaseError(
+    () => database.query(
+      `select public.stripe_server_consume_job_funding_quote_v1($1, $2, $3)`,
+      [ids.adult, quoteTwo.quote_id, attemptRequest],
+    ),
+    /recipient_model_not_approved_or_ready/i,
+    database,
+  );
+  // Synthetic, complete recipient approval exists only inside this rolled-back local QA transaction.
+  await database.query(`
+    update private.stripe_runtime_controls
+    set connected_accounts_approved = true, payouts_approved = true
+    where singleton
+  `);
   const consumed = await database.query(
     `select public.stripe_server_consume_job_funding_quote_v1($1, $2, $3) result`,
     [ids.adult, quoteTwo.quote_id, attemptRequest],

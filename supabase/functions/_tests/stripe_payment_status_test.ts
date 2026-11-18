@@ -1,4 +1,5 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
+import { PublicError, readJson } from "../_shared/stripe.ts";
 import {
   createPaymentStatusHandler,
   PaymentStatusHttpError,
@@ -49,6 +50,22 @@ Deno.test("payment status requires authentication", async () => {
   );
   assertEquals(response.status, 401);
   assertEquals((await response.json()).code, "authentication_required");
+});
+
+Deno.test("malformed JSON is rejected as a client error", async () => {
+  const malformed = new Request("http://localhost/stripe-get-job-payment-status", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{invalid",
+  });
+  try {
+    await readJson(malformed);
+    throw new Error("malformed JSON unexpectedly parsed");
+  } catch (error) {
+    assert(error instanceof PublicError);
+    assertEquals(error.status, 400);
+    assertEquals(error.code, "invalid_json");
+  }
 });
 
 Deno.test("payment status validates provider payment intent ids", async () => {
