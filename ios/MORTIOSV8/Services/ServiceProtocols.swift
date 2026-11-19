@@ -32,6 +32,8 @@ protocol AuthService: Sendable {
     /// Google OAuth via ASWebAuthenticationSession + Supabase callback.
     func signInWithGoogle() async throws -> MortUser
     func sendPasswordReset(email: String) async throws
+    func establishPasswordRecoverySession(accessToken: String, refreshToken: String, expiresIn: Int) async throws
+    func updatePassword(_ password: String) async throws
     func completeOnboarding(userId: String, draft: MortProfileDraft) async throws -> MortUser
     func signOut() async throws
     func deleteAccount(userId: String) async throws

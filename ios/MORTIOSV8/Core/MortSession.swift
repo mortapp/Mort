@@ -156,6 +156,32 @@ final class MortSession {
         }
     }
 
+    func beginPasswordRecovery(accessToken: String, refreshToken: String, expiresIn: Int) async -> Bool {
+        isWorking = true
+        authError = nil
+        defer { isWorking = false }
+        do {
+            try await auth.establishPasswordRecoverySession(accessToken: accessToken, refreshToken: refreshToken, expiresIn: expiresIn)
+            return true
+        } catch let error as MortError { authError = error; return false }
+        catch { authError = .unknown; return false }
+    }
+
+    func updatePassword(_ newValue: String) async -> Bool {
+        isWorking = true
+        authError = nil
+        defer { isWorking = false }
+        do {
+            try await auth.updatePassword(newValue)
+            await auth.signOut()
+            phase = .signedOut
+            authNotice = "Your password has been updated. Sign in with your new password."
+            MortHaptic.success()
+            return true
+        } catch let error as MortError { authError = error; MortHaptic.failure(); return false }
+        catch { authError = .unknown; MortHaptic.failure(); return false }
+    }
+
     func completeOnboarding(with draft: MortProfileDraft) async {
         guard let user = phase.user else { return }
         isWorking = true

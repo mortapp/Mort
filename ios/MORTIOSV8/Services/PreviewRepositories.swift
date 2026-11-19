@@ -69,6 +69,14 @@ nonisolated final class PreviewAuthService: AuthService {
         try? await Task.sleep(for: .milliseconds(300))
     }
 
+    func establishPasswordRecoverySession(accessToken: String, refreshToken: String, expiresIn: Int) async throws {
+        throw MortError.notConfigured("Password recovery in preview mode")
+    }
+
+    func updatePassword(_ newValue: String) async throws {
+        throw MortError.notConfigured("Password updates in preview mode")
+    }
+
     func completeOnboarding(userId: String, draft: MortProfileDraft) async throws -> MortUser {
         try? await Task.sleep(for: .milliseconds(300))
         return MortUser(
