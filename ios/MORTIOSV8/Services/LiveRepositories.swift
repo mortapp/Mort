@@ -50,22 +50,41 @@ nonisolated final class LiveAuthService: AuthService {
         return try await profiles.profile(userId: response.user.id)
     }
 
-    func signUp(email: String, password: String, role: MortRole) async throws -> MortUser {
-        let response: AuthTokenResponse = try await client.post(
-            path: "/auth/v1/signup",
+    func signUp(email: String, password: String, role: MortRole, dateOfBirth: Date) async throws -> MortUser? {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone.current
+        let parts = calendar.dateComponents([.year, .month, .day], from: dateOfBirth)
+        guard let year = parts.year, let month = parts.month, let day = parts.day else {
+            throw MortError.rejected("Enter your full date of birth.")
+        }
+        let dateString = String(format: "%04d-%02d-%02d", year, month, day)
+        let result: PasswordGuardResponse = try await client.post(
+            path: "/functions/v1/password-guard",
             body: [
+                "action": "signup",
                 "email": email,
                 "password": password,
-                // Role is recorded in user metadata; the backend is still the
-                // authority that decides what a role may do.
-                "data": ["role": role.rawValue],
+                "date_of_birth": dateString,
+                "role": role.rawValue,
             ],
             authenticated: false
         )
-        try await store(response)
-        return try await profiles.profile(userId: response.user.id)
+        guard result.ok, let auth = result.auth,
+              let accessToken = auth.accessToken,
+              let refreshToken = auth.refreshToken,
+              let expiresIn = auth.expiresIn,
+              let user = auth.user else {
+            // Supabase returns no session when email confirmation is required.
+            return nil
+        }
+        try await store(AuthTokenResponse(
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            expiresIn: expiresIn,
+            user: user
+        ))
+        return try await profiles.profile(userId: user.id)
     }
-
     /// INTEGRATION: requires the Sign in with Apple capability + entitlement.
     /// Flow: ASAuthorizationController -> identityToken -> Supabase
     /// `/auth/v1/token?grant_type=id_token`.

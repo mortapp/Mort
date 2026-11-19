@@ -26,7 +26,7 @@ protocol AuthService: Sendable {
     /// Restores a persisted session. Returns nil when there is none.
     func restoreSession() async throws -> MortUser?
     func signIn(email: String, password: String) async throws -> MortUser
-    func signUp(email: String, password: String, role: MortRole) async throws -> MortUser
+    func signUp(email: String, password: String, role: MortRole, dateOfBirth: Date) async throws -> MortUser?
     /// Native Sign in with Apple. Requires the capability + entitlement.
     func signInWithApple() async throws -> MortUser
     /// Google OAuth via ASWebAuthenticationSession + Supabase callback.

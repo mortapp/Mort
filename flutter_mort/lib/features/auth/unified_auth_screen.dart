@@ -6,7 +6,9 @@ import '../../core/errors/user_facing_error.dart';
 import '../../core/reviewer/reviewer_session.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
+import '../../core/utils/date_of_birth.dart';
 import '../../core/utils/validators.dart';
+import '../../core/widgets/date_of_birth_field.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/onboarding_progress.dart';
 import '../../data/repositories/providers.dart';
@@ -34,6 +36,7 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
   final _email = TextEditingController();
   final _signInPassword = TextEditingController();
   final _signUpPassword = TextEditingController();
+  final _signUpDob = TextEditingController();
   late UnifiedAuthMode _mode;
   bool _busy = false;
   bool _obscurePassword = true;
@@ -67,6 +70,7 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
     _email.dispose();
     _signInPassword.dispose();
     _signUpPassword.dispose();
+    _signUpDob.dispose();
     super.dispose();
   }
 
@@ -131,11 +135,20 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
         });
         return;
       }
-      final response = await ref
+      final dob = DateOfBirthParser.tryParse(_signUpDob.text);
+      if (dob == null) {
+        setState(() => _formError = 'Enter your full date of birth.');
+        return;
+      }
+      final sessionStarted = await ref
           .read(authRepositoryProvider)
-          .signUp(email: _email.text.trim(), password: _signUpPassword.text);
+          .signUp(
+            email: _email.text.trim(),
+            password: _signUpPassword.text,
+            dateOfBirth: dob,
+          );
       if (!mounted) return;
-      if (response.session == null) {
+      if (!sessionStarted) {
         MortToast.show(
           context,
           'Check your email to confirm the account, then sign in.',
@@ -268,6 +281,15 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
                     onPressed: _startReviewer,
                   ),
                 ] else ...[
+                  if (!_isSignIn) ...[
+                    const SizedBox(height: MortSpacing.sm),
+                    DateOfBirthField(
+                      key: const ValueKey('signup-date-of-birth'),
+                      controller: _signUpDob,
+                      enabled: !_busy,
+                      validator: signUpDateOfBirthError,
+                    ),
+                  ],
                   const SizedBox(height: MortSpacing.sm),
                   MortTextField(
                     key: ValueKey(_mode),
@@ -422,4 +444,17 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
       ],
     );
   }
+}
+
+/// Sign-up date-of-birth validation. The database enforces the same
+/// minimum age; this gives the user an immediate, specific message.
+String? signUpDateOfBirthError(String? value, {DateTime? today}) {
+  final now = today ?? DateTime.now();
+  final result = DateOfBirthParser.validate(value, today: now);
+  if (!result.isValid) return result.message;
+  if (DateOfBirthParser.ageOn(result.date!, now) <
+      DateOfBirthRules.teenMinimumAge) {
+    return 'An account cannot be created for someone under 13.';
+  }
+  return null;
 }

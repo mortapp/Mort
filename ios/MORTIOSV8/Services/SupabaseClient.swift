@@ -296,6 +296,18 @@ nonisolated struct EmptyResponse: Codable, Sendable {
     init() {}
 }
 
+nonisolated struct PasswordGuardResponse: Decodable, Sendable {
+    let ok: Bool
+    let auth: PasswordGuardAuthResponse?
+}
+
+nonisolated struct PasswordGuardAuthResponse: Decodable, Sendable {
+    let accessToken: String?
+    let refreshToken: String?
+    let expiresIn: Int?
+    let user: AuthTokenResponse.User?
+}
+
 nonisolated struct AuthTokenResponse: Codable, Sendable {
     nonisolated struct User: Codable, Sendable {
         let id: String

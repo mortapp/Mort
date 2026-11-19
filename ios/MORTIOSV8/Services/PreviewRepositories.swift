@@ -37,7 +37,7 @@ nonisolated final class PreviewAuthService: AuthService {
         return user
     }
 
-    func signUp(email: String, password: String, role: MortRole) async throws -> MortUser {
+    func signUp(email: String, password: String, role: MortRole, dateOfBirth: Date) async throws -> MortUser? {
         try? await Task.sleep(for: .milliseconds(420))
         return MortUser(
             id: "preview-new",

@@ -36,6 +36,7 @@ nonisolated enum SessionPhase: Equatable, Sendable {
 final class MortSession {
     private(set) var phase: SessionPhase = .restoring
     private(set) var authError: MortError?
+    private(set) var authNotice: String?
     private(set) var isWorking = false
 
     /// Network reachability, surfaced to every screen for honest offline UI.
@@ -67,6 +68,7 @@ final class MortSession {
     func signIn(email: String, password: String) async {
         isWorking = true
         authError = nil
+        authNotice = nil
         do {
             let user = try await auth.signIn(email: email, password: password)
             phase = user.displayName.isEmpty ? .onboarding(user) : .active(user)
@@ -81,12 +83,22 @@ final class MortSession {
         isWorking = false
     }
 
-    func signUp(email: String, password: String, role: MortRole) async {
+    func signUp(email: String, password: String, role: MortRole, dateOfBirth: Date) async {
         isWorking = true
         authError = nil
+        authNotice = nil
         do {
-            let user = try await auth.signUp(email: email, password: password, role: role)
-            phase = .onboarding(user)
+            if let user = try await auth.signUp(
+                email: email,
+                password: password,
+                role: role,
+                dateOfBirth: dateOfBirth
+            ) {
+                phase = .onboarding(user)
+            } else {
+                phase = .signedOut
+                authNotice = "Check your email to confirm your account, then sign in."
+            }
             MortHaptic.success()
         } catch let error as MortError {
             authError = error
@@ -101,6 +113,7 @@ final class MortSession {
     func signInWithApple() async {
         isWorking = true
         authError = nil
+        authNotice = nil
         do {
             let user = try await auth.signInWithApple()
             phase = user.displayName.isEmpty ? .onboarding(user) : .active(user)
@@ -115,6 +128,7 @@ final class MortSession {
     func signInWithGoogle() async {
         isWorking = true
         authError = nil
+        authNotice = nil
         do {
             let user = try await auth.signInWithGoogle()
             phase = user.displayName.isEmpty ? .onboarding(user) : .active(user)
