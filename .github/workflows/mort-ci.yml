@@ -248,6 +248,41 @@ jobs:
           MORT_STRIPE_TEST_WEBHOOK_URL: https://ckcxakhxqlkhppsxxjhv.supabase.co/functions/v1/stripe-assignment-webhook
         run: ./scripts/run-mort-stripe-regression.ps1
 
+  production-replica-acceptance:
+    # Local replica of production (catalog fingerprint must match the recorded
+    # production fingerprint), then fresh-user journeys and adversarial
+    # authorization/Storage tests through the public Supabase APIs. Uses no
+    # hosted credentials and never connects to a hosted project.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.122.1
+      - run: pnpm install --frozen-lockfile
+      - name: Build production replica, verify parity, run journeys and authz suites
+        env:
+          REPLICA_OUT: ${{ runner.temp }}/replica-out
+        run: scripts/qa/replica/build-and-test.sh
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-replica-acceptance
+          path: |
+            ${{ runner.temp }}/replica-out/journeys.json
+            ${{ runner.temp }}/replica-out/authz.json
+            ${{ runner.temp }}/replica-out/*.log
+            ${{ runner.temp }}/replica-out/replica-fingerprint.txt
+          if-no-files-found: warn
+
   stripe-provider-e2e:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_stripe_provider_e2e }}
     environment: stripe-sandbox-provider

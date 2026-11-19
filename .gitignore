@@ -48,3 +48,4 @@ expo-env.d.ts
 # Local scratch/debug output — never commit ad-hoc session scripts or dumps
 .tmp_*
 *.tmp_out.txt
+.replica-out/
