@@ -17,7 +17,7 @@ The gate must pass before any provider mutation is attempted. MORT's sandbox mut
 The deployed test webhook is:
 
 ```text
-https://rakjydmgwwgtdislanbt.supabase.co/functions/v1/stripe-webhook
+https://ckcxakhxqlkhppsxxjhv.supabase.co/functions/v1/stripe-webhook
 ```
 
 MORT intentionally keeps platform and Connect event subscriptions separate even though they target the same URL.
