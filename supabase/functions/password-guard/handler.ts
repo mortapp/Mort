@@ -195,6 +195,9 @@ export function createPasswordGuardHandler(config: PasswordGuardConfig) {
         typeof body.redirect_to === "string" && body.redirect_to.length <= 512
           ? body.redirect_to
           : "";
+      const rejected = await guardPassword(body.password, email);
+      if (rejected) return rejected;
+
       // Auth sees this function's egress IP. A database-backed quota is shared across isolates.
       if (!config.consumeSignupQuota) {
         return json({ ok: false, code: "rate_limiter_unavailable" }, 503);
@@ -215,8 +218,6 @@ export function createPasswordGuardHandler(config: PasswordGuardConfig) {
       } catch {
         return json({ ok: false, code: "rate_limiter_unavailable" }, 503);
       }
-      const rejected = await guardPassword(body.password, email);
-      if (rejected) return rejected;
 
       const attestation = await mintAttestation(secret, "signup", email);
       const data: Record<string, unknown> = {

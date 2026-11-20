@@ -224,19 +224,29 @@ const signup = (password: string) => ({
   date_of_birth: "2009-04-02",
 });
 
-Deno.test("signup: weak password rejected before Auth is called", async () => {
+Deno.test("signup: weak password rejected before quota or Auth are called", async () => {
   const { fetchImpl, calls } = await fakeFetchFactory();
-  const res = await guard(fetchImpl)(post(signup("weakpass")));
+  const seen: string[] = [];
+  const res = await guard(fetchImpl, SECRET, async (key) => {
+    seen.push(key);
+    return true;
+  })(post(signup("weakpass")));
   assertEquals(res.status, 422);
   assertEquals((await res.json()).code, "password_too_short");
+  assertEquals(seen.length, 0);
   assertEquals(calls.length, 0);
 });
 
-Deno.test("signup: leaked password rejected, only a 5-char prefix leaves the function", async () => {
+Deno.test("signup: leaked password rejected before quota; only a 5-char prefix leaves the function", async () => {
   const { fetchImpl, calls } = await fakeFetchFactory();
-  const res = await guard(fetchImpl)(post(signup(LEAKED)));
+  const seen: string[] = [];
+  const res = await guard(fetchImpl, SECRET, async (key) => {
+    seen.push(key);
+    return true;
+  })(post(signup(LEAKED)));
   assertEquals(res.status, 422);
   assertEquals((await res.json()).code, "leaked_password_compromised");
+  assertEquals(seen.length, 0);
   assertEquals(calls.length, 1);
   assert(/\/range\/[0-9A-F]{5}$/.test(calls[0].url));
 });
