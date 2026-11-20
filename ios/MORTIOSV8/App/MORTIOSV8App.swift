@@ -109,6 +109,17 @@ struct MortRootView: View {
             return
         }
 
+        // Expired or already-used recovery links come back with an error and no
+        // tokens (e.g. error_code=otp_expired). Show the unavailable state
+        // instead of ignoring the callback.
+        if let values = Self.recoveryParameters(from: url),
+           values["error_code"] != nil || values["error"] != nil,
+           values["access_token"] == nil {
+            recoveryInProgress = false
+            recoveryFailed = true
+            return
+        }
+
         // Supabase recovery links carry a short-lived session in the URL fragment.
         // Handle them before the ordinary signed-in deep-link gate.
         if let values = Self.recoveryParameters(from: url),
