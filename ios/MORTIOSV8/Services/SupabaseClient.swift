@@ -443,11 +443,4 @@ nonisolated struct AuthTokenResponse: Codable, Sendable {
     let refreshToken: String
     let expiresIn: Int
     let user: User
-
-    enum CodingKeys: String, CodingKey {
-        case accessToken = "access_token"
-        case refreshToken = "refresh_token"
-        case expiresIn = "expires_in"
-        case user
-    }
 }
