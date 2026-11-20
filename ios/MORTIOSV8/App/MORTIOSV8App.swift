@@ -136,7 +136,10 @@ struct MortRootView: View {
     }
 
     static func recoveryParameters(from url: URL) -> [String: String]? {
-        guard let fragment = URLComponents(url: url, resolvingAgainstBaseURL: false)?.fragment,
+        guard url.scheme == "com.mortapp.mobile",
+              url.host == "app",
+              url.path == "/auth-callback",
+              let fragment = URLComponents(url: url, resolvingAgainstBaseURL: false)?.fragment,
               let components = URLComponents(string: "?\(fragment)") else { return nil }
         return Dictionary(components.queryItems?.compactMap { item in
             guard let value = item.value else { return nil }

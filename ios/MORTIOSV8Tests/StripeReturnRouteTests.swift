@@ -24,4 +24,10 @@ struct StripeReturnRouteTests {
         #expect(values?["refresh_token"] == "refresh-value")
         #expect(values?["expires_in"] == "3600")
     }
+
+    @Test("Recovery fragments from non-canonical URLs are ignored")
+    func nonCanonicalRecoveryURLIsRejected() {
+        let url = URL(string: "https://attacker.example/auth-callback#access_token=access.jwt.token&type=recovery")!
+        #expect(MortRootView.recoveryParameters(from: url) == nil)
+    }
 }

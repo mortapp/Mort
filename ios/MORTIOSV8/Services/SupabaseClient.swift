@@ -107,8 +107,18 @@ actor SupabaseClient {
         guard parts.count == 3 else { throw MortError.unauthorized }
         var payload = String(parts[1]).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
         while payload.count % 4 != 0 { payload.append("=") }
-        guard let data = Data(base64Encoded: payload), let claims = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let userId = claims["sub"] as? String, UUID(uuidString: userId) != nil, expiresIn > 0, expiresIn <= 86400, !refreshToken.isEmpty else { throw MortError.unauthorized }
-        session.writeSession(SupabaseSession(accessToken: accessToken, refreshToken: refreshToken, expiresAt: Date().addingTimeInterval(TimeInterval(expiresIn)), userId: userId))
+        guard let data = Data(base64Encoded: payload),
+              let claims = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let userId = claims["sub"] as? String,
+              UUID(uuidString: userId) != nil,
+              let jwtExpiration = (claims["exp"] as? NSNumber)?.doubleValue,
+              jwtExpiration > Date().timeIntervalSince1970,
+              expiresIn > 0,
+              expiresIn <= 86400,
+              !refreshToken.isEmpty else { throw MortError.unauthorized }
+        let ttl = min(TimeInterval(expiresIn), jwtExpiration - Date().timeIntervalSince1970)
+        guard ttl > 0 else { throw MortError.unauthorized }
+        session.writeSession(SupabaseSession(accessToken: accessToken, refreshToken: refreshToken, expiresAt: Date().addingTimeInterval(ttl), userId: userId))
     }
 
     /// Refreshes the access token when it is close to expiry.
