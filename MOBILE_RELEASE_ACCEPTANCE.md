@@ -1,0 +1,58 @@
+# MORT Mobile Release Acceptance
+
+**Assessment date:** 2026-11-08
+**Repository:** `mortapp/Mort`
+**Release code:** `codex/production-prelaunch-android-gate`, `ddeb6ca4621215860ff8c5fa3bb3430f12a422b4`
+**PR:** [#72](https://github.com/mortapp/Mort/pull/72), draft and stacked on PR #69
+
+## Android artifact
+
+| Property | Verified result |
+|---|---|
+| Artifact | `C:\Users\micha\mort-web-main\mort-worktrees\mobile-release-validation\build\play\mort-production-public-0.9.16-111.aab` |
+| Package | `com.mortapp.mobile` |
+| Version | `0.9.16+111` |
+| Size | 84,049,810 bytes |
+| SHA-256 | `0EC6E2EFD4A6FF5BAC98AD33C7F73E40F169BF6740786556075467B9648808B7` |
+| Supabase target | `jxbnrkasktbhtiujkhay` |
+| Profile | `production_prelaunch`, stage `production_public` |
+| SDK | min 24, target 36 |
+| Signing | Signed; `verify-play-aab.ps1` matched the signature to the protected local MORT upload certificate |
+| Certificate SHA-256 | `04:42:C2:21:38:B0:D6:23:F9:A6:F4:78:1A:44:2B:F4:A9:33:27:8F:AB:8E:85:76:74:4D:C1:FD:7C:33:4D:EF` |
+
+This is a historical artifact built before commit `ddeb6ca`. It is not a candidate for the current source because the old runtime target assertion and secure-session namespace were wrong. The current PR #72 head pins both to the authoritative project and does not migrate sessions from the retired namespace. A Java `jarsigner -strict` invocation reported that the self-signed upload certificate lacks a timestamp; normal signature verification and the repository verifier passed. The signer matches the local protected upload certificate, but the Play Console upload/App Signing relationship has not been compared.
+
+This historical signed **prelaunch** artifact is not a current release candidate. It is not evidence of public activation, legal approval, Play review, a device test, or production launch. Do not upload it to a public production track.
+
+## Fail-closed runtime configuration
+
+The historical manifest records marketplace publishing, real identity/document verification, marketplace payments, public activation, Google auth, remote push/crash reporting, AI, ads, and IAP disabled. Deterministic support fallback is enabled. The current source corrects the production Supabase target and adds a draft-legal rejection to both runtime and Android release checks. The current profile still contains `draft-2026-07` legal labels, so `build-production-prelaunch-aab.ps1` correctly blocks before signing/compilation. A new artifact cannot be produced until legal approves final immutable version IDs.
+
+## Automated results
+
+- CI run [42544285866](https://github.com/mortapp/Mort/actions/runs/42544285866) at `ddeb6ca4621215860ff8c5fa3bb3430f12a422b4`: Flutter authoritative, public-site, Expo-reference, Stripe contracts, Android device-test APK package, local Stripe regression, and Stripe security-freeze passed. Hosted Stripe regression and Stripe provider E2E were skipped.
+- Full Flutter suite at the current source: **614 passed, 2 skipped, 0 failed**.
+- Flutter formatting (309 files) and analyzer passed.
+- Repository AAB verifier passed signature, package, version, SDK, forbidden-permission, exported-component, and artifact checks.
+- The device-test APK CI job is packaging only. Local `adb devices` showed no attached physical device.
+
+## Android acceptance not run
+
+No physical device was attached, so fresh install, auth/session flows, deep links, permission prompts, network loss/recovery, retry behavior, job and safety workflows, accessibility, and crash-free navigation remain unverified. No hosted authenticated test was claimed.
+
+## iOS status and requirements
+
+Static XcodeGen project configuration declares bundle ID `com.mortapp.mobile`, deployment target iOS 18.0, Automatic code signing, and URL scheme `com.mortapp.mobile`. It declares the Sign in with Apple entitlement and camera/photo-library usage descriptions. Stripe iOS SPM `25.17.0` is listed as a native dependency even though the production-prelaunch profile keeps payment flows disabled; review that dependency and all call paths before iOS release. No associated-domains entitlement or committed `PrivacyInfo.xcprivacy` was found in the static iOS file scan. These are source findings, not an Apple signing or privacy-manifest acceptance.
+
+No Xcode build/archive or iOS device acceptance ran on this Windows host.
+
+An authorized release operator needs:
+
+1. macOS host with a supported Xcode and CocoaPods/Flutter toolchain.
+2. Apple Developer team access, distribution certificate, provisioning profile or authorized automatic signing, and App Store Connect app record matching `com.mortapp.mobile`.
+3. Verify entitlements, URL schemes, privacy usage descriptions, associated domains, notification configuration, production Supabase target, and legal version values before archiving.
+4. Build/archive, sign, export, verify certificate/profile/bundle ID, then run on a real iOS device. Do not fabricate an archive or signing status.
+
+## Release recommendation
+
+**Android: no current AAB candidate. The old artifact is historical and stale; current build gate is blocked by draft legal identifiers. Mobile release: NOT READY for public distribution.** Remaining blockers: legal approval/final content, Google OAuth configuration and sign-in verification, backend authenticated acceptance, Play Console certificate match, physical Android testing, iOS archive/device validation, and approved operational support.
