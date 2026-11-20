@@ -32,7 +32,7 @@ void main() {
     expect(repository, contains("'stripe-create-job-payment-intent'"));
     expect(repository, isNot(contains("'amount_cents':")));
     expect(repository, isNot(contains("from('stripe_job_payment_intents')")));
-    expect(screen, contains('waiting for provider confirmation'));
+    expect(screen, contains('waiting for verified provider confirmation'));
     expect(screen, isNot(contains('MortColors.neon')));
     expect(screen, isNot(contains('MortColors.roseGold')));
     expect(screen, isNot(contains("status': 'funded'")));

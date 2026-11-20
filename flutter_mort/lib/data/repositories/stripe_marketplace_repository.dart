@@ -124,6 +124,7 @@ class StripeMarketplaceRepository extends RepositoryBase {
 
   Future<Map<String, dynamic>> createPaymentSheet({
     required String quoteId,
+    required String requestId,
     required bool savePaymentMethod,
     String? savedPaymentConsentVersion,
   }) {
@@ -131,7 +132,7 @@ class StripeMarketplaceRepository extends RepositoryBase {
       'stripe-create-job-payment-intent',
       body: {
         'quote_id': quoteId,
-        'request_id': _uuid.v4(),
+        'request_id': requestId,
         'save_payment_method': savePaymentMethod,
         if (savePaymentMethod)
           'saved_payment_consent_version': savedPaymentConsentVersion,
@@ -176,6 +177,15 @@ class StripeMarketplaceRepository extends RepositoryBase {
         'get_my_payment_attempt_state_v1',
         params: {'p_payment_intent_id': providerPaymentIntentId},
       ),
+    );
+  }
+
+  Future<Map<String, dynamic>> refreshPaymentStatus(
+    String providerPaymentIntentId,
+  ) {
+    return _invoke(
+      'stripe-get-job-payment-status',
+      body: {'provider_payment_intent_id': providerPaymentIntentId},
     );
   }
 

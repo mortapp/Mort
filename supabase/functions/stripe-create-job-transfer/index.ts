@@ -15,9 +15,10 @@ Deno.serve(async (request: Request) => {
       p_payment_intent_id: paymentIntentId,
       p_environment: stripeRuntime.environment,
       p_eligibility_path: eligibilityPath,
+      p_requested_by: context.user.id,
     });
     if (error) throw error;
-    if (prepared.existing && prepared.provider_transfer_id) return json({ ok: true, duplicate: true, status: "already_recorded" });
+    if (prepared.existing && prepared.provider_transfer_id) return json({ ok: true, duplicate: true, status: prepared.status });
     const transfer = await stripeRuntime.stripe.transfers.create({
       amount: prepared.amount_cents,
       currency: String(prepared.currency_code).toLowerCase(),

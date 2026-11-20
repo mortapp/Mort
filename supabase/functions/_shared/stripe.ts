@@ -190,6 +190,13 @@ export function providerStatus(status: string) {
   return allowed.has(status) ? status : "requires_payment_method";
 }
 
+export function stripeProviderErrorHttpStatus(type?: string, statusCode?: number) {
+  if (statusCode === 408 || statusCode === 429 || (statusCode !== undefined && statusCode >= 500)) return 503;
+  if (["StripeAPIError", "StripeConnectionError", "StripeRateLimitError", "StripeAuthenticationError"].includes(type ?? "")) return 503;
+  if (type === "StripeCardError") return 402;
+  return statusCode !== undefined && statusCode >= 400 && statusCode < 500 ? 400 : 502;
+}
+
 export function safeError(error: unknown, traceId = crypto.randomUUID()) {
   if (error instanceof PublicError) {
     structuredLog("warn", "stripe.request_rejected", traceId, {
@@ -208,7 +215,7 @@ export function safeError(error: unknown, traceId = crypto.randomUUID()) {
       ok: false,
       code: "stripe_operation_failed",
       provider_code: providerCode,
-    }, 400, traceId);
+    }, stripeProviderErrorHttpStatus(error.type, error.statusCode), traceId);
   }
   structuredLog("error", "stripe.function_failed", traceId, {
     kind: safeErrorKind(error),

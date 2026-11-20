@@ -1,5 +1,6 @@
 import Stripe from "npm:stripe@22.1.1";
 import { json, safeError, serviceClient, sha256, webhookRuntime } from "../_shared/stripe.ts";
+import { deletedConnectedAccountStatusParams } from "../_shared/stripe_connected_account.ts";
 import { assertWebhookEventRoute, verifyWebhookEvent } from "./verification.ts";
 
 const maximumWebhookBytes = 512 * 1024;
@@ -66,13 +67,15 @@ async function processEvent(
     const intent = event.data.object as Stripe.PaymentIntent;
     const tipAttemptId = intent.metadata?.mort_tip_attempt_ref;
     if (tipAttemptId) {
-      return rpc(supabase, "stripe_server_apply_tip_event_v1", {
+      const result = await rpc(supabase, "stripe_server_apply_tip_event_v1", {
         p_tip_attempt_id: tipAttemptId,
         p_provider_payment_intent_id: intent.id,
         p_provider_status: event.type,
         p_amount_cents: intent.amount,
         p_currency_code: intent.currency.toUpperCase(),
       });
+      await complete(supabase, environment, event.id, "processed", "tip_payment_state_synchronized");
+      return result;
     }
     const quoteRef = intent.metadata?.mort_quote_ref;
     const contractRef = intent.metadata?.mort_contract_ref;
@@ -98,6 +101,14 @@ async function processEvent(
       p_currency_code: intent.currency.toUpperCase(),
       p_safe_failure_code: failureCode,
     });
+  }
+
+  if (event.type === "account.deleted") {
+    const account = event.data.object as Stripe.Account;
+    await rpc(supabase, "stripe_server_record_connected_account_status", {
+      ...deletedConnectedAccountStatusParams(account.id, environment),
+    });
+    return complete(supabase, environment, event.id, "processed", "account_disconnected");
   }
 
   if (event.type === "account.updated") {

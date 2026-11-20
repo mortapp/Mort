@@ -72,6 +72,7 @@ Deno.serve(async (request: Request) => {
 
     let transferId: string | null = null;
     let refundId: string | null = null;
+    let providerStatus = "succeeded";
     if (Number(prepared.transfer_amount_cents) > 0) {
       const transfer = await stripeRuntime.stripe.transfers.create(
         {
@@ -101,6 +102,11 @@ Deno.serve(async (request: Request) => {
         { idempotencyKey: String(prepared.refund_idempotency_key) },
       );
       refundId = refund.id;
+      providerStatus = refund.status === "succeeded"
+        ? "succeeded"
+        : refund.status === "failed" || refund.status === "canceled"
+        ? "failed"
+        : "processing";
     }
     const { data: recorded, error: recordError } = await context.serviceClient.rpc(
       "stripe_server_record_resolution_result",
@@ -109,8 +115,8 @@ Deno.serve(async (request: Request) => {
         p_environment: stripeRuntime.environment,
         p_provider_transfer_id: transferId,
         p_provider_refund_id: refundId,
-        p_provider_status: "succeeded",
-        p_safe_failure_code: null,
+        p_provider_status: providerStatus,
+        p_safe_failure_code: providerStatus === "processing" ? "provider_refund_pending" : null,
       },
     );
     if (recordError) throw recordError;

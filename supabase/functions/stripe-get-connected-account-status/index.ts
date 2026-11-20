@@ -1,4 +1,5 @@
 import { authenticate, json, options, requireRateLimit, runtime, safeError } from "../_shared/stripe.ts";
+import { deletedConnectedAccountStatusParams } from "../_shared/stripe_connected_account.ts";
 
 Deno.serve(async (request: Request) => {
   const preflight = options(request);
@@ -15,7 +16,16 @@ Deno.serve(async (request: Request) => {
     if (prepareError) throw prepareError;
     if (!prepared.provider_account_id) return json({ ok: true, status: "not_started" });
     const account = await stripeRuntime.stripe.accounts.retrieve(prepared.provider_account_id);
-    if (account.deleted) return json({ ok: true, status: "disconnected" });
+    if (account.deleted) {
+      const { error: recordError } = await context.serviceClient.rpc(
+        "stripe_server_record_connected_account_status",
+        deletedConnectedAccountStatusParams(account.id, stripeRuntime.environment),
+      );
+      if (recordError) throw recordError;
+      const { data: status, error: statusError } = await context.userClient.rpc("get_my_stripe_payout_status");
+      if (statusError) throw statusError;
+      return json({ ok: true, ...status, status: "disconnected" });
+    }
     const due = account.requirements?.currently_due ?? [];
     const pastDue = account.requirements?.past_due ?? [];
     const transfers = account.capabilities?.transfers ?? "inactive";

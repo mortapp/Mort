@@ -1,6 +1,6 @@
 # Stripe Live Readiness
 
-Updated: 2026-09-19
+Updated: 2026-11-18
 
 Current result: **NOT LIVE READY — LIVE PAYMENTS MUST REMAIN OFF**.
 
@@ -18,14 +18,14 @@ Current result: **NOT LIVE READY — LIVE PAYMENTS MUST REMAIN OFF**.
 | Tax | Tax professional | Dated tax/reporting approval | BLOCKED |
 | Privacy/retention/receipts | Privacy/legal owner | Dated privacy, retention, receipts, and deletion/de-identification approval | BLOCKED |
 | Monitoring/on-call + reconciliation | Operations owner | Named on-call/support coverage, alerts, escalation, reconciliation schedule, drills | BLOCKED |
-| Provider sandbox/physical-device proof | QA + mobile release owner | Sanitized provider evidence plus physical Android/iOS PaymentSheet/onboarding evidence | PARTIAL — provider sandbox complete; physical devices remain blocked |
+| Provider sandbox/physical-device proof | QA + mobile release owner | Sanitized provider evidence plus physical Android/iOS PaymentSheet/onboarding evidence | BLOCKED — this review made no provider calls; mutation eligibility is false and provider secret-name readiness was unavailable; physical devices not tested |
 | Store/public release | Release + legal owner | Reviewed store declarations, public terms/privacy/support evidence | BLOCKED |
 | Final owner approval | MORT owner | All prior dated evidence plus reviewed activation and disable/recovery procedure | BLOCKED |
 
 
 ## Verified fail-closed state
 
-A read-only check of the hosted MORT project on 2026-09-18 shows `mode=sandbox`. Payment, connected-account onboarding, job funding, transfer, refund, live-mode, owner-live-approval, provider-use-case, legal, privacy, minor-payout, tax, negative-balance, retention, receipts, reconciliation, monitoring/on-call, and production-release approvals are all false. `partial_compensation_policy_version` and `production_approved_at` are unset.
+A read-only check of the authorized test project `ckcxakhxqlkhppsxxjhv` on 2026-11-18 shows `mode=sandbox`. Payment, connected-account onboarding, job funding, transfer, refund, live-mode, live-owner, connected-account, payout, sandbox-provider-QA, legal, privacy, minor-payout, tax, negative-balance, retention, receipts, reconciliation, monitoring/on-call, and production-release controls are false. The active test service-fee policy is zero fixed cents, and no launch fee has been approved. This review created no Stripe provider objects and sent no provider API requests. The current production project was not inspected or modified because sandbox provider evidence and gates are incomplete.
 
 The database function `private.stripe_live_financial_ready()` is conjunctive: live readiness requires live mode plus every stored approval, a production partial-compensation policy version, production release approval, and a production approval timestamp. No code-only or test-only result can satisfy those external approvals.
 
