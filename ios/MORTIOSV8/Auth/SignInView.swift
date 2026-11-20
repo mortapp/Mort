@@ -173,3 +173,61 @@ struct ForgotPasswordView: View {
     NavigationStack { SignInView() }
         .environment(MortDependencies.preview(signedIn: false).session)
 }
+
+
+struct PasswordRecoveryView: View {
+    let onFinished: () -> Void
+    @Environment(MortSession.self) private var session
+    @State private var newValue = ""
+    @State private var confirmValue = ""
+    @State private var completed = false
+
+    private var canSubmit: Bool {
+        newValue.count >= 12 && newValue == confirmValue && !session.isWorking
+    }
+
+    var body: some View {
+        MortScreen(title: completed ? "Password updated" : "Choose a new password", subtitle: completed ? "Your password has been changed. Sign in to continue." : "Use a strong password you have not used elsewhere.", atmosphereIntensity: 0.7) {
+            VStack(alignment: .leading, spacing: MortSpace.s5) {
+                if completed {
+                    MortStatusPanel(tone: .success, symbol: "checkmark.circle", label: "PASSWORD UPDATED", detail: "You can now sign in with your new password.")
+                } else {
+                    MortSecureField(label: "New password", placeholder: "At least 12 characters", text: $newValue)
+                    MortSecureField(label: "Confirm new password", placeholder: "Enter it again", text: $confirmValue)
+                    if !confirmValue.isEmpty && newValue != confirmValue { MortNote(text: "Passwords do not match.", tone: .danger) }
+                    if let error = session.authError { MortNote(text: error.userMessage, tone: .danger) }
+                }
+            }
+        } bottom: {
+            MortBottomBar {
+                if completed {
+                    MortPrimaryButton(title: "Back to sign in") { onFinished() }
+                } else {
+                    MortPrimaryButton(title: "Update password", isBusy: session.isWorking, isEnabled: canSubmit, busyTitle: "Updating…") {
+                        Task { completed = await session.updatePassword(newValue) }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Password recovery")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+
+struct PasswordRecoveryUnavailableView: View {
+    let onDismiss: () -> Void
+    @Environment(MortSession.self) private var session
+
+    var body: some View {
+        MortScreen(title: "Reset link unavailable", subtitle: "This password-reset link is invalid or has expired. Request a new link and try again.", atmosphereIntensity: 0.7) {
+            if let error = session.authError {
+                MortStatusPanel(tone: .danger, symbol: "exclamationmark.triangle", label: "RECOVERY NOT VERIFIED", detail: error.userMessage)
+            }
+        } bottom: {
+            MortBottomBar { MortPrimaryButton(title: "Back to sign in", action: onDismiss) }
+        }
+        .navigationTitle("Password recovery")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}

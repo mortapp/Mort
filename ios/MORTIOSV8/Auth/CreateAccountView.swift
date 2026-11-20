@@ -17,10 +17,17 @@ struct CreateAccountView: View {
     @State private var role: MortRole?
     @State private var email = ""
     @State private var password = ""
+    @State private var dateOfBirth = Calendar.current.date(byAdding: .year, value: -16, to: Date()) ?? Date()
     @State private var acceptedTerms = false
 
     private var canSubmit: Bool {
-        role != nil && email.contains("@") && password.count >= 8 && acceptedTerms && !session.isWorking
+        let age = Calendar.current.dateComponents([.year], from: dateOfBirth, to: Date()).year ?? 0
+        return role != nil
+            && email.contains("@")
+            && password.count >= 12
+            && age >= 13
+            && acceptedTerms
+            && !session.isWorking
     }
 
     var body: some View {
@@ -30,6 +37,9 @@ struct CreateAccountView: View {
             atmosphereIntensity: 0.7
         ) {
             VStack(alignment: .leading, spacing: MortSpace.s5) {
+                if let notice = session.authNotice {
+                    MortNote(text: notice, tone: .info)
+                }
                 if let error = session.authError {
                     MortStatusPanel(
                         tone: .danger,
@@ -48,6 +58,14 @@ struct CreateAccountView: View {
                 }
 
                 VStack(spacing: MortSpace.s4) {
+                    DatePicker(
+                        "Date of birth",
+                        selection: $dateOfBirth,
+                        in: ...Date(),
+                        displayedComponents: .date
+                    )
+                    .datePickerStyle(.compact)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     MortTextField(
                         label: "Email",
                         placeholder: "you@example.com",
@@ -58,11 +76,11 @@ struct CreateAccountView: View {
                     )
                     MortSecureField(
                         label: "Password",
-                        placeholder: "At least 8 characters",
+                        placeholder: "At least 12 characters",
                         text: $password,
-                        errorText: password.isEmpty || password.count >= 8
+                        errorText: password.isEmpty || password.count >= 12
                             ? nil
-                            : "Use at least 8 characters.",
+                            : "Use at least 12 characters.",
                         helpText: "Longer is stronger. Avoid something you use elsewhere."
                     )
                 }
@@ -104,7 +122,14 @@ struct CreateAccountView: View {
                     busyTitle: "Creating…"
                 ) {
                     guard let role else { return }
-                    Task { await session.signUp(email: email, password: password, role: role) }
+                    Task {
+                        await session.signUp(
+                            email: email,
+                            password: password,
+                            role: role,
+                            dateOfBirth: dateOfBirth
+                        )
+                    }
                 }
                 MortQuietButton(title: "I already have an account") { dismiss() }
             }

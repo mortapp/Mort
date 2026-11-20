@@ -49,15 +49,37 @@ if [ "${PRE_FIX:-0}" != "1" ]; then
   done <"$ROOT/supabase/production-baseline-migrations/PENDING_PRODUCTION_APPROVAL.txt"
 fi
 
+GUARD_PID=""
+cleanup() { [ -n "$GUARD_PID" ] && kill "$GUARD_PID" 2>/dev/null || true; }
+trap cleanup EXIT
+if [ "${PRE_FIX:-0}" != "1" ] && grep -q server_enforced_password_attestation "$ROOT/supabase/production-baseline-migrations/PENDING_PRODUCTION_APPROVAL.txt"; then
+  echo "== password-guard: replica Vault secret + local function"
+  MORT_PASSWORD_ATTESTATION_SECRET="$(openssl rand -hex 32)"; export MORT_PASSWORD_ATTESTATION_SECRET
+  docker exec "$DB" psql -U postgres -v ON_ERROR_STOP=1 -qAt -c \
+    "select vault.create_secret('$MORT_PASSWORD_ATTESTATION_SECRET', 'mort_password_attestation_secret', 'replica test secret')" >>"$OUT/build.log"
+  export PASSWORD_GUARD_PORT=55399 PASSWORD_GUARD_URL="http://127.0.0.1:55399/password-guard"
+  if curl -s -o /dev/null "http://127.0.0.1:55399/"; then echo "port 55399 already in use (stale password-guard?)"; exit 1; fi
+  deno run --no-config --node-modules-dir=none --allow-net --allow-env "$ROOT/scripts/qa/replica/password-guard-serve.ts" >"$OUT/password-guard.log" 2>&1 &
+  GUARD_PID=$!
+  for _ in $(seq 1 60); do grep -q "password-guard on" "$OUT/password-guard.log" && break; kill -0 "$GUARD_PID" 2>/dev/null || { cat "$OUT/password-guard.log"; exit 1; }; sleep 0.5; done
+  RUN_PASSWORD=1
+fi
+
 cd "$ROOT"
 export ACTORS_OUT="$OUT/actors.json" JOURNEY_RESULTS="$OUT/journeys.json" AUTHZ_RESULTS="$OUT/authz.json"
 set +e
 node scripts/qa/replica/journeys.mjs | tee "$OUT/journeys.log"; J=${PIPESTATUS[0]}
 node scripts/qa/replica/authz.mjs | tee "$OUT/authz.log"; A=${PIPESTATUS[0]}
+P=0
+if [ "${RUN_PASSWORD:-0}" = "1" ]; then
+  PASSWORD_RESULTS="$OUT/password.json" node scripts/qa/replica/password.mjs | tee "$OUT/password.log"; P=${PIPESTATUS[0]}
+  docker logs supabase_auth_mort-production-replica 2>&1 | grep -o 'MORT_PASSWORD_ATTESTATION_[A-Z]*' | sort | uniq -c >"$OUT/auth-attestation-rejections.txt" || true
+  echo "database rejections recorded by Auth:"; cat "$OUT/auth-attestation-rejections.txt"
+fi
 set -e
 node -e '
 const j=require(process.argv[1]), a=require(process.argv[2]);
 const f=[...j,...a].filter(r=>!r.pass);
 console.log(`journeys ${j.length-j.filter(r=>!r.pass).length}/${j.length}, authz ${a.length-a.filter(r=>!r.pass).length}/${a.length}`);
 process.exit(f.length?1:0);' "$OUT/journeys.json" "$OUT/authz.json"
-[ "$J" = 0 ] && [ "$A" = 0 ]
+[ "$J" = 0 ] && [ "$A" = 0 ] && [ "$P" = 0 ]

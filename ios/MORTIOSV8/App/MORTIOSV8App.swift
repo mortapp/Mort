@@ -36,20 +36,28 @@ struct MortRootView: View {
     @Environment(MortSession.self) private var session
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.mortReducedMotion) private var reducedMotion
+    @State private var recoveryInProgress = false
+    @State private var recoveryFailed = false
 
     var body: some View {
         ZStack {
             MortColor.black.ignoresSafeArea()
 
-            switch session.phase {
-            case .restoring:
-                MortLaunchView()
-            case .signedOut, .expired:
-                AuthEntryView()
-            case .onboarding(let user):
-                OnboardingFlowView(user: user)
-            case .active(let user):
-                MortTabView(user: user)
+            if recoveryInProgress {
+                NavigationStack { PasswordRecoveryView { recoveryInProgress = false } }
+            } else if recoveryFailed {
+                NavigationStack { PasswordRecoveryUnavailableView { recoveryFailed = false } }
+            } else {
+                switch session.phase {
+                case .restoring:
+                    MortLaunchView()
+                case .signedOut, .expired:
+                    AuthEntryView()
+                case .onboarding(let user):
+                    OnboardingFlowView(user: user)
+                case .active(let user):
+                    MortTabView(user: user)
+                }
             }
         }
         .animation(reducedMotion ? nil : MortMotion.ease, value: phaseKey)
@@ -101,15 +109,42 @@ struct MortRootView: View {
             return
         }
 
-        // Universal links and the custom scheme both funnel here.
-        // Deep-link POLICY (which links require auth) is owned by the existing
-        // MORT app — this only routes the understood paths.
+        // Supabase recovery links carry a short-lived session in the URL fragment.
+        // Handle them before the ordinary signed-in deep-link gate.
+        if let values = Self.recoveryParameters(from: url),
+           values["type"] == "recovery",
+           let access = values["access_token"],
+           let refresh = values["refresh_token"],
+           let expires = Int(values["expires_in"] ?? "3600") {
+            Task {
+                let accepted = await session.beginPasswordRecovery(
+                    accessToken: access, refreshToken: refresh, expiresIn: expires
+                )
+                recoveryInProgress = accepted
+                recoveryFailed = !accepted
+            }
+            return
+        }
+
+        // Ordinary app deep links require an authenticated session.
         guard case .active = session.phase else { return }
         NotificationCenter.default.post(
             name: .mortDeepLink,
             object: nil,
             userInfo: ["path": url.path]
         )
+    }
+
+    static func recoveryParameters(from url: URL) -> [String: String]? {
+        guard url.scheme == "com.mortapp.mobile",
+              url.host == "app",
+              url.path == "/auth-callback",
+              let fragment = URLComponents(url: url, resolvingAgainstBaseURL: false)?.fragment,
+              let components = URLComponents(string: "?\(fragment)") else { return nil }
+        return Dictionary(components.queryItems?.compactMap { item in
+            guard let value = item.value else { return nil }
+            return (item.name, value)
+        } ?? [], uniquingKeysWith: { first, _ in first })
     }
 }
 
