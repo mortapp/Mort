@@ -32,6 +32,16 @@ final class MORTIOSV8UITests: XCTestCase {
     }
 
     @MainActor
+    func testOfflineValidationLaunch() {
+        let app = XCUIApplication()
+        app.launchArguments.append("-mortOfflineSimulatorValidation")
+        app.launch()
+        let preview = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS[c] %@", "not connected to MORT")).firstMatch
+        XCTAssertTrue(preview.waitForExistence(timeout: 10))
+    }
+
+    @MainActor
     func testLaunchPerformance() throws {
         // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {

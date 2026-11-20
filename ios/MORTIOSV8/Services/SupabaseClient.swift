@@ -63,17 +63,34 @@ nonisolated struct SupabaseSession: Codable, Sendable {
 actor SupabaseClient {
     private let config: SupabaseConfig
     private let session: MortKeychain
-    private let urlSession: URLSession
+    private let sendRequest: @Sendable (URLRequest) async throws -> (Data, URLResponse)
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
+    private let recoveryReplayStore: PasswordRecoveryReplayStore
+    private let now: @Sendable () -> Date
+    private var recoverySession: PasswordRecoverySession?
+    private var recoveryOperationInFlight = false
 
-    init(config: SupabaseConfig, keychain: MortKeychain = MortKeychain()) {
+    init(
+        config: SupabaseConfig,
+        keychain: MortKeychain = MortKeychain(),
+        recoveryReplayStore: PasswordRecoveryReplayStore = PasswordRecoveryReplayStore(),
+        now: @escaping @Sendable () -> Date = { Date() },
+        sendRequest: (@Sendable (URLRequest) async throws -> (Data, URLResponse))? = nil
+    ) {
         self.config = config
         self.session = keychain
-        let configuration = URLSessionConfiguration.default
-        configuration.timeoutIntervalForRequest = 25
-        configuration.waitsForConnectivity = false
-        self.urlSession = URLSession(configuration: configuration)
+        self.recoveryReplayStore = recoveryReplayStore
+        self.now = now
+        if let sendRequest {
+            self.sendRequest = sendRequest
+        } else {
+            let configuration = URLSessionConfiguration.default
+            configuration.timeoutIntervalForRequest = 25
+            configuration.waitsForConnectivity = false
+            let urlSession = URLSession(configuration: configuration)
+            self.sendRequest = { request in try await urlSession.data(for: request) }
+        }
 
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -102,23 +119,92 @@ actor SupabaseClient {
         session.deleteSession()
     }
 
-    func establishRecoverySession(accessToken: String, refreshToken: String, expiresIn: Int) throws {
-        let parts = accessToken.split(separator: ".")
-        guard parts.count == 3 else { throw MortError.unauthorized }
-        var payload = String(parts[1]).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
-        while payload.count % 4 != 0 { payload.append("=") }
-        guard let data = Data(base64Encoded: payload),
-              let claims = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let userId = claims["sub"] as? String,
-              UUID(uuidString: userId) != nil,
-              let jwtExpiration = (claims["exp"] as? NSNumber)?.doubleValue,
-              jwtExpiration > Date().timeIntervalSince1970,
-              expiresIn > 0,
-              expiresIn <= 86400,
-              !refreshToken.isEmpty else { throw MortError.unauthorized }
-        let ttl = min(TimeInterval(expiresIn), jwtExpiration - Date().timeIntervalSince1970)
-        guard ttl > 0 else { throw MortError.unauthorized }
-        session.writeSession(SupabaseSession(accessToken: accessToken, refreshToken: refreshToken, expiresAt: Date().addingTimeInterval(ttl), userId: userId))
+    func establishRecoverySession(accessToken: String, refreshToken: String, expiresIn: Int) async throws {
+        let startedAt = now()
+        guard !recoveryOperationInFlight,
+              (1...PasswordRecoveryLink.maxLifetime).contains(expiresIn),
+              PasswordRecoveryLink.isToken(refreshToken) else { throw MortError.unauthorized }
+        let original = try PasswordRecoveryClaims.decode(accessToken, now: startedAt)
+        guard !recoveryReplayStore.contains(original.sessionID, now: startedAt) else {
+            throw MortError.unauthorized
+        }
+        recoveryOperationInFlight = true
+        defer { recoveryOperationInFlight = false }
+
+        let userRequest = try await makeRequest(
+            path: "/auth/v1/user", method: "GET", query: [],
+            authenticated: false, recoveryBearer: accessToken
+        )
+        let user: AuthTokenResponse.User = try await perform(userRequest)
+        guard UUID(uuidString: user.id) == original.subject else { throw MortError.unauthorized }
+
+        // Exchange the supplied refresh token to prove it belongs to this
+        // same user and Auth session. Never install a mismatched token pair.
+        let renewed: PasswordRecoveryRefreshResponse = try await post(
+            path: "/auth/v1/token",
+            query: [URLQueryItem(name: "grant_type", value: "refresh_token")],
+            body: ["refresh_token": refreshToken],
+            authenticated: false
+        )
+        let validatedAt = now()
+        let refreshed = try PasswordRecoveryClaims.decode(renewed.accessToken, now: validatedAt)
+        guard refreshed.sessionID == original.sessionID,
+              refreshed.subject == original.subject,
+              UUID(uuidString: renewed.user.id) == original.subject,
+              PasswordRecoveryLink.isToken(renewed.refreshToken),
+              renewed.expiresIn > 0 else { throw MortError.unauthorized }
+
+        let originalExpiry = Date(timeIntervalSince1970: original.expiration)
+        let expiresAt = [
+            originalExpiry,
+            startedAt.addingTimeInterval(TimeInterval(expiresIn)),
+            Date(timeIntervalSince1970: refreshed.expiration),
+            validatedAt.addingTimeInterval(TimeInterval(renewed.expiresIn)),
+        ].min() ?? validatedAt
+        guard expiresAt > validatedAt else { throw MortError.unauthorized }
+        recoveryReplayStore.consume(original.sessionID, expiresAt: originalExpiry, now: validatedAt)
+        recoverySession = PasswordRecoverySession(
+            accessToken: renewed.accessToken, subject: original.subject, expiresAt: expiresAt
+        )
+    }
+
+    func updateRecoveryPassword(_ password: String) async throws {
+        guard !recoveryOperationInFlight, let recovery = recoverySession else {
+            throw MortError.unauthorized
+        }
+        guard recovery.expiresAt > now() else {
+            recoverySession = nil
+            throw MortError.unauthorized
+        }
+        recoveryOperationInFlight = true
+        defer { recoveryOperationInFlight = false }
+
+        var request = try await makeRequest(
+            path: "/functions/v1/password-guard", method: "POST", query: [],
+            authenticated: false, recoveryBearer: recovery.accessToken
+        )
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "action": "update_password",
+            "password": password,
+        ])
+        let result: PasswordGuardResponse = try await perform(request, isRecoveryPasswordGuard: true)
+        guard result.ok else { throw MortError.rejected("The password was not updated.") }
+
+        recoverySession = nil
+        if let primary = currentSession, UUID(uuidString: primary.userId) == recovery.subject {
+            session.deleteSession()
+        }
+        // The guarded password change already succeeded. Revoke only this
+        // scoped session if GoTrue is reachable; never claim remote logout.
+        if let logout = try? await makeRequest(
+            path: "/auth/v1/logout",
+            method: "POST",
+            query: [URLQueryItem(name: "scope", value: "local")],
+            authenticated: false,
+            recoveryBearer: recovery.accessToken
+        ) {
+            let _: EmptyResponse? = try? await perform(logout)
+        }
     }
 
     /// Refreshes the access token when it is close to expiry.
@@ -160,7 +246,8 @@ actor SupabaseClient {
         path: String,
         method: String,
         query: [URLQueryItem],
-        authenticated: Bool
+        authenticated: Bool,
+        recoveryBearer: String? = nil
     ) async throws -> URLRequest {
         var components = URLComponents(
             url: config.url.appendingPathComponent(path),
@@ -173,7 +260,10 @@ actor SupabaseClient {
         request.httpMethod = method
         request.setValue(config.anonKey, forHTTPHeaderField: "apikey")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if authenticated {
+        if let recoveryBearer {
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+            request.setValue("Bearer \(recoveryBearer)", forHTTPHeaderField: "Authorization")
+        } else if authenticated {
             let token = try await validAccessToken()
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         } else {
@@ -182,16 +272,29 @@ actor SupabaseClient {
         return request
     }
 
-    private func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
+    private func perform<T: Decodable>(
+        _ request: URLRequest, isRecoveryPasswordGuard: Bool = false
+    ) async throws -> T {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await urlSession.data(for: request)
+            (data, response) = try await sendRequest(request)
         } catch let error as URLError {
             throw Self.map(urlError: error)
         }
         guard let http = response as? HTTPURLResponse else { throw MortError.unknown }
         guard (200..<300).contains(http.statusCode) else {
+            if isRecoveryPasswordGuard {
+                let failure = try? decoder.decode(PasswordGuardFailure.self, from: data)
+                switch failure?.code {
+                case "leaked_password_compromised":
+                    throw MortError.rejected("That password appears in a known data breach. Choose a different one.")
+                case "password_complexity_required":
+                    throw MortError.rejected("Use uppercase and lowercase letters, a number, and a symbol.")
+                default:
+                    break
+                }
+            }
             throw Self.map(status: http.statusCode, data: data)
         }
         if T.self == EmptyResponse.self, let empty = EmptyResponse() as? T {
@@ -318,6 +421,10 @@ nonisolated struct EmptyResponse: Codable, Sendable {
 nonisolated struct PasswordGuardResponse: Decodable, Sendable {
     let ok: Bool
     let auth: PasswordGuardAuthResponse?
+}
+
+private nonisolated struct PasswordGuardFailure: Decodable, Sendable {
+    let code: String
 }
 
 nonisolated struct PasswordGuardAuthResponse: Decodable, Sendable {

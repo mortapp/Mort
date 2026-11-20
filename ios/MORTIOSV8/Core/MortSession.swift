@@ -157,6 +157,7 @@ final class MortSession {
     }
 
     func beginPasswordRecovery(accessToken: String, refreshToken: String, expiresIn: Int) async -> Bool {
+        guard !isWorking else { return false }
         isWorking = true
         authError = nil
         defer { isWorking = false }
@@ -168,13 +169,15 @@ final class MortSession {
     }
 
     func updatePassword(_ newValue: String) async -> Bool {
+        guard !isWorking else { return false }
         isWorking = true
         authError = nil
         defer { isWorking = false }
         do {
             try await auth.updatePassword(newValue)
-            await auth.signOut()
-            phase = .signedOut
+            // Live recovery signs out its own session. Reload the ordinary
+            // session rather than signing out a potentially different user.
+            await restore()
             authNotice = "Your password has been updated. Sign in with your new password."
             MortHaptic.success()
             return true

@@ -1,0 +1,132 @@
+name: MORT iOS Gate A Validation
+
+# A workflow absent from the default branch cannot be run via workflow_dispatch.
+# Only publishing this exact, unmerged validation branch starts this workflow.
+on:
+  push:
+    branches: [validation/ios-gate-a-20261120]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mort-ios-gate-a-validation
+  cancel-in-progress: false
+
+jobs:
+  unsigned-ios-simulator:
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout the validation commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify source and toolchain
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/validation/ios-gate-a-20261120
+          test "$GITHUB_SHA" = "$(git rev-parse HEAD)"
+          printf 'Validation source: %s\n' "$GITHUB_SHA"
+          xcodebuild -version
+          brew install xcodegen
+          xcodegen --version
+          xcodegen generate --spec ios/project.yml
+          git diff --exit-code
+
+      - name: Resolve public SDK packages
+        run: |
+          set -euo pipefail
+          xcodebuild -resolvePackageDependencies \
+            -project ios/MORTIOSV8.xcodeproj \
+            -scheme MORTIOSV8 \
+            -derivedDataPath "$RUNNER_TEMP/gate-a-build"
+
+      - name: Block the shipping backend and select a fresh iPhone simulator
+        run: |
+          set -euo pipefail
+          shipping_host="$(sed -nE 's/.*EXPO_PUBLIC_SUPABASE_URL = "https:\/\/([a-z0-9]+\.supabase\.co)".*/\1/p' ios/MORTIOSV8/Config.swift)"
+          [[ "$shipping_host" =~ ^[a-z0-9]+\.supabase\.co$ ]]
+          printf '127.0.0.1 %s\n::1 %s\n' "$shipping_host" "$shipping_host" | sudo tee -a /etc/hosts >/dev/null
+          lookup="$(dscacheutil -q host -a name "$shipping_host")"
+          grep -Fxq 'ip_address: 127.0.0.1' <<< "$lookup"
+          if grep -E '^(ip_address|ipv6_address): ' <<< "$lookup" | grep -qvE ': (127\.0\.0\.1|::1)$'; then
+            echo "Shipping backend resolved to a nonlocal address; aborting validation." >&2
+            exit 1
+          fi
+          device="$(xcrun simctl list devices available -j | jq -er '
+            [.devices | to_entries | map(select(.key | contains(".iOS-")))
+              | sort_by(.key | split("-") | .[1:] | map(tonumber)) | reverse | .[] | .value[]
+              | select(.isAvailable and (.name | startswith("iPhone")) and .state == "Shutdown")
+              | .udid][0]')"
+          xcrun simctl boot "$device"
+          xcrun simctl bootstatus "$device" -b
+          printf 'DEVICE_ID=%s\n' "$device" >> "$GITHUB_ENV"
+
+      - name: Compile the app and both test targets for the simulator
+        id: compile
+        run: |
+          set -euo pipefail
+          xcodebuild build-for-testing \
+            -project ios/MORTIOSV8.xcodeproj \
+            -scheme MORTIOSV8 -configuration Debug \
+            -destination "platform=iOS Simulator,id=$DEVICE_ID" \
+            -derivedDataPath "$RUNNER_TEMP/gate-a-build" \
+            -resultBundlePath "$RUNNER_TEMP/gate-a-build.xcresult" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+
+      - name: Run the unit and recovery regression tests
+        run: |
+          set -euo pipefail
+          xcodebuild test-without-building \
+            -project ios/MORTIOSV8.xcodeproj \
+            -scheme MORTIOSV8 -configuration Debug \
+            -destination "platform=iOS Simulator,id=$DEVICE_ID" \
+            -derivedDataPath "$RUNNER_TEMP/gate-a-build" \
+            -resultBundlePath "$RUNNER_TEMP/gate-a-unit.xcresult" \
+            -parallel-testing-enabled NO \
+            -only-testing:MORTIOSV8Tests \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+
+      - name: Run offline UI launch smoke
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          xcodebuild test-without-building \
+            -project ios/MORTIOSV8.xcodeproj \
+            -scheme MORTIOSV8 -configuration Debug \
+            -destination "platform=iOS Simulator,id=$DEVICE_ID" \
+            -derivedDataPath "$RUNNER_TEMP/gate-a-build" \
+            -resultBundlePath "$RUNNER_TEMP/gate-a-ui.xcresult" \
+            -parallel-testing-enabled NO \
+            -only-testing:MORTIOSV8UITests/MORTIOSV8UITests/testOfflineValidationLaunch \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+
+      - name: Record native test counts
+        if: always()
+        run: |
+          set -euo pipefail
+          for suite in unit ui; do
+            bundle="$RUNNER_TEMP/gate-a-$suite.xcresult"
+            if [[ -d "$bundle" ]]; then
+              xcrun xcresulttool get test-results summary --path "$bundle" |
+                tee "$RUNNER_TEMP/gate-a-$suite-summary.json" |
+                jq -c --arg suite "$suite" '{suite: $suite, result, totalTestCount, passedTests, failedTests, skippedTests}' |
+                tee -a "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+      - name: Upload compilation and test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mort-ios-gate-a-${{ github.sha }}
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/gate-a-*.xcresult
+            ${{ runner.temp }}/gate-a-*-summary.json
