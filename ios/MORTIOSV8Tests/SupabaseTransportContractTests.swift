@@ -55,6 +55,39 @@ struct SupabaseTransportContractTests {
             )
         }
     }
+
+    @Test("Ordinary Auth token grants decode the snake-case response", arguments: [
+        "password", "id_token", "refresh_token",
+    ])
+    func ordinaryAuthTokenResponseDecodes(_ grant: String) async throws {
+        let url = try #require(URL(string: "https://qa-mock.invalid"))
+        let client = SupabaseClient(
+            config: SupabaseConfig(url: url, anonKey: "sb_publishable_fixture"),
+            sendRequest: { request in
+                let endpoint = try #require(request.url)
+                try #require(endpoint.host == "qa-mock.invalid")
+                try #require(endpoint.path == "/auth/v1/token")
+                try #require(endpoint.query == "grant_type=\(grant)")
+                try #require(request.httpMethod == "POST")
+                let response = try #require(HTTPURLResponse(
+                    url: endpoint, statusCode: 200, httpVersion: "HTTP/1.1",
+                    headerFields: ["Content-Type": "application/json"]
+                ))
+                let body = #"{"access_token":"fixture-access","refresh_token":"fixture-refresh","expires_in":3600,"user":{"id":"fixture-user"}}"#
+                return (Data(body.utf8), response)
+            }
+        )
+        let result: AuthTokenResponse = try await client.post(
+            path: "/auth/v1/token",
+            query: [URLQueryItem(name: "grant_type", value: grant)],
+            body: [:],
+            authenticated: false
+        )
+        #expect(result.accessToken == "fixture-access")
+        #expect(result.refreshToken == "fixture-refresh")
+        #expect(result.expiresIn == 3600)
+        #expect(result.user.id == "fixture-user")
+    }
 }
 
 private nonisolated struct EdgeProbeResponse: Decodable, Sendable {
