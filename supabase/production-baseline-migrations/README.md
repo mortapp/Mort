@@ -42,3 +42,11 @@ They are production-baseline changes — the chat-attachment storage policies an
 - `20261116120000_onboarding_activation_and_staff_review_boundaries.sql`
 
 Pending explicit production approval (listed in `PENDING_PRODUCTION_APPROVAL.txt`). Fixes defects reproduced through the public API on the local production replica (`scripts/qa/replica/build-and-test.sh`): pending teens could not skip guardian setup; staff activation did not require completed onboarding or current legal acceptance; guardians could never be activated (so `accept_guardian_invite` was unreachable); `profiles.guardian_setup_status` was client-writable; staff could review their own verification evidence and role requests. Each function is the exact live production body plus a minimal change. Rollback: re-apply the previous bodies from `supabase/production-baseline-recovery/` (ledger + 2026-11-12 baseline), restore `grant update (guardian_setup_status) on public.profiles to authenticated`, and restore the two-value `role_requests_requested_role_check` (only after confirming no `guardian` role requests exist).
+
+
+## Job execution verification-state gate — 2026-11-21 (NOT applied to production)
+
+- `20261121170000_job_execution_gate_accepts_verified_status.sql` restores the exact production `private.job_execution_gate(uuid,text)` definition to the production-baseline migration chain. The function depends on `public.job_assignments` and other recovered production objects that are deliberately absent from the generic `supabase/migrations` chain.
+- It accepts the reviewer-written `verified` state and legacy `approved` for both participants, rejects NULL/other states, preserves every existing execution, contract, safety, incident, dispute, start-window, and funding check, and retains the owner-only SECURITY DEFINER ACL.
+- The migration is listed in `PENDING_PRODUCTION_APPROVAL.txt` so the isolated production-replica runner applies it after catalog parity. This is test-only; production deployment still requires separate approval.
+- Regression contract: `supabase/production-baseline-tests/job_execution_gate_verified_status.test.sql`.
