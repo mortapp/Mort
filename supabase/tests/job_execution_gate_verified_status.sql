@@ -8,28 +8,16 @@ begin
     'private.job_execution_gate(uuid,text)'::regprocedure
   );
 
-  if pg_catalog.position(
-       'coalesce(v_teen.verification_status::text, '''') not in (''verified'', ''approved'')'
-       in v_definition
-     ) = 0 then
+  if pg_catalog.strpos(v_definition, $needle$coalesce(v_teen.verification_status::text, '') not in ('verified', 'approved')$needle$) = 0 then
     raise exception 'Teen verified status is not accepted by job_execution_gate';
   end if;
 
-  if pg_catalog.position(
-       'coalesce(v_adult.verification_status::text, '''') not in (''verified'', ''approved'')'
-       in v_definition
-     ) = 0 then
+  if pg_catalog.strpos(v_definition, $needle$coalesce(v_adult.verification_status::text, '') not in ('verified', 'approved')$needle$) = 0 then
     raise exception 'Adult verified status is not accepted by job_execution_gate';
   end if;
 
-  if pg_catalog.position(
-       'v_teen.verification_status::text <> ''approved'''
-       in v_definition
-     ) > 0
-     or pg_catalog.position(
-       'v_adult.verification_status::text <> ''approved'''
-       in v_definition
-     ) > 0 then
+  if pg_catalog.strpos(v_definition, $needle$v_teen.verification_status::text <> 'approved'$needle$) > 0
+     or pg_catalog.strpos(v_definition, $needle$v_adult.verification_status::text <> 'approved'$needle$) > 0 then
     raise exception 'Legacy approved-only verification predicate remains';
   end if;
 end
