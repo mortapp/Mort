@@ -107,7 +107,7 @@ const restoredHostedMigrations = [
 
 function gitBlobSha(value) {
   const bytes = Buffer.byteLength(value, "utf8");
-  return createHash("sha1").update(`blob ${bytes}\\0`).update(value).digest("hex");
+  return createHash("sha1").update(`blob ${bytes}\0`).update(value).digest("hex");
 }
 
 for (const migration of restoredHostedMigrations) {
