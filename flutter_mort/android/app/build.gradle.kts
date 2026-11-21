@@ -10,14 +10,27 @@ plugins {
 
 fun dartDefine(name: String): String? {
     val encoded = project.findProperty("dart-defines")?.toString() ?: return null
-    return encoded
+    val values = encoded
         .split(",")
         .mapNotNull { value ->
-            runCatching { String(Base64.getDecoder().decode(value)) }.getOrNull()
+            runCatching { String(Base64.getDecoder().decode(value), Charsets.UTF_8) }.getOrNull()
         }
-        .firstOrNull { it.startsWith("$name=") }
-        ?.substringAfter("=")
-        ?.takeIf { it.isNotBlank() }
+        .filter { it.startsWith("$name=") }
+        .map { it.substringAfter("=") }
+        .distinct()
+    if (values.size > 1) {
+        throw GradleException("Conflicting Dart defines for $name.")
+    }
+    return values.singleOrNull()
+}
+
+val androidAdsEnabled = dartDefine("ADS_ENABLED") == "true"
+val releaseProfile = dartDefine("MORT_RELEASE_PROFILE")
+val releaseStage = dartDefine("MORT_RELEASE_STAGE")
+if (androidAdsEnabled &&
+    (releaseProfile in setOf("closed_test", "reviewer_demo") || releaseStage == "closed_test")
+) {
+    throw GradleException("ADS_ENABLED=true is forbidden for Android closed-test and reviewer builds.")
 }
 
 val localSigningProperties = Properties().apply {
@@ -88,6 +101,16 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
+    }
+
+    if (!androidAdsEnabled) {
+        // Use build-type priority so removals apply to both the app and the AARs.
+        // These are the Flutter build types; the overlay retains debug/profile INTERNET.
+        sourceSets.configureEach {
+            if (name in setOf("debug", "profile", "release")) {
+                manifest.srcFile("src/noAds/AndroidManifest.xml")
+            }
+        }
     }
 
     signingConfigs {

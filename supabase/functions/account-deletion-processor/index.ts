@@ -6,8 +6,8 @@ import {
   safeErrorKind,
   structuredLog,
 } from "../_shared/observability.ts";
+import { readDeletionRequest } from "./request.ts";
 
-type WorkerPayload = { requestId?: string };
 type ClaimedRequest = {
   id: string;
   user_id: string | null;
@@ -26,8 +26,6 @@ if (!supabaseUrl || !serviceRoleKey || !workerSecret) {
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 Deno.serve(async (request) => {
   const traceId = correlationId(request);
   if (request.method !== "POST") {
@@ -46,10 +44,13 @@ Deno.serve(async (request) => {
   let claimed: ClaimedRequest | null = null;
   let stage = "claim";
   try {
-    const payload = await readPayload(request);
+    const input = await readDeletionRequest(request);
+    if (!input.ok) {
+      return correlatedJson({ ok: false, code: input.code }, input.status, traceId);
+    }
     const { data, error } = await supabase.rpc(
       "service_claim_account_deletion_request",
-      { p_request_id: payload.requestId ?? null },
+      { p_request_id: input.requestId },
     );
     if (error) throw error;
     if (data?.ok !== true) {
@@ -136,9 +137,7 @@ Deno.serve(async (request) => {
       traceId,
     );
   } catch (error) {
-    const errorCode = error instanceof DeletionWorkerError
-      ? error.code
-      : `deletion_${stage}_failed`;
+    const errorCode = `deletion_${stage}_failed`;
     if (claimed) {
       await supabase.rpc("service_fail_account_deletion_request", {
         p_request_id: claimed.id,
@@ -153,23 +152,6 @@ Deno.serve(async (request) => {
     return correlatedJson({ ok: false, code: errorCode }, 500, traceId);
   }
 });
-
-async function readPayload(request: Request): Promise<WorkerPayload> {
-  const text = await request.text();
-  if (new TextEncoder().encode(text).byteLength > 4096) {
-    throw new DeletionWorkerError("payload_too_large");
-  }
-  if (!text.trim()) return {};
-  const parsed = JSON.parse(text);
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new DeletionWorkerError("invalid_json_object");
-  }
-  const requestId = (parsed as WorkerPayload).requestId;
-  if (requestId != null && !uuidPattern.test(requestId)) {
-    throw new DeletionWorkerError("invalid_request_id");
-  }
-  return { requestId };
-}
 
 async function removeOwnedStorage(userId: string) {
   let removed = 0;
@@ -197,12 +179,5 @@ async function removeOwnedStorage(userId: string) {
       }
     }
     removed += objects.length;
-  }
-}
-
-class DeletionWorkerError extends Error {
-  constructor(readonly code: string) {
-    super(code);
-    this.name = "DeletionWorkerError";
   }
 }

@@ -1,11 +1,13 @@
 param(
   [string]$ApkPath = (Join-Path $PSScriptRoot '..\flutter_mort\build\app\outputs\flutter-apk\app-release.apk'),
-  [switch]$RequireSigned
+  [switch]$RequireSigned,
+  [switch]$RequireNoAds
 )
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'android-signing-common.ps1')
+. (Join-Path $PSScriptRoot 'android-ads-manifest-common.ps1')
 $apk = Resolve-Path -LiteralPath $ApkPath
 $buildTools = Join-Path $env:ANDROID_HOME 'build-tools\36.1.0'
 $aapt = Join-Path $buildTools 'aapt2.exe'
@@ -45,6 +47,11 @@ foreach ($permission in $forbidden) {
 if ((& $apkanalyzer manifest application-id $apk) -ne 'com.mortapp.mobile') { throw 'APK application ID mismatch.' }
 if ((& $apkanalyzer manifest min-sdk $apk) -ne '24') { throw 'APK min SDK mismatch.' }
 if ((& $apkanalyzer manifest target-sdk $apk) -ne '36') { throw 'APK target SDK mismatch.' }
+if ($RequireNoAds) {
+  $manifest = & $apkanalyzer manifest print $apk
+  if ($LASTEXITCODE -ne 0) { throw 'apkanalyzer could not inspect the APK manifest.' }
+  Assert-MortAndroidAdsManifest -ManifestText ($manifest -join "`n") -ExpectedAds Disabled
+}
 $versionJson = & node (Join-Path $PSScriptRoot 'read-mobile-version.mjs') --json
 if ($LASTEXITCODE -ne 0) { throw 'Could not read the authoritative mobile version.' }
 $version = $versionJson | ConvertFrom-Json

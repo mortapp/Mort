@@ -292,10 +292,15 @@ async function paywallDisclosures(scope) {
 async function admobDisabledMode(scope) {
   const config = await text("flutter_mort/lib/core/config/app_config.dart");
   const manifest = await text("flutter_mort/android/app/src/main/AndroidManifest.xml");
-  assertQa(config.includes("static const nativeAdsCompiledIn = false"), "native ads are compiled in");
+  const noAdsManifest = await text("flutter_mort/android/app/src/noAds/AndroidManifest.xml");
+  const profiles = JSON.parse(await text("config/mort-release-profiles.json"));
   assertQa(config.match(/ADS_ENABLED[\s\S]{0,100}defaultValue: false/), "ads do not default disabled");
+  for (const name of ["closed_test", "reviewer_demo"]) {
+    assertQa(profiles.profiles[name]?.adsEnabled === false, `${name} does not disable ads`);
+  }
   assertQa(manifest.match(/AD_ID[^>]+tools:node="remove"/), "advertising ID is not explicitly stripped");
-  qaLog(scope, "AdMob SDK/runtime remains disabled and Android advertising IDs are stripped");
+  assertQa(noAdsManifest.match(/MobileAdsInitProvider[^>]+tools:node="remove"/), "native initializer is not explicitly stripped");
+  qaLog(scope, "source policy disables ads and declares removal of the initializer and ad identifiers; verify the packaged artifact separately");
 }
 
 async function admobTestMode(scope) {
