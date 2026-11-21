@@ -173,7 +173,7 @@ final class MortSession {
         defer { isWorking = false }
         do {
             try await auth.updatePassword(newValue)
-            await auth.signOut()
+            try await auth.signOut()
             phase = .signedOut
             authNotice = "Your password has been updated. Sign in with your new password."
             MortHaptic.success()

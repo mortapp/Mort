@@ -7,6 +7,10 @@ on:
     paths:
       - 'ios/**'
       - '.github/workflows/mort-ios-v8-contract.yml'
+  pull_request:
+    paths:
+      - 'ios/**'
+      - '.github/workflows/mort-ios-v8-contract.yml'
   workflow_dispatch:
 
 permissions:
@@ -19,12 +23,14 @@ concurrency:
 jobs:
   compile-contract:
     runs-on: macos-15
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
-      - name: Checkout integration branch
+      # Pushes to the integration branch keep their historical behaviour;
+      # pull requests and manual runs compile the code under review.
+      - name: Checkout source under review
         uses: actions/checkout@v4
         with:
-          ref: codex/ios-v8-integration
+          ref: ${{ github.event_name == 'push' && 'codex/ios-v8-integration' || '' }}
 
       - name: Install XcodeGen
         run: |
@@ -46,5 +52,29 @@ jobs:
             -derivedDataPath "$RUNNER_TEMP/mort-ios-v8-contract" \
             ARCHS=arm64 \
             ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Select iPhone simulator
+        id: simulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEVICE_ID="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; ids=[x["udid"] for runtime in d.values() for x in runtime if x.get("isAvailable") and x.get("name", "").startswith("iPhone")]; print(ids[0] if ids else "")')"
+          test -n "$DEVICE_ID"
+          echo "id=$DEVICE_ID" >> "$GITHUB_OUTPUT"
+          xcrun simctl boot "$DEVICE_ID" 2>/dev/null || true
+          xcrun simctl bootstatus "$DEVICE_ID" -b
+
+      # Unit tests only. No archive, signing, export or upload.
+      - name: Unit tests
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project ios/MORTIOSV8.xcodeproj \
+            -scheme MORTIOSV8 \
+            -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}" \
+            -derivedDataPath "$RUNNER_TEMP/mort-ios-v8-test" \
+            -only-testing:MORTIOSV8Tests \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO
