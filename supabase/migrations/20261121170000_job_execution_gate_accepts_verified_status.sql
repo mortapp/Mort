@@ -12,8 +12,8 @@ begin
     'private.job_execution_gate(uuid,text)'::regprocedure
   );
 
-  if pg_catalog.position(v_teen_old in v_definition) = 0
-     or pg_catalog.position(v_adult_old in v_definition) = 0 then
+  if pg_catalog.strpos(v_definition, v_teen_old) = 0
+     or pg_catalog.strpos(v_definition, v_adult_old) = 0 then
     raise exception 'Expected production verification predicates were not found; refusing to rewrite function';
   end if;
 
@@ -37,14 +37,8 @@ begin
   v_definition := pg_catalog.pg_get_functiondef(
     'private.job_execution_gate(uuid,text)'::regprocedure
   );
-  if pg_catalog.position(
-       'coalesce(v_teen.verification_status::text, '''') not in (''verified'', ''approved'')'
-       in v_definition
-     ) = 0
-     or pg_catalog.position(
-       'coalesce(v_adult.verification_status::text, '''') not in (''verified'', ''approved'')'
-       in v_definition
-     ) = 0 then
+  if pg_catalog.strpos(v_definition, 'coalesce(v_teen.verification_status::text, '''') not in (''verified'', ''approved'')') = 0
+     or pg_catalog.strpos(v_definition, 'coalesce(v_adult.verification_status::text, '''') not in (''verified'', ''approved'')') = 0 then
     raise exception 'Post-migration verification predicate assertion failed';
   end if;
 end
