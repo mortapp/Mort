@@ -6,6 +6,7 @@
 //  custom URL scheme that the SwiftUI app forwards back to Stripe.
 //
 
+import Foundation
 import Testing
 @testable import MORTIOSV8
 
