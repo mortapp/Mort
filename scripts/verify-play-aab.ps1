@@ -9,6 +9,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'android-signing-common.ps1')
+. (Join-Path $PSScriptRoot 'android-ads-manifest-common.ps1')
 
 $root = Split-Path $PSScriptRoot -Parent
 $versionJson = & node (Join-Path $PSScriptRoot 'read-mobile-version.mjs') --json
@@ -64,6 +65,11 @@ foreach ($required in @(
   }
 }
 $manifestText = $manifest -join "`n"
+$adsManifestPolicy = 'NOT_REQUIRED'
+if ($ReleaseStage -eq 'closed_test') {
+  Assert-MortAndroidAdsManifest -ManifestText $manifestText -ExpectedAds Disabled
+  $adsManifestPolicy = 'PASS'
+}
 foreach ($forbidden in @(
   'android:debuggable="true"',
   'com.android.vending.BILLING',
@@ -140,6 +146,7 @@ $size = (Get-Item -LiteralPath $BundlePath).Length
   'TARGET_SDK=36',
   "RELEASE_STAGE=$ReleaseStage",
   "PLAY_REVIEW_MODE_ENABLED=$($PlayReviewModeEnabled.IsPresent.ToString().ToLowerInvariant())",
+  "NO_ADS_MANIFEST_POLICY=$adsManifestPolicy",
   'FORBIDDEN_PERMISSIONS=ABSENT',
   'UNEXPECTED_EXPORTED_COMPONENTS=ABSENT',
   "SIZE_BYTES=$size",

@@ -5,6 +5,11 @@ on:
     paths:
       - "flutter_mort/**"
       - "scripts/qa/run-flutter-android-native-smoke.sh"
+      - "scripts/android-ads-manifest-common.ps1"
+      - "scripts/qa-aab-signing.mjs"
+      - "scripts/qa/aab-signing-evidence.test.mjs"
+      - "scripts/verify-android-ads-manifest.ps1"
+      - "scripts/qa/android-ads-manifest.test.ps1"
       - ".github/workflows/mort-flutter-native-validation.yml"
   workflow_dispatch:
 
@@ -82,6 +87,11 @@ jobs:
           flutter-version: 3.47.2
           cache: true
       - run: flutter pub get
+      - name: Test Android manifest policy assertions
+        shell: pwsh
+        run: ../scripts/qa/android-ads-manifest.test.ps1
+      - name: Test closed-test AAB evidence binding
+        run: node --test ../scripts/qa/aab-signing-evidence.test.mjs
       - name: Enable emulator access to KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -96,3 +106,19 @@ jobs:
           disable-animations: true
           working-directory: flutter_mort
           script: bash ../scripts/qa/run-flutter-android-native-smoke.sh
+      - name: Verify the packaged no-ads debug APK used by smoke tests
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest print \
+            build/app/outputs/flutter-apk/app-debug.apk > "$RUNNER_TEMP/mort-no-ads-manifest.xml"
+          pwsh -NoProfile -File ../scripts/verify-android-ads-manifest.ps1 \
+            -ManifestPath "$RUNNER_TEMP/mort-no-ads-manifest.xml" -ExpectedAds Disabled
+      - name: Verify an ads-enabled debug control without installing or launching it
+        run: |
+          set -euo pipefail
+          flutter build apk --debug --no-pub --target-platform android-x64 \
+            --dart-define=ADS_ENABLED=true --dart-define=USE_TEST_ADS=true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest print \
+            build/app/outputs/flutter-apk/app-debug.apk > "$RUNNER_TEMP/mort-ads-control-manifest.xml"
+          pwsh -NoProfile -File ../scripts/verify-android-ads-manifest.ps1 \
+            -ManifestPath "$RUNNER_TEMP/mort-ads-control-manifest.xml" -ExpectedAds Enabled

@@ -1,45 +1,45 @@
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { assert, pass, read, root } from './play-release-qa-helpers.mjs';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 const scope = 'qa-android-permission-minimization';
+const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const source = read('flutter_mort/android/app/src/main/AndroidManifest.xml');
+const noAds = read('flutter_mort/android/app/src/noAds/AndroidManifest.xml');
 const pubspec = read('flutter_mort/pubspec.yaml');
-const report = resolve(root, 'build/play/reports/bundle-manifest.xml');
-const merged = existsSync(report) ? read('build/play/reports/bundle-manifest.xml') : '';
-for (const forbidden of ['ACCESS_BACKGROUND_LOCATION','READ_MEDIA_IMAGES','READ_EXTERNAL_STORAGE','WRITE_EXTERNAL_STORAGE']) {
-  assert(!source.includes(forbidden), `Forbidden permission remains: ${forbidden}`);
+
+for (const forbidden of [
+  'ACCESS_BACKGROUND_LOCATION',
+  'READ_MEDIA_IMAGES',
+  'READ_EXTERNAL_STORAGE',
+  'WRITE_EXTERNAL_STORAGE',
+  'com.android.vending.BILLING',
+]) {
+  assert(!source.includes(forbidden) && !noAds.includes(forbidden), `Forbidden permission remains: ${forbidden}`);
 }
-assert(!source.includes('com.android.vending.BILLING'), 'Google Play Billing must be absent from the free pilot.');
 assert(!pubspec.includes('in_app_purchase:'), 'in_app_purchase remains in the free pilot dependency graph.');
-for (const removed of ['com.google.android.gms.permission.AD_ID','ACCESS_ADSERVICES_AD_ID']) {
-  const explicitlyRemoved = new RegExp(`${removed.replaceAll('.', '\\.')}[^>]+tools:node="remove"`).test(source);
-  assert(
-    explicitlyRemoved || (merged !== '' && !merged.includes(removed)),
-    `${removed} is neither explicitly removed nor absent from the final AAB.`,
-  );
+
+function assertRemoved(manifest, name) {
+  const explicitlyRemoved = new RegExp(`${name.replaceAll('.', '\\.')}[^>]+tools:node="remove"`).test(manifest);
+  assert(explicitlyRemoved, `Missing Android manifest removal: ${name}`);
+}
+for (const permission of [
+  'com.google.android.gms.permission.AD_ID',
+  'android.permission.ACCESS_ADSERVICES_AD_ID',
+  'android.permission.ACCESS_ADSERVICES_ATTRIBUTION',
+  'android.permission.ACCESS_ADSERVICES_TOPICS',
+]) {
+  assertRemoved(source, permission);
 }
 for (const component of [
+  'com.google.android.gms.ads.APPLICATION_ID',
   'com.google.android.gms.ads.MobileAdsInitProvider',
   'com.google.android.gms.ads.AdActivity',
+  'com.google.android.gms.ads.OutOfContextTestingActivity',
+  'com.google.android.gms.ads.NotificationHandlerActivity',
   'com.google.android.gms.ads.AdService',
+  'android.adservices.AD_SERVICES_CONFIG',
 ]) {
-  const explicitlyRemoved = new RegExp(`${component.replaceAll('.', '\\.')}[^>]+tools:node="remove"`).test(source);
-  assert(
-    explicitlyRemoved ||
-      (!pubspec.includes('google_mobile_ads:') && merged !== '' && !merged.includes(component)),
-    `Disabled AdMob component is neither explicitly removed nor absent from dependencies and the final AAB: ${component}`,
-  );
-}
-if (existsSync(report)) {
-  for (const forbidden of ['ACCESS_BACKGROUND_LOCATION','com.google.android.gms.permission.AD_ID']) {
-    assert(!merged.includes(forbidden), `Final AAB contains forbidden permission: ${forbidden}`);
-  }
-  assert(!merged.includes('com.android.vending.BILLING'), 'Final AAB unexpectedly contains Google Play Billing.');
-  assert(
-    !merged.includes('com.google.android.gms.ads.MobileAdsInitProvider'),
-    'Final AAB still contains the disabled AdMob auto-init provider.',
-  );
+  assertRemoved(noAds, component);
 }
 assert(source.includes('android.permission.WAKE_LOCK'), 'FCM wake-lock capability is missing.');
-pass(scope, 'Billing, background/media/ad permissions and AdMob auto-start remain absent; FCM wake lock is retained');
+console.log(`[${scope}] PASS: source policy only. Inspect the packaged APK or signed AAB separately.`);

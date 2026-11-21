@@ -18,4 +18,5 @@ flutter test --no-pub integration_test/android_native_smoke_test.dart -d "$devic
   --dart-define=MORT_EXPECTED_VERSION_CODE="$code" \
   --dart-define=MORT_RELEASE_STAGE=internal_test \
   --dart-define=MORT_RELEASE_PROFILE=automated_test \
-  --dart-define=MORT_OPERATIONAL_MODE=automated_test
+  --dart-define=MORT_OPERATIONAL_MODE=automated_test \
+  --dart-define=ADS_ENABLED=false

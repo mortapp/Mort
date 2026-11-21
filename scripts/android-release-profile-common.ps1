@@ -192,17 +192,17 @@ $built = if ($ArtifactKind -eq 'Aab') {
 if (-not (Test-Path -LiteralPath $built -PathType Leaf)) { throw "Flutter did not produce the release $extension." }
 $artifactBaseName = "mort-$($ReleaseStage.Replace('_','-'))-$($version.versionName)-$($version.versionCode)"
 $destination = Join-Path $outputDirectory "$artifactBaseName.$extension"
-Copy-Item -LiteralPath $built -Destination $destination -Force
 
 if ($ArtifactKind -eq 'Aab') {
   & (Join-Path $PSScriptRoot 'verify-play-aab.ps1') `
-    -BundlePath $destination `
+    -BundlePath $built `
     -ReleaseStage $ReleaseStage `
     -PlayReviewModeEnabled:$PlayReviewModeEnabled
 } else {
-  & (Join-Path $PSScriptRoot 'qa-android-apk.ps1') -ApkPath $destination -RequireSigned
+  & (Join-Path $PSScriptRoot 'qa-android-apk.ps1') -ApkPath $built -RequireSigned -RequireNoAds:(-not $AdsEnabled)
 }
 if ($LASTEXITCODE -ne 0) { throw "Release $extension verification failed." }
+Copy-Item -LiteralPath $built -Destination $destination -Force
 
 $commit = (& git -C $root rev-parse HEAD).Trim()
 $dirty = @(& git -C $root status --porcelain).Count -gt 0
@@ -235,7 +235,7 @@ $manifest = [ordered]@{
     deterministicChatbotFallbackEnabled = [bool]$profile.deterministicChatbotFallbackEnabled
     publicActivationApproved = $PublicActivationApproved
     googleAuthEnabled = $GoogleAuthEnabled
-    adsEnabled = $false
+    adsEnabled = $AdsEnabled
     iapEnabled = $false
   }
   legalVersions = [ordered]@{
