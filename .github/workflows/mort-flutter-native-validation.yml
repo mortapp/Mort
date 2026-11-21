@@ -1,0 +1,91 @@
+name: MORT Flutter native validation
+
+on:
+  pull_request:
+    paths:
+      - "flutter_mort/**"
+      - "scripts/qa/run-flutter-android-native-smoke.sh"
+      - ".github/workflows/mort-flutter-native-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mort-flutter-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios-simulator:
+    # No signing secrets, archive, IPA, store upload or hosted backend.
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: flutter_mort
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+      - name: Prepare Flutter and CocoaPods
+        run: |
+          xcodebuild -version
+          flutter config --no-enable-swift-package-manager
+          flutter pub get
+      - name: Compile for iOS Simulator without signing
+        run: >-
+          flutter build ios --simulator --debug --no-codesign
+          --dart-define=MORT_RELEASE_STAGE=internal_test
+          --dart-define=MORT_RELEASE_PROFILE=automated_test
+          --dart-define=MORT_OPERATIONAL_MODE=automated_test
+      - name: Run native iOS smoke tests
+        run: |
+          set -euo pipefail
+          udid="$(xcrun simctl list devices available -j | jq -r '
+            [.devices | to_entries[] | select(.key | contains(".iOS-"))
+              | .value[] | select(.name | startswith("iPhone"))] | last.udid // empty
+          ')"
+          test -n "$udid"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          flutter test --no-pub integration_test/ios_native_smoke_test.dart -d "$udid" \
+            --dart-define=MORT_RELEASE_STAGE=internal_test \
+            --dart-define=MORT_RELEASE_PROFILE=automated_test \
+            --dart-define=MORT_OPERATIONAL_MODE=automated_test
+
+  android-emulator:
+    # Builds and installs only the debug integration APK in an ephemeral runner.
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: flutter_mort
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+      - run: flutter pub get
+      - name: Enable emulator access to KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run native Android smoke tests
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          working-directory: flutter_mort
+          script: bash ../scripts/qa/run-flutter-android-native-smoke.sh

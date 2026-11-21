@@ -45,7 +45,19 @@ if [ "${PRE_FIX:-0}" != "1" ]; then
   while read -r m; do
     [ -z "$m" ] && continue
     echo "== pending production-baseline migration: $m"
-    psqlf "$ROOT/supabase/production-baseline-migrations/$m"
+    if [ "$m" = "20261121170000_job_execution_gate_accepts_verified_status.sql" ]; then
+      regression="$ROOT/supabase/production-baseline-tests/job_execution_gate_verified_status.test.sql"
+      rollback="$ROOT/supabase/production-baseline-recovery/20261121170000_job_execution_gate.rollback.sql"
+      echo "== job gate verification-state regression and rollback rehearsal"
+      psqlf "$ROOT/supabase/production-baseline-migrations/$m" -1
+      psqlf "$regression" -1
+      psqlf "$rollback" -1
+      psqlf "$ROOT/supabase/production-baseline-migrations/$m" -1
+      psqlf "$regression" -1
+      echo "job gate migration, rollback, and re-apply: passed"
+    else
+      psqlf "$ROOT/supabase/production-baseline-migrations/$m"
+    fi
   done <"$ROOT/supabase/production-baseline-migrations/PENDING_PRODUCTION_APPROVAL.txt"
 fi
 
