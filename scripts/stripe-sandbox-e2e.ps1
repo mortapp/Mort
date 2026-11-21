@@ -86,6 +86,24 @@ if ($mode -and $mode -ne 'sandbox') {
   throw 'MORT_STRIPE_MODE must be sandbox. Live provider execution is refused.'
 }
 
+$scenarioEvidence = $null
+if ($ExecuteProvider) {
+  if (-not $ScenarioEvidencePath -or -not (Test-Path -LiteralPath $ScenarioEvidencePath -PathType Leaf)) {
+    throw 'Fresh evidence from an approved same-run QA producer is required. Historical evidence is not accepted.'
+  }
+  $scenarioText = Get-Content -Raw -LiteralPath $ScenarioEvidencePath
+  Assert-SafeEvidenceText -Text $scenarioText
+  $previousOutputEncoding = $OutputEncoding
+  try {
+    $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+    $scenarioText | & node (Join-Path $PSScriptRoot 'stripe-current-run-evidence.mjs') $ProjectRef
+    if ($LASTEXITCODE -ne 0) { throw 'Scenario evidence failed the current-run verification.' }
+  } finally {
+    $OutputEncoding = $previousOutputEncoding
+  }
+  $scenarioEvidence = $scenarioText | ConvertFrom-Json
+}
+
 $gateScript = Join-Path $PSScriptRoot 'stripe-pre-provider-test-gate.ps1'
 if (-not (Test-Path -LiteralPath $gateScript)) {
   throw 'Task 30 pre-provider gate is missing.'
@@ -180,17 +198,6 @@ if (-not $ExecuteProvider) {
   exit 3
 }
 
-if (-not $ScenarioEvidencePath) {
-  throw 'ScenarioEvidencePath is required for provider execution. It must be produced by MORT-created sandbox objects and the controlled QA flow.'
-}
-if (-not (Test-Path -LiteralPath $ScenarioEvidencePath)) {
-  throw 'ScenarioEvidencePath does not exist.'
-}
-
-$scenarioText = Get-Content -Raw -LiteralPath $ScenarioEvidencePath
-Assert-SafeEvidenceText -Text $scenarioText
-$scenarioEvidence = $scenarioText | ConvertFrom-Json
-
 if ($scenarioEvidence.environment -ne 'test' -or $scenarioEvidence.mode -ne 'sandbox') {
   throw 'Scenario evidence must come from Stripe test/sandbox mode.'
 }
@@ -222,6 +229,9 @@ $final = [ordered]@{
   schema_version = 1
   suite = 'mort_stripe_sandbox_e2e'
   project_ref = $ProjectRef
+  commit_sha = $scenarioEvidence.commit_sha
+  workflow_run_id = $scenarioEvidence.workflow_run_id
+  workflow_run_attempt = $scenarioEvidence.workflow_run_attempt
   environment = 'test'
   mode = 'sandbox'
   gate_passed = $true
@@ -232,7 +242,7 @@ $final = [ordered]@{
   scenarios = $rows
   reconciliation = $scenarioEvidence.reconciliation
   no_live_money_proof = $scenarioEvidence.no_live_money_proof
-  completed_at = [DateTimeOffset]::UtcNow.ToString('o')
+  completed_at = $scenarioEvidence.completed_at
 }
 
 Write-Evidence -Payload $final

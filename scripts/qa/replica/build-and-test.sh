@@ -61,6 +61,13 @@ if [ "${PRE_FIX:-0}" != "1" ]; then
   done <"$ROOT/supabase/production-baseline-migrations/PENDING_PRODUCTION_APPROVAL.txt"
 fi
 
+# Restore rehearsals need the same migrations as the source, on a target
+# with no Auth users, feature rows, or Storage uploads seeded by the journeys.
+if [ "${BUILD_ONLY:-0}" = "1" ]; then
+  echo "replica schema ready; journey data not seeded"
+  exit 0
+fi
+
 cd "$ROOT"
 export ACTORS_OUT="$OUT/actors.json" JOURNEY_RESULTS="$OUT/journeys.json" AUTHZ_RESULTS="$OUT/authz.json"
 set +e
