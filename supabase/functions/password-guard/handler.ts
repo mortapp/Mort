@@ -17,6 +17,7 @@ import {
   readBoundedJson,
 } from "../_shared/leaked_password.ts";
 import { evaluatePasswordPolicy } from "../_shared/password_policy.ts";
+import { signupDateOfBirthError } from "./signup_date_of_birth.ts";
 import {
   assertAttestationSecret,
   ATTESTATION_METADATA_KEY,
@@ -49,7 +50,6 @@ const corsHeaders = {
 };
 const MAX_BODY_BYTES = 4 * 1024;
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,63}$/;
-const DOB_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -182,9 +182,10 @@ export function createPasswordGuardHandler(config: PasswordGuardConfig) {
       const dob = typeof body.date_of_birth === "string"
         ? body.date_of_birth.trim()
         : "";
-      if (!DOB_RE.test(dob) || Number.isNaN(Date.parse(`${dob}T00:00:00Z`))) {
+      const dobError = signupDateOfBirthError(dob);
+      if (dobError) {
         return json(
-          { ok: false, code: "dob_invalid", field: "date_of_birth" },
+          { ok: false, code: dobError, field: "date_of_birth" },
           400,
         );
       }

@@ -34,6 +34,8 @@ class PasswordGuard {
         'Account security checks are unavailable right now. Try again later.',
     'email_invalid': 'Enter a valid email.',
     'dob_invalid': 'Enter your full date of birth.',
+    'dob_under_minimum_age':
+        'An account cannot be created for someone under 13.',
     'rate_limited': 'Too many attempts. Wait a minute and try again.',
     'authentication_required':
         'Your session expired. Request a new link and try again.',

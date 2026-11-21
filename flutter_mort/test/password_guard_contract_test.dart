@@ -25,6 +25,10 @@ void main() {
       });
       expect(unavailable.code, 'leaked_password_check_unavailable');
       expect(unavailable.message, contains('Try again'));
+      expect(
+        PasswordGuard.errorFor({'code': 'dob_under_minimum_age'}).message,
+        'An account cannot be created for someone under 13.',
+      );
     });
 
     test('unknown failures do not leak raw server text', () {

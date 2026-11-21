@@ -56,6 +56,7 @@ jobs:
           supabase/functions/revenuecat-webhook/index.ts
           supabase/functions/account-deletion-processor/index.ts
           supabase/functions/identity-verification-session/index.ts
+          supabase/functions/password-guard/index.ts
           supabase/functions/_shared/support_runtime.ts
       - run: deno test --no-config --lock=deno.lock --frozen --node-modules-dir=none --allow-read --allow-env supabase/functions/_tests
       - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs
@@ -357,6 +358,5 @@ jobs:
           path: build/device-test/mort-prod-device-test.apk
           if-no-files-found: error
           retention-days: 7
-
 
 
