@@ -18,7 +18,8 @@ concurrency:
 jobs:
   ios-simulator:
     # No signing secrets, archive, IPA, store upload or hosted backend.
-    runs-on: macos-15
+    # The locked Stripe iOS pod compiles UIKit APIs introduced with iOS 26.
+    runs-on: macos-26
     timeout-minutes: 45
     defaults:
       run:
@@ -32,7 +33,13 @@ jobs:
           cache: true
       - name: Prepare Flutter and CocoaPods
         run: |
-          xcodebuild -version
+          set -euo pipefail
+          xcode_version="$(xcodebuild -version)"
+          printf '%s\n' "$xcode_version"
+          grep -Eq '^Xcode 26\.' <<< "$xcode_version"
+          sdk="$(xcrun --sdk iphonesimulator --show-sdk-version)"
+          printf 'iOS Simulator SDK %s\n' "$sdk"
+          [[ "$sdk" == 26.* ]]
           flutter config --no-enable-swift-package-manager
           flutter pub get
       - name: Compile for iOS Simulator without signing
