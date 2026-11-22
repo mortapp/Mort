@@ -1,0 +1,65 @@
+name: MORT exact Android APK graphics-isolation replay
+
+# Deliberately narrow: this historical GitHub artifact expires.
+on:
+  push:
+    branches: [qa/android-exact-gfx-20261122]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  exact-replay:
+    name: Exact APK (${{ matrix.page }} B, ${{ matrix.ram }} MiB)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {page: 4096, target: google_apis, ram: 3072, min_kb: 2750000}
+          - {page: 16384, target: google_apis_ps16k, ram: 3072, min_kb: 2750000}
+          - {page: 4096, target: google_apis, ram: 4096, min_kb: 3500000}
+          - {page: 16384, target: google_apis_ps16k, ram: 4096, min_kb: 3500000}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 45045884798
+          name: mort-android-device-test-apk
+          path: ${{ runner.temp }}/mort-android-exact
+      - name: Verify original artifact and require working KVM
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP/mort-android-exact"
+          echo '42cfbe8ef9bbdca47f4787c054503c3f92b8cc5ee683a54be56baec48c9126e6  mort-device-test.apk' |
+            sha256sum -c --strict
+          if [[ ! -c /dev/kvm ]]; then
+            echo 'INCONCLUSIVE: No KVM device on the runner.'
+            exit 75
+          fi
+          if [[ ! -r /dev/kvm || ! -w /dev/kvm ]]; then
+            sudo setfacl -m "u:$(id -u):rw" /dev/kvm
+            test -r /dev/kvm && test -w /dev/kvm
+          fi
+      - name: Observe Settings before launching the exact original APK
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 36
+          arch: x86_64
+          target: ${{ matrix.target }}
+          ram-size: ${{ matrix.ram }}M
+          emulator-options: -no-window -no-snapshot -gpu swiftshader -feature -Vulkan -noaudio -no-boot-anim -cores 2
+          disable-animations: true
+          script: >-
+            bash scripts/qa/android-controlled-startup.sh
+            "$RUNNER_TEMP/mort-android-exact/mort-device-test.apk"
+            "${{ matrix.page }}" "${{ matrix.min_kb }}" x86_64 70
+      - name: Check host diagnostics
+        if: always()
+        run: |
+          free -m
+          sudo dmesg --color=never | grep -Ei 'out of memory|oom.kill|killed process.*(qemu|emulator)|kvm.*(failed|fatal)' | tail -50 || true
+          if test -f /sys/fs/cgroup/memory.events; then sed -n '1,10p' /sys/fs/cgroup/memory.events; fi

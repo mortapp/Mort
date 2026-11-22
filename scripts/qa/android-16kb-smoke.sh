@@ -115,6 +115,7 @@ fi
 
 previous_pid=
 local_samples=0
+engine_snapshot_attempted=0
 for (( i=1; i<=30; i++ )); do
   if ! device_online; then
     printf 'ADB transport lost before stable foreground could be established.\n' >&2
@@ -131,6 +132,15 @@ for (( i=1; i<=30; i++ )); do
     "$i" "$((SECONDS-launch_started))" "${reported_pid:-none}" "${ps_pid:-none}" \
     "$(if [[ -n "$resumed" ]]; then echo yes; else echo no; fi)" \
     "$(if [[ -n "$focused" ]]; then echo yes; else echo no; fi)" "${available:-unknown}"
+  if [[ "${MORT_EARLY_ENGINE_EVIDENCE:-0}" == 1 && "$ps_pid" =~ ^[0-9]+$ ]] &&
+     (( ! engine_snapshot_attempted )); then
+    engine_snapshot_attempted=1
+    echo 'Early process memory and native-loader sample (best effort):'
+    shell ps -A -o PID,RSS,NAME | awk -v pid="$ps_pid" '$1==pid {print "pid=" $1, "rss_kb=" $2}' || true
+    shell run-as "$package" cat "/proc/$ps_pid/maps" 2>/dev/null |
+      awk '/libflutter[.]so|libapp[.]so/ {n=split($NF,a,"/"); print a[n]}' | sort -u || true
+    engine_logs || true
+  fi
   if [[ "$ps_pid" =~ ^[0-9]+$ && "$reported_pid" == "$ps_pid" &&
         -n "$resumed" && -n "$focused" ]] && device_online; then
     if [[ "$ps_pid" == "$previous_pid" ]]; then
