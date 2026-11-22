@@ -5,7 +5,7 @@ import {
   correlationId,
   safeErrorKind,
   structuredLog,
-} from "../_shared/observability.ts";
+} from "./observability.ts";
 
 type WorkerPayload = { requestId?: string };
 type ClaimedRequest = {
@@ -19,19 +19,24 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL");
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const workerSecret = Deno.env.get("ACCOUNT_DELETION_WORKER_SECRET");
 
-if (!supabaseUrl || !serviceRoleKey || !workerSecret) {
-  throw new Error("Account deletion worker secrets are not configured.");
-}
-
-const supabase = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
+const supabase = supabaseUrl && serviceRoleKey
+  ? createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
+  : null;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 Deno.serve(async (request) => {
   const traceId = correlationId(request);
   if (request.method !== "POST") {
     return correlatedJson({ ok: false, code: "post_required" }, 405, traceId);
+  }
+  if (!supabase || !workerSecret) {
+    return correlatedJson(
+      { ok: false, code: "deletion_worker_not_configured" },
+      503,
+      traceId,
+    );
   }
   const suppliedSecret = request.headers.get("x-mort-deletion-secret") ?? "";
   if (!constantTimeEqual(workerSecret, suppliedSecret)) {
@@ -96,7 +101,7 @@ Deno.serve(async (request) => {
         );
       }
       stage = "storage";
-      removedStorageObjects = await removeOwnedStorage(claimed.user_id);
+      removedStorageObjects = await removeOwnedStorage(supabase, claimed.user_id);
       stage = "auth_delete";
       const { data: authUser } = await supabase.auth.admin.getUserById(
         claimed.user_id,
@@ -171,10 +176,10 @@ async function readPayload(request: Request): Promise<WorkerPayload> {
   return { requestId };
 }
 
-async function removeOwnedStorage(userId: string) {
+async function removeOwnedStorage(client: NonNullable<typeof supabase>, userId: string) {
   let removed = 0;
   while (true) {
-    const { data, error } = await supabase.rpc(
+    const { data, error } = await client.rpc(
       "service_list_account_deletion_storage_objects",
       { p_user_id: userId, p_limit: 500 },
     );
@@ -190,7 +195,7 @@ async function removeOwnedStorage(userId: string) {
     }
     for (const [bucket, paths] of byBucket) {
       for (let index = 0; index < paths.length; index += 100) {
-        const { error: removeError } = await supabase.storage
+        const { error: removeError } = await client.storage
           .from(bucket)
           .remove(paths.slice(index, index + 100));
         if (removeError) throw removeError;
