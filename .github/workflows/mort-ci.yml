@@ -56,8 +56,14 @@ jobs:
           supabase/functions/revenuecat-webhook/index.ts
           supabase/functions/account-deletion-processor/index.ts
           supabase/functions/identity-verification-session/index.ts
+          supabase/functions/password-guard/index.ts
           supabase/functions/_shared/support_runtime.ts
       - run: deno test --no-config --lock=deno.lock --frozen --node-modules-dir=none --allow-read --allow-env supabase/functions/_tests
+      - name: Test MORT password guard rollouts
+        run: >-
+          deno test --no-config --lock=deno.lock --frozen --node-modules-dir=none
+          --allow-read --allow-env
+          supabase/functions/password-guard/password_guard_test.ts
       - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs
       - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs docs/payments/MORT_STRIPE_TASK31_SANDBOX_EVIDENCE_2026-09-18.json
       - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs --regression-manifest
@@ -258,6 +264,9 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
       - uses: pnpm/action-setup@v6
         with:
           version: 10.28.0
@@ -280,6 +289,7 @@ jobs:
           path: |
             ${{ runner.temp }}/replica-out/journeys.json
             ${{ runner.temp }}/replica-out/authz.json
+            ${{ runner.temp }}/replica-out/password.json
             ${{ runner.temp }}/replica-out/*.log
             ${{ runner.temp }}/replica-out/replica-fingerprint.txt
           if-no-files-found: warn
@@ -291,6 +301,9 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
       - uses: actions/checkout@v7
         with:
           ref: a3b15394698254b8380e3eb556d29aa25f31db8c
@@ -401,4 +414,3 @@ jobs:
           path: build/device-test/mort-prod-device-test.apk
           if-no-files-found: error
           retention-days: 7
-

@@ -8,7 +8,8 @@ import '../../core/auth/oauth_flow.dart';
 import '../../core/config/app_config.dart';
 import '../../core/errors/mort_error.dart';
 import '../../core/observability/operational_telemetry.dart';
-import '../../core/utils/leaked_password_check.dart';
+import '../../core/auth/password_guard.dart';
+import '../../core/utils/date_of_birth.dart';
 import '../../services/push/push_notification_coordinator.dart';
 import '../services/secure_device_storage.dart';
 import '../services/supabase_service.dart';
@@ -112,25 +113,24 @@ class AuthRepository {
     return SupabaseService.client.auth.onAuthStateChange;
   }
 
-  Future<AuthResponse> signUp({
+  /// Creates an email/password account through the server-side
+  /// `password-guard` function (policy + leaked-password check, fail closed).
+  /// The date of birth is required by the production profile trigger.
+  /// Returns true when a session started immediately, false when the user
+  /// must confirm their email first.
+  Future<bool> signUp({
     required String email,
     required String password,
-  }) async {
-    // Leaked-password protection (HIBP k-anonymity, checked through the
-    // backend edge function before the password is ever sent to Supabase
-    // Auth). Fails open when the check is unavailable.
-    if (await LeakedPasswordCheck.isLeaked(password)) {
-      throw const MortCodedError(
-        LeakedPasswordCheck.leakedPasswordCode,
-        LeakedPasswordCheck.leakedPasswordMessage,
-      );
-    }
-    final response = await SupabaseService.client.auth.signUp(
+    required DateTime dateOfBirth,
+    String? displayName,
+  }) {
+    return PasswordGuard(SupabaseService.client).signUp(
       email: email,
       password: password,
-      emailRedirectTo: AppConfig.resolvedAuthConfirmationRedirectUrl,
+      dateOfBirthIso: DateOfBirthParser.toIsoDate(dateOfBirth),
+      displayName: displayName,
+      redirectTo: AppConfig.resolvedAuthConfirmationRedirectUrl,
     );
-    return response;
   }
 
   Future<AuthResponse> signIn({
@@ -415,17 +415,8 @@ class AuthRepository {
         'Request a new password reset link and open it on this device.',
       );
     }
-    // Leaked-password protection on password recovery, matching the sign-up
-    // path. Fails open when the check is unavailable.
-    if (await LeakedPasswordCheck.isLeaked(password)) {
-      throw const MortCodedError(
-        LeakedPasswordCheck.leakedPasswordCode,
-        LeakedPasswordCheck.leakedPasswordMessage,
-      );
-    }
-    await SupabaseService.client.auth.updateUser(
-      UserAttributes(password: password),
-    );
+    // Server-enforced policy + leaked-password check (fails closed).
+    await PasswordGuard(SupabaseService.client).updatePassword(password);
     _passwordRecoveryAuthorizedUntil = null;
     await signOutGlobal();
   }
