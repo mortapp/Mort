@@ -8,11 +8,16 @@
 #
 #   scripts/qa/replica/build-and-test.sh            # parity + pending migrations + tests
 #   PRE_FIX=1 scripts/qa/replica/build-and-test.sh  # parity + tests WITHOUT pending migrations
+#   RUN_GUARDIAN_CONSENT_DRAFT=1 scripts/qa/replica/build-and-test.sh  # opt-in unapproved draft
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 REC="$ROOT/supabase/production-baseline-recovery"
 PROJ="$ROOT/supabase/production-replica"
 OUT="${REPLICA_OUT:-$ROOT/.replica-out}"
+if [ "${RUN_GUARDIAN_CONSENT_DRAFT:-0}" = 1 ] && [ "${PRE_FIX:-0}" = 1 ]; then
+  echo "The guardian consent draft requires the reviewed replica baseline."
+  exit 1
+fi
 mkdir -p "$OUT"
 
 cd "$PROJ"
@@ -47,6 +52,11 @@ if [ "${PRE_FIX:-0}" != "1" ]; then
     echo "== pending production-baseline migration: $m"
     psqlf "$ROOT/supabase/production-baseline-migrations/$m"
   done <"$ROOT/supabase/production-baseline-migrations/PENDING_PRODUCTION_APPROVAL.txt"
+fi
+
+if [ "${RUN_GUARDIAN_CONSENT_DRAFT:-0}" = 1 ]; then
+  echo "== disposable-replica-only teen guardian consent draft"
+  psqlf "$ROOT/supabase/production-baseline-migrations/drafts/teen_guardian_consent_v1.sql"
 fi
 
 cd "$ROOT"
