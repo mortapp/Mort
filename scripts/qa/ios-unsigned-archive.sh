@@ -8,8 +8,11 @@ mkdir -m 700 "$out"
 
 flutter config --no-enable-swift-package-manager
 test "$(xcodebuild -version | sed -n '1p')" = 'Xcode 26.6'
+test "$(pod --version)" = '1.17.0'
+git ls-files --error-unmatch ios/Podfile.lock >/dev/null
+git diff --exit-code HEAD -- ios/Podfile.lock
 flutter pub get --enforce-lockfile
-flutter build ipa --release --no-codesign \
+flutter build ipa --release --no-codesign --no-pub \
   --dart-define=MORT_RELEASE_STAGE=internal_test \
   --dart-define=MORT_RELEASE_PROFILE=automated_test \
   --dart-define=MORT_OPERATIONAL_MODE=automated_test \
@@ -30,11 +33,12 @@ test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")
 test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")" = 111
 test "$(/usr/libexec/PlistBuddy -c 'Print :FirebaseMessagingAutoInitEnabled' "$plist")" = false
 test "$(/usr/libexec/PlistBuddy -c 'Print :GADDelayAppMeasurementInit' "$plist")" = true
-test -f ios/Podfile.lock
+git diff --exit-code HEAD -- ios/Podfile.lock
+cmp ios/Podfile.lock ios/Pods/Manifest.lock
 cp ios/Podfile.lock "$out/Podfile.lock"
-if git ls-files --error-unmatch ios/Podfile.lock >/dev/null 2>&1; then
-  git diff --exit-code -- ios/Podfile.lock
-fi
+test -f "$app/PrivacyInfo.xcprivacy"
+diff -u <(plutil -convert xml1 -o - ios/Runner/PrivacyInfo.xcprivacy) \
+  <(plutil -convert xml1 -o - "$app/PrivacyInfo.xcprivacy")
 archs="$(xcrun lipo -archs "$app/Runner")"
 test "$archs" = arm64
 {
@@ -58,11 +62,7 @@ test "$archs" = arm64
   printf '\nPrivacy manifests in device archive (not the distribution privacy report):\n'
   (cd "$app" && find . -name PrivacyInfo.xcprivacy -print | sort)
   find "$app" -name PrivacyInfo.xcprivacy -exec plutil -lint {} +
-  if [[ -f "$app/PrivacyInfo.xcprivacy" ]]; then
-    echo 'App-root privacy manifest present; reconcile declarations with observed behavior.'
-  else
-    echo 'No app-root privacy manifest; assess app-owned data declarations and required-reason APIs.'
-  fi
+  echo 'Reviewed app-root required-reason manifest packaged; store disclosure and runtime reconciliation are separate.'
   printf '\nCode signature diagnostic (absence of a distribution identity is expected):\n'
   codesign --display --verbose=2 "$app" 2>&1 || true
   printf '\nEmbedded entitlement diagnostic (cannot establish effective distribution entitlements):\n'
