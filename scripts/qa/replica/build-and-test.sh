@@ -15,7 +15,42 @@ PROJ="$ROOT/supabase/production-replica"
 OUT="${REPLICA_OUT:-$ROOT/.replica-out}"
 mkdir -p "$OUT"
 
-cd "$PROJ"
+# GitHub-hosted runners can retain another local Supabase stack or run jobs
+# concurrently on the same host. The checked-in config uses the conventional
+# 54321-54323 ports, which makes an otherwise unrelated stack fail this job
+# before parity or migration tests start. Copy only the disposable replica
+# project and allocate a fresh API/DB/Studio port block for this invocation.
+REPLICA_WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/mort-production-replica.XXXXXX")"
+cleanup_replica() {
+  (cd "$REPLICA_WORKDIR" && supabase stop --no-backup >/dev/null 2>&1) || true
+  rm -rf "$REPLICA_WORKDIR"
+}
+trap cleanup_replica EXIT
+cp -a "$PROJ/." "$REPLICA_WORKDIR/"
+read -r API_PORT DB_PORT STUDIO_PORT < <(python3 - <<'PY'
+import socket
+
+ports = []
+for _ in range(3):
+    sock = socket.socket()
+    sock.bind(('127.0.0.1', 0))
+    ports.append(str(sock.getsockname()[1]))
+    sock.close()
+print(*ports)
+PY
+)
+python3 - "$REPLICA_WORKDIR/supabase/config.toml" "$API_PORT" "$DB_PORT" "$STUDIO_PORT" <<'PY'
+from pathlib import Path
+import sys
+
+config = Path(sys.argv[1])
+text = config.read_text()
+text = text.replace('port = 54321', f'port = {sys.argv[2]}', 1)
+text = text.replace('port = 54322', f'port = {sys.argv[3]}', 1)
+text = text.replace('port = 54323', f'port = {sys.argv[4]}', 1)
+config.write_text(text)
+PY
+cd "$REPLICA_WORKDIR"
 supabase stop --no-backup >/dev/null 2>&1 || true
 supabase start -x studio,imgproxy,logflare,vector,supavisor,edge-runtime,postgres-meta >"$OUT/start.log" 2>&1
 supabase status -o env 2>/dev/null | sed 's/^/export /' >"$OUT/replica.env"
