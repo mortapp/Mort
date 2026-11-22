@@ -365,10 +365,19 @@ jobs:
           find build/ios/iphonesimulator/Runner.app -name PrivacyInfo.xcprivacy -print | sort
 
   android-16kb-qa-smoke:
-    # Supplemental to Ramus; the test fails unless the actual kernel uses 16 KB.
+    # Compare the same APK on matched images, with the kernel page size measured.
+    name: Android QA launch (${{ matrix.page_size }} byte pages)
     needs: android-device-test-apk
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - page_size: 4096
+            target: google_apis
+          - page_size: 16384
+            target: google_apis_ps16k
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v4
@@ -382,14 +391,14 @@ jobs:
             sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Boot the official 16 KB Google APIs image and launch MORT
+      - name: Boot the official image and verify MORT process and foreground
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         with:
           api-level: 36
           arch: x86_64
-          target: google_apis_ps16k
+          target: ${{ matrix.target }}
           disable-animations: true
-          script: bash scripts/qa/android-16kb-smoke.sh "$RUNNER_TEMP/mort-16kb/mort-device-test.apk"
+          script: bash scripts/qa/android-16kb-smoke.sh "$RUNNER_TEMP/mort-16kb/mort-device-test.apk" "${{ matrix.page_size }}"
 
   android-prod-device-test-apk:
     runs-on: ubuntu-latest
