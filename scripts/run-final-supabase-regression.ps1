@@ -1,10 +1,13 @@
-param([string]$StartAt = '')
+param([string]$StartAt = '', [switch]$LocalAuthOnly)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'play-review-secrets-common.ps1')
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
 $localQa = $env:MORT_QA_LOCAL_SUPABASE -eq 'true'
+if ($LocalAuthOnly -and -not $localQa) {
+  throw 'LocalAuthOnly requires the isolated local regression environment.'
+}
 if (-not $localQa) {
   $requiredProcessEnvironment = @(
     'PLAY_REVIEW_TEEN_EMAIL', 'PLAY_REVIEW_TEEN_PASSWORD',
@@ -114,6 +117,17 @@ $hostedOnlyScripts = @(
 if ($localQa) {
   $scripts = @($scripts | Where-Object { $_ -notin $hostedOnlyScripts })
   Write-Output "Local Supabase regression: excluded hosted-only checks: $($hostedOnlyScripts -join ', ')"
+}
+
+if ($LocalAuthOnly) {
+  $excluded = @('qa-identity-provider-neutral.mjs', 'qa-financial-operations-completion.mjs')
+  Write-Output "Local Auth regression: excluded tests that inject SQL JWT claims: $($excluded -join ', ')"
+  $scripts = @($scripts | Where-Object { $_ -notin $excluded })
+  foreach ($script in $scripts) {
+    if (Select-String -Quiet -LiteralPath (Join-Path $PSScriptRoot $script) -Pattern 'request\.jwt\.claim|new\s+SignJWT|jwt\.sign') {
+      throw "Unreviewed claim injection in $script; refusing the Local Auth regression."
+    }
+  }
 }
 
 if ($StartAt) {

@@ -314,9 +314,13 @@ async function validateRegressionManifest() {
   }
   const localRegressionJob =
     workflow.split("  stripe-local-regression:")[1]?.split("\n  expo-reference:")[0] ?? "";
+  const localCi = await readFile(path.join(root, "scripts", "stripe-local-ci.mjs"), "utf8");
   assert(
-    localRegressionJob.includes("run-mort-stripe-regression.ps1"),
-    "ordinary PR CI must execute the unified non-provider Stripe regression",
+    localRegressionJob.includes("node scripts/stripe-local-ci.mjs --occupy-default-db-port") &&
+      localCi.includes("scripts/run-mort-stripe-regression.ps1") &&
+      localCi.includes('"-SkipLocalReset", "-SkipFlutter", "-LocalAuthOnly"') &&
+      !localRegressionJob.includes("secrets."),
+    "ordinary PR CI must exercise the port isolation and local-Auth-only non-provider regression without hosted secrets",
   );
   assert(
     !localRegressionJob.includes("stripe-sandbox-e2e.ps1"),

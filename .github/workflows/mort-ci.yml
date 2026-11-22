@@ -79,20 +79,22 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: 3.47.2
-          cache: true
       - uses: supabase/setup-cli@v3
         with:
-          version: v2.stable
+          version: 2.122.1
       - run: pnpm install --frozen-lockfile
-      - shell: pwsh
-        env:
-          MORT_SUPABASE_PROJECT_REF: ckcxakhxqlkhppsxxjhv
-          MORT_STRIPE_MODE: sandbox
-        run: ./scripts/run-mort-stripe-regression.ps1
+      - name: Test isolated configuration and endpoint guard
+        run: node --test scripts/stripe-local-ci.test.mjs
+      - name: Run local non-provider regression with default DB port occupied
+        # Flutter checks already run in flutter-authoritative. No hosted secrets
+        # or legacy SQL claim-injection fixtures are used in this job.
+        run: node scripts/stripe-local-ci.mjs --occupy-default-db-port
+      - uses: actions/upload-artifact@v7
+        if: success()
+        with:
+          name: stripe-local-auth-regression
+          path: artifacts/stripe/regression.json
+          if-no-files-found: error
 
   expo-reference:
     runs-on: ubuntu-latest
@@ -401,4 +403,3 @@ jobs:
           path: build/device-test/mort-prod-device-test.apk
           if-no-files-found: error
           retention-days: 7
-
