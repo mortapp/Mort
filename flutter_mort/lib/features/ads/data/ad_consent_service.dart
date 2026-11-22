@@ -17,6 +17,8 @@ bool isEligibleAdultAdAccount(Profile? profile, String? userId, DateTime now) {
       profile.isAdult &&
       profile.isActive &&
       profile.onboardingCompleted &&
+      (profile.verificationStatus == 'approved' ||
+          profile.verificationStatus == 'verified') &&
       dob != null &&
       DateOfBirthParser.ageOn(dob, now) >= 18;
 }

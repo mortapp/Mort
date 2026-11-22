@@ -3,10 +3,14 @@
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)/flutter_mort"
 test "$(xcodebuild -version | sed -n '1p')" = 'Xcode 26.6'
-runtime=com.apple.CoreSimulator.SimRuntime.iOS-26-6
-device="$(xcrun simctl list devices available --json | jq -er --arg runtime "$runtime" '
-  .devices[$runtime] | map(select(.isAvailable == true and (.name | startswith("iPhone")))) |
-  .[0].udid')"
+runtime=com.apple.CoreSimulator.SimRuntime.iOS-26-5
+if ! device="$(xcrun simctl list devices available --json | jq -er --arg runtime "$runtime" '
+  (.devices[$runtime] // []) | map(select(.isAvailable == true and .name == "iPhone 17")) |
+  .[0].udid')"; then
+  printf 'INCONCLUSIVE: iPhone 17 simulator for %s is not installed.\n' "$runtime" >&2
+  xcrun simctl list runtimes >&2
+  exit 75
+fi
 printf 'Simulator runtime: %s\n' "$runtime"
 trap 'xcrun simctl shutdown "$device" >/dev/null 2>&1 || true' EXIT
 xcrun simctl boot "$device"

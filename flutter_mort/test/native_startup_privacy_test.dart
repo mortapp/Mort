@@ -94,6 +94,7 @@ void main() {
       UserRole role = UserRole.adult,
       String? birthday = '1990-01-01',
       String status = 'active',
+      String verification = 'verified',
       bool onboarded = true,
     }) => Profile(
       id: 'disposable-fixture',
@@ -105,7 +106,7 @@ void main() {
       state: null,
       onboardingCompleted: onboarded,
       accountStatus: status,
-      verificationStatus: 'unverified',
+      verificationStatus: verification,
       paymentPreference: 'unset',
     );
     final today = DateTime(2026, 11, 22);
@@ -116,6 +117,7 @@ void main() {
     expect(eligible(fixture(birthday: '2009-01-01')), isFalse);
     expect(eligible(fixture(birthday: null)), isFalse);
     expect(eligible(fixture(status: 'suspended')), isFalse);
+    expect(eligible(fixture(verification: 'unverified')), isFalse);
     expect(eligible(fixture(onboarded: false)), isFalse);
     expect(eligible(fixture(), 'different-fixture'), isFalse);
     expect(eligible(fixture(), null), isFalse);
