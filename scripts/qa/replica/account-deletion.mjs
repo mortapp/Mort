@@ -60,6 +60,18 @@ const original = checked(await admin.storage.from(uploadBucket).download(objectN
 assert.deepEqual(Buffer.from(await original.arrayBuffer()), png)
 console.log('PASS: actual user session created and private object bytes verified')
 
+const anonymousRequest = await anonymous.rpc('request_account_deletion', { p_source: 'web' })
+assert.ok(anonymousRequest.error || anonymousRequest.data?.ok === false, 'Anonymous deletion request was accepted')
+const invalidSession = await fetch(new URL('/rest/v1/rpc/request_account_deletion', API_URL), {
+  method: 'POST',
+  redirect: 'error',
+  headers: { apikey: ANON_KEY, Authorization: 'Bearer invalid-local-test-session', 'Content-Type': 'application/json' },
+  body: JSON.stringify({ p_source: 'web' }),
+})
+assert.ok([401, 403].includes(invalidSession.status), 'Malformed unauthenticated session was not rejected')
+assert.equal(checked(await admin.rpc('support_internal_authorize'), 'Local service-only support admission'), true)
+console.log('PASS: anonymous/invalid deletion request denied; service-only support probe admits the local service role')
+
 const requests = await Promise.all([
   user.rpc('request_account_deletion', { p_source: 'web' }),
   user.rpc('request_account_deletion', { p_source: 'web' }),
@@ -114,6 +126,7 @@ const missingUser = await admin.auth.admin.getUserById(subject)
 assert.equal(missingUser.error?.status, 404)
 assert.equal(missingUser.error?.code, 'user_not_found')
 assert.equal(checked(await admin.from('profiles').select('id').eq('id', subject).maybeSingle(), 'Check profile'), null)
+assert.ok((await user.auth.getUser(session.access_token)).error, 'Auth still resolved the deleted identity from its access token')
 assert.ok((await user.auth.refreshSession({ refresh_token: session.refresh_token })).error, 'Old refresh token stayed valid')
 const missingObject = await admin.storage.from(uploadBucket).download(objectName)
 assert.equal(String(missingObject.error?.statusCode ?? missingObject.error?.status), '404')

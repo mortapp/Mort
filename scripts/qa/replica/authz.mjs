@@ -16,6 +16,7 @@ if (!['postgres:', 'postgresql:'].includes(dbUrl.protocol) ||
 }
 const db = new pg.Client({ connectionString: dbUrl.href });
 await db.connect();
+const postFix = process.env.PRE_FIX !== '1';
 const actorsFile = JSON.parse(fs.readFileSync(process.env.ACTORS_OUT ?? '/tmp/replica-actors.json', 'utf8'));
 const A = {};
 for (const [k, v] of Object.entries(actorsFile)) {
@@ -304,47 +305,113 @@ for (const actor of ['teen_b', 'adult_b']) {
   }
 }
 
-// Existing signed-in moderator loses privileges when the database status changes.
+// Existing signed-in staff lose privileges when the database status changes.
 // Owner SQL is fixture setup/reset only; every assertion uses the real user session.
-{
-  const { id, client } = A.moderator;
+for (const actor of ['moderator', 'admin']) {
+  const { id, client } = A[actor];
   const { rows: [object] } = await db.query(
     "select name from storage.objects where bucket_id='verification-evidence' and owner_id=$1 limit 1",
     [A.teen_a.id],
   );
   if (!object) throw new Error('Staff suspension test requires existing private fixture evidence');
   const queue = () => rpc(client, 'list_message_moderation_queue', {});
-  const evidence = () => dl('moderator', 'verification-evidence', object.name);
+  const evidence = () => dl(actor, 'verification-evidence', object.name);
   const cases = () => client.from('verification_cases').select('id').eq('user_id', A.teen_a.id);
   const queueAllowed = (r) => !r.error && Array.isArray(r.data?.items);
   const evidenceAllowed = (r) => !r.error && r.data?.size > 0;
   const casesAllowed = (r) => !r.error && Array.isArray(r.data) && r.data.length > 0;
   const before = await Promise.all([queue(), evidence(), cases()]);
-  record('P5-staff', 'active moderator can access queue, private evidence bytes and unrelated verification cases',
+  record('P5-staff', `active ${actor} can access queue, private evidence bytes and unrelated verification cases`,
     queueAllowed(before[0]) && evidenceAllowed(before[1]) && casesAllowed(before[2]));
 
   const suspended = await db.query(
     "update public.profiles set account_status='suspended' where id=$1 and account_status='active'", [id],
   );
-  if (suspended.rowCount !== 1) throw new Error('Expected one active replica fixture moderator');
+  if (suspended.rowCount !== 1) throw new Error(`Expected one active replica fixture ${actor}`);
   try {
     const [auth, moderation, file, rest] = await Promise.all([client.auth.getUser(), queue(), evidence(), cases()]);
-    record('P5-staff', 'suspended moderator still presents the original valid GoTrue session',
+    record('P5-staff', `suspended ${actor} still presents the original valid GoTrue session`,
       !auth.error && auth.data?.user?.id === id);
-    record('P5-staff', 'suspended moderator is denied the queue RPC',
+    record('P5-staff', `suspended ${actor} is denied the queue RPC`,
       moderation.error?.message === 'Authorized moderation role required');
-    record('P5-staff', 'suspended moderator is denied private Storage evidence', Boolean(file.error) && !file.data);
-    record('P5-staff', 'suspended moderator is denied unrelated verification rows by REST RLS',
+    record('P5-staff', `suspended ${actor} is denied private Storage evidence`, Boolean(file.error) && !file.data);
+    record('P5-staff', `suspended ${actor} is denied unrelated verification rows by REST RLS`,
       !rest.error && Array.isArray(rest.data) && rest.data.length === 0);
   } finally {
     const restored = await db.query(
       "update public.profiles set account_status='active' where id=$1 and account_status='suspended'", [id],
     );
-    if (restored.rowCount !== 1) throw new Error('Could not restore replica moderator fixture');
+    if (restored.rowCount !== 1) throw new Error(`Could not restore replica ${actor} fixture`);
   }
   const after = await Promise.all([queue(), evidence(), cases()]);
-  record('P5-staff', 'reinstated fixture moderator regains scoped access on the same session',
+  record('P5-staff', `reinstated fixture ${actor} regains scoped access on the same session`,
     queueAllowed(after[0]) && evidenceAllowed(after[1]) && casesAllowed(after[2]));
+}
+
+if (postFix) {
+  const bucket = 'verification-evidence';
+  const actor = 'adult_a';
+  const { id, client } = A[actor];
+  const path = () => `${id}/${randomUUID()}.jpg`;
+  const register = (filename) => rpc(client, 'submit_my_verification_evidence_v1', {
+    p_verification_type: 'identity', p_evidence_path: filename,
+  });
+  const staged = path();
+  const upload = await up(actor, bucket, staged);
+  if (upload.error) throw new Error(`Replica evidence fixture upload failed: ${upload.error.code ?? upload.error.name}`);
+  const missing = await register(path());
+  record('document-intake', 'case registration requires an existing owned object',
+    !missing.error && missing.data?.code === 'evidence_document_missing');
+
+  const { rows: [settings] } = await db.query(
+    'select real_document_collection, maintenance_mode from public.mort_release_control where is_primary',
+  );
+  const setRelease = (enabled, maintenance) => db.query(
+    'update public.mort_release_control set real_document_collection=$1, maintenance_mode=$2 where is_primary',
+    [enabled, maintenance],
+  );
+  if (!settings) throw new Error('Missing replica release settings');
+  try {
+    for (const [enabled, maintenance, reason] of [[false, false, 'collection off'], [true, true, 'maintenance']]) {
+      await setRelease(enabled, maintenance);
+      const [newUpload, registration, staffRead] = await Promise.all([
+        up(actor, bucket, path()), register(staged), dl('moderator', bucket, staged),
+      ]);
+      record('document-intake', `${reason}: Storage intake denied`, Boolean(newUpload.error));
+      record('document-intake', `${reason}: registration denied`,
+        !registration.error && registration.data?.code === 'document_collection_unavailable');
+      record('document-intake', `${reason}: active staff can still read already uploaded synthetic bytes`,
+        !staffRead.error && Buffer.from(await staffRead.data.arrayBuffer()).equals(JPEG));
+    }
+    await setRelease(true, false);
+    const status = (from, to) => db.query(
+      'update public.profiles set account_status=$1 where id=$2 and account_status=$3', [to, id, from],
+    );
+    if ((await status('active', 'suspended')).rowCount !== 1) throw new Error('Fixture is not active');
+    try {
+      const [auth, newUpload, registration] = await Promise.all([
+        client.auth.getUser(), up(actor, bucket, path()), register(staged),
+      ]);
+      record('document-intake', 'suspended account still has original real Auth session',
+        !auth.error && auth.data.user?.id === id);
+      record('document-intake', 'suspended account cannot upload', Boolean(newUpload.error));
+      record('document-intake', 'suspended account cannot attach prior upload',
+        !registration.error && registration.data?.code === 'document_collection_unavailable');
+    } finally {
+      if ((await status('suspended', 'active')).rowCount !== 1) throw new Error('Could not restore fixture account');
+    }
+    await setRelease(false, false);
+    const clean = await rm(actor, bucket, staged);
+    record('document-intake', 'owner can clear unregistered fixture bytes with intake disabled',
+      !clean.error && !(await stillExists(bucket, staged)) && Boolean((await dl(actor, bucket, staged)).error));
+  } finally {
+    await setRelease(settings.real_document_collection, settings.maintenance_mode);
+  }
+
+  for (const who of ['anon', 'teen_a', 'adult_a', 'guardian', 'moderator', 'admin']) {
+    const r = await rpc(who === 'anon' ? anon : A[who].client, 'support_internal_authorize');
+    record('support-internal', `${who} cannot enter the service-only support surface`, Boolean(r.error) && !r.data);
+  }
 }
 
 await db.end();
