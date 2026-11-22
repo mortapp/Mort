@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/auth/auth_startup.dart';
+import '../../core/config/app_config.dart';
 import '../../core/errors/user_facing_error.dart';
 import '../../core/reviewer/reviewer_session.dart';
 import '../../core/theme/mort_spacing.dart';
@@ -162,7 +164,9 @@ class _AccountDeletionRequestScreenState
   final _password = TextEditingController();
   bool _busy = false;
   bool _loading = true;
+  bool _loadFailed = false;
   AccountDeletionRequest? _request;
+  String? _receipt;
 
   @override
   void initState() {
@@ -178,13 +182,20 @@ class _AccountDeletionRequestScreenState
   }
 
   Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _loadFailed = false;
+    });
     try {
       final request = await ref
           .read(accountDeletionRepositoryProvider)
           .getCurrentRequest();
       if (mounted) setState(() => _request = request);
     } catch (error) {
-      if (mounted) MortToast.show(context, userFacingError(error));
+      if (mounted) {
+        setState(() => _loadFailed = true);
+        MortToast.show(context, userFacingError(error));
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -197,24 +208,35 @@ class _AccountDeletionRequestScreenState
       await ref
           .read(authRepositoryProvider)
           .reauthenticateWithPassword(_password.text);
-      final request = await ref
-          .read(accountDeletionRepositoryProvider)
-          .requestDeletion();
+      if (!mounted) return;
+      final repository = ref.read(accountDeletionRepositoryProvider);
+      final request = await repository.requestDeletion();
       if (!mounted) return;
       _confirmation.clear();
       _password.clear();
-      setState(() => _request = request);
+      setState(() {
+        _request = request;
+        _receipt = null;
+      });
+      await _issueReceipt(repository, request);
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        _password.clear();
+        setState(() => _busy = false);
+      }
     }
   }
 
   Future<void> _cancel() async {
-    if (_busy) return;
+    if (_busy || _password.text.isEmpty) return;
     setState(() => _busy = true);
     try {
+      await ref
+          .read(authRepositoryProvider)
+          .reauthenticateWithPassword(_password.text);
+      if (!mounted) return;
       final request = await ref
           .read(accountDeletionRepositoryProvider)
           .cancelDeletion();
@@ -222,12 +244,67 @@ class _AccountDeletionRequestScreenState
     } catch (error) {
       if (mounted) MortToast.show(context, userFacingError(error));
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        _password.clear();
+        setState(() => _busy = false);
+      }
     }
+  }
+
+  Future<void> _issueReceipt(
+    AccountDeletionRepository repository,
+    AccountDeletionRequest request,
+  ) async {
+    try {
+      final code = await repository.issueReceipt(request.id);
+      if (mounted && code != null) setState(() => _receipt = code);
+      if (mounted && code == null) {
+        MortToast.show(context, 'A status receipt could not be issued.');
+      }
+    } catch (_) {
+      if (mounted) {
+        MortToast.show(context, 'A status receipt could not be issued.');
+      }
+    }
+  }
+
+  Future<void> _renewReceipt(AccountDeletionRequest request) async {
+    if (_busy || _password.text.isEmpty || !request.canIssueReceipt) return;
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(authRepositoryProvider)
+          .reauthenticateWithPassword(_password.text);
+      if (!mounted) return;
+      await _issueReceipt(ref.read(accountDeletionRepositoryProvider), request);
+    } catch (error) {
+      if (mounted) MortToast.show(context, userFacingError(error));
+    } finally {
+      if (mounted) {
+        _password.clear();
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  Future<void> _openWeb() async {
+    final uri = AppConfig.accountDeletionWebUri;
+    if (uri == null) return;
+    try {
+      if (await launchUrl(uri, mode: LaunchMode.externalApplication)) return;
+    } catch (_) {
+      // Do not send account credentials or a status receipt in a browser URL.
+    }
+    if (mounted) MortToast.show(context, 'Could not open the deletion page.');
   }
 
   @override
   Widget build(BuildContext context) {
+    final request = _request;
+    final canSubmit = request == null || request.canSubmitAnother;
+    final canCancel = request?.canCancel ?? false;
+    final canRenew =
+        request != null && request.canIssueReceipt && _receipt == null;
     return MortScreen(
       children: [
         const MortHeader(
@@ -246,64 +323,104 @@ class _AccountDeletionRequestScreenState
             label: 'Checking deletion status...',
             fullScreen: false,
           )
-        else if (_request != null) ...[
-          MortCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Request status: ${_request!.status.replaceAll('_', ' ')}',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: MortSpacing.sm),
-                Text('Requested ${_request!.requestedAt.toLocal()}'),
-                if (_request!.retentionSummary?.isNotEmpty == true) ...[
+        else if (_loadFailed)
+          MortButton(label: 'Retry loading status', onPressed: _load)
+        else ...[
+          if (request != null)
+            MortCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Request status: ${request.status.replaceAll('_', ' ')}',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: MortSpacing.sm),
-                  Text(_request!.retentionSummary!),
+                  Text('Requested ${request.requestedAt.toLocal()}'),
+                  if (request.retentionSummary?.isNotEmpty == true) ...[
+                    const SizedBox(height: MortSpacing.sm),
+                    Text(request.retentionSummary!),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-          if (_request!.canCancel) ...[
+          if (request != null) ...[
             const SizedBox(height: MortSpacing.md),
+            MortButton(
+              label: 'Refresh request status',
+              style: MortButtonStyle.secondary,
+              onPressed: _busy ? null : _load,
+            ),
+          ],
+          if (_receipt != null) ...[
+            const SizedBox(height: MortSpacing.md),
+            const Text(
+              'Save this private receipt code to check status on the MORT deletion website. It expires after 90 days.',
+            ),
+            SelectableText(_receipt!),
+          ],
+          if (canSubmit || canCancel || canRenew) ...[
+            MortTextField(
+              label: 'Confirm your password',
+              controller: _password,
+              obscureText: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              autofillHints: const [AutofillHints.password],
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: MortSpacing.md),
+          ],
+          if (canCancel)
             MortButton(
               label: 'Cancel pending request',
               icon: Icons.undo,
               style: MortButtonStyle.secondary,
               busy: _busy,
-              onPressed: _cancel,
+              onPressed: _password.text.isNotEmpty ? _cancel : null,
+            ),
+          if (canRenew)
+            MortButton(
+              label: 'Issue new status receipt',
+              style: MortButtonStyle.secondary,
+              busy: _busy,
+              onPressed: _password.text.isNotEmpty
+                  ? () => _renewReceipt(request)
+                  : null,
+            ),
+          if (canSubmit) ...[
+            const SizedBox(height: MortSpacing.md),
+            MortTextField(
+              label: 'Type DELETE to confirm',
+              controller: _confirmation,
+              autocorrect: false,
+              enableSuggestions: false,
+              textCapitalization: TextCapitalization.characters,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: MortSpacing.md),
+            MortButton(
+              label: 'Submit deletion request',
+              icon: Icons.delete_outline,
+              style: MortButtonStyle.danger,
+              busy: _busy,
+              onPressed:
+                  _confirmation.text.trim() == 'DELETE' &&
+                      _password.text.isNotEmpty
+                  ? _submit
+                  : null,
             ),
           ],
-        ] else ...[
-          MortTextField(
-            label: 'Confirm your password',
-            controller: _password,
-            obscureText: true,
-            autocorrect: false,
-            enableSuggestions: false,
-            autofillHints: const [AutofillHints.password],
-            onChanged: (_) => setState(() {}),
-          ),
+        ],
+        if (AppConfig.accountDeletionWebUri != null) ...[
           const SizedBox(height: MortSpacing.md),
-          MortTextField(
-            label: 'Type DELETE to confirm',
-            controller: _confirmation,
-            autocorrect: false,
-            enableSuggestions: false,
-            textCapitalization: TextCapitalization.characters,
-            onChanged: (_) => setState(() {}),
+          const Text(
+            'No password? Use an email verification link on the MORT deletion website.',
           ),
-          const SizedBox(height: MortSpacing.md),
           MortButton(
-            label: 'Submit deletion request',
-            icon: Icons.delete_outline,
-            style: MortButtonStyle.danger,
-            busy: _busy,
-            onPressed:
-                _confirmation.text.trim() == 'DELETE' &&
-                    _password.text.isNotEmpty
-                ? _submit
-                : null,
+            label: 'Open account deletion website',
+            style: MortButtonStyle.secondary,
+            onPressed: _openWeb,
           ),
         ],
       ],
