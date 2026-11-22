@@ -9,11 +9,18 @@ minimum_guest_kb="${3:-0}"
 package=com.mortapp.mobile
 test -f "$apk"
 
-shell() { adb shell "$@" | tr -d '\r'; }
+adb_run() { timeout --kill-after=5s 45s adb "$@"; }
+shell() { adb_run shell "$@" | tr -d '\r'; }
+
+device_online() {
+  local state
+  state="$(timeout --kill-after=2s 5s adb get-state 2>/dev/null)" &&
+    [[ "$state" == device ]]
+}
 
 # These filters retain system startup diagnostics, not Dart application payloads.
 engine_logs() {
-  adb logcat -b main -b system -b crash -d -t 2500 -v brief \
+  adb_run logcat -b main -b system -b crash -d -t 2500 -v brief \
     -s ActivityManager ActivityTaskManager AndroidRuntime linker nativeloader \
     FlutterJNI FlutterLoader flutterEngine FlutterActivityAndFragmentDelegate libc DEBUG lmkd lowmemorykiller |
     awk -v pkg="$package" \
@@ -43,13 +50,18 @@ diagnose() {
   local code=$?
   trap - EXIT
   printf 'MORT launch gate exit=%s; final Android diagnostics:\n' "$code" >&2
+  if ! device_online; then
+    printf 'ADB transport unavailable. App foreground and exit diagnostics are inconclusive.\n' >&2
+    (( code != 0 )) && exit "$code"
+    exit 1
+  fi
   shell dumpsys activity activities | activity_rows >&2 || true
   focused_windows >&2 || true
   memory_rows >&2 || true
   shell ps -A -o PID,NAME | awk -v pkg="$package" '$2==pkg || index($2,pkg ":")==1' >&2 || true
   shell dumpsys activity exit-info "$package" |
     awk '/ApplicationExitInfo|reason=|status=|subreason=|No process exit/' | tail -25 >&2 || true
-  adb logcat -b events -d -t 1200 -v brief \
+  adb_run logcat -b events -d -t 1200 -v brief \
     -s am_proc_start am_proc_bound am_proc_died am_kill am_crash am_anr \
        wm_on_create_called wm_on_resume_called wm_on_paused_called wm_activity_launch_time |
     grep -F "$package" | tail -65 >&2 || true
@@ -75,7 +87,7 @@ if [[ "$expected_page" == 16384 ]]; then
   test "$(shell getprop bionic.linker.16kb.app_compat.enabled)" = false
   echo '16 KB app compatibility mode disabled and verified'
 fi
-adb install "$apk"
+timeout --kill-after=5s 120s adb install "$apk"
 # Re-resolve for the current user with the actual launcher intent, not a
 # component-only intent that does not represent an app-icon launch.
 component="$(shell cmd package resolve-activity --brief --user current \
@@ -83,7 +95,7 @@ component="$(shell cmd package resolve-activity --brief --user current \
 case "$component" in "$package"/*) ;; *) printf 'No MORT launcher component: %s\n' "$component" >&2; exit 1 ;; esac
 
 # These buffers are on a fresh disposable emulator, never a shared device.
-adb logcat -b main -b system -b crash -b events -c
+adb_run logcat -b main -b system -b crash -b events -c
 trap diagnose EXIT
 launch_rc=0
 launch="$(shell am start -W -S --user current -a android.intent.action.MAIN \
@@ -106,6 +118,10 @@ fi
 previous_pid=
 local_samples=0
 for (( i=1; i<=30; i++ )); do
+  if ! device_online; then
+    printf 'ADB transport lost before stable foreground could be established.\n' >&2
+    exit 1
+  fi
   reported_pid="$(shell pidof "$package" || true)"
   ps_pid="$(shell ps -A -o PID,NAME | awk -v pkg="$package" '$2==pkg {print $1; exit}' || true)"
   activities="$(shell dumpsys activity activities | activity_rows || true)"
