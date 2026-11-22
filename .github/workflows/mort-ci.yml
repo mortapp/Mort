@@ -334,6 +334,7 @@ jobs:
           name: mort-android-device-test-apk
           path: build/device-test/mort-device-test.apk
           if-no-files-found: error
+          retention-days: 7
 
   flutter-ios-unsigned:
     # Simulator only: no secrets, physical devices, archive, signing or store access.
@@ -389,7 +390,6 @@ jobs:
           target: google_apis_ps16k
           disable-animations: true
           script: bash scripts/qa/android-16kb-smoke.sh "$RUNNER_TEMP/mort-16kb/mort-device-test.apk"
-          retention-days: 7
 
   android-prod-device-test-apk:
     runs-on: ubuntu-latest
