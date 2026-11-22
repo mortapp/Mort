@@ -9,8 +9,9 @@ minimum_guest_kb="${3:-0}"
 package=com.mortapp.mobile
 test -f "$apk"
 
-adb_run() { timeout --kill-after=5s 45s adb "$@"; }
+adb_run() { timeout --kill-after=2s 10s adb "$@"; }
 shell() { adb_run shell "$@" | tr -d '\r'; }
+launcher() { timeout --kill-after=3s 35s adb shell "$@" | tr -d '\r'; }
 
 device_online() {
   local state
@@ -98,20 +99,17 @@ case "$component" in "$package"/*) ;; *) printf 'No MORT launcher component: %s\
 adb_run logcat -b main -b system -b crash -b events -c
 trap diagnose EXIT
 launch_rc=0
-launch="$(shell am start -W -S --user current -a android.intent.action.MAIN \
+launch_started=$SECONDS
+launch="$(launcher am start -S --user current -a android.intent.action.MAIN \
   -c android.intent.category.LAUNCHER -n "$component")" || launch_rc=$?
 printf '%s\n' "$launch"
 if (( launch_rc != 0 )); then
   printf 'Activity Manager launcher command failed (exit %s).\n' "$launch_rc" >&2
   exit 1
 fi
-if grep -Fxq 'Status: timeout' <<< "$launch" &&
-    grep -Fxq "Activity: $component" <<< "$launch"; then
-  # -W can time out while Android is still drawing the requested activity.
-  # This is not a pass; require the same process and real focused window below.
-  printf 'Activity Manager timed out waiting for the requested activity; observing foreground directly.\n'
-elif ! grep -Fxq 'Status: ok' <<< "$launch"; then
-  printf 'Activity Manager did not report a launch of the requested activity.\n' >&2
+if ! grep -Fq "cmp=$component" <<< "$launch" ||
+    grep -Eq '(^Error:|^Exception|^java\.)' <<< "$launch"; then
+  printf 'Activity Manager did not accept a launch of the requested activity.\n' >&2
   exit 1
 fi
 
@@ -127,13 +125,14 @@ for (( i=1; i<=30; i++ )); do
   activities="$(shell dumpsys activity activities | activity_rows || true)"
   windows="$(focused_windows || true)"
   resumed="$(awk -v pkg="$package/" 'tolower($0) ~ /resumedactivity/ && index($0,pkg)' <<< "$activities")"
-  focused="$(awk -v pkg="$package/" '/mCurrentFocus=/ && index($0,pkg)' <<< "$windows")"
-  printf 'sample=%02d pidof=%s ps=%s resumed=%s focused=%s\n' \
-    "$i" "${reported_pid:-none}" "${ps_pid:-none}" \
+  focused="$(awk -v pkg="$package/" '/mCurrentFocus=/ && index($0,pkg) && !/Splash Screen|Starting Window/' <<< "$windows")"
+  available="$(memory_rows | awk '$1=="MemAvailable:" {print $2}' || true)"
+  printf 'sample=%02d elapsed_s=%s pidof=%s ps=%s resumed=%s focused=%s available_kb=%s\n' \
+    "$i" "$((SECONDS-launch_started))" "${reported_pid:-none}" "${ps_pid:-none}" \
     "$(if [[ -n "$resumed" ]]; then echo yes; else echo no; fi)" \
-    "$(if [[ -n "$focused" ]]; then echo yes; else echo no; fi)"
+    "$(if [[ -n "$focused" ]]; then echo yes; else echo no; fi)" "${available:-unknown}"
   if [[ "$ps_pid" =~ ^[0-9]+$ && "$reported_pid" == "$ps_pid" &&
-        -n "$resumed" && -n "$focused" && "$windows" != *"${package}/"*Splash* ]]; then
+        -n "$resumed" && -n "$focused" ]] && device_online; then
     if [[ "$ps_pid" == "$previous_pid" ]]; then
       (( local_samples += 1 ))
     else
