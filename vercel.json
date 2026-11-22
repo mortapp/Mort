@@ -1,0 +1,7 @@
+{
+  "git": {
+    "deploymentEnabled": {
+      "fix/stripe-local-ci-port-isolation": false
+    }
+  }
+}
