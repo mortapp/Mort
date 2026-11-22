@@ -4,7 +4,10 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/widgets/mort_widgets.dart';
+import '../../../data/models/profile.dart';
 import '../../../data/repositories/providers.dart';
+import '../../../data/services/supabase_service.dart';
+import '../data/ad_consent_service.dart';
 import '../data/admob_service.dart';
 
 class MortNativeRewardedAdButton extends ConsumerStatefulWidget {
@@ -28,7 +31,7 @@ class _MortNativeRewardedAdButtonState
     extends ConsumerState<MortNativeRewardedAdButton> {
   RewardedAd? _ad;
   String? _pendingAdUnitId;
-  bool _pendingNonPersonalized = true;
+  String? _adOwner;
   bool _loading = false;
 
   @override
@@ -47,30 +50,39 @@ class _MortNativeRewardedAdButtonState
 
   Future<void> _loadIfNeeded() async {
     if (_ad != null || _loading) return;
-    final local = const AdMobService().rewardedDecision(
-      placement: widget.placement,
-    );
+    final owner = _signedInUserId;
+    final placement = widget.placement;
+    bool stillEligible() =>
+        mounted &&
+        placement == widget.placement &&
+        _isEligible(owner, ref.read(currentProfileProvider).asData?.value);
+    if (!stillEligible()) return;
+    final local = const AdMobService().rewardedDecision(placement: placement);
     final decision = await const AdMobService().confirmWithServer(
       decision: local,
       repository: ref.read(monetizationRepositoryProvider),
-      placement: widget.placement,
+      placement: placement,
       adFormat: 'rewarded',
     );
-    if (!mounted || !decision.canShow || decision.adUnitId == null) return;
+    if (!decision.canShow || decision.adUnitId == null) return;
+    if (!await AdRequestGate.instance.prepare(stillEligible: stillEligible)) {
+      return;
+    }
     setState(() => _loading = true);
     RewardedAd.load(
       adUnitId: decision.adUnitId!,
-      request: AdRequest(nonPersonalizedAds: decision.requestNonPersonalized),
+      request: const AdRequest(nonPersonalizedAds: true),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
-          if (!mounted) {
+          if (!stillEligible()) {
             ad.dispose();
+            if (mounted) setState(() => _loading = false);
             return;
           }
           setState(() {
             _ad = ad;
             _pendingAdUnitId = decision.adUnitId;
-            _pendingNonPersonalized = decision.requestNonPersonalized;
+            _adOwner = owner;
             _loading = false;
           });
         },
@@ -81,9 +93,21 @@ class _MortNativeRewardedAdButtonState
     );
   }
 
+  String? get _signedInUserId => SupabaseService.isInitialized
+      ? SupabaseService.client.auth.currentUser?.id
+      : null;
+
+  bool _isEligible(String? owner, Profile? profile) =>
+      owner == _signedInUserId &&
+      isEligibleAdultAdAccount(profile, owner, DateTime.now());
+
   void _show() {
     final ad = _ad;
-    if (ad == null) return;
+    final owner = _adOwner;
+    bool stillEligible() =>
+        mounted &&
+        _isEligible(owner, ref.read(currentProfileProvider).asData?.value);
+    if (ad == null || !stillEligible()) return;
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
@@ -99,13 +123,14 @@ class _MortNativeRewardedAdButtonState
         // The reward is granted only here, inside the SDK's own
         // earned-reward callback -- never on tap, and never before the ad
         // has actually been watched to completion.
+        if (!stillEligible()) return;
         ref
             .read(monetizationRepositoryProvider)
             .recordAdImpression(
               placement: widget.placement,
               format: 'rewarded',
               adUnitId: _pendingAdUnitId,
-              requestNonPersonalized: _pendingNonPersonalized,
+              requestNonPersonalized: true,
             );
         widget.onReward?.call();
       },
@@ -125,7 +150,8 @@ class _MortNativeRewardedAdButtonState
       );
     }
 
-    if (_ad != null) {
+    final profile = ref.watch(currentProfileProvider).asData?.value;
+    if (_ad != null && _isEligible(_adOwner, profile)) {
       return MortRewardedAdButton(
         label: widget.label,
         enabled: true,

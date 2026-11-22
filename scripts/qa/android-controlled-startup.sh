@@ -5,6 +5,7 @@ set -euo pipefail
 apk="${1:?APK path}"
 page="${2:?expected page size}"
 min_kb="${3:?minimum guest memory}"
+abi="${4:-x86_64}"
 test -f "$apk"
 adb_short() { timeout --kill-after=2s 10s adb "$@"; }
 device() { adb_short shell "$*" | tr -d '\r'; }
@@ -26,6 +27,7 @@ printf 'Controlled boot: Android %s, SDK %s, ABI %s, page %s\n' \
   "$(device getprop ro.build.version.release)" "$(device getprop ro.build.version.sdk)" \
   "$(device getprop ro.product.cpu.abi)" "$(device getconf PAGE_SIZE)"
 test "$(device getconf PAGE_SIZE)" = "$page"
+test "$(device getprop ro.product.cpu.abi)" = "$abi"
 test "$(device getprop sys.boot_completed)" = 1
 device 'cat /proc/meminfo | head -5'
 

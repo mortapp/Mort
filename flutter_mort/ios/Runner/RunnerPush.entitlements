@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Apply only in an approved push-enabled signing lane. The owner must
+	     supply development/production and a matching provisioning profile. -->
+	<key>aps-environment</key>
+	<string>$(MORT_APNS_ENVIRONMENT)</string>
+</dict>
+</plist>

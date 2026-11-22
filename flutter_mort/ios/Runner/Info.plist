@@ -43,6 +43,10 @@
 	     with the real MORT iOS AdMob App ID once one is created. -->
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<key>GADDelayAppMeasurementInit</key>
+	<true/>
+	<key>FirebaseMessagingAutoInitEnabled</key>
+	<false/>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

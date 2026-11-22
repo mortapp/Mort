@@ -1,22 +1,19 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'app.dart';
 import 'core/observability/crash_reporting.dart';
 import 'core/observability/sentry_crash_provider.dart';
 import 'core/observability/structured_log.dart';
-import 'core/observability/product_analytics.dart';
 import 'core/theme/mort_theme.dart';
 import 'core/widgets/mort_widgets.dart';
 import 'data/services/supabase_service.dart';
 import 'core/config/app_config.dart';
-import 'features/ads/data/ad_consent_service.dart';
 import 'features/qa/browserstack_qa_app.dart';
-import 'services/push/push_notification_coordinator.dart';
 import 'services/push/remote_push_provider.dart';
 
 Future<void> main() async {
@@ -131,15 +128,6 @@ class _MortBootstrapState extends State<MortBootstrap> {
         throw StateError('The configured crash provider is unavailable.');
       }
       await (widget.initialize ?? SupabaseService.initializeIfConfigured)();
-      await MortProductAnalytics.instance.initialize();
-      await PushNotificationCoordinator.instance.initialize();
-      if (AppConfig.supportsNativeAds && AppConfig.adsEnabled) {
-        // Ads are optional to the product -- a consent or SDK init failure
-        // here must never block sign-in, jobs, safety, or any other core
-        // flow. AdMobService's own per-request checks already fail closed
-        // if this never completes.
-        unawaited(_initializeAdsBestEffort());
-      }
       return null;
     } catch (error) {
       unawaited(
@@ -151,19 +139,6 @@ class _MortBootstrapState extends State<MortBootstrap> {
         ),
       );
       return error;
-    }
-  }
-
-  Future<void> _initializeAdsBestEffort() async {
-    try {
-      await const AdConsentService().ensureConsent();
-      await MobileAds.instance.initialize();
-    } catch (error) {
-      MortStructuredLog.instance.record(
-        'mort.ads.startup_init_failed',
-        level: MortLogLevel.warning,
-        attributes: {'error': error.toString()},
-      );
     }
   }
 
@@ -202,8 +177,7 @@ class _MortBootstrapState extends State<MortBootstrap> {
               if (failed) ...[
                 const MortErrorState(
                   title: 'MORT could not start',
-                  message:
-                      'Check your connection and try again. No private key is required in the app.',
+                  message: 'Check your connection and try again. No private key is required in the app.',
                 ),
                 const SizedBox(height: 16),
                 MortButton(

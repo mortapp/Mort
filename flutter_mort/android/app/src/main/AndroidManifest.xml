@@ -28,6 +28,10 @@
         android:enableOnBackInvokedCallback="true"
         android:usesCleartextTraffic="false"
         android:networkSecurityConfig="@xml/network_security_config">
+        <!-- Require explicit, permission-checked registration. -->
+        <meta-data android:name="firebase_messaging_auto_init_enabled" android:value="false" />
+        <meta-data android:name="firebase_analytics_collection_enabled" android:value="false" />
+        <meta-data android:name="com.google.android.gms.ads.DELAY_APP_MEASUREMENT_INIT" android:value="true" />
         <!-- Google Mobile Ads SDK requires this exact meta-data to
              initialize. This is the public AdMob App ID (safe to commit,
              not a secret): it only identifies the app to AdMob, the same

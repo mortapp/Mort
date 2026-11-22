@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../../../core/config/app_config.dart';
+import '../../../data/models/profile.dart';
 import '../../../data/repositories/providers.dart';
+import '../../../data/services/supabase_service.dart';
+import '../data/ad_consent_service.dart';
 import '../data/admob_service.dart';
 
 class MortBannerAd extends ConsumerStatefulWidget {
@@ -22,6 +25,7 @@ class MortBannerAd extends ConsumerStatefulWidget {
 
 class _MortBannerAdState extends ConsumerState<MortBannerAd> {
   BannerAd? _ad;
+  String? _adOwner;
   bool _loaded = false;
 
   @override
@@ -33,25 +37,36 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
   }
 
   Future<void> _loadRealAd() async {
+    final owner = _signedInUserId;
+    final placement = widget.placement;
+    bool stillEligible() =>
+        mounted &&
+        placement == widget.placement &&
+        !widget.userAdFree &&
+        _isEligible(owner, ref.read(currentProfileProvider).asData?.value);
+    if (!stillEligible()) return;
     final local = const AdMobService().bannerDecision(
-      placement: widget.placement,
+      placement: placement,
       userAdFree: widget.userAdFree,
     );
     final decision = await const AdMobService().confirmWithServer(
       decision: local,
       repository: ref.read(monetizationRepositoryProvider),
-      placement: widget.placement,
+      placement: placement,
       adFormat: 'banner',
     );
-    if (!mounted || !decision.canShow || decision.adUnitId == null) return;
+    if (!decision.canShow || decision.adUnitId == null) return;
+    if (!await AdRequestGate.instance.prepare(stillEligible: stillEligible)) {
+      return;
+    }
 
     final ad = BannerAd(
       adUnitId: decision.adUnitId!,
       size: AdSize.banner,
-      request: AdRequest(nonPersonalizedAds: decision.requestNonPersonalized),
+      request: const AdRequest(nonPersonalizedAds: true),
       listener: BannerAdListener(
         onAdLoaded: (_) {
-          if (!mounted) return;
+          if (!stillEligible()) return;
           setState(() => _loaded = true);
           ref
               .read(monetizationRepositoryProvider)
@@ -59,7 +74,7 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
                 placement: widget.placement,
                 format: 'banner',
                 adUnitId: decision.adUnitId,
-                requestNonPersonalized: decision.requestNonPersonalized,
+                requestNonPersonalized: true,
               );
         },
         onAdFailedToLoad: (ad, error) {
@@ -68,9 +83,18 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
         },
       ),
     );
+    _adOwner = owner;
     _ad = ad;
     ad.load();
   }
+
+  String? get _signedInUserId => SupabaseService.isInitialized
+      ? SupabaseService.client.auth.currentUser?.id
+      : null;
+
+  bool _isEligible(String? owner, Profile? profile) =>
+      owner == _signedInUserId &&
+      isEligibleAdultAdAccount(profile, owner, DateTime.now());
 
   @override
   void dispose() {
@@ -83,7 +107,13 @@ class _MortBannerAdState extends ConsumerState<MortBannerAd> {
     if (!AppConfig.nativeAdsCompiledIn || !AppConfig.adsEnabled) {
       return const SizedBox.shrink();
     }
-    if (!_loaded || _ad == null) return const SizedBox.shrink();
+    final profile = ref.watch(currentProfileProvider).asData?.value;
+    if (!_loaded ||
+        _ad == null ||
+        widget.userAdFree ||
+        !_isEligible(_adOwner, profile)) {
+      return const SizedBox.shrink();
+    }
     return SizedBox(
       width: _ad!.size.width.toDouble(),
       height: _ad!.size.height.toDouble(),

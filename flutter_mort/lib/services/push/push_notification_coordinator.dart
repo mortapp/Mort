@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/observability/structured_log.dart';
+import '../../core/utils/retryable_initialization.dart';
 import '../../data/repositories/notifications_repository.dart';
 import '../../data/services/secure_device_storage.dart';
 import '../../data/services/supabase_service.dart';
@@ -23,7 +25,7 @@ class PushNotificationCoordinator {
   final RemotePushProvider _provider;
   final _foregroundController = StreamController<RemotePushMessage>.broadcast();
   final _openedController = StreamController<RemotePushMessage>.broadcast();
-  bool _initialized = false;
+  final _initialization = RetryableInitialization();
   bool _syncing = false;
 
   bool get configured => _provider.configured;
@@ -31,26 +33,61 @@ class PushNotificationCoordinator {
       _foregroundController.stream;
   Stream<RemotePushMessage> get openedMessages => _openedController.stream;
 
-  Future<void> initialize() async {
-    if (_initialized) return;
-    _initialized = true;
+  Future<void> initialize() => _initialization.run(_initialize);
+
+  Future<void> startBestEffort() async {
+    try {
+      await initialize();
+    } catch (_) {
+      _recordFailure('mort.push.provider_setup_failed');
+    }
+  }
+
+  Future<void> _initialize() async {
     if (!_provider.configured) return;
+    final auth = SupabaseService.client.auth;
     await _provider.initialize();
+    final initial = await _provider.initialMessage();
     _provider.tokenRefreshes.listen((_) {
-      unawaited(syncRegistration());
-    });
-    _provider.foregroundMessages.listen(_foregroundController.add);
-    _provider.openedMessages.listen(_openedController.add);
-    SupabaseService.client.auth.onAuthStateChange.listen((state) {
+      unawaited(_syncRegistrationBestEffort());
+    }, onError: _recordStreamFailure);
+    _provider.foregroundMessages.listen(
+      _foregroundController.add,
+      onError: _recordStreamFailure,
+    );
+    _provider.openedMessages.listen(
+      _openedController.add,
+      onError: _recordStreamFailure,
+    );
+    auth.onAuthStateChange.listen((state) {
       if (state.event == AuthChangeEvent.signedIn ||
           state.event == AuthChangeEvent.tokenRefreshed ||
           state.event == AuthChangeEvent.userUpdated) {
-        unawaited(syncRegistration());
+        unawaited(_syncRegistrationBestEffort());
       }
-    });
-    final initial = await _provider.initialMessage();
+    }, onError: _recordStreamFailure);
     if (initial != null) _openedController.add(initial);
-    await syncRegistration();
+    unawaited(_syncRegistrationBestEffort());
+  }
+
+  Future<void> _syncRegistrationBestEffort() async {
+    try {
+      await syncRegistration();
+    } catch (_) {
+      _recordFailure('mort.push.registration_failed');
+    }
+  }
+
+  void _recordStreamFailure(Object _, StackTrace _) {
+    _recordFailure('mort.push.provider_stream_failed');
+  }
+
+  void _recordFailure(String event) {
+    MortStructuredLog.instance.record(
+      event,
+      level: MortLogLevel.warning,
+      attributes: const {'provider': 'fcm', 'outcome': 'failed'},
+    );
   }
 
   Future<RemotePushPermission> permissionStatus() async {
@@ -61,6 +98,9 @@ class PushNotificationCoordinator {
 
   Future<RemotePushPermission> requestPermissionAndRegister() async {
     if (!_provider.configured) return RemotePushPermission.unavailable;
+    if (SupabaseService.client.auth.currentUser == null) {
+      return RemotePushPermission.unavailable;
+    }
     await initialize();
     final permission = await _provider.requestPermission();
     if (_canRegister(permission)) {
@@ -108,7 +148,10 @@ class PushNotificationCoordinator {
         clientRequestId: _uuid.v4(),
       );
     }
-    if (_provider.configured) await _provider.deleteToken();
+    if (_provider.configured) {
+      await initialize();
+      await _provider.deleteToken();
+    }
   }
 
   Future<void> prepareForSignOut({required bool allDevices}) async {
