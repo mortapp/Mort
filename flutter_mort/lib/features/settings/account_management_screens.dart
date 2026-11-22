@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/auth/auth_startup.dart';
 import '../../core/config/app_config.dart';
+import '../../core/errors/mort_error.dart';
 import '../../core/errors/user_facing_error.dart';
 import '../../core/reviewer/reviewer_session.dart';
 import '../../core/theme/mort_spacing.dart';
@@ -165,6 +166,7 @@ class _AccountDeletionRequestScreenState
   bool _busy = false;
   bool _loading = true;
   bool _loadFailed = false;
+  bool _useRecentSignIn = false;
   AccountDeletionRequest? _request;
   String? _receipt;
 
@@ -202,12 +204,10 @@ class _AccountDeletionRequestScreenState
   }
 
   Future<void> _submit() async {
-    if (_busy || _confirmation.text.trim() != 'DELETE') return;
+    if (_busy || !_canVerify || _confirmation.text.trim() != 'DELETE') return;
     setState(() => _busy = true);
     try {
-      await ref
-          .read(authRepositoryProvider)
-          .reauthenticateWithPassword(_password.text);
+      await _reauthenticateIfNeeded();
       if (!mounted) return;
       final repository = ref.read(accountDeletionRepositoryProvider);
       final request = await repository.requestDeletion();
@@ -220,7 +220,7 @@ class _AccountDeletionRequestScreenState
       });
       await _issueReceipt(repository, request);
     } catch (error) {
-      if (mounted) MortToast.show(context, userFacingError(error));
+      if (mounted) _showVerificationError(error);
     } finally {
       if (mounted) {
         _password.clear();
@@ -230,25 +230,47 @@ class _AccountDeletionRequestScreenState
   }
 
   Future<void> _cancel() async {
-    if (_busy || _password.text.isEmpty) return;
+    if (_busy || !_canVerify) return;
     setState(() => _busy = true);
     try {
-      await ref
-          .read(authRepositoryProvider)
-          .reauthenticateWithPassword(_password.text);
+      await _reauthenticateIfNeeded();
       if (!mounted) return;
       final request = await ref
           .read(accountDeletionRepositoryProvider)
           .cancelDeletion();
       if (mounted) setState(() => _request = request);
     } catch (error) {
-      if (mounted) MortToast.show(context, userFacingError(error));
+      if (mounted) _showVerificationError(error);
     } finally {
       if (mounted) {
         _password.clear();
         setState(() => _busy = false);
       }
     }
+  }
+
+  bool get _canVerify => _useRecentSignIn || _password.text.isNotEmpty;
+
+  Future<void> _reauthenticateIfNeeded() async {
+    // The RPC verifies the actual GoTrue session's age, identity and MFA.
+    // This option lets users with an OAuth-only account initiate in the app.
+    if (!_useRecentSignIn) {
+      await ref
+          .read(authRepositoryProvider)
+          .reauthenticateWithPassword(_password.text);
+    }
+  }
+
+  void _showVerificationError(Object error) {
+    if (error is MortCodedError &&
+        error.code == 'recent_reauthentication_required') {
+      MortToast.show(
+        context,
+        'Sign out and sign in again, complete any required verification, then return here.',
+      );
+      return;
+    }
+    MortToast.show(context, userFacingError(error));
   }
 
   Future<void> _issueReceipt(
@@ -269,16 +291,14 @@ class _AccountDeletionRequestScreenState
   }
 
   Future<void> _renewReceipt(AccountDeletionRequest request) async {
-    if (_busy || _password.text.isEmpty || !request.canIssueReceipt) return;
+    if (_busy || !_canVerify || !request.canIssueReceipt) return;
     setState(() => _busy = true);
     try {
-      await ref
-          .read(authRepositoryProvider)
-          .reauthenticateWithPassword(_password.text);
+      await _reauthenticateIfNeeded();
       if (!mounted) return;
       await _issueReceipt(ref.read(accountDeletionRepositoryProvider), request);
     } catch (error) {
-      if (mounted) MortToast.show(context, userFacingError(error));
+      if (mounted) _showVerificationError(error);
     } finally {
       if (mounted) {
         _password.clear();
@@ -323,9 +343,13 @@ class _AccountDeletionRequestScreenState
             label: 'Checking deletion status...',
             fullScreen: false,
           )
-        else if (_loadFailed)
-          MortButton(label: 'Retry loading status', onPressed: _load)
-        else ...[
+        else if (_loadFailed) ...[
+          const Text(
+            'If your account requires additional sign-in verification, '
+            'complete it before retrying.',
+          ),
+          MortButton(label: 'Retry loading status', onPressed: _load),
+        ] else ...[
           if (request != null)
             MortCard(
               child: Column(
@@ -360,15 +384,31 @@ class _AccountDeletionRequestScreenState
             SelectableText(_receipt!),
           ],
           if (canSubmit || canCancel || canRenew) ...[
-            MortTextField(
-              label: 'Confirm your password',
-              controller: _password,
-              obscureText: true,
-              autocorrect: false,
-              enableSuggestions: false,
-              autofillHints: const [AutofillHints.password],
-              onChanged: (_) => setState(() {}),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Use my recent sign-in'),
+              subtitle: const Text(
+                'Use this if you just signed in, including with Apple or Google. '
+                'MORT verifies your sign-in before accepting a request.',
+              ),
+              value: _useRecentSignIn,
+              onChanged: _busy
+                  ? null
+                  : (value) => setState(() {
+                      _password.clear();
+                      _useRecentSignIn = value;
+                    }),
             ),
+            if (!_useRecentSignIn)
+              MortTextField(
+                label: 'Confirm your password',
+                controller: _password,
+                obscureText: true,
+                autocorrect: false,
+                enableSuggestions: false,
+                autofillHints: const [AutofillHints.password],
+                onChanged: (_) => setState(() {}),
+              ),
             const SizedBox(height: MortSpacing.md),
           ],
           if (canCancel)
@@ -377,16 +417,14 @@ class _AccountDeletionRequestScreenState
               icon: Icons.undo,
               style: MortButtonStyle.secondary,
               busy: _busy,
-              onPressed: _password.text.isNotEmpty ? _cancel : null,
+              onPressed: _canVerify ? _cancel : null,
             ),
           if (canRenew)
             MortButton(
               label: 'Issue new status receipt',
               style: MortButtonStyle.secondary,
               busy: _busy,
-              onPressed: _password.text.isNotEmpty
-                  ? () => _renewReceipt(request)
-                  : null,
+              onPressed: _canVerify ? () => _renewReceipt(request) : null,
             ),
           if (canSubmit) ...[
             const SizedBox(height: MortSpacing.md),
@@ -404,9 +442,7 @@ class _AccountDeletionRequestScreenState
               icon: Icons.delete_outline,
               style: MortButtonStyle.danger,
               busy: _busy,
-              onPressed:
-                  _confirmation.text.trim() == 'DELETE' &&
-                      _password.text.isNotEmpty
+              onPressed: _confirmation.text.trim() == 'DELETE' && _canVerify
                   ? _submit
                   : null,
             ),

@@ -17,6 +17,7 @@ assert.ok(ANON_KEY && SERVICE_ROLE_KEY && ACCOUNT_DELETION_WORKER_SECRET, 'Local
 const options = { auth: { persistSession: false, autoRefreshToken: false } }
 const admin = createClient(API_URL, SERVICE_ROLE_KEY, options)
 const user = createClient(API_URL, ANON_KEY, options)
+const other = createClient(API_URL, ANON_KEY, options)
 const anonymous = createClient(API_URL, ANON_KEY, options)
 const email = `deletion-${randomUUID()}@mortapp.test`
 const password = `${randomBytes(24).toString('base64url')}Aa1!`
@@ -44,6 +45,13 @@ const subject = checked(await admin.auth.admin.createUser({
   email, password, email_confirm: true,
   user_metadata: { display_name: 'Deletion Fixture', date_of_birth: '1985-02-14' },
 }), 'Create local actor').user.id
+const otherEmail = `deletion-separate-${randomUUID()}@mortapp.test`
+const otherPassword = `${randomBytes(24).toString('base64url')}Bb2!`
+const otherSubject = checked(await admin.auth.admin.createUser({
+  email: otherEmail, password: otherPassword, email_confirm: true,
+  user_metadata: { display_name: 'Separate Deletion Fixture', date_of_birth: '1984-02-14' },
+}), 'Create separate local actor').user.id
+checked(await other.auth.signInWithPassword({ email: otherEmail, password: otherPassword }), 'Separate GoTrue sign-in')
 const objectName = `${subject}/${randomUUID()}.png`
 const { session } = checked(await user.auth.signInWithPassword({ email, password }), 'GoTrue sign-in')
 assert.ok(session?.refresh_token, 'GoTrue did not issue a refresh token')
@@ -52,10 +60,20 @@ const original = checked(await admin.storage.from(uploadBucket).download(objectN
 assert.deepEqual(Buffer.from(await original.arrayBuffer()), png)
 console.log('PASS: actual user session created and private object bytes verified')
 
-const request = (await user.rpc('request_account_deletion', { p_source: 'web' }))
-const created = checked(request, 'Request deletion')
+const requests = await Promise.all([
+  user.rpc('request_account_deletion', { p_source: 'web' }),
+  user.rpc('request_account_deletion', { p_source: 'web' }),
+])
+const created = checked(requests[0], 'Request deletion')
 assert.equal(created?.ok, true, created?.code)
 const id = created.request.id
+assert.equal(checked(requests[1], 'Concurrent same-account request')?.request?.id, id)
+assert.equal(checked(await other.rpc('get_my_account_deletion_request'), 'Separate request status')?.request, null)
+assert.equal(checked(await other.rpc('issue_my_account_deletion_receipt', { p_request_id: id }), 'Separate receipt attempt'), null)
+assert.equal(checked(await other.rpc('cancel_account_deletion_request'), 'Separate cancellation')?.ok, false)
+assert.ok((await other.from('account_deletion_requests').select('id').eq('id', id)).error)
+assert.ok((await other.rpc('service_claim_account_deletion_request', { p_request_id: id })).error)
+console.log('PASS: concurrent requests collapse to one; a separate GoTrue actor cannot view, receipt, cancel or claim it')
 const receipt = checked(await user.rpc('issue_my_account_deletion_receipt', { p_request_id: id }), 'Issue receipt')
 assert.match(receipt, /^[0-9a-f]{64}$/)
 const receiptStatus = async () => checked(await anonymous.rpc('get_account_deletion_receipt_status', { p_receipt: receipt }), 'Anonymous receipt')
@@ -75,6 +93,20 @@ checked(await admin.from('account_deletion_requests')
   .update({ requested_at: new Date(Date.now() - 301_000).toISOString() })
   .eq('id', nextId).eq('user_id', subject).eq('status', 'requested')
   .select('id').single(), 'Advance local fixture grace period')
+const lease = checked(await admin.rpc('service_claim_account_deletion_request', { p_request_id: nextId }), 'Fixture worker claim')
+assert.equal(lease.ok, true, lease.code)
+const firstLock = lease.request.processor_lock_id
+assert.equal(checked(await admin.rpc('service_complete_account_deletion_request', {
+  p_request_id: nextId, p_processor_lock_id: firstLock, p_retention_summary: 'Isolated fixture',
+}), 'Reject premature completion')?.code, 'deletion_absence_unconfirmed')
+assert.equal((await processRequest(nextId)).processed, 0, 'A live lease must not be stolen')
+checked(await admin.from('account_deletion_requests')
+  .update({ last_attempt_at: new Date(Date.now() - 901_000).toISOString() })
+  .eq('id', nextId).eq('processor_lock_id', firstLock).eq('status', 'processing')
+  .select('id').single(), 'Age only this fixture lease')
+assert.equal(checked(await admin.rpc('service_fail_account_deletion_request', {
+  p_request_id: nextId, p_processor_lock_id: firstLock, p_error_code: 'fixture_expired_lease',
+}), 'Reject stale lock')?.code, 'deletion_lock_mismatch')
 const removed = await processRequest(nextId)
 assert.equal(removed.processed, 1, removed.code)
 assert.equal(removed.removedStorageObjects, 1)
@@ -86,4 +118,7 @@ assert.ok((await user.auth.refreshSession({ refresh_token: session.refresh_token
 const missingObject = await admin.storage.from(uploadBucket).download(objectName)
 assert.equal(String(missingObject.error?.statusCode ?? missingObject.error?.status), '404')
 assert.deepEqual(checked(await anonymous.rpc('get_account_deletion_receipt_status', { p_receipt: nextReceipt }), 'Final receipt'), { status: 'completed' })
+assert.equal((await processRequest(nextId)).processed, 0, 'Completed request cannot be processed again')
+assert.equal(checked(await other.auth.getUser(), 'Other actor retains a working session').user.id, otherSubject)
+console.log('PASS: premature completion and stale lease rejected; expired claim recovered; duplicate processing is a no-op')
 console.log('PASS: Auth 404 user_not_found, profile absent, refresh revoked, object GET 404, completed receipt')
