@@ -354,12 +354,15 @@ jobs:
           cache: true
       - shell: pwsh
         run: ./scripts/build-android-device-test-apk.ps1 -RamusX64
-      - name: Verify native ABI and record artifact identity
+      - name: Verify Flutter engine ABI and record artifact identity
         run: |
           set -euo pipefail
           apk=build/device-test/mort-ramus-x64-qa.apk
-          abis="$(unzip -Z1 "$apk" | awk -F/ '$1=="lib" && $3!="" {print $2}' | sort -u)"
-          test "$abis" = x86_64
+          # Some plugins supply small libraries for additional ABIs. Verify
+          # this is the x86_64 Flutter build, not a general-purpose APK.
+          engine_abis="$(unzip -Z1 "$apk" | awk -F/ '$1=="lib" && $3=="libflutter.so" {print $2}' | sort -u)"
+          printf 'Flutter engine ABIs: %s\n' "$engine_abis"
+          test "$engine_abis" = x86_64
           (cd "$(dirname "$apk")" && sha256sum "$(basename "$apk")" | tee SHA256SUMS)
       - uses: actions/upload-artifact@v4
         with:
