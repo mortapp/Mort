@@ -6,6 +6,7 @@ import '../../core/errors/user_facing_error.dart';
 import '../../core/reviewer/reviewer_session.dart';
 import '../../core/theme/mort_colors.dart';
 import '../../core/theme/mort_spacing.dart';
+import '../../core/utils/date_of_birth.dart';
 import '../../core/utils/validators.dart';
 import '../../core/widgets/mort_widgets.dart';
 import '../../data/models/onboarding_progress.dart';
@@ -32,6 +33,7 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
   final _signInForm = GlobalKey<FormState>();
   final _signUpForm = GlobalKey<FormState>();
   final _email = TextEditingController();
+  final _dateOfBirth = TextEditingController();
   final _signInPassword = TextEditingController();
   final _signUpPassword = TextEditingController();
   late UnifiedAuthMode _mode;
@@ -65,6 +67,7 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
   @override
   void dispose() {
     _email.dispose();
+    _dateOfBirth.dispose();
     _signInPassword.dispose();
     _signUpPassword.dispose();
     super.dispose();
@@ -72,6 +75,7 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
 
   void _switchMode(UnifiedAuthMode mode) {
     if (_mode == mode || _busy) return;
+    if (mode == UnifiedAuthMode.signIn) _dateOfBirth.clear();
     setState(() {
       _mode = mode;
       _obscurePassword = true;
@@ -133,14 +137,24 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
       }
       final response = await ref
           .read(authRepositoryProvider)
-          .signUp(email: _email.text.trim(), password: _signUpPassword.text);
+          .signUp(
+            email: _email.text.trim(),
+            password: _signUpPassword.text,
+            dateOfBirth: _dateOfBirth.text,
+          );
       if (!mounted) return;
+      _signUpPassword.clear();
+      _dateOfBirth.clear();
       if (response.session == null) {
         MortToast.show(
           context,
           'Check your email to confirm the account, then sign in.',
         );
-        _switchMode(UnifiedAuthMode.signIn);
+        setState(() {
+          _mode = UnifiedAuthMode.signIn;
+          _obscurePassword = true;
+          _legalAcknowledged = false;
+        });
       } else {
         if (mounted) context.go('/onboarding');
       }
@@ -243,6 +257,19 @@ class _UnifiedAuthScreenState extends ConsumerState<UnifiedAuthScreen> {
                       : MortValidators.email(value),
                   onChanged: _onEmailChanged,
                 ),
+                if (!_isSignIn) ...[
+                  const SizedBox(height: MortSpacing.sm),
+                  MortTextField(
+                    label: 'Date of birth (MM/DD/YYYY)',
+                    controller: _dateOfBirth,
+                    keyboardType: TextInputType.datetime,
+                    textInputAction: TextInputAction.next,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    validator: (value) =>
+                        DateOfBirthRules.validateForSignup(value).message,
+                  ),
+                ],
                 if (_reviewerIdentifierEntered) ...[
                   const SizedBox(height: MortSpacing.md),
                   const MortGlassSoftSurface(

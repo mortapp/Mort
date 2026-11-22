@@ -8,6 +8,7 @@ import '../../core/auth/oauth_flow.dart';
 import '../../core/config/app_config.dart';
 import '../../core/errors/mort_error.dart';
 import '../../core/observability/operational_telemetry.dart';
+import '../../core/utils/date_of_birth.dart';
 import '../../core/utils/leaked_password_check.dart';
 import '../../services/push/push_notification_coordinator.dart';
 import '../services/secure_device_storage.dart';
@@ -115,7 +116,13 @@ class AuthRepository {
   Future<AuthResponse> signUp({
     required String email,
     required String password,
+    required String dateOfBirth,
   }) async {
+    final age = DateOfBirthRules.validateForSignup(dateOfBirth);
+    final validatedDate = age.date;
+    if (validatedDate == null) {
+      throw MortCodedError('signup_date_of_birth_required', age.message!);
+    }
     // Leaked-password protection (HIBP k-anonymity, checked through the
     // backend edge function before the password is ever sent to Supabase
     // Auth). Fails open when the check is unavailable.
@@ -128,6 +135,7 @@ class AuthRepository {
     final response = await SupabaseService.client.auth.signUp(
       email: email,
       password: password,
+      data: {'date_of_birth': DateOfBirthParser.toIsoDate(validatedDate)},
       emailRedirectTo: AppConfig.resolvedAuthConfirmationRedirectUrl,
     );
     return response;

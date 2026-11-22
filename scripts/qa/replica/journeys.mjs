@@ -100,13 +100,18 @@ async function makeStaff(label, role) {
 actors.admin = await makeStaff('admin', 'admin');
 actors.moderator = await makeStaff('moderator', 'moderator');
 
-// ---------- email signup without DOB (current Flutter client contract) ----------
+// ---------- email signup requires valid DOB metadata; it never activates an account ----------
 {
   const { anonClient } = await import('./lib.mjs');
   const c = anonClient();
   const { error } = await c.auth.signUp({ email: `nodob-${run}@example.test`, password: PW });
-  record('P4-signup', 'email signup without date_of_birth metadata (what flutter_mort main sends) is rejected by on_auth_user_created_mort',
+  record('P4-signup', 'email signup without date_of_birth metadata is rejected by on_auth_user_created_mort',
     Boolean(error), error?.message ?? 'accepted');
+  const a = await signUpAndConfirm({ email: `agegate-${run}@example.test`, password: PW, dob: yearsAgo(32) });
+  const p = await profileOf(a);
+  record('P4-signup', 'ISO date metadata allows email signup and leaves the new profile pending and unverified',
+    p?.account_status === 'pending' && p?.onboarding_completed_at == null &&
+      !['approved', 'verified'].includes(p?.verification_status), p?.account_status ?? 'missing_profile');
 }
 
 // ---------- adults ----------

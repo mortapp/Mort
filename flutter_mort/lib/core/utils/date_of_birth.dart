@@ -119,6 +119,22 @@ class DateOfBirthRules {
   static const teenMaximumAge = 17;
   static const adultMinimumAge = 18;
 
+  static DateOfBirthValidation validateForSignup(
+    String? value, {
+    DateTime? today,
+  }) {
+    final calendar = today ?? DateTime.now().toUtc();
+    final result = DateOfBirthParser.validate(value, today: calendar);
+    final dob = result.date;
+    if (dob == null) return result;
+    if (DateOfBirthParser.ageOn(dob, calendar) < teenMinimumAge) {
+      return const DateOfBirthValidation.invalid(
+        'You must be at least 13 to create a MORT account.',
+      );
+    }
+    return result;
+  }
+
   static String? roleAgeError({required int age, required bool teenRole}) {
     if (teenRole) {
       if (age < teenMinimumAge || age > teenMaximumAge) {

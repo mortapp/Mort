@@ -18,9 +18,13 @@ import 'services/push/remote_push_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (AppConfig.browserStackQaMode || AppConfig.validationErrors.isNotEmpty) {
+  if (AppConfig.browserStackQaMode) {
+    _runApp();
+    return;
+  }
+  if (AppConfig.validationErrors.isNotEmpty) {
     // Render the startup gate without initializing an optional provider when
-    // native configuration is missing, inconsistent, or fixture-only.
+    // native configuration is missing or inconsistent.
     _runAppWithFallbackHandlers();
     return;
   }
