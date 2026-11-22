@@ -20,6 +20,18 @@ jobs:
       - uses: actions/checkout@v7
       - run: python3 scripts/qa/test_ios_release_policy.py
 
+  ios-simulator-entry:
+    runs-on: macos-26
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+      - run: bash scripts/qa/ios-simulator-entry.sh
+
   android-qa-bundle:
     runs-on: ubuntu-24.04
     timeout-minutes: 35

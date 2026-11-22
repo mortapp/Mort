@@ -18,8 +18,10 @@ import 'services/push/remote_push_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (AppConfig.browserStackQaMode) {
-    _runApp();
+  if (AppConfig.browserStackQaMode || AppConfig.validationErrors.isNotEmpty) {
+    // Render the startup gate without initializing an optional provider when
+    // native configuration is missing, inconsistent, or fixture-only.
+    _runAppWithFallbackHandlers();
     return;
   }
   // Android 15+ (targetSdk 35+, which MORT uses) enforces edge-to-edge
@@ -78,16 +80,9 @@ void _runAppWithFallbackHandlers() {
     );
     return reporter.providerConfigured;
   };
-  runZonedGuarded(_runApp, (error, stackTrace) {
-    unawaited(
-      reporter.record(error, stackTrace, fatal: true, context: 'root_zone'),
-    );
-    if (!reporter.providerConfigured) {
-      FlutterError.presentError(
-        FlutterErrorDetails(exception: error, stack: stackTrace),
-      );
-    }
-  });
+  // Keep runApp in the same zone as WidgetsFlutterBinding. The framework and
+  // platform handlers above already cover their respective uncaught errors.
+  _runApp();
 }
 
 class MortBootstrap extends StatefulWidget {
@@ -177,7 +172,8 @@ class _MortBootstrapState extends State<MortBootstrap> {
               if (failed) ...[
                 const MortErrorState(
                   title: 'MORT could not start',
-                  message: 'Check your connection and try again. No private key is required in the app.',
+                  message:
+                      'Check your connection and try again. No private key is required in the app.',
                 ),
                 const SizedBox(height: 16),
                 MortButton(

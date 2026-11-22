@@ -146,6 +146,22 @@ for (( i=1; i<=30; i++ )); do
         awk '/libflutter[.]so|libapp[.]so/ {n=split($NF,a,"/"); print a[n]}' | sort -u || true)"
       printf 'Relevant mapped libraries: %s\n' "${native_maps:-unavailable (see linker diagnostics)}"
       shell dumpsys meminfo "$package" | awk '/TOTAL PSS|TOTAL RSS|TOTAL SWAP|Native Heap|Graphics/' || true
+      if [[ "${MORT_REQUIRE_WELCOME:-0}" == 1 ]]; then
+        ui_path=/data/local/tmp/mort-qa-welcome.xml
+        shell rm -f "$ui_path"
+        shell uiautomator dump "$ui_path" >/dev/null
+        # Never print the view tree, and require both actual Flutter CTAs.
+        ui="$(shell cat "$ui_path")"
+        shell rm -f "$ui_path"
+        if [[ "$ui" != *'I already have an account'* || "$ui" != *'Create account'* ]]; then
+          echo 'MORT has native focus but its Flutter welcome actions were not both rendered.' >&2
+          exit 1
+        fi
+        test "$(shell pidof "$package")" = "$ps_pid"
+        device_online
+        adb_run logcat -b crash -d -t 100 -v brief >/dev/null
+        echo 'Actual Flutter welcome actions verified; no sign-in or hosted journey was attempted.'
+      fi
       exit 0
     fi
   else

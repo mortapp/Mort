@@ -89,6 +89,7 @@ class AppConfig {
     'MORT_SUPABASE_PROJECT_REF',
     defaultValue: '',
   );
+  static const nativeHostedQa = bool.fromEnvironment('MORT_NATIVE_HOSTED_QA');
   static const supportRoute = String.fromEnvironment(
     'MORT_SUPPORT_ROUTE',
     defaultValue: '/support',
@@ -388,6 +389,7 @@ class AppConfig {
         maintenanceMode: maintenanceMode,
         debugEndpointsEnabled: debugEndpointsEnabled,
         browserStackQaMode: browserStackQaMode,
+        nativeHostedQa: nativeHostedQa,
       );
 
   static Map<String, String> get safeReleaseDiagnostics => {
@@ -402,7 +404,16 @@ class AppConfig {
   };
 
   static List<String> get validationErrors {
-    final errors = <String>[...releaseConfiguration.validationErrors];
+    final configuration = releaseConfiguration;
+    final errors = <String>[
+      ...configuration.validationErrors,
+      ...configuration.applicationBackendValidationErrors,
+      if (nativeHostedQa &&
+          (kIsWeb ||
+              (defaultTargetPlatform != TargetPlatform.android &&
+                  defaultTargetPlatform != TargetPlatform.iOS)))
+        'Hosted QA is restricted to Android and iOS',
+    ];
     if (!hasKnownReleaseProfile) {
       errors.add('unknown release profile');
     }
@@ -415,17 +426,6 @@ class AppConfig {
 
     final isRelease = releaseStage != 'development';
     if (isRelease) {
-      if (!browserStackQaMode) {
-        if (!isSupabaseConfigured) {
-          errors.add('hosted Supabase public configuration is missing');
-        }
-        if (supabaseProjectRef != expectedSupabaseProjectRef ||
-            supabaseUrl != 'https://$expectedSupabaseProjectRef.supabase.co') {
-          errors.add(
-            'Supabase project does not match the approved MORT project',
-          );
-        }
-      }
       if (iapEnabled || nativeBillingCompiledIn) {
         errors.add('native billing must be absent from this release');
       }

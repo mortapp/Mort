@@ -25,15 +25,22 @@ MortReleaseConfiguration configuration({
   String safetyVersion = 'draft-2026-07',
   bool debugEndpointsEnabled = false,
   bool browserStackQaMode = false,
+  bool nativeHostedQa = false,
+  String? backendRef,
+  String? backendUrl,
 }) {
   final hosted = profile.requiresHostedBackend;
   return MortReleaseConfiguration(
     profile: profile,
     releaseStage: releaseStage ?? profile.value,
     operationalMode: profile.value,
-    supabaseUrl: hosted ? 'https://jxbnrkasktbhtiujkhay.supabase.co' : '',
-    supabaseAnonKey: hosted ? 'public-anon-key' : '',
-    supabaseProjectRef: hosted ? 'jxbnrkasktbhtiujkhay' : '',
+    supabaseUrl:
+        backendUrl ??
+        (backendRef != null
+            ? 'https://$backendRef.supabase.co'
+            : (hosted ? 'https://jxbnrkasktbhtiujkhay.supabase.co' : '')),
+    supabaseAnonKey: hosted || backendRef != null ? 'public-anon-key' : '',
+    supabaseProjectRef: backendRef ?? (hosted ? 'jxbnrkasktbhtiujkhay' : ''),
     expectedSupabaseProjectRef: 'jxbnrkasktbhtiujkhay',
     googleAuthEnabled: googleAuthEnabled,
     appleAuthEnabled: appleAuthEnabled,
@@ -61,10 +68,64 @@ MortReleaseConfiguration configuration({
     maintenanceMode: false,
     debugEndpointsEnabled: debugEndpointsEnabled,
     browserStackQaMode: browserStackQaMode,
+    nativeHostedQa: nativeHostedQa,
   );
 }
 
 void main() {
+  test('native hosted QA allows only its pinned internal QA environment', () {
+    const qa = MortReleaseConfiguration.hostedQaProjectRef;
+    final accepted = configuration(
+      profile: MortReleaseProfile.automatedTest,
+      releaseStage: 'internal_test',
+      nativeHostedQa: true,
+      backendRef: qa,
+    );
+    expect(accepted.validationErrors, isEmpty);
+    expect(accepted.applicationBackendValidationErrors, isEmpty);
+    final rejected = [
+      configuration(
+        profile: MortReleaseProfile.productionCandidate,
+        releaseStage: 'production_pilot',
+        nativeHostedQa: true,
+        backendRef: qa,
+      ),
+      configuration(
+        profile: MortReleaseProfile.productionCandidate,
+        releaseStage: 'production_pilot',
+        backendRef: qa,
+      ),
+      configuration(
+        profile: MortReleaseProfile.automatedTest,
+        releaseStage: 'internal_test',
+        backendRef: qa,
+      ),
+      configuration(
+        profile: MortReleaseProfile.automatedTest,
+        releaseStage: 'internal_test',
+        nativeHostedQa: true,
+        backendRef: 'jxbnrkasktbhtiujkhay',
+      ),
+      configuration(
+        profile: MortReleaseProfile.automatedTest,
+        releaseStage: 'internal_test',
+        nativeHostedQa: true,
+        backendRef: qa,
+        backendUrl: 'https://$qa.supabase.co.invalid',
+      ),
+      configuration(
+        profile: MortReleaseProfile.automatedTest,
+        releaseStage: 'internal_test',
+        nativeHostedQa: true,
+        backendRef: qa,
+        adsEnabled: true,
+      ),
+    ];
+    for (final config in rejected) {
+      expect(config.applicationBackendValidationErrors, isNotEmpty);
+    }
+  });
+
   test('defines the six authoritative release profiles', () {
     expect(MortReleaseProfile.values.map((profile) => profile.value), [
       'development',

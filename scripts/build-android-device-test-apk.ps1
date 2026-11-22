@@ -65,6 +65,8 @@ $defines = @(
 
 if ($BrowserStackQa) {
   $defines += '--dart-define=MORT_BROWSERSTACK_QA_MODE=true'
+} else {
+  $defines += '--dart-define=MORT_NATIVE_HOSTED_QA=true'
 }
 
 if ($RamusX64) {
@@ -91,7 +93,7 @@ try {
   & flutter config --jdk-dir="$env:JAVA_HOME"
   if ($LASTEXITCODE -ne 0) { throw 'Flutter could not select the configured JDK 17.' }
 
-  & flutter pub get
+  & flutter pub get --enforce-lockfile
   if ($LASTEXITCODE -ne 0) { throw 'flutter pub get failed.' }
 
   if ($ReleaseBundle) {
