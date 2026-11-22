@@ -336,6 +336,40 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  android-ramus-qa-apk:
+    # A single-ABI derivative, never the previously recorded APK or a store AAB.
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+      - shell: pwsh
+        run: ./scripts/build-android-device-test-apk.ps1 -RamusX64
+      - name: Verify native ABI and record artifact identity
+        run: |
+          set -euo pipefail
+          apk=build/device-test/mort-ramus-x64-qa.apk
+          abis="$(unzip -Z1 "$apk" | awk -F/ '$1=="lib" && $3!="" {print $2}' | sort -u)"
+          test "$abis" = x86_64
+          (cd "$(dirname "$apk")" && sha256sum "$(basename "$apk")" | tee SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mort-android-ramus-x64-qa
+          path: |
+            build/device-test/mort-ramus-x64-qa.apk
+            build/device-test/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
+
   flutter-ios-unsigned:
     # Simulator only: no secrets, physical devices, archive, signing or store access.
     runs-on: macos-26
@@ -363,6 +397,30 @@ jobs:
             --dart-define=MORT_OPERATIONAL_MODE=automated_test
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' build/ios/iphonesimulator/Runner.app/Info.plist
           find build/ios/iphonesimulator/Runner.app -name PrivacyInfo.xcprivacy -print | sort
+
+  flutter-ios-unsigned-archive:
+    # Compiles device arm64/Release only. No signing credentials, export,
+    # provisioning, upload to Apple, or real-device QA in this job.
+    runs-on: macos-26
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: flutter_mort
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+      - name: Build and inspect the unsigned device archive
+        run: bash ../scripts/qa/ios-unsigned-archive.sh "$RUNNER_TEMP/mort-ios-unsigned"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mort-ios-unsigned-device-archive
+          path: ${{ runner.temp }}/mort-ios-unsigned/
+          if-no-files-found: error
+          retention-days: 7
 
   android-16kb-qa-smoke:
     # Compare the same APK on matched images, with the kernel page size measured.
@@ -397,8 +455,9 @@ jobs:
           api-level: 36
           arch: x86_64
           target: ${{ matrix.target }}
+          ram-size: 4096M
           disable-animations: true
-          script: bash scripts/qa/android-16kb-smoke.sh "$RUNNER_TEMP/mort-16kb/mort-device-test.apk" "${{ matrix.page_size }}"
+          script: bash scripts/qa/android-16kb-smoke.sh "$RUNNER_TEMP/mort-16kb/mort-device-test.apk" "${{ matrix.page_size }}" 3500000
 
   android-prod-device-test-apk:
     runs-on: ubuntu-latest
