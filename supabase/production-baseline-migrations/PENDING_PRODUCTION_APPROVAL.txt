@@ -3,3 +3,4 @@
 20261122150000_staff_role_active_account.sql
 20261119100000_account_deletion_processor_port.sql
 20261122151000_deletion_lease_identity_and_receipt.sql
+20261122152000_deletion_unapproved_application_cascades.sql

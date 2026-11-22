@@ -6,7 +6,10 @@ select
   to_regprocedure('public.get_account_deletion_receipt_status(text)') is not null as receipt_present,
   to_regprocedure('public.service_assert_account_deletion_lease(uuid,uuid)') is not null as lease_present,
   to_regprocedure('public.service_complete_account_deletion_request(uuid,uuid,text)') is not null as completion_present,
-  to_regclass('private.account_deletion_legal_holds') is not null as hold_present;
+  to_regclass('private.account_deletion_legal_holds') is not null as hold_present,
+  exists (select 1 from pg_trigger
+    where tgrelid='auth.users'::regclass and tgname='mort_deletion_protect_auth_history'
+      and tgenabled in ('O','A')) as auth_retention_guard_enabled;
 
 select target, actor, has_function_privilege(actor, to_regprocedure(target), 'EXECUTE') as allowed
 from (values
