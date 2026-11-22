@@ -267,10 +267,14 @@ jobs:
       - uses: supabase/setup-cli@v3
         with:
           version: 2.122.1
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
       - run: pnpm install --frozen-lockfile
       - name: Build production replica, verify parity, run journeys and authz suites
         env:
           REPLICA_OUT: ${{ runner.temp }}/replica-out
+          RUN_ACCOUNT_DELETION: '1'
         run: scripts/qa/replica/build-and-test.sh
       - if: always()
         uses: actions/upload-artifact@v4
@@ -354,6 +358,5 @@ jobs:
           path: build/device-test/mort-prod-device-test.apk
           if-no-files-found: error
           retention-days: 7
-
 
 
