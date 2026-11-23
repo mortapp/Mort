@@ -88,6 +88,9 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
+        if (System.getenv("MORT_RAMUS_X64") == "true") {
+            ndk { abiFilters += "x86_64" }
+        }
     }
 
     signingConfigs {
