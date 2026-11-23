@@ -24,4 +24,18 @@ const secretCheck = handler.indexOf("constantTimeEqual(workerSecret, suppliedSec
 assert.ok(secretCheck > configurationGuard,
   "configuration must be checked before comparing the worker secret");
 
-console.log("account-deletion package tests: 6/6 passed");
+
+assert.ok(existsSync(join(functionDir, "request.ts")),
+  "worker package must include bounded request parsing");
+assert.ok(existsSync(join(functionDir, "auth_identity.ts")),
+  "worker package must include Auth identity confirmation");
+assert.ok(handler.includes('from "./request.ts"'));
+assert.ok(handler.includes('from "./auth_identity.ts"'));
+assert.ok(handler.includes("service_assert_account_deletion_lease"),
+  "worker must verify its lease before destructive stages");
+assert.ok(handler.includes("DeletionStorageRemovalDidNotProgress"),
+  "worker must fail closed if storage pagination stops progressing");
+assert.ok(handler.includes("AbortSignal.timeout(12_000)"),
+  "worker network calls must have bounded timeouts");
+
+console.log("account-deletion package, lease, and bounded-I/O assertions passed");
