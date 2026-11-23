@@ -53,6 +53,14 @@ if [[ "$status" != 0 ]] && [[ "$(adb_short get-state 2>/dev/null || true)" != de
   exit 75
 fi
 if [[ "$status" == 0 ]]; then
+  if [[ "$(adb_short get-state 2>/dev/null || true)" != device ]]; then
+    echo 'INCONCLUSIVE: ADB transport was lost before welcome-action verification.' >&2
+    exit 75
+  fi
   bash "$(dirname "$0")/android-welcome-actions.sh" || status=$?
+  if [[ "$status" != 0 ]] && [[ "$(adb_short get-state 2>/dev/null || true)" != device ]]; then
+    echo 'INCONCLUSIVE: ADB transport was lost during welcome-action verification.' >&2
+    exit 75
+  fi
 fi
 exit "$status"
