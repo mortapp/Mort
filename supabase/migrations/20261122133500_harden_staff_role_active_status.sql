@@ -14,8 +14,10 @@ as $$
       and ur.user_id = (select auth.uid())
       and ur.role = any(required_roles)
       and profile.account_status = 'active'
-      and (profile.blocked_until is null or profile.blocked_until < now())
   );
 $$;
 
-revoke all on function private.has_staff_role(public.mort_role[]) from public, anon, authenticated;
+-- Existing authenticated Storage/RLS policies invoke this private boolean
+-- helper. Keep that role's execution grant without exposing it to anon.
+revoke all on function private.has_staff_role(public.mort_role[]) from public, anon;
+grant execute on function private.has_staff_role(public.mort_role[]) to authenticated;

@@ -16,47 +16,64 @@ OUT="${REPLICA_OUT:-$ROOT/.replica-out}"
 mkdir -p "$OUT"
 
 # GitHub-hosted runners can retain another local Supabase stack or run jobs
-# concurrently on the same host. The checked-in config uses the conventional
-# 54321-54323 ports, which makes an otherwise unrelated stack fail this job
-# before parity or migration tests start. Copy only the disposable replica
-# project and allocate a fresh API/DB/Studio port block for this invocation.
+# concurrently on the same host. Allocate isolated names and host ports for
+# the disposable copy, independent of the checked-in port defaults.
 REPLICA_WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/mort-production-replica.XXXXXX")"
+REPLICA_RUN_ID="mort-replica-$(basename "$REPLICA_WORKDIR" | cut -d. -f2 | tr '[:upper:]' '[:lower:]')"
 cleanup_replica() {
   (cd "$REPLICA_WORKDIR" && supabase stop --no-backup >/dev/null 2>&1) || true
   rm -rf "$REPLICA_WORKDIR"
 }
 trap cleanup_replica EXIT
 cp -a "$PROJ/." "$REPLICA_WORKDIR/"
-read -r API_PORT DB_PORT STUDIO_PORT < <(python3 - <<'PY'
-import socket
-
-ports = []
-for _ in range(3):
-    sock = socket.socket()
-    sock.bind(('127.0.0.1', 0))
-    ports.append(str(sock.getsockname()[1]))
-    sock.close()
-print(*ports)
-PY
-)
-python3 - "$REPLICA_WORKDIR/supabase/config.toml" "$API_PORT" "$DB_PORT" "$STUDIO_PORT" <<'PY'
+python3 - "$REPLICA_WORKDIR/supabase/config.toml" "$REPLICA_RUN_ID" <<'PY'
 from pathlib import Path
+import re
+import socket
 import sys
+import tomllib
 
-config = Path(sys.argv[1])
-text = config.read_text()
-text = text.replace('port = 54321', f'port = {sys.argv[2]}', 1)
-text = text.replace('port = 54322', f'port = {sys.argv[3]}', 1)
-text = text.replace('port = 54323', f'port = {sys.argv[4]}', 1)
-config.write_text(text)
+path, project_id = Path(sys.argv[1]), sys.argv[2]
+addresses = [("api", "port"), ("db", "port"), ("db", "shadow_port"),
+             ("db.pooler", "port"), ("studio", "port"), ("inbucket", "port")]
+sockets = [socket.socket() for _ in addresses]
+try:
+    for sock in sockets:
+        sock.bind(("0.0.0.0", 0))
+    ports = dict(zip(addresses, (sock.getsockname()[1] for sock in sockets)))
+    changes = {**ports, ("", "project_id"): f'"{project_id}"'}
+    section = ""
+    output = []
+    for line in path.read_text().splitlines(keepends=True):
+        heading = re.match(r"^\[([^\]]+)\]\s*$", line)
+        if heading:
+            section = heading[1]
+        field = re.match(r"^([a-z_][a-z_0-9]*)\s*=", line)
+        if field and (section, field[1]) in changes:
+            key = field[1]
+            line = f"{key} = {changes.pop((section, key))}\n"
+        output.append(line)
+    if changes:
+        raise SystemExit(f"Missing replica config fields: {sorted(changes)}")
+    result = "".join(output)
+    parsed = tomllib.loads(result)
+    for (key, attribute), port in ports.items():
+        table = parsed
+        for part in key.split("."):
+            table = table[part]
+        if table[attribute] != port:
+            raise SystemExit(f"Replica port was not assigned: {key}.{attribute}")
+    path.write_text(result)
+finally:
+    for sock in sockets:
+        sock.close()
 PY
 cd "$REPLICA_WORKDIR"
-supabase stop --no-backup >/dev/null 2>&1 || true
 supabase start -x studio,imgproxy,logflare,vector,supavisor,edge-runtime,postgres-meta >"$OUT/start.log" 2>&1
 supabase status -o env 2>/dev/null | sed 's/^/export /' >"$OUT/replica.env"
 # shellcheck disable=SC1091
 . "$OUT/replica.env"
-DB="supabase_db_mort-production-replica"
+DB="supabase_db_$REPLICA_RUN_ID"
 
 psqlf() { docker cp "$1" "$DB:/tmp/in.sql" && docker exec "$DB" psql -U postgres -v ON_ERROR_STOP=1 -q ${2:-} -f /tmp/in.sql >>"$OUT/build.log" 2>&1 || { echo "FAILED applying $1"; tail -20 "$OUT/build.log"; exit 1; }; }
 
@@ -82,6 +99,9 @@ if [ "${PRE_FIX:-0}" != "1" ]; then
     echo "== pending production-baseline migration: $m"
     psqlf "$ROOT/supabase/production-baseline-migrations/$m"
   done <"$ROOT/supabase/production-baseline-migrations/PENDING_PRODUCTION_APPROVAL.txt"
+  echo "== staff-role PR migration and live-session matrix (disposable replica only)"
+  psqlf "$ROOT/supabase/migrations/20261122133500_harden_staff_role_active_status.sql" -1
+  export MORT_REPLICA_STAFF_ROLE_MATRIX=1
 fi
 
 cd "$ROOT"
