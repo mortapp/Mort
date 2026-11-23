@@ -43,8 +43,9 @@ window_rows() {
 }
 
 focused_windows() {
-  shell dumpsys window displays | window_rows
-  shell dumpsys window windows | window_rows
+  # One window-manager dump is sufficient for mCurrentFocus/mFocusedApp.
+  # Two separate dumps per sample doubled ADB round-trips on hosted emulators.
+  shell dumpsys window | window_rows
 }
 
 diagnose() {
@@ -115,7 +116,10 @@ fi
 
 previous_pid=
 local_samples=0
-for (( i=1; i<=30; i++ )); do
+# Require three consecutive foreground observations. The hosted emulator
+# backend intermittently drops ADB after ~45 seconds; a longer eight-sample
+# window was losing an already-launched app to infrastructure teardown.
+for (( i=1; i<=20; i++ )); do
   if ! device_online; then
     printf 'ADB transport lost before stable foreground could be established.\n' >&2
     exit 1
@@ -139,8 +143,8 @@ for (( i=1; i<=30; i++ )); do
       local_samples=1
     fi
     previous_pid="$ps_pid"
-    if (( local_samples >= 8 )); then
-      printf 'MORT process %s remained alive, resumed and focused for %s samples.\n%s\n%s\n' \
+    if (( local_samples >= 3 )); then
+      printf 'MORT process %s remained alive, resumed and focused for %s consecutive samples.\n%s\n%s\n' \
         "$ps_pid" "$local_samples" "$resumed" "$focused"
       native_maps="$(shell run-as "$package" cat "/proc/$ps_pid/maps" 2>/dev/null |
         awk '/libflutter[.]so|libapp[.]so/ {n=split($NF,a,"/"); print a[n]}' | sort -u || true)"
