@@ -110,3 +110,28 @@ For a correctly configured deployment, an invocation without the worker secret m
 - PR #125 CI run `45061830844` — passed; replica acceptance job `137329243501` — passed.
 - Hosted QA deployment and authorized hosted worker E2E: **not verified** because owner-controlled QA credentials and deployment authorization are unavailable in this session.
 - Production deployment: **not executed**.
+
+
+## Live production and hosted-QA recheck — 2026-11-23
+
+Read-only checks found the following state:
+
+| Item | Production | Hosted QA |
+|---|---|---|
+| `account-deletion-processor` | ACTIVE, version 1 | ACTIVE, version 2 |
+| Function source SHA-256 | `ff4e25dbc8f29789cb136c3b42bed2f080fee8506353176f4f57c3ca73356963` | `80cc24fc5a185b84ab6ba5d731828c43b174a0463a3780b2519c54297e18d8f9` |
+| Worker source | Older package | Newer lease/timeout/identity-confirmation package |
+
+The production version currently throws during module initialization if any required worker secret is missing. The PR #125 package change instead keeps the handler alive and returns a fail-closed HTTP 503 configuration response before secret comparison or database access. The hosted-QA version has additional lease checks, bounded network timeouts, stricter claim validation, Auth-identity confirmation, and storage-listing progress checks that are not present in the inspected production version.
+
+**Do not assume the QA worker is the production worker.** Do not invoke either worker as a smoke test with a real user or production request.
+
+### Scheduler evidence
+
+The production catalog has no `cron` schema and no `pg_cron` or `pg_net` extension. Repository search found no account-deletion scheduled workflow or Vercel cron declaration. This does not rule out an external scheduler outside the connected repositories, but no automatic invocation mechanism is currently evidenced. The owner must identify and configure an approved scheduler before the deletion service can be called operational.
+
+### QA harness target safety
+
+The default-branch `scripts/qa-account-deletion-processor.mjs` still contains a hard-coded production project reference. The PR #125 branch changes that harness to the isolated QA project and adds a hard stop against both production and the retired project. **Do not run the default-branch harness.** Run only the PR #125 QA-pinned copy after reviewing the branch and supplying the required QA-only secrets through a protected environment.
+
+No worker deployment, invocation, secret retrieval, scheduled job creation, or production change was performed during this recheck.
