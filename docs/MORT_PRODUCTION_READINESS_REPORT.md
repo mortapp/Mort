@@ -349,3 +349,16 @@ BrowserStack's iOS App Automate workflow uploads a device-built IPA and re-signs
 - A direct live HTTP response for `https://mortapp.org/account-deletion` could not be independently fetched in this recheck. Do not claim the deployed route or mailbox correction is live.
 
 No production data, schema, release controls, Edge Functions, secrets, payments, deployment, signing, or store artifacts were modified.
+
+
+
+### Fresh Supabase security-advisor detail — 2026-11-23 16:10 ET
+
+A fresh production security-advisor read returned three relevant categories:
+
+- One anonymous GraphQL/table-visibility warning: `public.mort_release_control` is selectable by `anon`. Direct catalog inspection confirms RLS is enabled and the only SELECT policy is the explicit `mort_release_control_public_status_read` policy for `anon, authenticated`, restricted to `is_primary`. This appears to be the intentional public release-status read path, but the advisor warning should remain documented and the exact exposed fields should be reviewed before changing grants.
+- Thirty-nine authenticated GraphQL/table-visibility warnings: every corresponding table in the current public-schema grant inventory has RLS enabled; no other table in that inventory grants SELECT to `anon`. This is not proof of cross-account data exposure, because RLS and the individual policy predicates still govern rows. Review each policy for tenant/role isolation and GraphQL field exposure; do not blanket-revoke grants or label these warnings as confirmed leaks.
+- Seventy authenticated-executable public SECURITY DEFINER function warnings remain. These require per-function authorization review; do not blanket-revoke EXECUTE because existing application RPCs may intentionally use SECURITY DEFINER with internal authorization checks.
+- The advisor also reports Supabase Auth leaked-password protection disabled. This remains a plan-limited enhancement on the current project tier, not a reason to bypass password controls or claim the setting is enabled.
+
+Direct read-only contract checks confirm production still lacks the account-deletion request table and claim/complete/lease RPCs; hosted QA has the table and all three tested service RPCs. The exact QA completion signature is `service_complete_account_deletion_request(uuid, uuid, text)`. Production release-control row still reports `production_public`, marketplace enabled, and real document collection enabled. No production write was performed.
