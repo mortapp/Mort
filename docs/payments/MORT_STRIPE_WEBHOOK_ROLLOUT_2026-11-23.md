@@ -1,0 +1,27 @@
+# MORT Stripe webhook rollout gate
+
+Status: **Do not activate live payments.** This change is a marketplace webhook hardening candidate. It is not a production migration from the legacy assignment-payment schema and is not approval to toggle any live control.
+
+## Preflight
+
+Verify which Stripe account and mode are paired with each Supabase project. Inventory the deployed Edge Functions, database RPCs, and both webhook scopes before planning the cutover. Endpoint registration by itself is not proof of a working signing secret or an authenticated delivery. Local tests do not prove hosted provider behavior.
+
+## Candidate behavior and recovery
+
+- Claim a verified delivery by environment/event ID and lease its resource before making Stripe reads. Only the current claim can commit an observation or write failure. Same-ID duplicates and independently delivered unchanged state do not repeat the local operation. Recoverable active leases get a retriable response, not a false acknowledgment.
+- Read the current Stripe object after claiming rather than treating a delayed snapshot as current state. See [Stripe webhook delivery behavior](https://docs.stripe.com/webhooks#event-delivery-behaviors). Payment funding requires an exact capture amount. Transfers verify amount, currency and destination and record partial or full reversals without reopening a job.
+- Treat `refund.created`, `refund.updated` and `refund.failed` as the authoritative refund stream; record `charge.refunded` as an informational charge summary. Maintain dispute/chargeback precedence across refund updates. See [Stripe refunds](https://docs.stripe.com/refunds) and [Stripe event types](https://docs.stripe.com/api/events/types).
+- Platform and Connect deliveries use separate secrets and subscriptions. Payouts are read in the signing event's connected-account context. `transfer.canceled` is not a current public v1 snapshot event in [Stripe's event catalog](https://docs.stripe.com/api/events/types). Do not add it to a new endpoint; compatibility handling requires Stripe to confirm a full reversal rather than guessing.
+- The service-only `stripe_server_webhook_reconciliation_status_v1` RPC reports failed and stale webhook counts and old unquantified transfer reversals. It is a backlog signal, not a complete Stripe-to-ledger reconciliation job. Tip-specific reversals/refunds/disputes remain a separate reconciliation concern; the candidate fails those events visibly rather than treating them as gig transactions.
+
+## Release order and evidence
+
+1. Reconcile the production schema with the reviewed marketplace baseline through an explicit migration and legacy-client cutover plan. Do not replay the generic QA chain onto production. Apply the candidate to a disposable replica first; do not treat isolated Deno or PostgreSQL tests as hosted proof. Keep financial flags off at cutover.
+2. Set up separate platform and Connect snapshot endpoints for the current Supabase test project. Store the distinct test credentials directly in that project's secret manager. Confirm project, Stripe sandbox, `livemode=false`, the exact endpoint URL, event types and owner-approved sandbox test window before the first provider write. Validate signed delivery on both routes. Run real provider tests for gig funding success/decline/cancel, gig cancellation/refund, transfer/reversal, payout success/failure, dispute and out-of-order or duplicate delivery. Compare the resulting Stripe objects and MORT records, including amounts/currencies and accounts.
+3. Have the platform owner document Stripe confirmation and legal/operational review for the supported jurisdictions and exact minor/guardian arrangement: account representative and controller, Stripe-hosted identity and guardian consent, payout eligibility, consent withdrawal, suspension, pending obligations, and escalation. MORT's app guardian link is not Stripe verification. A platform integration cannot supply a guardian's identity or assent. See [Stripe's age requirements](https://support.stripe.com/questions/age-requirement-to-create-a-stripe-account) and [Stripe's connected account agreement](https://stripe.com/legal/connect-account).
+4. Establish the scheduled reconciliation, alert routing, operator assignment and replay/rollback drill. A failed or mismatched event needs review, not a real-money retry. Compare provider records in both directions so missing local rows and missing provider objects are detected.
+5. After a production-compatible deploy with financial controls still off, configure the live signing secrets directly in the production secret manager and verify signed delivery to both endpoint scopes without charging customers. Record the evidence, final safety check, and release-owner approval before enabling a scoped payments/funding pilot. Leave transfer and payout controls off until their separate approval, reconciled balance, recipient eligibility and failure recovery have been proved.
+
+## Local checks
+
+The Deno tests use mocked Stripe resource reads and synthetic signatures. The local PostgreSQL/WASM harness loads the actual webhook migration and relevant predecessor routines into an isolated database with synthetic fixtures. Neither test uses customer data or makes a Stripe API request. CI includes both the webhook entrypoint type check and the database harness.

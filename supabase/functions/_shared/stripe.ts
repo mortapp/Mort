@@ -144,7 +144,8 @@ export function webhookRuntime(): StripeRuntime {
   if (!secretKey.startsWith(environment === "test" ? "sk_test_" : "sk_live_") ||
       !publishableKey.startsWith(environment === "test" ? "pk_test_" : "pk_live_") ||
       !webhookSecret.startsWith("whsec_")) throw new PublicError("stripe_key_mode_mismatch", 503);
-  if (connectWebhookSecret && !connectWebhookSecret.startsWith("whsec_")) {
+  if (connectWebhookSecret &&
+    (!connectWebhookSecret.startsWith("whsec_") || constantTimeEqual(webhookSecret, connectWebhookSecret))) {
     throw new PublicError("stripe_connect_webhook_not_configured", 503);
   }
   return {

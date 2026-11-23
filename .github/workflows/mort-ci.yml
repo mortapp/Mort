@@ -57,7 +57,13 @@ jobs:
           supabase/functions/account-deletion-processor/index.ts
           supabase/functions/identity-verification-session/index.ts
           supabase/functions/_shared/support_runtime.ts
+          supabase/functions/stripe-webhook/index.ts
       - run: deno test --no-config --lock=deno.lock --frozen --node-modules-dir=none --allow-read --allow-env supabase/functions/_tests
+      - name: Exercise webhook migrations with isolated PostgreSQL
+        run: |
+          npm install --prefix "$RUNNER_TEMP/stripe-webhook-test" --no-audit --no-fund --ignore-scripts @electric-sql/pglite@0.6.0
+          MORT_PGLITE_ENTRY="$RUNNER_TEMP/stripe-webhook-test/node_modules/@electric-sql/pglite/dist/index.js" \
+            node scripts/qa-stripe-webhook-observations-db.mjs
       - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs
       - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs docs/payments/MORT_STRIPE_TASK31_SANDBOX_EVIDENCE_2026-09-18.json
       - run: node scripts/qa-stripe-sandbox-e2e-evidence.mjs --regression-manifest
@@ -354,6 +360,5 @@ jobs:
           path: build/device-test/mort-prod-device-test.apk
           if-no-files-found: error
           retention-days: 7
-
 
 
