@@ -412,6 +412,8 @@ if (manifestMode) {
 
   assert.throws(() =>
     validateSandboxEvidence({
+      project_ref: authoritativeQaProjectRef,
+      project_ref: authoritativeQaProjectRef,
       environment: "test",
       mode: "sandbox",
       leaked: "sk_test_1234567890abcdef",
