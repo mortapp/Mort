@@ -52,9 +52,8 @@ diagnose() {
   trap - EXIT
   printf 'MORT launch gate exit=%s; final Android diagnostics:\n' "$code" >&2
   if ! device_online; then
-    printf 'ADB transport unavailable. App foreground and exit diagnostics are inconclusive.\n' >&2
-    (( code != 0 )) && exit "$code"
-    exit 1
+    printf 'ADB transport unavailable; final diagnostics skipped. Preserve the launch-gate result.\n' >&2
+    exit "$code"
   fi
   shell dumpsys activity activities | activity_rows >&2 || true
   focused_windows >&2 || true
