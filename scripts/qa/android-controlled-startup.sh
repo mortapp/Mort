@@ -34,7 +34,7 @@ device 'cat /proc/meminfo | head -5'
 device 'am start -a android.settings.SETTINGS'
 control=0
 for ((i=0; i<15; i++)); do
-  if device dumpsys window | awk '/mCurrentFocus=.*com\.android\.settings\// {matched=1} END {exit !matched}'; then
+  if device dumpsys window | awk '/mCurrentFocus=.*com\\.android\\.settings\\// {matched=1} END {exit !matched}'; then
     control=1
     break
   fi
@@ -47,20 +47,12 @@ fi
 echo 'Control activity acquired focus; starting MORT.'
 device 'am force-stop com.android.settings'
 status=0
-bash "$(dirname "$0")/android-16kb-smoke.sh" "$apk" "$page" "$min_kb" || status=$?
+# Check Flutter's actual welcome CTAs inside the launch gate, while the
+# emulator is still in the same known-good session. A second adb script
+# invocation used to wait after the emulator transport had already vanished.
+MORT_REQUIRE_WELCOME=1 bash "$(dirname "$0")/android-16kb-smoke.sh" "$apk" "$page" "$min_kb" || status=$?
 if [[ "$status" != 0 ]] && [[ "$(adb_short get-state 2>/dev/null || true)" != device ]]; then
   echo 'INCONCLUSIVE: ADB transport was lost; this is not a MORT launch verdict.' >&2
   exit 75
-fi
-if [[ "$status" == 0 ]]; then
-  if [[ "$(adb_short get-state 2>/dev/null || true)" != device ]]; then
-    echo 'INCONCLUSIVE: ADB transport was lost before welcome-action verification.' >&2
-    exit 75
-  fi
-  bash "$(dirname "$0")/android-welcome-actions.sh" || status=$?
-  if [[ "$status" != 0 ]] && [[ "$(adb_short get-state 2>/dev/null || true)" != device ]]; then
-    echo 'INCONCLUSIVE: ADB transport was lost during welcome-action verification.' >&2
-    exit 75
-  fi
 fi
 exit "$status"
