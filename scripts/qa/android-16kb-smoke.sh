@@ -97,21 +97,15 @@ case "$component" in "$package"/*) ;; *) printf 'No MORT launcher component: %s\
 # These buffers are on a fresh disposable emulator, never a shared device.
 adb_run logcat -b main -b system -b crash -b events -c
 trap diagnose EXIT
-launch_rc=0
-launch="$(shell am start -W -S --user current -a android.intent.action.MAIN \
-  -c android.intent.category.LAUNCHER -n "$component")" || launch_rc=$?
+# Do not use Activity Manager's -W wait mode here. On the hosted x86_64
+# emulator it can block until the ADB transport is torn down, even after the
+# guest has booted. Start asynchronously, then use the explicit foreground,
+# PID-stability and native-library checks below as the actual pass criteria.
+launch="$(shell am start -S --user current -a android.intent.action.MAIN \
+  -c android.intent.category.LAUNCHER -n "$component")"
 printf '%s\n' "$launch"
-if (( launch_rc != 0 )); then
-  printf 'Activity Manager launcher command failed (exit %s).\n' "$launch_rc" >&2
-  exit 1
-fi
-if grep -Fxq 'Status: timeout' <<< "$launch" &&
-    grep -Fxq "Activity: $component" <<< "$launch"; then
-  # -W can time out while Android is still drawing the requested activity.
-  # This is not a pass; require the same process and real focused window below.
-  printf 'Activity Manager timed out waiting for the requested activity; observing foreground directly.\n'
-elif ! grep -Fxq 'Status: ok' <<< "$launch"; then
-  printf 'Activity Manager did not report a launch of the requested activity.\n' >&2
+if ! grep -Fq 'Starting: Intent' <<< "$launch"; then
+  printf 'Activity Manager did not accept the launcher intent.\n' >&2
   exit 1
 fi
 
