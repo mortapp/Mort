@@ -98,6 +98,15 @@ try {
   await assert.rejects(claim("evt_first", pKey, pType, "b".repeat(64)), /replay_payload_mismatch/);
   assert.equal((await deliver("evt_same", pKey, "payment_intent.processing", payment)).code, "stripe_provider_state_already_applied");
 
+  const expired = await claim("evt_expired", pKey, pType);
+  await db.exec(`update private.stripe_webhook_events set processing_lease_until = now() - interval '1 second'
+    where provider_event_id = 'evt_expired'`);
+  assert.equal((await read("select public.stripe_server_webhook_reconciliation_status_v1('test') as value")).expired_or_unclaimed, 1);
+  await assert.rejects(finish("evt_expired", expired.lease_token, payment), /claim_no_longer_active/);
+  const recovered = await claim("evt_expired", pKey, pType);
+  assert.notEqual(recovered.lease_token, expired.lease_token);
+  assert.equal((await finish("evt_expired", recovered.lease_token, payment)).processing_status, "processed");
+
   const rKey = "refund:platform:re_test";
   const refund = { kind: "refund", id: "re_test", payment: "pi_test", state: "succeeded", amount: 300, currency: "USD" };
   await deliver("evt_refund", rKey, "refund.created", refund);
