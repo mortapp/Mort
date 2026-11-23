@@ -57,13 +57,6 @@ if ($RamusX64) {
   $defines += '--target-platform=android-x64'
 }
 
-$previousRamusX64 = $env:MORT_RAMUS_X64
-if ($RamusX64) {
-  $env:MORT_RAMUS_X64 = 'true'
-} else {
-  Remove-Item Env:MORT_RAMUS_X64 -ErrorAction SilentlyContinue
-}
-
 Push-Location $flutterRoot
 try {
   if ([string]::IsNullOrWhiteSpace($env:JAVA_HOME)) {
@@ -86,11 +79,6 @@ try {
   & flutter build apk --debug @defines
   if ($LASTEXITCODE -ne 0) { throw 'Device-test APK build failed.' }
 } finally {
-  if ($null -eq $previousRamusX64) {
-    Remove-Item Env:MORT_RAMUS_X64 -ErrorAction SilentlyContinue
-  } else {
-    $env:MORT_RAMUS_X64 = $previousRamusX64
-  }
   Pop-Location
 }
 
