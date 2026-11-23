@@ -135,3 +135,21 @@ The production catalog has no `cron` schema and no `pg_cron` or `pg_net` extensi
 The default-branch `scripts/qa-account-deletion-processor.mjs` still contains a hard-coded production project reference. The PR #125 branch changes that harness to the isolated QA project and adds a hard stop against both production and the retired project. **Do not run the default-branch harness.** Run only the PR #125 QA-pinned copy after reviewing the branch and supplying the required QA-only secrets through a protected environment.
 
 No worker deployment, invocation, secret retrieval, scheduled job creation, or production change was performed during this recheck.
+
+
+### Deletion contract parity — confirmed production blocker
+
+A direct read-only check of the exact database objects referenced by the deployed production worker returned:
+
+| Contract object | Production | Hosted QA |
+|---|---|---|
+| `public.account_deletion_requests` | **Absent** | Present |
+| `public.service_claim_account_deletion_request(uuid)` | **Absent** | Present |
+| `public.service_complete_account_deletion_request(uuid, uuid, text)` | **Absent** | Present |
+| `public.service_fail_account_deletion_request(uuid, uuid, text)` | **Absent** | Present |
+
+The production worker source calls these RPCs. After worker authorization, its first claim call cannot resolve in the current production database. This is stronger than an unverified scheduler gap: the deployed worker and production database do not share the required deletion contract.
+
+The QA project has the request table and the corresponding service RPCs, plus the related retention, lease, receipt, and storage-listing functions. Production has none of the deletion-named database functions in the inspected `public`/`private` schemas.
+
+**Verdict: production account deletion is NOT operational.** Do not invoke the production worker. Do not deploy only the newer Edge Function source; the database contract and scheduler must be promoted and validated together. Promotion requires a source-level migration review, QA end-to-end tests, retention/legal approval, and separate explicit production authorization.
