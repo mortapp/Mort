@@ -47,9 +47,12 @@ fi
 echo 'Control activity acquired focus; starting MORT.'
 device 'am force-stop com.android.settings'
 status=0
-MORT_REQUIRE_WELCOME=1 bash "$(dirname "$0")/android-16kb-smoke.sh" "$apk" "$page" "$min_kb" || status=$?
+bash "$(dirname "$0")/android-16kb-smoke.sh" "$apk" "$page" "$min_kb" || status=$?
 if [[ "$status" != 0 ]] && [[ "$(adb_short get-state 2>/dev/null || true)" != device ]]; then
   echo 'INCONCLUSIVE: ADB transport was lost; this is not a MORT launch verdict.' >&2
   exit 75
+fi
+if [[ "$status" == 0 ]]; then
+  bash "$(dirname "$0")/android-welcome-actions.sh" || status=$?
 fi
 exit "$status"
