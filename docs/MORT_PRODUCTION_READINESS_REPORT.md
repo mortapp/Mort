@@ -317,3 +317,10 @@ The production table lacks the explicit sandbox-provider approval field and the 
 - MORT PR #129 head `10ac829832cc247684c005637f4d96cb4018589b`: the failed jobs from run #967 were re-run. At this update, the Ramus x64 artifact build/ABI diagnostic and both Android 4 KB/16 KB emulator launch jobs were still in progress. Other CI jobs passed, including Flutter authoritative, unsigned iOS archive, and replica acceptance.
 - The new iOS unsigned archive artifact from run #967 has SHA-256 digest `4907ef5106d094b59559670a46ceb5548c2239adb25269fe6dd3855e24331188` at the GitHub artifact-package level. It is not an IPA signing or real-device pass.
 - BrowserStack secrets have been added by the owner, but the manual `MORT iOS BrowserStack QA` workflow has not yet been dispatched. The connected GitHub action interface available for this run supports reading jobs and rerunning failed jobs, but does not expose workflow-dispatch. Trigger the workflow manually from GitHub Actions using branch `qa/guardian-consent-flutter-draft`; then verify the upload step actually receives both secrets and complete the real-device matrix. Never print either secret in logs.
+
+
+### BrowserStack integration correction — 2026-11-23
+
+Reviewing the real-device Appium client against BrowserStack's current App Automate documentation found a concrete configuration defect: the iOS test client used `hub.browserstack.com`. The documented App Automate remote endpoint is `hub-cloud.browserstack.com/wd/hub`. PR #129 now uses `hub-cloud.browserstack.com` with `/wd/hub` as its path and adds a regression assertion. The latest code change has not yet completed CI or a live BrowserStack session.
+
+BrowserStack's iOS App Automate workflow uploads a device-built IPA and re-signs it for its own device sessions by default. That changes/removes entitlements, so this validates app launch/UI flows but cannot verify APNs, Associated Domains, or the final Apple-distribution signing profile. A successful BrowserStack UI run must not be represented as signed-release validation.
