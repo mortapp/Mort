@@ -55,7 +55,15 @@ void main() {
       FlutterError.onError = frameworkHandler;
       PlatformDispatcher.instance.onError = platformHandler;
     }
-    await tester.pumpAndSettle();
+    // The fail-closed screen may contain an indeterminate progress
+    // animation. Pump a bounded number of frames instead of pumpAndSettle,
+    // which waits forever for an animation that is intentionally ongoing.
+    await tester.pump();
+    for (var frame = 0;
+        frame < 8 && find.text('MORT cannot start securely').evaluate().isEmpty;
+        frame++) {
+      await tester.pump(const Duration(milliseconds: 250));
+    }
     expect(find.text('MORT cannot start securely'), findsOneWidget);
     expect(find.text('I already have an account'), findsNothing);
     expect(tester.takeException(), isNull);
