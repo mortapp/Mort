@@ -382,15 +382,31 @@ if (manifestMode) {
   );
 } else if (evidencePath) {
   const payload = JSON.parse(await readFile(path.resolve(evidencePath), "utf8"));
-  validateSandboxEvidence(payload);
-  console.log(
-    JSON.stringify({
-      status: "PASS",
-      mode: "sandbox_evidence",
-      complete: payload.complete === true,
-      provider_e2e_executed: payload.provider_e2e_executed === true,
-    }),
-  );
+  if (payload.evidence_status === "REVOKED_NOT_AUTHORITATIVE") {
+    assert.equal(payload.project_ref, "rakjydmgwwgtdislanbt");
+    assert.equal(payload.complete, false);
+    assert.equal(payload.provider_e2e_executed, false);
+    assert.deepEqual(payload.scenarios, []);
+    assert.equal(typeof payload.revocation_reason, "string");
+    assert(payload.revocation_reason.length > 20);
+    console.log(JSON.stringify({
+      status: "BLOCKED",
+      mode: "revoked_historical_sandbox_artifact",
+      complete: false,
+      provider_e2e_executed: false,
+      required_project_ref: authoritativeQaProjectRef,
+    }));
+  } else {
+    validateSandboxEvidence(payload);
+    console.log(
+      JSON.stringify({
+        status: "PASS",
+        mode: "sandbox_evidence",
+        complete: payload.complete === true,
+        provider_e2e_executed: payload.provider_e2e_executed === true,
+      }),
+    );
+  }
 } else {
   await validateTask31SourceContracts();
 
