@@ -291,3 +291,21 @@ The iOS BrowserStack workflow is manual and expects GitHub Actions repository se
 7. Complete remaining authorization, privacy, retention, backup/restore, and staffed operations evidence.
 
 **No production-ready claim is supported by this recheck.**
+
+
+### Stripe runtime-control schema gap
+
+A direct column comparison of `private.stripe_runtime_controls` shows 14 columns in production versus 24 in hosted QA. QA-only columns include:
+
+- `adult_service_fee_bps`
+- `adult_service_fee_fixed_cents`
+- `stripe_payments_enabled`
+- `stripe_connected_onboarding_enabled`
+- `stripe_job_funding_enabled`
+- `stripe_transfers_enabled`
+- `stripe_refunds_enabled`
+- `stripe_live_mode_enabled`
+- `updated_by`
+- `sandbox_provider_qa_approved`
+
+The production table lacks the explicit sandbox-provider approval field and the newer fee/runtime-control contract. This is another reason not to enable production payments based on the existing three production Stripe Edge Functions. Reconcile the schema and corresponding RPC/Edge Function contracts before any financial-control change.
