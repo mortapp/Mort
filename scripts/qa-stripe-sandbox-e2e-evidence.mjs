@@ -44,6 +44,8 @@ const forbiddenEvidencePatterns = [
 ];
 
 const safeReferencePattern = /^[A-Za-z0-9_-]{4,16}$/;
+const authoritativeQaProjectRef = "ckcxakhxqlkhppsxxjhv";
+const retiredProjectRefs = new Set(["rakjydmgwwgtdislanbt"]);
 
 function assertSafeReference(value, field) {
   if (value === null || value === undefined) return;
@@ -56,6 +58,8 @@ function assertSafeReference(value, field) {
 
 export function validateSandboxEvidence(payload) {
   assert(payload && typeof payload === "object" && !Array.isArray(payload));
+  assert.equal(payload.project_ref, authoritativeQaProjectRef, "sandbox evidence must identify the authoritative isolated QA project");
+  assert.equal(retiredProjectRefs.has(payload.project_ref), false, "retired Supabase project evidence is forbidden");
   assert.equal(payload.environment, "test");
   assert.equal(payload.mode, "sandbox");
   assert.equal(payload.live_mode_detected ?? false, false);
@@ -342,6 +346,7 @@ async function validateRegressionManifest() {
 
 function completeFixture() {
   return {
+    project_ref: authoritativeQaProjectRef,
     environment: "test",
     mode: "sandbox",
     gate_passed: true,
@@ -390,6 +395,7 @@ if (manifestMode) {
   await validateTask31SourceContracts();
 
   validateSandboxEvidence({
+    project_ref: authoritativeQaProjectRef,
     environment: "test",
     mode: "sandbox",
     live_mode_detected: false,
@@ -411,8 +417,16 @@ if (manifestMode) {
       leaked: "sk_test_1234567890abcdef",
     })
   );
+  assert.throws(() => validateSandboxEvidence({
+    project_ref: "rakjydmgwwgtdislanbt",
+    environment: "test",
+    mode: "sandbox",
+    complete: false,
+  }), /authoritative isolated QA project/);
+
   assert.throws(() =>
     validateSandboxEvidence({
+      project_ref: authoritativeQaProjectRef,
       environment: "test",
       mode: "live",
       live_mode_detected: true,
