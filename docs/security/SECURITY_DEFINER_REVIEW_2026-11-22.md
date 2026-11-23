@@ -142,3 +142,61 @@ Static classification is intentionally conservative. `SAFE (STATIC)` does not me
 2. Reconcile the live authenticated-callable set to this baseline inventory and explain additions/removals/drift.
 3. For every potential vulnerability, reproduce with anon, authenticated non-owner, wrong-role staff, suspended, blocked, and owner personas using real QA sessions; do not use synthetic JWT claims.
 4. Remediate only confirmed defects in forward-only QA-first migrations and add regression coverage before requesting production approval.
+
+
+## Live production catalog reconciliation — 2026-11-23
+
+This section records a fresh, read-only catalog check against production project `jxbnrkasktbhtiujkhay`. No production functions, grants, data, or controls were changed.
+
+| Measure | Live result |
+|---|---:|
+| SECURITY DEFINER functions in `public` and `private` | **132** |
+| In `public` | 79 |
+| In `private` | 53 |
+| Public functions executable by `authenticated` | **70** |
+| Public functions executable by `anon` | **0** |
+| Private functions with inherited PUBLIC/anon EXECUTE | 2 |
+| SECURITY DEFINER functions with `search_path = ''` | **132 / 132** |
+
+The Supabase security advisor reports 70 authenticated-callable SECURITY DEFINER functions. This exactly matches the live catalog count of 70 public SECURITY DEFINER functions executable by `authenticated`. The warning is an inventory/review signal; it does not by itself prove that any function is vulnerable.
+
+The two private helpers whose ACL is still the default PUBLIC ACL are:
+
+- `private.is_fully_consented_guardian(p_teen_id uuid)`
+- `private.is_guardian_paused(p_user_id uuid)`
+
+The live privilege check shows `anon` has no `USAGE` on schema `private`, while `authenticated` does. Therefore the inherited EXECUTE privilege is not presently reachable by `anon` through schema access. It is still a least-privilege hardening candidate: after confirming all policy/function callers, use a forward-only migration to revoke EXECUTE from PUBLIC/anon and grant only the roles that demonstrably need it. Do not remove authenticated execution blindly; these helpers may be used by RLS policies.
+
+### Baseline drift
+
+The recorded 2026-11-12 baseline used by the static review does not contain these 12 live function names:
+
+- `private.mort_is_eligible_for_role_activation`
+- `private.mort_queue_role_activation`
+- `private.notify_approved_message_recipients`
+- `public.admin_review_team_hustle_v1`
+- `public.admin_set_account_status_v2`
+- `public.attach_message_file_v1`
+- `public.can_delete_my_unregistered_verification_evidence_v1`
+- `public.get_my_notification_preferences`
+- `public.get_my_push_status`
+- `public.list_message_moderation_queue`
+- `public.update_my_job_application_status_v3`
+- `public.update_my_notification_preferences`
+
+This is evidence that the old static baseline is stale relative to the current production catalog. It is not evidence that these 12 functions are vulnerable. Reconcile each against the migrations applied after the baseline before assigning a security verdict.
+
+### Guardian activation gate — current production code inspection
+
+Read-only inspection of the current production definitions of `public.admin_set_account_status_v2` and `public.mort_review_role_request` found:
+
+- Both have staff-role checks.
+- Neither references the proposed `private.teen_guardian_activation_consent` table or the new consent RPCs from PR #126.
+- `mort_review_role_request` delegates to `private.mort_is_eligible_for_role_activation`, but that helper is not the proposed mandatory guardian-consent gate.
+
+Therefore the mandatory guardian-consent draft in PR #126 is **not integrated into the current production activation path**. This is a release blocker requiring product/legal approval, Flutter integration, isolated hosted-QA verification, and a separately authorized production migration. Do not infer that optional Guardian Mode satisfies the mandatory consent requirement.
+
+### Reproduction query
+
+The live counts above were obtained using a read-only catalog query over `pg_proc` and `pg_namespace`, including `prosecdef`, `proconfig`, and `has_function_privilege` for `anon` and `authenticated`. No row-level application data was queried.
+
