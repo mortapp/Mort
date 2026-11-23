@@ -337,3 +337,15 @@ BrowserStack's iOS App Automate workflow uploads a device-built IPA and re-signs
 - The original Play AAB was not accessed or changed. No production data, schema, release controls, functions, payments, signing credentials, or store artifacts were modified.
 
 - The iOS simulator-entry test's prior `pumpAndSettle()` could wait indefinitely on the intentional secure-startup progress animation. It now pumps a bounded set of frames and asserts the fail-closed screen within two seconds; the new evidence run #988 (`45230836386`) is queued. This does not establish a signed IPA or physical iPhone pass.
+
+
+
+### Final CI and website follow-up — 2026-11-23 16:05 ET
+
+- PR #125 head `b17900cac86b9dcd678560020676031148439b60` completed run #980 (`45220267484`): all 9 executed jobs passed. Stripe provider E2E and hosted Stripe regression were skipped. PR #125 description now records run #980; the account-deletion production schema/scheduler dependency remains unresolved.
+- PR #129 run #996 (`45230241465`) completed its first attempt with both Android emulator launch jobs failing after boot and app launch. Logs show MORT reached resumed/focused state before ADB went offline and the emulator TCP port refused connections. This is a hosted emulator/transport termination, not a confirmed app crash and not a completed user journey. Only the failed jobs were re-run; the rerun is currently in progress. All other completed jobs passed, including Flutter authoritative, replica acceptance, unsigned iOS archive, APK builds/package, and local Stripe checks. Provider E2E and hosted regression remain skipped.
+- The Ramus PR-preview attempt for #129 still returns `no_build`; automatic PR previews must be enabled in Ramus repository settings. The previous direct QA APK session ended with a provider-side Ramus failure before a completed app journey.
+- Website PR #41 was replaced with draft PR #42, created from the current `main` branch to remove the old branch's mergeability issue. PR #42 contains the same two-file change to use `privacy@mortapp.org` and test rejection of the old Gmail address. It is mergeable; Vercel preview checks are pending. PR #41 remains open until PR #42's checks complete.
+- A direct live HTTP response for `https://mortapp.org/account-deletion` could not be independently fetched in this recheck. Do not claim the deployed route or mailbox correction is live.
+
+No production data, schema, release controls, Edge Functions, secrets, payments, deployment, signing, or store artifacts were modified.
