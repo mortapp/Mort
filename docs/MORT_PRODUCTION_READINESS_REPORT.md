@@ -173,3 +173,121 @@ Earlier in the pass, two tests failed because they still expected the disabled G
 ## Honest release boundary
 
 The old project has been rebuilt and the remote backend has been verified. The signed closed-test Android artifacts and one API 36 launch smoke are verified. Native Android end-to-end/user-flow testing, the required API/device matrix, iPhone manual testing, TestFlight, App Store review, legal approval, teen-safety approval, identity-provider readiness, production push/crash telemetry, and staffed operations are not complete.
+
+
+---
+
+# Live production-readiness recheck — 2026-11-23
+
+This addendum supersedes older status statements where the connected production/QA catalog or current GitHub/Vercel evidence differs. It is based on read-only checks of production Supabase project `jxbnrkasktbhtiujkhay`, hosted QA project `ckcxakhxqlkhppsxxjhv`, GitHub Actions, current PRs, and the Vercel `mort-web` project. No production writes, migrations, deployments, financial operations, signing, or store actions were performed.
+
+## Current release verdict
+
+**HOLD for Android, iOS, backend, website operations, and overall production release.**
+
+## Production release controls and Stripe
+
+Fresh repeated read-only checks of the single primary `public.mort_release_control` row show:
+
+| Control | Current production value |
+|---|---|
+| Release mode | `production_public` |
+| Maintenance mode | `false` |
+| Public marketplace enabled | `true` |
+| Real document collection enabled | `true` |
+| Last updated | 2026-11-11 03:28:12 UTC |
+
+The private Stripe runtime control row shows mode `disabled`; payments, connected onboarding, job funding, transfers, refunds, live mode, owner approval, connected-account approval, and payouts are all `false`.
+
+**Owner decision required:** the public marketplace and real document collection flags are enabled despite the prior readiness report describing them as disabled. Do not assume the older report is current. No control was changed in this recheck.
+
+## Production versus hosted-QA schema
+
+Read-only `information_schema.columns` comparison for `public` and `private` found:
+
+| Measure | Production | Hosted QA |
+|---|---:|---:|
+| Tables represented by columns | 70 | 118 |
+| Columns | 797 | 1,369 |
+
+The exact schema/table/column comparison found 572 columns present in QA but not production and zero production-only columns. QA has 48 tables not present in production. Important QA-only tables include account-deletion request/retention structures, job-payment obligations and payment-attempt/intent/settlement/transfer ledgers, financial documents, password attestation, RevenueCat, Play billing, and related audit/control tables.
+
+Migration histories report 114 applied production migrations (latest version `20261115005234`) and 190 hosted-QA migrations (latest version `20261122153202`). Migration versions and some names were ported/renamed between environments, so raw version-count subtraction is not a promotion list. Use the actual schema diff and source-level migration mapping; do not blindly replay all QA migrations into production.
+
+## Account deletion — confirmed production blocker
+
+The production `account-deletion-processor` Edge Function is ACTIVE version 1, SHA-256 `ff4e25dbc8f29789cb136c3b42bed2f080fee8506353176f4f57c3ca73356963`. Hosted QA has version 2, SHA-256 `80cc24fc5a185b84ab6ba5d731828c43b174a0463a3780b2519c54297e18d8f9`.
+
+The production worker source calls `service_claim_account_deletion_request`, `service_complete_account_deletion_request`, and related service RPCs. Read-only catalog checks confirm that production has no `public.account_deletion_requests` table and none of the required deletion service RPCs. Hosted QA has the request table and the service RPCs. Therefore the deployed production worker cannot complete its first claim call against the current production schema.
+
+Additional gaps:
+- Production worker v1 throws during module initialization if required secrets are missing; PR #125 changes this to a fail-closed configuration response.
+- No production `cron` schema, `pg_cron`, or `pg_net` extension was found.
+- No account-deletion scheduler declaration was found in the connected repositories.
+- The default-branch QA processor harness still contains a hard-coded production project reference. The PR #125 branch pins the harness to isolated QA; do not run the default-branch harness.
+- The public account-deletion page is a manual email path, not an automated deletion processor.
+
+**Verdict: account deletion is not operational in production.** Do not invoke the production worker. The database contract, worker package, protected secrets, scheduler, retention policy, and hosted-QA lifecycle must be validated and promoted together under separate authorization.
+
+## Guardian consent and teen activation
+
+Production code inspection of `public.admin_set_account_status_v2` and `public.mort_review_role_request` found staff-role checks but no reference to the proposed mandatory teen guardian-consent table or new consent RPCs. The latter delegates to `private.mort_is_eligible_for_role_activation`, which is not the proposed mandatory consent gate.
+
+- PR #126: 28 consent-specific disposable-replica assertions passed; draft only, not deployed.
+- PR #129: read-only status display in an internal replica-test configuration; no consent actions or activation enforcement.
+- Production guardian activation remains unintegrated with the proposed mandatory consent flow.
+
+Product/legal approval, guardian-authority proof/lifecycle decisions, server enforcement, Flutter integration, and isolated hosted-QA validation remain required.
+
+## Database authorization inventory
+
+Fresh production catalog inspection found 132 SECURITY DEFINER functions in `public` and `private`: 79 public and 53 private. All 132 have `search_path = ''`. Seventy public SECURITY DEFINER functions are executable by `authenticated`, exactly matching the Supabase security-advisor warning count; zero public SECURITY DEFINER functions are executable by `anon`.
+
+Two private helpers retain default PUBLIC EXECUTE ACLs, but `anon` has no USAGE on schema `private`; this is a least-privilege hardening candidate, not evidence of current anonymous reachability. Individual authorization behavior still requires review. Do not label all 70 advisor warnings as vulnerabilities.
+
+PR #125 contains the live catalog reconciliation. PR #124/#128 staff-role work remains unmerged and hosted-QA validation is separate.
+
+## Edge Functions and Stripe deployment parity
+
+- Production: 30 ACTIVE Edge Functions.
+- Hosted QA: 20 ACTIVE Edge Functions.
+- Production currently has three Stripe functions: assignment payment intent, assignment webhook, and runtime status.
+- Hosted QA has 13 Stripe functions for job funding, refunds, transfers, connected-account onboarding, financial history, payment status, documents, resolution, and webhook processing; these are not deployed in production under the same function names.
+
+Stripe production controls remain disabled. CI contract and local regression checks pass, but hosted provider E2E and hosted Stripe regression were skipped. No live charge, transfer, refund, or payout was performed. Do not enable payments until schema/function promotion, provider sandbox E2E, webhook/reconciliation tests, legal review, and owner approval are complete.
+
+## Website
+
+The latest `mort-web` Vercel production deployment is marked READY on commit `0e75129094d7dbe1354d9d69c3242c869304c439`, with the account-deletion route present in the deployed source. A direct HTTP 200 response was not independently confirmed in this session.
+
+The public page currently uses `mortapp.help@gmail.com`. Draft website PR #41 changes it to the designated `privacy@mortapp.org` mailbox and updates the production-mode smoke test. PR #41 is not merged or deployed. The page remains a manual email request path; it does not make the deletion worker operational.
+
+## Android and iOS
+
+- PR #123 remains open/draft. The original Play AAB was not available for read-only inspection and remains untouched.
+- Recent Android CI launch attempts still lose ADB before stable foreground verification; the ARM64 hosted runner reports no KVM. These are inconclusive infrastructure/device results, not a MORT launch pass.
+- PR #127 unsigned iOS archive and simulator build steps passed. Its Android startup matrix failed on ADB transport loss and ARM64 KVM absence. No signed IPA, Apple distribution profile, APNs entitlement proof, or physical iPhone journey was verified.
+- PR #128 staff-role replica CI passed 114 authorization and 53 journey assertions; hosted QA is still separate.
+- PR #129 Flutter analysis/tests passed, but its CI run failed in the unrelated Ramus x64 APK ABI-verification job. A diagnostic update now prints detected ABI folders and uploads the QA APK even on failure; the new run is pending.
+
+The iOS BrowserStack workflow is manual and expects GitHub Actions repository secrets `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY`. BrowserStack can re-sign an uploaded iOS IPA, but that process removes or changes entitlements; it cannot substitute for Apple distribution signing or validate APNs/Associated Domains in the re-signed session.
+
+## Work performed during this recheck
+
+- Created draft website PR #41 to correct the public deletion contact and smoke test.
+- Updated PR #125's security review with live production catalog counts and the guardian activation finding.
+- Updated PR #125's deletion runbook with the production/QA worker, missing database contract, and scheduler findings.
+- Updated PR #129's QA workflow to print the Ramus APK ABI mismatch and preserve the diagnostic artifact on failure.
+- No production data, schema, release controls, Edge Functions, secrets, payments, or store artifacts were modified.
+
+## Immediate release blockers
+
+1. Resolve the owner decision on currently enabled public marketplace and real document collection controls.
+2. Approve and implement mandatory guardian consent before teen activation; integrate Flutter only after policy approval.
+3. Reconcile production/QA schema and promote only reviewed migrations; production account deletion is currently missing its backing table and service RPCs.
+4. Complete Android original-AAB/Play-split and real 16 KB ARM64 testing.
+5. Obtain Apple distribution signing and physical iPhone verification; run BrowserStack UI testing with protected GitHub secrets if approved.
+6. Complete Stripe sandbox provider E2E and reconcile QA-only financial schema/functions before any production enablement.
+7. Complete remaining authorization, privacy, retention, backup/restore, and staffed operations evidence.
+
+**No production-ready claim is supported by this recheck.**
