@@ -82,6 +82,9 @@ if [ "${PRE_FIX:-0}" != "1" ]; then
     echo "== pending production-baseline migration: $m"
     psqlf "$ROOT/supabase/production-baseline-migrations/$m"
   done <"$ROOT/supabase/production-baseline-migrations/PENDING_PRODUCTION_APPROVAL.txt"
+  echo "== staff-role PR migration and live-session matrix (disposable replica only)"
+  psqlf "$ROOT/supabase/migrations/20261122133500_harden_staff_role_active_status.sql" -1
+  export MORT_REPLICA_STAFF_ROLE_MATRIX=1
 fi
 
 cd "$ROOT"

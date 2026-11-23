@@ -78,6 +78,42 @@ for (const bucket of ['job-evidence', 'dispute-evidence']) {
   record('P2-storage', 'verification-evidence: guardian cannot download teen identity evidence', Boolean(r3g.error), r3g.error?.message ?? 'DOWNLOADED');
   const r4 = await dl('moderator', 'verification-evidence', teenAPath);
   record('P2-storage', 'verification-evidence: moderator (staff) can download for review', !r4.error, r4.error?.message ?? '');
+  if (process.env.MORT_REPLICA_STAFF_ROLE_MATRIX === '1') {
+    // Both children are synthetic. Use the moderator's real sign-in for each
+    // request and vary only its fixture status or its assigned role.
+    const moderatorId = A.moderator.id;
+    const area = 'staff-role-matrix';
+    const enrolled = await db.query(
+      "select 1 from private.user_roles where user_id=$1 and role='moderator'",
+      [moderatorId],
+    );
+    if (!teenAPath || enrolled.rowCount !== 1) throw new Error('staff role test fixture is missing');
+
+    async function setStatus(status) {
+      const result = await db.query('update public.profiles set account_status=$2 where id=$1', [moderatorId, status]);
+      if (result.rowCount !== 1) throw new Error('staff role test fixture profile is missing');
+    }
+    async function check(name, allowed) {
+      const result = await dl('moderator', 'verification-evidence', teenAPath);
+      const hasBytes = !result.error && result.data?.size > 0;
+      record(area, name, allowed ? hasBytes : Boolean(result.error) && !result.data);
+    }
+    try {
+      await check('active moderator can read the synthetic review document', true);
+      await setStatus('pending');
+      await check('pending moderator cannot read, on the existing session', false);
+      await setStatus('suspended');
+      await check('suspended moderator cannot read, on the existing session', false);
+      await setStatus('active');
+      await check('active moderator can read again after reinstatement', true);
+      await db.query("delete from private.user_roles where user_id=$1 and role='moderator'", [moderatorId]);
+      await check('active profile with revoked moderator role cannot read', false);
+    } finally {
+      await db.query("insert into private.user_roles(user_id, role) values ($1, 'moderator') on conflict do nothing", [moderatorId]);
+      await setStatus('active');
+    }
+    await check('restored moderator grant permits the original authorized read', true);
+  }
   const r5 = await signed('teen_b', 'verification-evidence', teenAPath);
   record('P2-storage', 'verification-evidence: teen_b cannot mint a signed URL for teen_a evidence', Boolean(r5.error), r5.error?.message ?? 'SIGNED');
   const r6 = await up('teen_b', 'verification-evidence', teenAPath, PNG, 'image/png', true);

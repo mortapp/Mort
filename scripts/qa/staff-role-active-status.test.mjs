@@ -9,17 +9,15 @@ const migrationPath = path.resolve(
 );
 const migration = fs.readFileSync(migrationPath, 'utf8');
 
-function hasStaffRole({ uid, profile, assignedRoles, requiredRoles, now = new Date('2026-11-22T18:00:00Z') }) {
+function hasStaffRole({ uid, profile, assignedRoles, requiredRoles }) {
   if (!uid || !profile || profile.id !== uid) return false;
   if (profile.account_status !== 'active') return false;
-  if (profile.blocked_until && new Date(profile.blocked_until) >= now) return false;
   return assignedRoles.some((role) => requiredRoles.includes(role));
 }
 
 const activeStaff = {
   id: 'staff-1',
   account_status: 'active',
-  blocked_until: null,
 };
 
 for (const [name, input, expected] of [
@@ -29,10 +27,8 @@ for (const [name, input, expected] of [
     { uid: 'staff-1', profile: { ...activeStaff, account_status: 'suspended' }, assignedRoles: ['moderator'], requiredRoles: ['moderator'] }, false],
   ['inactive staff',
     { uid: 'staff-1', profile: { ...activeStaff, account_status: 'inactive' }, assignedRoles: ['moderator'], requiredRoles: ['moderator'] }, false],
-  ['currently blocked staff',
-    { uid: 'staff-1', profile: { ...activeStaff, blocked_until: '2026-11-22T19:00:00Z' }, assignedRoles: ['moderator'], requiredRoles: ['moderator'] }, false],
-  ['expired block remains eligible',
-    { uid: 'staff-1', profile: { ...activeStaff, blocked_until: '2026-11-22T17:00:00Z' }, assignedRoles: ['moderator'], requiredRoles: ['moderator'] }, true],
+  ['pending staff',
+    { uid: 'staff-1', profile: { ...activeStaff, account_status: 'pending' }, assignedRoles: ['moderator'], requiredRoles: ['moderator'] }, false],
   ['revoked role',
     { uid: 'staff-1', profile: activeStaff, assignedRoles: [], requiredRoles: ['moderator'] }, false],
   ['role changed away from requested role',
@@ -47,13 +43,14 @@ for (const [name, input, expected] of [
   });
 }
 
-test('migration joins profile state and checks active/unblocked status', () => {
+test('migration checks the actual profile state and preserves the policy grant', () => {
   assert.match(migration, /join public\.profiles profile on profile\.id = ur\.user_id/);
   assert.match(migration, /\(select auth\.uid\(\)\) is not null/);
   assert.match(migration, /ur\.user_id = \(select auth\.uid\(\)\)/);
   assert.match(migration, /ur\.role = any\(required_roles\)/);
   assert.match(migration, /profile\.account_status = 'active'/);
-  assert.match(migration, /profile\.blocked_until is null or profile\.blocked_until < now\(\)/);
+  assert.doesNotMatch(migration, /blocked_until/);
   assert.match(migration, /set search_path = ''/);
-  assert.match(migration, /revoke all on function private\.has_staff_role\(public\.mort_role\[\]\) from public, anon, authenticated/);
+  assert.match(migration, /revoke all on function private\.has_staff_role\(public\.mort_role\[\]\) from public, anon;/);
+  assert.match(migration, /grant execute on function private\.has_staff_role\(public\.mort_role\[\]\) to authenticated;/);
 });
