@@ -38,7 +38,7 @@ Implemented:
 | --- | --- | --- | --- | --- |
 | `node scripts/qa-stripe-pre-provider-gate.mjs` | `351ab2bc` | 2026-09-19T01:31:54Z | PASS | PR CI / non-provider |
 | `deno test --node-modules-dir=auto --allow-read --allow-env supabase/functions/_tests` | `351ab2bc` | 2026-09-19T01:31:54Z | PASS — 26 tests | PR CI / non-provider |
-| Task 31 committed sandbox evidence validation | `351ab2bc` | 2026-09-19T01:31:54Z | PASS | Stripe sandbox evidence |
+| Historical Task 31 artifact validation | `351ab2bc` | 2026-09-19T01:31:54Z | REVOKED — retired project ref; not release evidence | Historical artifact (do not use) |
 | `node scripts/qa-stripe-sandbox-e2e-evidence.mjs --regression-manifest` | `351ab2bc` | 2026-09-19T01:31:54Z | PASS | PR CI / source contract |
 | `dart format --output=none --set-exit-if-changed lib test integration_test` | `351ab2bc` | 2026-09-19T01:31:54Z | PASS | Flutter CI |
 | `flutter analyze --no-pub` | `351ab2bc` | 2026-09-19T01:31:54Z | PASS | Flutter CI |
