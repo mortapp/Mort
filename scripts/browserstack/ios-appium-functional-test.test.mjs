@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  BROWSERSTACK_APPIUM_HOST,
   captureFailureDiagnostics,
   downloadSessionDiagnostics,
   redactDiagnosticText,
@@ -221,4 +222,9 @@ test("iOS text field predicate escapes embedded double quotes", () => {
       '(label CONTAINS "Say \\"hi\\"" OR value CONTAINS "Say \\"hi\\"" OR ' +
       'placeholderValue CONTAINS "Say \\"hi\\"")',
   );
+});
+
+
+test("Appium sessions use BrowserStack's documented App Automate hub", () => {
+  assert.equal(BROWSERSTACK_APPIUM_HOST, "hub-cloud.browserstack.com");
 });

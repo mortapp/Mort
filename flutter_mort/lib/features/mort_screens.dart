@@ -30,6 +30,7 @@ import '../data/repositories/messaging_repository.dart';
 import '../data/repositories/uploads_repository.dart';
 import '../data/services/supabase_service.dart';
 import 'ads/widgets/mort_banner_ad.dart';
+import 'guardian/teen_consent_draft.dart';
 import 'mission/partner_staff_screens.dart';
 import 'onboarding/mort_rules_copy.dart';
 import 'profile/profile_avatar_widgets.dart';
@@ -343,6 +344,15 @@ class AccountStatusScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+              if (teenConsentReplicaDraftEnabled &&
+                  profile.isTeen &&
+                  profile.accountStatus == 'pending') ...[
+                const SizedBox(height: MortSpacing.md),
+                TeenConsentReplicaStatusCard(
+                  key: ValueKey(profile.id),
+                  currentUserId: profile.id,
+                ),
+              ],
               if (profile.accountStatus == 'banned') ...[
                 const SizedBox(height: MortSpacing.md),
                 const _AccountBanAppealCard(),

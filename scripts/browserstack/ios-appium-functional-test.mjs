@@ -17,6 +17,8 @@ import { remote } from "webdriverio";
 import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 
+export const BROWSERSTACK_APPIUM_HOST = "hub-cloud.browserstack.com";
+
 const CHECKPOINTS = Object.freeze({
   deep: Object.freeze([
     "home",
@@ -134,7 +136,7 @@ function initializeFromEnv() {
 
   return {
     path: "/wd/hub",
-    hostname: "hub.browserstack.com",
+    hostname: BROWSERSTACK_APPIUM_HOST,
     port: 443,
     protocol: "https",
     user: process.env.BROWSERSTACK_USERNAME,
