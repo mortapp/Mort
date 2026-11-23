@@ -309,3 +309,11 @@ A direct column comparison of `private.stripe_runtime_controls` shows 14 columns
 - `sandbox_provider_qa_approved`
 
 The production table lacks the explicit sandbox-provider approval field and the newer fee/runtime-control contract. This is another reason not to enable production payments based on the existing three production Stripe Edge Functions. Reconcile the schema and corresponding RPC/Edge Function contracts before any financial-control change.
+
+
+### Follow-up CI evidence — 2026-11-23 11:38 ET
+
+- MORT PR #125 head `627eb0fa3442e58db769e89309e547c848bce9d1`: GitHub Actions run #971 (`45201829407`) completed successfully. Flutter authoritative, production-replica acceptance, Android APK build artifacts, Stripe contracts/local regression/security freeze, and public-site smoke passed. Stripe provider E2E and hosted Stripe regression were skipped; this does not clear payments.
+- MORT PR #129 head `10ac829832cc247684c005637f4d96cb4018589b`: the failed jobs from run #967 were re-run. At this update, the Ramus x64 artifact build/ABI diagnostic and both Android 4 KB/16 KB emulator launch jobs were still in progress. Other CI jobs passed, including Flutter authoritative, unsigned iOS archive, and replica acceptance.
+- The new iOS unsigned archive artifact from run #967 has SHA-256 digest `4907ef5106d094b59559670a46ceb5548c2239adb25269fe6dd3855e24331188` at the GitHub artifact-package level. It is not an IPA signing or real-device pass.
+- BrowserStack secrets have been added by the owner, but the manual `MORT iOS BrowserStack QA` workflow has not yet been dispatched. The connected GitHub action interface available for this run supports reading jobs and rerunning failed jobs, but does not expose workflow-dispatch. Trigger the workflow manually from GitHub Actions using branch `qa/guardian-consent-flutter-draft`; then verify the upload step actually receives both secrets and complete the real-device matrix. Never print either secret in logs.
