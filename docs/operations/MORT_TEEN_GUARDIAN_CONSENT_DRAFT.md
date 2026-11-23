@@ -1,6 +1,10 @@
 # Teen guardian consent: disposable-replica review contract
 
-This is a proposal, not approved policy or a production migration. Do not apply it to a hosted project, expose these RPCs to released clients, put the SQL on an approval/apply list, or use real youth identities or evidence. The only wired caller is the explicitly opt-in disposable-replica test. Existing optional Guardian Mode remains independent.
+This is a proposal, not approved policy or a production migration. Do not apply it to a hosted project, expose these RPCs to released clients, put the SQL on an approval/apply list, or use real youth identities or evidence. Existing optional Guardian Mode remains independent.
+
+## Flutter replica preflight
+
+The pending teen's account-status screen has a read-only draft card. It defaults off and needs `MORT_TEEN_CONSENT_REPLICA_DRAFT=true`, `internal_test` / `automated_test`, BrowserStack fixtures off, and a TLS terminator for a disposable replica on a loopback hostname (or Android emulator host alias `10.0.2.2`). Use only a trusted certificate and synthetic users. It does not work on hosted QA or production and does not change eligibility or navigation. The card displays only the server-returned state and version, with a generic unavailable message for errors, and stores no identifiers from the response. Assent, guardian discovery and decision, withdrawal, staff attestation, and public copy are deliberately not wired; those require policy approval, approved notices, and a dedicated hosted-QA design and rollout.
 
 ## Version 1 contract
 
