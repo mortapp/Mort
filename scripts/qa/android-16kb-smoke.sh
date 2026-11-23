@@ -144,6 +144,9 @@ for (( i=1; i<=20; i++ )); do
         awk '/libflutter[.]so|libapp[.]so/ {n=split($NF,a,"/"); print a[n]}' | sort -u || true)"
       printf 'Relevant mapped libraries: %s\n' "${native_maps:-unavailable (see linker diagnostics)}"
       shell dumpsys meminfo "$package" | awk '/TOTAL PSS|TOTAL RSS|TOTAL SWAP|Native Heap|Graphics/' || true
+      # Diagnostics run only on failure; do not spend the emulator's short
+      # post-launch lifetime collecting redundant dumps before the UI journey.
+      trap - EXIT
       exit 0
     fi
   else
