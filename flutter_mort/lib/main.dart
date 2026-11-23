@@ -1,28 +1,31 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'app.dart';
 import 'core/observability/crash_reporting.dart';
 import 'core/observability/sentry_crash_provider.dart';
 import 'core/observability/structured_log.dart';
-import 'core/observability/product_analytics.dart';
 import 'core/theme/mort_theme.dart';
 import 'core/widgets/mort_widgets.dart';
 import 'data/services/supabase_service.dart';
 import 'core/config/app_config.dart';
-import 'features/ads/data/ad_consent_service.dart';
 import 'features/qa/browserstack_qa_app.dart';
-import 'services/push/push_notification_coordinator.dart';
 import 'services/push/remote_push_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (AppConfig.browserStackQaMode) {
     _runApp();
+    return;
+  }
+  if (AppConfig.validationErrors.isNotEmpty) {
+    // Render the startup gate without initializing an optional provider when
+    // native configuration is missing or inconsistent.
+    _runAppWithFallbackHandlers();
     return;
   }
   // Android 15+ (targetSdk 35+, which MORT uses) enforces edge-to-edge
@@ -81,16 +84,9 @@ void _runAppWithFallbackHandlers() {
     );
     return reporter.providerConfigured;
   };
-  runZonedGuarded(_runApp, (error, stackTrace) {
-    unawaited(
-      reporter.record(error, stackTrace, fatal: true, context: 'root_zone'),
-    );
-    if (!reporter.providerConfigured) {
-      FlutterError.presentError(
-        FlutterErrorDetails(exception: error, stack: stackTrace),
-      );
-    }
-  });
+  // Keep runApp in the same zone as WidgetsFlutterBinding. The framework and
+  // platform handlers above already cover their respective uncaught errors.
+  _runApp();
 }
 
 class MortBootstrap extends StatefulWidget {
@@ -131,15 +127,6 @@ class _MortBootstrapState extends State<MortBootstrap> {
         throw StateError('The configured crash provider is unavailable.');
       }
       await (widget.initialize ?? SupabaseService.initializeIfConfigured)();
-      await MortProductAnalytics.instance.initialize();
-      await PushNotificationCoordinator.instance.initialize();
-      if (AppConfig.supportsNativeAds && AppConfig.adsEnabled) {
-        // Ads are optional to the product -- a consent or SDK init failure
-        // here must never block sign-in, jobs, safety, or any other core
-        // flow. AdMobService's own per-request checks already fail closed
-        // if this never completes.
-        unawaited(_initializeAdsBestEffort());
-      }
       return null;
     } catch (error) {
       unawaited(
@@ -151,19 +138,6 @@ class _MortBootstrapState extends State<MortBootstrap> {
         ),
       );
       return error;
-    }
-  }
-
-  Future<void> _initializeAdsBestEffort() async {
-    try {
-      await const AdConsentService().ensureConsent();
-      await MobileAds.instance.initialize();
-    } catch (error) {
-      MortStructuredLog.instance.record(
-        'mort.ads.startup_init_failed',
-        level: MortLogLevel.warning,
-        attributes: {'error': error.toString()},
-      );
     }
   }
 

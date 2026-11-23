@@ -3,88 +3,84 @@ import 'dart:async';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../../../core/observability/structured_log.dart';
+import '../../../core/utils/date_of_birth.dart';
+import '../../../core/utils/retryable_initialization.dart';
+import '../../../data/models/profile.dart';
 
-/// Wraps Google's User Messaging Platform (UMP) SDK so ad consent is
-/// requested and honored before any ad request is made. MORT never shows
-/// ads on sensitive screens regardless of consent state -- this only
-/// governs whether a shown ad may be personalized.
-class AdConsentService {
-  const AdConsentService();
+/// Do not initialize third-party ads for youth, unknown age, signed-out users,
+/// a stale profile from another session, or an account that is not active.
+bool isEligibleAdultAdAccount(Profile? profile, String? userId, DateTime now) {
+  final dob = profile?.dob;
+  return userId != null &&
+      profile != null &&
+      profile.id == userId &&
+      profile.isAdult &&
+      profile.isActive &&
+      profile.onboardingCompleted &&
+      (profile.verificationStatus == 'approved' ||
+          profile.verificationStatus == 'verified') &&
+      dob != null &&
+      DateOfBirthParser.ageOn(dob, now) >= 18;
+}
 
-  /// Requests the latest consent info and, if required by the user's
-  /// region (EEA/UK-style consent rules), shows Google's consent form.
-  /// Completes once it is safe to request ads -- consent obtained, not
-  /// required, or the request/form failed. Failures fail closed to
-  /// non-personalized ads rather than blocking the ad slot entirely; MORT's
-  /// own sensitive-placement gating applies regardless of consent outcome.
-  Future<void> ensureConsent({bool underAgeOfConsent = false}) {
-    final completer = Completer<void>();
-    void finish() {
-      if (!completer.isCompleted) completer.complete();
-    }
+class AdRequestGate {
+  AdRequestGate({
+    required Future<bool> Function() refreshConsent,
+    required Future<void> Function() initializeAds,
+  }) : _refreshConsent = refreshConsent,
+       _initializeAds = initializeAds;
 
-    final params = ConsentRequestParameters(
-      tagForUnderAgeOfConsent: underAgeOfConsent,
-    );
+  static final instance = AdRequestGate(
+    refreshConsent: _refreshGoogleConsent,
+    initializeAds: () async {
+      await MobileAds.instance.initialize();
+    },
+  );
 
-    ConsentInformation.instance.requestConsentInfoUpdate(
-      params,
-      () async {
-        if (await ConsentInformation.instance.isConsentFormAvailable()) {
-          _loadAndShowForm(finish);
-        } else {
-          finish();
-        }
-      },
-      (FormError error) {
-        MortStructuredLog.instance.record(
-          'mort.ads.consent_info_update_failed',
-          level: MortLogLevel.warning,
-          attributes: {'error_code': error.errorCode.toString()},
-        );
-        finish();
-      },
-    );
+  final Future<bool> Function() _refreshConsent;
+  final Future<void> Function() _initializeAds;
+  final _sdkInitialization = RetryableInitialization();
+  Future<bool>? _pendingConsent;
 
-    return completer.future;
-  }
-
-  void _loadAndShowForm(void Function() finish) {
-    ConsentForm.loadConsentForm(
-      (ConsentForm form) async {
-        final status = await ConsentInformation.instance.getConsentStatus();
-        if (status == ConsentStatus.required) {
-          form.show((FormError? dismissError) {
-            if (dismissError != null) {
-              MortStructuredLog.instance.record(
-                'mort.ads.consent_form_dismiss_error',
-                level: MortLogLevel.warning,
-                attributes: {'error_code': dismissError.errorCode.toString()},
-              );
-            }
-            finish();
+  Future<bool> prepare({required bool Function() stillEligible}) async {
+    if (!stillEligible()) return false;
+    try {
+      final consent = _pendingConsent ??= Future<bool>.sync(_refreshConsent)
+          .whenComplete(() {
+            _pendingConsent = null;
           });
-        } else {
-          finish();
-        }
-      },
-      (FormError error) {
-        MortStructuredLog.instance.record(
-          'mort.ads.consent_form_load_failed',
-          level: MortLogLevel.warning,
-          attributes: {'error_code': error.errorCode.toString()},
-        );
-        finish();
-      },
-    );
+      if (!await consent || !stillEligible()) return false;
+      await _sdkInitialization.run(_initializeAds);
+      return stillEligible();
+    } catch (_) {
+      MortStructuredLog.instance.record(
+        'mort.ads.request_gate_failed',
+        level: MortLogLevel.warning,
+        attributes: const {'provider': 'admob', 'outcome': 'blocked'},
+      );
+      return false;
+    }
   }
 
-  /// Whether ads must be requested as non-personalized right now, per the
-  /// last consent outcome. MORT additionally forces this to true for every
-  /// Teen and every user of unknown age regardless of what this returns --
-  /// see [AdMobService].
-  Future<bool> requiresNonPersonalizedAds() async {
-    final status = await ConsentInformation.instance.getConsentStatus();
-    return status != ConsentStatus.obtained;
+  static Future<bool> _refreshGoogleConsent() async {
+    final information = ConsentInformation.instance;
+    final update = Completer<bool>();
+    information.requestConsentInfoUpdate(
+      ConsentRequestParameters(tagForUnderAgeOfConsent: false),
+      () => update.complete(true),
+      (_) => update.complete(false),
+    );
+    if (!await update.future) return false;
+    // Do not serve ads where Google requires a user-facing privacy options
+    // control until MORT has a reviewed, working entry point for that control.
+    if (await information.getPrivacyOptionsRequirementStatus() !=
+        PrivacyOptionsRequirementStatus.notRequired) {
+      return false;
+    }
+    final form = Completer<bool>();
+    await ConsentForm.loadAndShowConsentFormIfRequired(
+      (error) => form.complete(error == null),
+    );
+    return await form.future && await information.canRequestAds();
   }
 }

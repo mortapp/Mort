@@ -63,7 +63,10 @@ class MortReleaseConfiguration {
     required this.maintenanceMode,
     required this.debugEndpointsEnabled,
     required this.browserStackQaMode,
+    this.nativeHostedQa = false,
   });
+
+  static const hostedQaProjectRef = 'ckcxakhxqlkhppsxxjhv';
 
   final MortReleaseProfile profile;
   final String releaseStage;
@@ -98,11 +101,53 @@ class MortReleaseConfiguration {
   final bool maintenanceMode;
   final bool debugEndpointsEnabled;
   final bool browserStackQaMode;
+  final bool nativeHostedQa;
 
   bool get hostedBackendConfigured =>
       supabaseUrl == 'https://$expectedSupabaseProjectRef.supabase.co' &&
       supabaseProjectRef == expectedSupabaseProjectRef &&
       supabaseAnonKey.trim().isNotEmpty;
+
+  // Native release-stage checks apply even to an AOT internal QA build.
+  List<String> get applicationBackendValidationErrors {
+    if (nativeHostedQa) {
+      if (profile != MortReleaseProfile.automatedTest ||
+          releaseStage != 'internal_test' ||
+          operationalMode != 'automated_test' ||
+          browserStackQaMode ||
+          debugEndpointsEnabled ||
+          publicMarketplaceEnabled ||
+          marketplacePaymentsEnabled ||
+          paymentProviderMode != 'disabled' ||
+          identityVerificationEnabled ||
+          remotePushEnabled ||
+          crashReportingEnabled ||
+          productAnalyticsEnabled ||
+          chatbotAiEnabled ||
+          adsEnabled ||
+          iapEnabled ||
+          reviewerModeEnabled ||
+          productionActivationApproved) {
+        return ['Hosted QA must be isolated to internal automated tests'];
+      }
+      if (supabaseUrl != 'https://$hostedQaProjectRef.supabase.co' ||
+          supabaseProjectRef != hostedQaProjectRef ||
+          supabaseAnonKey.trim().isEmpty) {
+        return [
+          'Hosted QA must use the approved QA project and public configuration',
+        ];
+      }
+      return const [];
+    }
+    if (releaseStage == 'development' || browserStackQaMode) return const [];
+    return [
+      if (supabaseProjectRef != expectedSupabaseProjectRef ||
+          supabaseUrl != 'https://$expectedSupabaseProjectRef.supabase.co')
+        'Supabase project does not match the approved MORT project',
+      if (supabaseAnonKey.trim().isEmpty)
+        'hosted Supabase public configuration is missing',
+    ];
+  }
 
   List<String> get validationErrors {
     final errors = <String>[];

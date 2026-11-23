@@ -2,7 +2,8 @@
 param(
   [string]$OutputPath = '',
   [switch]$BrowserStackQa,
-  [switch]$RamusX64
+  [switch]$RamusX64,
+  [switch]$ReleaseBundle
 )
 
 $ErrorActionPreference = 'Stop'
@@ -11,8 +12,25 @@ Set-StrictMode -Version Latest
 $root = Resolve-Path "$PSScriptRoot\.."
 $flutterRoot = Join-Path $root 'flutter_mort'
 if (-not $OutputPath) {
+  if ($ReleaseBundle) { throw 'Provide a new absolute path ending in mort-android-qa.aab.' }
   $filename = if ($RamusX64) { 'mort-ramus-x64-qa.apk' } else { 'mort-device-test.apk' }
   $OutputPath = Join-Path $root "build\device-test\$filename"
+}
+
+if ($ReleaseBundle) {
+  if ($BrowserStackQa -or $RamusX64 -or
+      -not [IO.Path]::IsPathFullyQualified($OutputPath) -or
+      [IO.Path]::GetFileName($OutputPath) -cne 'mort-android-qa.aab' -or
+      (Test-Path -LiteralPath $OutputPath)) {
+    throw 'ReleaseBundle requires its own unused absolute mort-android-qa.aab path and normal app mode.'
+  }
+  # Built only with the dedicated non-store fixture from android-qa-bundle.sh.
+  if ($env:MORT_UPLOAD_KEY_ALIAS -cne 'mort-ephemeral-qa' -or
+      [IO.Path]::GetFileName($env:MORT_UPLOAD_KEYSTORE_PATH) -cne 'mort-ephemeral-qa.p12' -or
+      (Test-Path -LiteralPath (Join-Path $flutterRoot 'android/key.properties')) -or
+      (Test-Path -LiteralPath (Join-Path $flutterRoot 'build/app/outputs/bundle/release/app-release.aab'))) {
+    throw 'Use the ephemeral QA keystore in a fresh checkout; an existing AAB must not be overwritten.'
+  }
 }
 
 # Device-test builds are isolated to the QA Supabase project. Only the
@@ -47,6 +65,8 @@ $defines = @(
 
 if ($BrowserStackQa) {
   $defines += '--dart-define=MORT_BROWSERSTACK_QA_MODE=true'
+} else {
+  $defines += '--dart-define=MORT_NATIVE_HOSTED_QA=true'
 }
 
 if ($RamusX64) {
@@ -73,29 +93,41 @@ try {
   & flutter config --jdk-dir="$env:JAVA_HOME"
   if ($LASTEXITCODE -ne 0) { throw 'Flutter could not select the configured JDK 17.' }
 
-  & flutter pub get
+  & flutter pub get --enforce-lockfile
   if ($LASTEXITCODE -ne 0) { throw 'flutter pub get failed.' }
 
-  & flutter build apk --debug @defines
-  if ($LASTEXITCODE -ne 0) { throw 'Device-test APK build failed.' }
+  if ($ReleaseBundle) {
+    & flutter build appbundle --release --target-platform=android-arm,android-arm64,android-x64 @defines
+  } else {
+    & flutter build apk --debug @defines
+  }
+  if ($LASTEXITCODE -ne 0) { throw 'Device-test build failed.' }
 } finally {
   Pop-Location
 }
 
-$builtApk = Join-Path $flutterRoot 'build\app\outputs\flutter-apk\app-debug.apk'
-if (-not (Test-Path -LiteralPath $builtApk -PathType Leaf)) {
-  throw 'Flutter did not produce app-debug.apk.'
+$builtArtifact = if ($ReleaseBundle) {
+  Join-Path $flutterRoot 'build/app/outputs/bundle/release/app-release.aab'
+} else {
+  Join-Path $flutterRoot 'build\app\outputs\flutter-apk\app-debug.apk'
 }
-if ($RamusX64 -and (Get-Item -LiteralPath $builtApk).Length -gt 157286400) {
-  throw 'The single-ABI QA APK still exceeds the measured Ramus trial upload limit (150 MiB).'
+if (-not (Test-Path -LiteralPath $builtArtifact -PathType Leaf)) {
+  throw 'Flutter did not produce the expected Android artifact.'
+}
+if ($RamusX64 -and (Get-Item -LiteralPath $builtArtifact).Length -gt 157286400) {
+  throw 'The x86_64-engine QA APK still exceeds the measured Ramus trial upload limit (150 MiB).'
 }
 
 $parent = Split-Path $OutputPath -Parent
 if ($parent) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }
-Copy-Item -LiteralPath $builtApk -Destination $OutputPath -Force
+if ($ReleaseBundle) {
+  [IO.File]::Copy($builtArtifact, $OutputPath, $false)
+} else {
+  Copy-Item -LiteralPath $builtArtifact -Destination $OutputPath -Force
+}
 
 $artifact = Get-Item -LiteralPath $OutputPath
 $sha256 = (Get-FileHash -LiteralPath $OutputPath -Algorithm SHA256).Hash
-Write-Output "Device-test APK: $($artifact.FullName)"
+Write-Output "Device-test Android artifact: $($artifact.FullName)"
 Write-Output "Size bytes: $($artifact.Length)"
 Write-Output "SHA256: $sha256"

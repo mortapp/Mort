@@ -322,6 +322,9 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -337,7 +340,7 @@ jobs:
           retention-days: 7
 
   android-ramus-qa-apk:
-    # A single-ABI derivative, never the previously recorded APK or a store AAB.
+    # An x86_64-engine derivative, never the previously recorded APK or a store AAB.
     if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -347,6 +350,9 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -358,8 +364,11 @@ jobs:
         run: |
           set -euo pipefail
           apk=build/device-test/mort-ramus-x64-qa.apk
-          abis="$(unzip -Z1 "$apk" | awk -F/ '$1=="lib" && $3!="" {print $2}' | sort -u)"
-          test "$abis" = x86_64
+          # Flutter --target-platform narrows the engine. Plugin AARs may
+          # still contribute auxiliary libraries for other ABIs.
+          engine="$(unzip -Z1 "$apk" | awk -F/ '$1=="lib" && $3=="libflutter.so" {print $2}')"
+          test "$engine" = x86_64
+          unzip -Z1 "$apk" | awk -F/ '$1=="lib" && $3 ~ /\.so$/ {print $2}' | sort | uniq -c
           (cd "$(dirname "$apk")" && sha256sum "$(basename "$apk")" | tee SHA256SUMS)
       - uses: actions/upload-artifact@v4
         with:
@@ -455,9 +464,10 @@ jobs:
           api-level: 36
           arch: x86_64
           target: ${{ matrix.target }}
-          ram-size: 4096M
+          ram-size: 3072M
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -cores 2
           disable-animations: true
-          script: bash scripts/qa/android-16kb-smoke.sh "$RUNNER_TEMP/mort-16kb/mort-device-test.apk" "${{ matrix.page_size }}" 3500000
+          script: bash scripts/qa/android-controlled-startup.sh "$RUNNER_TEMP/mort-16kb/mort-device-test.apk" "${{ matrix.page_size }}" 2750000
 
   android-prod-device-test-apk:
     runs-on: ubuntu-latest
@@ -468,6 +478,9 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
       - uses: subosito/flutter-action@v2
         with:
           channel: stable

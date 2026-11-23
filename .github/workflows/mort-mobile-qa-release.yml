@@ -1,0 +1,132 @@
+name: MORT mobile QA release evidence
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/mort-mobile-qa-release.yml
+      - 'flutter_mort/**'
+      - 'scripts/qa/android-*.sh'
+      - 'scripts/qa/*ios*'
+      - scripts/build-android-device-test-apk.ps1
+
+permissions:
+  contents: read
+
+jobs:
+  ios-release-verifier-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 scripts/qa/test_ios_release_policy.py
+
+  ios-simulator-entry:
+    runs-on: macos-26
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+      - run: bash scripts/qa/ios-simulator-entry.sh
+
+  android-qa-bundle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17.0.21+9'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+      - name: Install Android tools and retrieve pinned bundletool
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk="${ANDROID_SDK_ROOT:-${ANDROID_HOME:?Android SDK is required}}"
+          if [[ ! -x "$sdk/build-tools/36.0.0/apksigner" || ! -f "$sdk/platforms/android-36/android.jar" ]]; then
+            manager="$(find "$sdk/cmdline-tools" -name sdkmanager -type f | sort -V | tail -1)"
+            test -x "$manager"
+            "$manager" --sdk_root="$sdk" 'build-tools;36.0.0' 'platforms;android-36'
+          fi
+          curl --fail --show-error --silent --location --retry 3 \
+            https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar \
+            --output "$RUNNER_TEMP/bundletool.jar"
+      - name: Build R8/AOT QA bundle, extract splits and verify artifacts
+        run: bash scripts/qa/android-qa-bundle.sh "$RUNNER_TEMP/mort-android-qa-aot" "$RUNNER_TEMP/bundletool.jar"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mort-qa-android-aot
+          path: ${{ runner.temp }}/mort-android-qa-aot/
+          if-no-files-found: error
+          retention-days: 14
+
+  android-qa-startup:
+    name: Android AOT startup (${{ matrix.abi }}, ${{ matrix.page }} B, ${{ matrix.ram }} MiB)
+    needs: android-qa-bundle
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: ubuntu-24.04, abi: x86_64, page: 4096, target: google_apis, ram: 3072, min_kb: 2750000}
+          - {runner: ubuntu-24.04, abi: x86_64, page: 16384, target: google_apis_ps16k, ram: 3072, min_kb: 2750000}
+          - {runner: ubuntu-24.04, abi: x86_64, page: 4096, target: google_apis, ram: 4096, min_kb: 3500000}
+          - {runner: ubuntu-24.04, abi: x86_64, page: 16384, target: google_apis_ps16k, ram: 4096, min_kb: 3500000}
+          - {runner: ubuntu-24.04-arm, abi: arm64-v8a, page: 16384, target: google_apis_ps16k, ram: 3072, min_kb: 2750000}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v4
+        with:
+          name: mort-qa-android-aot
+          path: ${{ runner.temp }}/mort-android-qa-aot
+      - name: Measure host resources, verify artifact, enable KVM
+        run: |
+          free -m
+          uname -m
+          nproc
+          cd "$RUNNER_TEMP/mort-android-qa-aot"
+          sha256sum -c SHA256SUMS --strict
+          if [[ ! -c /dev/kvm ]]; then
+            echo '::error::INCONCLUSIVE: This runner has no KVM device for native-emulator QA.'
+            exit 75
+          fi
+          if [[ ! -r /dev/kvm || ! -w /dev/kvm ]]; then
+            # Grant only the current user access on this disposable hosted
+            # runner. A udev trigger is asynchronous and can race the check.
+            if ! sudo setfacl -m "u:$(id -u):rw" /dev/kvm ||
+               [[ ! -r /dev/kvm || ! -w /dev/kvm ]]; then
+              echo '::error::INCONCLUSIVE: KVM could not be opened by the hosted runner user.'
+              exit 75
+            fi
+          fi
+      - name: Launch the Settings control and MORT on a measured runtime
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 36
+          arch: ${{ matrix.abi }}
+          target: ${{ matrix.target }}
+          ram-size: ${{ matrix.ram }}M
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -cores 2
+          disable-animations: true
+          script: >-
+            bash scripts/qa/android-controlled-startup.sh
+            "$RUNNER_TEMP/mort-android-qa-aot/mort-android-qa-universal.apk"
+            "${{ matrix.page }}" "${{ matrix.min_kb }}" "${{ matrix.abi }}"
+      - name: Check host OOM and emulator infrastructure signals
+        if: always()
+        run: |
+          free -m
+          sudo dmesg --color=never | grep -Ei 'out of memory|oom.kill|killed process.*(qemu|emulator)|kvm.*(failed|fatal)' | tail -50 || true
+          if test -f /sys/fs/cgroup/memory.events; then sed -n '1,10p' /sys/fs/cgroup/memory.events; fi

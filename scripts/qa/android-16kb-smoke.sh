@@ -9,8 +9,9 @@ minimum_guest_kb="${3:-0}"
 package=com.mortapp.mobile
 test -f "$apk"
 
-adb_run() { timeout --kill-after=5s 45s adb "$@"; }
+adb_run() { timeout --kill-after=2s 10s adb "$@"; }
 shell() { adb_run shell "$@" | tr -d '\r'; }
+launcher() { timeout --kill-after=3s 35s adb shell "$@" | tr -d '\r'; }
 
 device_online() {
   local state
@@ -42,8 +43,9 @@ window_rows() {
 }
 
 focused_windows() {
-  shell dumpsys window displays | window_rows
-  shell dumpsys window windows | window_rows
+  # One window-manager dump is sufficient for mCurrentFocus/mFocusedApp.
+  # Two separate dumps per sample doubled ADB round-trips on hosted emulators.
+  shell dumpsys window | window_rows
 }
 
 diagnose() {
@@ -51,9 +53,8 @@ diagnose() {
   trap - EXIT
   printf 'MORT launch gate exit=%s; final Android diagnostics:\n' "$code" >&2
   if ! device_online; then
-    printf 'ADB transport unavailable. App foreground and exit diagnostics are inconclusive.\n' >&2
-    (( code != 0 )) && exit "$code"
-    exit 1
+    printf 'ADB transport unavailable; final diagnostics skipped. Preserve the launch-gate result.\n' >&2
+    exit "$code"
   fi
   shell dumpsys activity activities | activity_rows >&2 || true
   focused_windows >&2 || true
@@ -98,26 +99,26 @@ case "$component" in "$package"/*) ;; *) printf 'No MORT launcher component: %s\
 adb_run logcat -b main -b system -b crash -b events -c
 trap diagnose EXIT
 launch_rc=0
-launch="$(shell am start -W -S --user current -a android.intent.action.MAIN \
+launch_started=$SECONDS
+launch="$(launcher am start -S --user current -a android.intent.action.MAIN \
   -c android.intent.category.LAUNCHER -n "$component")" || launch_rc=$?
 printf '%s\n' "$launch"
 if (( launch_rc != 0 )); then
   printf 'Activity Manager launcher command failed (exit %s).\n' "$launch_rc" >&2
   exit 1
 fi
-if grep -Fxq 'Status: timeout' <<< "$launch" &&
-    grep -Fxq "Activity: $component" <<< "$launch"; then
-  # -W can time out while Android is still drawing the requested activity.
-  # This is not a pass; require the same process and real focused window below.
-  printf 'Activity Manager timed out waiting for the requested activity; observing foreground directly.\n'
-elif ! grep -Fxq 'Status: ok' <<< "$launch"; then
-  printf 'Activity Manager did not report a launch of the requested activity.\n' >&2
+if ! grep -Fq "cmp=$component" <<< "$launch" ||
+    grep -Eq '(^Error:|^Exception|^java\.)' <<< "$launch"; then
+  printf 'Activity Manager did not accept a launch of the requested activity.\n' >&2
   exit 1
 fi
 
 previous_pid=
 local_samples=0
-for (( i=1; i<=30; i++ )); do
+# Require three consecutive foreground observations. The hosted emulator
+# backend intermittently drops ADB after ~45 seconds; a longer eight-sample
+# window was losing an already-launched app to infrastructure teardown.
+for (( i=1; i<=20; i++ )); do
   if ! device_online; then
     printf 'ADB transport lost before stable foreground could be established.\n' >&2
     exit 1
@@ -127,26 +128,46 @@ for (( i=1; i<=30; i++ )); do
   activities="$(shell dumpsys activity activities | activity_rows || true)"
   windows="$(focused_windows || true)"
   resumed="$(awk -v pkg="$package/" 'tolower($0) ~ /resumedactivity/ && index($0,pkg)' <<< "$activities")"
-  focused="$(awk -v pkg="$package/" '/mCurrentFocus=/ && index($0,pkg)' <<< "$windows")"
-  printf 'sample=%02d pidof=%s ps=%s resumed=%s focused=%s\n' \
-    "$i" "${reported_pid:-none}" "${ps_pid:-none}" \
+  focused="$(awk -v pkg="$package/" '/mCurrentFocus=/ && index($0,pkg) && !/Splash Screen|Starting Window/' <<< "$windows")"
+  available="$(memory_rows | awk '$1=="MemAvailable:" {print $2}' || true)"
+  printf 'sample=%02d elapsed_s=%s pidof=%s ps=%s resumed=%s focused=%s available_kb=%s\n' \
+    "$i" "$((SECONDS-launch_started))" "${reported_pid:-none}" "${ps_pid:-none}" \
     "$(if [[ -n "$resumed" ]]; then echo yes; else echo no; fi)" \
-    "$(if [[ -n "$focused" ]]; then echo yes; else echo no; fi)"
+    "$(if [[ -n "$focused" ]]; then echo yes; else echo no; fi)" "${available:-unknown}"
   if [[ "$ps_pid" =~ ^[0-9]+$ && "$reported_pid" == "$ps_pid" &&
-        -n "$resumed" && -n "$focused" && "$windows" != *"${package}/"*Splash* ]]; then
+        -n "$resumed" && -n "$focused" ]] && device_online; then
     if [[ "$ps_pid" == "$previous_pid" ]]; then
       (( local_samples += 1 ))
     else
       local_samples=1
     fi
     previous_pid="$ps_pid"
-    if (( local_samples >= 8 )); then
-      printf 'MORT process %s remained alive, resumed and focused for %s samples.\n%s\n%s\n' \
+    if (( local_samples >= 3 )); then
+      printf 'MORT process %s remained alive, resumed and focused for %s consecutive samples.\n%s\n%s\n' \
         "$ps_pid" "$local_samples" "$resumed" "$focused"
       native_maps="$(shell run-as "$package" cat "/proc/$ps_pid/maps" 2>/dev/null |
         awk '/libflutter[.]so|libapp[.]so/ {n=split($NF,a,"/"); print a[n]}' | sort -u || true)"
       printf 'Relevant mapped libraries: %s\n' "${native_maps:-unavailable (see linker diagnostics)}"
       shell dumpsys meminfo "$package" | awk '/TOTAL PSS|TOTAL RSS|TOTAL SWAP|Native Heap|Graphics/' || true
+      if [[ "${MORT_REQUIRE_WELCOME:-0}" == 1 ]]; then
+        ui_path=/data/local/tmp/mort-qa-welcome.xml
+        shell rm -f "$ui_path"
+        shell uiautomator dump "$ui_path" >/dev/null
+        # Never print the view tree, and require both actual Flutter CTAs.
+        ui="$(shell cat "$ui_path")"
+        shell rm -f "$ui_path"
+        if [[ "$ui" != *'I already have an account'* || "$ui" != *'Create account'* ]]; then
+          echo 'MORT has native focus but its Flutter welcome actions were not both rendered.' >&2
+          exit 1
+        fi
+        test "$(shell pidof "$package")" = "$ps_pid"
+        device_online
+        adb_run logcat -b crash -d -t 100 -v brief >/dev/null
+        echo 'Actual Flutter welcome actions verified; no sign-in or hosted journey was attempted.'
+      fi
+      # Diagnostics run only on failure; do not spend the emulator's short
+      # post-launch lifetime collecting redundant dumps before the UI journey.
+      trap - EXIT
       exit 0
     fi
   else

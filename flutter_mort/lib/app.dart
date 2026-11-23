@@ -13,6 +13,7 @@ import 'core/widgets/app_lock_gate.dart';
 import 'core/widgets/auth_startup_gate.dart';
 import 'core/widgets/mort_widgets.dart';
 import 'core/observability/product_analytics.dart';
+import 'core/observability/structured_log.dart';
 import 'core/preferences/mort_experience_preferences.dart';
 import 'data/repositories/providers.dart';
 import 'services/app_lock_controller.dart';
@@ -38,8 +39,13 @@ class _MortAppState extends ConsumerState<MortApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _router.routerDelegate.addListener(_recordCurrentSurface);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       AppLockController.instance.initialize();
       _recordCurrentSurface();
+      // Subscribers are attached before the provider can deliver a cold-start
+      // notification. No integration network request can block the first frame.
+      unawaited(PushNotificationCoordinator.instance.startBestEffort());
+      unawaited(_startOptionalAnalytics());
     });
     final push = PushNotificationCoordinator.instance;
     _foregroundPushSubscription = push.foregroundMessages.listen((_) {
@@ -61,6 +67,20 @@ class _MortAppState extends ConsumerState<MortApp> with WidgetsBindingObserver {
         if (mounted) ref.read(appRouterProvider).go('/account-status');
       }
     });
+  }
+
+  Future<void> _startOptionalAnalytics() async {
+    final analytics = MortProductAnalytics.instance;
+    if (!analytics.buildEnabled) return;
+    try {
+      await analytics.initialize();
+    } catch (_) {
+      MortStructuredLog.instance.record(
+        'mort.analytics.startup_failed',
+        level: MortLogLevel.warning,
+        attributes: const {'feature': 'product_analytics', 'outcome': 'failed'},
+      );
+    }
   }
 
   @override
