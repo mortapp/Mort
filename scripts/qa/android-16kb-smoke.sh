@@ -165,6 +165,9 @@ for (( i=1; i<=20; i++ )); do
         adb_run logcat -b crash -d -t 100 -v brief >/dev/null
         echo 'Actual Flutter welcome actions verified; no sign-in or hosted journey was attempted.'
       fi
+      # Diagnostics run only on failure; do not spend the emulator's short
+      # post-launch lifetime collecting redundant dumps before the UI journey.
+      trap - EXIT
       exit 0
     fi
   else
