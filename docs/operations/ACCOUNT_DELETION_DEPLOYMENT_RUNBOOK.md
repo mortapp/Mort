@@ -40,7 +40,7 @@ An owner-controlled QA operator must provide, through a protected shell or secre
 - `SUPABASE_ACCESS_TOKEN` with deployment permission for QA
 - `SUPABASE_SERVICE_ROLE_KEY` for the QA project
 - `SUPABASE_DB_PASSWORD` for the QA project
-- `ACCOUNT_DELETION_WORKER_SECRET` configured identically in the QA Edge Function and the QA harness
+- A QA Vault secret named `account_deletion_worker_secret`, created by the approved QA migration. The harness retrieves it through the service-role-only `service_get_account_deletion_worker_secret()` RPC; do not put the secret in environment variables or files.
 
 After verifying that the CLI is authenticated for the QA project, the authorized operator may deploy only to QA:
 
@@ -53,8 +53,9 @@ pnpm exec supabase functions deploy account-deletion-processor \
 
 Set the worker secret only through the authorized QA secret-management path; do not put it in this repository or command history. The configuration probe must be performed in a disposable QA deployment/configuration state and must confirm:
 
-- missing or incomplete worker configuration returns HTTP `503` with `deletion_worker_not_configured`;
-- the response occurs before secret comparison and before database access;
+- missing Supabase service configuration returns HTTP `503` with `deletion_worker_not_configured`;
+- missing or invalid Vault secret returns HTTP `503` with `deletion_worker_unavailable`;
+- Vault lookup is server-side and service-role-only; no claim or destructive operation occurs before the caller secret is authenticated;
 - a request without `x-mort-deletion-secret` returns HTTP `401`;
 - the authorized synthetic fixture run completes Auth deletion, profile cleanup, owned Storage cleanup, and request finalization;
 - cleanup is confirmed even if the test fails.
@@ -82,11 +83,12 @@ Before an authorized production deployment, verify all of the following in the r
 
 1. The exact source commit is the reviewed and approved commit, with a clean working tree.
 2. QA deployment and authorized synthetic E2E evidence are attached.
-3. Production `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `ACCOUNT_DELETION_WORKER_SECRET` are present through the platform's protected configuration path.
-4. The worker secret has been rotated or confirmed according to the owner-approved incident/release procedure.
-5. The production database contains the required service RPCs and retention constraints.
-6. The on-call owner and rollback approver are identified.
-7. A maintenance/rollback decision has been documented; no real deletion test is to be performed in production.
+3. Production `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are present through the platform's protected configuration path.
+4. The production Vault contains `account_deletion_worker_secret`; the service-role-only lookup RPC returns a 64-character or longer value. The Edge Function and scheduler both read the same Vault value; no duplicate Edge Function environment secret is used.
+5. The production database contains the required service RPCs and retention constraints, and the approved retention matrix is in force.
+6. The scheduler reads the Vault secret at runtime and targets only the production worker endpoint.
+7. The on-call owner and rollback approver are identified.
+8. A maintenance/rollback decision has been documented; no real deletion test is to be performed in production.
 
 Do not execute this command in the current task.
 
@@ -102,7 +104,7 @@ curl -i -X POST "https://<authorized-project-ref>.supabase.co/functions/v1/accou
   --data '{}'
 ```
 
-For a correctly configured deployment, an invocation without the worker secret must return HTTP `401`; an intentionally unconfigured isolated QA probe returns HTTP `503` with `deletion_worker_not_configured`. Never send a real user ID or production deletion request as a smoke test.
+For a correctly configured deployment, an invocation without the worker secret must return HTTP `401`; a missing Vault secret returns HTTP `503` with `deletion_worker_unavailable`; missing Supabase service configuration returns HTTP `503` with `deletion_worker_not_configured`. Never send a real user ID or production deletion request as a smoke test.
 
 ## Current evidence
 

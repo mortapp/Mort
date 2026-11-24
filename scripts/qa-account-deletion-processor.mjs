@@ -10,10 +10,9 @@ if (projectRef === "jxbnrkasktbhtiujkhay" || projectRef === "rakjydmgwwgtdislanb
 }
 const url = `https://${projectRef}.supabase.co`;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const workerSecret = process.env.ACCOUNT_DELETION_WORKER_SECRET;
 const dbPassword = process.env.SUPABASE_DB_PASSWORD;
 
-if (!serviceRoleKey || !workerSecret || !dbPassword) {
+if (!serviceRoleKey || !dbPassword) {
   throw new Error("Deletion QA requires server-only environment variables.");
 }
 
@@ -42,6 +41,12 @@ function assert(condition, message) {
 
 await database.connect();
 try {
+  const secretLookup = await admin.rpc("service_get_account_deletion_worker_secret");
+  if (secretLookup.error || typeof secretLookup.data !== "string" || secretLookup.data.length < 64) {
+    throw new Error("QA Vault-backed deletion worker secret is unavailable.");
+  }
+  const workerSecret = secretLookup.data;
+
   const existingQaUsers = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   if (existingQaUsers.error) throw existingQaUsers.error;
   for (const user of existingQaUsers.data.users) {
