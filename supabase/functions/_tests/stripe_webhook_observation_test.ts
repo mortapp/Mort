@@ -260,7 +260,6 @@ Deno.test("Accounts v2 Connect status is read from recipient capabilities and re
     accounts: {
       requirements: {
         entries: [{
-          requirement: "relationship.legal_guardian",
           description: "relationship.legal_guardian",
           minimum_deadline: { status: "pending_verification" },
         }],
@@ -270,7 +269,7 @@ Deno.test("Accounts v2 Connect status is read from recipient capabilities and re
   const restricted = provider({
     accounts: {
       requirements: {
-        entries: [{ requirement: "identity.individual.id_numbers.us_ssn_last_4", minimum_deadline: { status: "past_due" } }],
+        entries: [{ description: "identity.individual.id_numbers.us_ssn_last_4", minimum_deadline: { status: "past_due" } }],
       },
       configuration: {
         recipient: {
