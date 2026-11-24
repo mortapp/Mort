@@ -50,3 +50,9 @@ Pending explicit production approval (listed in `PENDING_PRODUCTION_APPROVAL.txt
 - It accepts the reviewer-written `verified` state and legacy `approved` for both participants, rejects NULL/other states, preserves every existing execution, contract, safety, incident, dispute, start-window, and funding check, and retains the owner-only SECURITY DEFINER ACL.
 - The migration is listed in `PENDING_PRODUCTION_APPROVAL.txt` so the isolated production-replica runner applies it after catalog parity. This is test-only; production deployment still requires separate approval.
 - Regression contract: `supabase/production-baseline-tests/job_execution_gate_verified_status.test.sql`.
+
+## Server-enforced password attestation — 2026-11-16 (NOT applied to production)
+
+- `20261116130000_server_enforced_password_attestation.sql`
+
+Pending explicit production approval. Requires the Vault secret `mort_password_attestation_secret` and the `password-guard` Edge Function (same secret in `MORT_PASSWORD_ATTESTATION_SECRET`) to be deployed first, otherwise every password signup/change fails closed. Full design, evidence, deployment order, key rotation, residual risk and rollback: `docs/security/PASSWORD_PROTECTION_2026-11-16.md`.

@@ -26,6 +26,7 @@
     "backups",
     "artifacts",
     "supabase/functions",
-    "scripts/qa_*.ts"
+    "scripts/qa_*.ts",
+    "scripts/qa/replica/**/*.ts"
   ]
 }

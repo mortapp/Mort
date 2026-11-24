@@ -50,22 +50,41 @@ nonisolated final class LiveAuthService: AuthService {
         return try await profiles.profile(userId: response.user.id)
     }
 
-    func signUp(email: String, password: String, role: MortRole) async throws -> MortUser {
-        let response: AuthTokenResponse = try await client.post(
-            path: "/auth/v1/signup",
+    func signUp(email: String, password: String, role: MortRole, dateOfBirth: Date) async throws -> MortUser? {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone.current
+        let parts = calendar.dateComponents([.year, .month, .day], from: dateOfBirth)
+        guard let year = parts.year, let month = parts.month, let day = parts.day else {
+            throw MortError.rejected("Enter your full date of birth.")
+        }
+        let dateString = String(format: "%04d-%02d-%02d", year, month, day)
+        let result: PasswordGuardResponse = try await client.post(
+            path: "/functions/v1/password-guard",
             body: [
+                "action": "signup",
                 "email": email,
                 "password": password,
-                // Role is recorded in user metadata; the backend is still the
-                // authority that decides what a role may do.
-                "data": ["role": role.rawValue],
+                "date_of_birth": dateString,
+                "role": role.rawValue,
             ],
             authenticated: false
         )
-        try await store(response)
-        return try await profiles.profile(userId: response.user.id)
+        guard result.ok, let auth = result.auth,
+              let accessToken = auth.accessToken,
+              let refreshToken = auth.refreshToken,
+              let expiresIn = auth.expiresIn,
+              let user = auth.user else {
+            // Supabase returns no session when email confirmation is required.
+            return nil
+        }
+        try await store(AuthTokenResponse(
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            expiresIn: expiresIn,
+            user: user
+        ))
+        return try await profiles.profile(userId: user.id)
     }
-
     /// INTEGRATION: requires the Sign in with Apple capability + entitlement.
     /// Flow: ASAuthorizationController -> identityToken -> Supabase
     /// `/auth/v1/token?grant_type=id_token`.
@@ -91,12 +110,45 @@ nonisolated final class LiveAuthService: AuthService {
         throw MortError.notConfigured("Google sign-in")
     }
 
+    /// Must match the URL handled by `MORTIOSV8App.recoveryParameters(from:)`
+    /// and be present in the Supabase Auth redirect allow-list.
+    static let passwordRecoveryRedirect = "com.mortapp.mobile://app/auth-callback"
+
     func sendPasswordReset(email: String) async throws {
         let _: EmptyResponse = try await client.post(
             path: "/auth/v1/recover",
+            query: [URLQueryItem(name: "redirect_to", value: Self.passwordRecoveryRedirect)],
             body: ["email": email],
             authenticated: false
         )
+    }
+
+    /// Stores the short-lived recovery session from the email link. The client
+    /// validates the JWT shape, subject and expiry; the backend remains the
+    /// authority on whether the session is valid.
+    func establishPasswordRecoverySession(accessToken: String, refreshToken: String, expiresIn: Int) async throws {
+        try await client.establishRecoverySession(
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            expiresIn: expiresIn
+        )
+    }
+
+    /// Password changes must go through the password-guard Edge Function.
+    /// After migration 20261116130000 a direct `PUT /auth/v1/user {password}`
+    /// is rejected by the database, including for recovery sessions.
+    func updatePassword(_ password: String) async throws {
+        let result: PasswordGuardResponse = try await client.post(
+            path: "/functions/v1/password-guard",
+            body: [
+                "action": "update_password",
+                "password": password,
+            ],
+            authenticated: true
+        )
+        guard result.ok else {
+            throw MortError.rejected("MORT could not update your password. Try again.")
+        }
     }
 
     func completeOnboarding(userId: String, draft: MortProfileDraft) async throws -> MortUser {

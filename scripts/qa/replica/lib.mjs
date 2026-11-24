@@ -32,32 +32,54 @@ export function anonClient() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function confirmationLink(email) {
+export async function confirmationLink(email, kind = 'signup') {
   for (let i = 0; i < 40; i += 1) {
     const res = await fetch(`${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:"${email}"`)}`);
     const body = await res.json();
-    const msg = body.messages?.[0];
-    if (msg) {
+    for (const msg of body.messages ?? []) {
       const full = await (await fetch(`${MAILPIT_URL}/api/v1/message/${msg.ID}`)).json();
       const text = `${full.Text ?? ''}\n${full.HTML ?? ''}`;
-      const m = text.match(/https?:\/\/[^\s"'<>]+\/auth\/v1\/verify\?[^\s"'<>]+/);
-      if (m) return m[0].replace(/&amp;/g, '&');
+      for (const m of text.matchAll(/https?:\/\/[^\s"'<>]+\/auth\/v1\/verify\?[^\s"'<>]+/g)) {
+        const link = m[0].replace(/&amp;/g, '&');
+        if (new URL(link).searchParams.get('type') === kind) return link;
+      }
     }
     await sleep(250);
   }
-  throw new Error(`no confirmation email for ${email}`);
+  throw new Error(`no ${kind} email for ${email}`);
 }
 
 // Normal journey: public signup (as the corrected client sends it) + email link.
-export async function signUpAndConfirm({ email, password, dob, displayName }) {
-  const client = anonClient();
-  const { data, error } = await client.auth.signUp({
-    email,
-    password,
-    options: { data: { date_of_birth: dob, display_name: displayName } },
+// When PASSWORD_GUARD_URL is set (server-enforced password migration applied),
+// signup goes through the password-guard function exactly as the Flutter client does.
+export const PASSWORD_GUARD_URL = process.env.PASSWORD_GUARD_URL;
+
+export async function guardCall(body, accessToken) {
+  const res = await fetch(PASSWORD_GUARD_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}) },
+    body: JSON.stringify(body),
   });
-  if (error) throw new Error(`signup ${email}: ${error.message}`);
-  if (data.session) throw new Error('replica must require email confirmation');
+  let json = {};
+  try { json = await res.json(); } catch { /* empty */ }
+  return { status: res.status, body: json };
+}
+
+export async function signUpAndConfirm({ email, password, dob, displayName }) {
+  if (PASSWORD_GUARD_URL) {
+    const r = await guardCall({ action: 'signup', email, password, date_of_birth: dob, display_name: displayName });
+    if (r.status !== 200 || !r.body.ok) throw new Error(`guarded signup ${email}: ${r.status} ${JSON.stringify(r.body)}`);
+    if (r.body.auth?.access_token) throw new Error('replica must require email confirmation');
+  } else {
+    const client = anonClient();
+    const { data, error } = await client.auth.signUp({
+      email,
+      password,
+      options: { data: { date_of_birth: dob, display_name: displayName } },
+    });
+    if (error) throw new Error(`signup ${email}: ${error.message}`);
+    if (data.session) throw new Error('replica must require email confirmation');
+  }
   const link = await confirmationLink(email);
   const res = await fetch(link, { redirect: 'manual' });
   if (![200, 302, 303].includes(res.status)) throw new Error(`verify link status ${res.status}`);
