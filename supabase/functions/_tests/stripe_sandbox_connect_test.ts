@@ -50,7 +50,7 @@ Deno.test("approved synthetic profile provisions an idempotent test-mode Account
     id: recipient,
     livemode: false,
     applied_configurations: ["recipient"],
-    identity: { country: "us" },
+    identity: { country: "us", entity_type: "individual" },
     defaults: { currency: "usd" },
   });
   equal(await createSandboxConnectAccount(runtime, fixture), {
@@ -69,6 +69,7 @@ Deno.test("approved synthetic profile provisions an idempotent test-mode Account
     },
   });
   equal(request.body.dashboard, "express");
+  equal(request.body.display_name, "MORT QA recipient");
   equal(request.body.contact_email, `mort-sandbox-${fixture}@example.com`);
   equal(request.body.defaults, {
     currency: "usd",
@@ -77,7 +78,8 @@ Deno.test("approved synthetic profile provisions an idempotent test-mode Account
       losses_collector: "application",
     },
   });
-  equal(request.body.identity, { country: "us" });
+  equal(request.body.identity, { country: "us", entity_type: "individual" });
+  equal(request.body.include, ["configuration.recipient", "defaults", "identity", "requirements"]);
 });
 
 Deno.test("recipient onboarding returns a single-use sandbox link for the requested account", async () => {
