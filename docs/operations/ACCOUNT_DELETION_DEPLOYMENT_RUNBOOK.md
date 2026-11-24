@@ -114,30 +114,43 @@ For a correctly configured deployment, an invocation without the worker secret m
 - Production deployment: **not executed**.
 
 
-## Live production and hosted-QA recheck — 2026-11-23
+## Live production and hosted-QA recheck — 2026-11-24
 
-Read-only checks found the following state:
+The hosted QA deployment and production project were rechecked after the Vault-backed worker change.
+
+### Current deployment and secret state
 
 | Item | Production | Hosted QA |
 |---|---|---|
-| `account-deletion-processor` | ACTIVE, version 1 | ACTIVE, version 2 |
-| Function source SHA-256 | `ff4e25dbc8f29789cb136c3b42bed2f080fee8506353176f4f57c3ca73356963` | `80cc24fc5a185b84ab6ba5d731828c43b174a0463a3780b2519c54297e18d8f9` |
-| Worker source | Older package | Newer lease/timeout/identity-confirmation package |
+| Supabase project | `jxbnrkasktbhtiujkhay` | `ckcxakhxqlkhppsxxjhv` |
+| `account-deletion-processor` | ACTIVE, version 1 (older source) | ACTIVE, version 8 (Vault-backed source) |
+| Deletion worker secret | No deletion-specific Vault secret | `account_deletion_worker_secret` stored in Vault |
+| Secret lookup RPC | Absent | `service_get_account_deletion_worker_secret()`, service_role only |
+| Deletion scheduler | No deletion cron job | `account-deletion-processor-qa`, every 5 minutes |
+| Deletion request schema and RPCs | Absent | Present |
 
-The production version currently throws during module initialization if any required worker secret is missing. The PR #125 package change instead keeps the handler alive and returns a fail-closed HTTP 503 configuration response before secret comparison or database access. The hosted-QA version has additional lease checks, bounded network timeouts, stricter claim validation, Auth-identity confirmation, and storage-listing progress checks that are not present in the inspected production version.
+The QA worker obtains its high-entropy credential through the service-role-only Vault RPC. The Edge Function and scheduler read the same Vault value at runtime; the old `ACCOUNT_DELETION_WORKER_SECRET` Edge Function environment variable is not required.
 
-**Do not assume the QA worker is the production worker.** Do not invoke either worker as a smoke test with a real user or production request.
+### QA verification — 2026-11-24
 
-### Scheduler evidence
+- Vault secret lookup returned a 64-character secret to service_role; anon execution was denied.
+- Worker request with an incorrect secret returned HTTP 401.
+- Worker request with the correct Vault-backed secret and an empty queue returned HTTP 200 with `processed: 0`.
+- The five-minute QA cron job ran successfully; its HTTP request returned 200 with no timeout or error.
+- Existing QA request counts remained unchanged: `cancelled=1`, `completed=1`, `retention_review=1`.
+- No synthetic request rows remained after the checks, and no real account was deleted.
 
-The production catalog has no `cron` schema and no `pg_cron` or `pg_net` extension. Repository search found no account-deletion scheduled workflow or Vercel cron declaration. This does not rule out an external scheduler outside the connected repositories, but no automatic invocation mechanism is currently evidenced. The owner must identify and configure an approved scheduler before the deletion service can be called operational.
+This verifies Vault authentication and scheduled invocation. It does not replace a fresh, disposable-account end-to-end deletion run against worker v8 before production promotion.
+
+### Production extension and scheduler state
+
+Production has `pg_cron`, `pg_net`, `pgcrypto`, and `supabase_vault` installed, and the cron catalog is available. However, there is **no account-deletion cron job**, no deletion-specific Vault secret, no `account_deletion_requests` table, and none of the seven required worker RPCs. Installing the extensions alone does not make the deletion service operational.
 
 ### QA harness target safety
 
-The default-branch `scripts/qa-account-deletion-processor.mjs` still contains a hard-coded production project reference. The PR #125 branch changes that harness to the isolated QA project and adds a hard stop against both production and the retired project. **Do not run the default-branch harness.** Run only the PR #125 QA-pinned copy after reviewing the branch and supplying the required QA-only secrets through a protected environment.
+The default-branch QA harness has not yet been updated to the Vault-backed, QA-pinned version in PR #135. **Do not run the default-branch harness.** Use the branch version only after reviewing it and supplying the QA service-role key and database password through a protected environment. It retrieves the worker secret from Vault using the service-role-only RPC and does not require a copied worker-secret environment variable.
 
-No worker deployment, invocation, secret retrieval, scheduled job creation, or production change was performed during this recheck.
-
+The QA worker v8 deployment, Vault lookup, HTTP authorization checks, and QA scheduler installation were performed. Production deployment, production secret creation, production scheduler activation, and production account deletion were not performed.
 
 ### Deletion contract parity — confirmed production blocker
 
