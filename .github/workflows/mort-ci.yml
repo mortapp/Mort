@@ -59,6 +59,8 @@ jobs:
           supabase/functions/_shared/support_runtime.ts
           supabase/functions/stripe-webhook/index.ts
       - run: deno test --no-config --lock=deno.lock --frozen --node-modules-dir=none --allow-read --allow-env supabase/functions/_tests
+      - name: Test isolated Stripe Supabase port allocation
+        run: node --test scripts/stripe-local-ci.test.mjs
       - name: Exercise webhook migrations with isolated PostgreSQL
         run: |
           npm install --prefix "$RUNNER_TEMP/stripe-webhook-test" --no-audit --no-fund --ignore-scripts @electric-sql/pglite@0.6.0
