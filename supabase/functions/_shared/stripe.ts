@@ -92,7 +92,11 @@ export async function requireRateLimit(context: StripeContext, action: string) {
   if (data !== true) throw new PublicError("rate_limit_exceeded", 429);
 }
 
-export async function runtime(context: StripeContext, needsWebhookSecret = false): Promise<StripeRuntime> {
+export async function runtime(
+  context: StripeContext,
+  needsWebhookSecret = false,
+  allowWhenPaymentsDisabled = false,
+): Promise<StripeRuntime> {
   const mode = Deno.env.get("MORT_STRIPE_MODE") ?? "disabled";
   if (mode !== "sandbox" && mode !== "live") throw new PublicError("stripe_disabled", 503);
   const environment: StripeEnvironment = mode === "sandbox" ? "test" : "live";
@@ -114,7 +118,7 @@ export async function runtime(context: StripeContext, needsWebhookSecret = false
   if (featureStatus.maintenance_mode === true) {
     throw new PublicError("maintenance_mode_active", 503);
   }
-  if (featureStatus.payments_disabled === true) {
+  if (featureStatus.payments_disabled === true && !allowWhenPaymentsDisabled) {
     throw new PublicError("payments_disabled", 503);
   }
 
