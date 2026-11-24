@@ -15,7 +15,7 @@ const fn = (source, qualifiedName) => {
   assert.notEqual(start, -1, qualifiedName);
   return source.slice(start, source.indexOf("\n$$;", start) + 4);
 };
-const seed = "37a92acd-7f02-4f6e-8e86-a2714ac1dea0";
+const seed = "57a92acd-7f02-4f6e-8e86-a2714ac1dea0";
 const read = async (query, params) => (await db.query(query, params)).rows[0]?.value;
 const claim = (id, key, type, hash = "a".repeat(64)) =>
   read("select public.stripe_server_claim_webhook_event_v3('test', $1, $2, now(), $3, $4) as value", [id, type, hash, key]);
@@ -51,7 +51,7 @@ try {
     create table public.job_contracts (id uuid primary key);
     create table public.job_contract_versions (id uuid primary key);
     create table public.job_payment_obligations (id uuid primary key);
-    insert into auth.users values ('${seed}');
+    insert into auth.users (id) values ('${seed}');
     insert into public.job_contracts values ('${seed}');
     insert into public.job_contract_versions values ('${seed}');
     insert into public.job_payment_obligations values ('${seed}');
@@ -73,30 +73,30 @@ try {
   await db.exec(sql("20261124010500_use_canonical_mort_age_band_for_stripe_connect.sql"));
   await db.exec(`
     insert into auth.users (id,email,email_confirmed_at) values
-      ('37a92acd-7f02-4f6e-8e86-a2714ac1dea0','qa-teen@qa.mortapp.org',now()),
-      ('47a92acd-7f02-4f6e-8e86-a2714ac1dea0','ordinary-teen@mortapp.org',now());
+      ('57a92acd-7f02-4f6e-8e86-a2714ac1dea0','qa-teen@qa.mortapp.org',now()),
+      ('67a92acd-7f02-4f6e-8e86-a2714ac1dea0','ordinary-teen@mortapp.org',now());
     insert into public.profiles (id,role,account_status,date_of_birth) values
-      ('37a92acd-7f02-4f6e-8e86-a2714ac1dea0','teen','active',current_date - interval '15 years'),
-      ('47a92acd-7f02-4f6e-8e86-a2714ac1dea0','teen','active',current_date - interval '15 years');
+      ('57a92acd-7f02-4f6e-8e86-a2714ac1dea0','teen','active',current_date - interval '15 years'),
+      ('67a92acd-7f02-4f6e-8e86-a2714ac1dea0','teen','active',current_date - interval '15 years');
     update private.stripe_runtime_controls set mode='sandbox',
       stripe_connected_onboarding_enabled=true, connected_accounts_approved=true,
       sandbox_provider_qa_approved=false;
   `);
   await assert.rejects(
     read("select public.stripe_server_prepare_connected_account($1,'test') as value",
-      ["37a92acd-7f02-4f6e-8e86-a2714ac1dea0"]),
+      ["57a92acd-7f02-4f6e-8e86-a2714ac1dea0"]),
     /sandbox_provider_qa_not_approved/,
   );
   await db.exec("update private.stripe_runtime_controls set sandbox_provider_qa_approved=true");
   const qaPrepared = await read(
     "select public.stripe_server_prepare_connected_account($1,'test') as value",
-    ["37a92acd-7f02-4f6e-8e86-a2714ac1dea0"],
+    ["57a92acd-7f02-4f6e-8e86-a2714ac1dea0"],
   );
   assert.equal(qaPrepared.ok, true);
   assert.equal(qaPrepared.age_band, "teen_13_15");
   await assert.rejects(
     read("select public.stripe_server_prepare_connected_account($1,'test') as value",
-      ["47a92acd-7f02-4f6e-8e86-a2714ac1dea0"]),
+      ["67a92acd-7f02-4f6e-8e86-a2714ac1dea0"]),
     /sandbox_test_account_required/,
   );
   const lease = sql("20260916235113_mort_stripe_webhook_lease_v1.sql");
