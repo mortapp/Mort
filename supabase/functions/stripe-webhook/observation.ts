@@ -289,7 +289,7 @@ export async function observe(
           : null);
       const ready = payouts && transfers === "active" && requirements === "satisfied";
       const guardianRequired = entries.some((entry) =>
-        /guardian/i.test(`${entry.requirement ?? ""} ${entry.description ?? ""}`)
+        /guardian/i.test(entry.description ?? "")
       );
       return {
         ...base,
