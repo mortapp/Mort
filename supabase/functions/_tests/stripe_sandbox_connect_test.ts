@@ -107,7 +107,6 @@ Deno.test("recipient onboarding returns a single-use sandbox link for the reques
     use_case: {
       type: "account_onboarding",
       account_onboarding: {
-        configurations: ["recipient"],
         refresh_url: refreshUrl,
         return_url: returnUrl,
       },
