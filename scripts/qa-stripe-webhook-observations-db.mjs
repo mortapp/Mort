@@ -73,7 +73,10 @@ try {
   await db.exec(`
     insert into auth.users (id,email,email_confirmed_at) values
       ('57a92acd-7f02-4f6e-8e86-a2714ac1dea0','qa-teen@qa.mortapp.org',now()),
-      ('67a92acd-7f02-4f6e-8e86-a2714ac1dea0','ordinary-teen@mortapp.org',now());
+      ('67a92acd-7f02-4f6e-8e86-a2714ac1dea0','ordinary-teen@mortapp.org',now())
+    on conflict (id) do update set
+      email = excluded.email,
+      email_confirmed_at = excluded.email_confirmed_at;
     insert into public.profiles (id,role,account_status,date_of_birth) values
       ('57a92acd-7f02-4f6e-8e86-a2714ac1dea0','teen','active',current_date - interval '15 years'),
       ('67a92acd-7f02-4f6e-8e86-a2714ac1dea0','teen','active',current_date - interval '15 years');
