@@ -169,6 +169,9 @@ async function validateTask31SourceContracts() {
 
   assert(connectPreflight.includes("STRIPE_TEST_CONNECT_WEBHOOK_SECRET"));
   assert(connectPreflight.includes("STRIPE_LIVE_CONNECT_WEBHOOK_SECRET"));
+  assert(connectPreflight.includes("MORT_STRIPE_TEST_CONNECT_WEBHOOK_URL"));
+  assert(connectPreflight.includes("stripe-webhook"));
+  assert(connectPreflight.includes("supabase functions list"));
   assert(!/stripe\s+(?:trigger|payment_intents|charges|refunds|transfers)/i.test(connectPreflight));
 
   assert(trigger.includes("[switch]$Execute"));
