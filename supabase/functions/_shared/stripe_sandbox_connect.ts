@@ -22,6 +22,7 @@ export async function createSandboxConnectAccount(
   const account = await runtime.stripe.v2.core.accounts.create({
     contact_email: `mort-sandbox-${fixtureUserId}@example.com`,
     dashboard: "express",
+    display_name: "MORT QA recipient",
     defaults: {
       currency: "usd",
       responsibilities: {
@@ -29,7 +30,7 @@ export async function createSandboxConnectAccount(
         losses_collector: "application",
       },
     },
-    identity: { country: "us" },
+    identity: { country: "us", entity_type: "individual" },
     configuration: {
       recipient: {
         capabilities: {
@@ -38,14 +39,14 @@ export async function createSandboxConnectAccount(
       },
     },
     metadata: { mort_user_ref: fixtureUserId, mort_environment: "test" },
-    include: ["configuration.recipient", "defaults", "identity"],
+    include: ["configuration.recipient", "defaults", "identity", "requirements"],
   }, { idempotencyKey: `test:connected-account-v2:${fixtureUserId}` });
   const country = account.identity?.country?.toUpperCase();
   const currency = account.defaults?.currency?.toUpperCase();
   if (
     account.livemode !== false || !isAccountId(account.id) ||
     !account.applied_configurations?.includes("recipient") ||
-    country !== "US" || currency !== "USD"
+    country !== "US" || currency !== "USD" || account.identity?.entity_type !== "individual"
   ) {
     throw new PublicError("stripe_connect_sandbox_response_mismatch", 502);
   }
