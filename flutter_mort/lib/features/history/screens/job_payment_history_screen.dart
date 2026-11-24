@@ -14,6 +14,7 @@ class JobPaymentHistoryScreen extends StatefulWidget {
     this.isOffline = false,
     this.loadError,
     this.onLoadMore,
+    this.onViewReceipt,
     this.hasNextPage = false,
   });
 
@@ -23,6 +24,7 @@ class JobPaymentHistoryScreen extends StatefulWidget {
   final bool isOffline;
   final Object? loadError;
   final VoidCallback? onLoadMore;
+  final ValueChanged<String>? onViewReceipt;
   final bool hasNextPage;
 
   @override
@@ -125,7 +127,13 @@ class _JobPaymentHistoryScreenState extends State<JobPaymentHistoryScreen> {
           )
         else if (!widget.backendUnavailable)
           for (final entry in _filtered) ...[
-            MortPaymentHistoryRow(entry: entry),
+            MortPaymentHistoryRow(
+              entry: entry,
+              onViewReceipt:
+                  entry.receiptId == null || widget.onViewReceipt == null
+                  ? null
+                  : () => widget.onViewReceipt!(entry.receiptId!),
+            ),
             const SizedBox(height: MortSpacing.sm),
           ],
         if (widget.hasNextPage)

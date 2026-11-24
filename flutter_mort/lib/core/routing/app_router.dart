@@ -36,7 +36,7 @@ import '../../features/onboarding/compact_onboarding.dart';
 import '../../features/payments/stripe_marketplace_screens.dart';
 import '../../features/payments/admin_payment_operations_screen.dart';
 import '../../features/payments/screens/payment_review_screen.dart';
-import '../../features/history/screens/job_payment_history_screen.dart';
+import '../../features/history/screens/server_backed_payment_history_screen.dart';
 import '../../features/receipts/screens/receipt_detail_screen.dart';
 import '../../features/admin/admin_moderation_detail_screen.dart';
 import '../../features/admin/admin_message_moderation_screen.dart';
@@ -1007,7 +1007,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       _guarded('/settings', const SettingsScreen()),
       _guarded(
         '/settings/payment-history',
-        const JobPaymentHistoryScreen(backendUnavailable: true),
+        const ServerBackedPaymentHistoryScreen(),
       ),
       _guarded('/settings/blocked-users', const BlockedUsersScreen()),
       _guarded(

@@ -1,17 +1,24 @@
 # Stripe Sandbox Setup
 
-1. Use a Stripe test-mode account and confirm Connect is available for the intended platform model and country.
-2. Set `MORT_STRIPE_MODE=sandbox`, `STRIPE_TEST_SECRET_KEY`, `STRIPE_TEST_PUBLISHABLE_KEY`, `STRIPE_TEST_WEBHOOK_SECRET`, `STRIPE_TEST_CONNECT_WEBHOOK_SECRET`, `MORT_STRIPE_OPERATIONS_SECRET`, and `MORT_STRIPE_ALLOWED_REDIRECT_ORIGINS` only in Supabase Edge Function secrets.
-3. Deploy all `stripe-*` functions to project `rakjydmgwwgtdislanbt`; keep `stripe-webhook` JWT verification disabled because it verifies Stripe signatures itself.
-4. Register the deployed webhook endpoint and subscribe to the event list in `MORT_STRIPE_WEBHOOKS.md`.
-5. Keep all database enablement flags false, run configuration and unauthorized probes, then enable sandbox onboarding/funding in a controlled QA window.
-6. Use Stripe test identities, test payment methods, synthetic job records, and dedicated QA users only.
-7. Run every `qa-stripe-*.mjs` test plus real provider flows and reconcile the resulting objects.
+## Project and access boundary
 
-Never put test secrets in `.env.local`, Flutter dart-defines, screenshots, shell history, docs, or archives.
+Use only test Supabase project `ckcxakhxqlkhppsxxjhv` for this assignment. Do not use the deleted project `rakjydmgwwgtdislanbt` or any production project. Keep `MORT_STRIPE_MODE=sandbox`; never configure or use live Stripe credentials, enable live payments/payouts, subscriptions, or tips as part of this work.
 
+## Authorized administrator setup
 
-## Ordered pre-provider gate
+1. An authorized administrator configures the Stripe **test-mode** account and test-only Edge Function secrets in the Supabase secret manager: `MORT_STRIPE_MODE=sandbox`, `STRIPE_TEST_SECRET_KEY`, `STRIPE_TEST_PUBLISHABLE_KEY`, `STRIPE_TEST_WEBHOOK_SECRET`, `STRIPE_TEST_CONNECT_WEBHOOK_SECRET`, `MORT_STRIPE_OPERATIONS_SECRET`, and `MORT_STRIPE_ALLOWED_REDIRECT_ORIGINS`. Do not copy secret values into source, local `.env` files, shell history, logs, screenshots, or this runbook.
+2. Deploy the Stripe Edge Functions only to `ckcxakhxqlkhppsxxjhv`. Keep JWT verification enabled for user-facing functions. The signed webhook endpoint is `https://ckcxakhxqlkhppsxxjhv.supabase.co/functions/v1/stripe-webhook`; configure its JWT behavior according to the signature-verification endpoint contract.
+3. Before test-provider calls, verify the Supabase project ref, `mode=sandbox`, Stripe test-key prefix, Stripe account identity, webhook endpoint/signature configuration, and that no live key names or live gates are enabled.
+4. Verify **all 13 deployed Edge Functions** by slug, source/version, configuration, and exact RPC dependencies. Confirm all required RPCs exist in the target project and the migration ledger agrees with tracked migrations. Do not treat source files or deployment status alone as integration evidence.
+5. Keep provider mutation gates closed until the authorized owner approves a bounded sandbox QA window. A provider test requires the pre-provider and Connect webhook gates to pass; do not bypass disabled gates.
+6. Use synthetic QA identities and test payment methods only. Record actual Stripe object/event IDs, expected and observed result, and cleanup/reconciliation status. Never test with real cards or real people.
+7. Run automated, database, and per-platform client checks. Then run the provider success/decline/3DS/cancel/retry, Connect, transfer/reversal, refund, webhook/recovery, dispute, reconciliation, and settlement matrix. Report provider scenarios as **not run** until backed by actual test-mode Stripe evidence.
+
+## Forward-only database recovery note
+
+The deployed financial-history Edge Function calls `get_my_financial_history_v2`. The November 18 test audit found that RPC missing from this project even though its source implementation existed. A tracked forward migration, `20261118144900_stripe_financial_history_cursor_v2_test_only.sql`, restores the authenticated, owner-bound RPC; the exact RPC was exercised with a synthetic non-existent user and returned an empty result. This does not validate the full cross-user integration suite or provider flows. Do not replay migrations already recorded in the target project.
+
+## Pre-provider gate
 
 Before any Stripe test-mode mutation, run:
 
@@ -19,11 +26,6 @@ Before any Stripe test-mode mutation, run:
 powershell -ExecutionPolicy Bypass -File scripts/stripe-pre-provider-test-gate.ps1 -WhatIf
 ```
 
-The gate is read-only and evaluates, in order: TEST secret-key name present; TEST publishable-key name present; the deployed `stripe-webhook` endpoint matches `https://rakjydmgwwgtdislanbt.supabase.co/functions/v1/stripe-webhook`; TEST webhook-secret name present; linked project and runtime mode are sandbox with no live Stripe secret names; and all sandbox provider-mutation runtime flags are explicitly enabled while live flags remain off.
+The gate is read-only: it checks the test-key and signing-secret **names**, the authorized project ref and sandbox mode, the webhook endpoint, and explicit provider-operation gates; it never calls Stripe or opens a gate. A failing gate is expected while test-provider operation flags are disabled.
 
-The gate writes only booleans, timestamps, the project ref, and safe status labels to `artifacts/stripe/pre-provider-gate.json`. It rejects credential-like output and never calls Stripe. A failing gate is expected while MORT's provider-operation flags remain disabled; the gate does not enable them.
-
-For an operator run, keep `MORT_SUPABASE_PROJECT_REF=rakjydmgwwgtdislanbt`, `MORT_STRIPE_MODE=sandbox`, and the non-secret `MORT_STRIPE_TEST_WEBHOOK_URL` in the protected shell. `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` are operator credentials used only for Supabase/DB reads and must never be committed or printed.
-
-
-For Task 31, the platform and Connect webhook registrations use separate Stripe signing credentials. The Connect signing-secret name must be present before account or payout provider scenarios are allowed to run; this is checked by `scripts/stripe-connect-webhook-preflight.ps1`.
+Keep non-secret project/configuration references in the protected operator shell only. `SUPABASE_ACCESS_TOKEN`, database credentials, Stripe API keys, and webhook signing secrets must never be committed, printed, or supplied to this runbook. Test-only provider object IDs and the expected status/cleanup outcome may be recorded in the protected QA evidence report.

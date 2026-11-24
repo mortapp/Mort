@@ -15,9 +15,11 @@ await withLocalDatabase("stripe-policy-versioning", async (database) => {
   `);
   assertQa(seed.rowCount === 1, "expected exactly one active sandbox service-fee policy");
   const policy = seed.rows[0];
-  assertQa(policy.service_fee_bps === 800, "sandbox service fee must be 800 bps");
-  assertQa(policy.service_fee_min_cents === 100, "sandbox service-fee minimum must be 100 cents");
-  assertQa(policy.service_fee_max_cents === 500, "sandbox service-fee maximum must be 500 cents");
+  assertQa(policy.service_fee_bps === 0, "percentage-based service fees must remain disabled");
+  assertQa(policy.service_fee_min_cents === 0, "legacy percentage minimum must remain zero");
+  assertQa(policy.service_fee_max_cents === 0, "legacy percentage maximum must remain zero");
+  assertQa(policy.service_fee_fixed_cents === 0, "test policy must remain unpriced at zero until owner approval");
+  assertQa(policy.version === "sandbox-flat-fee-test-only-v1", "active test policy is not the fixed zero-fee version");
   assertQa(policy.quote_ttl_seconds === 900, "sandbox funding-quote TTL must be 900 seconds");
 
   const live = await database.query(`
@@ -26,15 +28,34 @@ await withLocalDatabase("stripe-policy-versioning", async (database) => {
   `);
   assertQa(live.rows[0].count === 0, "production policy must not default active");
 
-  const feeCases = [
-    [0, 0], [500, 100], [1000, 100], [1249, 100], [1250, 100],
-    [1256, 100], [1257, 101], [2500, 200], [5000, 400],
-    [6249, 500], [6250, 500], [10000, 500],
-  ];
-  for (const [baseCents, expectedFee] of feeCases) {
+  const zeroFeeCases = [[0, 0], [500, 0], [2500, 0], [10000, 0]];
+  for (const [baseCents, expectedFee] of zeroFeeCases) {
     const result = await database.query(
       `select private.calculate_mort_service_fee_v1($1, $2) fee`,
       [baseCents, policy.id],
+    );
+    assertQa(result.rows[0].fee === expectedFee, `zero test fee(${baseCents}) expected ${expectedFee}, got ${result.rows[0].fee}`);
+  }
+
+  // A synthetic, inactive row proves the calculator returns a fixed amount,
+  // not a percentage. withLocalDatabase rolls this fixture back on completion.
+  const probeScope = `qa-flat-fee-${randomUUID()}`;
+  const probe = await database.query(
+    `insert into private.stripe_financial_policy_versions (
+       environment, policy_kind, scope_key, currency_code, version,
+       effective_at, active, service_fee_bps, service_fee_min_cents,
+       service_fee_max_cents, service_fee_fixed_cents, quote_ttl_seconds
+     ) values (
+       'test', 'service_fee', $1, 'USD', 'flat-fee-calculation-probe-v1',
+       statement_timestamp(), false, 0, 0, 0, 321, 900
+     ) returning id`,
+    [probeScope],
+  );
+  const feeCases = [[0, 0], [1, 321], [500, 321], [2500, 321], [100000, 321]];
+  for (const [baseCents, expectedFee] of feeCases) {
+    const result = await database.query(
+      `select private.calculate_mort_service_fee_v1($1, $2) fee`,
+      [baseCents, probe.rows[0].id],
     );
     assertQa(result.rows[0].fee === expectedFee, `fee(${baseCents}) expected ${expectedFee}, got ${result.rows[0].fee}`);
   }

@@ -73,6 +73,17 @@ Deno.test("accepts a valid Connect signature", async () => {
   assertEquals(verified.event.account, "acct_connected");
 });
 
+Deno.test("routes account.deleted only as a correctly signed Connect event", async () => {
+  const signed = await signedEvent("acct_connected", "account.deleted");
+  const verified = await verifyWebhookEvent(stripe, signed.body, signed.signature, {
+    platform: platformSecret,
+    connect: connectSecret,
+  });
+  assertEquals(verified.source, "connect");
+  assertEquals(verified.event.type, "account.deleted");
+  assertWebhookEventRoute(verified.event, verified.source);
+});
+
 Deno.test("rejects invalid signatures", async () => {
   const signed = await signedEvent();
   await assertRejects(() => verifyWebhookEvent(stripe, signed.body, "t=1,v1=invalid", {

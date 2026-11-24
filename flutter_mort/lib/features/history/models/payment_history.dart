@@ -35,6 +35,8 @@ class MortPaymentHistoryEntry {
     required this.status,
     required this.amountCents,
     required this.kind,
+    this.currencyCode = 'USD',
+    this.receiptId,
     this.receiptNumber,
     this.displaySubtitle,
   });
@@ -45,6 +47,8 @@ class MortPaymentHistoryEntry {
   final MortPaymentState status;
   final int amountCents;
   final MortPaymentHistoryKind kind;
+  final String currencyCode;
+  final String? receiptId;
   final String? receiptNumber;
   final String? displaySubtitle;
 

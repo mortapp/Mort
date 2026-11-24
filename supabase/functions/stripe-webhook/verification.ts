@@ -31,6 +31,7 @@ const platformEventTypes = new Set([
 
 const connectEventTypes = new Set([
   "account.updated",
+  "account.deleted",
   "payout.created",
   "payout.updated",
   "payout.paid",
