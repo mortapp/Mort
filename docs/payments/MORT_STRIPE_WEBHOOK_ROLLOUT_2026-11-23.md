@@ -6,6 +6,16 @@ Status: **Do not activate live payments.** This change is a marketplace webhook 
 
 Verify which Stripe account and mode are paired with each Supabase project. Inventory the deployed Edge Functions, database RPCs, and both webhook scopes before planning the cutover. Endpoint registration by itself is not proof of a working signing secret or an authenticated delivery. Local tests do not prove hosted provider behavior.
 
+## Current hosted environment inventory (read-only, 2026-11-23)
+
+A fresh read-only check of the authoritative production project `jxbnrkasktbhtiujkhay` found only the legacy Stripe functions `stripe-runtime-status` v4, `stripe-create-assignment-payment-intent` v4 and `stripe-assignment-webhook` v4. The new marketplace `stripe-webhook`, Connect account creation, onboarding-link and connected-account status functions are not deployed there. The enabled live event destination still targets the legacy assignment webhook; that handler acknowledges subscribed transfer, payout, refund and dispute events as ignored rather than updating their financial state.
+
+Production `private.stripe_runtime_controls` remains `mode=disabled`; payments, job funding, transfers, refunds, payouts, live mode, connected-account approval and live-owner approval are all false. The production ledger currently contains zero connected accounts, zero PaymentIntents and zero webhook-event rows.
+
+The QA project `ckcxakhxqlkhppsxxjhv` has the broader marketplace Stripe function set, including `stripe-webhook` v9 and Connect endpoints. Its connected-account creation function v7 is still the Accounts v1 implementation; the Accounts v2 recipient flow in this branch is a candidate, not a verified provider integration. QA controls remain `mode=sandbox`, but payments, job funding, transfers, refunds, payouts, connected-account approval, onboarding and `sandbox_provider_qa_approved` are all false. QA has one webhook-event row, zero PaymentIntents and zero connected accounts.
+
+This inventory is why the candidate must not be merged or deployed directly to production. Production uses the legacy assignment-payment schema, while the candidate expects the marketplace webhook-observation schema. QA function presence and a single signed ownership-guard event do not establish Connect onboarding, gig funding, settlement, refund, dispute or payout correctness.
+
 ## Candidate behavior and recovery
 
 - Claim a verified delivery by environment/event ID and lease its resource before making Stripe reads. Only the current claim can commit an observation or write failure. Same-ID duplicates and independently delivered unchanged state do not repeat the local operation. Recoverable active leases get a retriable response, not a false acknowledgment.
