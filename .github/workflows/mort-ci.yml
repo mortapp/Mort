@@ -267,10 +267,14 @@ jobs:
       - uses: supabase/setup-cli@v3
         with:
           version: 2.122.1
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
       - run: pnpm install --frozen-lockfile
       - name: Build production replica, verify parity, run journeys and authz suites
         env:
           REPLICA_OUT: ${{ runner.temp }}/replica-out
+          RUN_ACCOUNT_DELETION: '1'
         run: scripts/qa/replica/build-and-test.sh
       - if: always()
         uses: actions/upload-artifact@v4
@@ -332,6 +336,129 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  android-ramus-qa-apk:
+    # A single-ABI derivative, never the previously recorded APK or a store AAB.
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+      - shell: pwsh
+        run: ./scripts/build-android-device-test-apk.ps1 -RamusX64
+      - name: Verify native ABI and record artifact identity
+        run: |
+          set -euo pipefail
+          apk=build/device-test/mort-ramus-x64-qa.apk
+          abis="$(unzip -Z1 "$apk" | awk -F/ '$1=="lib" && $3!="" {print $2}' | sort -u)"
+          test "$abis" = x86_64
+          (cd "$(dirname "$apk")" && sha256sum "$(basename "$apk")" | tee SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mort-android-ramus-x64-qa
+          path: |
+            build/device-test/mort-ramus-x64-qa.apk
+            build/device-test/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
+
+  flutter-ios-unsigned:
+    # Simulator only: no secrets, physical devices, archive, signing or store access.
+    runs-on: macos-26
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: flutter_mort
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+      - name: Build the authoritative Flutter app for iOS Simulator without signing
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcrun --sdk iphonesimulator --show-sdk-version
+          flutter config --no-enable-swift-package-manager
+          flutter pub get
+          flutter build ios --simulator --debug --no-codesign \
+            --dart-define=MORT_RELEASE_STAGE=internal_test \
+            --dart-define=MORT_RELEASE_PROFILE=automated_test \
+            --dart-define=MORT_OPERATIONAL_MODE=automated_test
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' build/ios/iphonesimulator/Runner.app/Info.plist
+          find build/ios/iphonesimulator/Runner.app -name PrivacyInfo.xcprivacy -print | sort
+
+  flutter-ios-unsigned-archive:
+    # Compiles device arm64/Release only. No signing credentials, export,
+    # provisioning, upload to Apple, or real-device QA in this job.
+    runs-on: macos-26
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: flutter_mort
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+      - name: Build and inspect the unsigned device archive
+        run: bash ../scripts/qa/ios-unsigned-archive.sh "$RUNNER_TEMP/mort-ios-unsigned"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mort-ios-unsigned-device-archive
+          path: ${{ runner.temp }}/mort-ios-unsigned/
+          if-no-files-found: error
+          retention-days: 7
+
+  android-16kb-qa-smoke:
+    # Compare the same APK on matched images, with the kernel page size measured.
+    name: Android QA launch (${{ matrix.page_size }} byte pages)
+    needs: android-device-test-apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - page_size: 4096
+            target: google_apis
+          - page_size: 16384
+            target: google_apis_ps16k
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v4
+        with:
+          name: mort-android-device-test-apk
+          path: ${{ runner.temp }}/mort-16kb
+      - name: Record the QA-only APK hash and enable KVM
+        run: |
+          sha256sum "$RUNNER_TEMP/mort-16kb/mort-device-test.apk"
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Boot the official image and verify MORT process and foreground
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 36
+          arch: x86_64
+          target: ${{ matrix.target }}
+          ram-size: 4096M
+          disable-animations: true
+          script: bash scripts/qa/android-16kb-smoke.sh "$RUNNER_TEMP/mort-16kb/mort-device-test.apk" "${{ matrix.page_size }}" 3500000
+
   android-prod-device-test-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -354,6 +481,3 @@ jobs:
           path: build/device-test/mort-prod-device-test.apk
           if-no-files-found: error
           retention-days: 7
-
-
-

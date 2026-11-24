@@ -8,7 +8,13 @@ import pg from 'pg';
 import { assertLocal, anonClient, record, results, rpc, okData, reqId, randomUUID, JPEG, PNG } from './lib.mjs';
 
 assertLocal();
-const db = new pg.Client({ connectionString: process.env.DB_URL });
+const dbUrl = new URL(process.env.DB_URL);
+if (!['postgres:', 'postgresql:'].includes(dbUrl.protocol) ||
+    !['127.0.0.1', '[::1]', 'localhost'].includes(dbUrl.hostname) ||
+    ['host', 'hostaddr', 'port', 'service'].some((key) => dbUrl.searchParams.has(key))) {
+  throw new Error('DB_URL must target only the disposable local replica');
+}
+const db = new pg.Client({ connectionString: dbUrl.href });
 await db.connect();
 const actorsFile = JSON.parse(fs.readFileSync(process.env.ACTORS_OUT ?? '/tmp/replica-actors.json', 'utf8'));
 const A = {};
@@ -296,6 +302,49 @@ for (const actor of ['teen_b', 'adult_b']) {
     const pause = await rpc(A.guardian.client, 'mort_set_guardian_pause_v1', { p_teen_id: A.teen_a.id, p_paused: true });
     record('P5-guardian', 'revoked guardian cannot pause the teen', denied(pause), pause.data?.code ?? pause.error?.message);
   }
+}
+
+// Existing signed-in moderator loses privileges when the database status changes.
+// Owner SQL is fixture setup/reset only; every assertion uses the real user session.
+{
+  const { id, client } = A.moderator;
+  const { rows: [object] } = await db.query(
+    "select name from storage.objects where bucket_id='verification-evidence' and owner_id=$1 limit 1",
+    [A.teen_a.id],
+  );
+  if (!object) throw new Error('Staff suspension test requires existing private fixture evidence');
+  const queue = () => rpc(client, 'list_message_moderation_queue', {});
+  const evidence = () => dl('moderator', 'verification-evidence', object.name);
+  const cases = () => client.from('verification_cases').select('id').eq('user_id', A.teen_a.id);
+  const queueAllowed = (r) => !r.error && Array.isArray(r.data?.items);
+  const evidenceAllowed = (r) => !r.error && r.data?.size > 0;
+  const casesAllowed = (r) => !r.error && Array.isArray(r.data) && r.data.length > 0;
+  const before = await Promise.all([queue(), evidence(), cases()]);
+  record('P5-staff', 'active moderator can access queue, private evidence bytes and unrelated verification cases',
+    queueAllowed(before[0]) && evidenceAllowed(before[1]) && casesAllowed(before[2]));
+
+  const suspended = await db.query(
+    "update public.profiles set account_status='suspended' where id=$1 and account_status='active'", [id],
+  );
+  if (suspended.rowCount !== 1) throw new Error('Expected one active replica fixture moderator');
+  try {
+    const [auth, moderation, file, rest] = await Promise.all([client.auth.getUser(), queue(), evidence(), cases()]);
+    record('P5-staff', 'suspended moderator still presents the original valid GoTrue session',
+      !auth.error && auth.data?.user?.id === id);
+    record('P5-staff', 'suspended moderator is denied the queue RPC',
+      moderation.error?.message === 'Authorized moderation role required');
+    record('P5-staff', 'suspended moderator is denied private Storage evidence', Boolean(file.error) && !file.data);
+    record('P5-staff', 'suspended moderator is denied unrelated verification rows by REST RLS',
+      !rest.error && Array.isArray(rest.data) && rest.data.length === 0);
+  } finally {
+    const restored = await db.query(
+      "update public.profiles set account_status='active' where id=$1 and account_status='suspended'", [id],
+    );
+    if (restored.rowCount !== 1) throw new Error('Could not restore replica moderator fixture');
+  }
+  const after = await Promise.all([queue(), evidence(), cases()]);
+  record('P5-staff', 'reinstated fixture moderator regains scoped access on the same session',
+    queueAllowed(after[0]) && evidenceAllowed(after[1]) && casesAllowed(after[2]));
 }
 
 await db.end();

@@ -21,13 +21,32 @@ class AccountDeletionRequest {
   final String? retentionSummary;
 
   bool get canCancel => status == 'requested';
+  bool get canSubmitAnother => status == 'cancelled' || status == 'failed';
+  bool get canIssueReceipt => const {
+    'requested',
+    'retry_pending',
+    'retention_review',
+    'cancelled',
+  }.contains(status);
 
   factory AccountDeletionRequest.fromJson(Map<String, dynamic> json) {
+    final id = json['id'];
+    final status = json['status'];
+    final source = json['source'];
+    final requestedAt = _date(json['requested_at']);
+    if (id is! String ||
+        id.isEmpty ||
+        status is! String ||
+        status.isEmpty ||
+        source is! String ||
+        requestedAt == null) {
+      throw const FormatException('Invalid deletion request');
+    }
     return AccountDeletionRequest(
-      id: json['id'].toString(),
-      status: json['status'] as String? ?? 'requested',
-      source: json['source'] as String? ?? 'in_app',
-      requestedAt: DateTime.parse(json['requested_at'] as String),
+      id: id,
+      status: status,
+      source: source,
+      requestedAt: requestedAt,
       processingStartedAt: _date(json['processing_started_at']),
       completedAt: _date(json['completed_at']),
       retentionSummary: json['retention_summary'] as String?,
@@ -44,7 +63,6 @@ class AccountDeletionRepository extends RepositoryBase {
   Future<AccountDeletionRequest?> getCurrentRequest() async {
     requireUserId();
     final raw = await client.rpc('get_my_account_deletion_request');
-    if (raw == null) return null;
     if (raw is! Map) {
       throw const MortCodedError(
         'unknown_permission_failure',
@@ -92,6 +110,17 @@ class AccountDeletionRepository extends RepositoryBase {
       raw,
       'The deletion request could not be cancelled.',
     );
+  }
+
+  Future<String?> issueReceipt(String requestId) async {
+    requireUserId();
+    final code = await client.rpc(
+      'issue_my_account_deletion_receipt',
+      params: {'p_request_id': requestId},
+    );
+    return code is String && RegExp(r'^[0-9a-f]{64}$').hasMatch(code)
+        ? code
+        : null;
   }
 
   AccountDeletionRequest _requestFromResult(Object? raw, String message) {

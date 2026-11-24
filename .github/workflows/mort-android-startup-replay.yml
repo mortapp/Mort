@@ -1,0 +1,59 @@
+name: MORT Android exact APK startup replay
+
+# One scoped QA branch. This historical artifact expires; never make it a
+# dependency of normal PR, main, or production release workflows.
+on:
+  push:
+    branches: [qa/android-startup-replay-20261122]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  replay:
+    name: Exact QA APK (${{ matrix.page }} B, ${{ matrix.memory }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - page: 4096
+            target: google_apis
+            memory: 4096M
+            minimum_guest_kb: 3500000
+          - page: 16384
+            target: google_apis_ps16k
+            memory: image-default
+            minimum_guest_kb: 0
+          - page: 16384
+            target: google_apis_ps16k
+            memory: 4096M
+            minimum_guest_kb: 3500000
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 45045884798
+          name: mort-android-device-test-apk
+          path: ${{ runner.temp }}/mort-replay
+      - name: Require the exact failing APK and enable KVM
+        run: |
+          cd "$RUNNER_TEMP/mort-replay"
+          printf '%s  %s\n' 42cfbe8ef9bbdca47f4787c054503c3f92b8cc5ee683a54be56baec48c9126e6 \
+            mort-device-test.apk | sha256sum --check --strict
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Check measured page size, guest RAM, native startup, and stable foreground
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 36
+          arch: x86_64
+          target: ${{ matrix.target }}
+          ram-size: ${{ matrix.memory != 'image-default' && matrix.memory || '' }}
+          disable-animations: true
+          script: bash scripts/qa/android-16kb-smoke.sh "$RUNNER_TEMP/mort-replay/mort-device-test.apk" "${{ matrix.page }}" "${{ matrix.minimum_guest_kb }}"

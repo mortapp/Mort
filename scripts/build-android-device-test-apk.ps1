@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
   [string]$OutputPath = '',
-  [switch]$BrowserStackQa
+  [switch]$BrowserStackQa,
+  [switch]$RamusX64
 )
 
 $ErrorActionPreference = 'Stop'
@@ -10,7 +11,8 @@ Set-StrictMode -Version Latest
 $root = Resolve-Path "$PSScriptRoot\.."
 $flutterRoot = Join-Path $root 'flutter_mort'
 if (-not $OutputPath) {
-  $OutputPath = Join-Path $root 'build\device-test\mort-device-test.apk'
+  $filename = if ($RamusX64) { 'mort-ramus-x64-qa.apk' } else { 'mort-device-test.apk' }
+  $OutputPath = Join-Path $root "build\device-test\$filename"
 }
 
 # Device-test builds are isolated to the QA Supabase project. Only the
@@ -47,6 +49,14 @@ if ($BrowserStackQa) {
   $defines += '--dart-define=MORT_BROWSERSTACK_QA_MODE=true'
 }
 
+if ($RamusX64) {
+  if ($BrowserStackQa) { throw 'Ramus launch QA must exercise the normal app, not BrowserStack fixture mode.' }
+  if ([IO.Path]::GetFileName($OutputPath) -ne 'mort-ramus-x64-qa.apk') {
+    throw 'Use the separate mort-ramus-x64-qa.apk output filename for this build.'
+  }
+  $defines += '--target-platform=android-x64'
+}
+
 Push-Location $flutterRoot
 try {
   if ([string]::IsNullOrWhiteSpace($env:JAVA_HOME)) {
@@ -75,6 +85,9 @@ try {
 $builtApk = Join-Path $flutterRoot 'build\app\outputs\flutter-apk\app-debug.apk'
 if (-not (Test-Path -LiteralPath $builtApk -PathType Leaf)) {
   throw 'Flutter did not produce app-debug.apk.'
+}
+if ($RamusX64 -and (Get-Item -LiteralPath $builtApk).Length -gt 157286400) {
+  throw 'The single-ABI QA APK still exceeds the measured Ramus trial upload limit (150 MiB).'
 }
 
 $parent = Split-Path $OutputPath -Parent

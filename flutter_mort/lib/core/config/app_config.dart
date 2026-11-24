@@ -200,6 +200,29 @@ class AppConfig {
     'MORT_PUBLIC_WEB_ORIGIN',
     defaultValue: 'https://mort-web.vercel.app',
   );
+  static const _qaAccountDeletionWebUrl = String.fromEnvironment(
+    'MORT_QA_ACCOUNT_DELETION_WEB_URL',
+  );
+
+  static Uri? get accountDeletionWebUri {
+    if (supabaseUrl == 'https://$expectedSupabaseProjectRef.supabase.co') {
+      return Uri.https('mortapp.org', '/account-deletion');
+    }
+    final uri = Uri.tryParse(_qaAccountDeletionWebUrl);
+    if (uri == null ||
+        uri.scheme != 'https' ||
+        uri.host.isEmpty ||
+        uri.host == 'mortapp.org' ||
+        uri.host.endsWith('.mortapp.org') ||
+        uri.host == 'mort-web.vercel.app' ||
+        uri.userInfo.isNotEmpty ||
+        uri.hasQuery ||
+        uri.hasFragment ||
+        uri.path != '/account-deletion') {
+      return null;
+    }
+    return uri;
+  }
 
   static String get resolvedAuthRedirectUrl => kIsWeb
       ? Uri.base.resolve('/auth-callback').replace(query: null).toString()
