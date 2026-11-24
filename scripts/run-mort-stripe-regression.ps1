@@ -1,6 +1,7 @@
 param(
   [switch]$SkipLocalReset,
   [switch]$SkipFlutter,
+  [switch]$LocalAuthOnly,
   [string]$EvidencePath = ''
 )
 
@@ -40,6 +41,21 @@ function Invoke-Step {
 Push-Location $root
 try {
   $script:regressionCommit = (& git rev-parse HEAD).Trim()
+  if ($LocalAuthOnly -and (-not $SkipLocalReset -or $env:MORT_QA_LOCAL_SUPABASE -ne 'true' -or
+      $env:EXPO_PUBLIC_SUPABASE_URL -notmatch '^http://127\.0\.0\.1:\d+$' -or
+      $env:SUPABASE_DB_URL -notmatch '^postgresql://postgres:postgres@127\.0\.0\.1:\d+/postgres$')) {
+    throw 'LocalAuthOnly requires an already provisioned loopback QA stack.'
+  }
+  if ($LocalAuthOnly) {
+    Write-Output '[stripe-regression] SKIP: Issue #70 legacy SQL claim-injection harness. Production-replica journeys/authz run independently with real local Auth sessions; they are not a claim of equivalence with the omitted assertions.'
+    $script:evidenceMatrix += [ordered]@{
+      command = 'scripts/run-issue-70-production-baseline.ps1'
+      commit = $script:regressionCommit
+      timestamp = [DateTimeOffset]::UtcNow.ToString('o')
+      result = 'NOT_RUN_LEGACY_CLAIM_INJECTION'
+      environment = $environmentName
+    }
+  }
 
   Invoke-Step 'Guardian authenticated API harness safety and response assertions' 'node --test scripts/qa-guardian-application-reader-api.test.mjs' {
     & node --test (Join-Path $PSScriptRoot 'qa-guardian-application-reader-api.test.mjs')
@@ -118,8 +134,10 @@ try {
     }
   }
 
-  Invoke-Step 'Full Supabase regression including Stripe QA' 'scripts/run-final-supabase-regression.ps1' {
-    & (Join-Path $PSScriptRoot 'run-final-supabase-regression.ps1')
+  $suiteDescription = if ($LocalAuthOnly) { 'Local Auth Supabase regression including non-provider Stripe QA' } else { 'Full Supabase regression including Stripe QA' }
+  $suiteCommand = if ($LocalAuthOnly) { 'scripts/run-final-supabase-regression.ps1 -LocalAuthOnly' } else { 'scripts/run-final-supabase-regression.ps1' }
+  Invoke-Step $suiteDescription $suiteCommand {
+    & (Join-Path $PSScriptRoot 'run-final-supabase-regression.ps1') -LocalAuthOnly:$LocalAuthOnly
   }
 
   Invoke-Step 'Stripe pre-provider fixture gate' 'node scripts/qa-stripe-pre-provider-gate.mjs' {
@@ -182,6 +200,7 @@ try {
     commit = $script:regressionCommit
     environment = $environmentName
     provider_e2e_executed = $false
+    local_auth_only = $LocalAuthOnly.IsPresent
     passed = $true
     timestamp = [DateTimeOffset]::UtcNow.ToString('o')
     result = 'PASS'
