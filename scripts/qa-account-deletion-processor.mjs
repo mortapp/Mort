@@ -2,7 +2,12 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import pg from "pg";
 import { createClient } from "@supabase/supabase-js";
 
-const projectRef = "jxbnrkasktbhtiujkhay";
+// This harness is intentionally pinned to the hosted QA project. Do not point
+// it at production: it creates and deletes Auth, Storage, and database data.
+const projectRef = "ckcxakhxqlkhppsxxjhv";
+if (projectRef === "jxbnrkasktbhtiujkhay" || projectRef === "rakjydmgwwgtdislanbt") {
+  throw new Error("Account-deletion QA must never target production or the deleted project.");
+}
 const url = `https://${projectRef}.supabase.co`;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const workerSecret = process.env.ACCOUNT_DELETION_WORKER_SECRET;

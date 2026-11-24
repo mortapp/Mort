@@ -1,12 +1,14 @@
 # RevenueCat Webhook Setup
 
-Updated: 2026-07-09
+Updated: 2026-11-22
 
 ## Current Status
 
-- Supabase project: `rakjydmgwwgtdislanbt`
-- Function URL: `https://rakjydmgwwgtdislanbt.supabase.co/functions/v1/revenuecat-webhook`
-- Function deployed: yes
+- Isolated QA project: `ckcxakhxqlkhppsxxjhv`
+- Production project: `jxbnrkasktbhtiujkhay`
+- Function URL (QA): `https://ckcxakhxqlkhppsxxjhv.supabase.co/functions/v1/revenuecat-webhook`
+- Historical deployment records naming `rakjydmgwwgtdislanbt` are retired and must not be used.
+- Current QA/provider deployment status: not verified in this session; owner-controlled RevenueCat and QA secrets are required.
 - JWT verification: disabled for this function so RevenueCat can call it directly
 - RevenueCat webhook integration: created by API
 - Webhook authorization header: generated in command scope and set as a Supabase Edge Function secret only
@@ -27,10 +29,10 @@ Not allowed in Flutter/mobile:
 - Supabase access token
 - Supabase DB password
 
-## Deploy Command
+## QA Deploy Command — prepared, not executed
 
 ```powershell
-pnpm exec supabase functions deploy revenuecat-webhook --project-ref rakjydmgwwgtdislanbt --no-verify-jwt --use-api
+pnpm exec supabase functions deploy revenuecat-webhook --project-ref ckcxakhxqlkhppsxxjhv --no-verify-jwt --use-api
 ```
 
 ## Secret Command Shape
@@ -38,8 +40,20 @@ pnpm exec supabase functions deploy revenuecat-webhook --project-ref rakjydmgwwg
 Secrets were set from a temporary file under `%TEMP%`, then that file was deleted. Do not put the values in `.env.local` or source.
 
 ```powershell
-pnpm exec supabase secrets set --project-ref rakjydmgwwgtdislanbt --env-file <temp-secret-file>
+pnpm exec supabase secrets set --project-ref ckcxakhxqlkhppsxxjhv --env-file <temp-secret-file>
 ```
+
+The QA operator must use a protected temporary secret file and owner-controlled provider credentials. Do not execute this command without authorization, and do not put secret values in source, shell history, or the repository.
+
+## Production promotion — prepared, not executed
+
+After QA webhook signature, replay, duplicate-event, entitlement, and reconciliation evidence is approved, the separately authorized production deployment command is:
+
+```powershell
+pnpm exec supabase functions deploy revenuecat-webhook --project-ref jxbnrkasktbhtiujkhay --no-verify-jwt --use-api
+```
+
+No production deployment, RevenueCat activation, product/offering change, or payment entitlement change was performed in this session.
 
 ## Event Mapping
 

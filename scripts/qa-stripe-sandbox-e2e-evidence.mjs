@@ -44,6 +44,8 @@ const forbiddenEvidencePatterns = [
 ];
 
 const safeReferencePattern = /^[A-Za-z0-9_-]{4,16}$/;
+const authoritativeQaProjectRef = "ckcxakhxqlkhppsxxjhv";
+const retiredProjectRefs = new Set(["rakjydmgwwgtdislanbt"]);
 
 function assertSafeReference(value, field) {
   if (value === null || value === undefined) return;
@@ -56,6 +58,8 @@ function assertSafeReference(value, field) {
 
 export function validateSandboxEvidence(payload) {
   assert(payload && typeof payload === "object" && !Array.isArray(payload));
+  assert.equal(payload.project_ref, authoritativeQaProjectRef, "sandbox evidence must identify the authoritative isolated QA project");
+  assert.equal(retiredProjectRefs.has(payload.project_ref), false, "retired Supabase project evidence is forbidden");
   assert.equal(payload.environment, "test");
   assert.equal(payload.mode, "sandbox");
   assert.equal(payload.live_mode_detected ?? false, false);
@@ -342,6 +346,7 @@ async function validateRegressionManifest() {
 
 function completeFixture() {
   return {
+    project_ref: authoritativeQaProjectRef,
     environment: "test",
     mode: "sandbox",
     gate_passed: true,
@@ -377,19 +382,36 @@ if (manifestMode) {
   );
 } else if (evidencePath) {
   const payload = JSON.parse(await readFile(path.resolve(evidencePath), "utf8"));
-  validateSandboxEvidence(payload);
-  console.log(
-    JSON.stringify({
-      status: "PASS",
-      mode: "sandbox_evidence",
-      complete: payload.complete === true,
-      provider_e2e_executed: payload.provider_e2e_executed === true,
-    }),
-  );
+  if (payload.evidence_status === "REVOKED_NOT_AUTHORITATIVE") {
+    assert.equal(payload.project_ref, "rakjydmgwwgtdislanbt");
+    assert.equal(payload.complete, false);
+    assert.equal(payload.provider_e2e_executed, false);
+    assert.deepEqual(payload.scenarios, []);
+    assert.equal(typeof payload.revocation_reason, "string");
+    assert(payload.revocation_reason.length > 20);
+    console.log(JSON.stringify({
+      status: "BLOCKED",
+      mode: "revoked_historical_sandbox_artifact",
+      complete: false,
+      provider_e2e_executed: false,
+      required_project_ref: authoritativeQaProjectRef,
+    }));
+  } else {
+    validateSandboxEvidence(payload);
+    console.log(
+      JSON.stringify({
+        status: "PASS",
+        mode: "sandbox_evidence",
+        complete: payload.complete === true,
+        provider_e2e_executed: payload.provider_e2e_executed === true,
+      }),
+    );
+  }
 } else {
   await validateTask31SourceContracts();
 
   validateSandboxEvidence({
+    project_ref: authoritativeQaProjectRef,
     environment: "test",
     mode: "sandbox",
     live_mode_detected: false,
@@ -406,13 +428,23 @@ if (manifestMode) {
 
   assert.throws(() =>
     validateSandboxEvidence({
+      project_ref: authoritativeQaProjectRef,
+      project_ref: authoritativeQaProjectRef,
       environment: "test",
       mode: "sandbox",
       leaked: "sk_test_1234567890abcdef",
     })
   );
+  assert.throws(() => validateSandboxEvidence({
+    project_ref: "rakjydmgwwgtdislanbt",
+    environment: "test",
+    mode: "sandbox",
+    complete: false,
+  }), /authoritative isolated QA project/);
+
   assert.throws(() =>
     validateSandboxEvidence({
+      project_ref: authoritativeQaProjectRef,
       environment: "test",
       mode: "live",
       live_mode_detected: true,
