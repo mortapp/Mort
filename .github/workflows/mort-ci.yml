@@ -16,6 +16,11 @@ on:
         required: false
         default: false
         type: boolean
+      run_stripe_connect_preflight:
+        description: Verify QA Connect webhook secret name, deployed webhook function, and configured URL without provider mutations
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -292,6 +297,23 @@ jobs:
             ${{ runner.temp }}/replica-out/*.log
             ${{ runner.temp }}/replica-out/replica-fingerprint.txt
           if-no-files-found: warn
+
+  stripe-connect-preflight:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_stripe_connect_preflight }}
+    environment: stripe-sandbox-provider
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: supabase/setup-cli@v3
+        with:
+          version: v2.stable
+      - shell: pwsh
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.QA_SUPABASE_ACCESS_TOKEN }}
+          MORT_SUPABASE_PROJECT_REF: ckcxakhxqlkhppsxxjhv
+          MORT_STRIPE_TEST_CONNECT_WEBHOOK_URL: https://ckcxakhxqlkhppsxxjhv.supabase.co/functions/v1/stripe-webhook
+        run: ./scripts/stripe-connect-webhook-preflight.ps1 -ProjectRef ckcxakhxqlkhppsxxjhv
 
   stripe-provider-e2e:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_stripe_provider_e2e }}
