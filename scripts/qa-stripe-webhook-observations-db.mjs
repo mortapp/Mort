@@ -69,8 +69,8 @@ try {
     "public.stripe_server_apply_dispute_event", "public.stripe_server_apply_payout_event",
   ]) await db.exec(fn(foundation, name));
   await db.exec("alter table private.stripe_runtime_controls add column sandbox_provider_qa_approved boolean not null default false");
-  await db.exec(sql("20261124010000_harden_sandbox_connect_approval_and_profile_scope.sql"));
-  await db.exec(sql("20261124010500_use_canonical_mort_age_band_for_stripe_connect.sql"));
+  await db.exec(sql("20261124005643_harden_sandbox_connect_approval_and_profile_scope.sql"));
+  await db.exec(sql("20261124005711_use_canonical_mort_age_band_for_stripe_connect.sql"));
   await db.exec(`
     insert into auth.users (id,email,email_confirmed_at) values
       ('57a92acd-7f02-4f6e-8e86-a2714ac1dea0','qa-teen@qa.mortapp.org',now()),
