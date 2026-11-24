@@ -49,6 +49,13 @@ if [ "${PRE_FIX:-0}" != "1" ]; then
   done <"$ROOT/supabase/production-baseline-migrations/PENDING_PRODUCTION_APPROVAL.txt"
 fi
 
+# Optional QA-only production-baseline migrations (not pending production approval),
+# e.g. QA_EXTRA_MIGRATIONS="20261119100000_account_deletion_processor_port.sql 20261119100100_revenuecat_fulfillment_port.sql 20261119100200_google_play_billing_foundation_port.sql".
+for m in ${QA_EXTRA_MIGRATIONS:-}; do
+  echo "== QA-only production-baseline migration: $m"
+  psqlf "$ROOT/supabase/production-baseline-migrations/$m"
+done
+
 GUARD_PID=""
 cleanup() { [ -n "$GUARD_PID" ] && kill "$GUARD_PID" 2>/dev/null || true; }
 trap cleanup EXIT
