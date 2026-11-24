@@ -6,6 +6,7 @@
 //  custom URL scheme that the SwiftUI app forwards back to Stripe.
 //
 
+import Foundation
 import Testing
 @testable import MORTIOSV8
 
@@ -29,5 +30,19 @@ struct StripeReturnRouteTests {
     func nonCanonicalRecoveryURLIsRejected() {
         let url = URL(string: "https://attacker.example/auth-callback#access_token=access.jwt.token&type=recovery")!
         #expect(MortRootView.recoveryParameters(from: url) == nil)
+    }
+
+    @Test("Expired or used recovery links surface their error instead of tokens")
+    func expiredRecoveryLinkIsRecognised() {
+        let url = URL(string: "com.mortapp.mobile://app/auth-callback#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired")!
+        let values = MortRootView.recoveryParameters(from: url)
+        #expect(values?["error_code"] == "otp_expired")
+        #expect(values?["access_token"] == nil)
+    }
+
+    @Test("Password reset emails redirect to the callback the app accepts")
+    func passwordResetRedirectMatchesCallback() {
+        let redirect = URL(string: LiveAuthService.passwordRecoveryRedirect + "#access_token=a.b.c&refresh_token=r&expires_in=60&type=recovery")!
+        #expect(MortRootView.recoveryParameters(from: redirect)?["type"] == "recovery")
     }
 }
