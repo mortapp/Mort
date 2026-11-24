@@ -84,7 +84,7 @@ begin
     'existing', existing.id is not null,
     'provider_account_id', existing.provider_account_id,
     'role', 'teen',
-    'age_band', private.current_age_band(profile.date_of_birth)
+    'age_band', private.mort_legal_age_band(profile.date_of_birth)
   );
 end;
 $$;
