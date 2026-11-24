@@ -68,7 +68,6 @@ export async function createSandboxConnectLink(
     use_case: {
       type: "account_onboarding",
       account_onboarding: {
-        configurations: ["recipient"],
         refresh_url: refreshUrl,
         return_url: returnUrl,
       },
