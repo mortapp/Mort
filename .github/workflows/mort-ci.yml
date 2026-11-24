@@ -61,8 +61,6 @@ jobs:
           supabase/functions/stripe-create-onboarding-link/index.ts
           supabase/functions/stripe-webhook/index.ts
       - run: deno test --no-config --lock=deno.lock --frozen --node-modules-dir=none --allow-read --allow-env supabase/functions/_tests
-      - name: Test isolated Stripe Supabase port allocation
-        run: node --test scripts/stripe-local-ci.test.mjs
       - name: Exercise webhook migrations with isolated PostgreSQL
         run: |
           npm install --prefix "$RUNNER_TEMP/stripe-webhook-test" --no-audit --no-fund --ignore-scripts @electric-sql/pglite@0.6.0
@@ -88,20 +86,20 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: 3.47.2
-          cache: true
       - uses: supabase/setup-cli@v3
         with:
-          version: v2.stable
+          version: 2.122.1
       - run: pnpm install --frozen-lockfile
-      - shell: pwsh
-        env:
-          MORT_SUPABASE_PROJECT_REF: ckcxakhxqlkhppsxxjhv
-          MORT_STRIPE_MODE: sandbox
-        run: ./scripts/run-mort-stripe-regression.ps1
+      - name: Test isolated configuration and endpoint guard
+        run: node --test scripts/stripe-local-ci.test.mjs
+      - name: Run local non-provider regression with default DB port occupied
+        run: node scripts/stripe-local-ci.mjs --occupy-default-db-port
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: stripe-local-auth-regression
+          path: artifacts/stripe/regression.json
+          if-no-files-found: error
 
   expo-reference:
     runs-on: ubuntu-latest
