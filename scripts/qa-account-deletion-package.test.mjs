@@ -7,6 +7,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const functionDir = join(root, "supabase/functions/account-deletion-processor");
 const handlerPath = join(functionDir, "index.ts");
 const handler = readFileSync(handlerPath, "utf8");
+const qaHarness = readFileSync(join(root, "scripts/qa-account-deletion-processor.mjs"), "utf8");
 
 assert.ok(existsSync(join(functionDir, "observability.ts")),
   "deployment package must contain its observability dependency");
@@ -37,5 +38,14 @@ assert.ok(handler.includes("DeletionStorageRemovalDidNotProgress"),
   "worker must fail closed if storage pagination stops progressing");
 assert.ok(handler.includes("AbortSignal.timeout(12_000)"),
   "worker network calls must have bounded timeouts");
+
+assert.ok(handler.includes('"service_get_account_deletion_worker_secret"'),
+  "worker must load its authentication secret from Vault through the service RPC");
+assert.ok(!handler.includes('Deno.env.get("ACCOUNT_DELETION_WORKER_SECRET")'),
+  "worker must not require a duplicate Edge Function secret environment variable");
+assert.ok(qaHarness.includes('admin.rpc("service_get_account_deletion_worker_secret")'),
+  "hosted QA harness must retrieve the same secret from Vault");
+assert.ok(!qaHarness.includes("process.env.ACCOUNT_DELETION_WORKER_SECRET"),
+  "hosted QA harness must not require a copied worker secret environment variable");
 
 console.log("account-deletion package, lease, and bounded-I/O assertions passed");
