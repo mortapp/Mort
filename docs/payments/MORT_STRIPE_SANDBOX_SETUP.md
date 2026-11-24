@@ -23,7 +23,7 @@ The gate is read-only and evaluates, in order: TEST secret-key name present; TES
 
 For MORT sandbox QA, use project `ckcxakhxqlkhppsxxjhv` only; the production project is `jxbnrkasktbhtiujkhay` and must not be used for sandbox mutations. The gate writes only booleans, timestamps, the project ref, and safe status labels to `artifacts/stripe/pre-provider-gate.json`. It rejects credential-like output and never calls Stripe. A failing gate is expected while MORT's provider-operation flags remain disabled; the gate does not enable them.
 
-For an operator run, keep `MORT_SUPABASE_PROJECT_REF=ckcxakhxqlkhppsxxjhv`, `MORT_STRIPE_MODE=sandbox`, and the non-secret `MORT_STRIPE_TEST_WEBHOOK_URL` in the protected shell. `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` are operator credentials used only for Supabase/DB reads and must never be committed or printed.
+For an operator run, keep `MORT_SUPABASE_PROJECT_REF=ckcxakhxqlkhppsxxjhv`, `MORT_STRIPE_MODE=sandbox`, and both non-secret `MORT_STRIPE_TEST_WEBHOOK_URL` and `MORT_STRIPE_TEST_CONNECT_WEBHOOK_URL` set to `https://ckcxakhxqlkhppsxxjhv.supabase.co/functions/v1/stripe-webhook` in the protected shell. `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` are operator credentials used only for Supabase/DB reads and must never be committed or printed.
 
 
 For Task 31, the platform and Connect webhook registrations use separate Stripe signing credentials. The Connect signing-secret name must be present before account or payout provider scenarios are allowed to run; this is checked by `scripts/stripe-connect-webhook-preflight.ps1`.
