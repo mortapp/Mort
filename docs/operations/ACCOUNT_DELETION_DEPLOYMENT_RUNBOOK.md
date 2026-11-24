@@ -1,6 +1,6 @@
 # Account-deletion worker deployment runbook
 
-**Status:** Prepared only; no hosted deployment was executed from this session.
+**Status:** Hosted QA worker v8 is deployed and its Vault authentication/scheduler are verified. Production deployment remains prepared only and has not been executed.
 
 **Worker:** `account-deletion-processor`
 
@@ -29,7 +29,7 @@ node scripts/qa-account-deletion-package.test.mjs
 git diff --check
 ```
 
-Expected package test result: `account-deletion package tests: 6/6 passed`.
+Expected package test result: `account-deletion package, lease, and bounded-I/O assertions passed`.
 
 Where the Supabase CLI is available, perform a dry package/deploy validation first if supported by the installed CLI version. The deployment unit must include both `index.ts` and the package-local `observability.ts`; it must not depend on `../_shared/observability.ts`.
 
@@ -108,10 +108,12 @@ For a correctly configured deployment, an invocation without the worker secret m
 
 ## Current evidence
 
-- Local package regression: `node scripts/qa-account-deletion-package.test.mjs` — 6/6 passed.
-- PR #125 CI run `45061830844` — passed; replica acceptance job `137329243501` — passed.
-- Hosted QA deployment and authorized hosted worker E2E: **not verified** because owner-controlled QA credentials and deployment authorization are unavailable in this session.
-- Production deployment: **not executed**.
+- Earlier package regression and replica acceptance on PR #125 passed.
+- Hosted QA worker v8 is deployed. Wrong-secret authentication returned HTTP 401; correct Vault-backed authentication with an empty queue returned HTTP 200 and `processed: 0`.
+- QA Vault lookup is service_role-only; anon execution was denied. The QA cron job ran successfully and received HTTP 200.
+- Existing QA request states remained unchanged, no synthetic rows remained after the checks, and no real accounts were deleted.
+- The integrated Vault-source package assertions are being rerun in CI on the current reconciliation PR.
+- Production deployment, production Vault secret creation, production scheduler activation, and production account deletion: **not executed**.
 
 
 ## Live production and hosted-QA recheck — 2026-11-24
