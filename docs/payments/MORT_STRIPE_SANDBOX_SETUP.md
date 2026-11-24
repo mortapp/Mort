@@ -26,4 +26,6 @@ For MORT sandbox QA, use project `ckcxakhxqlkhppsxxjhv` only; the production pro
 For an operator run, keep `MORT_SUPABASE_PROJECT_REF=ckcxakhxqlkhppsxxjhv`, `MORT_STRIPE_MODE=sandbox`, and both non-secret `MORT_STRIPE_TEST_WEBHOOK_URL` and `MORT_STRIPE_TEST_CONNECT_WEBHOOK_URL` set to `https://ckcxakhxqlkhppsxxjhv.supabase.co/functions/v1/stripe-webhook` in the protected shell. `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` are operator credentials used only for Supabase/DB reads and must never be committed or printed.
 
 
+To verify the hosted QA secret names and deployed Connect webhook URL without provider mutations, manually dispatch **MORT CI** with `run_stripe_connect_preflight=true`. This read-only job checks the QA project, sandbox mode, both TEST signing-secret names, absence of LIVE secret names, and the deployed `stripe-webhook` URL; it never prints secret values or sends a Stripe event.
+
 For Task 31, the platform and Connect webhook registrations use separate Stripe signing credentials. The Connect signing-secret name must be present before account or payout provider scenarios are allowed to run; this is checked by `scripts/stripe-connect-webhook-preflight.ps1`.
