@@ -4,7 +4,7 @@
 2. Set `MORT_STRIPE_MODE=sandbox`, `STRIPE_TEST_SECRET_KEY`, `STRIPE_TEST_PUBLISHABLE_KEY`, `STRIPE_TEST_WEBHOOK_SECRET`, `STRIPE_TEST_CONNECT_WEBHOOK_SECRET`, `MORT_STRIPE_OPERATIONS_SECRET`, and `MORT_STRIPE_ALLOWED_REDIRECT_ORIGINS` only in Supabase Edge Function secrets.
 3. Deploy all `stripe-*` functions to project `ckcxakhxqlkhppsxxjhv`; keep `stripe-webhook` JWT verification disabled because it verifies Stripe signatures itself.
 4. Register the deployed webhook endpoint and subscribe to the event list in `MORT_STRIPE_WEBHOOKS.md`.
-5. Keep all database enablement flags false, run configuration and unauthorized probes, then enable sandbox onboarding/funding in a controlled QA window.
+5. For the Accounts v2 Connect smoke test, enable only `sandbox_provider_qa_approved`, `stripe_connected_onboarding_enabled`, and `connected_accounts_approved` in the isolated QA project. Keep payment collection, job funding, transfers, refunds, payouts, and every live control disabled. Full financial lifecycle testing is a separate approval.
 6. Use Stripe test identities, test payment methods, synthetic job records, and dedicated QA users only.
 7. Run every `qa-stripe-*.mjs` test plus real provider flows and reconcile the resulting objects.
 
