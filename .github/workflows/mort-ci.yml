@@ -312,6 +312,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.QA_SUPABASE_ACCESS_TOKEN }}
           MORT_SUPABASE_PROJECT_REF: ckcxakhxqlkhppsxxjhv
+          MORT_STRIPE_MODE: sandbox
           MORT_STRIPE_TEST_CONNECT_WEBHOOK_URL: https://ckcxakhxqlkhppsxxjhv.supabase.co/functions/v1/stripe-webhook
         run: ./scripts/stripe-connect-webhook-preflight.ps1 -ProjectRef ckcxakhxqlkhppsxxjhv
 
