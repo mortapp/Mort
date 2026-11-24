@@ -344,6 +344,14 @@ async function validateRegressionManifest() {
     !/stripe-sandbox-e2e\.ps1/.test(ordinaryStripeJob),
     "provider sandbox E2E must not run in ordinary pull-request Stripe contracts",
   );
+  const connectPreflightJob =
+    workflow.split("  stripe-connect-preflight:")[1]?.split("\n  stripe-provider-e2e:")[0] ?? "";
+  assert(
+    connectPreflightJob.includes("github.event_name == 'workflow_dispatch'") &&
+      connectPreflightJob.includes("stripe-connect-webhook-preflight.ps1") &&
+      !connectPreflightJob.includes("stripe-sandbox-e2e.ps1"),
+    "Connect secret/function/URL preflight must be manual and read-only",
+  );
   const providerJob = workflow.split("  stripe-provider-e2e:")[1] ?? "";
   assert(
     providerJob.includes("github.event_name == 'workflow_dispatch'"),
