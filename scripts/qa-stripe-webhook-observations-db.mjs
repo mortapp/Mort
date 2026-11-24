@@ -32,7 +32,7 @@ try {
   await db.exec(`
     create role anon; create role authenticated; create role service_role;
     create schema auth; create schema private;
-    create function auth.role() returns text language sql as $select current_setting('request.jwt.claim.role', true)$;
+    create function auth.role() returns text language sql as 'select current_setting(''request.jwt.claim.role'', true)';
     set request.jwt.claim.role = 'service_role';
     create table auth.users (
       id uuid primary key, email text, email_confirmed_at timestamptz
@@ -42,12 +42,11 @@ try {
       date_of_birth date, created_at timestamptz not null default now()
     );
     create function private.mort_legal_age_band(p_date_of_birth date)
-      returns text language sql stable as $
-        select case when age(current_date,p_date_of_birth) < interval '13 years' then 'ineligible'
-          when age(current_date,p_date_of_birth) < interval '16 years' then 'teen_13_15'
-          when age(current_date,p_date_of_birth) < interval '18 years' then 'teen_16_17'
-          else 'adult_18_plus' end
-      $;
+      returns text language sql stable as 'select case
+        when age(current_date,p_date_of_birth) < interval ''13 years'' then ''ineligible''
+        when age(current_date,p_date_of_birth) < interval ''16 years'' then ''teen_13_15''
+        when age(current_date,p_date_of_birth) < interval ''18 years'' then ''teen_16_17''
+        else ''adult_18_plus'' end';
     create table public.job_contracts (id uuid primary key);
     create table public.job_contract_versions (id uuid primary key);
     create table public.job_payment_obligations (id uuid primary key);
