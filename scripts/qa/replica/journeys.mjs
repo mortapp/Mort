@@ -105,7 +105,7 @@ actors.moderator = await makeStaff('moderator', 'moderator');
   const { anonClient } = await import('./lib.mjs');
   const c = anonClient();
   const { error } = await c.auth.signUp({ email: `nodob-${run}@example.test`, password: PW });
-  record('P4-signup', 'email signup without date_of_birth metadata (what flutter_mort main sends) is rejected by on_auth_user_created_mort',
+  record('P4-signup', 'email signup without date_of_birth metadata (what flutter_mort main sends) is rejected by the database',
     Boolean(error), error?.message ?? 'accepted');
 }
 

@@ -37,7 +37,7 @@ nonisolated final class PreviewAuthService: AuthService {
         return user
     }
 
-    func signUp(email: String, password: String, role: MortRole) async throws -> MortUser {
+    func signUp(email: String, password: String, role: MortRole, dateOfBirth: Date) async throws -> MortUser? {
         try? await Task.sleep(for: .milliseconds(420))
         return MortUser(
             id: "preview-new",
@@ -67,6 +67,14 @@ nonisolated final class PreviewAuthService: AuthService {
 
     func sendPasswordReset(email: String) async throws {
         try? await Task.sleep(for: .milliseconds(300))
+    }
+
+    func establishPasswordRecoverySession(accessToken: String, refreshToken: String, expiresIn: Int) async throws {
+        throw MortError.notConfigured("Password recovery in preview mode")
+    }
+
+    func updatePassword(_ newValue: String) async throws {
+        throw MortError.notConfigured("Password updates in preview mode")
     }
 
     func completeOnboarding(userId: String, draft: MortProfileDraft) async throws -> MortUser {

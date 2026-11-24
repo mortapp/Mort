@@ -1,5 +1,7 @@
 # Enable Leaked-Password Protection
 
+> **Superseded 2026-11-16.** The project below (`rakjydmgwwgtdislanbt`) was deleted. Production is `jxbnrkasktbhtiujkhay` (Free plan). Server-enforced protection is now implemented by `password-guard` + database attestation triggers; see `docs/security/PASSWORD_PROTECTION_2026-11-16.md`. Native protection still requires Pro.
+
 ## Current classification
 
 **DEFERRED — PLAN-LIMITED SECURITY ENHANCEMENT**

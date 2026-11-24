@@ -36,6 +36,10 @@ file_size_limit = "10MiB"
 enabled = true
 policy = "per_worker"
 
+[functions.password-guard]
+# Public signup entrypoint; update_password validates the user's token itself.
+verify_jwt = false
+
 [functions.send-push]
 verify_jwt = true
 
