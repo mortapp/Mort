@@ -47,8 +47,8 @@ type Provider = Pick<
   | "disputes"
   | "transfers"
   | "refunds"
-  | "accounts"
   | "payouts"
+  | "v2"
 >;
 
 export function targetFor(event: Stripe.Event, source: Source) {
@@ -253,65 +253,64 @@ export async function observe(
       };
     }
     case "account": {
-      const item = await stripe.accounts.retrieve(id);
-      if (item.id !== id) throw new Error("provider_account_mismatch");
-      if (isDeleted(item)) {
-        return {
-          ...base,
-          state: "restricted",
-          submitted: false,
-          charges: false,
-          payouts: false,
-          transfers: "restricted",
-          requirements: "restricted",
-          guardian: "provider_managed_unknown",
-          disabled: "account_deleted",
-          country: null,
-          currency: null,
-        };
+      const item = await stripe.v2.core.accounts.retrieve(id, {
+        include: ["configuration.recipient", "identity", "requirements", "defaults"],
+      });
+      if (item.id !== id || item.livemode !== (environment === "live")) {
+        throw new Error("provider_account_mismatch");
       }
-      const due = item.requirements?.currently_due ?? [];
-      const past = item.requirements?.past_due ?? [];
-      const pending = item.requirements?.pending_verification ?? [];
-      const capability = item.capabilities?.transfers ?? "inactive";
-      const disabled = item.requirements?.disabled_reason ?? null;
-      const requirements = disabled
-        ? "restricted"
-        : past.length
+      const entries = item.requirements?.entries ?? [];
+      const statuses = entries.map((entry) => entry.minimum_deadline?.status);
+      const requirements = statuses.includes("past_due")
         ? "past_due"
-        : due.length
+        : statuses.includes("currently_due")
         ? "currently_due"
-        : pending.length
+        : statuses.includes("pending_verification")
         ? "pending_verification"
+        : statuses.includes("eventually_due")
+        ? "eventually_due"
         : "satisfied";
-      const ready = item.details_submitted && item.payouts_enabled &&
-        capability === "active" &&
-        requirements === "satisfied";
+      const recipient = item.configuration?.recipient?.capabilities?.stripe_balance;
+      const transferStatus = recipient?.stripe_transfers?.status ?? "inactive";
+      const payoutStatus = recipient?.payouts?.status ?? "inactive";
+      const transfers = ["active", "pending", "inactive"].includes(transferStatus)
+        ? transferStatus
+        : "restricted";
+      const payouts = payoutStatus === "active";
+      const statusDetails = [
+        ...(recipient?.stripe_transfers?.status_details ?? []),
+        ...(recipient?.payouts?.status_details ?? []),
+      ];
+      const disabled = statusDetails.find((detail) => typeof detail.code === "string")?.code ??
+        (transfers === "restricted" || payoutStatus === "restricted" || payoutStatus === "rejected"
+          ? "recipient_capability_restricted"
+          : requirements === "past_due"
+          ? "requirements_past_due"
+          : null);
+      const ready = payouts && transfers === "active" && requirements === "satisfied";
+      const guardianRequired = entries.some((entry) =>
+        /guardian/i.test(`${entry.requirement ?? ""} ${entry.description ?? ""}`)
+      );
       return {
         ...base,
         state: ready
           ? "complete"
-          : disabled || past.length
+          : disabled || requirements === "past_due"
           ? "restricted"
-          : due.length
+          : requirements === "currently_due"
           ? "action_required"
           : "in_progress",
-        submitted: item.details_submitted,
-        charges: item.charges_enabled,
-        payouts: item.payouts_enabled,
-        transfers: ["active", "pending", "inactive"].includes(capability)
-          ? capability
-          : "restricted",
+        submitted: !["currently_due", "past_due"].includes(requirements),
+        charges: false,
+        payouts,
+        transfers,
         requirements,
-        guardian:
-          [...due, ...past, ...pending].some((entry) =>
-              entry.includes("guardian")
-            )
-            ? "provider_managed_required"
-            : "provider_managed_unknown",
+        guardian: guardianRequired
+          ? "provider_managed_required"
+          : "provider_managed_unknown",
         disabled,
-        country: item.country?.toUpperCase() ?? null,
-        currency: item.default_currency?.toUpperCase() ?? null,
+        country: item.identity?.country?.toUpperCase() ?? null,
+        currency: item.defaults?.currency?.toUpperCase() ?? null,
       };
     }
   }
