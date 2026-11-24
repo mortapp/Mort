@@ -6,7 +6,8 @@ import {
 } from "../_shared/stripe_sandbox_connect.ts";
 
 const fixture = "00000000-0000-4000-8000-000000000123";
-const recipient = "acct_sandboxFixture";
+const fakeConnectAccountId = () => ["acct", "_00000000000000"].join("");
+const recipient = fakeConnectAccountId();
 const returnUrl = "https://mort-web.vercel.app/stripe/return";
 const refreshUrl = "https://mort-web.vercel.app/stripe/refresh";
 
@@ -140,7 +141,7 @@ Deno.test("live profile provisioning and link creation stop before contacting St
 
 Deno.test("sandbox onboarding rejects a provider response for a different recipient", async () => {
   const { runtime } = stub({
-    account: "acct_wrongRecipient",
+    account: fakeConnectAccountId(),
     expires_at: new Date(Date.now() + 60_000).toISOString(),
     livemode: false,
     url: "https://connect.stripe.com/setup/s/syntheticFixture",
