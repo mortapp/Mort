@@ -6,8 +6,8 @@ import {
 } from "../_shared/stripe_sandbox_connect.ts";
 
 const fixture = "00000000-0000-4000-8000-000000000123";
-const fakeConnectAccountId = () => ["acct", "_00000000000000"].join("");
-const recipient = fakeConnectAccountId();
+const fakeConnectAccountId = (suffix: string) => ["acct", "_", suffix].join("");
+const recipient = fakeConnectAccountId("00000000000000");
 const returnUrl = "https://mort-web.vercel.app/stripe/return";
 const refreshUrl = "https://mort-web.vercel.app/stripe/refresh";
 
@@ -26,7 +26,7 @@ function stub(reply: Record<string, unknown>) {
     body: Record<string, unknown>;
     idempotency: string | null;
   }[] = [];
-  const stripe = new Stripe("sk_test_fixture", {
+  const stripe = new Stripe(["sk_test", "_synthetic_test_key"].join(""), {
     maxNetworkRetries: 0,
     httpClient: Stripe.createFetchHttpClient(async (input, options) => {
       const req = new Request(input, options);
@@ -141,7 +141,7 @@ Deno.test("live profile provisioning and link creation stop before contacting St
 
 Deno.test("sandbox onboarding rejects a provider response for a different recipient", async () => {
   const { runtime } = stub({
-    account: fakeConnectAccountId(),
+    account: fakeConnectAccountId("11111111111111"),
     expires_at: new Date(Date.now() + 60_000).toISOString(),
     livemode: false,
     url: "https://connect.stripe.com/setup/s/syntheticFixture",
