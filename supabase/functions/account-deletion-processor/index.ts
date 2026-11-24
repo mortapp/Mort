@@ -5,7 +5,7 @@ import {
   correlationId,
   safeErrorKind,
   structuredLog,
-} from "../_shared/observability.ts";
+} from "./observability.ts";
 import { readDeletionRequest } from "./request.ts";
 import { removeAndConfirmAuthIdentity } from "./auth_identity.ts";
 
@@ -18,22 +18,20 @@ type ClaimedRequest = {
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-if (!supabaseUrl || !serviceRoleKey) {
-  throw new Error("Account deletion worker service configuration is not available.");
-}
-
-const supabase = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { persistSession: false, autoRefreshToken: false },
-  global: {
-    fetch: (input, init) =>
-      fetch(input, {
-        ...init,
-        signal: init?.signal
-          ? AbortSignal.any([init.signal, AbortSignal.timeout(12_000)])
-          : AbortSignal.timeout(12_000),
-      }),
-  },
-});
+const supabase = supabaseUrl && serviceRoleKey
+  ? createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: {
+        fetch: (input, init) =>
+          fetch(input, {
+            ...init,
+            signal: init?.signal
+              ? AbortSignal.any([init.signal, AbortSignal.timeout(12_000)])
+              : AbortSignal.timeout(12_000),
+          }),
+      },
+    })
+  : null;
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -42,7 +40,15 @@ Deno.serve(async (request) => {
   if (request.method !== "POST") {
     return correlatedJson({ ok: false, code: "post_required" }, 405, traceId);
   }
-  const { data: workerSecret, error: secretError } = await supabase.rpc(
+  if (!supabase) {
+    return correlatedJson(
+      { ok: false, code: "deletion_worker_not_configured" },
+      503,
+      traceId,
+    );
+  }
+  const client = supabase;
+  const { data: workerSecret, error: secretError } = await client.rpc(
     "service_get_account_deletion_worker_secret",
   );
   if (secretError || typeof workerSecret !== "string" || workerSecret.length < 64) {
@@ -70,7 +76,7 @@ Deno.serve(async (request) => {
         traceId,
       );
     }
-    const { data, error } = await supabase.rpc(
+    const { data, error } = await client.rpc(
       "service_claim_account_deletion_request",
       { p_request_id: payload.requestId },
     );
@@ -101,7 +107,7 @@ Deno.serve(async (request) => {
     const deadline = Date.now() + 100_000;
     const assertLease = async () => {
       if (Date.now() >= deadline) throw new Error("DeletionWorkerDeadline");
-      const { data, error } = await supabase.rpc(
+      const { data, error } = await client.rpc(
         "service_assert_account_deletion_lease",
         {
           p_request_id: job.id,
@@ -114,7 +120,7 @@ Deno.serve(async (request) => {
     };
     stage = "financial_retention";
     await assertLease();
-    const { data: retention, error: retentionError } = await supabase.rpc(
+    const { data: retention, error: retentionError } = await client.rpc(
       "service_check_account_deletion_financial_retention",
       { p_user_id: job.user_id },
     );
@@ -125,7 +131,7 @@ Deno.serve(async (request) => {
       throw retentionError ?? new Error("FinancialRetentionCheckFailed");
     }
     if (retention.retention_review_required === true) {
-      const { data: held, error: holdError } = await supabase.rpc(
+      const { data: held, error: holdError } = await client.rpc(
         "service_hold_account_deletion_for_financial_retention",
         {
           p_request_id: claimed.id,
@@ -150,12 +156,13 @@ Deno.serve(async (request) => {
     }
     stage = "storage";
     const removedStorageObjects = await removeOwnedStorage(
+      client,
       job.user_id,
       assertLease,
     );
     stage = "auth_delete";
     await removeAndConfirmAuthIdentity(
-      supabase.auth.admin,
+      client.auth.admin,
       job.user_id,
       assertLease,
     );
@@ -165,7 +172,7 @@ Deno.serve(async (request) => {
       "Legally required safety, fraud, and audit records may remain de-identified under the retention matrix.";
     stage = "complete";
     await assertLease();
-    const { data: completion, error: completionError } = await supabase.rpc(
+    const { data: completion, error: completionError } = await client.rpc(
       "service_complete_account_deletion_request",
       {
         p_request_id: claimed.id,
@@ -190,7 +197,7 @@ Deno.serve(async (request) => {
     const errorCode = `deletion_${stage}_failed`;
     if (claimed) {
       try {
-        const result = await supabase.rpc(
+        const result = await client.rpc(
           "service_fail_account_deletion_request",
           {
             p_request_id: claimed.id,
@@ -214,6 +221,7 @@ Deno.serve(async (request) => {
 });
 
 async function removeOwnedStorage(
+  client: NonNullable<typeof supabase>,
   userId: string,
   assertLease: () => Promise<void>,
 ) {
@@ -221,7 +229,7 @@ async function removeOwnedStorage(
   let lastPage: string | null = null;
   while (true) {
     await assertLease();
-    const { data, error } = await supabase.rpc(
+    const { data, error } = await client.rpc(
       "service_list_account_deletion_storage_objects",
       { p_user_id: userId, p_limit: 500 },
     );
@@ -252,7 +260,7 @@ async function removeOwnedStorage(
     for (const [bucket, paths] of byBucket) {
       for (let index = 0; index < paths.length; index += 100) {
         await assertLease();
-        const { error: removeError } = await supabase.storage
+        const { error: removeError } = await client.storage
           .from(bucket)
           .remove(paths.slice(index, index + 100));
         if (removeError) throw removeError;
