@@ -14,7 +14,7 @@ Server-only secret names:
 - `MORT_STRIPE_OPERATIONS_SECRET`
 - `MORT_STRIPE_ALLOWED_REDIRECT_ORIGINS`
 
-Set with `npx supabase secrets set --project-ref rakjydmgwwgtdislanbt NAME` from a protected interactive shell or secret manager. Publishable keys are delivered to authenticated clients by `stripe-config`; secret and webhook keys never leave Edge Functions. Do not use `.env.local`, Flutter source, dart-defines, committed files, CI logs, or release archives for these values.
+For sandbox QA, set with `npx supabase secrets set --project-ref ckcxakhxqlkhppsxxjhv NAME` from a protected interactive shell or secret manager. The authoritative production project is `jxbnrkasktbhtiujkhay`; do not copy TEST secrets into production or set LIVE secrets until the separate production approval gates pass. Publishable keys are delivered to authenticated clients by `stripe-config`; secret and webhook keys never leave Edge Functions. Do not use `.env.local`, Flutter source, dart-defines, committed files, CI logs, or release archives for these values.
 
 After rotation, redeploy affected functions, run unauthorized/config probes, send a signed sandbox event, confirm old credentials fail, and document the rotation without recording values.
 
@@ -25,9 +25,9 @@ The pre-provider gate discovers remote **names only** with `supabase secrets lis
 
 Non-secret operator metadata:
 
-- `MORT_SUPABASE_PROJECT_REF=rakjydmgwwgtdislanbt`
+- `MORT_SUPABASE_PROJECT_REF=ckcxakhxqlkhppsxxjhv`
 - `MORT_STRIPE_MODE=sandbox`
-- `MORT_STRIPE_TEST_WEBHOOK_URL=https://rakjydmgwwgtdislanbt.supabase.co/functions/v1/stripe-webhook`
+- `MORT_STRIPE_TEST_WEBHOOK_URL=https://ckcxakhxqlkhppsxxjhv.supabase.co/functions/v1/stripe-webhook`
 
 Local operator credentials used for read-only gate checks, not Edge Function secrets:
 

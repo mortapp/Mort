@@ -2,9 +2,9 @@
 
 1. Use a Stripe test-mode account and confirm Connect is available for the intended platform model and country.
 2. Set `MORT_STRIPE_MODE=sandbox`, `STRIPE_TEST_SECRET_KEY`, `STRIPE_TEST_PUBLISHABLE_KEY`, `STRIPE_TEST_WEBHOOK_SECRET`, `STRIPE_TEST_CONNECT_WEBHOOK_SECRET`, `MORT_STRIPE_OPERATIONS_SECRET`, and `MORT_STRIPE_ALLOWED_REDIRECT_ORIGINS` only in Supabase Edge Function secrets.
-3. Deploy all `stripe-*` functions to project `rakjydmgwwgtdislanbt`; keep `stripe-webhook` JWT verification disabled because it verifies Stripe signatures itself.
+3. Deploy all `stripe-*` functions to project `ckcxakhxqlkhppsxxjhv`; keep `stripe-webhook` JWT verification disabled because it verifies Stripe signatures itself.
 4. Register the deployed webhook endpoint and subscribe to the event list in `MORT_STRIPE_WEBHOOKS.md`.
-5. Keep all database enablement flags false, run configuration and unauthorized probes, then enable sandbox onboarding/funding in a controlled QA window.
+5. For the Accounts v2 Connect smoke test, enable only `sandbox_provider_qa_approved`, `stripe_connected_onboarding_enabled`, and `connected_accounts_approved` in the isolated QA project. Keep payment collection, job funding, transfers, refunds, payouts, and every live control disabled. Full financial lifecycle testing is a separate approval.
 6. Use Stripe test identities, test payment methods, synthetic job records, and dedicated QA users only.
 7. Run every `qa-stripe-*.mjs` test plus real provider flows and reconcile the resulting objects.
 
@@ -19,11 +19,13 @@ Before any Stripe test-mode mutation, run:
 powershell -ExecutionPolicy Bypass -File scripts/stripe-pre-provider-test-gate.ps1 -WhatIf
 ```
 
-The gate is read-only and evaluates, in order: TEST secret-key name present; TEST publishable-key name present; the deployed `stripe-webhook` endpoint matches `https://rakjydmgwwgtdislanbt.supabase.co/functions/v1/stripe-webhook`; TEST webhook-secret name present; linked project and runtime mode are sandbox with no live Stripe secret names; and all sandbox provider-mutation runtime flags are explicitly enabled while live flags remain off.
+The gate is read-only and evaluates, in order: TEST secret-key name present; TEST publishable-key name present; the deployed `stripe-webhook` endpoint matches `https://ckcxakhxqlkhppsxxjhv.supabase.co/functions/v1/stripe-webhook`; TEST webhook-secret name present; linked project and runtime mode are sandbox with no live Stripe secret names; and all sandbox provider-mutation runtime flags are explicitly enabled while live flags remain off.
 
-The gate writes only booleans, timestamps, the project ref, and safe status labels to `artifacts/stripe/pre-provider-gate.json`. It rejects credential-like output and never calls Stripe. A failing gate is expected while MORT's provider-operation flags remain disabled; the gate does not enable them.
+For MORT sandbox QA, use project `ckcxakhxqlkhppsxxjhv` only; the production project is `jxbnrkasktbhtiujkhay` and must not be used for sandbox mutations. The gate writes only booleans, timestamps, the project ref, and safe status labels to `artifacts/stripe/pre-provider-gate.json`. It rejects credential-like output and never calls Stripe. A failing gate is expected while MORT's provider-operation flags remain disabled; the gate does not enable them.
 
-For an operator run, keep `MORT_SUPABASE_PROJECT_REF=rakjydmgwwgtdislanbt`, `MORT_STRIPE_MODE=sandbox`, and the non-secret `MORT_STRIPE_TEST_WEBHOOK_URL` in the protected shell. `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` are operator credentials used only for Supabase/DB reads and must never be committed or printed.
+For an operator run, keep `MORT_SUPABASE_PROJECT_REF=ckcxakhxqlkhppsxxjhv`, `MORT_STRIPE_MODE=sandbox`, and both non-secret `MORT_STRIPE_TEST_WEBHOOK_URL` and `MORT_STRIPE_TEST_CONNECT_WEBHOOK_URL` set to `https://ckcxakhxqlkhppsxxjhv.supabase.co/functions/v1/stripe-webhook` in the protected shell. `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` are operator credentials used only for Supabase/DB reads and must never be committed or printed.
 
+
+To verify the hosted QA secret names and deployed Connect webhook URL without provider mutations, manually dispatch **MORT CI** with `run_stripe_connect_preflight=true`. This read-only job checks the QA project, sandbox mode, both TEST signing-secret names, absence of LIVE secret names, and the deployed `stripe-webhook` URL; it never prints secret values or sends a Stripe event.
 
 For Task 31, the platform and Connect webhook registrations use separate Stripe signing credentials. The Connect signing-secret name must be present before account or payout provider scenarios are allowed to run; this is checked by `scripts/stripe-connect-webhook-preflight.ps1`.

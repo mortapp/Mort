@@ -93,10 +93,12 @@ async function checkMinorGuardianStatus(scope) {
 async function checkOnboardingLinkSecurity(scope) {
   const shared = await text("supabase/functions/_shared/stripe.ts");
   const onboarding = await text("supabase/functions/stripe-create-onboarding-link/index.ts");
+  const sandboxConnect = await text("supabase/functions/_shared/stripe_sandbox_connect.ts");
   assertQa(shared.includes("MORT_STRIPE_ALLOWED_REDIRECT_ORIGINS"), "redirect allowlist is absent");
   assertQa(shared.includes('url.protocol !== "https:"'), "HTTPS redirect enforcement is absent");
   assertQa(onboarding.includes('mode: LaunchMode.externalApplication') === false, "Edge Function unexpectedly contains client WebView logic");
-  assertQa(onboarding.includes('type: "account_onboarding"'), "Stripe-hosted onboarding link is absent");
+  assertQa(onboarding.includes("createSandboxConnectLink") && sandboxConnect.includes('type: "account_onboarding"'), "Stripe-hosted sandbox onboarding link is absent");
+  assertQa(onboarding.includes('validatedRedirectUrl(payload.return_url') && onboarding.includes('validatedRedirectUrl(payload.refresh_url'), "Stripe-hosted onboarding does not validate both return targets");
   qaLog(scope, "onboarding uses single-use hosted links with HTTPS origin allowlisting and no open redirect input");
 }
 

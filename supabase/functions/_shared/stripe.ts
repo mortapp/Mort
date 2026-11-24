@@ -1,4 +1,4 @@
-import Stripe from "npm:stripe@22.1.1";
+import Stripe from "npm:stripe@23.2.0";
 import { createClient, SupabaseClient, User } from "npm:@supabase/supabase-js@2.110.1";
 import {
   constantTimeEqual,
@@ -92,7 +92,11 @@ export async function requireRateLimit(context: StripeContext, action: string) {
   if (data !== true) throw new PublicError("rate_limit_exceeded", 429);
 }
 
-export async function runtime(context: StripeContext, needsWebhookSecret = false): Promise<StripeRuntime> {
+export async function runtime(
+  context: StripeContext,
+  needsWebhookSecret = false,
+  allowWhenPaymentsDisabled = false,
+): Promise<StripeRuntime> {
   const mode = Deno.env.get("MORT_STRIPE_MODE") ?? "disabled";
   if (mode !== "sandbox" && mode !== "live") throw new PublicError("stripe_disabled", 503);
   const environment: StripeEnvironment = mode === "sandbox" ? "test" : "live";
@@ -114,7 +118,7 @@ export async function runtime(context: StripeContext, needsWebhookSecret = false
   if (featureStatus.maintenance_mode === true) {
     throw new PublicError("maintenance_mode_active", 503);
   }
-  if (featureStatus.payments_disabled === true) {
+  if (featureStatus.payments_disabled === true && !allowWhenPaymentsDisabled) {
     throw new PublicError("payments_disabled", 503);
   }
 
@@ -144,7 +148,8 @@ export function webhookRuntime(): StripeRuntime {
   if (!secretKey.startsWith(environment === "test" ? "sk_test_" : "sk_live_") ||
       !publishableKey.startsWith(environment === "test" ? "pk_test_" : "pk_live_") ||
       !webhookSecret.startsWith("whsec_")) throw new PublicError("stripe_key_mode_mismatch", 503);
-  if (connectWebhookSecret && !connectWebhookSecret.startsWith("whsec_")) {
+  if (connectWebhookSecret &&
+    (!connectWebhookSecret.startsWith("whsec_") || constantTimeEqual(webhookSecret, connectWebhookSecret))) {
     throw new PublicError("stripe_connect_webhook_not_configured", 503);
   }
   return {

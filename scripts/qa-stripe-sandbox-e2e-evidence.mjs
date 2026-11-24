@@ -169,6 +169,9 @@ async function validateTask31SourceContracts() {
 
   assert(connectPreflight.includes("STRIPE_TEST_CONNECT_WEBHOOK_SECRET"));
   assert(connectPreflight.includes("STRIPE_LIVE_CONNECT_WEBHOOK_SECRET"));
+  assert(connectPreflight.includes("MORT_STRIPE_TEST_CONNECT_WEBHOOK_URL"));
+  assert(connectPreflight.includes("stripe-webhook"));
+  assert(connectPreflight.includes("supabase functions list"));
   assert(!/stripe\s+(?:trigger|payment_intents|charges|refunds|transfers)/i.test(connectPreflight));
 
   assert(trigger.includes("[switch]$Execute"));
@@ -202,6 +205,10 @@ async function validateRegressionManifest() {
   );
   const featureQaHelpers = await readFile(
     path.join(root, "scripts", "feature-qa-helpers.mjs"),
+    "utf8",
+  );
+  const localCi = await readFile(
+    path.join(root, "scripts", "stripe-local-ci.mjs"),
     "utf8",
   );
 
@@ -315,8 +322,17 @@ async function validateRegressionManifest() {
   const localRegressionJob =
     workflow.split("  stripe-local-regression:")[1]?.split("\n  expo-reference:")[0] ?? "";
   assert(
-    localRegressionJob.includes("run-mort-stripe-regression.ps1"),
-    "ordinary PR CI must execute the unified non-provider Stripe regression",
+    localRegressionJob.includes("stripe-local-ci.test.mjs") &&
+      localRegressionJob.includes("stripe-local-ci.mjs") &&
+      localRegressionJob.includes("--occupy-default-db-port"),
+    "ordinary PR CI must test and execute the isolated local Stripe regression with the default DB port occupied",
+  );
+  assert(
+    localCi.includes("scripts/run-mort-stripe-regression.ps1") &&
+      localCi.includes("-LocalAuthOnly") &&
+      localCi.includes("MORT_QA_LOCAL_SUPABASE") &&
+      localCi.includes("SUPABASE_DB_URL"),
+    "isolated local Stripe runner must invoke the LocalAuthOnly regression against its own loopback stack",
   );
   assert(
     !localRegressionJob.includes("stripe-sandbox-e2e.ps1"),
@@ -327,6 +343,14 @@ async function validateRegressionManifest() {
   assert(
     !/stripe-sandbox-e2e\.ps1/.test(ordinaryStripeJob),
     "provider sandbox E2E must not run in ordinary pull-request Stripe contracts",
+  );
+  const connectPreflightJob =
+    workflow.split("  stripe-connect-preflight:")[1]?.split("\n  stripe-provider-e2e:")[0] ?? "";
+  assert(
+    connectPreflightJob.includes("github.event_name == 'workflow_dispatch'") &&
+      connectPreflightJob.includes("stripe-connect-webhook-preflight.ps1") &&
+      !connectPreflightJob.includes("stripe-sandbox-e2e.ps1"),
+    "Connect secret/function/URL preflight must be manual and read-only",
   );
   const providerJob = workflow.split("  stripe-provider-e2e:")[1] ?? "";
   assert(
