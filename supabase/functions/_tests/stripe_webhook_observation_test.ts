@@ -61,13 +61,20 @@ const defaults = {
   },
   accounts: {
     id: ids.account,
-    details_submitted: true,
-    payouts_enabled: true,
-    charges_enabled: false,
-    capabilities: { transfers: "active" },
-    requirements: {},
-    country: "US",
-    default_currency: "usd",
+    livemode: false,
+    identity: { country: "US", entity_type: "individual" },
+    defaults: { currency: "usd" },
+    configuration: {
+      recipient: {
+        capabilities: {
+          stripe_balance: {
+            payouts: { status: "active", status_details: [] },
+            stripe_transfers: { status: "active", status_details: [] },
+          },
+        },
+      },
+    },
+    requirements: { entries: [] },
   },
   payouts: {
     id: ids.payout,
@@ -83,14 +90,27 @@ function provider(
   overrides: Partial<Record<Resource, Record<string, unknown>>> = {},
 ) {
   const calls: { name: string; args: unknown[] }[] = [];
-  const values = Object.entries(defaults).map(([name, value]) => [name, {
-    retrieve(...args: unknown[]) {
-      calls.push({ name, args });
-      return Promise.resolve({ ...value, ...overrides[name as Resource] });
+  const values = Object.entries(defaults)
+    .filter(([name]) => name !== "accounts")
+    .map(([name, value]) => [name, {
+      retrieve(...args: unknown[]) {
+        calls.push({ name, args });
+        return Promise.resolve({ ...value, ...overrides[name as Resource] });
+      },
+    }]);
+  const account = { ...defaults.accounts, ...overrides.accounts };
+  const v2 = {
+    core: {
+      accounts: {
+        retrieve(...args: unknown[]) {
+          calls.push({ name: "accountsV2", args });
+          return Promise.resolve(account);
+        },
+      },
     },
-  }]);
+  };
   return {
-    stripe: Object.fromEntries(values) as Parameters<typeof observe>[0],
+    stripe: { ...Object.fromEntries(values), v2 } as Parameters<typeof observe>[0],
     calls,
   };
 }
@@ -219,18 +239,50 @@ Deno.test("payout failure is read under the Connect account and keeps its safe r
   }]);
 });
 
-Deno.test("guardian verification and disabled accounts cannot yield a complete status", async () => {
+Deno.test("Accounts v2 Connect status is read from recipient capabilities and requirements", async () => {
   const target = targetFor(
     event("account.updated", ids.account, ids.account),
     "connect",
   )!;
+  const active = provider();
+  const activeResult = await observe(active.stripe, target, "test", "account.updated");
+  assert.equal(activeResult.state, "complete");
+  assert.equal(activeResult.payouts, true);
+  assert.equal(activeResult.transfers, "active");
+  assert.equal(activeResult.country, "US");
+  assert.equal(activeResult.currency, "USD");
+  assert.deepEqual(active.calls[0].args, [
+    ids.account,
+    { include: ["configuration.recipient", "identity", "requirements", "defaults"] },
+  ]);
+
   const pending = provider({
     accounts: {
-      requirements: { pending_verification: ["relationship.legal_guardian"] },
+      requirements: {
+        entries: [{
+          requirement: "relationship.legal_guardian",
+          description: "relationship.legal_guardian",
+          minimum_deadline: { status: "pending_verification" },
+        }],
+      },
     },
   });
   const restricted = provider({
-    accounts: { requirements: { disabled_reason: "rejected.fraud" } },
+    accounts: {
+      requirements: {
+        entries: [{ requirement: "identity.individual.id_numbers.us_ssn_last_4", minimum_deadline: { status: "past_due" } }],
+      },
+      configuration: {
+        recipient: {
+          capabilities: {
+            stripe_balance: {
+              payouts: { status: "restricted", status_details: [{ code: "requirements_past_due" }] },
+              stripe_transfers: { status: "restricted", status_details: [{ code: "requirements_past_due" }] },
+            },
+          },
+        },
+      },
+    },
   });
   assert.equal(
     (await observe(pending.stripe, target, "test", "account.updated")).state,
@@ -240,9 +292,21 @@ Deno.test("guardian verification and disabled accounts cannot yield a complete s
     (await observe(pending.stripe, target, "test", "account.updated")).guardian,
     "provider_managed_required",
   );
-  assert.equal(
-    (await observe(restricted.stripe, target, "test", "account.updated")).state,
-    "restricted",
+  const restrictedResult = await observe(restricted.stripe, target, "test", "account.updated");
+  assert.equal(restrictedResult.state, "restricted");
+  assert.equal(restrictedResult.requirements, "past_due");
+  assert.equal(restrictedResult.disabled, "requirements_past_due");
+});
+
+Deno.test("Accounts v2 account.updated rejects a live account in sandbox mode", async () => {
+  const target = targetFor(
+    event("account.updated", ids.account, ids.account),
+    "connect",
+  )!;
+  const { stripe } = provider({ accounts: { livemode: true } });
+  await assert.rejects(
+    () => observe(stripe, target, "test", "account.updated"),
+    /provider_account_mismatch/,
   );
 });
 
