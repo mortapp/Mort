@@ -32,9 +32,22 @@ try {
   await db.exec(`
     create role anon; create role authenticated; create role service_role;
     create schema auth; create schema private;
-    create function auth.role() returns text language sql as $$select current_setting('request.jwt.claim.role', true)$$;
+    create function auth.role() returns text language sql as $select current_setting('request.jwt.claim.role', true)$;
     set request.jwt.claim.role = 'service_role';
-    create table auth.users (id uuid primary key);
+    create table auth.users (
+      id uuid primary key, email text, email_confirmed_at timestamptz
+    );
+    create table public.profiles (
+      id uuid primary key, role text not null, account_status text not null,
+      date_of_birth date, created_at timestamptz not null default now()
+    );
+    create function private.mort_legal_age_band(p_date_of_birth date)
+      returns text language sql stable as $
+        select case when age(current_date,p_date_of_birth) < interval '13 years' then 'ineligible'
+          when age(current_date,p_date_of_birth) < interval '16 years' then 'teen_13_15'
+          when age(current_date,p_date_of_birth) < interval '18 years' then 'teen_16_17'
+          else 'adult_18_plus' end
+      $;
     create table public.job_contracts (id uuid primary key);
     create table public.job_contract_versions (id uuid primary key);
     create table public.job_payment_obligations (id uuid primary key);
@@ -55,6 +68,37 @@ try {
     "public.stripe_server_record_connected_account_status",
     "public.stripe_server_apply_dispute_event", "public.stripe_server_apply_payout_event",
   ]) await db.exec(fn(foundation, name));
+  await db.exec("alter table private.stripe_runtime_controls add column sandbox_provider_qa_approved boolean not null default false");
+  await db.exec(sql("20261124010000_harden_sandbox_connect_approval_and_profile_scope.sql"));
+  await db.exec(sql("20261124010500_use_canonical_mort_age_band_for_stripe_connect.sql"));
+  await db.exec(`
+    insert into auth.users (id,email,email_confirmed_at) values
+      ('37a92acd-7f02-4f6e-8e86-a2714ac1dea0','qa-teen@qa.mortapp.org',now()),
+      ('47a92acd-7f02-4f6e-8e86-a2714ac1dea0','ordinary-teen@mortapp.org',now());
+    insert into public.profiles (id,role,account_status,date_of_birth) values
+      ('37a92acd-7f02-4f6e-8e86-a2714ac1dea0','teen','active',current_date - interval '15 years'),
+      ('47a92acd-7f02-4f6e-8e86-a2714ac1dea0','teen','active',current_date - interval '15 years');
+    update private.stripe_runtime_controls set mode='sandbox',
+      stripe_connected_onboarding_enabled=true, connected_accounts_approved=true,
+      sandbox_provider_qa_approved=false;
+  `);
+  await assert.rejects(
+    read("select public.stripe_server_prepare_connected_account($1,'test') as value",
+      ["37a92acd-7f02-4f6e-8e86-a2714ac1dea0"]),
+    /sandbox_provider_qa_not_approved/,
+  );
+  await db.exec("update private.stripe_runtime_controls set sandbox_provider_qa_approved=true");
+  const qaPrepared = await read(
+    "select public.stripe_server_prepare_connected_account($1,'test') as value",
+    ["37a92acd-7f02-4f6e-8e86-a2714ac1dea0"],
+  );
+  assert.equal(qaPrepared.ok, true);
+  assert.equal(qaPrepared.age_band, "teen_13_15");
+  await assert.rejects(
+    read("select public.stripe_server_prepare_connected_account($1,'test') as value",
+      ["47a92acd-7f02-4f6e-8e86-a2714ac1dea0"]),
+    /sandbox_test_account_required/,
+  );
   const lease = sql("20260916235113_mort_stripe_webhook_lease_v1.sql");
   await db.exec(lease.slice(0, lease.indexOf("create or replace function")));
   await db.exec(sql("20260919000711_mort_stripe_webhook_retry_state_v1.sql"));
