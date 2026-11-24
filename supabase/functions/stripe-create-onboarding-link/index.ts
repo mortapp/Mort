@@ -11,7 +11,7 @@ Deno.serve(async (request: Request) => {
     const payload = await readJson<{ return_url?: unknown; refresh_url?: unknown }>(request);
     const returnUrl = validatedRedirectUrl(payload.return_url, "return");
     const refreshUrl = validatedRedirectUrl(payload.refresh_url, "refresh");
-    const stripeRuntime = await runtime(context);
+    const stripeRuntime = await runtime(context, false, true);
     requireSandboxConnect(stripeRuntime);
     const { data: prepared, error: prepareError } = await context.serviceClient.rpc("stripe_server_prepare_connected_account", {
       p_user_id: context.user.id,
