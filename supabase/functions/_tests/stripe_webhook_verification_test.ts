@@ -1,4 +1,4 @@
-import Stripe from "npm:stripe@22.1.1";
+import Stripe from "npm:stripe@23.2.0";
 import { assertEquals, assertRejects } from "jsr:@std/assert@1";
 import { PublicError } from "../_shared/stripe.ts";
 import { assertWebhookEventRoute, verifyWebhookEvent } from "../stripe-webhook/verification.ts";

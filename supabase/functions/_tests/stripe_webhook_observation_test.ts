@@ -1,4 +1,4 @@
-import type Stripe from "npm:stripe@22.1.1";
+import type Stripe from "npm:stripe@23.2.0";
 import assert from "node:assert/strict";
 import {
   observe,
@@ -180,6 +180,25 @@ Deno.test("decline, processing and cancellation normalize without marking a paym
   }
 });
 
+Deno.test("appeal dispute states normalize to active-review states", async () => {
+  const target = targetFor(
+    event("charge.dispute.updated", ids.dispute),
+    "platform",
+  )!;
+  for (
+    const [providerState, expected] of [
+      ["appeal_needs_response", "needs_response"],
+      ["appeal_under_review", "under_review"],
+    ]
+  ) {
+    const { stripe } = provider({ disputes: { status: providerState } });
+    assert.equal(
+      (await observe(stripe, target, "test", "charge.dispute.updated")).state,
+      expected,
+    );
+  }
+});
+
 Deno.test("rejects under-capture and cross-environment provider objects", async () => {
   const target = targetFor(
     event("payment_intent.succeeded", ids.payment),
@@ -261,8 +280,24 @@ Deno.test("Accounts v2 Connect status is read from recipient capabilities and re
       requirements: {
         entries: [{
           description: "relationship.legal_guardian",
-          minimum_deadline: { status: "pending_verification" },
+          minimum_deadline: { status: "eventually_due" },
         }],
+      },
+      configuration: {
+        recipient: {
+          capabilities: {
+            stripe_balance: {
+              payouts: {
+                status: "pending",
+                status_details: [{ code: "requirements_pending_verification" }],
+              },
+              stripe_transfers: {
+                status: "pending",
+                status_details: [{ code: "requirements_pending_verification" }],
+              },
+            },
+          },
+        },
       },
     },
   });
@@ -286,6 +321,10 @@ Deno.test("Accounts v2 Connect status is read from recipient capabilities and re
   assert.equal(
     (await observe(pending.stripe, target, "test", "account.updated")).state,
     "in_progress",
+  );
+  assert.equal(
+    (await observe(pending.stripe, target, "test", "account.updated")).requirements,
+    "pending_verification",
   );
   assert.equal(
     (await observe(pending.stripe, target, "test", "account.updated")).guardian,

@@ -1,4 +1,4 @@
-import type Stripe from "npm:stripe@22.1.1";
+import type Stripe from "npm:stripe@23.2.0";
 
 export const webhookRoutes = {
   platform: {
@@ -96,7 +96,7 @@ export async function observe(
       if (!ownsPayment(item, environment)) {
         return ignored("payment_intent_not_owned_by_mort");
       }
-      const status = ({
+      const paymentStates: Record<string, string | null> = {
         succeeded: "succeeded",
         processing: "processing",
         requires_action: "requires_action",
@@ -104,7 +104,8 @@ export async function observe(
         canceled: "canceled",
         requires_confirmation: null,
         requires_capture: null,
-      } as const)[item.status];
+      };
+      const status = paymentStates[item.status];
       if (
         !status || (status === "payment_failed" && !item.last_payment_error)
       ) {
@@ -231,16 +232,19 @@ export async function observe(
       if (payment.metadata.mort_tip_attempt_ref) {
         throw new Error("tip_dispute_reconciliation_required");
       }
-      const state = ({
+      const disputeStates: Record<string, string> = {
         warning_needs_response: "warning_received",
         warning_under_review: "under_review",
         warning_closed: "closed",
         needs_response: "needs_response",
         under_review: "under_review",
+        appeal_needs_response: "needs_response",
+        appeal_under_review: "under_review",
         won: "won",
         lost: "lost",
         prevented: "closed",
-      } as const)[item.status];
+      };
+      const state = disputeStates[item.status];
       if (!state) throw new Error("unknown_dispute_status");
       return {
         ...base,
@@ -261,27 +265,33 @@ export async function observe(
       }
       const entries = item.requirements?.entries ?? [];
       const statuses = entries.map((entry) => entry.minimum_deadline?.status);
-      const requirements = statuses.includes("past_due")
-        ? "past_due"
-        : statuses.includes("currently_due")
-        ? "currently_due"
-        : statuses.includes("pending_verification")
-        ? "pending_verification"
-        : statuses.includes("eventually_due")
-        ? "eventually_due"
-        : "satisfied";
       const recipient = item.configuration?.recipient?.capabilities?.stripe_balance;
       const transferStatus = recipient?.stripe_transfers?.status ?? "inactive";
       const payoutStatus = recipient?.payouts?.status ?? "inactive";
-      const transfers = ["active", "pending", "inactive"].includes(transferStatus)
-        ? transferStatus
-        : "restricted";
-      const payouts = payoutStatus === "active";
       const statusDetails = [
         ...(recipient?.stripe_transfers?.status_details ?? []),
         ...(recipient?.payouts?.status_details ?? []),
       ];
-      const disabled = statusDetails.find((detail) => typeof detail.code === "string")?.code ??
+      const pendingVerification = statusDetails.some((detail) =>
+        detail.code === "requirements_pending_verification"
+      );
+      const requirements = statuses.includes("past_due")
+        ? "past_due"
+        : statuses.includes("currently_due")
+        ? "currently_due"
+        : pendingVerification
+        ? "pending_verification"
+        : statuses.includes("eventually_due")
+        ? "eventually_due"
+        : "satisfied";
+      const transfers = ["active", "pending", "inactive"].includes(transferStatus)
+        ? transferStatus
+        : "restricted";
+      const payouts = payoutStatus === "active";
+      const disabled = statusDetails.find((detail) =>
+        detail.code !== "requirements_pending_verification" &&
+        detail.code !== "determining_status"
+      )?.code ??
         (transfers === "restricted" || payoutStatus === "restricted" || payoutStatus === "rejected"
           ? "recipient_capability_restricted"
           : requirements === "past_due"
