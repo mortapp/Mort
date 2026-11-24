@@ -57,6 +57,8 @@ jobs:
           supabase/functions/account-deletion-processor/index.ts
           supabase/functions/identity-verification-session/index.ts
           supabase/functions/_shared/support_runtime.ts
+          supabase/functions/stripe-create-connected-account/index.ts
+          supabase/functions/stripe-create-onboarding-link/index.ts
           supabase/functions/stripe-webhook/index.ts
       - run: deno test --no-config --lock=deno.lock --frozen --node-modules-dir=none --allow-read --allow-env supabase/functions/_tests
       - name: Test isolated Stripe Supabase port allocation
@@ -362,5 +364,4 @@ jobs:
           path: build/device-test/mort-prod-device-test.apk
           if-no-files-found: error
           retention-days: 7
-
 
