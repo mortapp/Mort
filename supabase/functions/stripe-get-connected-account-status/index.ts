@@ -2,8 +2,8 @@ import { authenticate, json, options, requireRateLimit, runtime, safeError } fro
 import { requireSandboxConnect } from "../_shared/stripe_sandbox_connect.ts";
 
 type V2Requirement = {
+  description?: string;
   minimum_deadline?: { status?: string };
-  requirement?: string;
 };
 
 type V2RecipientAccount = {
@@ -96,7 +96,9 @@ Deno.serve(async (request: Request) => {
         p_payouts_enabled: payouts === "active",
         p_transfers_capability_status: transfers,
         p_requirements_status: requirementState,
-        p_guardian_requirement_status: "provider_managed_unknown",
+        p_guardian_requirement_status: entries.some((entry) =>
+          /guardian/i.test(entry.description ?? "")
+        ) ? "provider_managed_required" : "provider_managed_unknown",
         p_disabled_reason_code: requirementState === "past_due"
           ? "requirements_past_due"
           : transfers === "restricted" || payouts === "restricted"
