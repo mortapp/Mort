@@ -7,7 +7,7 @@ Deno.serve(async (request: Request) => {
   try {
     const context = await authenticate(request);
     await requireRateLimit(context, "stripe_connected_account_status");
-    const stripeRuntime = await runtime(context);
+    const stripeRuntime = await runtime(context, false, true);
     const { data: prepared, error: prepareError } = await context.serviceClient.rpc("stripe_server_prepare_connected_account", {
       p_user_id: context.user.id,
       p_environment: stripeRuntime.environment,
