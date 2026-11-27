@@ -61,3 +61,21 @@ const f=[...j,...a].filter(r=>!r.pass);
 console.log(`journeys ${j.length-j.filter(r=>!r.pass).length}/${j.length}, authz ${a.length-a.filter(r=>!r.pass).length}/${a.length}`);
 process.exit(f.length?1:0);' "$OUT/journeys.json" "$OUT/authz.json"
 [ "$J" = 0 ] && [ "$A" = 0 ]
+
+if [ "${RUN_ACCOUNT_DELETION:-0}" = 1 ] && [ "${PRE_FIX:-0}" != 1 ]; then
+  # Entirely standalone and short-lived, using this replica's service key.
+  # The test client additionally rejects any non-loopback endpoint.
+  export SUPABASE_URL="${API_URL:?local API_URL is required}"
+  export SUPABASE_SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:?local SERVICE_ROLE_KEY is required}"
+  export ACCOUNT_DELETION_WORKER_SECRET="$(openssl rand -hex 32)"
+  export MORT_LOCAL_DELETION_WORKER_URL="http://127.0.0.1:8000"
+  deno run --no-config --lock=deno.lock --frozen --node-modules-dir=none \
+    --allow-env --allow-net supabase/functions/account-deletion-processor/index.ts \
+    >"$OUT/account-deletion-worker.log" 2>&1 &
+  WORKER_PID=$!
+  trap 'kill "$WORKER_PID" 2>/dev/null || true' EXIT
+  ready_status="$(curl --silent --show-error --max-time 2 --retry 10 --retry-connrefused \
+    -o /dev/null -w '%{http_code}' "$MORT_LOCAL_DELETION_WORKER_URL")"
+  [ "$ready_status" = "405" ]
+  node scripts/qa/replica/account-deletion.mjs | tee "$OUT/account-deletion.log"
+fi
