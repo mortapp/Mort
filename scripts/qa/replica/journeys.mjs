@@ -13,7 +13,6 @@ import {
 } from './lib.mjs';
 
 assertLocal();
-const guardianConsentDraft = process.env.RUN_GUARDIAN_CONSENT_DRAFT === '1';
 const run = Date.now().toString(36);
 const PW = 'Mort-Replica-Journey-7731!';
 const yearsAgo = (y, extraDays = 40) => {
@@ -129,7 +128,6 @@ async function adultJourney(key, role) {
 await adultJourney('adult_a', 'adult');
 await adultJourney('adult_b', 'adult');
 await adultJourney('guardian', 'guardian');
-if (guardianConsentDraft) await adultJourney('guardian_other', 'guardian');
 
 for (const key of ['adult_a', 'adult_b']) {
   const a = actors[key];
@@ -173,18 +171,15 @@ async function teenJourney(key, guardianEmail) {
     const sv = await staffVerify(actors.moderator, a, type);
     record('P4-verification', `${key}: moderator verifies ${type}`, sv.ok, sv.ok ? '' : sv);
   }
-  if (!guardianConsentDraft) {
-    const act = await rpc(actors.admin.client, 'admin_set_account_status_v2', { p_user_id: a.id, p_status: 'active', p_reason_code: 'verification_complete', p_reason: 'Replica acceptance activation' });
-    record('P4-activation', `${key}: admin activation`, okData(act), act.data ?? act.error?.message);
-    const p = await profileOf(a);
-    record('P4-activation', `${key}: profile active teen`, p?.account_status === 'active' && p?.role === 'teen', p);
-  }
+  const act = await rpc(actors.admin.client, 'admin_set_account_status_v2', { p_user_id: a.id, p_status: 'active', p_reason_code: 'verification_complete', p_reason: 'Replica acceptance activation' });
+  record('P4-activation', `${key}: admin activation`, okData(act), act.data ?? act.error?.message);
+  const p = await profileOf(a);
+  record('P4-activation', `${key}: profile active teen`, p?.account_status === 'active' && p?.role === 'teen', p);
   return { a, invite };
 }
 
 const teenA = await teenJourney('teen_a', actors.guardian.email);
 await teenJourney('teen_b', null);
-if (guardianConsentDraft) await teenJourney('teen_c', null);
 
 // ---------- activation must require completed onboarding (D3 regression) ----------
 {
@@ -209,27 +204,19 @@ if (guardianConsentDraft) await teenJourney('teen_c', null);
 }
 
 // ---------- guardian activation + linking ----------
-async function activateGuardian(g, label) {
-  const pre = await profileOf(g);
-  const ev = await submitEvidence(g, 'identity');
-  record('P4-guardian', `${label}: identity evidence upload + submit`, ev.ok, ev.ok ? '' : ev);
-  const sv = await staffVerify(actors.moderator, g, 'identity');
-  record('P4-guardian', `${label}: moderator verifies identity`, sv.ok, sv.ok ? '' : sv);
-  const act = await rpc(actors.admin.client, 'admin_set_account_status_v2', { p_user_id: g.id, p_status: 'active', p_reason_code: 'verification_complete', p_reason: 'Replica acceptance activation' });
-  const post = await profileOf(g);
-  record('P4-guardian', `${label}: account can be activated through staff review`, post?.account_status === 'active', { before: pre?.account_status, activation: act.data ?? act.error?.message, after: post?.account_status });
-}
-
-await activateGuardian(actors.guardian, 'guardian');
 {
   const g = actors.guardian;
+  const pre = await profileOf(g);
+  const ev = await submitEvidence(g, 'identity');
+  record('P4-guardian', 'guardian: identity evidence upload + submit', ev.ok, ev.ok ? '' : ev);
+  const sv = await staffVerify(actors.moderator, g, 'identity');
+  record('P4-guardian', 'guardian: moderator verifies identity', sv.ok, sv.ok ? '' : sv);
+  const act = await rpc(actors.admin.client, 'admin_set_account_status_v2', { p_user_id: g.id, p_status: 'active', p_reason_code: 'verification_complete', p_reason: 'Replica acceptance activation' });
+  const post = await profileOf(g);
+  record('P4-guardian', 'guardian: account can be activated through staff review', post?.account_status === 'active', { before: pre?.account_status, activation: act.data ?? act.error?.message, after: post?.account_status });
   const code = teenA.invite?.data?.invite_code;
   const acc = code ? await rpc(g.client, 'accept_guardian_invite', { p_invite_code: code }) : { error: { message: 'no invite code' } };
   record('P4-guardian', 'guardian: accept_guardian_invite links teen_a', !acc.error, acc.error?.message ?? acc.data);
-}
-if (guardianConsentDraft) {
-  const { exerciseGuardianConsent } = await import('./guardian-consent.mjs');
-  await exerciseGuardianConsent({ actors, db, profileOf, activateGuardian });
 }
 
 const fs = await import('node:fs');
