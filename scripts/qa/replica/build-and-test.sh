@@ -8,16 +8,11 @@
 #
 #   scripts/qa/replica/build-and-test.sh            # parity + pending migrations + tests
 #   PRE_FIX=1 scripts/qa/replica/build-and-test.sh  # parity + tests WITHOUT pending migrations
-#   RUN_GUARDIAN_CONSENT_DRAFT=1 scripts/qa/replica/build-and-test.sh  # opt-in unapproved draft
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 REC="$ROOT/supabase/production-baseline-recovery"
 PROJ="$ROOT/supabase/production-replica"
 OUT="${REPLICA_OUT:-$ROOT/.replica-out}"
-if [ "${RUN_GUARDIAN_CONSENT_DRAFT:-0}" = 1 ] && [ "${PRE_FIX:-0}" = 1 ]; then
-  echo "The guardian consent draft requires the reviewed replica baseline."
-  exit 1
-fi
 mkdir -p "$OUT"
 
 cd "$PROJ"
@@ -54,11 +49,6 @@ if [ "${PRE_FIX:-0}" != "1" ]; then
   done <"$ROOT/supabase/production-baseline-migrations/PENDING_PRODUCTION_APPROVAL.txt"
 fi
 
-if [ "${RUN_GUARDIAN_CONSENT_DRAFT:-0}" = 1 ]; then
-  echo "== disposable-replica-only teen guardian consent draft"
-  psqlf "$ROOT/supabase/production-baseline-migrations/drafts/teen_guardian_consent_v1.sql"
-fi
-
 cd "$ROOT"
 export ACTORS_OUT="$OUT/actors.json" JOURNEY_RESULTS="$OUT/journeys.json" AUTHZ_RESULTS="$OUT/authz.json"
 set +e
@@ -71,21 +61,3 @@ const f=[...j,...a].filter(r=>!r.pass);
 console.log(`journeys ${j.length-j.filter(r=>!r.pass).length}/${j.length}, authz ${a.length-a.filter(r=>!r.pass).length}/${a.length}`);
 process.exit(f.length?1:0);' "$OUT/journeys.json" "$OUT/authz.json"
 [ "$J" = 0 ] && [ "$A" = 0 ]
-
-if [ "${RUN_ACCOUNT_DELETION:-0}" = 1 ] && [ "${PRE_FIX:-0}" != 1 ]; then
-  # Entirely standalone and short-lived, using this replica's service key.
-  # The test client additionally rejects any non-loopback endpoint.
-  export SUPABASE_URL="${API_URL:?local API_URL is required}"
-  export SUPABASE_SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:?local SERVICE_ROLE_KEY is required}"
-  export ACCOUNT_DELETION_WORKER_SECRET="$(openssl rand -hex 32)"
-  export MORT_LOCAL_DELETION_WORKER_URL="http://127.0.0.1:8000"
-  deno run --no-config --lock=deno.lock --frozen --node-modules-dir=none \
-    --allow-env --allow-net supabase/functions/account-deletion-processor/index.ts \
-    >"$OUT/account-deletion-worker.log" 2>&1 &
-  WORKER_PID=$!
-  trap 'kill "$WORKER_PID" 2>/dev/null || true' EXIT
-  ready_status="$(curl --silent --show-error --max-time 2 --retry 10 --retry-connrefused \
-    -o /dev/null -w '%{http_code}' "$MORT_LOCAL_DELETION_WORKER_URL")"
-  [ "$ready_status" = "405" ]
-  node scripts/qa/replica/account-deletion.mjs | tee "$OUT/account-deletion.log"
-fi
